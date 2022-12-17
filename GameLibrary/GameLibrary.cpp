@@ -29,32 +29,8 @@
 
 
 // Game logic
-void InitializeSquares(game_squares* pGameSquares) {
-    color Colors[MAX_DIFFICULTY] = { Red, Orange, Yellow, Green, Cyan, Blue, Magenta };
-
-    float Tone = 220;
-    int Padding = 20;
-    int Length = 100;
-    for (int i = 0; i < MAX_DIFFICULTY; i++) {
-        pGameSquares->Colors[i] = Colors[i];
-        pGameSquares->Rects[i].Left = Padding + i * (Padding + Length);
-        pGameSquares->Rects[i].Top = Padding;
-        pGameSquares->Rects[i].Width = Length;
-        pGameSquares->Rects[i].Height = Length;
-        pGameSquares->Tones[i] = Tone;
-        Tone *= twroot;
-        if (i != 2 && i != 6) {
-            Tone *= twroot;
-        }
-    }
-}
-
-void GenerateSequence(int nColors, game_state* pGameState) {
-    srand(time(NULL));
-    for (int i = 0; i < MAX_SEQUENCE_LENGTH; i++) {
-        int Random = rand() % nColors;
-        pGameState->Sequence[i] = Random;
-    }
+void Initialize(game_state* pGameState) {
+    // Initialization code
 }
 
 bool Collision(game_rect Rect, game_screen_position Cursor) {
@@ -234,6 +210,7 @@ void DebugPlotSoundBuffer(game_offscreen_buffer* pScreenBuffer, game_sound_buffe
     uint32 SampleCount = pSoundBuffer->BufferSize;
     uint16 PlotHeight = 200;
     uint16 PlotWidth = 400;
+    uint16 Amplitude = 4000;
 
     int16* SampleOut = pSoundBuffer->SampleOut;
     for (int i = 0; i < SampleCount; i++) {
@@ -244,54 +221,8 @@ void DebugPlotSoundBuffer(game_offscreen_buffer* pScreenBuffer, game_sound_buffe
     }
 }
 
-void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* pSoundBuffer, game_state* pGameState, int SelectedSquare) {
-    static float Phase;
-    static float Tone;
-    static uint8 TransitionCount;
-    static bool SoundOn = false;
-    uint8 TransitionMax = 3;
-
-    game_screen_position PreviousOrigin = { 20, 400, 0 };
-    game_screen_position Origin = { 420, 400, 0 };
-
-    if (SelectedSquare < 0) {
-        if (SoundOn) {
-            if (TransitionCount == TransitionMax) {
-                SoundOn = false;
-                //DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
-                //DebugPlotSoundBuffer(ScreenBuffer, pSoundBuffer, Origin);
-            }
-            else {
-                Phase = WriteSineWave(pSoundBuffer, Tone, Phase);
-                FadeOut(pSoundBuffer, TransitionCount);
-                TransitionCount++;
-                //DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
-                //DebugPlotSoundBuffer(ScreenBuffer, pSoundBuffer, Origin);
-            }
-        }
-        if (!SoundOn) {
-            TransitionCount = 0;
-            Phase = 0;
-            Silence(pSoundBuffer);
-        }
-    }
-    else {
-        if (!SoundOn) {
-            if (TransitionCount == TransitionMax) {
-                SoundOn = true;
-            }
-            else {
-                Tone = pGameState->GameSquares.Tones[SelectedSquare];
-                Phase = WriteSineWave(pSoundBuffer, Tone, Phase);
-                FadeIn(pSoundBuffer, TransitionCount);
-                TransitionCount++;
-            }
-        }
-        if (SoundOn) {
-            TransitionCount = 0;
-            Phase = WriteSineWave(pSoundBuffer, Tone, Phase);
-        }
-    }
+void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSoundBuffer, game_state* pGameState) {
+    // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
 }
 
 
@@ -300,41 +231,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     if (!Memory->IsInitialized) {
-        pGameState->Difficulty = 7;
         Memory->IsInitialized = true;
-        GenerateSequence(pGameState->Difficulty, pGameState);
-        InitializeSquares(&(pGameState->GameSquares));
+        Initialize(pGameState);
     }
 
-    //static int Count = 0;
-    //static int BlippedSquare = -1;
-    //static int SquareIndex = 0;
-    //if (Count == 60) {
-    //    Count = 0;
-    //    if (SquareIndex >= MAX_DIFFICULTY) {
-    //        SquareIndex = 0;
-    //    }
-    //    else {
-    //        SquareIndex++;
-    //    }
-    //    BlippedSquare = pGameState->Sequence[SquareIndex];
-    //}
-    //else {
-    //    Count++;
-    //}
-
-    int SelectedSquare = -1;
-    for (int i = 0; i < pGameState->Difficulty; i++) {
-        game_rect Rect = pGameState->GameSquares.Rects[i];
-        color Color = pGameState->GameSquares.Colors[i];
-        if (Collision(Rect, Input->Mouse.Cursor) && Input->Mouse.LeftClick.IsDown) {
-            SelectedSquare = i;
-            Color = Lighten(Color);
-        }
-        DrawRectangle(ScreenBuffer, Rect, Color);
-    }
-
-    GameOutputSound(ScreenBuffer, PreviousSoundBuffer, SoundBuffer, pGameState, SelectedSquare);
+    GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
 
     // Debug mouse position
     //if (Input->Mouse.LeftClick.IsDown) {

@@ -102,44 +102,6 @@ WNDDIMENSION GetWindowDimension(HWND Window) {
     return Result;
 };
 
-VOID RenderOnBuffer(OFFSCREENBUFFER* Buffer, int XOffset, int YOffset) {
-    uint8* Row = (uint8*)Buffer->Memory;
-    for (int Y = 0; Y < Buffer->Height; ++Y) {
-        uint32* Pixel = (uint32*)Row;
-        for (int X = 0; X < Buffer->Width; ++X) {
-            // Degradado chuli
-            uint8 Red = 0xff;
-            uint8 Green = X + XOffset;
-            uint8 Blue = Y + YOffset;
-
-            // Failed attempt at using waves
-            // double w = 0.01;
-            // double XPhase = w*(X) + XOffset;
-            // double YPhase = w*(Y) + YOffset;
-            // double XsinValue = fabs(sin(XPhase));
-            // double YsinValue = fabs(sin(YPhase));
-            // double Amplitude = 255;
-
-            // uint8 PossibleGreen = (uint8) Amplitude * XsinValue;
-            // uint8 PossibleBlue = (uint8) Amplitude * YsinValue;
-
-            // double BluePhase = cos(w*(Y + YOffset));
-
-
-            // White noise
-            // uint8 Gray = rand() % 255;
-            // uint8 Red = Gray;
-            // uint8 Green = Gray;
-            // uint8 Blue = Gray;
-
-
-            uint32 RGB_color = (Red << 16) | (Green << 8) | Blue;
-
-            *Pixel++ = RGB_color;
-        }
-        Row += Buffer->Pitch;
-    }
-}
 
 VOID ResizeDIBSection(OFFSCREENBUFFER* Buffer, int Width, int Height) {
 
@@ -331,14 +293,6 @@ PLATFORM_WRITE_ENTIRE_FILE(PlatformWriteEntireFile) {
         // debug
     }
     return Result;
-}
-
-int GetHorizontalShift(uint32 X) {
-    return (X / 10);
-}
-
-int GetVerticalShift(uint32 Y) {
-    return (Y / 100);
 }
 
 // Recording and playback
@@ -979,7 +933,18 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
         *WindowPtr = hWnd;
     }
 
-    MoveWindow(hWnd, 200, 200, 875, 180, 0);
+    // Starting resolution
+    int ScreenWidth = GetSystemMetrics(SM_CXSCREEN);
+    int ScreenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+    int WindowWidth = 600;
+    int WindowHeight = 400;
+
+    // This code starts the window centered
+    int X = (ScreenWidth / 2) - (WindowWidth / 2);
+    int Y = (ScreenHeight / 2) - (WindowHeight / 2);
+
+    MoveWindow(hWnd, X, Y, WindowWidth, WindowHeight, 0);
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
 

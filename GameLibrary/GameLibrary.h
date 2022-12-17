@@ -74,9 +74,6 @@ struct game_screen_position {
     uint32 Z;
 };
 
-static const int MAX_SEQUENCE_LENGTH = 10;
-static const int MAX_DIFFICULTY = 7;
-
 // Color
 struct color {
     uint8 R;
@@ -171,19 +168,8 @@ struct game_input {
     game_mouse_input Mouse;
 };
 
-struct game_squares {
-    color Colors[MAX_DIFFICULTY];
-    float Tones[MAX_DIFFICULTY];
-    game_rect Rects[MAX_DIFFICULTY];
-};
-
 struct game_state {
-    bool IsFinished;
-    bool InputExpected;
-    int Difficulty;
-    int Sequence[MAX_SEQUENCE_LENGTH];
-    int Turn;
-    game_squares GameSquares;
+
 };
 
 struct record_and_playback {
@@ -222,5 +208,4 @@ struct game_memory {
 
 #define GAME_UPDATE_AND_RENDER(name) void GAMELIBRARY_API name(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, game_offscreen_buffer* ScreenBuffer, game_input* Input)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
-//void GameUpdateAndRender(game_memory* pMemory, game_sound_buffer* SoundBuffer, game_offscreen_buffer* ScreenBuffer, game_input* Input);
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender);
