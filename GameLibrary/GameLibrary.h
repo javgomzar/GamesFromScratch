@@ -92,6 +92,8 @@ static color Magenta = { 255 - Attenuation, 0, 255 - Attenuation };
 static color Yellow = { 255 - Attenuation, 255 - Attenuation, 0 };
 static color Cyan = { 0, 220 - Attenuation, 255 - Attenuation };
 static color Orange = { 255 - Attenuation, 160 - Attenuation, 0 };
+static color LightGray = {200, 200, 200};
+static color DarkGray = {100, 100, 100};
 
 uint32 GetColorBytes(color Color) {
     return (Color.R << 16) | (Color.G << 8) | Color.B;
@@ -168,8 +170,20 @@ struct game_input {
     game_mouse_input Mouse;
 };
 
-struct game_state {
+struct game_board {
+    int Width;
+    int Height;
+    bool* IsAlive;
+};
 
+const int BOARD_WIDTH = 60;
+const int BOARD_HEIGHT = 40;
+uint8 SQUARE_LENGTH = 20;
+color ALIVE_COLOR = Green;
+color DEAD_COLOR = Magenta;
+
+struct game_state {
+    game_board Board;
 };
 
 struct record_and_playback {

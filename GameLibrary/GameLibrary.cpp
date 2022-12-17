@@ -29,8 +29,30 @@
 
 
 // Game logic
-void Initialize(game_state* pGameState) {
+void Initialize(game_state* pGameState, bool* pAlive) {
     // Initialization code
+    srand(time(0));
+    pGameState->Board.Width = BOARD_WIDTH;
+    pGameState->Board.Height = BOARD_HEIGHT;
+    pGameState->Board.IsAlive = pAlive;
+
+    for (int i = 0; i < BOARD_HEIGHT; i++) {
+        for (int j = 0; j < BOARD_WIDTH; j++) {
+            // Empty initial board
+            //*pAlive++ = false;
+            
+            // Random inital boards
+            // Fair
+            *pAlive++ = (rand() % 2) == 1;
+
+            // Slightly favor empty
+            //*pAlive++ = (rand() % 10) == 0;
+
+            // Glider
+            //*pAlive++ = (i == 3) && (j >= 1) && (j <=3) || (j == 3 && i == 2) || (i == 1 && j == 2); 
+
+        }
+    }
 }
 
 bool Collision(game_rect Rect, game_screen_position Cursor) {
@@ -38,6 +60,60 @@ bool Collision(game_rect Rect, game_screen_position Cursor) {
         Cursor.X < Rect.Left + Rect.Width &&
         Cursor.Y > Rect.Top &&
         Cursor.Y < Rect.Top + Rect.Height;
+}
+
+bool IsAlive(bool* pAlive, int X, int Y, int Width) {
+    return *pAlive + X + Y * Width;
+}
+
+void CopyBoard(game_board* Board, bool* NewBoard) {    
+    bool* pOld = Board->IsAlive;
+    for (int i = 0; i < Board->Height; i++) {
+        for (int j = 0; j < Board->Width; j++) {
+            *NewBoard++ = *pOld++;
+        }
+    }
+}
+
+void UpdateBoard(game_board* Board) {
+    bool WasAlive[BOARD_HEIGHT][BOARD_WIDTH];
+
+    bool* pIsAlive = Board->IsAlive;
+    bool* pWasAlive = (bool*)WasAlive;
+    CopyBoard(Board, pWasAlive);
+    for (int i = 0; i < Board->Height; i++) {
+        for (int j = 0; j < Board->Width; j++) {
+            int AliveCount = 0;
+
+            // Counting alive neighbors
+            for (int DX = -1; DX <= 1; DX++) {
+                for (int DY = -1; DY <= 1; DY++) {
+                    if (DX != 0 || DY != 0) {
+                        int X = j + DX;
+                        int Y = i + DY;
+
+                        if (X >= 0 && X < Board->Width && 
+                            Y >= 0 && Y < Board->Height &&
+                            WasAlive[Y][X]) {
+                            AliveCount++;
+                        }
+                    }
+                }
+            }
+
+            // Deciding new state
+            if (*pIsAlive) {
+                *pIsAlive = (AliveCount == 2) || (AliveCount == 3);
+            }
+            else if (AliveCount == 3) {
+                *pIsAlive = true;
+            }
+
+            // Proceed to next square
+            pIsAlive++;
+            pWasAlive++;
+        }
+    }
 }
 
 
@@ -123,25 +199,15 @@ void Plot(game_offscreen_buffer* Buffer, game_screen_position Position, color Co
     }
 }
 
-//void RenderWeirdGradient(game_offscreen_buffer* Buffer, game_state* pGameState) {
-//    //int XOffset = pGameState->XOffset;
-//    //int YOffset = pGameState->YOffset;
-//
-//    uint8* Row = (uint8*)Buffer->Memory;
-//    for (int Y = 0; Y < Buffer->Height; ++Y) {
-//        uint32* Pixel = (uint32*)Row;
-//        for (int X = 0; X < Buffer->Width; ++X) {
-//            uint8 Red = 0xff;
-//            //uint8 Green = X + XOffset;
-//            uint8 Blue = Y + YOffset;
-//
-//            uint32 RGB_color = (Red << 16) | (Green << 8) | Blue;
-//
-//            *Pixel++ = RGB_color;
-//        }
-//        Row += Buffer->Pitch;
-//    }
-//}
+void DrawBoard(game_offscreen_buffer* Buffer, game_board Board) {
+    for (int i = 0; i < Board.Height; i++) {
+        for (int j = 0; j < Board.Width; j++) {
+            color Color = *Board.IsAlive++ ? ALIVE_COLOR : DEAD_COLOR;
+            game_rect Rect = {i*SQUARE_LENGTH, j*SQUARE_LENGTH, SQUARE_LENGTH, SQUARE_LENGTH};
+            DrawRectangle(Buffer, Rect, Color);
+        }
+    }
+}
 
 
 // Sound
@@ -229,13 +295,24 @@ void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSo
 // Main
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
+    static int FrameCount;
+    static bool IsAlive[BOARD_HEIGHT][BOARD_WIDTH];
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     if (!Memory->IsInitialized) {
         Memory->IsInitialized = true;
-        Initialize(pGameState);
+        Initialize(pGameState, (bool*)IsAlive);
+        FrameCount = 0;
     }
 
-    GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
+    DrawBoard(ScreenBuffer, pGameState->Board);
+
+    if (FrameCount == 0) {
+        UpdateBoard(&pGameState->Board);
+        FrameCount = 0;
+    }
+    else {
+        FrameCount++;
+    }
 
     // Debug mouse position
     //if (Input->Mouse.LeftClick.IsDown) {

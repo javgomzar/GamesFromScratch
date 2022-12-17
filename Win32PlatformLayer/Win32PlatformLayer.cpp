@@ -937,14 +937,14 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
     int ScreenWidth = GetSystemMetrics(SM_CXSCREEN);
     int ScreenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-    int WindowWidth = 600;
-    int WindowHeight = 400;
+    int WindowWidth = BOARD_WIDTH * SQUARE_LENGTH;
+    int WindowHeight = BOARD_HEIGHT * SQUARE_LENGTH;
 
     // This code starts the window centered
     int X = (ScreenWidth / 2) - (WindowWidth / 2);
     int Y = (ScreenHeight / 2) - (WindowHeight / 2);
 
-    MoveWindow(hWnd, X, Y, WindowWidth, WindowHeight, 0);
+    MoveWindow(hWnd, X, Y, WindowWidth + 15, WindowHeight + 39, 0);
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
 
