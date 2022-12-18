@@ -66,6 +66,7 @@ struct game_sound_buffer {
 
 struct game_button_state {
     bool IsDown;
+    bool WasDown;
 };
 
 struct game_screen_position {
@@ -150,6 +151,7 @@ struct game_keyboard_input {
     game_button_state D;
     game_button_state Q;
     game_button_state E;
+    game_button_state P;
     game_button_state Up;
     game_button_state Down;
     game_button_state Left;
@@ -176,6 +178,11 @@ struct game_board {
     bool* IsAlive;
 };
 
+struct game_board_position {
+    int Row;
+    int Col;
+};
+
 const int BOARD_WIDTH = 60;
 const int BOARD_HEIGHT = 40;
 uint8 SQUARE_LENGTH = 20;
@@ -184,6 +191,8 @@ color DEAD_COLOR = Magenta;
 
 struct game_state {
     game_board Board;
+    bool Pause;
+    char DebugTextBuffer[256];
 };
 
 struct record_and_playback {

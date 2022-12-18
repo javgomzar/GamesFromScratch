@@ -116,6 +116,23 @@ void UpdateBoard(game_board* Board) {
     }
 }
 
+game_board_position ToBoardPosition(game_screen_position ScreenPosition) {
+    game_board_position Result;
+
+    Result.Row = (ScreenPosition.Y - (ScreenPosition.Y % SQUARE_LENGTH)) / SQUARE_LENGTH;
+    Result.Col = (ScreenPosition.X - (ScreenPosition.X % SQUARE_LENGTH)) / SQUARE_LENGTH;
+
+    return Result;
+}
+
+void ChangeSquare(game_board_position Position, game_board Board) {
+    if (Position.Row >= 0 && Position.Row < Board.Height &&
+        Position.Col >= 0 && Position.Col < Board.Width) {
+        bool* pAlive = Board.IsAlive + Position.Col + BOARD_WIDTH * Position.Row;
+        *pAlive = !(*pAlive);
+    }
+}
+
 
 // Render graphics
 void RenderWhiteNoise(game_offscreen_buffer* Buffer) {
@@ -297,22 +314,49 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     static int FrameCount;
     static bool IsAlive[BOARD_HEIGHT][BOARD_WIDTH];
+    static game_board_position OldPosition;
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     if (!Memory->IsInitialized) {
         Memory->IsInitialized = true;
         Initialize(pGameState, (bool*)IsAlive);
         FrameCount = 0;
+        OldPosition = { -1, -1 };
+    }
+
+    if (Input->Keyboard.P.IsDown && !Input->Keyboard.P.WasDown) {
+        pGameState->Pause = !(pGameState->Pause);
+    }
+    
+    sprintf_s(pGameState->DebugTextBuffer, "");
+    if (pGameState->Pause) {
+        if (Input->Mouse.LeftClick.IsDown) {
+            game_board_position Position = ToBoardPosition(Input->Mouse.Cursor);
+            if (Position.Row != OldPosition.Row || Position.Col != OldPosition.Col) {
+                ChangeSquare(Position, pGameState->Board);
+                OldPosition.Row = Position.Row;
+                OldPosition.Col = Position.Col;
+            }
+            sprintf_s(pGameState->DebugTextBuffer, "Position: (%d, %d), Old Position: (%d, %d)\n", Position.Row, Position.Col, OldPosition.Col, OldPosition.Row);
+        }
+        else {
+            OldPosition.Row = -1;
+            OldPosition.Col = -1;
+        }
     }
 
     DrawBoard(ScreenBuffer, pGameState->Board);
 
-    if (FrameCount == 0) {
-        UpdateBoard(&pGameState->Board);
-        FrameCount = 0;
+    int StillFrames = 0;
+    if (!pGameState->Pause) {
+        if (FrameCount == StillFrames) {
+            UpdateBoard(&pGameState->Board);
+            FrameCount = 0;
+        }
+        else {
+            FrameCount++;
+        }
     }
-    else {
-        FrameCount++;
-    }
+    
 
     // Debug mouse position
     //if (Input->Mouse.LeftClick.IsDown) {

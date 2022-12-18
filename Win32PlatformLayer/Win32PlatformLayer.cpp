@@ -376,81 +376,82 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             uint32 VKCode = msg.wParam;
             bool WasDown = (msg.lParam & (1 << 30)) != 0;
 
-            if (!WasDown) {
-                if (VKCode == '1') {
-                    pInput->Keyboard.One.IsDown = true;
+            if (VKCode == '1') {
+                pInput->Keyboard.One.IsDown = true;
+            }
+            else if (VKCode == '2') {
+                pInput->Keyboard.Two.IsDown = true;
+            }
+            else if (VKCode == '3') {
+                pInput->Keyboard.Three.IsDown = true;
+            }
+            else if (VKCode == '4') {
+                pInput->Keyboard.Four.IsDown = true;
+            }
+            else if (VKCode == '5') {
+                pInput->Keyboard.Five.IsDown = true;
+            }
+            else if (VKCode == '6') {
+                pInput->Keyboard.Six.IsDown = true;
+            }
+            else if (VKCode == '7') {
+                pInput->Keyboard.Seven.IsDown = true;
+            }
+            else if (VKCode == '8') {
+                pInput->Keyboard.Eight.IsDown = true;
+            }
+            else if (VKCode == '9') {
+                pInput->Keyboard.Nine.IsDown = true;
+            }
+            else if (VKCode == '0') {
+                pInput->Keyboard.Zero.IsDown = true;
+            }
+            else if (VKCode == 'W') {
+                pInput->Keyboard.W.IsDown = true;
+            }
+            else if (VKCode == 'A') {
+                pInput->Keyboard.A.IsDown = true;
+            }
+            else if (VKCode == 'S') {
+                pInput->Keyboard.S.IsDown = true;
+            }
+            else if (VKCode == 'D') {
+                pInput->Keyboard.D.IsDown = true;
+            }
+            else if (VKCode == 'E') {
+                pInput->Keyboard.E.IsDown = true;
+            }
+            else if (VKCode == 'P') {
+                pInput->Keyboard.P.IsDown = true;
+            }
+            else if (VKCode == 'Q') {
+                pInput->Keyboard.Q.IsDown = true;
+            }
+            else if (VKCode == VK_UP) {
+                pInput->Keyboard.Up.IsDown = true;
+            }
+            else if (VKCode == VK_DOWN) {
+                pInput->Keyboard.Down.IsDown = true;
+            }
+            else if (VKCode == VK_LEFT) {
+                pInput->Keyboard.Left.IsDown = true;
+            }
+            else if (VKCode == VK_RIGHT) {
+                pInput->Keyboard.Right.IsDown = true;
+            }
+            else if (VKCode == VK_ESCAPE) {
+                pInput->Keyboard.Escape.IsDown = true;
+            }
+            else if (VKCode == VK_SPACE) {
+                pInput->Keyboard.Space.IsDown = true;
+            }
+            else if (VKCode == 'L') {
+                if (RecordPlayback->RecordIndex == 0) {
+                    BeginRecordingInput(RecordPlayback, 1);
                 }
-                else if (VKCode == '2') {
-                    pInput->Keyboard.Two.IsDown = true;
-                }
-                else if (VKCode == '3') {
-                    pInput->Keyboard.Three.IsDown = true;
-                }
-                else if (VKCode == '4') {
-                    pInput->Keyboard.Four.IsDown = true;
-                }
-                else if (VKCode == '5') {
-                    pInput->Keyboard.Five.IsDown = true;
-                }
-                else if (VKCode == '6') {
-                    pInput->Keyboard.Six.IsDown = true;
-                }
-                else if (VKCode == '7') {
-                    pInput->Keyboard.Seven.IsDown = true;
-                }
-                else if (VKCode == '8') {
-                    pInput->Keyboard.Eight.IsDown = true;
-                }
-                else if (VKCode == '9') {
-                    pInput->Keyboard.Nine.IsDown = true;
-                }
-                else if (VKCode == '0') {
-                    pInput->Keyboard.Zero.IsDown = true;
-                }
-                else if (VKCode == 'W') {
-                    pInput->Keyboard.W.IsDown = true;
-                }
-                else if (VKCode == 'A') {
-                    pInput->Keyboard.A.IsDown = true;
-                }
-                else if (VKCode == 'S') {
-                    pInput->Keyboard.S.IsDown = true;
-                }
-                else if (VKCode == 'D') {
-                    pInput->Keyboard.D.IsDown = true;
-                }
-                else if (VKCode == 'E') {
-                    pInput->Keyboard.E.IsDown = true;
-                }
-                else if (VKCode == 'Q') {
-                    pInput->Keyboard.Q.IsDown = true;
-                }
-                else if (VKCode == VK_UP) {
-                    pInput->Keyboard.Up.IsDown = true;
-                }
-                else if (VKCode == VK_DOWN) {
-                    pInput->Keyboard.Down.IsDown = true;
-                }
-                else if (VKCode == VK_LEFT) {
-                    pInput->Keyboard.Left.IsDown = true;
-                }
-                else if (VKCode == VK_RIGHT) {
-                    pInput->Keyboard.Right.IsDown = true;
-                }
-                else if (VKCode == VK_ESCAPE) {
-                    pInput->Keyboard.Escape.IsDown = true;
-                }
-                else if (VKCode == VK_SPACE) {
-                    pInput->Keyboard.Space.IsDown = true;
-                }
-                else if (VKCode == 'L') {
-                    if (RecordPlayback->RecordIndex == 0) {
-                        BeginRecordingInput(RecordPlayback, 1);
-                    }
-                    else {
-                        EndRecordingInput(RecordPlayback);
-                        BeginInputPlayback(RecordPlayback, 1);
-                    }
+                else {
+                    EndRecordingInput(RecordPlayback);
+                    BeginInputPlayback(RecordPlayback, 1);
                 }
             }
 
@@ -513,6 +514,9 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             }
             else if (VKCode == 'Q') {
                 pInput->Keyboard.Q.IsDown = false;
+            }
+            else if (VKCode == 'P') {
+                pInput->Keyboard.P.IsDown = false;
             }
             else if (VKCode == VK_UP) {
                 pInput->Keyboard.Up.IsDown = false;
@@ -735,9 +739,35 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         // Peek and dispatch messages
+        Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;
+        Input.Mouse.RightClick.WasDown = Input.Mouse.RightClick.IsDown;
+
+        Input.Keyboard.One.WasDown = Input.Keyboard.One.IsDown;
+        Input.Keyboard.Two.WasDown = Input.Keyboard.Two.IsDown;
+        Input.Keyboard.Three.WasDown = Input.Keyboard.Three.IsDown;
+        Input.Keyboard.Four.WasDown = Input.Keyboard.Four.IsDown;
+        Input.Keyboard.Five.WasDown = Input.Keyboard.Five.IsDown;
+        Input.Keyboard.Six.WasDown = Input.Keyboard.Six.IsDown;
+        Input.Keyboard.Seven.WasDown = Input.Keyboard.Seven.IsDown;
+        Input.Keyboard.Eight.WasDown = Input.Keyboard.Eight.IsDown;
+        Input.Keyboard.Nine.WasDown = Input.Keyboard.Nine.IsDown;
+        Input.Keyboard.Zero.WasDown = Input.Keyboard.Zero.IsDown;
+        Input.Keyboard.W.WasDown = Input.Keyboard.W.IsDown;
+        Input.Keyboard.A.WasDown = Input.Keyboard.A.IsDown;
+        Input.Keyboard.S.WasDown = Input.Keyboard.S.IsDown;
+        Input.Keyboard.D.WasDown = Input.Keyboard.D.IsDown;
+        Input.Keyboard.E.WasDown = Input.Keyboard.E.IsDown;
+        Input.Keyboard.Q.WasDown = Input.Keyboard.Q.IsDown;
+        Input.Keyboard.P.WasDown = Input.Keyboard.P.IsDown;
+        Input.Keyboard.Up.WasDown = Input.Keyboard.Up.IsDown;
+        Input.Keyboard.Down.WasDown = Input.Keyboard.Down.IsDown;
+        Input.Keyboard.Left.WasDown = Input.Keyboard.Left.IsDown;
+        Input.Keyboard.Right.WasDown = Input.Keyboard.Right.IsDown;
+        Input.Keyboard.Escape.WasDown = Input.Keyboard.Escape.IsDown;
+        Input.Keyboard.Space.WasDown = Input.Keyboard.Space.IsDown;
+
         ProcessPendingMessages(&Input, &RecordPlayback);
 
-        Input.Controller = { 0 };
         // XInput Controller
         for (DWORD ControllerIndex = 0; ControllerIndex < XUSER_MAX_COUNT; ++ControllerIndex) {
             XINPUT_STATE ControllerState;
@@ -745,6 +775,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 XINPUT_GAMEPAD* Pad = &ControllerState.Gamepad;
 
                 // Button mapping
+                Input.Controller.PadUp.WasDown = Input.Controller.PadUp.IsDown;
+                Input.Controller.PadDown.WasDown = Input.Controller.PadDown.IsDown;
+                Input.Controller.PadLeft.WasDown = Input.Controller.PadLeft.IsDown;
+                Input.Controller.PadRight.WasDown = Input.Controller.PadRight.IsDown;
+                Input.Controller.LB.WasDown = Input.Controller.LB.IsDown;
+                Input.Controller.RB.WasDown = Input.Controller.RB.IsDown;
+                Input.Controller.AButton.WasDown = Input.Controller.AButton.IsDown;
+                Input.Controller.BButton.WasDown = Input.Controller.BButton.IsDown;
+                Input.Controller.XButton.WasDown = Input.Controller.XButton.IsDown;
+                Input.Controller.YButton.WasDown = Input.Controller.YButton.IsDown;
+                Input.Controller.Start.WasDown = Input.Controller.Start.IsDown;
+                Input.Controller.Back.WasDown = Input.Controller.Back.IsDown;
+                Input.Controller.LS.WasDown = Input.Controller.LS.IsDown;
+                Input.Controller.RS.WasDown = Input.Controller.RS.IsDown;
+                Input.Controller.LT.WasDown = Input.Controller.LT.IsDown;
+                Input.Controller.RT.WasDown = Input.Controller.RT.IsDown;
+
                 Input.Controller.PadUp.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
                 Input.Controller.PadDown.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
                 Input.Controller.PadLeft.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
@@ -796,9 +843,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Mouse.Cursor.Y = MouseP.y;
         Input.Mouse.Cursor.Z = 0;
 
-        char MouseTextBuffer[256];
-        sprintf_s(MouseTextBuffer, "X: %d\nY: %d\n", Input.Mouse.Cursor.X, Input.Mouse.Cursor.Y);
-        OutputDebugStringA(MouseTextBuffer);
+        // Debug mouse position
+        //char MouseTextBuffer[256];
+        //sprintf_s(MouseTextBuffer, "X: %d\nY: %d\n", Input.Mouse.Cursor.X, Input.Mouse.Cursor.Y);
+        //OutputDebugStringA(MouseTextBuffer);
 
         // Render image and sound on buffer
         game_offscreen_buffer Buffer = {};
@@ -817,6 +865,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         // Game function
         GameCode.UpdateAndRender(&GameMemory, &GameSoundBuffers[(currentBuffer + 2) % nBuffers], &GameSoundBuffers[currentBuffer], &Buffer, &Input);
+        game_state GameState = *(game_state*)(GameMemory.PermanentStorage);
+        OutputDebugStringA(GameState.DebugTextBuffer);
 
         WNDDIMENSION Dimension = GetWindowDimension(Window);
         HDC DeviceContext = GetDC(Window);
@@ -857,9 +907,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         double MegaCyclesPerFrame = CyclesElapsed / 1000000.0f;
         //TCHAR TextBuffer[256];
         //wsprintf(TextBuffer, L"%d ms/frame, %d fps, %d Mcycles/frame\n", (int)msPerFrame, (int)FPS, (int)MegaCyclesPerFrame);
-        char TextBuffer[256];
-        sprintf_s(TextBuffer, "%.02f ms/frame, %.02f fps, %.02f Mcycles/frame\n", msPerFrame, FPS, MegaCyclesPerFrame);
-        OutputDebugStringA(TextBuffer);
+        
+        // Framerate debug output
+        //char TextBuffer[256];
+        //sprintf_s(TextBuffer, "%.02f ms/frame, %.02f fps, %.02f Mcycles/frame\n", msPerFrame, FPS, MegaCyclesPerFrame);
+        //OutputDebugStringA(TextBuffer);
 
         if (FirstFrame) {
             pSourceVoice->Start(0, 0);
