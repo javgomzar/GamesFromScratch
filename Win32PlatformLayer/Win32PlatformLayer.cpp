@@ -17,7 +17,6 @@
     - Raw Input (multiple keyboards?)
     - Sleep/timeBeginPeriod
     - ClipCursor() multimonitor support
-    - Fullscreeen support
     - WM_SETCURSOR
     - QueryCancelAutoplay
     - WM_ACTIVEAPP (when we are not the active application)
@@ -88,7 +87,9 @@ struct OFFSCREENBUFFER {
     int Pitch;
     int BytesPerPixel = 4;
 };
+
 OFFSCREENBUFFER BackBuffer;
+WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
 
 WNDDIMENSION GetWindowDimension(HWND Window) {
     WNDDIMENSION Result;
@@ -137,6 +138,31 @@ VOID DisplayBufferToWindow(
         DIB_RGB_COLORS,
         SRCCOPY
     );
+}
+
+VOID ToggleFullScreen(HWND Window) {
+    DWORD Style = GetWindowLong(Window, GWL_STYLE);
+
+    if (Style & WS_OVERLAPPEDWINDOW) {
+        MONITORINFO MonitorInfo = { sizeof(MonitorInfo) };
+        if (GetWindowPlacement(Window, &WindowPosition) &&
+            GetMonitorInfo(MonitorFromWindow(Window, MONITOR_DEFAULTTOPRIMARY), &MonitorInfo))
+        {
+            SetWindowLong(Window, GWL_STYLE, Style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowPos(Window, HWND_TOP,
+                MonitorInfo.rcMonitor.left, MonitorInfo.rcMonitor.top,
+                MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left,
+                MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top,
+                SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        }
+    }
+    else {
+        SetWindowLong(Window, GWL_STYLE, Style | WS_OVERLAPPEDWINDOW);
+        SetWindowPlacement(Window, &WindowPosition);
+        SetWindowPos(Window, NULL, 0, 0, 0, 0,
+            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+    }
+    
 }
 
 // Sound
@@ -273,6 +299,11 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
         }
 
         CloseHandle(FileHandle);
+    }
+    else {
+        DWORD Error = GetLastError();
+        OutputDebugStringA(Filename);
+        OutputDebugStringA("ERROR WHILE OPENING FILE.\n");
     }
     return Result;
 };
@@ -425,6 +456,10 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 else if (VKCode == 'Q') {
                     pInput->Keyboard.Q.IsDown = true;
                 }
+                else if (VKCode == 'F') {
+                    pInput->Keyboard.F.IsDown = true;
+                    ToggleFullScreen(msg.hwnd);
+                }
                 else if (VKCode == VK_UP) {
                     pInput->Keyboard.Up.IsDown = true;
                 }
@@ -442,6 +477,9 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 }
                 else if (VKCode == VK_SPACE) {
                     pInput->Keyboard.Space.IsDown = true;
+                }
+                else if (VKCode == VK_F1) {
+                    pInput->Keyboard.F1.IsDown = true;
                 }
                 else if (VKCode == 'L') {
                     if (RecordPlayback->RecordIndex == 0) {
@@ -514,6 +552,9 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             else if (VKCode == 'Q') {
                 pInput->Keyboard.Q.IsDown = false;
             }
+            else if (VKCode == 'F') {
+                pInput->Keyboard.F.IsDown = false;
+            }
             else if (VKCode == VK_UP) {
                 pInput->Keyboard.Up.IsDown = false;
             }
@@ -531,6 +572,9 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             }
             else if (VKCode == VK_SPACE) {
                 pInput->Keyboard.Space.IsDown = false;
+            }
+            else if (VKCode == VK_F1) {
+                pInput->Keyboard.F1.IsDown = false;
             }
         } break;
         case WM_CLOSE:
@@ -574,10 +618,9 @@ game_code LoadGameCode(LPCSTR FilePath) {
     game_code Result = {};
     Result.UpdateAndRender = GameUpdateAndRenderStub;
 
-    LPCSTR TempDLLName = "GameLibraryTemp.dll";
+    /*LPCSTR TempDLLName = "GameLibraryTemp.dll";
     if (CopyFileA(FilePath, TempDLLName, FALSE)) {
         Result.GameCodeDLL = LoadLibraryA(TempDLLName);
-        //Result.GameCodeDLL = LoadLibraryA(FilePath);
         if (Result.GameCodeDLL) {
             Result.UpdateAndRender = (game_update_and_render*)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
             Result.IsValid = (Result.UpdateAndRender);
@@ -586,6 +629,11 @@ game_code LoadGameCode(LPCSTR FilePath) {
     else {
         DWORD Error = GetLastError();
         OutputDebugStringA("Error copying .dll file.\n");
+    }*/
+    Result.GameCodeDLL = LoadLibraryA(FilePath);
+    if (Result.GameCodeDLL) {
+        Result.UpdateAndRender = (game_update_and_render*)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
+        Result.IsValid = (Result.UpdateAndRender);
     }
 
     if (!Result.IsValid) {
@@ -697,9 +745,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     GameMemory.PermanentStorageSize = Megabytes(64);
     void* GameMemoryBlock = VirtualAlloc(BaseAddress, GameMemory.PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     GameMemory.PermanentStorage = GameMemoryBlock;
-    GameMemory.PlatformFreeFileMemory = PlatformFreeFileMemory;
-    GameMemory.PlatformReadEntireFile = PlatformReadEntireFile;
-    GameMemory.PlatformWriteEntireFile = PlatformWriteEntireFile;
+
+    platform_api Platform = {};
+    Platform.FreeFileMemory = PlatformFreeFileMemory;
+    Platform.ReadEntireFile = PlatformReadEntireFile;
+    Platform.WriteEntireFile = PlatformWriteEntireFile;
+    GameMemory.Platform = Platform;
+
     game_state* pGameState = (game_state*)GameMemory.PermanentStorage;
 
     // Recording and playback
@@ -727,22 +779,68 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Main message loop:
     while (Running) {
         // Loading game code
-        FILETIME NewDLLWriteTime = GetLastWriteTime(SourceDLLPath);
+        /*FILETIME NewDLLWriteTime = GetLastWriteTime(SourceDLLPath);
         LONG DebugFiletime = CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime);
         if (CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime) != 0) {
             UnloadGameCode(&GameCode);
             GameCode = LoadGameCode(SourceDLLPath);
-        }
+        }*/
+
+
+        // Previous input
+        Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;
+        Input.Mouse.RightClick.WasDown = Input.Mouse.RightClick.IsDown;
+
+        Input.Keyboard.One.WasDown = Input.Keyboard.One.IsDown;
+        Input.Keyboard.Two.WasDown = Input.Keyboard.Two.IsDown;
+        Input.Keyboard.Three.WasDown = Input.Keyboard.Three.IsDown;
+        Input.Keyboard.Four.WasDown = Input.Keyboard.Four.IsDown;
+        Input.Keyboard.Five.WasDown = Input.Keyboard.Five.IsDown;
+        Input.Keyboard.Six.WasDown = Input.Keyboard.Six.IsDown;
+        Input.Keyboard.Seven.WasDown = Input.Keyboard.Seven.IsDown;
+        Input.Keyboard.Eight.WasDown = Input.Keyboard.Eight.IsDown;
+        Input.Keyboard.Nine.WasDown = Input.Keyboard.Nine.IsDown;
+        Input.Keyboard.Zero.WasDown = Input.Keyboard.Zero.IsDown;
+        Input.Keyboard.W.WasDown = Input.Keyboard.W.IsDown;
+        Input.Keyboard.A.WasDown = Input.Keyboard.A.IsDown;
+        Input.Keyboard.S.WasDown = Input.Keyboard.S.IsDown;
+        Input.Keyboard.D.WasDown = Input.Keyboard.D.IsDown;
+        Input.Keyboard.E.WasDown = Input.Keyboard.E.IsDown;
+        Input.Keyboard.Q.WasDown = Input.Keyboard.Q.IsDown;
+        Input.Keyboard.Up.WasDown = Input.Keyboard.Up.IsDown;
+        Input.Keyboard.Down.WasDown = Input.Keyboard.Down.IsDown;
+        Input.Keyboard.Left.WasDown = Input.Keyboard.Left.IsDown;
+        Input.Keyboard.Right.WasDown = Input.Keyboard.Right.IsDown;
+        Input.Keyboard.Escape.WasDown = Input.Keyboard.Escape.IsDown;
+        Input.Keyboard.Space.WasDown = Input.Keyboard.Space.IsDown;
+        Input.Keyboard.F1.WasDown = Input.Keyboard.F1.IsDown;
 
         // Peek and dispatch messages
         ProcessPendingMessages(&Input, &RecordPlayback);
 
-        Input.Controller = { 0 };
         // XInput Controller
         for (DWORD ControllerIndex = 0; ControllerIndex < XUSER_MAX_COUNT; ++ControllerIndex) {
             XINPUT_STATE ControllerState;
             if (XInputGetState(ControllerIndex, &ControllerState) == ERROR_SUCCESS) {
                 XINPUT_GAMEPAD* Pad = &ControllerState.Gamepad;
+
+                // Previous input
+                Input.Controller.PadUp.WasDown = Input.Controller.PadUp.IsDown;
+                Input.Controller.PadDown.WasDown = Input.Controller.PadDown.IsDown;
+                Input.Controller.PadLeft.WasDown = Input.Controller.PadLeft.IsDown;
+                Input.Controller.PadRight.WasDown = Input.Controller.PadRight.IsDown;
+                Input.Controller.LB.WasDown = Input.Controller.LB.IsDown;
+                Input.Controller.RB.WasDown = Input.Controller.RB.IsDown;
+                Input.Controller.AButton.WasDown = Input.Controller.AButton.IsDown;
+                Input.Controller.BButton.WasDown = Input.Controller.BButton.IsDown;
+                Input.Controller.XButton.WasDown = Input.Controller.XButton.IsDown;
+                Input.Controller.YButton.WasDown = Input.Controller.YButton.IsDown;
+                Input.Controller.Start.WasDown = Input.Controller.Start.IsDown;
+                Input.Controller.Back.WasDown = Input.Controller.Back.IsDown;
+                Input.Controller.LS.WasDown = Input.Controller.LS.IsDown;
+                Input.Controller.RS.WasDown = Input.Controller.RS.IsDown;
+                Input.Controller.LT.WasDown = Input.Controller.LT.IsDown;
+                Input.Controller.RT.WasDown = Input.Controller.RT.IsDown;
 
                 // Button mapping
                 Input.Controller.PadUp.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
@@ -796,9 +894,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Mouse.Cursor.Y = MouseP.y;
         Input.Mouse.Cursor.Z = 0;
 
-        char MouseTextBuffer[256];
+        /*char MouseTextBuffer[256];
         sprintf_s(MouseTextBuffer, "X: %d\nY: %d\n", Input.Mouse.Cursor.X, Input.Mouse.Cursor.Y);
-        OutputDebugStringA(MouseTextBuffer);
+        OutputDebugStringA(MouseTextBuffer);*/
 
         // Render image and sound on buffer
         game_offscreen_buffer Buffer = {};
@@ -848,7 +946,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
         }
         else {
-            // Missed a frame! 
+            // Missed a frame!
+            OutputDebugStringA("Missed a frame!");
         }
 
         double ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
@@ -858,8 +957,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         //TCHAR TextBuffer[256];
         //wsprintf(TextBuffer, L"%d ms/frame, %d fps, %d Mcycles/frame\n", (int)msPerFrame, (int)FPS, (int)MegaCyclesPerFrame);
         char TextBuffer[256];
-        sprintf_s(TextBuffer, "%.02f ms/frame, %.02f fps, %.02f Mcycles/frame\n", msPerFrame, FPS, MegaCyclesPerFrame);
-        OutputDebugStringA(TextBuffer);
+        sprintf_s(TextBuffer, " %.02f ms/frame\n %.02f fps\n%.02f Mcycles/frame", msPerFrame, FPS, MegaCyclesPerFrame);
+        GameMemory.DebugInfo = TextBuffer;
 
         if (FirstFrame) {
             pSourceVoice->Start(0, 0);
@@ -937,8 +1036,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
     int ScreenWidth = GetSystemMetrics(SM_CXSCREEN);
     int ScreenHeight = GetSystemMetrics(SM_CYSCREEN);
 
-    int WindowWidth = 600;
-    int WindowHeight = 400;
+    // These are not the actual dimensions of the buffer
+    int WindowWidth = 967;
+    int WindowHeight = 529;
 
     // This code starts the window centered
     int X = (ScreenWidth / 2) - (WindowWidth / 2);

@@ -20,27 +20,20 @@
 extern GAMELIBRARY_API int nGameLibrary;
 
 #pragma once
-#include "stdint.h"
+#include "GamePlatform.h"
+#include "GameMath.h"
 
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
-typedef uint64_t uint64;
+// Freetype
+#include "ft2build.h"
+#include FT_FREETYPE_H
 
-typedef int8_t int8;
-typedef int16_t int16;
-typedef int32_t int32;
-typedef int64_t int64;
+// Assert
+void Assert(bool assertion) {
+    if (!assertion) {
+        throw("Assert failed");
+    }
+}
 
-// Utility macros
-#define Kilobytes(Value) ((Value)*1024)
-#define Megabytes(Value) (Kilobytes(Value)*1024)
-#define Gigabytes(Value) ((uint64)Megabytes(Value)*1024)
-
-// Platform independent constants
-static float Pi = 3.14159265359f;
-static float Tau = 2.0f * Pi;
-static float twroot = 1.05946309436f;
 
 // Platform independent structs and types
 struct game_rect {
@@ -66,35 +59,119 @@ struct game_sound_buffer {
 
 struct game_button_state {
     bool IsDown;
+    bool WasDown;
 };
 
 struct game_screen_position {
-    uint32 X;
-    uint32 Y;
-    uint32 Z;
+    int32 X;
+    int32 Y;
+    int32 Z;
+};
+
+game_screen_position ToScreenPosition(v3 V) {
+    game_screen_position Result;
+    Result.X = CustomRound(V.X);
+    Result.Y = CustomRound(V.Y);
+    Result.Z = CustomRound(V.Z);
+    return Result;
+}
+
+v3 ToV3(game_screen_position Position) {
+    v3 Result;
+    double X = Position.X;
+    double Y = Position.Y;
+    double Z = Position.Z;
+    Result.X = X;
+    Result.Y = Y;
+    Result.Z = Z;
+    return Result;
+}
+
+// File loading
+// BMP
+#pragma pack(push, 1)
+struct bitmap_header {
+    uint16 FileType;
+    uint32 FileSize;
+    uint16 Reserved1;
+    uint16 Reserved2;
+    uint32 BitmapOffset;
+    uint32 Size;
+    int32 Width;
+    int32 Height;
+    uint16 Planes;
+    uint16 BitsPerPixel;
+    uint32 Compression;
+    uint32 SizeOfBitmap;
+    int32 HorzResolution;
+    int32 VertResolution;
+    uint32 ColorUser;
+    uint32 ColorsImportant;
+    uint32 RedMask;
+    uint32 GreenMask;
+    uint32 BlueMask;
+};
+#pragma pack(pop)
+
+struct loaded_bmp {
+    bitmap_header Header;
+    bool HasAlpha;
+    uint32 AlphaMask;
+    uint32* Content;
 };
 
 // Color
 struct color {
+    uint8 Alpha;
     uint8 R;
     uint8 G;
     uint8 B;
 };
 
 static int Attenuation = 100;
-static color Black = { 0, 0, 0 };
-static color White = { 255 - Attenuation, 255 - Attenuation, 255 - Attenuation };
-static color Gray = { 127 - Attenuation, 127 - Attenuation, 127 - Attenuation };
-static color Red = { 255 - Attenuation, 0, 0 };
-static color Green = { 0, 220 - Attenuation, 0 };
-static color Blue = { 0, 0, 255 - Attenuation };
-static color Magenta = { 255 - Attenuation, 0, 255 - Attenuation };
-static color Yellow = { 255 - Attenuation, 255 - Attenuation, 0 };
-static color Cyan = { 0, 220 - Attenuation, 255 - Attenuation };
-static color Orange = { 255 - Attenuation, 160 - Attenuation, 0 };
+static color Black = { 255, 0, 0, 0 };
+static color White = { 255, 255, 255, 255 };
+static color Gray = { 255, 127, 127, 127 };
+static color Red = { 255, 255, 0, 0 };
+static color Green = { 255, 0, 220, 0 };
+static color Blue = { 255, 0, 0, 255 };
+static color Magenta = { 255, 255, 0, 255 };
+static color Yellow = { 255, 255, 255, 0 };
+static color Cyan = { 255, 0, 220, 255 };
+static color Orange = { 255, 255, 160, 0 };
 
 uint32 GetColorBytes(color Color) {
-    return (Color.R << 16) | (Color.G << 8) | Color.B;
+    return (Color.Alpha << 24) | (Color.R << 16) | (Color.G << 8) | Color.B;
+}
+
+color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) {
+    uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
+    
+    uint32 RedShift;
+    uint32 GreenShift;
+    uint32 BlueShift;
+    uint32 AlphaShift;
+    _BitScanForward((DWORD*)&RedShift, RedMask);
+    _BitScanForward((DWORD*)&GreenShift, GreenMask);
+    _BitScanForward((DWORD*)&BlueShift, BlueMask);
+    _BitScanForward((DWORD*)&AlphaShift, AlphaMask);
+
+    color Color;
+    Color.R = ((RedMask & Bytes) >> RedShift);
+    Color.G = ((GreenMask & Bytes) >> GreenShift);
+    Color.B = ((BlueMask & Bytes) >> BlueShift);
+    Color.Alpha = ((AlphaMask & Bytes) >> AlphaShift);
+    return Color;
+}
+
+color Blend(color Color, color Background) {
+    color Result;
+    float Alpha = (float)(Color.Alpha) / 255.0f;
+    Result.R = Background.R + (Alpha * (Color.R - Background.R) + 0.5f);
+    Result.G = Background.G + (Alpha * (Color.G - Background.G) + 0.5f);
+    Result.B = Background.B + (Alpha * (Color.B - Background.B) + 0.5f);
+    Result.Alpha = 255;
+    return Result;
 }
 
 // Joysticks values should be floats between 0 and 1
@@ -104,6 +181,13 @@ uint32 GetColorBytes(color Color) {
     float Min;
     float End;
 };*/
+
+// Fonts
+struct text_options {
+    int Length;
+    color Color;
+    int Points;
+};
 
 struct game_joystick_state {
     float X;
@@ -148,12 +232,14 @@ struct game_keyboard_input {
     game_button_state D;
     game_button_state Q;
     game_button_state E;
+    game_button_state F;
     game_button_state Up;
     game_button_state Down;
     game_button_state Left;
     game_button_state Right;
     game_button_state Escape;
     game_button_state Space;
+    game_button_state F1;
 };
 
 struct game_mouse_input {
@@ -168,10 +254,6 @@ struct game_input {
     game_mouse_input Mouse;
 };
 
-struct game_state {
-
-};
-
 struct record_and_playback {
     HANDLE RecordFile;
     int RecordIndex;
@@ -181,31 +263,73 @@ struct record_and_playback {
     uint64 TotalSize;
 };
 
-// Services that the platform layer provides for the game
-struct read_file_result {
-    uint32 ContentSize;
-    void* Content;
+// Memory Arenas
+struct memory_arena {
+    memory_index Size;
+    uint8* Base;
+    memory_index Used;
 };
 
-#define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(char* Filename)
-typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
+void InitializeArena(memory_arena* Arena, memory_index Size, uint8* Base) {
+    Arena->Size = Size;
+    Arena->Base = Base;
+    Arena->Used = 0;
+}
 
-#define PLATFORM_WRITE_ENTIRE_FILE(name) bool name(char* Filename, uint64 MemorySize, void* Memory)
-typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
+void ZeroSize(memory_index Size, void* Ptr) {
+    uint8* Byte = (uint8*)Ptr;
+    while (Size--) {
+        *Byte++ = 0;
+    }
+}
 
-#define PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)
-typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
+#define PushStruct(Arena, type) (type *)PushSize_(Arena, sizeof(type))
+#define PushArray(Arena, Count, type) (type *)PushSize_(Arena, Count*sizeof(type))
+#define PushSize(Arena, Size) (void*)PushSize_(Arena, Size)
+void* PushSize_(memory_arena* Arena, memory_index Size) {
+    void* Result = Arena->Base + Arena->Used;
+    Arena->Used += Size;
+    return Result;
+}
 
-// Services that the game provides to the platform layer
+#define PopStruct(Arena, type) (type *)PopSize_(Arena, sizeof(type))
+#define PopArray(Arena, Count, type) (type *)PopSize_(Arena, Count*sizeof(type))
+#define PopSize(Arena, Size) (void*)PopSize_(Arena, Size)
+void* PopSize_(memory_arena* Arena, memory_index Size) {
+    memory_index BytesErased = min(Size, Arena->Used);
+    void* Result = (void*)(Arena->Base + Arena->Used - BytesErased);
+    ZeroSize(BytesErased, Result);
+    Arena->Used -= BytesErased;
+    return Result;
+}
+
+
+// Game Assets
+struct game_assets {
+    loaded_bmp BackgroundBMP;
+    loaded_bmp PlayerBMP;
+    FT_Face TestFont;
+};
+
+// Game State: Persistent (between frames) values
+struct game_state {
+    game_screen_position PlayerPosition;
+    v3 PlayerVelocity;
+    double MaxCelerity;
+
+    memory_arena TestArena;
+};
+
+// Game Memory
 struct game_memory {
     bool IsInitialized;
     uint64 PermanentStorageSize;
     void* PermanentStorage;
-    platform_read_entire_file* PlatformReadEntireFile;
-    platform_free_file_memory* PlatformFreeFileMemory;
-    platform_write_entire_file* PlatformWriteEntireFile;
+    platform_api Platform;
+    game_assets Assets;
+    FT_Library FTLibrary;
+    char* DebugInfo;
 };
 
 #define GAME_UPDATE_AND_RENDER(name) void GAMELIBRARY_API name(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, game_offscreen_buffer* ScreenBuffer, game_input* Input)
 typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
-extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender);

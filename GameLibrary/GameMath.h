@@ -1,0 +1,104 @@
+#pragma once
+#include "math.h"
+
+// Utility macros
+#define Kilobytes(Value) ((Value)*1024)
+#define Megabytes(Value) (Kilobytes(Value)*1024)
+#define Gigabytes(Value) ((uint64)Megabytes(Value)*1024)
+
+// Platform independent constants
+static float Pi = 3.14159265359f;
+static float Tau = 2.0f * Pi;
+static float twroot = 1.05946309436f;
+
+// Rounding
+int32 CustomRound(double X) {
+	return X >= 0 ? (int32)(X + 0.5f) : (int32)(X - 0.5f);
+}
+
+// Vectors
+struct v3 {
+	double X, Y, Z;
+};
+
+v3 V3(double X, double Y, double Z) {
+	v3 Result;
+	Result.X = X;
+	Result.Y = Y;
+	Result.Z = Z;
+	return Result;
+}
+
+v3 operator+(v3 A, v3 B) {
+	v3 Result;
+	Result.X = A.X + B.X;
+	Result.Y = A.Y + B.Y;
+	Result.Z = A.Z + B.Z;
+	return Result;
+}
+
+v3 operator-(v3 A) {
+	v3 Result;
+	Result.X = -A.X;
+	Result.Y = -A.Y;
+	Result.Z = -A.Z;
+	return Result;
+}
+
+v3 operator-(v3 A, v3 B) {
+	v3 Result;
+	Result.X = A.X - B.X;
+	Result.Y = A.Y - B.Y;
+	Result.Z = A.Z - B.Z;
+	return Result;
+}
+
+v3 operator*(double C, v3 A) {
+	v3 Result;
+	Result.X = C * A.X;
+	Result.Y = C * A.Y;
+	Result.Z = C * A.Z;
+	return Result;
+}
+
+double operator*(v3 A, v3 B) {
+	return A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+}
+
+v3 cross(v3 A, v3 B) {
+	v3 Result;
+	Result.X = A.Y * B.Z - A.Z * B.Y;
+	Result.Y = A.Z * B.X - A.X * B.Z;
+	Result.Z = A.X * B.Y - A.Y * B.X;
+	return Result;
+}
+
+double module(v3 A) {
+	return sqrt(A*A);
+}
+
+v3 normalize(v3 V) {
+	return (module(V) < 0.00001f) ? V : (1 / module(V)) * V;
+}
+
+v3 project(v3 A, v3 B) {
+	v3 N = normalize(B);
+	return (A * N) * N;
+}
+
+v3 DirectionFromAngle(double Theta) {
+	v3 Result;
+	Result.X = cos(Theta);
+	Result.Y = sin(Theta);
+	Result.Z = 0;
+	return Result;
+}
+
+v3 SphereNormal(double Theta, double Phi) {
+	v3 Result;
+	Result.X = cos(Phi)*sin(Theta);
+	Result.Y = sin(Phi)*sin(Theta);
+	Result.Z = cos(Theta);
+	return Result;
+}
+
