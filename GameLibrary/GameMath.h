@@ -17,6 +17,64 @@ int32 CustomRound(double X) {
 }
 
 // Vectors
+// 2D
+struct v2 {
+	double X, Y;
+};
+
+v2 V2(double X, double Y) {
+	v2 Result;
+	Result.X = X;
+	Result.Y = Y;
+	return Result;
+}
+
+v2 operator+(v2 A, v2 B) {
+	v2 Result;
+	Result.X = A.X + B.X;
+	Result.Y = A.Y + B.Y;
+	return Result;
+}
+
+v2 operator-(v2 A) {
+	v2 Result;
+	Result.X = -A.X;
+	Result.Y = -A.Y;
+	return Result;
+}
+
+v2 operator-(v2 A, v2 B) {
+	v2 Result;
+	Result.X = A.X - B.X;
+	Result.Y = A.Y - B.Y;
+	return Result;
+}
+
+v2 operator*(double C, v2 A) {
+	v2 Result;
+	Result.X = C * A.X;
+	Result.Y = C * A.Y;
+	return Result;
+}
+
+double operator*(v2 A, v2 B) {
+	return A.X * B.X + A.Y * B.Y;
+}
+
+double module(v2 A) {
+	return sqrt(A * A);
+}
+
+v2 normalize(v2 V) {
+	return (module(V) < 0.00001f) ? V : (1 / module(V)) * V;
+}
+
+v2 project(v2 A, v2 B) {
+	v2 N = normalize(B);
+	return (A * N) * N;
+}
+
+// 3D
 struct v3 {
 	double X, Y, Z;
 };

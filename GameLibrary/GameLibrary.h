@@ -115,6 +115,8 @@ struct bitmap_header {
 
 struct loaded_bmp {
     bitmap_header Header;
+    uint32 BytesPerPixel;
+    uint32 Pitch;
     bool HasAlpha;
     uint32 AlphaMask;
     uint32* Content;
@@ -183,10 +185,19 @@ color Blend(color Color, color Background) {
 };*/
 
 // Fonts
+struct text {
+    int Length;
+    color Color;
+    int Points;
+    bool Wrapped;
+    char* Content;
+};
+
 struct text_options {
     int Length;
     color Color;
     int Points;
+    bool Wrapped;
 };
 
 struct game_joystick_state {
@@ -239,6 +250,7 @@ struct game_keyboard_input {
     game_button_state Right;
     game_button_state Escape;
     game_button_state Space;
+    game_button_state Enter;
     game_button_state F1;
 };
 
@@ -287,6 +299,7 @@ void ZeroSize(memory_index Size, void* Ptr) {
 #define PushArray(Arena, Count, type) (type *)PushSize_(Arena, Count*sizeof(type))
 #define PushSize(Arena, Size) (void*)PushSize_(Arena, Size)
 void* PushSize_(memory_arena* Arena, memory_index Size) {
+    Assert(Arena->Size > Arena->Used + Size);
     void* Result = Arena->Base + Arena->Used;
     Arena->Used += Size;
     return Result;
@@ -303,6 +316,21 @@ void* PopSize_(memory_arena* Arena, memory_index Size) {
     return Result;
 }
 
+// User Interface
+struct button {
+    bool Clicked;
+    bool Active;
+    game_rect Collider;
+    loaded_bmp Image;
+    loaded_bmp ClickedImage;
+    text Text;
+    FT_Face* Face;
+};
+
+struct UI {
+    button TestButton;
+};
+
 
 // Game Assets
 struct game_assets {
@@ -318,7 +346,10 @@ struct game_state {
     double MaxCelerity;
 
     memory_arena TestArena;
+    UI UserInterface;
 };
+
+#include "render_group.h"
 
 // Game Memory
 struct game_memory {
@@ -328,6 +359,7 @@ struct game_memory {
     platform_api Platform;
     game_assets Assets;
     FT_Library FTLibrary;
+    render_group* Group;
     char* DebugInfo;
 };
 

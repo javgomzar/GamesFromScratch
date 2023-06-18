@@ -7,6 +7,9 @@
 #include "xaudio2.h"
 #include "..\GameLibrary\GameLibrary.h"
 #include "Win32PlatformLayer.h"
+#include "GL/GL.h"
+
+#pragma comment (lib, "opengl32.lib")
 
 
 /* TODO:
@@ -91,6 +94,31 @@ struct OFFSCREENBUFFER {
 OFFSCREENBUFFER BackBuffer;
 WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
 
+void InitOpenGL(HWND Window) {
+    HDC WindowDC = GetDC(Window);
+    
+    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
+    DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
+    DesiredPixelFormat.nVersion = 1;
+    DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
+    DesiredPixelFormat.cColorBits = 32;
+    DesiredPixelFormat.cAlphaBits = 8;
+    DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
+
+    int SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
+    PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
+    DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex, sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
+    SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
+
+    HGLRC OpenGLRC = wglCreateContext(WindowDC);
+    if (wglMakeCurrent(WindowDC, OpenGLRC)) {
+        
+    }
+    else {
+        Assert(false);
+    }
+}
+
 WNDDIMENSION GetWindowDimension(HWND Window) {
     WNDDIMENSION Result;
 
@@ -130,6 +158,7 @@ VOID ResizeDIBSection(OFFSCREENBUFFER* Buffer, int Width, int Height) {
 VOID DisplayBufferToWindow(
     OFFSCREENBUFFER* Buffer, HDC DeviceContext, int Width, int Height
 ) {
+    /*
     StretchDIBits(DeviceContext,
         0, 0, Width, Height,
         0, 0, Buffer->Width, Buffer->Height,
@@ -137,7 +166,56 @@ VOID DisplayBufferToWindow(
         &Buffer->Info,
         DIB_RGB_COLORS,
         SRCCOPY
-    );
+    );*/
+    glViewport(0, 0, Width, Height);
+
+    GLuint TextureHandle = 0;
+    static bool Init = false;
+    if (!Init) {
+        glGenTextures(1, &TextureHandle);
+        Init = true;
+    }
+
+    glBindTexture(GL_TEXTURE_2D, TextureHandle);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Buffer->Width, Buffer->Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Buffer->Memory);
+
+    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+    glEnable(GL_TEXTURE_2D);
+
+    // Clear to pink
+    glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glBegin(GL_TRIANGLES);
+    // Upper triangle
+    glTexCoord2i(0, 0);
+    glVertex2i(-1, 1);
+
+    glTexCoord2i(1, 0);
+    glVertex2i(1, 1);
+
+    glTexCoord2i(0, 1);
+    glVertex2i(-1, -1);
+
+    // Lower triangle
+    glTexCoord2i(0, 1);
+    glVertex2i(-1, -1);
+
+    glTexCoord2i(1, 1);
+    glVertex2i(1, -1);
+
+    glTexCoord2i(1, 0);
+    glVertex2i(1, 1);
+
+    glEnd();
+
+
+    SwapBuffers(DeviceContext);
 }
 
 VOID ToggleFullScreen(HWND Window) {
@@ -478,6 +556,9 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 else if (VKCode == VK_SPACE) {
                     pInput->Keyboard.Space.IsDown = true;
                 }
+                else if (VKCode == VK_RETURN) {
+                    pInput->Keyboard.Enter.IsDown = true;
+                }
                 else if (VKCode == VK_F1) {
                     pInput->Keyboard.F1.IsDown = true;
                 }
@@ -572,6 +653,9 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             }
             else if (VKCode == VK_SPACE) {
                 pInput->Keyboard.Space.IsDown = false;
+            }
+            else if (VKCode == VK_RETURN) {
+                pInput->Keyboard.Enter.IsDown = false;
             }
             else if (VKCode == VK_F1) {
                 pInput->Keyboard.F1.IsDown = false;
@@ -775,6 +859,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LARGE_INTEGER LastCounter = GetWallClock();
     uint64 LastCycleCount = __rdtsc();
 
+    // OpenGl
+    InitOpenGL(Window);
+
     bool FirstFrame = true;
     // Main message loop:
     while (Running) {
@@ -813,6 +900,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Keyboard.Right.WasDown = Input.Keyboard.Right.IsDown;
         Input.Keyboard.Escape.WasDown = Input.Keyboard.Escape.IsDown;
         Input.Keyboard.Space.WasDown = Input.Keyboard.Space.IsDown;
+        Input.Keyboard.Enter.WasDown = Input.Keyboard.Enter.IsDown;
         Input.Keyboard.F1.WasDown = Input.Keyboard.F1.IsDown;
 
         // Peek and dispatch messages
@@ -947,7 +1035,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
         else {
             // Missed a frame!
-            OutputDebugStringA("Missed a frame!");
+            //OutputDebugStringA("Missed a frame!\n");
         }
 
         double ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
