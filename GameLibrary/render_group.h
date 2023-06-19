@@ -6,7 +6,9 @@ struct render_basis {
 
 enum render_group_entry_type {
 	group_type_render_entry_clear,
+    group_type_render_entry_line,
 	group_type_render_entry_rect,
+    group_type_render_entry_rect_outline,
 	group_type_render_entry_bmp,
     group_type_render_entry_text,
     group_type_render_entry_button
@@ -23,10 +25,23 @@ struct render_entry_clear {
 	color Color;
 };
 
+struct render_entry_line {
+    render_group_header Header;
+    color Color;
+    game_screen_position Start;
+    game_screen_position Finish;
+};
+
 struct render_entry_rect {
 	render_group_header Header;
 	game_rect Rect;
 	color Color;
+};
+
+struct render_entry_rect_outline {
+    render_group_header Header;
+    game_rect Rect;
+    color Color;
 };
 
 struct render_entry_bmp {
@@ -100,8 +115,23 @@ void PushClear(render_group* Group, color Color) {
     Entry->Color = Color;
 }
 
+void PushLine(render_group* Group, color Color, game_screen_position Start, game_screen_position Finish) {
+    render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
+    Entry->Header.Key = 0;
+    Entry->Color = Color;
+    Entry->Start = Start;
+    Entry->Finish = Finish;
+}
+
 void PushRect(render_group* Group, game_rect Rect, color Color) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
+    Entry->Header.Key = 0;
+    Entry->Rect = Rect;
+    Entry->Color = Color;
+}
+
+void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
+    render_entry_rect_outline *Entry = PushRenderElement(Group, render_entry_rect_outline);
     Entry->Header.Key = 0;
     Entry->Rect = Rect;
     Entry->Color = Color;
@@ -160,6 +190,106 @@ void Clear(loaded_bmp* OutputTarget, color Color) {
             *Pixel++ = ColorBytes;
         }
         Row += OutputTarget->Pitch;
+    }
+}
+
+//uint32* GetPixel(loaded_bmp* Bitmap, game_screen_position Position) {
+//    if (Position.X > Bitmap->Header.Width || Position.Y > Bitmap->Header.Height) {
+//        return (uint32*)Bitmap->Content;
+//    }
+//    return (uint32*)Bitmap->Content + Position.X + Position.Y * Bitmap->Header.Width;
+//}
+
+bool IsInside(game_screen_position Position, game_rect Rect) {
+    bool A = Position.X >= Rect.Left && Position.X <= Rect.Left + Rect.Width;
+    bool B = Position.Y >= Rect.Top && Position.Y <= Rect.Top + Rect.Height;
+    return A && B;
+}
+
+int CheckLineSide(v2 P0, v2 P1, v2 Position) {
+    // 1 means to the right, -1 to the left, 0, is on the line
+    if (P0.X == P1.X) {
+        if (Position.X == P0.X) {
+            return 0;
+        }
+        else {
+            return (Position.X > P0.X) ? 1 : -1;
+        }
+    }
+
+    // if the line is horizontal, 1 is up, -1 is down
+    if (P0.Y == P1.Y) {
+        if (Position.Y == P0.Y) {
+            return 0;
+        }
+        else {
+            return (Position.Y > P0.Y) ? -1 : 1;
+        }
+    }
+
+    double X = (Position.X - P0.X) / (P1.X - P0.X);
+    double Y = (Position.Y - P0.Y) / (P1.Y - P0.Y);
+
+    if (X == Y) {
+        return 0;
+    }
+    else {
+        return (X > Y) ? 1 : -1;
+    }
+}
+
+void RenderLine(loaded_bmp* OutputTarget, color Color, game_screen_position Start, game_screen_position Finish) {
+    // Deciding if we need to render at all
+    game_rect Rect = {0};
+    Rect.Width = OutputTarget->Header.Width;
+    Rect.Height = OutputTarget->Header.Height;
+
+    if (!IsInside(Start, Rect)                 && 
+        !IsInside(Finish, Rect)                && 
+        !IsInside({ Start.X, Finish.Y }, Rect) && 
+        !IsInside({ Finish.X, Start.Y }, Rect)) {
+        return;
+    }
+
+    // int32 Thickness = 1; // TODO: Add thickness
+
+    int32 DX = Sign((double)(Finish.X - Start.X));
+    int32 DY = Sign((double)(Finish.Y - Start.Y));
+
+    v2 P0 = V2(Start.X, Start.Y);
+    v2 P1 = V2(Finish.X, Finish.Y);
+
+    int32 X0 = Start.X;
+    int32 Y0 = Start.Y;
+
+    uint32 ColorBytes = GetColorBytes(Color);
+    uint32* Row = OutputTarget->Content + X0 + Y0 * OutputTarget->Header.Width;
+    while (true) {
+        uint32* Pixel = Row;
+
+        if (X0 > 0 && X0 < OutputTarget->Header.Width &&
+            Y0 > 0 && Y0 < OutputTarget->Header.Height) {
+            *Pixel = ColorBytes;
+        }
+
+        if (X0 == Finish.X && Y0 == Finish.Y) {
+            break;
+        }
+
+        //int A11 = CheckLineSide(P0, P1, V2(X0, Y0));
+        int A12 = CheckLineSide(P0, P1, V2(X0 + DX, Y0));
+        int A21 = CheckLineSide(P0, P1, V2(X0, Y0 + DY));
+        int A22 = CheckLineSide(P0, P1, V2(X0 + DX, Y0 + DY));
+
+        if (A22 != A12 || Start.Y == Finish.Y) {
+            X0 += DX;
+            Row += DX;
+        }
+
+        if (A22 != A21 || Start.X == Finish.X) {
+            Y0 += DY;
+            Row += DY * OutputTarget->Header.Width;
+        }
     }
 }
 
@@ -350,7 +480,7 @@ loaded_bmp MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool 
     return Result;
 }
 
-
+// Text
 void LoadFTBMP(FT_Bitmap* SourceBMP, loaded_bmp* DestBMP, color Color) {
     uint32* DestRow = DestBMP->Content + DestBMP->Header.Width * (DestBMP->Header.Height - 1);
     uint8* Source = SourceBMP->buffer;
@@ -424,6 +554,12 @@ void RenderGroupToOutput(render_group* Group, loaded_bmp* OutputTarget) {
 
                 BaseAddress += sizeof(*Entry);
             } break;
+            case group_type_render_entry_line: {
+                render_entry_line* Entry = (render_entry_line*)Header;
+                RenderLine(OutputTarget, Entry->Color, Entry->Start, Entry->Finish);
+
+                BaseAddress += sizeof(*Entry);
+            } break;
             case group_type_render_entry_rect: {
                 render_entry_rect* Entry = (render_entry_rect*)Header;
                 RenderRectangle(OutputTarget, Entry->Rect, Entry->Color);
@@ -450,6 +586,21 @@ void RenderGroupToOutput(render_group* Group, loaded_bmp* OutputTarget) {
                     Button.Collider.Left + Button.Image.Header.Width / 2,
                     Button.Collider.Top + Button.Image.Header.Height / 2,
                     0 }, Button.Text);
+
+                BaseAddress += sizeof(*Entry);
+            } break;
+            case group_type_render_entry_rect_outline: {
+                render_entry_rect_outline* Entry = (render_entry_rect_outline*)Header;
+
+                game_screen_position P11 = {Entry->Rect.Left, Entry->Rect.Top, 0};
+                game_screen_position P12 = { Entry->Rect.Left + Entry->Rect.Width, Entry->Rect.Top, 0 };
+                game_screen_position P21 = { Entry->Rect.Left, Entry->Rect.Top + Entry->Rect.Height, 0 };
+                game_screen_position P22 = { Entry->Rect.Left + Entry->Rect.Width, Entry->Rect.Top + Entry->Rect.Height, 0 };
+
+                RenderLine(OutputTarget, Entry->Color, P11, P12);
+                RenderLine(OutputTarget, Entry->Color, P12, P22);
+                RenderLine(OutputTarget, Entry->Color, P22, P21);
+                RenderLine(OutputTarget, Entry->Color, P21, P11);
 
                 BaseAddress += sizeof(*Entry);
             } break;

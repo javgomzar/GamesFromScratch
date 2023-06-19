@@ -348,6 +348,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     pGameState->UserInterface.TestButton.Clicked = Input->Mouse.LeftClick.IsDown && Collision(pGameState->UserInterface.TestButton.Collider, Input->Mouse.Cursor);
     PushButton(Group, &pGameState->TestArena, pGameState->UserInterface.TestButton);
 
+    // TEST
+    PushLine(Group, Yellow, {200,100,0}, Input->Mouse.Cursor);
+
+    game_rect PlayerRect;
+    PlayerRect.Left = pGameState->PlayerPosition.X;
+    PlayerRect.Top = pGameState->PlayerPosition.Y;
+    PlayerRect.Width = Memory->Assets.PlayerBMP.Header.Width;
+    PlayerRect.Height = Memory->Assets.PlayerBMP.Header.Height;
+    PushRectOutline(Group, PlayerRect, Green);
+
     // Render
     loaded_bmp Target = { 0 };
     Target.Header.Width = ScreenBuffer->Width;

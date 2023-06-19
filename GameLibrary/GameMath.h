@@ -11,9 +11,21 @@ static float Pi = 3.14159265359f;
 static float Tau = 2.0f * Pi;
 static float twroot = 1.05946309436f;
 
-// Rounding
+// Arithmetics
 int32 CustomRound(double X) {
 	return X >= 0 ? (int32)(X + 0.5f) : (int32)(X - 0.5f);
+}
+
+int32 Sign(double x) {
+	if (x > 0) {
+		return 1;
+	}
+	else if (x < 0) {
+		return -1;
+	}
+	else {
+		return 0;
+	}
 }
 
 // Vectors
