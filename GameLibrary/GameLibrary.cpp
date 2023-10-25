@@ -4,6 +4,19 @@
 #include "pch.h"
 #include "framework.h"
 #include "GameLibrary.h"
+#include "render_group.h"
+#include <gl/GL.h>
+
+
+/*
+    TODO:
+        - OpenGL lines (possibly useful when raycasting).
+        - Investigate bug: When time passes, fps starts dropping. MCycles/frame actually goes up when this happens, so it 
+          may be due to acumulating errors from performance count.
+        - Code shader to change color of text.
+*/
+
+
 
 //// This is an example of an exported variable
 //GAMELIBRARY_API int nGameLibrary=0;
@@ -53,9 +66,10 @@ void Plot(game_offscreen_buffer* Buffer, game_screen_position Position, color Co
 }
 
 // Asset loading
-    // BMP
+ // BMP
 loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char* FileName) {
     loaded_bmp Result = { 0 };
+    Result.Handle = 0;
     read_file_result ReadResult = PlatformReadEntireFile(FileName);
     if (ReadResult.ContentSize != 0) {
         bitmap_header* Header = (bitmap_header*)ReadResult.Content;
@@ -64,15 +78,24 @@ loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char
         Result.BytesPerPixel = BytesPerPixel;
         Result.Pitch = Header->Width * BytesPerPixel;
         Result.Content = (uint32*)((uint8*)ReadResult.Content + Header->BitmapOffset);
+        
+        bool HasAlpha = false;
         if (Result.Header.BitsPerPixel == 32 && Result.Header.Compression == 3) {
             uint32 AlphaMask = ~(Result.Header.RedMask | Result.Header.GreenMask | Result.Header.BlueMask);
-            uint32* Contents = Result.Content;
-            
             // If not all Alphas are zero, we need to use them
+            uint32* Contents = Result.Content;
             for (int32 i = 0; i < Result.Header.Height * Result.Header.Width; i++) {
                 if ((*Contents++ & AlphaMask) > 0) {
-                    Result.HasAlpha = true;
+                    HasAlpha = true;
                     break;
+                }
+            }
+
+            // If all alphas are zero, turn them to one
+            Contents = Result.Content;
+            if (!HasAlpha) {
+                for (int32 j = 0; j < Result.Header.Height * Result.Header.Width; j++) {
+                    *Contents = AlphaMask | (*Contents++ & ~AlphaMask);
                 }
             }
             return Result;
@@ -82,25 +105,25 @@ loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char
 }
 
 
-    // Fonts
-void InitializeFonts(game_memory* Memory) {
-    FT_Error error = FT_Init_FreeType(&Memory->FTLibrary);
-    if (error) {
-        Assert(false);
-    }
-    else {
-        error = FT_New_Face(Memory->FTLibrary, "C:/Windows/Fonts/CascadiaMono.ttf", 0, &Memory->Assets.TestFont);
-        if (error == FT_Err_Unknown_File_Format) {
-            Assert(false);
-        }
-        else if (error) {
-            Assert(false);
-        }
-    }
-}
+// Fonts
+//void InitializeFonts(game_memory* Memory) {
+//    FT_Error error = FT_Init_FreeType(&Memory->FTLibrary);
+//    if (error) {
+//        Assert(false);
+//    }
+//    else {
+//        error = FT_New_Face(Memory->FTLibrary, "C:/Windows/Fonts/CascadiaMono.ttf", 0, &Memory->Assets.TestFont);
+//        if (error == FT_Err_Unknown_File_Format) {
+//            Assert(false);
+//        }
+//        else if (error) {
+//            Assert(false);
+//        }
+//    }
+//}
 
 
-    // UI
+// UI
 void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, platform_read_entire_file* Read) {
     UserInterface->TestButton = { 0 };
     UserInterface->TestButton.Collider = {150, 0, 100, 100};
@@ -109,8 +132,6 @@ void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, p
     UserInterface->TestButton.Text.Color = White;
     UserInterface->TestButton.Text.Length = 1;
     UserInterface->TestButton.Text.Points = 16;
-    
-    UserInterface->TestButton.Face = &Assets->TestFont;
 
     UserInterface->TestButton.Text.Content = PushArray(Arena, 1, char);
     *UserInterface->TestButton.Text.Content = 'A';
@@ -205,12 +226,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     game_assets Assets = Memory->Assets;
     platform_api Platform = Memory->Platform;
     render_group* Group = Memory->Group;
+
     if (!Memory->IsInitialized) {
         pGameState->MaxCelerity = 20;
         pGameState->PlayerPosition = { 0, 290, 0 };
 
         // Memory arenas
-        InitializeArena(&pGameState->TestArena, Memory->PermanentStorageSize - sizeof(game_state), (uint8*)Memory->PermanentStorage + sizeof(game_state));
+        InitializeArena(&pGameState->TestArena, Memory->PermanentStorageSize - sizeof(game_state) - pGameState->TextArena.Size, (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load BMPs
@@ -218,7 +240,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Memory->Assets.BackgroundBMP = LoadBMP(Platform.ReadEntireFile, "..\\GameLibrary\\Media\\Bitmaps\\Background.bmp");
 
         // Fonts
-        InitializeFonts(Memory);
+        //InitializeFonts(Memory);
         Memory->IsInitialized = true;
 
         // User Interface
@@ -247,10 +269,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Direction.X -= 1;
     }
     if (Input->Keyboard.W.IsDown) {
-        Direction.Y -= 1;
+        Direction.Y += -1;
     }
     if (Input->Keyboard.S.IsDown) {
-        Direction.Y += 1;
+        Direction.Y -= -1;
     }
     Direction = normalize(Direction);
 
@@ -297,7 +319,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     pGameState->PlayerPosition = ToScreenPosition(Position);
     pGameState->PlayerVelocity = Velocity;
         
-    //GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
+    GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
     PushBMP(Group, &Memory->Assets.BackgroundBMP, {0, 0, 0});
     PushBMP(Group, &Memory->Assets.PlayerBMP, pGameState->PlayerPosition);
 
@@ -322,41 +344,44 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Text.Length = 47;
         Text.Points = 20;
         Text.Content = Memory->DebugInfo;
-        PushText(Group, &pGameState->TestArena, &Assets.TestFont, { 0,30,0 }, Text);
+        PushText(Group, Assets.Characters, { 0,30,0 }, Text);
     }
 
-    char TextBuffer[124];
-    sprintf_s(TextBuffer, "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.");
+    
     static int Length = 1;
     static int Counter = 0;
 
-    if (Counter == 124) {
+    if (Length == 123) {
         Counter = 0;
         Length = 0;
     }
     else {
-        if (Length < 123) {
+        if (Counter == 2 && Length < 123) {
+            Counter = 0;
             Length++;
         }
         Counter++;
     }
 
+    static char TextBuffer[124];
+    sprintf_s(TextBuffer, "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.");
     text Text = { Length, Black, 20, true, TextBuffer };
-    PushText(Group, &pGameState->TestArena, &Assets.TestFont, { 400,150,0 }, Text);
+    PushText(Group, Assets.Characters, { 400,150,0 }, Text);
 
     // Update clicks
     pGameState->UserInterface.TestButton.Clicked = Input->Mouse.LeftClick.IsDown && Collision(pGameState->UserInterface.TestButton.Collider, Input->Mouse.Cursor);
-    PushButton(Group, &pGameState->TestArena, pGameState->UserInterface.TestButton);
+    PushButton(Group, Assets.Characters, &pGameState->UserInterface.TestButton);
+    // WARNING: MEMORY LEAK IN BUTTON. INVESTIGATE!
 
     // TEST
-    PushLine(Group, Yellow, {200,100,0}, Input->Mouse.Cursor);
+    //PushLine(Group, Yellow, {100, 200, 0}, Input->Mouse.Cursor);
 
     game_rect PlayerRect;
     PlayerRect.Left = pGameState->PlayerPosition.X;
     PlayerRect.Top = pGameState->PlayerPosition.Y;
     PlayerRect.Width = Memory->Assets.PlayerBMP.Header.Width;
     PlayerRect.Height = Memory->Assets.PlayerBMP.Header.Height;
-    PushRectOutline(Group, PlayerRect, Green);
+    //PushRectOutline(Group, PlayerRect, Green);
 
     // Render
     loaded_bmp Target = { 0 };
@@ -364,7 +389,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Target.Header.Height = ScreenBuffer->Height;
     Target.Pitch = ScreenBuffer->Pitch;
     Target.Content = (uint32*)ScreenBuffer->Memory;
-    RenderGroupToOutput(Group, &Target);
+
+    // Software renderer as a fallback (toggle with Space)
+    //static bool SoftwareRenderer = false;
+    //if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
+    //    SoftwareRenderer = !SoftwareRenderer;
+    //}
+    //if (SoftwareRenderer) {
+    //    RenderGroupToOutput(Group, &Target);
+    //}
+    //else {
+    //    Platform.OpenGLRender(Group, &Target);
+    //}
+
+    Platform.OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
 
     // Clear render group
     ClearEntries(Group);

@@ -132,6 +132,7 @@
   <ItemGroup>
     <ClInclude Include="..\GameLibrary\Linking\include\ft2build.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="OpenGLRender.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="Win32PlatformLayer.h" />

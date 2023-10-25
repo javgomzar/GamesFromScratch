@@ -27,13 +27,6 @@ extern GAMELIBRARY_API int nGameLibrary;
 #include "ft2build.h"
 #include FT_FREETYPE_H
 
-// Assert
-void Assert(bool assertion) {
-    if (!assertion) {
-        throw("Assert failed");
-    }
-}
-
 
 // Platform independent structs and types
 struct game_rect {
@@ -87,40 +80,6 @@ v3 ToV3(game_screen_position Position) {
     return Result;
 }
 
-// File loading
-// BMP
-#pragma pack(push, 1)
-struct bitmap_header {
-    uint16 FileType;
-    uint32 FileSize;
-    uint16 Reserved1;
-    uint16 Reserved2;
-    uint32 BitmapOffset;
-    uint32 Size;
-    int32 Width;
-    int32 Height;
-    uint16 Planes;
-    uint16 BitsPerPixel;
-    uint32 Compression;
-    uint32 SizeOfBitmap;
-    int32 HorzResolution;
-    int32 VertResolution;
-    uint32 ColorUser;
-    uint32 ColorsImportant;
-    uint32 RedMask;
-    uint32 GreenMask;
-    uint32 BlueMask;
-};
-#pragma pack(pop)
-
-struct loaded_bmp {
-    bitmap_header Header;
-    uint32 BytesPerPixel;
-    uint32 Pitch;
-    bool HasAlpha;
-    uint32 AlphaMask;
-    uint32* Content;
-};
 
 // Color
 struct color {
@@ -275,46 +234,7 @@ struct record_and_playback {
     uint64 TotalSize;
 };
 
-// Memory Arenas
-struct memory_arena {
-    memory_index Size;
-    uint8* Base;
-    memory_index Used;
-};
 
-void InitializeArena(memory_arena* Arena, memory_index Size, uint8* Base) {
-    Arena->Size = Size;
-    Arena->Base = Base;
-    Arena->Used = 0;
-}
-
-void ZeroSize(memory_index Size, void* Ptr) {
-    uint8* Byte = (uint8*)Ptr;
-    while (Size--) {
-        *Byte++ = 0;
-    }
-}
-
-#define PushStruct(Arena, type) (type *)PushSize_(Arena, sizeof(type))
-#define PushArray(Arena, Count, type) (type *)PushSize_(Arena, Count*sizeof(type))
-#define PushSize(Arena, Size) (void*)PushSize_(Arena, Size)
-void* PushSize_(memory_arena* Arena, memory_index Size) {
-    Assert(Arena->Size > Arena->Used + Size);
-    void* Result = Arena->Base + Arena->Used;
-    Arena->Used += Size;
-    return Result;
-}
-
-#define PopStruct(Arena, type) (type *)PopSize_(Arena, sizeof(type))
-#define PopArray(Arena, Count, type) (type *)PopSize_(Arena, Count*sizeof(type))
-#define PopSize(Arena, Size) (void*)PopSize_(Arena, Size)
-void* PopSize_(memory_arena* Arena, memory_index Size) {
-    memory_index BytesErased = min(Size, Arena->Used);
-    void* Result = (void*)(Arena->Base + Arena->Used - BytesErased);
-    ZeroSize(BytesErased, Result);
-    Arena->Used -= BytesErased;
-    return Result;
-}
 
 // User Interface
 struct button {
@@ -336,7 +256,7 @@ struct UI {
 struct game_assets {
     loaded_bmp BackgroundBMP;
     loaded_bmp PlayerBMP;
-    FT_Face TestFont;
+    Character* Characters;
 };
 
 // Game State: Persistent (between frames) values
@@ -344,12 +264,10 @@ struct game_state {
     game_screen_position PlayerPosition;
     v3 PlayerVelocity;
     double MaxCelerity;
-
+    memory_arena TextArena;
     memory_arena TestArena;
     UI UserInterface;
 };
-
-#include "render_group.h"
 
 // Game Memory
 struct game_memory {

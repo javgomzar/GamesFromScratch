@@ -30,6 +30,9 @@
     <ClInclude Include="..\GameLibrary\Linking\include\ft2build.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="OpenGLRender.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Win32PlatformLayer.cpp">

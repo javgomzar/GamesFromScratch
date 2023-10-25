@@ -7,9 +7,11 @@
 #include "xaudio2.h"
 #include "..\GameLibrary\GameLibrary.h"
 #include "Win32PlatformLayer.h"
-#include "GL/GL.h"
+#include "GL\GL.h"
+#include "OpenGLRender.h"
 
 #pragma comment (lib, "opengl32.lib")
+
 
 
 /* TODO:
@@ -24,7 +26,7 @@
     - QueryCancelAutoplay
     - WM_ACTIVEAPP (when we are not the active application)
     - Blit speed improvements (BitBlt)
-    - Hardware acceleration (OpenGL or Direct3D or BOTH??)
+    - Hardware acceleration (OpenGL)
     - GetKeyboardLayout (international wasd support)
 */
 
@@ -94,6 +96,75 @@ struct OFFSCREENBUFFER {
 OFFSCREENBUFFER BackBuffer;
 WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
 
+Character* InitializeFonts(memory_arena* Arena) {
+    FT_Library FTLibrary;
+    FT_Face Font;
+    FT_Error error = FT_Init_FreeType(&FTLibrary);
+    if (error) {
+        Assert(false);
+    }
+    else {
+        error = FT_New_Face(FTLibrary, "C:/Windows/Fonts/CascadiaMono.ttf", 0, &Font);
+        if (error == FT_Err_Unknown_File_Format) {
+            Assert(false);
+        }
+        else if (error) {
+            Assert(false);
+        }
+        else {
+            // Initializing char bitmaps
+            int Points = 20;
+            error = FT_Set_Char_Size(Font, 0, Points * 64, 128, 128);
+            if (error) {
+                Assert(false);
+            }
+            
+            Character* Result = PushArray(Arena, 95, Character);
+            loaded_bmp* CharacterBMP = PushArray(Arena, 95, loaded_bmp);
+            Character* pCharacter = Result;
+            for (unsigned char c = ' '; c <= '~'; c++) {
+                error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
+                if (error) {
+                    Assert(false);
+                }
+                else {
+                    FT_GlyphSlot Slot = Font->glyph;
+                    FT_Bitmap FTBMP = Slot->bitmap;
+                    *CharacterBMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
+                    LoadFTBMP(&FTBMP, CharacterBMP, White);
+
+                    Character LoadCharacter = { 0 };
+                    LoadCharacter.Letter = c;
+                    LoadCharacter.Advance = Slot->advance.x;
+                    LoadCharacter.Left = Slot->bitmap_left;
+                    LoadCharacter.Top = Slot->bitmap_top;
+                    LoadCharacter.Height = Slot->metrics.height;
+                    LoadCharacter.Width = Slot->metrics.width;
+                    LoadCharacter.Bitmap = CharacterBMP++;
+
+                    GLuint Handle;
+                    glGenTextures(1, &Handle);
+                    LoadCharacter.Bitmap->Handle = Handle;
+
+                    *(pCharacter++) = LoadCharacter;
+
+                    glBindTexture(GL_TEXTURE_2D, Handle);
+                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, LoadCharacter.Bitmap->Header.Width, LoadCharacter.Bitmap->Header.Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, LoadCharacter.Bitmap->Content);
+
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+                }
+            }
+            FT_Done_Face(Font);
+            FT_Done_FreeType(FTLibrary);
+            return Result;
+        }
+    }
+}
+
 void InitOpenGL(HWND Window) {
     HDC WindowDC = GetDC(Window);
     
@@ -112,7 +183,7 @@ void InitOpenGL(HWND Window) {
 
     HGLRC OpenGLRC = wglCreateContext(WindowDC);
     if (wglMakeCurrent(WindowDC, OpenGLRC)) {
-        
+        OutputDebugStringA("OpenGL successfully initialized.\n");
     }
     else {
         Assert(false);
@@ -134,23 +205,23 @@ WNDDIMENSION GetWindowDimension(HWND Window) {
 
 VOID ResizeDIBSection(OFFSCREENBUFFER* Buffer, int Width, int Height) {
 
-    if (Buffer->Memory) {
-        VirtualFree(Buffer->Memory, 0, MEM_RELEASE);
-    }
+    //if (Buffer->Memory) {
+    //    VirtualFree(Buffer->Memory, 0, MEM_RELEASE);
+    //}
 
     Buffer->Width = Width;
     Buffer->Height = Height;
 
-    Buffer->Info.bmiHeader.biSize = sizeof(Buffer->Info.bmiHeader);
-    Buffer->Info.bmiHeader.biWidth = Buffer->Width;
-    Buffer->Info.bmiHeader.biHeight = -Buffer->Height;
-    Buffer->Info.bmiHeader.biPlanes = 1;
-    Buffer->Info.bmiHeader.biBitCount = 32;
-    Buffer->Info.bmiHeader.biCompression = BI_RGB;
-    Buffer->Info.bmiHeader.biSizeImage = 0;
+    //Buffer->Info.bmiHeader.biSize = sizeof(Buffer->Info.bmiHeader);
+    //Buffer->Info.bmiHeader.biWidth = Buffer->Width;
+    //Buffer->Info.bmiHeader.biHeight = -Buffer->Height;
+    //Buffer->Info.bmiHeader.biPlanes = 1;
+    //Buffer->Info.bmiHeader.biBitCount = 32;
+    //Buffer->Info.bmiHeader.biCompression = BI_RGB;
+    //Buffer->Info.bmiHeader.biSizeImage = 0;
 
-    int BitmapMemorySize = Buffer->BytesPerPixel * Width * Height;
-    Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
+    //int BitmapMemorySize = Buffer->BytesPerPixel * Width * Height;
+    //Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
 
     Buffer->Pitch = Width * Buffer->BytesPerPixel;
 }
@@ -167,53 +238,6 @@ VOID DisplayBufferToWindow(
         DIB_RGB_COLORS,
         SRCCOPY
     );*/
-    glViewport(0, 0, Width, Height);
-
-    GLuint TextureHandle = 0;
-    static bool Init = false;
-    if (!Init) {
-        glGenTextures(1, &TextureHandle);
-        Init = true;
-    }
-
-    glBindTexture(GL_TEXTURE_2D, TextureHandle);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Buffer->Width, Buffer->Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Buffer->Memory);
-
-    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-
-    glEnable(GL_TEXTURE_2D);
-
-    // Clear to pink
-    glClearColor(1.0f, 0.0f, 1.0f, 0.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glBegin(GL_TRIANGLES);
-    // Upper triangle
-    glTexCoord2i(0, 0);
-    glVertex2i(-1, 1);
-
-    glTexCoord2i(1, 0);
-    glVertex2i(1, 1);
-
-    glTexCoord2i(0, 1);
-    glVertex2i(-1, -1);
-
-    // Lower triangle
-    glTexCoord2i(0, 1);
-    glVertex2i(-1, -1);
-
-    glTexCoord2i(1, 1);
-    glVertex2i(1, -1);
-
-    glTexCoord2i(1, 0);
-    glVertex2i(1, 1);
-
-    glEnd();
-
 
     SwapBuffers(DeviceContext);
 }
@@ -418,7 +442,7 @@ void EndRecordingInput(record_and_playback* RecordPlayback) {
     RecordPlayback->RecordIndex = 0;
     CloseHandle(RecordPlayback->RecordFile);
 }
-
+ 
 void RecordInput(record_and_playback* RecordPlayback, game_input* Input) {
     DWORD BytesWritten;
     WriteFile(RecordPlayback->RecordFile, Input, sizeof(*Input), &BytesWritten, 0);
@@ -834,6 +858,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     Platform.FreeFileMemory = PlatformFreeFileMemory;
     Platform.ReadEntireFile = PlatformReadEntireFile;
     Platform.WriteEntireFile = PlatformWriteEntireFile;
+    Platform.OpenGLRender = OpenGLRenderGroupToOutput;
     GameMemory.Platform = Platform;
 
     game_state* pGameState = (game_state*)GameMemory.PermanentStorage;
@@ -861,6 +886,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // OpenGl
     InitOpenGL(Window);
+
+    // Fonts
+    InitializeArena(&pGameState->TextArena, Megabytes(1), (uint8*)GameMemory.PermanentStorage + sizeof(game_state));
+    GameMemory.Assets.Characters = InitializeFonts(&pGameState->TextArena);
 
     bool FirstFrame = true;
     // Main message loop:
@@ -1007,8 +1036,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         WNDDIMENSION Dimension = GetWindowDimension(Window);
         HDC DeviceContext = GetDC(Window);
 
-        // DebugSyncDisplay(&Buffer, &GameSoundBuffers[currentBuffer]);
-        DisplayBufferToWindow(&BackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
+        //DebugSyncDisplay(&Buffer, &GameSoundBuffers[currentBuffer]);
+        // DisplayBufferToWindow(&BackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
+        SwapBuffers(GetDC(Window));
         if (FAILED(SubmitBuffer(&XAudio2Buffers[currentBuffer], pSourceVoice))) {
             OutputDebugStringA("Buffer playing went wrong.\n");
         }
@@ -1045,7 +1075,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         //TCHAR TextBuffer[256];
         //wsprintf(TextBuffer, L"%d ms/frame, %d fps, %d Mcycles/frame\n", (int)msPerFrame, (int)FPS, (int)MegaCyclesPerFrame);
         char TextBuffer[256];
-        sprintf_s(TextBuffer, " %.02f ms/frame\n %.02f fps\n%.02f Mcycles/frame", msPerFrame, FPS, MegaCyclesPerFrame);
+        sprintf_s(TextBuffer, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame", msPerFrame, FPS, MegaCyclesPerFrame);
         GameMemory.DebugInfo = TextBuffer;
 
         if (FirstFrame) {
@@ -1182,7 +1212,8 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
 
         WNDDIMENSION Dimension = GetWindowDimension(Window);
         ResizeDIBSection(&BackBuffer, Width, Height);
-        DisplayBufferToWindow(&BackBuffer, hdc, Dimension.Width, Dimension.Height);
+        //DisplayBufferToWindow(&BackBuffer, hdc, Dimension.Width, Dimension.Height);
+        SwapBuffers(hdc);
         EndPaint(Window, &ps);
     }
     break;

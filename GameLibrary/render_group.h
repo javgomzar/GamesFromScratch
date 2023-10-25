@@ -1,4 +1,4 @@
-
+#pragma once
 
 struct render_basis {
 	v3 P;
@@ -52,16 +52,15 @@ struct render_entry_bmp {
 
 struct render_entry_text {
     render_group_header Header;
-    memory_arena* Arena;
-    FT_Face* Font;
+    Character* Characters;
     game_screen_position Position;
     text Text;
 };
 
 struct render_entry_button {
     render_group_header Header;
-    memory_arena* Arena;
-    button Button;
+    Character* Characters;
+    button* Button;
 };
 
 struct render_group {
@@ -144,19 +143,18 @@ void PushBMP(render_group* Group, loaded_bmp* Bitmap, game_screen_position Posit
     Entry->Position = Position;
 }
 
-void PushText(render_group* Group, memory_arena* Arena, FT_Face* Font, game_screen_position Position, text Text) {
+void PushText(render_group* Group, Character* Characters, game_screen_position Position, text Text) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
     Entry->Header.Key = Position.Z;
-    Entry->Arena = Arena;
-    Entry->Font = Font;
+    Entry->Characters = Characters;
     Entry->Position = Position;
     Entry->Text = Text;
 }
 
-void PushButton(render_group* Group, memory_arena* Arena, button Button) {
+void PushButton(render_group* Group, Character* Characters, button* Button) {
     render_entry_button* Entry = PushRenderElement(Group, render_entry_button);
-    Entry->Arena = Arena;
     Entry->Button = Button;
+    Entry->Characters = Characters;
 }
 
 void ClearEntries(render_group* Group) {
@@ -396,7 +394,7 @@ void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, game_screen_position P
                 color BackgroundColor = GetColor(*Destination, 0x00ff0000, 0x0000ff00, 0x000000ff);
 
                 if (BMPColor.R != BackgroundColor.R || BMPColor.G != BackgroundColor.G || BMPColor.B != BackgroundColor.B) {
-                    *Destination++ = GetColorBytes(BMP->HasAlpha ? Blend(BMPColor, BackgroundColor) : BMPColor);
+                    *Destination++ = GetColorBytes(Blend(BMPColor, BackgroundColor));
                 }
                 else {
                     Destination++;
@@ -471,7 +469,6 @@ loaded_bmp MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool 
     Result.Header.GreenMask = 0x0000ff00;
     Result.Header.BlueMask = 0x000000ff;
     Result.AlphaMask = 0xff000000;
-    Result.HasAlpha = true;
 
     Result.Content = (uint32*)PushSize(Arena, TotalBitmapSize / 8);
     if (ClearToZero) {
@@ -482,6 +479,8 @@ loaded_bmp MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool 
 
 // Text
 void LoadFTBMP(FT_Bitmap* SourceBMP, loaded_bmp* DestBMP, color Color) {
+    DestBMP->Header.Width = SourceBMP->width;
+    DestBMP->Header.Height = SourceBMP->rows;
     uint32* DestRow = DestBMP->Content + DestBMP->Header.Width * (DestBMP->Header.Height - 1);
     uint8* Source = SourceBMP->buffer;
     for (int Y = 0; Y < SourceBMP->rows; Y++) {
@@ -541,7 +540,7 @@ void RenderText(loaded_bmp* OutputTarget, memory_arena* Arena, FT_Face* Font, ga
     }
 }
 
-
+/*
 void RenderGroupToOutput(render_group* Group, loaded_bmp* OutputTarget) {
     v2 ScreenCenter = { 0.5f * (float)OutputTarget->Header.Width, 0.5f * (float)OutputTarget->Header.Height };
 
@@ -580,19 +579,19 @@ void RenderGroupToOutput(render_group* Group, loaded_bmp* OutputTarget) {
             } break;
             case group_type_render_entry_button: {
                 render_entry_button* Entry = (render_entry_button*)Header;
-                button Button = Entry->Button;
-                RenderBMP(OutputTarget, Button.Clicked ? &Button.ClickedImage : &Button.Image, { Button.Collider.Left, Button.Collider.Top, 0 });
-                RenderText(OutputTarget, Entry->Arena, Button.Face, { 
-                    Button.Collider.Left + Button.Image.Header.Width / 2,
-                    Button.Collider.Top + Button.Image.Header.Height / 2,
-                    0 }, Button.Text);
+                button* Button = Entry->Button;
+                RenderBMP(OutputTarget, Button->Clicked ? &Button->ClickedImage : &Button->Image, { Button->Collider.Left, Button->Collider.Top, 0 });
+                RenderText(OutputTarget, Entry->Arena, Button->Face, { 
+                    Button->Collider.Left + Button->Image.Header.Width / 2,
+                    Button->Collider.Top + Button->Image.Header.Height / 2,
+                    0 }, Button->Text);
 
                 BaseAddress += sizeof(*Entry);
             } break;
             case group_type_render_entry_rect_outline: {
                 render_entry_rect_outline* Entry = (render_entry_rect_outline*)Header;
 
-                game_screen_position P11 = {Entry->Rect.Left, Entry->Rect.Top, 0};
+                game_screen_position P11 = { Entry->Rect.Left, Entry->Rect.Top, 0};
                 game_screen_position P12 = { Entry->Rect.Left + Entry->Rect.Width, Entry->Rect.Top, 0 };
                 game_screen_position P21 = { Entry->Rect.Left, Entry->Rect.Top + Entry->Rect.Height, 0 };
                 game_screen_position P22 = { Entry->Rect.Left + Entry->Rect.Width, Entry->Rect.Top + Entry->Rect.Height, 0 };
@@ -611,3 +610,4 @@ void RenderGroupToOutput(render_group* Group, loaded_bmp* OutputTarget) {
         }
     }
 }
+*/

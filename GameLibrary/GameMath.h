@@ -86,6 +86,10 @@ v2 project(v2 A, v2 B) {
 	return (A * N) * N;
 }
 
+v2 perp(v2 A) {
+	return { -A.Y, A.X };
+}
+
 // 3D
 struct v3 {
 	double X, Y, Z;
