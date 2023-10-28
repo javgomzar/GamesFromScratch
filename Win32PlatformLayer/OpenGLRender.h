@@ -164,10 +164,17 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 					Assert(true);
 				}
 				OpenGLRenderBMP(Button->Clicked ? &Button->ClickedImage : &Button->Image, { Button->Collider.Left, Button->Collider.Top, 0 });
+				int TextWidth = 0;
+				int TextHeight = (int)(0.023f * Entry.Characters[1].Height);
+				for (int i = 0; i < Button->Text.Length; i++) {
+					char c = Button->Text.Content[i];
+					Character* pCharacter = Entry.Characters + (c - ' ');
+					TextWidth += pCharacter->Advance >> 6;
+				}
 				OpenGLRenderText(Width, Entry.Characters, 
 					{
-						Button->Collider.Left + Button->Image.Header.Width / 2,
-						Button->Collider.Top + Button->Image.Header.Height / 2,
+						Button->Collider.Left + (Button->Image.Header.Width - TextWidth) / 2,
+						Button->Collider.Top + Button->Image.Header.Height / 2 + TextHeight/4,
 						0 
 					}, Button->Text);
 

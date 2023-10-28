@@ -119,15 +119,20 @@ loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char
 // UI
 void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, platform_read_entire_file* Read) {
     UserInterface->TestButton = { 0 };
-    UserInterface->TestButton.Collider = {150, 0, 100, 100};
+    UserInterface->TestButton.Collider = {150, 150, 100, 100};
+
     UserInterface->TestButton.Image = LoadBMP(Read, "..\\GameLibrary\\Media\\Bitmaps\\Button.bmp");
     UserInterface->TestButton.ClickedImage = LoadBMP(Read, "..\\GameLibrary\\Media\\Bitmaps\\ButtonClicked.bmp");
+    
     UserInterface->TestButton.Text.Color = White;
-    UserInterface->TestButton.Text.Length = 1;
+    UserInterface->TestButton.Text.Length = 5;
     UserInterface->TestButton.Text.Points = 16;
-
-    UserInterface->TestButton.Text.Content = PushArray(Arena, 1, char);
-    *UserInterface->TestButton.Text.Content = 'A';
+    UserInterface->TestButton.Text.Content = PushArray(Arena, UserInterface->TestButton.Text.Length, char);
+    char TextBuffer[] = "Press";
+    char* pChar = UserInterface->TestButton.Text.Content;
+    for (int i = 0; i < UserInterface->TestButton.Text.Length; i++) {
+        *pChar++ = TextBuffer[i];
+    }
 }
 
 
@@ -313,6 +318,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     pGameState->PlayerVelocity = Velocity;
         
     GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
+    PushClear(Group, BackgroundBlue);
     PushBMP(Group, &Memory->Assets.BackgroundBMP, {0, 0, 0});
     PushBMP(Group, &Memory->Assets.PlayerBMP, pGameState->PlayerPosition);
 
@@ -392,7 +398,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //else {
     //    Platform.OpenGLRender(Group, &Target);
     //}
-
+    
     Platform.OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
 
     // Clear render group

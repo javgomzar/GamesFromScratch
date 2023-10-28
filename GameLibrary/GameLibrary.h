@@ -100,6 +100,7 @@ static color Magenta = { 255, 255, 0, 255 };
 static color Yellow = { 255, 255, 255, 0 };
 static color Cyan = { 255, 0, 220, 255 };
 static color Orange = { 255, 255, 160, 0 };
+static color BackgroundBlue = {255, 100, 100, 200};
 
 uint32 GetColorBytes(color Color) {
     return (Color.Alpha << 24) | (Color.R << 16) | (Color.G << 8) | Color.B;
