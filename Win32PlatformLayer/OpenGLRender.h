@@ -78,11 +78,18 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 				PenX = Position.X;
 				PenY += LineJump;
 			}
-			if (c != ' ') OpenGLRenderBMP(pCharacter->Bitmap, { PenX + pCharacter->Left, PenY - pCharacter->Top, 0 });
+			if (c != ' ') {
+				float R = Text.Color.R / 255.0f;
+				float G = Text.Color.G / 255.0f;
+				float B = Text.Color.B / 255.0f;
+				glColor3f(R, G, B);
+				OpenGLRenderBMP(pCharacter->Bitmap, { PenX + pCharacter->Left, PenY - pCharacter->Top, 0 });
+			}
 
 			PenX += pCharacter->Advance >> 6;
 		}
 	}
+	glColor3f(1.0f, 1.0f, 1.0f);
 }
 
 
@@ -123,9 +130,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 			{
 				render_entry_clear Entry = *(render_entry_clear*)Header;
 
-				float R = Entry.Color.R / 255;
-				float G = Entry.Color.G / 255;
-				float B = Entry.Color.B / 255;
+				float R = Entry.Color.R / 255.0f;
+				float G = Entry.Color.G / 255.0f;
+				float B = Entry.Color.B / 255.0f;
 
 				glClearColor(R, G, B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
@@ -163,6 +170,50 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 						Button->Collider.Top + Button->Image.Header.Height / 2,
 						0 
 					}, Button->Text);
+
+				BaseAddress += sizeof(Entry);
+			} break;
+
+			case group_type_render_entry_line:
+			{
+				render_entry_line Entry = *(render_entry_line*)Header;
+
+				glBegin(GL_LINES);
+				float R = (float)Entry.Color.R / 255.0f;
+				float G = (float)Entry.Color.G / 255.0f;
+				float B = (float)Entry.Color.B / 255.0f;
+				glColor3f(R, G, B);
+
+				glVertex2f(Entry.Start.X, Entry.Start.Y);
+				glVertex2f(Entry.Finish.X, Entry.Finish.Y);
+
+				glEnd();
+				glColor3f(1.0f, 1.0f, 1.0f);
+
+				BaseAddress += sizeof(Entry);
+			} break;
+
+			case group_type_render_entry_rect_outline:
+			{
+				render_entry_rect_outline Entry = *(render_entry_rect_outline*)Header;
+
+				glBegin(GL_LINES);
+				float R = (float)Entry.Color.R / 255.0f;
+				float G = (float)Entry.Color.G / 255.0f;
+				float B = (float)Entry.Color.B / 255.0f;
+				glColor3f(R, G, B);
+
+				glVertex2f(Entry.Rect.Left, Entry.Rect.Top);
+				glVertex2f(Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height);
+				glVertex2f(Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height);
+				glVertex2f(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height);
+				glVertex2f(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height);
+				glVertex2f(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top);
+				glVertex2f(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top);
+				glVertex2f(Entry.Rect.Left, Entry.Rect.Top);
+
+				glEnd();
+				glColor3f(1.0f, 1.0f, 1.0f);
 
 				BaseAddress += sizeof(Entry);
 			} break;

@@ -10,10 +10,8 @@
 
 /*
     TODO:
-        - OpenGL lines (possibly useful when raycasting).
         - Investigate bug: When time passes, fps starts dropping. MCycles/frame actually goes up when this happens, so it 
           may be due to acumulating errors from performance count.
-        - Code shader to change color of text.
 */
 
 
@@ -363,25 +361,23 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Counter++;
     }
 
-    static char TextBuffer[124];
-    sprintf_s(TextBuffer, "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.");
+    static char TextBuffer[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
     text Text = { Length, Black, 20, true, TextBuffer };
     PushText(Group, Assets.Characters, { 400,150,0 }, Text);
 
     // Update clicks
     pGameState->UserInterface.TestButton.Clicked = Input->Mouse.LeftClick.IsDown && Collision(pGameState->UserInterface.TestButton.Collider, Input->Mouse.Cursor);
     PushButton(Group, Assets.Characters, &pGameState->UserInterface.TestButton);
-    // WARNING: MEMORY LEAK IN BUTTON. INVESTIGATE!
 
     // TEST
-    //PushLine(Group, Yellow, {100, 200, 0}, Input->Mouse.Cursor);
+    PushLine(Group, Yellow, {100, 200, 0}, Input->Mouse.Cursor);
 
     game_rect PlayerRect;
     PlayerRect.Left = pGameState->PlayerPosition.X;
     PlayerRect.Top = pGameState->PlayerPosition.Y;
     PlayerRect.Width = Memory->Assets.PlayerBMP.Header.Width;
     PlayerRect.Height = Memory->Assets.PlayerBMP.Header.Height;
-    //PushRectOutline(Group, PlayerRect, Green);
+    PushRectOutline(Group, PlayerRect, Green);
 
     // Render
     loaded_bmp Target = { 0 };

@@ -1065,7 +1065,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
         else {
             // Missed a frame!
-            //OutputDebugStringA("Missed a frame!\n");
+            OutputDebugStringA("Missed a frame!\n");
         }
 
         double ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
