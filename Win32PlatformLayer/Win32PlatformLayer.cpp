@@ -184,6 +184,13 @@ void InitOpenGL(HWND Window) {
     HGLRC OpenGLRC = wglCreateContext(WindowDC);
     if (wglMakeCurrent(WindowDC, OpenGLRC)) {
         OutputDebugStringA("OpenGL successfully initialized.\n");
+
+        typedef BOOL WINAPI wgl_swap_interval_ext(int interval);
+        wgl_swap_interval_ext *wglSwapInterval = (wgl_swap_interval_ext*)wglGetProcAddress("wglSwapIntervalEXT");
+        if (wglSwapInterval) {
+            wglSwapInterval(1);
+            OutputDebugStringA("VSync activated.\n");
+        }
     }
     else {
         Assert(false);
@@ -1038,7 +1045,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         //DebugSyncDisplay(&Buffer, &GameSoundBuffers[currentBuffer]);
         // DisplayBufferToWindow(&BackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
-        SwapBuffers(GetDC(Window));
+        SwapBuffers(DeviceContext);
         if (FAILED(SubmitBuffer(&XAudio2Buffers[currentBuffer], pSourceVoice))) {
             OutputDebugStringA("Buffer playing went wrong.\n");
         }

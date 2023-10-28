@@ -8,11 +8,6 @@
 #include <gl/GL.h>
 
 
-/*
-    TODO:
-        - Investigate bug: When time passes, fps starts dropping. MCycles/frame actually goes up when this happens, so it 
-          may be due to acumulating errors from performance count.
-*/
 
 
 
@@ -339,7 +334,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if (ShowDebugInfo) {
         text Text = { 0 };
         Text.Color = White;
-        Text.Length = 47;
+        Text.Length = 48;
         Text.Points = 20;
         Text.Content = Memory->DebugInfo;
         PushText(Group, Assets.Characters, { 0,30,0 }, Text);
