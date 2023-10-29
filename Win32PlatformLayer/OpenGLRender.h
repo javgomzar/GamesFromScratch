@@ -92,6 +92,25 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 	glColor3f(1.0f, 1.0f, 1.0f);
 }
 
+void OpenGLRenderPlatform(int Left, int Top, int Height, int LongWidth, int ShortWidth) {
+	glColor3f(1.0f, 0.0f, 0.0f);
+
+	glBegin(GL_TRIANGLES);
+
+	// Lower triangle
+	glVertex2f(Left + LongWidth, Top);
+	glVertex2f(Left + (LongWidth - ShortWidth) / 2, Top + Height);
+	glVertex2f(Left + (LongWidth + ShortWidth) / 2, Top + Height);
+
+	// Upper triangle
+	glVertex2f(Left, Top);
+	glVertex2f(Left + (LongWidth - ShortWidth) / 2, Top + Height);
+	glVertex2f(Left + LongWidth, Top);
+
+	glEnd();
+	glColor3f(1.0f, 1.0f, 1.0f);
+}
+
 
 void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 	
@@ -225,9 +244,17 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 				BaseAddress += sizeof(Entry);
 			} break;
 
+			case group_type_render_entry_platform:
+			{
+				render_entry_platform Entry = *(render_entry_platform*)Header;
+				OpenGLRenderPlatform(Entry.Left, Entry.Top, Entry.Height, Entry.LongWidth, Entry.ShortWidth);
+
+				BaseAddress += sizeof(Entry);
+			} break;
+
 			default:
 			{
-				OutputDebugStringA("ERROR: Unknow render entry type.");
+				OutputDebugStringA("ERROR: Unknow render entry type.\n");
 				return;
 				//Assert(false);
 			};

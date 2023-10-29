@@ -263,6 +263,7 @@ struct game_assets {
 // Game State: Persistent (between frames) values
 struct game_state {
     game_screen_position PlayerPosition;
+    bool IsJumping;
     v3 PlayerVelocity;
     double MaxCelerity;
     memory_arena TextArena;

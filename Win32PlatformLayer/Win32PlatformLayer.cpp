@@ -606,7 +606,7 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
 
             // Shortcut for closing Alt+F4
             bool AltKeyWasDown = (msg.lParam & ((uint32)1 << 29)) != 0;
-            if ((VKCode == VK_F4) && AltKeyWasDown) {
+            if (((VKCode == VK_F4) && AltKeyWasDown) || VKCode == VK_ESCAPE) {
                 Running = false;
                 PostQuitMessage(0);
             }
@@ -899,6 +899,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     GameMemory.Assets.Characters = InitializeFonts(&pGameState->TextArena);
 
     bool FirstFrame = true;
+    ToggleFullScreen(Window);
     // Main message loop:
     while (Running) {
         // Loading game code
@@ -1162,8 +1163,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
     int ScreenHeight = GetSystemMetrics(SM_CYSCREEN);
 
     // These are not the actual dimensions of the buffer
-    int WindowWidth = 967;
-    int WindowHeight = 529;
+    int WindowWidth = 1920;
+    int WindowHeight = 1080;
 
     // This code starts the window centered
     int X = (ScreenWidth / 2) - (WindowWidth / 2);

@@ -227,7 +227,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     if (!Memory->IsInitialized) {
         pGameState->MaxCelerity = 20;
-        pGameState->PlayerPosition = { 0, 290, 0 };
+        pGameState->PlayerPosition = { (int)(ScreenBuffer->Width / 2), (int)(ScreenBuffer->Height / 2), 0 };
+        pGameState->PlayerVelocity = { 0 };
+        pGameState->IsJumping = false;
 
         // Memory arenas
         InitializeArena(&pGameState->TestArena, Memory->PermanentStorageSize - sizeof(game_state) - pGameState->TextArena.Size, (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
@@ -254,47 +256,47 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     // Controls
     double dt = 1;
+    int FloorLevel = ScreenBuffer->Height / 2;
     v3 Position = ToV3(pGameState->PlayerPosition);
     v3 Velocity = pGameState->PlayerVelocity;
     v3 Acceleration = { 0 };
-    double AccelerationModule = 0;
-    v3 Direction = { 0 };
 
+    // Horizontal movement
+    double Force = pGameState->IsJumping ? 0.2 : 1;
     if (Input->Keyboard.D.IsDown) {
-        Direction.X += 1;
+        Acceleration.X = Force;
     }
-    if (Input->Keyboard.A.IsDown) {
-        Direction.X -= 1;
-    }
-    if (Input->Keyboard.W.IsDown) {
-        Direction.Y += -1;
-    }
-    if (Input->Keyboard.S.IsDown) {
-        Direction.Y -= -1;
-    }
-    Direction = normalize(Direction);
-
-    if (module(Direction) > 0.9) {
-        AccelerationModule = 2;
+    else if (Input->Keyboard.A.IsDown) {
+        Acceleration.X = -Force;
     }
     else {
-        if (module(Velocity) > 2.5) {
-            AccelerationModule = 5;
-            Direction = -normalize(Velocity);
-        }
-        else {
-            Velocity = { 0 };
-            AccelerationModule = 0;
-        }
+        Acceleration.X = -0.2f * Velocity.X;
     }
 
-    Acceleration = AccelerationModule * Direction;
+    // Vertical movement
+    if (Input->Keyboard.Space.IsDown && !pGameState->IsJumping) {
+        Velocity.Y = -20;
+        pGameState->IsJumping = true;
+    }
 
-    Velocity = Velocity + dt * Acceleration;
     Position = Position + dt * Velocity;
+    if (Position.Y >= FloorLevel && Abs(Position.X + ((double)Assets.PlayerBMP.Header.Width - (double)ScreenBuffer->Width)/2.0f) < 800.0f) {
+        Position.Y = FloorLevel;
+        Acceleration.Y = 0;
+        
+        if (pGameState->IsJumping && !Input->Keyboard.Space.IsDown) {
+            Velocity.Y = 0;
+            pGameState->IsJumping = false;
+        }
+    }
+    else {
+        // Gravity
+        Acceleration.Y = 1;
+    }
+    Velocity = Velocity + dt * Acceleration;
 
-    if (module(Velocity) > pGameState->MaxCelerity) {
-        Velocity = pGameState->MaxCelerity * Direction;
+    if (Abs(Velocity.X) > pGameState->MaxCelerity) {
+        Velocity.X = Sign(Velocity.X) * pGameState->MaxCelerity;
     }
     
     // Border detection
@@ -319,7 +321,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         
     GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
     PushClear(Group, BackgroundBlue);
-    PushBMP(Group, &Memory->Assets.BackgroundBMP, {0, 0, 0});
     PushBMP(Group, &Memory->Assets.PlayerBMP, pGameState->PlayerPosition);
 
     // Debug mouse position
@@ -362,24 +363,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Counter++;
     }
 
-    static char TextBuffer[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
-    text Text = { Length, Black, 20, true, TextBuffer };
-    PushText(Group, Assets.Characters, { 400,150,0 }, Text);
-
-    // Update clicks
-    pGameState->UserInterface.TestButton.Clicked = Input->Mouse.LeftClick.IsDown && Collision(pGameState->UserInterface.TestButton.Collider, Input->Mouse.Cursor);
-    PushButton(Group, Assets.Characters, &pGameState->UserInterface.TestButton);
-
-    // TEST
-    PushLine(Group, Yellow, {100, 200, 0}, Input->Mouse.Cursor);
-
-    game_rect PlayerRect;
-    PlayerRect.Left = pGameState->PlayerPosition.X;
-    PlayerRect.Top = pGameState->PlayerPosition.Y;
-    PlayerRect.Width = Memory->Assets.PlayerBMP.Header.Width;
-    PlayerRect.Height = Memory->Assets.PlayerBMP.Header.Height;
-    PushRectOutline(Group, PlayerRect, Green);
-
     // Render
     loaded_bmp Target = { 0 };
     Target.Header.Width = ScreenBuffer->Width;
@@ -399,6 +382,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //    Platform.OpenGLRender(Group, &Target);
     //}
     
+    PushPlatform(Group, Target.Header.Width/2 - 800, Target.Header.Height / 2 + Assets.PlayerBMP.Header.Height, 1600, 1300, 100);
     Platform.OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
 
     // Clear render group

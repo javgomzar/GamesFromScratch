@@ -11,7 +11,8 @@ enum render_group_entry_type {
     group_type_render_entry_rect_outline,
 	group_type_render_entry_bmp,
     group_type_render_entry_text,
-    group_type_render_entry_button
+    group_type_render_entry_button,
+    group_type_render_entry_platform
 };
 
 struct render_group_header {
@@ -61,6 +62,15 @@ struct render_entry_button {
     render_group_header Header;
     Character* Characters;
     button* Button;
+};
+
+struct render_entry_platform {
+    render_group_header Header;
+    int Left;
+    int Top;
+    int LongWidth;
+    int ShortWidth;
+    int Height;
 };
 
 struct render_group {
@@ -155,6 +165,15 @@ void PushButton(render_group* Group, Character* Characters, button* Button) {
     render_entry_button* Entry = PushRenderElement(Group, render_entry_button);
     Entry->Button = Button;
     Entry->Characters = Characters;
+}
+
+void PushPlatform(render_group* Group, int Left, int Top, int LongWidth, int ShortWidth, int Height) {
+    render_entry_platform* Entry = PushRenderElement(Group, render_entry_platform);
+    Entry->Left = Left;
+    Entry->Top = Top;
+    Entry->LongWidth = LongWidth;
+    Entry->ShortWidth = ShortWidth;
+    Entry->Height = Height;
 }
 
 void ClearEntries(render_group* Group) {

@@ -28,6 +28,10 @@ int32 Sign(double x) {
 	}
 }
 
+double Abs(double x) {
+	return x < 0 ? -x : x;
+}
+
 // Vectors
 // 2D
 struct v2 {
