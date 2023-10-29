@@ -92,6 +92,24 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 	glColor3f(1.0f, 1.0f, 1.0f);
 }
 
+void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color) {
+	render_entry_line Entry = *(render_entry_line*)Header;
+
+	glBegin(GL_LINES);
+	float R = (float)Entry.Color.R / 255.0f;
+	float G = (float)Entry.Color.G / 255.0f;
+	float B = (float)Entry.Color.B / 255.0f;
+	glColor3f(R, G, B);
+
+	glVertex2f(Entry.Start.X, Entry.Start.Y);
+	glVertex2f(Entry.Finish.X, Entry.Finish.Y);
+
+	glEnd();
+	glColor3f(1.0f, 1.0f, 1.0f);
+
+	BaseAddress += sizeof(Entry);
+}
+
 
 void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 	
