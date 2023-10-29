@@ -44,7 +44,7 @@ void ZeroSize(memory_index Size, void* Ptr) {
 #define PushArray(Arena, Count, type) (type *)PushSize_(Arena, Count*sizeof(type))
 #define PushSize(Arena, Size) (void*)PushSize_(Arena, Size)
 void* PushSize_(memory_arena* Arena, memory_index Size) {
-    Assert(Arena->Size > Arena->Used + Size);
+    Assert(Arena->Size >= Arena->Used + Size);
     void* Result = Arena->Base + Arena->Used;
     Arena->Used += Size;
     return Result;

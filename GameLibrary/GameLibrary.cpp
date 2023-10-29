@@ -118,21 +118,7 @@ loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char
 
 // UI
 void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, platform_read_entire_file* Read) {
-    UserInterface->TestButton = { 0 };
-    UserInterface->TestButton.Collider = {150, 150, 100, 100};
-
-    UserInterface->TestButton.Image = LoadBMP(Read, "..\\GameLibrary\\Media\\Bitmaps\\Button.bmp");
-    UserInterface->TestButton.ClickedImage = LoadBMP(Read, "..\\GameLibrary\\Media\\Bitmaps\\ButtonClicked.bmp");
-    
-    UserInterface->TestButton.Text.Color = White;
-    UserInterface->TestButton.Text.Length = 5;
-    UserInterface->TestButton.Text.Points = 16;
-    UserInterface->TestButton.Text.Content = PushArray(Arena, UserInterface->TestButton.Text.Length, char);
-    char TextBuffer[] = "Press";
-    char* pChar = UserInterface->TestButton.Text.Content;
-    for (int i = 0; i < UserInterface->TestButton.Text.Length; i++) {
-        *pChar++ = TextBuffer[i];
-    }
+    // Initialize your UI elements here
 }
 
 
@@ -226,101 +212,30 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     render_group* Group = Memory->Group;
 
     if (!Memory->IsInitialized) {
-        pGameState->MaxCelerity = 20;
-        pGameState->PlayerPosition = { 0, 290, 0 };
-
         // Memory arenas
-        InitializeArena(&pGameState->TestArena, Memory->PermanentStorageSize - sizeof(game_state) - pGameState->TextArena.Size, (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
+        InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        // Load BMPs
-        Memory->Assets.PlayerBMP = LoadBMP(Platform.ReadEntireFile, "..\\GameLibrary\\Media\\Bitmaps\\Player.bmp");
-        Memory->Assets.BackgroundBMP = LoadBMP(Platform.ReadEntireFile, "..\\GameLibrary\\Media\\Bitmaps\\Background.bmp");
-
-        // Fonts
-        //InitializeFonts(Memory);
-        Memory->IsInitialized = true;
-
-        // User Interface
-        pGameState->UserInterface = { 0 };
-        InitializeUI(&pGameState->TestArena, &Memory->Assets, &pGameState->UserInterface, Platform.ReadEntireFile);
+        // Load your assets here        
 
         Assets = Memory->Assets;
 
+        // User Interface
+        // InitializeUI();
+
         // Renderer --------------------------------------------------------------------------------------------------------------------------------------
-        Memory->Group = AllocateRenderGroup(&pGameState->TestArena, Megabytes(4));
+        Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
         Group = Memory->Group;
+
+        Memory->IsInitialized = true;
     }
+
+    PushClear(Group, BackgroundBlue);
 
     // Controls
-    double dt = 1;
-    v3 Position = ToV3(pGameState->PlayerPosition);
-    v3 Velocity = pGameState->PlayerVelocity;
-    v3 Acceleration = { 0 };
-    double AccelerationModule = 0;
-    v3 Direction = { 0 };
-
-    if (Input->Keyboard.D.IsDown) {
-        Direction.X += 1;
-    }
-    if (Input->Keyboard.A.IsDown) {
-        Direction.X -= 1;
-    }
-    if (Input->Keyboard.W.IsDown) {
-        Direction.Y += -1;
-    }
-    if (Input->Keyboard.S.IsDown) {
-        Direction.Y -= -1;
-    }
-    Direction = normalize(Direction);
-
-    if (module(Direction) > 0.9) {
-        AccelerationModule = 2;
-    }
-    else {
-        if (module(Velocity) > 2.5) {
-            AccelerationModule = 5;
-            Direction = -normalize(Velocity);
-        }
-        else {
-            Velocity = { 0 };
-            AccelerationModule = 0;
-        }
-    }
-
-    Acceleration = AccelerationModule * Direction;
-
-    Velocity = Velocity + dt * Acceleration;
-    Position = Position + dt * Velocity;
-
-    if (module(Velocity) > pGameState->MaxCelerity) {
-        Velocity = pGameState->MaxCelerity * Direction;
-    }
-    
-    // Border detection
-    if (Position.X < 0) {
-        Position.X = 0;
-        Velocity.X = 0;
-    }
-    if (Position.X > (double)ScreenBuffer->Width - Memory->Assets.PlayerBMP.Header.Width) {
-        Position.X = (double)ScreenBuffer->Width - Memory->Assets.PlayerBMP.Header.Width;
-        Velocity.X = 0;
-    }
-    if (Position.Y < 0) {
-        Position.Y = 0;
-        Velocity.Y = 0;
-    }
-    if (Position.Y > (double)ScreenBuffer->Height - Memory->Assets.PlayerBMP.Header.Height) {
-        Position.Y = (double)ScreenBuffer->Height - Memory->Assets.PlayerBMP.Header.Height;
-        Velocity.Y = 0;
-    }
-    pGameState->PlayerPosition = ToScreenPosition(Position);
-    pGameState->PlayerVelocity = Velocity;
+    // Put here your input code
         
     GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
-    PushClear(Group, BackgroundBlue);
-    PushBMP(Group, &Memory->Assets.BackgroundBMP, {0, 0, 0});
-    PushBMP(Group, &Memory->Assets.PlayerBMP, pGameState->PlayerPosition);
 
     // Debug mouse position
     //if (Input->Mouse.LeftClick.IsDown) {
@@ -346,40 +261,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PushText(Group, Assets.Characters, { 0,30,0 }, Text);
     }
 
-    
-    static int Length = 1;
-    static int Counter = 0;
-
-    if (Length == 123) {
-        Counter = 0;
-        Length = 0;
-    }
-    else {
-        if (Counter == 2 && Length < 123) {
-            Counter = 0;
-            Length++;
-        }
-        Counter++;
-    }
-
-    static char TextBuffer[] = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
-    text Text = { Length, Black, 20, true, TextBuffer };
-    PushText(Group, Assets.Characters, { 400,150,0 }, Text);
-
-    // Update clicks
-    pGameState->UserInterface.TestButton.Clicked = Input->Mouse.LeftClick.IsDown && Collision(pGameState->UserInterface.TestButton.Collider, Input->Mouse.Cursor);
-    PushButton(Group, Assets.Characters, &pGameState->UserInterface.TestButton);
-
-    // TEST
-    PushLine(Group, Yellow, {100, 200, 0}, Input->Mouse.Cursor);
-
-    game_rect PlayerRect;
-    PlayerRect.Left = pGameState->PlayerPosition.X;
-    PlayerRect.Top = pGameState->PlayerPosition.Y;
-    PlayerRect.Width = Memory->Assets.PlayerBMP.Header.Width;
-    PlayerRect.Height = Memory->Assets.PlayerBMP.Header.Height;
-    PushRectOutline(Group, PlayerRect, Green);
-
     // Render
     loaded_bmp Target = { 0 };
     Target.Header.Width = ScreenBuffer->Width;
@@ -402,6 +283,5 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Platform.OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
 
     // Clear render group
-    ClearEntries(Group);
-}
+    ClearEntries(Group);}
 

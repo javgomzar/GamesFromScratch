@@ -249,24 +249,19 @@ struct button {
 };
 
 struct UI {
-    button TestButton;
+
 };
 
 
 // Game Assets
 struct game_assets {
-    loaded_bmp BackgroundBMP;
-    loaded_bmp PlayerBMP;
     Character* Characters;
 };
 
 // Game State: Persistent (between frames) values
 struct game_state {
-    game_screen_position PlayerPosition;
-    v3 PlayerVelocity;
-    double MaxCelerity;
     memory_arena TextArena;
-    memory_arena TestArena;
+    memory_arena RenderArena;
     UI UserInterface;
 };
 
