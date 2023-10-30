@@ -92,6 +92,20 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 	glColor3f(1.0f, 1.0f, 1.0f);
 }
 
+void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color) {
+	glBegin(GL_LINES);
+	float R = (float)Color.R / 255.0f;
+	float G = (float)Color.G / 255.0f;
+	float B = (float)Color.B / 255.0f;
+	glColor3f(R, G, B);
+
+	glVertex2f(Start.X, Start.Y);
+	glVertex2f(Finish.X, Finish.Y);
+
+	glEnd();
+	glColor3f(1.0f, 1.0f, 1.0f);
+}
+
 
 void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 	
@@ -185,17 +199,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 			{
 				render_entry_line Entry = *(render_entry_line*)Header;
 
-				glBegin(GL_LINES);
-				float R = (float)Entry.Color.R / 255.0f;
-				float G = (float)Entry.Color.G / 255.0f;
-				float B = (float)Entry.Color.B / 255.0f;
-				glColor3f(R, G, B);
-
-				glVertex2f(Entry.Start.X, Entry.Start.Y);
-				glVertex2f(Entry.Finish.X, Entry.Finish.Y);
-
-				glEnd();
-				glColor3f(1.0f, 1.0f, 1.0f);
+				OpenGLRenderLine(Entry.Start, Entry.Finish, Entry.Color);
 
 				BaseAddress += sizeof(Entry);
 			} break;
@@ -204,23 +208,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 			{
 				render_entry_rect_outline Entry = *(render_entry_rect_outline*)Header;
 
-				glBegin(GL_LINES);
-				float R = (float)Entry.Color.R / 255.0f;
-				float G = (float)Entry.Color.G / 255.0f;
-				float B = (float)Entry.Color.B / 255.0f;
-				glColor3f(R, G, B);
-
-				glVertex2f(Entry.Rect.Left, Entry.Rect.Top);
-				glVertex2f(Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height);
-				glVertex2f(Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height);
-				glVertex2f(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height);
-				glVertex2f(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height);
-				glVertex2f(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top);
-				glVertex2f(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top);
-				glVertex2f(Entry.Rect.Left, Entry.Rect.Top);
-
-				glEnd();
-				glColor3f(1.0f, 1.0f, 1.0f);
+				OpenGLRenderLine({ Entry.Rect.Left, Entry.Rect.Top, 0 }, { Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 }, Entry.Color);
+				OpenGLRenderLine({ Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 }, { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 }, Entry.Color);
+				OpenGLRenderLine({ Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 }, { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 }, Entry.Color);
+				OpenGLRenderLine({ Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 }, { Entry.Rect.Left, Entry.Rect.Top, 0 }, Entry.Color);
 
 				BaseAddress += sizeof(Entry);
 			} break;
@@ -228,8 +219,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 			default:
 			{
 				OutputDebugStringA("ERROR: Unknow render entry type.");
-				return;
 				//Assert(false);
+				return;
 			};
 		}
 	}
