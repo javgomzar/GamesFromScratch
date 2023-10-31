@@ -30,8 +30,8 @@ extern GAMELIBRARY_API int nGameLibrary;
 
 // Platform independent structs and types
 struct game_rect {
-    int Top;
     int Left;
+    int Top;
     int Width;
     int Height;
 };

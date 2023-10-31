@@ -21,7 +21,53 @@ void OpenGLRectangle(game_rect Rect, color Color)
 	glColor3f(1.0f, 1.0f, 1.0f);
 }
 
-void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) {
+void OpenGLTexturedRectangle(game_rect Rect, loaded_bmp* BMP) 
+{
+	float MinVertexX = Rect.Left;
+	float MinVertexY = Rect.Top;
+	float MaxVertexX = Rect.Left + Rect.Width;
+	float MaxVertexY = Rect.Top + Rect.Height;
+
+	float MinTexX = 0.0f;
+	float MinTexY = 0.0f;
+	float MaxTexX = Rect.Width / BMP->Header.Width;
+	float MaxTexY = Rect.Height / BMP->Header.Height;
+
+	glEnable(GL_TEXTURE_2D);
+	glBegin(GL_TRIANGLES);
+
+	// Lower triangle
+	glTexCoord2f(MinTexX, MinTexY);
+	glVertex2f(MinVertexX, MaxVertexY);
+
+	glTexCoord2f(MaxTexX, MaxTexY);
+	glVertex2f(MaxVertexX, MinVertexY);
+
+	glTexCoord2f(MaxTexX, MinTexY);
+	glVertex2f(MaxVertexX, MaxVertexY);
+
+	// Upper triangle
+	glTexCoord2f(MinTexX, MaxTexY);
+	glVertex2f(MinVertexX, MinVertexY);
+
+	glTexCoord2f(MinTexX, MinTexY);
+	glVertex2f(MinVertexX, MaxVertexY);
+
+	glTexCoord2f(MaxTexX, MaxTexY);
+	glVertex2f(MaxVertexX, MinVertexY);
+
+	glEnd();
+	glDisable(GL_TEXTURE_2D);
+}
+
+enum OpenGLWrapMode 
+{
+	OpenGLClamp,
+	OpenGLRepeat
+};
+
+void OpenGLBindTexture(loaded_bmp* Bitmap, OpenGLWrapMode Mode) 
+{
 	int BMPWidth = Bitmap->Header.Width;
 	int BMPHeight = Bitmap->Header.Height;
 
@@ -38,46 +84,39 @@ void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) {
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	}
 
-	float MinX = Position.X;
-	float MinY = Position.Y;
-	float MaxX = Position.X + BMPWidth;
-	float MaxY = Position.Y + BMPHeight;
+	switch (Mode) {
+		case OpenGLClamp:
+		{
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		} break;
 
-	glEnable(GL_TEXTURE_2D);
-	glBegin(GL_TRIANGLES);
+		case OpenGLRepeat:
+		{
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		} break;
 
-	// Lower triangle
-	glTexCoord2i(0, 0);
-	glVertex2f(MinX, MaxY);
-
-	glTexCoord2i(1, 1);
-	glVertex2f(MaxX, MinY);
-
-	glTexCoord2i(1, 0);
-	glVertex2f(MaxX, MaxY);
-
-	// Upper triangle
-	glTexCoord2i(0, 1);
-	glVertex2f(MinX, MinY);
-
-	glTexCoord2i(0, 0);
-	glVertex2f(MinX, MaxY);
-
-	glTexCoord2i(1, 1);
-	glVertex2f(MaxX, MinY);
-
-	glEnd();
-	glDisable(GL_TEXTURE_2D);
-
+		default: {
+			OutputDebugStringA("Texture bind mode unknown. Falling back to GL_CLAMP as default.\n");
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		}
+	}
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_position Position, text Text) {
-	
+
+void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) 
+{
+	OpenGLBindTexture(Bitmap, OpenGLClamp);
+	OpenGLTexturedRectangle({Position.X, Position.Y, Bitmap->Header.Width, Bitmap->Header.Height}, Bitmap);
+}
+
+void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_position Position, text Text) 
+{
 	int PenX = Position.X;
 	int PenY = Position.Y;
 
@@ -107,7 +146,8 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 	glColor3f(1.0f, 1.0f, 1.0f);
 }
 
-void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color) {
+void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color) 
+{
 	glBegin(GL_LINES);
 	glColor3f(Color.R, Color.G, Color.B);
 
@@ -131,8 +171,8 @@ void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, int TileSize, c
 }
 
 
-void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
-	
+void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) 
+{
 	glViewport(0, 0, Width, Height);
 
 	// Projection matrix
@@ -262,5 +302,4 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 			};
 		}
 	}
-
 }
