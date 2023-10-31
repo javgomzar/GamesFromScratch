@@ -2,31 +2,33 @@
 #include "..\GameLibrary\render_group.h"
 
 
-void OpenGLRectangle(float MinX, float MinY, float MaxX, float MaxY)
+void OpenGLRectangle(game_rect Rect, color Color)
 {
+	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
 	glBegin(GL_TRIANGLES);
 
 	// Lower triangle
 	glTexCoord2i(0, 0);
-	glVertex2f(MinX, MaxY);
+	glVertex2f(Rect.Left, Rect.Top + Rect.Height);
 
 	glTexCoord2i(1, 1);
-	glVertex2f(MaxX, MinY);
+	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
 
 	glTexCoord2i(1, 0);
-	glVertex2f(MaxX, MaxY);
+	glVertex2f(Rect.Left + Rect.Width, Rect.Top + Rect.Height);
 
 	// Upper triangle
 	glTexCoord2i(0, 1);
-	glVertex2f(MinX, MinY);
+	glVertex2f(Rect.Left, Rect.Top);
 
 	glTexCoord2i(0, 0);
-	glVertex2f(MinX, MaxY);
+	glVertex2f(Rect.Left, Rect.Top + Rect.Height);
 
 	glTexCoord2i(1, 1);
-	glVertex2f(MaxX, MinY);
+	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
 
 	glEnd();
+	glColor3f(1.0f, 1.0f, 1.0f);
 }
 
 
@@ -52,8 +54,35 @@ void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) {
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	}
 
+	float MinX = Position.X;
+	float MinY = Position.Y;
+	float MaxX = Position.X + BMPWidth;
+	float MaxY = Position.Y + BMPHeight;
+
 	glEnable(GL_TEXTURE_2D);
-	OpenGLRectangle(Position.X, Position.Y, Position.X + BMPWidth, Position.Y + BMPHeight);
+	glBegin(GL_TRIANGLES);
+
+	// Lower triangle
+	glTexCoord2i(0, 0);
+	glVertex2f(MinX, MaxY);
+
+	glTexCoord2i(1, 1);
+	glVertex2f(MaxX, MinY);
+
+	glTexCoord2i(1, 0);
+	glVertex2f(MaxX, MaxY);
+
+	// Upper triangle
+	glTexCoord2i(0, 1);
+	glVertex2f(MinX, MinY);
+
+	glTexCoord2i(0, 0);
+	glVertex2f(MinX, MaxY);
+
+	glTexCoord2i(1, 1);
+	glVertex2f(MaxX, MinY);
+
+	glEnd();
 	glDisable(GL_TEXTURE_2D);
 
 }
@@ -123,8 +152,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 	};
 	glLoadMatrixf(Proj);
 
-	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
 
 	/*
 	uint32 EntryCount = Group->PushBufferElementCount;
@@ -140,6 +169,15 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 
 				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
+
+				BaseAddress += sizeof(Entry);
+			} break;
+
+			case group_type_render_entry_rect:
+			{
+				render_entry_rect Entry = *(render_entry_rect*)Header;
+
+				OpenGLRectangle(Entry.Rect, Entry.Color);
 
 				BaseAddress += sizeof(Entry);
 			} break;

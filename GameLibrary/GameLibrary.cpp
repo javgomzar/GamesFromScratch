@@ -235,6 +235,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     if (ShowDebugInfo) {
+        game_rect DebugInfoRect = { 0, 0, 450, 120 };
+        PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f});
+        PushRectOutline(Group, DebugInfoRect, Gray);
         text Text = { 0 };
         Text.Color = White;
         Text.Length = 48;
