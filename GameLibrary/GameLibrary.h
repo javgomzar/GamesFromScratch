@@ -83,27 +83,31 @@ v3 ToV3(game_screen_position Position) {
 
 // Color
 struct color {
-    uint8 Alpha;
-    uint8 R;
-    uint8 G;
-    uint8 B;
+    float Alpha;
+    float R;
+    float G;
+    float B;
 };
 
 static int Attenuation = 100;
-static color Black = { 255, 0, 0, 0 };
-static color White = { 255, 255, 255, 255 };
-static color Gray = { 255, 127, 127, 127 };
-static color Red = { 255, 255, 0, 0 };
-static color Green = { 255, 0, 220, 0 };
-static color Blue = { 255, 0, 0, 255 };
-static color Magenta = { 255, 255, 0, 255 };
-static color Yellow = { 255, 255, 255, 0 };
-static color Cyan = { 255, 0, 220, 255 };
-static color Orange = { 255, 255, 160, 0 };
-static color BackgroundBlue = {255, 100, 100, 200};
+static color Black = { 1.0f, 0.0f, 0.0f, 0.0f };
+static color White = { 1.0f, 1.0f, 1.0f, 1.0f };
+static color Gray = { 1.0f, 0.5f, 0.5f, 0.5f };
+static color Red = { 1.0f, 1.0f, 0.0f, 0.0f };
+static color Green = { 1.0f, 0.0f, 1.0f, 0.0f };
+static color Blue = { 1.0f, 0.0f, 0.0f, 1.0f };
+static color Magenta = { 1.0f, 1.0f, 0.0f, 1.0f };
+static color Yellow = { 1.0f, 1.0f, 1.0f, 0.0f };
+static color Cyan = { 1.0f, 0.0f, 1.0f, 1.0f };
+static color Orange = { 1.0f, 1.0f, 0.63f, 0.0f };
+static color BackgroundBlue = { 1.0f, 0.4f, 0.4f, 0.8f };
 
 uint32 GetColorBytes(color Color) {
-    return (Color.Alpha << 24) | (Color.R << 16) | (Color.G << 8) | Color.B;
+    uint8 Alpha = Color.Alpha * 255.0f;
+    uint8 R = Color.R * 255.0f;
+    uint8 G = Color.G * 255.0f;
+    uint8 B = Color.B * 255.0f;
+    return (Alpha << 24) | (R << 16) | (G << 8) | B;
 }
 
 color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) {
@@ -119,10 +123,10 @@ color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) 
     _BitScanForward((DWORD*)&AlphaShift, AlphaMask);
 
     color Color;
-    Color.R = ((RedMask & Bytes) >> RedShift);
-    Color.G = ((GreenMask & Bytes) >> GreenShift);
-    Color.B = ((BlueMask & Bytes) >> BlueShift);
-    Color.Alpha = ((AlphaMask & Bytes) >> AlphaShift);
+    Color.R = (float)((RedMask & Bytes) >> RedShift) / 255.0f;
+    Color.G = (float)((GreenMask & Bytes) >> GreenShift) / 255.0f;
+    Color.B = (float)((BlueMask & Bytes) >> BlueShift) / 255.0f;
+    Color.Alpha = (float)((AlphaMask & Bytes) >> AlphaShift) / 255.0f;
     return Color;
 }
 

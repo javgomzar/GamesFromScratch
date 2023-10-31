@@ -131,7 +131,7 @@ Character* InitializeFonts(memory_arena* Arena) {
                     FT_GlyphSlot Slot = Font->glyph;
                     FT_Bitmap FTBMP = Slot->bitmap;
                     *CharacterBMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
-                    LoadFTBMP(&FTBMP, CharacterBMP, White);
+                    LoadFTBMP(&FTBMP, CharacterBMP);
 
                     Character LoadCharacter = { 0 };
                     LoadCharacter.Letter = c;

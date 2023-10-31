@@ -98,24 +98,6 @@ loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char
 }
 
 
-// Fonts
-//void InitializeFonts(game_memory* Memory) {
-//    FT_Error error = FT_Init_FreeType(&Memory->FTLibrary);
-//    if (error) {
-//        Assert(false);
-//    }
-//    else {
-//        error = FT_New_Face(Memory->FTLibrary, "C:/Windows/Fonts/CascadiaMono.ttf", 0, &Memory->Assets.TestFont);
-//        if (error == FT_Err_Unknown_File_Format) {
-//            Assert(false);
-//        }
-//        else if (error) {
-//            Assert(false);
-//        }
-//    }
-//}
-
-
 // UI
 void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, platform_read_entire_file* Read) {
     // Initialize your UI elements here
@@ -265,6 +247,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     if (ShowDebugInfo) {
+        game_rect DebugInfoRect = { 0, 0, 450, 120 };
+        PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f});
+        PushRectOutline(Group, DebugInfoRect, Gray);
         text Text = { 0 };
         Text.Color = White;
         Text.Length = 48;

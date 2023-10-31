@@ -491,7 +491,7 @@ loaded_bmp MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool 
 }
 
 // Text
-void LoadFTBMP(FT_Bitmap* SourceBMP, loaded_bmp* DestBMP, color Color) {
+void LoadFTBMP(FT_Bitmap* SourceBMP, loaded_bmp* DestBMP) {
     DestBMP->Header.Width = SourceBMP->width;
     DestBMP->Header.Height = SourceBMP->rows;
     uint32* DestRow = DestBMP->Content + DestBMP->Header.Width * (DestBMP->Header.Height - 1);
@@ -499,9 +499,9 @@ void LoadFTBMP(FT_Bitmap* SourceBMP, loaded_bmp* DestBMP, color Color) {
     for (int Y = 0; Y < SourceBMP->rows; Y++) {
         uint32* Pixel = DestRow;
         for (int X = 0; X < SourceBMP->width; X++) {
-            color OutColor = { *Source++, Color.R, Color.G, Color.B };
-            uint32 Out = GetColorBytes(OutColor);
-            *Pixel++ = Out;
+            // FreeType BMPs come with only one byte representing alpha. We load it as a white BMP so changing
+            // the color is easier with OpenGL.
+            *Pixel++ = (*Source++ << 24) | 0x00ffffff;
         }
         DestRow -= SourceBMP->pitch;
     }
@@ -544,7 +544,7 @@ void RenderText(loaded_bmp* OutputTarget, memory_arena* Arena, FT_Face* Font, ga
                 }
                 FT_Bitmap FTBMP = Slot->bitmap;
                 loaded_bmp BMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
-                LoadFTBMP(&FTBMP, &BMP, Text.Color);
+                LoadFTBMP(&FTBMP, &BMP);
                 RenderBMP(OutputTarget, &BMP, { PenX + Slot->bitmap_left, PenY - Slot->bitmap_top, 0 });
                 PopSize(Arena, BMP.Header.FileSize / 8);
                 PenX += Slot->advance.x >> 6;

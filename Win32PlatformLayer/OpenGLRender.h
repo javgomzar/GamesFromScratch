@@ -2,31 +2,23 @@
 #include "..\GameLibrary\render_group.h"
 
 
-void OpenGLTexturedRectangle(float MinX, float MinY, float MaxX, float MaxY)
+void OpenGLRectangle(game_rect Rect, color Color)
 {
+	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
 	glBegin(GL_TRIANGLES);
 
 	// Lower triangle
-	glTexCoord2i(0, 0);
-	glVertex2f(MinX, MaxY);
-
-	glTexCoord2i(1, 1);
-	glVertex2f(MaxX, MinY);
-
-	glTexCoord2i(1, 0);
-	glVertex2f(MaxX, MaxY);
+	glVertex2f(Rect.Left, Rect.Top + Rect.Height);
+	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
+	glVertex2f(Rect.Left + Rect.Width, Rect.Top + Rect.Height);
 
 	// Upper triangle
-	glTexCoord2i(0, 1);
-	glVertex2f(MinX, MinY);
-
-	glTexCoord2i(0, 0);
-	glVertex2f(MinX, MaxY);
-
-	glTexCoord2i(1, 1);
-	glVertex2f(MaxX, MinY);
+	glVertex2f(Rect.Left, Rect.Top);
+	glVertex2f(Rect.Left, Rect.Top + Rect.Height);
+	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
 
 	glEnd();
+	glColor3f(1.0f, 1.0f, 1.0f);
 }
 
 void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) {
@@ -51,8 +43,35 @@ void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) {
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	}
 
+	float MinX = Position.X;
+	float MinY = Position.Y;
+	float MaxX = Position.X + BMPWidth;
+	float MaxY = Position.Y + BMPHeight;
+
 	glEnable(GL_TEXTURE_2D);
-	OpenGLTexturedRectangle(Position.X, Position.Y, Position.X + BMPWidth, Position.Y + BMPHeight);
+	glBegin(GL_TRIANGLES);
+
+	// Lower triangle
+	glTexCoord2i(0, 0);
+	glVertex2f(MinX, MaxY);
+
+	glTexCoord2i(1, 1);
+	glVertex2f(MaxX, MinY);
+
+	glTexCoord2i(1, 0);
+	glVertex2f(MaxX, MaxY);
+
+	// Upper triangle
+	glTexCoord2i(0, 1);
+	glVertex2f(MinX, MinY);
+
+	glTexCoord2i(0, 0);
+	glVertex2f(MinX, MaxY);
+
+	glTexCoord2i(1, 1);
+	glVertex2f(MaxX, MinY);
+
+	glEnd();
 	glDisable(GL_TEXTURE_2D);
 
 }
@@ -78,10 +97,7 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 				PenY += LineJump;
 			}
 			if (c != ' ') {
-				float R = Text.Color.R / 255.0f;
-				float G = Text.Color.G / 255.0f;
-				float B = Text.Color.B / 255.0f;
-				glColor3f(R, G, B);
+				glColor3f(Text.Color.R, Text.Color.G, Text.Color.B);
 				OpenGLRenderBMP(pCharacter->Bitmap, { PenX + pCharacter->Left, PenY - pCharacter->Top, 0 });
 			}
 
@@ -93,10 +109,7 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 
 void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color) {
 	glBegin(GL_LINES);
-	float R = (float)Color.R / 255.0f;
-	float G = (float)Color.G / 255.0f;
-	float B = (float)Color.B / 255.0f;
-	glColor3f(R, G, B);
+	glColor3f(Color.R, Color.G, Color.B);
 
 	glVertex2f(Start.X, Start.Y);
 	glVertex2f(Finish.X, Finish.Y);
@@ -140,8 +153,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 	};
 	glLoadMatrixf(Proj);
 
-	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_BLEND);
 
 	/*
 	uint32 EntryCount = Group->PushBufferElementCount;
@@ -155,12 +168,17 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 			{
 				render_entry_clear Entry = *(render_entry_clear*)Header;
 
-				float R = Entry.Color.R / 255.0f;
-				float G = Entry.Color.G / 255.0f;
-				float B = Entry.Color.B / 255.0f;
-
-				glClearColor(R, G, B, 1.0f);
+				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
+
+				BaseAddress += sizeof(Entry);
+			} break;
+
+			case group_type_render_entry_rect:
+			{
+				render_entry_rect Entry = *(render_entry_rect*)Header;
+
+				OpenGLRectangle(Entry.Rect, Entry.Color);
 
 				BaseAddress += sizeof(Entry);
 			} break;
