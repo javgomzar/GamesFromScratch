@@ -198,13 +198,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        // Load your assets here        
+        // Load your assets here
+
+        Memory->Assets.PlayerBMP = LoadBMP(Platform.ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
+        Memory->Assets.FloorBMP = LoadBMP(Platform.ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
 
         Assets = Memory->Assets;
-        Assets.PlayerBMP = LoadBMP(Platform.ReadEntireFile, "../GameLibrary/RogueMedia/Player.bmp");
 
         // User Interface
         // InitializeUI();
+
+        // Initialize game state
+        pGameState->PlayerPosition = { 0, 0 };
+        pGameState->TileSize = 30;
 
         // Renderer --------------------------------------------------------------------------------------------------------------------------------------
         Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
@@ -217,6 +223,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     // Controls
     // Put here your input code
+
+    if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown) {
+        pGameState->PlayerPosition.Col += 1;
+    }
+    if (Input->Keyboard.A.IsDown && !Input->Keyboard.A.WasDown) {
+        pGameState->PlayerPosition.Col -= 1;
+    }
+    if (Input->Keyboard.S.IsDown && !Input->Keyboard.S.WasDown) {
+        pGameState->PlayerPosition.Row += 1;
+    }
+    if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown) {
+        pGameState->PlayerPosition.Row -= 1;
+    }
         
     GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
 
@@ -237,9 +256,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Target.Pitch = ScreenBuffer->Pitch;
     Target.Content = (uint32*)ScreenBuffer->Memory;
 
-    PushBMP(Group, &Assets.PlayerBMP, { 0, 0, 0 });
+    PushBMP(Group, &Assets.FloorBMP, { 0,0,0 });
 
-    PushDebugLattice(Group, 30, Yellow);
+    PushDebugLattice(Group, pGameState->TileSize, Yellow);
+    PushBMP(Group, &Memory->Assets.PlayerBMP, { pGameState->TileSize * pGameState->PlayerPosition.Col, pGameState->TileSize * (pGameState->PlayerPosition.Row - 1), 0});
 
     static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {

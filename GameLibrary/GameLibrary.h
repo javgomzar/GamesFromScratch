@@ -261,6 +261,7 @@ struct UI {
 struct game_assets {
     Character* Characters;
     loaded_bmp PlayerBMP;
+    loaded_bmp FloorBMP;
 };
 
 
@@ -270,11 +271,25 @@ struct tile_position {
     int Col;
 };
 
+struct camera {
+    v3 Position;
+    v3 Velocity;
+    v3 Acceleration;
+};
+
+void UpdateCamera(camera* Camera) {
+    Camera->Position = Camera->Position + Camera->Velocity;
+    Camera->Velocity = Camera->Velocity + Camera->Acceleration;
+}
+
 // Game State: Persistent (between frames) values
 struct game_state {
     memory_arena TextArena;
     memory_arena RenderArena;
     UI UserInterface;
+    camera Camera;
+    int TileSize;
+    tile_position PlayerPosition;
 };
 
 // Game Memory
