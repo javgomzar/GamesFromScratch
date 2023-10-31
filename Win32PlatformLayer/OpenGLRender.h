@@ -2,7 +2,7 @@
 #include "..\GameLibrary\render_group.h"
 
 
-void OpenGLRectangle(float MinX, float MinY, float MaxX, float MaxY)
+void OpenGLTexturedRectangle(float MinX, float MinY, float MaxX, float MaxY)
 {
 	glBegin(GL_TRIANGLES);
 
@@ -29,7 +29,6 @@ void OpenGLRectangle(float MinX, float MinY, float MaxX, float MaxY)
 	glEnd();
 }
 
-
 void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) {
 	int BMPWidth = Bitmap->Header.Width;
 	int BMPHeight = Bitmap->Header.Height;
@@ -53,7 +52,7 @@ void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) {
 	}
 
 	glEnable(GL_TEXTURE_2D);
-	OpenGLRectangle(Position.X, Position.Y, Position.X + BMPWidth, Position.Y + BMPHeight);
+	OpenGLTexturedRectangle(Position.X, Position.Y, Position.X + BMPWidth, Position.Y + BMPHeight);
 	glDisable(GL_TEXTURE_2D);
 
 }
@@ -104,6 +103,18 @@ void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, c
 
 	glEnd();
 	glColor3f(1.0f, 1.0f, 1.0f);
+}
+
+void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, int TileSize, color Color) {
+	// Vertical lines
+	for (int x = 0; x < TargetWidth; x += TileSize) {
+		OpenGLRenderLine({ x, 0, 0 }, { x, TargetHeight, 0 }, Color);
+	}
+
+	// Horizontal lines
+	for (int y = 0; y < TargetHeight; y += TileSize) {
+		OpenGLRenderLine({ 0, y, 0 }, { TargetWidth, y, 0 }, Color);
+	}
 }
 
 
@@ -212,6 +223,15 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 				OpenGLRenderLine({ Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 }, { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 }, Entry.Color);
 				OpenGLRenderLine({ Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 }, { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 }, Entry.Color);
 				OpenGLRenderLine({ Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 }, { Entry.Rect.Left, Entry.Rect.Top, 0 }, Entry.Color);
+
+				BaseAddress += sizeof(Entry);
+			} break;
+
+			case group_type_render_entry_debug_lattice: 
+			{
+				render_entry_debug_lattice Entry = *(render_entry_debug_lattice*)Header;
+
+				OpenGLDebugRenderLattice(Width, Height, 30, Entry.Color);
 
 				BaseAddress += sizeof(Entry);
 			} break;

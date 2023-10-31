@@ -256,6 +256,14 @@ struct UI {
 // Game Assets
 struct game_assets {
     Character* Characters;
+    loaded_bmp PlayerBMP;
+};
+
+
+// Game structs
+struct tile_position {
+    int Row;
+    int Col;
 };
 
 // Game State: Persistent (between frames) values

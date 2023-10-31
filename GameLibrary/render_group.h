@@ -11,7 +11,8 @@ enum render_group_entry_type {
     group_type_render_entry_rect_outline,
 	group_type_render_entry_bmp,
     group_type_render_entry_text,
-    group_type_render_entry_button
+    group_type_render_entry_button,
+    group_type_render_entry_debug_lattice
 };
 
 struct render_group_header {
@@ -61,6 +62,12 @@ struct render_entry_button {
     render_group_header Header;
     Character* Characters;
     button* Button;
+};
+
+struct render_entry_debug_lattice {
+    render_group_header Header;
+    int TileSize;
+    color Color;
 };
 
 struct render_group {
@@ -155,6 +162,12 @@ void PushButton(render_group* Group, Character* Characters, button* Button) {
     render_entry_button* Entry = PushRenderElement(Group, render_entry_button);
     Entry->Button = Button;
     Entry->Characters = Characters;
+}
+
+void PushDebugLattice(render_group* Group, int TileSize, color Color) {
+    render_entry_debug_lattice* Entry = PushRenderElement(Group, render_entry_debug_lattice);
+    Entry->TileSize = TileSize;
+    Entry->Color = Color;
 }
 
 void ClearEntries(render_group* Group) {

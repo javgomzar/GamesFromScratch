@@ -219,6 +219,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // Load your assets here        
 
         Assets = Memory->Assets;
+        Assets.PlayerBMP = LoadBMP(Platform.ReadEntireFile, "../GameLibrary/RogueMedia/Player.bmp");
 
         // User Interface
         // InitializeUI();
@@ -247,6 +248,17 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //    DrawRectangle(ScreenBuffer, Rect, White);
     //}
 
+    // Render
+    loaded_bmp Target = { 0 };
+    Target.Header.Width = ScreenBuffer->Width;
+    Target.Header.Height = ScreenBuffer->Height;
+    Target.Pitch = ScreenBuffer->Pitch;
+    Target.Content = (uint32*)ScreenBuffer->Memory;
+
+    PushBMP(Group, Assets.PlayerBMP, )
+
+    PushDebugLattice(Group, Yellow);
+
     static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
         ShowDebugInfo = !ShowDebugInfo;
@@ -261,12 +273,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PushText(Group, Assets.Characters, { 0,30,0 }, Text);
     }
 
-    // Render
-    loaded_bmp Target = { 0 };
-    Target.Header.Width = ScreenBuffer->Width;
-    Target.Header.Height = ScreenBuffer->Height;
-    Target.Pitch = ScreenBuffer->Pitch;
-    Target.Content = (uint32*)ScreenBuffer->Memory;
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;
