@@ -79,10 +79,7 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 				PenY += LineJump;
 			}
 			if (c != ' ') {
-				float R = Text.Color.R / 255.0f;
-				float G = Text.Color.G / 255.0f;
-				float B = Text.Color.B / 255.0f;
-				glColor3f(R, G, B);
+				glColor3f(Text.Color.R, Text.Color.G, Text.Color.B);
 				OpenGLRenderBMP(pCharacter->Bitmap, { PenX + pCharacter->Left, PenY - pCharacter->Top, 0 });
 			}
 
@@ -94,10 +91,7 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 
 void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color) {
 	glBegin(GL_LINES);
-	float R = (float)Color.R / 255.0f;
-	float G = (float)Color.G / 255.0f;
-	float B = (float)Color.B / 255.0f;
-	glColor3f(R, G, B);
+	glColor3f(Color.R, Color.G, Color.B);
 
 	glVertex2f(Start.X, Start.Y);
 	glVertex2f(Finish.X, Finish.Y);
@@ -144,11 +138,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 			{
 				render_entry_clear Entry = *(render_entry_clear*)Header;
 
-				float R = Entry.Color.R / 255.0f;
-				float G = Entry.Color.G / 255.0f;
-				float B = Entry.Color.B / 255.0f;
-
-				glClearColor(R, G, B, 1.0f);
+				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
 
 				BaseAddress += sizeof(Entry);
