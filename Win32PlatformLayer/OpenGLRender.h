@@ -8,23 +8,13 @@ void OpenGLRectangle(game_rect Rect, color Color)
 	glBegin(GL_TRIANGLES);
 
 	// Lower triangle
-	glTexCoord2i(0, 0);
 	glVertex2f(Rect.Left, Rect.Top + Rect.Height);
-
-	glTexCoord2i(1, 1);
 	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
-
-	glTexCoord2i(1, 0);
 	glVertex2f(Rect.Left + Rect.Width, Rect.Top + Rect.Height);
 
 	// Upper triangle
-	glTexCoord2i(0, 1);
 	glVertex2f(Rect.Left, Rect.Top);
-
-	glTexCoord2i(0, 0);
 	glVertex2f(Rect.Left, Rect.Top + Rect.Height);
-
-	glTexCoord2i(1, 1);
 	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
 
 	glEnd();
