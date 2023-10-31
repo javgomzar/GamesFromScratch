@@ -231,7 +231,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) {
 			{
 				render_entry_debug_lattice Entry = *(render_entry_debug_lattice*)Header;
 
-				OpenGLDebugRenderLattice(Width, Height, 30, Entry.Color);
+				OpenGLDebugRenderLattice(Width, Height, Entry.TileSize, Entry.Color);
 
 				BaseAddress += sizeof(Entry);
 			} break;

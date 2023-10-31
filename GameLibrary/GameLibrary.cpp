@@ -255,9 +255,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Target.Pitch = ScreenBuffer->Pitch;
     Target.Content = (uint32*)ScreenBuffer->Memory;
 
-    PushBMP(Group, Assets.PlayerBMP, )
+    PushBMP(Group, &Assets.PlayerBMP, { 0, 0, 0 });
 
-    PushDebugLattice(Group, Yellow);
+    PushDebugLattice(Group, 30, Yellow);
 
     static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
