@@ -170,6 +170,10 @@ void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, int TileSize, c
 	}
 }
 
+void OpenGLRenderFloor(int Width, int Height, loaded_bmp* FloorBMP) {
+	OpenGLBindTexture(FloorBMP, OpenGLRepeat);
+	OpenGLTexturedRectangle({ 0,0,Width,Height }, FloorBMP);
+}
 
 void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) 
 {
@@ -189,7 +193,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 		a,  0,  0,  0,
 		0,  -b,  0,  0,
 		0,  0,  1,  0,
-	    -1,  1,  0,  1,
+	    -1-2*Group->Camera->Position.X/Width,  1 + 2*Group->Camera->Position.Y / Height,  0,  1,
 	};
 	glLoadMatrixf(Proj);
 
@@ -290,6 +294,15 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				render_entry_debug_lattice Entry = *(render_entry_debug_lattice*)Header;
 
 				OpenGLDebugRenderLattice(Width, Height, Entry.TileSize, Entry.Color);
+
+				BaseAddress += sizeof(Entry);
+			} break;
+
+			case group_type_render_entry_floor:
+			{
+				render_entry_floor Entry = *(render_entry_floor*)Header;
+
+				OpenGLRenderFloor(Width, Height, Entry.FloorBMP);
 
 				BaseAddress += sizeof(Entry);
 			} break;

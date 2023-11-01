@@ -189,8 +189,8 @@ void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSo
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
-    game_assets Assets = Memory->Assets;
-    platform_api Platform = Memory->Platform;
+    game_assets* Assets = &Memory->Assets;
+    platform_api* Platform = &Memory->Platform;
     render_group* Group = Memory->Group;
 
     if (!Memory->IsInitialized) {
@@ -200,20 +200,20 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
 
-        Memory->Assets.PlayerBMP = LoadBMP(Platform.ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
-        Memory->Assets.FloorBMP = LoadBMP(Platform.ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
-
-        Assets = Memory->Assets;
+        Memory->Assets.PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
+        Memory->Assets.FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
 
         // User Interface
         // InitializeUI();
 
         // Initialize game state
-        pGameState->PlayerPosition = { 0, 0 };
+        pGameState->PlayerPosition = { 5, 5 };
         pGameState->TileSize = 30;
+        pGameState->Camera = { {0,0,0}, {0,0,0} };
 
         // Renderer --------------------------------------------------------------------------------------------------------------------------------------
         Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
+        Memory->Group->Camera = &pGameState->Camera;
         Group = Memory->Group;
 
         Memory->IsInitialized = true;
@@ -224,6 +224,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     // Controls
     // Put here your input code
 
+    // Character movement
     if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown) {
         pGameState->PlayerPosition.Col += 1;
     }
@@ -236,7 +237,37 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown) {
         pGameState->PlayerPosition.Row -= 1;
     }
-        
+
+    // Camera movement
+    v3 Direction = { 0 };
+
+    if (Input->Keyboard.Right.IsDown) {
+        Direction.X += 1;
+    }
+    if (Input->Keyboard.Left.IsDown) {
+        Direction.X -= 1;
+    }
+    if (Input->Keyboard.Up.IsDown) {
+        Direction.Y -= 1;
+    }
+    if (Input->Keyboard.Down.IsDown) {
+        Direction.Y += 1;
+    }
+    Direction = normalize(Direction);
+
+    pGameState->Camera.Velocity = 10 * Direction;
+
+    UpdateCamera(&pGameState->Camera);
+
+    // Debug camera position and velocity
+    /*
+    char TextBuffer[256];
+    sprintf_s(TextBuffer, " %.02f,%.02f,%.02f Position\n %.02f,%.02f,%.02f Velocity\n", 
+        pGameState->Camera.Position.X, pGameState->Camera.Position.Y, pGameState->Camera.Position.Z,
+        pGameState->Camera.Velocity.X, pGameState->Camera.Velocity.Y, pGameState->Camera.Velocity.Z);
+    OutputDebugStringA(TextBuffer);
+    */
+
     GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
 
     // Debug mouse position
@@ -256,9 +287,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Target.Pitch = ScreenBuffer->Pitch;
     Target.Content = (uint32*)ScreenBuffer->Memory;
 
-    PushBMP(Group, &Assets.FloorBMP, { 0,0,0 });
-
-    PushDebugLattice(Group, pGameState->TileSize, Yellow);
+    PushFloor(Group, &Assets->FloorBMP);
+    // PushDebugLattice(Group, pGameState->TileSize, Yellow);
+    
     PushBMP(Group, &Memory->Assets.PlayerBMP, { pGameState->TileSize * pGameState->PlayerPosition.Col, pGameState->TileSize * (pGameState->PlayerPosition.Row - 1), 0});
 
     static bool ShowDebugInfo = false;
@@ -267,7 +298,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     if (ShowDebugInfo) {
-        game_rect DebugInfoRect = { 0, 0, 450, 120 };
+        game_rect DebugInfoRect = { pGameState->Camera.Position.X, pGameState->Camera.Position.Y, 450, 120 };
         PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f});
         PushRectOutline(Group, DebugInfoRect, Gray);
         text Text = { 0 };
@@ -275,7 +306,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Text.Length = 48;
         Text.Points = 20;
         Text.Content = Memory->DebugInfo;
-        PushText(Group, Assets.Characters, { 0,30,0 }, Text);
+        PushText(Group, Assets->Characters, { (int)pGameState->Camera.Position.X, (int)pGameState->Camera.Position.Y + 30,0 }, Text);
     }
 
 
@@ -291,7 +322,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //    Platform.OpenGLRender(Group, &Target);
     //}
     
-    Platform.OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
+    Platform->OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
 
     // Clear render group
     ClearEntries(Group);}

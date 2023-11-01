@@ -274,12 +274,10 @@ struct tile_position {
 struct camera {
     v3 Position;
     v3 Velocity;
-    v3 Acceleration;
 };
 
 void UpdateCamera(camera* Camera) {
     Camera->Position = Camera->Position + Camera->Velocity;
-    Camera->Velocity = Camera->Velocity + Camera->Acceleration;
 }
 
 // Game State: Persistent (between frames) values
