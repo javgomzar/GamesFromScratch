@@ -18,7 +18,7 @@ void OpenGLRectangle(game_rect Rect, color Color)
 	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
 
 	glEnd();
-	glColor3f(1.0f, 1.0f, 1.0f);
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void OpenGLTexturedRectangle(game_rect Rect, loaded_bmp* BMP) 
@@ -136,26 +136,26 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 				PenY += LineJump;
 			}
 			if (c != ' ') {
-				glColor3f(Text.Color.R, Text.Color.G, Text.Color.B);
+				glColor4f(Text.Color.R, Text.Color.G, Text.Color.B, Text.Color.Alpha);
 				OpenGLRenderBMP(pCharacter->Bitmap, { PenX + pCharacter->Left, PenY - pCharacter->Top, 0 });
 			}
 
 			PenX += pCharacter->Advance >> 6;
 		}
 	}
-	glColor3f(1.0f, 1.0f, 1.0f);
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color) 
 {
 	glBegin(GL_LINES);
-	glColor3f(Color.R, Color.G, Color.B);
+	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
 
 	glVertex2f(Start.X, Start.Y);
 	glVertex2f(Finish.X, Finish.Y);
 
 	glEnd();
-	glColor3f(1.0f, 1.0f, 1.0f);
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 
