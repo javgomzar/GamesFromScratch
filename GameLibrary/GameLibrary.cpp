@@ -8,7 +8,11 @@
 #include <gl/GL.h>
 
 
-
+/*
+    TODO:
+        - Make it so when you change TileSize everything zooms in (possibly control this with mouse wheel).
+        - Support float values in game_screen_position.
+*/
 
 
 //// This is an example of an exported variable
@@ -185,6 +189,15 @@ void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSo
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
 }
 
+void ResetRoom(room* Room) {
+    Room->Width = 10;
+    Room->Height = 10;
+    Room->Doors[0] = true;
+    Room->Doors[1] = true;
+    Room->Doors[2] = true;
+    Room->Doors[3] = true;
+}
+
 // Main
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
@@ -196,12 +209,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if (!Memory->IsInitialized) {
         // Memory arenas
         InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
+        InitializeArena(&pGameState->MapArena, Megabytes(1), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size + pGameState->RenderArena.Size);
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
 
         Memory->Assets.PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
         Memory->Assets.FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
+        Memory->Assets.DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Door.bmp");
 
         // User Interface
         // InitializeUI();
@@ -210,6 +225,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         pGameState->PlayerPosition = { 5, 5 };
         pGameState->TileSize = 30;
         pGameState->Camera = { {0,0,0}, {0,0,0} };
+        pGameState->TestRoom = {0};
+        pGameState->TestRoom.FloorBMP = &Memory->Assets.FloorBMP;
+        pGameState->TestRoom.DoorBMP = &Memory->Assets.DoorBMP;
+        pGameState->TestRoom.Position = { 5,5 };
+        pGameState->TestRoom.Height = 3;
+        pGameState->TestRoom.Width = 3;
+        pGameState->TestRoom.Doors[0] = true;
+        pGameState->TestRoom.Doors[1] = true;
+        pGameState->TestRoom.Doors[2] = true;
+        pGameState->TestRoom.Doors[3] = true;
 
         // Renderer --------------------------------------------------------------------------------------------------------------------------------------
         Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
@@ -219,22 +244,23 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Memory->IsInitialized = true;
     }
 
-    PushClear(Group, BackgroundBlue);
+    PushClear(Group, Black);
 
     // Controls
     // Put here your input code
 
     // Character movement
-    if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown) {
+    room CurrentRoom = pGameState->TestRoom;
+    if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown && pGameState->PlayerPosition.Col < CurrentRoom.Position.Col + CurrentRoom.Width - 1) {
         pGameState->PlayerPosition.Col += 1;
     }
-    if (Input->Keyboard.A.IsDown && !Input->Keyboard.A.WasDown) {
+    if (Input->Keyboard.A.IsDown && !Input->Keyboard.A.WasDown && pGameState->PlayerPosition.Col > CurrentRoom.Position.Col) {
         pGameState->PlayerPosition.Col -= 1;
     }
-    if (Input->Keyboard.S.IsDown && !Input->Keyboard.S.WasDown) {
+    if (Input->Keyboard.S.IsDown && !Input->Keyboard.S.WasDown && pGameState->PlayerPosition.Row < CurrentRoom.Position.Row + CurrentRoom.Height - 1) {
         pGameState->PlayerPosition.Row += 1;
     }
-    if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown) {
+    if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown && pGameState->PlayerPosition.Row > CurrentRoom.Position.Row) {
         pGameState->PlayerPosition.Row -= 1;
     }
 
@@ -258,6 +284,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     pGameState->Camera.Velocity = 10 * Direction;
 
     UpdateCamera(&pGameState->Camera);
+
+    // Reset room
+    if (Input->Keyboard.Space.IsDown) {
+        ResetRoom(&pGameState->TestRoom);
+    }
 
     // Debug camera position and velocity
     /*
@@ -287,10 +318,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Target.Pitch = ScreenBuffer->Pitch;
     Target.Content = (uint32*)ScreenBuffer->Memory;
 
-    PushFloor(Group, &Assets->FloorBMP);
-    // PushDebugLattice(Group, pGameState->TileSize, Yellow);
+    PushRoom(Group, &pGameState->TestRoom, pGameState->TileSize);
     
-    PushBMP(Group, &Memory->Assets.PlayerBMP, { pGameState->TileSize * pGameState->PlayerPosition.Col, pGameState->TileSize * (pGameState->PlayerPosition.Row - 1), 0});
+    PushBMP(Group, &Memory->Assets.PlayerBMP, ToScreenCoord({pGameState->PlayerPosition.Row - 1, pGameState->PlayerPosition.Col}, pGameState->TileSize));
 
     static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
@@ -299,6 +329,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     if (ShowDebugInfo) {
         game_rect DebugInfoRect = { pGameState->Camera.Position.X, pGameState->Camera.Position.Y, 450, 120 };
+        PushDebugLattice(Group, pGameState->TileSize, {0.5f, 1.0f, 1.0f, 0.0f });
         PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f});
         PushRectOutline(Group, DebugInfoRect, Gray);
         text Text = { 0 };

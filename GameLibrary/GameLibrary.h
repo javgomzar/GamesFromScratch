@@ -262,6 +262,7 @@ struct game_assets {
     Character* Characters;
     loaded_bmp PlayerBMP;
     loaded_bmp FloorBMP;
+    loaded_bmp DoorBMP;
 };
 
 
@@ -271,9 +272,32 @@ struct tile_position {
     int Col;
 };
 
+game_screen_position ToScreenCoord(tile_position Position, int TileSize) {
+    return {TileSize * Position.Col, TileSize * Position.Row, 0};
+}
+
 struct camera {
     v3 Position;
     v3 Velocity;
+};
+
+// Rooms 
+/*
+    0 -> Left
+    1 -> Right
+    2 -> Up
+    3 -> Down
+*/
+
+// true means open, false means closed
+
+struct room {
+    tile_position Position;
+    int Width;
+    int Height;
+    bool Doors[4];
+    loaded_bmp* FloorBMP;
+    loaded_bmp* DoorBMP;
 };
 
 void UpdateCamera(camera* Camera) {
@@ -284,10 +308,12 @@ void UpdateCamera(camera* Camera) {
 struct game_state {
     memory_arena TextArena;
     memory_arena RenderArena;
+    memory_arena MapArena;
     UI UserInterface;
     camera Camera;
     int TileSize;
     tile_position PlayerPosition;
+    room TestRoom;
 };
 
 // Game Memory

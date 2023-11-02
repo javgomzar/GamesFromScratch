@@ -170,9 +170,64 @@ void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, int TileSize, c
 	}
 }
 
-void OpenGLRenderFloor(int Width, int Height, loaded_bmp* FloorBMP) {
-	OpenGLBindTexture(FloorBMP, OpenGLRepeat);
-	OpenGLTexturedRectangle({ 0,0,Width,Height }, FloorBMP);
+game_screen_position GetDoorPosition(int Door, room* Room, int TileSize) {
+	int HalfWidth = Room->Width % 2 ? Room->Width / 2 : (Room->Width + 1) / 2;
+	int HalfHeight = Room->Height % 2 ? Room->Height / 2 : (Room->Height + 1) / 2;
+	int DoorHeight = 50;
+	
+	switch (Door) {
+		// Left
+		case 0:
+		{
+			game_screen_position Position = ToScreenCoord({ Room->Position.Row + HalfHeight , Room->Position.Col - 1 }, TileSize);
+			return { Position.X, Position.Y, Position.Z };
+		} break;
+
+		// Right
+		case 1:
+		{
+			game_screen_position Position = ToScreenCoord({ Room->Position.Row + HalfHeight + 1, Room->Position.Col + Room->Width }, TileSize);
+			return { Position.X, Position.Y - Room->DoorBMP->Header.Height, Position.Z};
+		} break;
+
+		// Up
+		case 2:
+		{
+			game_screen_position Position = ToScreenCoord({ Room->Position.Row, Room->Position.Col + HalfWidth }, TileSize);
+			return { Position.X, Position.Y - Room->DoorBMP->Header.Height, Position.Z };
+		} break;
+
+		// Down
+		case 3:
+		{
+			return ToScreenCoord({ Room->Position.Row + Room->Height, Room->Position.Col + HalfWidth }, TileSize);
+		} break;
+
+
+		default: 
+		{
+			OutputDebugStringA("ERROR calculating door position.");
+		}
+	}
+}
+
+void OpenGLRenderRoom(room* Room, int TileSize) {
+	// Floor
+	OpenGLBindTexture(Room->FloorBMP, OpenGLRepeat);
+	game_screen_position Position = ToScreenCoord(Room->Position, TileSize);
+	int ScreenWidth = TileSize * Room->Width;
+	int ScreenHeight = TileSize * Room->Height;
+	OpenGLTexturedRectangle({ Position.X, Position.Y, ScreenWidth, ScreenHeight }, Room->FloorBMP);
+
+	// Doors
+	OpenGLBindTexture(Room->DoorBMP, OpenGLClamp);
+
+	for (int i = 0; i < 4; i++) {
+		if (Room->Doors[i]) {
+			game_screen_position Position = GetDoorPosition(i, Room, TileSize);
+			OpenGLTexturedRectangle({Position.X, Position.Y, Room->DoorBMP->Header.Width, Room->DoorBMP->Header.Height }, Room->DoorBMP);
+		}
+	}
 }
 
 void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) 
@@ -298,11 +353,11 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				BaseAddress += sizeof(Entry);
 			} break;
 
-			case group_type_render_entry_floor:
+			case group_type_render_entry_room:
 			{
-				render_entry_floor Entry = *(render_entry_floor*)Header;
+				render_entry_room Entry = *(render_entry_room*)Header;
 
-				OpenGLRenderFloor(Width, Height, Entry.FloorBMP);
+				OpenGLRenderRoom(Entry.Room, Entry.TileSize);
 
 				BaseAddress += sizeof(Entry);
 			} break;

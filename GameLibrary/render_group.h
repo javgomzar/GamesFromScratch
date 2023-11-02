@@ -13,7 +13,7 @@ enum render_group_entry_type {
     group_type_render_entry_text,
     group_type_render_entry_button,
     group_type_render_entry_debug_lattice,
-    group_type_render_entry_floor
+    group_type_render_entry_room
 };
 
 struct render_group_header {
@@ -71,9 +71,10 @@ struct render_entry_debug_lattice {
     color Color;
 };
 
-struct render_entry_floor {
+struct render_entry_room {
     render_group_header Header;
-    loaded_bmp* FloorBMP;
+    room* Room;
+    int TileSize;
 };
 
 struct render_group {
@@ -177,9 +178,10 @@ void PushDebugLattice(render_group* Group, int TileSize, color Color) {
     Entry->Color = Color;
 }
 
-void PushFloor(render_group* Group, loaded_bmp* Bitmap) {
-    render_entry_floor* Entry = PushRenderElement(Group, render_entry_floor);
-    Entry->FloorBMP = Bitmap;
+void PushRoom(render_group* Group, room* Room, int TileSize) {
+    render_entry_room* Entry = PushRenderElement(Group, render_entry_room);
+    Entry->Room = Room;
+    Entry->TileSize = TileSize;
 }
 
 void ClearEntries(render_group* Group) {
