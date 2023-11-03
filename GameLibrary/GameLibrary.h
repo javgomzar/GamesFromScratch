@@ -300,6 +300,69 @@ struct room {
     loaded_bmp* DoorBMP;
 };
 
+tile_position GetDoorTilePosition(int Door, room* Room) {
+    int HalfWidth = Room->Width % 2 ? Room->Width / 2 : (Room->Width + 1) / 2;
+    int HalfHeight = Room->Height % 2 ? Room->Height / 2 : (Room->Height + 1) / 2;
+
+    switch (Door) {
+        case 0: {
+            return { Room->Position.Row + HalfHeight , Room->Position.Col };
+        } break;
+
+        case 1: {
+            return { Room->Position.Row + HalfHeight, Room->Position.Col + Room->Width - 1 };
+        } break;
+
+        case 2: {
+            return { Room->Position.Row, Room->Position.Col + HalfWidth };
+        } break;
+
+        case 3: {
+            return { Room->Position.Row + Room->Height - 1, Room->Position.Col + HalfWidth };
+        } break;
+    }
+}
+
+game_screen_position GetDoorPosition(int Door, room* Room, int TileSize) {
+    int HalfWidth = Room->Width % 2 ? Room->Width / 2 : (Room->Width + 1) / 2;
+    int HalfHeight = Room->Height % 2 ? Room->Height / 2 : (Room->Height + 1) / 2;
+    int DoorHeight = 50;
+
+    switch (Door) {
+        // Left
+        case 0:
+        {
+            game_screen_position Position = ToScreenCoord({ Room->Position.Row + HalfHeight + 1 , Room->Position.Col - 1 }, TileSize);
+            return { Position.X, Position.Y - Room->DoorBMP->Header.Height - TileSize / 2, Position.Z };
+        } break;
+
+        // Right
+        case 1:
+        {
+            game_screen_position Position = ToScreenCoord({ Room->Position.Row + HalfHeight + 1, Room->Position.Col + Room->Width }, TileSize);
+            return { Position.X, Position.Y - Room->DoorBMP->Header.Height - TileSize / 2, Position.Z };
+        } break;
+
+        // Up
+        case 2:
+        {
+            game_screen_position Position = ToScreenCoord({ Room->Position.Row, Room->Position.Col + HalfWidth }, TileSize);
+            return { Position.X, Position.Y - Room->DoorBMP->Header.Height, Position.Z };
+        } break;
+
+        // Down
+        case 3:
+        {
+            return ToScreenCoord({ Room->Position.Row + Room->Height, Room->Position.Col + HalfWidth }, TileSize);
+        } break;
+
+        default:
+        {
+            OutputDebugStringA("ERROR calculating door position.");
+        }
+    }
+}
+
 void UpdateCamera(camera* Camera) {
     Camera->Position = Camera->Position + Camera->Velocity;
 }

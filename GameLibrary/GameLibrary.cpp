@@ -190,12 +190,12 @@ void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSo
 }
 
 void ResetRoom(room* Room) {
-    Room->Width = 10;
-    Room->Height = 10;
-    Room->Doors[0] = true;
-    Room->Doors[1] = true;
-    Room->Doors[2] = true;
-    Room->Doors[3] = true;
+    Room->Width = rand() % 20 + 5;
+    Room->Height = rand() % 20 + 5;
+    Room->Doors[0] = rand() % 2;
+    Room->Doors[1] = rand() % 2;
+    Room->Doors[2] = rand() % 2;
+    Room->Doors[3] = rand() % 2;
 }
 
 // Main
@@ -251,19 +251,34 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     // Character movement
     room CurrentRoom = pGameState->TestRoom;
-    if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown && pGameState->PlayerPosition.Col < CurrentRoom.Position.Col + CurrentRoom.Width - 1) {
-        pGameState->PlayerPosition.Col += 1;
-    }
-    if (Input->Keyboard.A.IsDown && !Input->Keyboard.A.WasDown && pGameState->PlayerPosition.Col > CurrentRoom.Position.Col) {
-        pGameState->PlayerPosition.Col -= 1;
-    }
-    if (Input->Keyboard.S.IsDown && !Input->Keyboard.S.WasDown && pGameState->PlayerPosition.Row < CurrentRoom.Position.Row + CurrentRoom.Height - 1) {
-        pGameState->PlayerPosition.Row += 1;
-    }
-    if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown && pGameState->PlayerPosition.Row > CurrentRoom.Position.Row) {
-        pGameState->PlayerPosition.Row -= 1;
-    }
+    if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown) {
+        tile_position DoorPosition = GetDoorTilePosition(1, &CurrentRoom);
+        if (pGameState->PlayerPosition.Row == DoorPosition.Row && pGameState->PlayerPosition.Col == DoorPosition.Col) {
+            ResetRoom(&pGameState->TestRoom);
+            tile_position DoorPosition = GetDoorTilePosition(0, &pGameState->TestRoom);
+            pGameState->PlayerPosition.Row = DoorPosition.Row;
+            pGameState->PlayerPosition.Col = DoorPosition.Col - 1;
+        }
 
+        if (pGameState->PlayerPosition.Col < CurrentRoom.Position.Col + CurrentRoom.Width - 1) {
+            pGameState->PlayerPosition.Col += 1;
+        }
+    }
+    if (Input->Keyboard.A.IsDown && !Input->Keyboard.A.WasDown) {
+        if (pGameState->PlayerPosition.Col > CurrentRoom.Position.Col) {
+            pGameState->PlayerPosition.Col -= 1;
+        }
+    }
+    if (Input->Keyboard.S.IsDown && !Input->Keyboard.S.WasDown) {
+        if (pGameState->PlayerPosition.Row < CurrentRoom.Position.Row + CurrentRoom.Height - 1) {
+            pGameState->PlayerPosition.Row += 1;
+        }
+    }
+    if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown) {
+        if (pGameState->PlayerPosition.Row > CurrentRoom.Position.Row) {
+            pGameState->PlayerPosition.Row -= 1;
+        }
+    }
     // Camera movement
     v3 Direction = { 0 };
 
@@ -286,7 +301,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     UpdateCamera(&pGameState->Camera);
 
     // Reset room
-    if (Input->Keyboard.Space.IsDown) {
+    if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
         ResetRoom(&pGameState->TestRoom);
     }
 
@@ -329,7 +344,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     if (ShowDebugInfo) {
         game_rect DebugInfoRect = { pGameState->Camera.Position.X, pGameState->Camera.Position.Y, 450, 120 };
-        PushDebugLattice(Group, pGameState->TileSize, {0.5f, 1.0f, 1.0f, 0.0f });
+        PushDebugLattice(Group, pGameState->TileSize, {0.2f, 1.0f, 1.0f, 0.0f });
         PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f});
         PushRectOutline(Group, DebugInfoRect, Gray);
         text Text = { 0 };

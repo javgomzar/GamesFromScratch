@@ -158,57 +158,27 @@ void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, c
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, int TileSize, color Color) {
+void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, int TileSize, color Color, camera* Camera) {
+	int OffsetX = TileSize * ((int)Camera->Position.X / TileSize);
+	int OffsetY = TileSize * ((int)Camera->Position.Y / TileSize);
+
 	// Vertical lines
-	for (int x = 0; x < TargetWidth; x += TileSize) {
-		OpenGLRenderLine({ x, 0, 0 }, { x, TargetHeight, 0 }, Color);
+	for (int x = 0; x < TargetWidth + TileSize; x += TileSize) {
+		// TODO: Calcular bien las coordenadas (esto está mal)
+		OpenGLRenderLine({ OffsetX + x, (int)Camera->Position.Y, 0 }, { OffsetX + x, (int)Camera->Position.Y + TargetHeight, 0 }, Color);
 	}
 
 	// Horizontal lines
-	for (int y = 0; y < TargetHeight; y += TileSize) {
-		OpenGLRenderLine({ 0, y, 0 }, { TargetWidth, y, 0 }, Color);
+	for (int y = 0; y < TargetHeight + TileSize; y += TileSize) {
+		// TODO: Calcular bien las coordenadas (esto está mal)
+		OpenGLRenderLine({ (int)Camera->Position.X, OffsetY + y, 0 }, { (int)Camera->Position.X + TargetWidth, OffsetY + y, 0 }, Color);
 	}
 }
 
-game_screen_position GetDoorPosition(int Door, room* Room, int TileSize) {
-	int HalfWidth = Room->Width % 2 ? Room->Width / 2 : (Room->Width + 1) / 2;
-	int HalfHeight = Room->Height % 2 ? Room->Height / 2 : (Room->Height + 1) / 2;
-	int DoorHeight = 50;
-	
-	switch (Door) {
-		// Left
-		case 0:
-		{
-			game_screen_position Position = ToScreenCoord({ Room->Position.Row + HalfHeight , Room->Position.Col - 1 }, TileSize);
-			return { Position.X, Position.Y, Position.Z };
-		} break;
+void OpenGLDebugShineTile(tile_position Position, int TileSize) {
+	game_screen_position ScreenPosition = ToScreenCoord(Position, TileSize);
 
-		// Right
-		case 1:
-		{
-			game_screen_position Position = ToScreenCoord({ Room->Position.Row + HalfHeight + 1, Room->Position.Col + Room->Width }, TileSize);
-			return { Position.X, Position.Y - Room->DoorBMP->Header.Height, Position.Z};
-		} break;
-
-		// Up
-		case 2:
-		{
-			game_screen_position Position = ToScreenCoord({ Room->Position.Row, Room->Position.Col + HalfWidth }, TileSize);
-			return { Position.X, Position.Y - Room->DoorBMP->Header.Height, Position.Z };
-		} break;
-
-		// Down
-		case 3:
-		{
-			return ToScreenCoord({ Room->Position.Row + Room->Height, Room->Position.Col + HalfWidth }, TileSize);
-		} break;
-
-
-		default: 
-		{
-			OutputDebugStringA("ERROR calculating door position.");
-		}
-	}
+	OpenGLRectangle({ScreenPosition.X, ScreenPosition.Y, TileSize, TileSize}, {0.5f, 1.0f, 1.0f, 1.0f});
 }
 
 void OpenGLRenderRoom(room* Room, int TileSize) {
@@ -348,7 +318,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			{
 				render_entry_debug_lattice Entry = *(render_entry_debug_lattice*)Header;
 
-				OpenGLDebugRenderLattice(Width, Height, Entry.TileSize, Entry.Color);
+				OpenGLDebugRenderLattice(Width, Height, Entry.TileSize, Entry.Color, Group->Camera);
 
 				BaseAddress += sizeof(Entry);
 			} break;
@@ -358,6 +328,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				render_entry_room Entry = *(render_entry_room*)Header;
 
 				OpenGLRenderRoom(Entry.Room, Entry.TileSize);
+
+				for (int j = 0; j < 4; j++) {
+					OpenGLDebugShineTile(GetDoorTilePosition(j, Entry.Room), Entry.TileSize);
+				}
 
 				BaseAddress += sizeof(Entry);
 			} break;

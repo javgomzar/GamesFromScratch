@@ -172,7 +172,7 @@ void PushButton(render_group* Group, Character* Characters, button* Button) {
     Entry->Characters = Characters;
 }
 
-void PushDebugLattice(render_group* Group, int TileSize, color Color) {
+void PushDebugLattice(render_group* Group, int TileSize,  color Color) {
     render_entry_debug_lattice* Entry = PushRenderElement(Group, render_entry_debug_lattice);
     Entry->TileSize = TileSize;
     Entry->Color = Color;
