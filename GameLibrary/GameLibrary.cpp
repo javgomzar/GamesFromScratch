@@ -189,8 +189,8 @@ void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSo
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
-    game_assets Assets = Memory->Assets;
-    platform_api Platform = Memory->Platform;
+    game_assets* Assets = &Memory->Assets;
+    platform_api* Platform = &Memory->Platform;
     render_group* Group = Memory->Group;
 
     if (!Memory->IsInitialized) {
@@ -199,8 +199,21 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here        
-
-        Assets = Memory->Assets;
+        Memory->Assets.BoardBMP = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/board.bmp");
+        Memory->Assets.Black.Bishop = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/black/bishop.bmp");
+        Memory->Assets.Black.King = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/black/king.bmp");
+        Memory->Assets.Black.Knight = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/black/knight.bmp");
+        Memory->Assets.Black.Pawn = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/black/pawn.bmp");
+        Memory->Assets.Black.Queen = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/black/queen.bmp");
+        Memory->Assets.Black.Rook = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/black/rook.bmp");
+        Memory->Assets.White.Bishop = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/white/bishop.bmp");
+        Memory->Assets.White.King = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/white/king.bmp");
+        Memory->Assets.White.Knight = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/white/knight.bmp");
+        Memory->Assets.White.Pawn = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/white/pawn.bmp");
+        Memory->Assets.White.Queen = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/white/queen.bmp");
+        Memory->Assets.White.Rook = LoadBMP(Platform->ReadEntireFile, "../GameLibrary/Media/Bitmaps/white/rook.bmp");
+        
+        Assets = &Memory->Assets;
 
         // User Interface
         // InitializeUI();
@@ -213,6 +226,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     PushClear(Group, BackgroundBlue);
+
+    // Background
+    int BoardX = ScreenBuffer->Width / 2 - Assets->BoardBMP.Header.Width / 2;
+    int BoardY = ScreenBuffer->Height / 2 - Assets->BoardBMP.Header.Height / 2;
+
+    PushBMP(Group, &Assets->BoardBMP, { X,Y,0 });
+
+    PushBMP(Group, &Assets->White.Bishop, { 100, 100, 0 });
 
     // Controls
     // Put here your input code
@@ -243,7 +264,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Text.Length = 48;
         Text.Points = 20;
         Text.Content = Memory->DebugInfo;
-        PushText(Group, Assets.Characters, { 0,30,0 }, Text);
+        PushText(Group, Assets->Characters, { 0,30,0 }, Text);
     }
 
     // Render
@@ -265,7 +286,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //    Platform.OpenGLRender(Group, &Target);
     //}
     
-    Platform.OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
+    Platform->OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
 
     // Clear render group
     ClearEntries(Group);}

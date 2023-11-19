@@ -256,10 +256,21 @@ struct UI {
 
 };
 
+struct pieces_bmp {
+    loaded_bmp Bishop;
+    loaded_bmp King;
+    loaded_bmp Knight;
+    loaded_bmp Pawn;
+    loaded_bmp Queen;
+    loaded_bmp Rook;
+};
 
 // Game Assets
 struct game_assets {
     Character* Characters;
+    loaded_bmp BoardBMP;
+    pieces_bmp White;
+    pieces_bmp Black;
 };
 
 // Game State: Persistent (between frames) values
