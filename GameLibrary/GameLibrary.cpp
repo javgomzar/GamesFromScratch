@@ -5,13 +5,14 @@
 #include "framework.h"
 #include "GameLibrary.h"
 #include "render_group.h"
+#include "time.h"
 #include <gl/GL.h>
 
 
 /*
     TODO:
         - Make it so when you change TileSize everything zooms in (possibly control this with mouse wheel).
-        - Support float values in game_screen_position.
+        - Make doors independent of rooms.
 */
 
 
@@ -189,13 +190,161 @@ void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSo
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
 }
 
-void ResetRoom(room* Room) {
-    Room->Width = rand() % 20 + 5;
-    Room->Height = rand() % 20 + 5;
-    Room->Doors[0] = rand() % 2;
-    Room->Doors[1] = rand() % 2;
-    Room->Doors[2] = rand() % 2;
-    Room->Doors[3] = rand() % 2;
+//void ResetRoom(room* Room) {
+//    Room->Width = rand() % 20 + 5;
+//    Room->Height = rand() % 20 + 5;
+//    Room->Doors[0] = rand() % 2;
+//    Room->Doors[1] = rand() % 2;
+//    Room->Doors[2] = rand() % 2;
+//    Room->Doors[3] = rand() % 2;
+//}
+
+void Advance(tile_pointer* Pointer) {
+    Pointer->Row += Pointer->Direction.Row;
+    Pointer->Col += Pointer->Direction.Col;
+}
+
+void SetTile(tile* Map, int Row, int Col, tile_type Type) {
+    *(Map + Row * MAP_WIDTH + Col) = { Type };
+}
+
+tile GetTile(tile* Map, int Row, int Col) {
+    return *(Map + Row * MAP_WIDTH + Col);
+}
+
+enum turn {
+    Clockwise,
+    CounterClockwise
+};
+
+tile_direction Rotate(tile_direction Direction, turn Turn) {
+    tile_direction Result = { 0 };
+    if (Turn == Clockwise) {
+        Result.Row = Direction.Col;
+        Result.Col = -Direction.Row;
+    }
+    else {
+        Result.Row = -Direction.Col;
+        Result.Col = Direction.Row;
+    }
+    return Result;
+}
+
+void AddPointer(tile_pointer* Pointers, tile_pointer Pointer, int* nPointers) {
+    *(Pointers + *nPointers) = Pointer;
+    (*nPointers)++;
+}
+
+void RemovePointer(tile_pointer* Pointers, int Index, int* nPointers) {
+    *(Pointers + Index) = *(Pointers + *nPointers - 1);
+    *(Pointers + *nPointers - 1) = { 0 };
+    (*nPointers)--;
+}
+
+void InitMap(tile* Map) {
+
+    // Setting all the map to floor
+    for (int i = 0; i < MAP_HEIGHT; i++) {
+        for (int j = 0; j < MAP_WIDTH; j++) {
+            *(Map + MAP_WIDTH*i + j) = {Floor};
+        }
+    }
+
+    // Declarations
+    // Algorithm parameters
+    float PBiffurcation = 0.1f;
+    int MinIdleSteps = 10;
+    tile_pointer Pointers[100] = { 0 };
+    tile_pointer* StartPointer = &Pointers[0];
+
+    switch (rand() % 4) {
+        case 0:
+        {
+            StartPointer->Row = rand() % MAP_HEIGHT;
+            StartPointer->Col = 0;
+            StartPointer->Direction.Row = 0;
+            StartPointer->Direction.Col = 1;
+
+        } break;
+        case 1:
+        {
+            StartPointer->Row = 0;
+            StartPointer->Col = rand() % MAP_WIDTH;
+            StartPointer->Direction.Row = 1;
+            StartPointer->Direction.Col = 0;
+        } break;
+        case 2:
+        {
+            StartPointer->Row = rand() % MAP_HEIGHT;
+            StartPointer->Col = MAP_WIDTH - 1;
+            StartPointer->Direction.Row = 0;
+            StartPointer->Direction.Col = -1;
+        } break;
+        case 3:
+        {
+            StartPointer->Row = MAP_HEIGHT - 1;
+            StartPointer->Col = rand() % MAP_WIDTH;
+            StartPointer->Direction.Row = -1;
+            StartPointer->Direction.Col = 0;
+        } break;
+    }
+
+    SetTile(Map, StartPointer->Row, StartPointer->Col, Wall);
+
+    int nPointers = 1;
+    while (nPointers > 0) {
+        for (int i = 0; i < nPointers; i++) {
+            tile_pointer* Pointer = &Pointers[i];
+            Advance(Pointer);
+
+            if (Pointer->Row < 0 || Pointer->Col < 0 || Pointer->Row >= MAP_HEIGHT || Pointer->Col >= MAP_WIDTH || 
+                GetTile(Map, Pointer->Row, Pointer->Col).Type == Wall) 
+            {
+                RemovePointer(&Pointers[0], i, &nPointers);
+                i--;
+            }
+            else {
+                SetTile(Map, Pointer->Row, Pointer->Col, Wall);
+
+                // Bifurcations
+                if (Pointer->IdleSteps > MinIdleSteps && randf() < PBiffurcation) {
+                    switch (rand() % 4) {
+                        case 0:
+                        {
+                            AddPointer(&Pointers[0], { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, Clockwise), 0 }, &nPointers);
+                        } break;
+                        case 1:
+                        {
+                            AddPointer(&Pointers[0], { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, CounterClockwise), 0 }, &nPointers);
+                        } break;
+                        case 2:
+                        {
+                            AddPointer(&Pointers[0], { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, Clockwise), 0 }, &nPointers);
+                            Pointer->Direction = Rotate(Pointer->Direction, CounterClockwise);
+                        } break;
+                        case 3:
+                        {
+                            AddPointer(&Pointers[0], { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, Clockwise), 0 }, &nPointers);
+                            AddPointer(&Pointers[0], { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, CounterClockwise), 0 }, &nPointers);
+                        } break;
+                    }
+                }
+                else {
+                    Pointer->IdleSteps++;
+                }
+            }
+        }
+    }
+
+    //for (int i = 0; i < 20; i++) {
+    //    for (int j = 0; j < 20; j++) {
+    //        pGameState->Map[i][j] = { Floor };
+
+    //        if (i == 15) {
+    //            pGameState->Map[i][j] = { Door };
+    //        }
+    //    }
+    //}
 }
 
 // Main
@@ -222,19 +371,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // InitializeUI();
 
         // Initialize game state
-        pGameState->PlayerPosition = { 5, 5 };
         pGameState->TileSize = 30;
         pGameState->Camera = { {0,0,0}, {0,0,0} };
-        pGameState->TestRoom = {0};
-        pGameState->TestRoom.FloorBMP = &Memory->Assets.FloorBMP;
-        pGameState->TestRoom.DoorBMP = &Memory->Assets.DoorBMP;
-        pGameState->TestRoom.Position = { 5,5 };
-        pGameState->TestRoom.Height = 3;
-        pGameState->TestRoom.Width = 3;
-        pGameState->TestRoom.Doors[0] = true;
-        pGameState->TestRoom.Doors[1] = true;
-        pGameState->TestRoom.Doors[2] = true;
-        pGameState->TestRoom.Doors[3] = true;
+        pGameState->PlayerPosition = { 5, 5 };
+        
+        // Initialize map
+        srand(time(0));
+        InitMap((tile*)pGameState->Map);
 
         // Renderer --------------------------------------------------------------------------------------------------------------------------------------
         Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
@@ -247,38 +390,29 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     PushClear(Group, Black);
 
     // Controls
-    // Put here your input code
-
     // Character movement
-    room CurrentRoom = pGameState->TestRoom;
     if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown) {
-        tile_position DoorPosition = GetDoorTilePosition(1, &CurrentRoom);
-        if (pGameState->PlayerPosition.Row == DoorPosition.Row && pGameState->PlayerPosition.Col == DoorPosition.Col) {
-            ResetRoom(&pGameState->TestRoom);
-            tile_position DoorPosition = GetDoorTilePosition(0, &pGameState->TestRoom);
-            pGameState->PlayerPosition.Row = DoorPosition.Row;
-            pGameState->PlayerPosition.Col = DoorPosition.Col - 1;
-        }
-
-        if (pGameState->PlayerPosition.Col < CurrentRoom.Position.Col + CurrentRoom.Width - 1) {
-            pGameState->PlayerPosition.Col += 1;
-        }
+        //tile_position DoorPosition = GetDoorTilePosition(1, &CurrentRoom);
+        //if (pGameState->PlayerPosition.Row == DoorPosition.Row && pGameState->PlayerPosition.Col == DoorPosition.Col) {
+        //    ResetRoom(&pGameState->TestRoom);
+        //    tile_position DoorPosition = GetDoorTilePosition(0, &pGameState->TestRoom);
+        //    pGameState->PlayerPosition.Row = DoorPosition.Row;
+        //    pGameState->PlayerPosition.Col = DoorPosition.Col - 1;
+        //}
+        pGameState->PlayerPosition.Col += 1;
     }
     if (Input->Keyboard.A.IsDown && !Input->Keyboard.A.WasDown) {
-        if (pGameState->PlayerPosition.Col > CurrentRoom.Position.Col) {
-            pGameState->PlayerPosition.Col -= 1;
-        }
+        pGameState->PlayerPosition.Col -= 1;
     }
     if (Input->Keyboard.S.IsDown && !Input->Keyboard.S.WasDown) {
-        if (pGameState->PlayerPosition.Row < CurrentRoom.Position.Row + CurrentRoom.Height - 1) {
-            pGameState->PlayerPosition.Row += 1;
-        }
+        pGameState->PlayerPosition.Row += 1;
     }
     if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown) {
-        if (pGameState->PlayerPosition.Row > CurrentRoom.Position.Row) {
-            pGameState->PlayerPosition.Row -= 1;
-        }
+        pGameState->PlayerPosition.Row -= 1;
     }
+    
+    
+    
     // Camera movement
     v3 Direction = { 0 };
 
@@ -301,9 +435,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     UpdateCamera(&pGameState->Camera);
 
     // Reset room
-    if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
-        ResetRoom(&pGameState->TestRoom);
-    }
+    //if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
+    //    ResetRoom(&pGameState->TestRoom);
+    //}
 
     // Debug camera position and velocity
     /*
@@ -333,7 +467,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Target.Pitch = ScreenBuffer->Pitch;
     Target.Content = (uint32*)ScreenBuffer->Memory;
 
-    PushRoom(Group, &pGameState->TestRoom, pGameState->TileSize);
+    PushMap(Group, &pGameState->Map[0][0], &Memory->Assets, pGameState->TileSize);
     
     PushBMP(Group, &Memory->Assets.PlayerBMP, ToScreenCoord({pGameState->PlayerPosition.Row - 1, pGameState->PlayerPosition.Col}, pGameState->TileSize));
 

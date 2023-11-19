@@ -289,83 +289,151 @@ struct camera {
     3 -> Down
 */
 
+//enum door_type {
+//    Horizontal,
+//    Vertical
+//};
+//
+//struct door {
+//    int ID;
+//    door_type Type;
+//    tile_position Position;
+//    int RoomIDs[2];
+//    loaded_bmp* Bitmap;
+//};
+
+
 // true means open, false means closed
+//struct room {
+//    int ID;
+//    tile_position Position;
+//    int Width;
+//    int Height;
+//    loaded_bmp* FloorBMP;
+//};
 
-struct room {
-    tile_position Position;
-    int Width;
-    int Height;
-    bool Doors[4];
-    loaded_bmp* FloorBMP;
-    loaded_bmp* DoorBMP;
-};
+//tile_position GetDoorPosition(room* Room, int DoorID) {
+//    door Door = Room->Doors[DoorID];
+//
+//    switch (Door.Type) {
+//        case Left:
+//        {
+//            return { Room->Position.Row + Door.Distance, Room->Position.Col - 1 };
+//        } break;
+//
+//        case Right:
+//        {
+//            return { Room->Position.Row + Door.Distance, Room->Position.Col + Room->Width };
+//        } break;
+//
+//        case Up:
+//        {
+//            return { Room->Position.Row, Room->Position.Col + Door.Distance };
+//        } break;
+//
+//        case Down:
+//        {
+//            return { Room->Position.Row + Room->Height, Room->Position.Col + Door.Distance };
+//        } break;
+//
+//        default: {
+//            Assert(false);
+//        }
+//    }
+//}
 
-tile_position GetDoorTilePosition(int Door, room* Room) {
-    int HalfWidth = Room->Width % 2 ? Room->Width / 2 : (Room->Width + 1) / 2;
-    int HalfHeight = Room->Height % 2 ? Room->Height / 2 : (Room->Height + 1) / 2;
+//tile_position GetDoorTilePosition(int Door, room* Room) {
+//    int HalfWidth = Room->Width % 2 ? Room->Width / 2 : (Room->Width + 1) / 2;
+//    int HalfHeight = Room->Height % 2 ? Room->Height / 2 : (Room->Height + 1) / 2;
+//
+//    switch (Door) {
+//        case 0: {
+//            return { Room->Position.Row + HalfHeight , Room->Position.Col };
+//        } break;
+//
+//        case 1: {
+//            return { Room->Position.Row + HalfHeight, Room->Position.Col + Room->Width - 1 };
+//        } break;
+//
+//        case 2: {
+//            return { Room->Position.Row, Room->Position.Col + HalfWidth };
+//        } break;
+//
+//        case 3: {
+//            return { Room->Position.Row + Room->Height - 1, Room->Position.Col + HalfWidth };
+//        } break;
+//    }
+//}
 
-    switch (Door) {
-        case 0: {
-            return { Room->Position.Row + HalfHeight , Room->Position.Col };
-        } break;
-
-        case 1: {
-            return { Room->Position.Row + HalfHeight, Room->Position.Col + Room->Width - 1 };
-        } break;
-
-        case 2: {
-            return { Room->Position.Row, Room->Position.Col + HalfWidth };
-        } break;
-
-        case 3: {
-            return { Room->Position.Row + Room->Height - 1, Room->Position.Col + HalfWidth };
-        } break;
-    }
-}
-
-game_screen_position GetDoorPosition(int Door, room* Room, int TileSize) {
-    int HalfWidth = Room->Width % 2 ? Room->Width / 2 : (Room->Width + 1) / 2;
-    int HalfHeight = Room->Height % 2 ? Room->Height / 2 : (Room->Height + 1) / 2;
-    int DoorHeight = 50;
-
-    switch (Door) {
-        // Left
-        case 0:
-        {
-            game_screen_position Position = ToScreenCoord({ Room->Position.Row + HalfHeight + 1 , Room->Position.Col - 1 }, TileSize);
-            return { Position.X, Position.Y - Room->DoorBMP->Header.Height - TileSize / 2, Position.Z };
-        } break;
-
-        // Right
-        case 1:
-        {
-            game_screen_position Position = ToScreenCoord({ Room->Position.Row + HalfHeight + 1, Room->Position.Col + Room->Width }, TileSize);
-            return { Position.X, Position.Y - Room->DoorBMP->Header.Height - TileSize / 2, Position.Z };
-        } break;
-
-        // Up
-        case 2:
-        {
-            game_screen_position Position = ToScreenCoord({ Room->Position.Row, Room->Position.Col + HalfWidth }, TileSize);
-            return { Position.X, Position.Y - Room->DoorBMP->Header.Height, Position.Z };
-        } break;
-
-        // Down
-        case 3:
-        {
-            return ToScreenCoord({ Room->Position.Row + Room->Height, Room->Position.Col + HalfWidth }, TileSize);
-        } break;
-
-        default:
-        {
-            OutputDebugStringA("ERROR calculating door position.");
-        }
-    }
-}
+//game_screen_position GetDoorPosition(int Door, room* Room, int TileSize) {
+//    int HalfWidth = Room->Width % 2 ? Room->Width / 2 : (Room->Width + 1) / 2;
+//    int HalfHeight = Room->Height % 2 ? Room->Height / 2 : (Room->Height + 1) / 2;
+//    int DoorHeight = 50;
+//
+//    switch (Door) {
+//        // Left
+//        case 0:
+//        {
+//            game_screen_position Position = ToScreenCoord({ Room->Position.Row + HalfHeight + 1 , Room->Position.Col - 1 }, TileSize);
+//            return { Position.X, Position.Y - Room->DoorBMP->Header.Height - TileSize / 2, Position.Z };
+//        } break;
+//
+//        // Right
+//        case 1:
+//        {
+//            game_screen_position Position = ToScreenCoord({ Room->Position.Row + HalfHeight + 1, Room->Position.Col + Room->Width }, TileSize);
+//            return { Position.X, Position.Y - Room->DoorBMP->Header.Height - TileSize / 2, Position.Z };
+//        } break;
+//
+//        // Up
+//        case 2:
+//        {
+//            game_screen_position Position = ToScreenCoord({ Room->Position.Row, Room->Position.Col + HalfWidth }, TileSize);
+//            return { Position.X, Position.Y - Room->DoorBMP->Header.Height, Position.Z };
+//        } break;
+//
+//        // Down
+//        case 3:
+//        {
+//            return ToScreenCoord({ Room->Position.Row + Room->Height, Room->Position.Col + HalfWidth }, TileSize);
+//        } break;
+//
+//        default:
+//        {
+//            OutputDebugStringA("ERROR calculating door position.");
+//        }
+//    }
+//}
 
 void UpdateCamera(camera* Camera) {
     Camera->Position = Camera->Position + Camera->Velocity;
 }
+
+// Tiles
+enum tile_type {
+    Floor,
+    Door,
+    Wall
+};
+
+struct tile {
+    tile_type Type;
+};
+
+struct tile_direction {
+    int Row;
+    int Col;
+};
+
+struct tile_pointer {
+    int Row;
+    int Col;
+    tile_direction Direction;
+    int IdleSteps;
+};
+
+const int MAP_WIDTH = 100;
+const int MAP_HEIGHT = 100;
 
 // Game State: Persistent (between frames) values
 struct game_state {
@@ -376,7 +444,7 @@ struct game_state {
     camera Camera;
     int TileSize;
     tile_position PlayerPosition;
-    room TestRoom;
+    tile Map[MAP_WIDTH][MAP_HEIGHT];
 };
 
 // Game Memory

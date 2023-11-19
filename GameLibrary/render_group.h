@@ -13,7 +13,7 @@ enum render_group_entry_type {
     group_type_render_entry_text,
     group_type_render_entry_button,
     group_type_render_entry_debug_lattice,
-    group_type_render_entry_room
+    group_type_render_entry_map
 };
 
 struct render_group_header {
@@ -71,10 +71,24 @@ struct render_entry_debug_lattice {
     color Color;
 };
 
-struct render_entry_room {
+//struct render_entry_room {
+//    render_group_header Header;
+//    room* Room;
+//    int TileSize;
+//};
+//
+//struct render_entry_door {
+//    render_group_header Header;
+//    int TileSize;
+//    door* Door;
+//};
+
+struct render_entry_map {
     render_group_header Header;
-    room* Room;
+    tile* Map;
     int TileSize;
+    loaded_bmp* FloorBMP;
+    loaded_bmp* DoorBMP;
 };
 
 struct render_group {
@@ -178,10 +192,25 @@ void PushDebugLattice(render_group* Group, int TileSize,  color Color) {
     Entry->Color = Color;
 }
 
-void PushRoom(render_group* Group, room* Room, int TileSize) {
-    render_entry_room* Entry = PushRenderElement(Group, render_entry_room);
-    Entry->Room = Room;
+//void PushRoom(render_group* Group, room* Room, int TileSize) {
+//    render_entry_room* Entry = PushRenderElement(Group, render_entry_room);
+//    Entry->Room = Room;
+//    Entry->TileSize = TileSize;
+//}
+//
+//void PushDoor(render_group* Group, door* Door, int TileSize) {
+//    render_entry_door* Entry = PushRenderElement(Group, render_entry_door);
+//    Entry->Door = Door;
+//    Entry->TileSize = TileSize;
+//
+//}
+
+void PushMap(render_group* Group, tile* Map, game_assets* Assets, int TileSize) {
+    render_entry_map* Entry = PushRenderElement(Group, render_entry_map);
+    Entry->Map = Map;
     Entry->TileSize = TileSize;
+    Entry->DoorBMP = &Assets->DoorBMP;
+    Entry->FloorBMP = &Assets->FloorBMP;
 }
 
 void ClearEntries(render_group* Group) {

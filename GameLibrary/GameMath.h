@@ -1,5 +1,6 @@
 #pragma once
 #include "math.h"
+#include "stdlib.h"
 
 // Utility macros
 #define Kilobytes(Value) ((Value)*1024)
@@ -176,3 +177,6 @@ v3 SphereNormal(double Theta, double Phi) {
 	return Result;
 }
 
+float randf() {
+	return (float)rand() / (float)RAND_MAX;
+}
