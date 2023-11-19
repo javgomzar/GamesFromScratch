@@ -208,8 +208,8 @@ void SetTile(tile* Map, int Row, int Col, tile_type Type) {
     *(Map + Row * MAP_WIDTH + Col) = { Type };
 }
 
-tile GetTile(tile* Map, int Row, int Col) {
-    return *(Map + Row * MAP_WIDTH + Col);
+tile_type GetTile(tile* Map, int Row, int Col) {
+    return (*(Map + Row * MAP_WIDTH + Col)).Type;
 }
 
 enum turn {
@@ -257,6 +257,7 @@ void InitMap(tile* Map) {
     tile_pointer Pointers[100] = { 0 };
     tile_pointer* StartPointer = &Pointers[0];
 
+    // Starting pointer
     switch (rand() % 4) {
         case 0:
         {
@@ -298,7 +299,7 @@ void InitMap(tile* Map) {
             Advance(Pointer);
 
             if (Pointer->Row < 0 || Pointer->Col < 0 || Pointer->Row >= MAP_HEIGHT || Pointer->Col >= MAP_WIDTH || 
-                GetTile(Map, Pointer->Row, Pointer->Col).Type == Wall) 
+                GetTile(Map, Pointer->Row, Pointer->Col) == Wall) 
             {
                 RemovePointer(&Pointers[0], i, &nPointers);
                 i--;
