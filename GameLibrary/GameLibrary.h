@@ -267,15 +267,6 @@ struct game_assets {
 
 
 // Game structs
-struct tile_position {
-    int Row;
-    int Col;
-};
-
-game_screen_position ToScreenCoord(tile_position Position, int TileSize) {
-    return {TileSize * Position.Col, TileSize * Position.Row, 0};
-}
-
 struct camera {
     v3 Position;
     v3 Velocity;
@@ -410,6 +401,28 @@ void UpdateCamera(camera* Camera) {
 }
 
 // Tiles
+struct tile_position {
+    int Row;
+    int Col;
+};
+
+game_screen_position ToScreenCoord(tile_position Position, int TileSize) {
+    return { TileSize * Position.Col, TileSize * Position.Row, 0 };
+}
+
+struct tile_direction {
+    int Row;
+    int Col;
+};
+
+tile_position operator+(tile_position P, tile_direction D) {
+    return { P.Row + D.Row, P.Col + D.Col };
+}
+
+tile_position operator+(tile_direction D, tile_position P) {
+    return { P.Row + D.Row, P.Col + D.Col };
+}
+
 enum tile_type {
     Floor,
     Door,
@@ -420,10 +433,7 @@ struct tile {
     tile_type Type;
 };
 
-struct tile_direction {
-    int Row;
-    int Col;
-};
+
 
 struct tile_pointer {
     int Row;

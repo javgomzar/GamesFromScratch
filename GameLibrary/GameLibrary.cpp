@@ -12,7 +12,25 @@
 /*
     TODO:
         - Make it so when you change TileSize everything zooms in (possibly control this with mouse wheel).
-        - Make doors independent of rooms.
+        - Render rooms in one sentence instead of rendering each tile. (preprocess map?)
+        - Improve door rendering.
+        - Improve door creation algorithm. Not all rooms need to be connected but maybe delete redundant doors sometimes and
+          connect a little bit more rooms.
+        - Implement tile type Rock.
+            * Rocks can be mined with a pickaxe.
+            * Rocks can be moved when pushed.
+            * Rocks can fill holes.
+        - Implement tile type Hole.
+            * Holes can't be crossed.
+            * Holes can be filled with a rock.
+        - Implement tile type filled hole.
+        - Player position initialization.
+        - Optimize rendering filtering which tiles need to be rendered?.
+        - Implement inventory.
+        - Main menu:
+            * Save & load games.
+            * Options.
+            * Reset map?
 */
 
 
@@ -199,6 +217,10 @@ void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSo
 //    Room->Doors[3] = rand() % 2;
 //}
 
+bool IsValid(int Row, int Col) {
+    return Row >= 0 && Row < MAP_HEIGHT && Col >= 0 && Col < MAP_HEIGHT;
+}
+
 void Advance(tile_pointer* Pointer) {
     Pointer->Row += Pointer->Direction.Row;
     Pointer->Col += Pointer->Direction.Col;
@@ -292,14 +314,15 @@ void InitMap(tile* Map) {
 
     SetTile(Map, StartPointer->Row, StartPointer->Col, Wall);
 
+    // Main loop
     int nPointers = 1;
     while (nPointers > 0) {
         for (int i = 0; i < nPointers; i++) {
             tile_pointer* Pointer = &Pointers[i];
             Advance(Pointer);
 
-            if (Pointer->Row < 0 || Pointer->Col < 0 || Pointer->Row >= MAP_HEIGHT || Pointer->Col >= MAP_WIDTH || 
-                GetTile(Map, Pointer->Row, Pointer->Col) == Wall) 
+            if (!IsValid(Pointer->Row, Pointer->Col) ||
+                GetTile(Map, Pointer->Row, Pointer->Col) == Wall)
             {
                 RemovePointer(&Pointers[0], i, &nPointers);
                 i--;
@@ -337,15 +360,39 @@ void InitMap(tile* Map) {
         }
     }
 
-    //for (int i = 0; i < 20; i++) {
-    //    for (int j = 0; j < 20; j++) {
-    //        pGameState->Map[i][j] = { Floor };
+    // Doors
+    float PDoor = 0.1f;
+    for (int i = 1; i < MAP_HEIGHT - 1; i++) {
+        for (int j = 1; j < MAP_WIDTH - 1; j++) {
+            if (GetTile(Map, i, j) == Wall) {
+                int AdyacentDoors = 0;
 
-    //        if (i == 15) {
-    //            pGameState->Map[i][j] = { Door };
-    //        }
-    //    }
-    //}
+                if (GetTile(Map, i - 1, j) == Door) AdyacentDoors++;
+                if (GetTile(Map, i + 1, j) == Door) AdyacentDoors++;
+                if (GetTile(Map, i, j - 1) == Door) AdyacentDoors++;
+                if (GetTile(Map, i, j + 1) == Door) AdyacentDoors++;
+
+                if (AdyacentDoors == 0) {
+                    int VerticalWalls = 0;
+                    int HorizontalWalls = 0;
+
+                    // Vertical
+                    if (GetTile(Map, i - 1, j) == Wall) VerticalWalls++;
+                    if (GetTile(Map, i + 1, j) == Wall) VerticalWalls++;
+
+                    // Horizontal
+                    if (GetTile(Map, i, j - 1) == Wall) HorizontalWalls++;
+                    if (GetTile(Map, i, j + 1) == Wall) HorizontalWalls++;
+
+                    if (HorizontalWalls + VerticalWalls == 2 && VerticalWalls*HorizontalWalls == 0) {
+                        if (randf() < PDoor) {
+                            SetTile(Map, i, j, Door);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 // Main
@@ -392,27 +439,24 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     // Controls
     // Character movement
+    tile_direction PlayerMovement = { 0,0 };
     if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown) {
-        //tile_position DoorPosition = GetDoorTilePosition(1, &CurrentRoom);
-        //if (pGameState->PlayerPosition.Row == DoorPosition.Row && pGameState->PlayerPosition.Col == DoorPosition.Col) {
-        //    ResetRoom(&pGameState->TestRoom);
-        //    tile_position DoorPosition = GetDoorTilePosition(0, &pGameState->TestRoom);
-        //    pGameState->PlayerPosition.Row = DoorPosition.Row;
-        //    pGameState->PlayerPosition.Col = DoorPosition.Col - 1;
-        //}
-        pGameState->PlayerPosition.Col += 1;
+        PlayerMovement.Col = 1;
     }
     if (Input->Keyboard.A.IsDown && !Input->Keyboard.A.WasDown) {
-        pGameState->PlayerPosition.Col -= 1;
+        PlayerMovement.Col = -1;
     }
     if (Input->Keyboard.S.IsDown && !Input->Keyboard.S.WasDown) {
-        pGameState->PlayerPosition.Row += 1;
+        PlayerMovement.Row = 1;
     }
     if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown) {
-        pGameState->PlayerPosition.Row -= 1;
+        PlayerMovement.Row = -1;
     }
     
-    
+    tile_position NewPosition = pGameState->PlayerPosition + PlayerMovement;
+    if (GetTile((tile*)pGameState->Map, NewPosition.Row, NewPosition.Col) != Wall) {
+        pGameState->PlayerPosition = NewPosition;
+    }
     
     // Camera movement
     v3 Direction = { 0 };
@@ -436,9 +480,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     UpdateCamera(&pGameState->Camera);
 
     // Reset room
-    //if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
-    //    ResetRoom(&pGameState->TestRoom);
-    //}
+    if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
+        InitMap((tile*)pGameState->Map);
+    }
 
     // Debug camera position and velocity
     /*
