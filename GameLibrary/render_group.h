@@ -1,5 +1,7 @@
 #pragma once
 
+const int MAX_ENTRIES = 10000;
+
 struct render_basis {
 	v3 P;
 };
@@ -12,8 +14,7 @@ enum render_group_entry_type {
 	group_type_render_entry_bmp,
     group_type_render_entry_text,
     group_type_render_entry_button,
-    group_type_render_entry_debug_lattice,
-    group_type_render_entry_map
+    group_type_render_entry_debug_lattice
 };
 
 struct render_group_header {
@@ -83,14 +84,6 @@ struct render_entry_debug_lattice {
 //    door* Door;
 //};
 
-struct render_entry_map {
-    render_group_header Header;
-    tile* Map;
-    int TileSize;
-    loaded_bmp* FloorBMP;
-    loaded_bmp* DoorBMP;
-};
-
 struct render_group {
 	float MetersToPixels;
 	render_basis* DefaultBasis;
@@ -100,6 +93,11 @@ struct render_group {
 	uint32 PushBufferSize;
 	uint32 PushBufferElementCount;
 	uint8* PushBufferBase;
+};
+
+struct sort_entry {
+    uint32 Key;
+    uint32 PushBufferOffset;
 };
 
 
@@ -137,6 +135,47 @@ render_group_header* PushRenderElement_(render_group* Group, uint32 Size, render
     return Result;
 }
 
+uint32 GetSizeOf(render_group_entry_type Type) {
+    switch (Type) {
+        case group_type_render_entry_clear:
+        {
+            return sizeof(render_entry_clear);
+        } break;
+        case group_type_render_entry_line:
+        {
+            return sizeof(render_entry_line);
+        } break;
+        case group_type_render_entry_rect:
+        {
+            return sizeof(render_entry_rect);
+        } break;
+        case group_type_render_entry_rect_outline:
+        {
+            return sizeof(render_entry_rect_outline);
+        } break;
+        case group_type_render_entry_bmp:
+        {
+            return sizeof(render_entry_bmp);
+        } break;
+        case group_type_render_entry_text:
+        {
+            return sizeof(render_entry_text);
+        } break;
+        case group_type_render_entry_button:
+        {
+            return sizeof(render_entry_button);
+        } break;
+        case group_type_render_entry_debug_lattice:
+        {
+            return sizeof(render_entry_debug_lattice);
+        } break;
+        default:
+        {
+            Assert(false);
+        } break;
+    }
+}
+
 void PushClear(render_group* Group, color Color) {
     render_entry_clear* Entry = PushRenderElement(Group, render_entry_clear);
     Entry->Header.Key = 0;
@@ -145,15 +184,15 @@ void PushClear(render_group* Group, color Color) {
 
 void PushLine(render_group* Group, color Color, game_screen_position Start, game_screen_position Finish) {
     render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
-    Entry->Header.Key = 0;
+    Entry->Header.Key = -1;
     Entry->Color = Color;
     Entry->Start = Start;
     Entry->Finish = Finish;
 }
 
-void PushRect(render_group* Group, game_rect Rect, color Color) {
+void PushRect(render_group* Group, game_rect Rect, color Color, int Z) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
-    Entry->Header.Key = 0;
+    Entry->Header.Key = Z;
     Entry->Rect = Rect;
     Entry->Color = Color;
 }
@@ -182,6 +221,7 @@ void PushText(render_group* Group, Character* Characters, game_screen_position P
 
 void PushButton(render_group* Group, Character* Characters, button* Button) {
     render_entry_button* Entry = PushRenderElement(Group, render_entry_button);
+    Entry->Header.Key = 0;
     Entry->Button = Button;
     Entry->Characters = Characters;
 }
@@ -205,12 +245,34 @@ void PushDebugLattice(render_group* Group, int TileSize,  color Color) {
 //
 //}
 
-void PushMap(render_group* Group, tile* Map, game_assets* Assets, int TileSize) {
-    render_entry_map* Entry = PushRenderElement(Group, render_entry_map);
-    Entry->Map = Map;
-    Entry->TileSize = TileSize;
-    Entry->DoorBMP = &Assets->DoorBMP;
-    Entry->FloorBMP = &Assets->FloorBMP;
+void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], game_assets* Assets, tile_position PlayerPosition, int TileSize) {
+    
+    for (int i = 0; i < MAP_HEIGHT; i++) {
+        for (int j = 0; j < MAP_WIDTH; j++) {
+            tile Tile = Map[i][j];
+
+            
+            switch (Tile.Type) {
+                case Floor:
+                {
+                    game_screen_position Position = ToScreenCoord({ i, j, 0 }, TileSize);
+                    PushBMP(Group, &Assets->FloorBMP, Position);
+                } break;
+
+                case Door:
+                {
+                    game_screen_position Position = ToScreenCoord({ i-1, j, 0 }, TileSize);
+                    if (PlayerPosition.Col == j && PlayerPosition.Row == i - 1) Position.Z = 2;
+
+                    if (i - 1 > 0 && Map[i - 1][j].Type == Floor) {
+                        PushBMP(Group, &Assets->FloorBMP, ToScreenCoord({ i, j, 0 }, TileSize));
+                    }
+                    
+                    PushBMP(Group, &Assets->DoorBMP, Position);
+                } break;
+            }
+        }
+    }
 }
 
 void ClearEntries(render_group* Group) {
@@ -218,15 +280,34 @@ void ClearEntries(render_group* Group) {
     Group->PushBufferSize = 0;
 }
 
-void SortEntries(render_group* RenderGroup) {
-    uint32 Count = RenderGroup->PushBufferElementCount;
-    for (uint32 i = 0; i < Count - 1; i++) {
-        // TODO
-    }
+void SwapEntries(sort_entry* Entry1, sort_entry* Entry2) {
+    uint32 Key1 = Entry1->Key;
+    uint32 Offset1 = Entry1->PushBufferOffset;
+
+    *Entry1 = *Entry2;
+    *Entry2 = { Key1, Offset1 };
 }
 
-void SwapEntries(render_group* RenderGroup, uint32 Entry1, uint32 Entry2) {
+void SortEntries(render_group* RenderGroup, sort_entry Entries[MAX_ENTRIES]) {
+    uint32 Count = RenderGroup->PushBufferElementCount;
 
+    uint32 BaseAddress = 0;
+    for (int i = 0; i < Count; i++) {
+        render_group_header* Header = (render_group_header*)(RenderGroup->PushBufferBase + BaseAddress);
+        Entries[i] = { Header->Key, Header->PushBufferOffset };
+
+        BaseAddress += GetSizeOf(Header->Type);
+    }
+
+    for (int i = 0; i < Count - 1; i++) {
+        if (Entries[i].Key > Entries[i + 1].Key) {
+            int j = i;
+            do {
+                SwapEntries(&Entries[j], &Entries[j + 1]);
+                j--;
+            } while (j > 0 && Entries[j].Key > Entries[j + 1].Key);
+        }
+    }
 }
 
 

@@ -404,10 +404,11 @@ void UpdateCamera(camera* Camera) {
 struct tile_position {
     int Row;
     int Col;
+    int Z;
 };
 
 game_screen_position ToScreenCoord(tile_position Position, int TileSize) {
-    return { TileSize * Position.Col, TileSize * Position.Row, 0 };
+    return { TileSize * Position.Col, TileSize * Position.Row, Position.Z };
 }
 
 struct tile_direction {
@@ -454,7 +455,7 @@ struct game_state {
     camera Camera;
     int TileSize;
     tile_position PlayerPosition;
-    tile Map[MAP_WIDTH][MAP_HEIGHT];
+    tile Map[MAP_HEIGHT][MAP_WIDTH];
 };
 
 // Game Memory

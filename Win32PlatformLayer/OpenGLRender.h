@@ -206,24 +206,8 @@ void OpenGLDebugShineTile(tile_position Position, int TileSize) {
 //	int ScreenHeight = TileSize * Room->Height;
 //	OpenGLTexturedRectangle({ Position.X, Position.Y, ScreenWidth, ScreenHeight }, Room->FloorBMP);
 //}
-void OpenGLRenderMap(tile* Map, loaded_bmp* FloorBMP, loaded_bmp* DoorBMP, int TileSize) {
-	for (int i = 0; i < MAP_HEIGHT; i++) {
-		for (int j = 0; j < MAP_WIDTH; j++) {
-			tile Tile = *(Map + MAP_WIDTH * i + j);
-
-			switch (Tile.Type) {
-				case Floor:
-				{
-					OpenGLRenderBMP(FloorBMP, ToScreenCoord({ i, j }, TileSize));
-				} break;
-
-				case Door:
-				{
-					OpenGLRenderBMP(DoorBMP, ToScreenCoord({ i, j }, TileSize));
-				} break;
-			}
-		}
-	}
+void OpenGLRenderMap(tile Map[MAP_HEIGHT][MAP_WIDTH], loaded_bmp* FloorBMP, loaded_bmp* DoorBMP, int TileSize) {
+	
 	
 }
 
@@ -252,13 +236,14 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
-	/*
+	// Sorting render entries
+	sort_entry Entries[MAX_ENTRIES] = { 0 };
+	SortEntries(Group, Entries);
+
+	// Render entries
 	uint32 EntryCount = Group->PushBufferElementCount;
-	render_group_entry_type* EntryType = (render_group_entry_type*)Group->PushBufferBase;
 	for (uint32 EntryIndex = 0; EntryIndex < EntryCount; EntryIndex++) {
-	*/
-	for (uint32 BaseAddress = 0; BaseAddress < Group->PushBufferSize; ) {
-		render_group_header* Header = (render_group_header*)(Group->PushBufferBase + BaseAddress);
+		render_group_header* Header = (render_group_header*)(Group->PushBufferBase + Entries[EntryIndex].PushBufferOffset);
 		switch (Header->Type) {
 			case group_type_render_entry_clear:
 			{
@@ -266,8 +251,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 
 				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
-
-				BaseAddress += sizeof(Entry);
 			} break;
 
 			case group_type_render_entry_rect:
@@ -275,24 +258,18 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				render_entry_rect Entry = *(render_entry_rect*)Header;
 
 				OpenGLRectangle(Entry.Rect, Entry.Color);
-
-				BaseAddress += sizeof(Entry);
 			} break;
 
 			case group_type_render_entry_bmp:
 			{
 				render_entry_bmp Entry = *(render_entry_bmp*)Header;
 				OpenGLRenderBMP(Entry.Bitmap, Entry.Position);
-
-				BaseAddress += sizeof(Entry);
 			} break;
 
 			case group_type_render_entry_text:
 			{
 				render_entry_text Entry = *(render_entry_text*)Header;
 				OpenGLRenderText(Width, Entry.Characters, Entry.Position, Entry.Text);
-
-				BaseAddress += sizeof(Entry);
 			} break;
 
 			case group_type_render_entry_button:
@@ -316,8 +293,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 						Button->Collider.Top + Button->Image.Header.Height / 2 + TextHeight/4,
 						0 
 					}, Button->Text);
-
-				BaseAddress += sizeof(Entry);
 			} break;
 
 			case group_type_render_entry_line:
@@ -325,8 +300,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				render_entry_line Entry = *(render_entry_line*)Header;
 
 				OpenGLRenderLine(Entry.Start, Entry.Finish, Entry.Color);
-
-				BaseAddress += sizeof(Entry);
 			} break;
 
 			case group_type_render_entry_rect_outline:
@@ -337,8 +310,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				OpenGLRenderLine({ Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 }, { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 }, Entry.Color);
 				OpenGLRenderLine({ Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 }, { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 }, Entry.Color);
 				OpenGLRenderLine({ Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 }, { Entry.Rect.Left, Entry.Rect.Top, 0 }, Entry.Color);
-
-				BaseAddress += sizeof(Entry);
 			} break;
 
 			case group_type_render_entry_debug_lattice: 
@@ -346,8 +317,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				render_entry_debug_lattice Entry = *(render_entry_debug_lattice*)Header;
 
 				OpenGLDebugRenderLattice(Width, Height, Entry.TileSize, Entry.Color, Group->Camera);
-
-				BaseAddress += sizeof(Entry);
 			} break;
 
 			//case group_type_render_entry_room:
@@ -372,14 +341,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			//	BaseAddress += sizeof(Entry);
 
 			//} break;
-			case group_type_render_entry_map:
-			{
-				render_entry_map Entry = *(render_entry_map*)Header;
-
-				OpenGLRenderMap(Entry.Map, Entry.FloorBMP, Entry.DoorBMP, Entry.TileSize);
-
-				BaseAddress += sizeof(Entry);
-			} break;
 
 			default:
 			{

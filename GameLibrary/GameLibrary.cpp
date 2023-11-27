@@ -226,14 +226,6 @@ void Advance(tile_pointer* Pointer) {
     Pointer->Col += Pointer->Direction.Col;
 }
 
-void SetTile(tile* Map, int Row, int Col, tile_type Type) {
-    *(Map + Row * MAP_WIDTH + Col) = { Type };
-}
-
-tile_type GetTile(tile* Map, int Row, int Col) {
-    return (*(Map + Row * MAP_WIDTH + Col)).Type;
-}
-
 enum turn {
     Clockwise,
     CounterClockwise
@@ -263,12 +255,12 @@ void RemovePointer(tile_pointer* Pointers, int Index, int* nPointers) {
     (*nPointers)--;
 }
 
-void InitMap(tile* Map) {
+void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH]) {
 
     // Setting all the map to floor
     for (int i = 0; i < MAP_HEIGHT; i++) {
         for (int j = 0; j < MAP_WIDTH; j++) {
-            *(Map + MAP_WIDTH*i + j) = {Floor};
+            Map[i][j] = { Floor };
         }
     }
 
@@ -312,7 +304,7 @@ void InitMap(tile* Map) {
         } break;
     }
 
-    SetTile(Map, StartPointer->Row, StartPointer->Col, Wall);
+    Map[StartPointer->Row][StartPointer->Col] = { Wall };
 
     // Main loop
     int nPointers = 1;
@@ -322,13 +314,13 @@ void InitMap(tile* Map) {
             Advance(Pointer);
 
             if (!IsValid(Pointer->Row, Pointer->Col) ||
-                GetTile(Map, Pointer->Row, Pointer->Col) == Wall)
+                Map[Pointer->Row][Pointer->Col].Type == Wall)
             {
                 RemovePointer(&Pointers[0], i, &nPointers);
                 i--;
             }
             else {
-                SetTile(Map, Pointer->Row, Pointer->Col, Wall);
+                Map[Pointer->Row][Pointer->Col] = { Wall };
 
                 // Bifurcations
                 if (Pointer->IdleSteps > MinIdleSteps && randf() < PBiffurcation) {
@@ -364,29 +356,29 @@ void InitMap(tile* Map) {
     float PDoor = 0.1f;
     for (int i = 1; i < MAP_HEIGHT - 1; i++) {
         for (int j = 1; j < MAP_WIDTH - 1; j++) {
-            if (GetTile(Map, i, j) == Wall) {
+            if (Map[i][j].Type == Wall) {
                 int AdyacentDoors = 0;
 
-                if (GetTile(Map, i - 1, j) == Door) AdyacentDoors++;
-                if (GetTile(Map, i + 1, j) == Door) AdyacentDoors++;
-                if (GetTile(Map, i, j - 1) == Door) AdyacentDoors++;
-                if (GetTile(Map, i, j + 1) == Door) AdyacentDoors++;
+                if (Map[i - 1][j].Type == Door) AdyacentDoors++;
+                if (Map[i + 1][j].Type == Door) AdyacentDoors++;
+                if (Map[i][j - 1].Type == Door) AdyacentDoors++;
+                if (Map[i][j + 1].Type == Door) AdyacentDoors++;
 
                 if (AdyacentDoors == 0) {
                     int VerticalWalls = 0;
                     int HorizontalWalls = 0;
 
                     // Vertical
-                    if (GetTile(Map, i - 1, j) == Wall) VerticalWalls++;
-                    if (GetTile(Map, i + 1, j) == Wall) VerticalWalls++;
+                    if (Map[i - 1][j].Type == Wall) VerticalWalls++;
+                    if (Map[i + 1][j].Type == Wall) VerticalWalls++;
 
                     // Horizontal
-                    if (GetTile(Map, i, j - 1) == Wall) HorizontalWalls++;
-                    if (GetTile(Map, i, j + 1) == Wall) HorizontalWalls++;
+                    if (Map[i][j - 1].Type == Wall) HorizontalWalls++;
+                    if (Map[i][j + 1].Type == Wall) HorizontalWalls++;
 
                     if (HorizontalWalls + VerticalWalls == 2 && VerticalWalls*HorizontalWalls == 0) {
                         if (randf() < PDoor) {
-                            SetTile(Map, i, j, Door);
+                            Map[i][j] = { Door };
                         }
                     }
                 }
@@ -406,7 +398,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if (!Memory->IsInitialized) {
         // Memory arenas
         InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
-        InitializeArena(&pGameState->MapArena, Megabytes(1), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size + pGameState->RenderArena.Size);
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
@@ -418,14 +409,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // User Interface
         // InitializeUI();
 
+        // Initialize map
+        srand(time(0));
+        InitMap(pGameState->Map);
+
         // Initialize game state
         pGameState->TileSize = 30;
         pGameState->Camera = { {0,0,0}, {0,0,0} };
-        pGameState->PlayerPosition = { 5, 5 };
-        
-        // Initialize map
-        srand(time(0));
-        InitMap((tile*)pGameState->Map);
+
+        pGameState->PlayerPosition = { 5, 5, 1 };
+        while (pGameState->Map[pGameState->PlayerPosition.Row][pGameState->PlayerPosition.Col].Type != Floor) {
+            pGameState->PlayerPosition.Row++;
+            pGameState->PlayerPosition.Col++;
+        }
 
         // Renderer --------------------------------------------------------------------------------------------------------------------------------------
         Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
@@ -454,7 +450,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
     
     tile_position NewPosition = pGameState->PlayerPosition + PlayerMovement;
-    if (GetTile((tile*)pGameState->Map, NewPosition.Row, NewPosition.Col) != Wall) {
+
+    if (IsValid(NewPosition.Row, NewPosition.Col) && pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Wall) {
         pGameState->PlayerPosition = NewPosition;
     }
     
@@ -481,7 +478,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     // Reset room
     if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
-        InitMap((tile*)pGameState->Map);
+        InitMap(pGameState->Map);
     }
 
     // Debug camera position and velocity
@@ -512,9 +509,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Target.Pitch = ScreenBuffer->Pitch;
     Target.Content = (uint32*)ScreenBuffer->Memory;
 
-    PushMap(Group, &pGameState->Map[0][0], &Memory->Assets, pGameState->TileSize);
+    PushMap(Group, pGameState->Map, &Memory->Assets, pGameState->PlayerPosition, pGameState->TileSize);
     
-    PushBMP(Group, &Memory->Assets.PlayerBMP, ToScreenCoord({pGameState->PlayerPosition.Row - 1, pGameState->PlayerPosition.Col}, pGameState->TileSize));
+    PushBMP(Group, &Memory->Assets.PlayerBMP, ToScreenCoord({pGameState->PlayerPosition.Row - 1, pGameState->PlayerPosition.Col, pGameState->PlayerPosition.Z}, pGameState->TileSize));
 
     static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
@@ -524,14 +521,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if (ShowDebugInfo) {
         game_rect DebugInfoRect = { pGameState->Camera.Position.X, pGameState->Camera.Position.Y, 450, 120 };
         PushDebugLattice(Group, pGameState->TileSize, {0.2f, 1.0f, 1.0f, 0.0f });
-        PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f});
+        PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f},1000);
         PushRectOutline(Group, DebugInfoRect, Gray);
         text Text = { 0 };
         Text.Color = White;
         Text.Length = 48;
         Text.Points = 20;
         Text.Content = Memory->DebugInfo;
-        PushText(Group, Assets->Characters, { (int)pGameState->Camera.Position.X, (int)pGameState->Camera.Position.Y + 30,0 }, Text);
+        PushText(Group, Assets->Characters, { (int)pGameState->Camera.Position.X, (int)pGameState->Camera.Position.Y + 30, 1001 }, Text);
     }
 
 
@@ -550,5 +547,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Platform->OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
 
     // Clear render group
-    ClearEntries(Group);}
+    ClearEntries(Group);
+}
 
