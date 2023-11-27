@@ -189,8 +189,8 @@ void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSo
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
-    game_assets Assets = Memory->Assets;
-    platform_api Platform = Memory->Platform;
+    game_assets* Assets = &Memory->Assets;
+    platform_api* Platform = &Memory->Platform;
     render_group* Group = Memory->Group;
 
     if (!Memory->IsInitialized) {
@@ -199,8 +199,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here        
-
-        Assets = Memory->Assets;
+        
 
         // User Interface
         // InitializeUI();
@@ -236,14 +235,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     if (ShowDebugInfo) {
         game_rect DebugInfoRect = { 0, 0, 450, 120 };
-        PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f});
+        PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f}, -1);
         PushRectOutline(Group, DebugInfoRect, Gray);
         text Text = { 0 };
         Text.Color = White;
         Text.Length = 48;
         Text.Points = 20;
         Text.Content = Memory->DebugInfo;
-        PushText(Group, Assets.Characters, { 0,30,0 }, Text);
+        PushText(Group, Assets->Characters, { 0,30,-1 }, Text);
     }
 
     // Render
@@ -265,8 +264,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //    Platform.OpenGLRender(Group, &Target);
     //}
     
-    Platform.OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
+    Platform->OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
 
     // Clear render group
-    ClearEntries(Group);}
+    ClearEntries(Group);
+}
 

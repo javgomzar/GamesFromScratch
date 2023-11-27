@@ -260,6 +260,8 @@ struct UI {
 // Game Assets
 struct game_assets {
     Character* Characters;
+    loaded_bmp Image1;
+    loaded_bmp Image2;
 };
 
 // Game State: Persistent (between frames) values

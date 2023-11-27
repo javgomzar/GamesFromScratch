@@ -1,5 +1,7 @@
 #pragma once
 
+const int MAX_ENTRIES = 100;
+
 struct render_basis {
 	v3 P;
 };
@@ -73,6 +75,11 @@ struct render_group {
 	uint8* PushBufferBase;
 };
 
+struct sort_entry {
+    uint32 Key;
+    uint32 PushBufferOffset;
+};
+
 
 render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBufferSize) {
     render_group* Result = PushStruct(Arena, render_group);
@@ -108,6 +115,39 @@ render_group_header* PushRenderElement_(render_group* Group, uint32 Size, render
     return Result;
 }
 
+uint32 GetSizeOf(render_group_entry_type Type) {
+    switch (Type) {
+        case group_type_render_entry_clear:
+        {
+            return sizeof(render_entry_clear);
+        } break;
+        case group_type_render_entry_line:
+        {
+            return sizeof(render_entry_line);
+        } break;
+        case group_type_render_entry_rect:
+        {
+            return sizeof(render_entry_rect);
+        } break;
+        case group_type_render_entry_rect_outline:
+        {
+            return sizeof(render_entry_rect_outline);
+        } break;
+        case group_type_render_entry_bmp:
+        {
+            return sizeof(render_entry_bmp);
+        } break;
+        case group_type_render_entry_text:
+        {
+            return sizeof(render_entry_text);
+        } break;
+        case group_type_render_entry_button:
+        {
+            return sizeof(render_entry_button);
+        } break;
+    }
+}
+
 void PushClear(render_group* Group, color Color) {
     render_entry_clear* Entry = PushRenderElement(Group, render_entry_clear);
     Entry->Header.Key = 0;
@@ -122,9 +162,9 @@ void PushLine(render_group* Group, color Color, game_screen_position Start, game
     Entry->Finish = Finish;
 }
 
-void PushRect(render_group* Group, game_rect Rect, color Color) {
+void PushRect(render_group* Group, game_rect Rect, color Color, int Z) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
-    Entry->Header.Key = 0;
+    Entry->Header.Key = Z;
     Entry->Rect = Rect;
     Entry->Color = Color;
 }
@@ -153,6 +193,7 @@ void PushText(render_group* Group, Character* Characters, game_screen_position P
 
 void PushButton(render_group* Group, Character* Characters, button* Button) {
     render_entry_button* Entry = PushRenderElement(Group, render_entry_button);
+    Entry->Header.Key = 0;
     Entry->Button = Button;
     Entry->Characters = Characters;
 }
@@ -162,15 +203,34 @@ void ClearEntries(render_group* Group) {
     Group->PushBufferSize = 0;
 }
 
-void SortEntries(render_group* RenderGroup) {
-    uint32 Count = RenderGroup->PushBufferElementCount;
-    for (uint32 i = 0; i < Count - 1; i++) {
-        // TODO
-    }
+void SwapEntries(sort_entry* Entry1, sort_entry* Entry2) {
+    uint32 Key1 = Entry1->Key;
+    uint32 Offset1 = Entry1->PushBufferOffset;
+
+    *Entry1 = *Entry2;
+    *Entry2 = { Key1, Offset1 };
 }
 
-void SwapEntries(render_group* RenderGroup, uint32 Entry1, uint32 Entry2) {
+void SortEntries(render_group* RenderGroup, sort_entry Entries[MAX_ENTRIES]) {
+    uint32 Count = RenderGroup->PushBufferElementCount;
 
+    uint32 BaseAddress = 0;
+    for (int i = 0; i < Count; i++) {
+        render_group_header* Header = (render_group_header*)(RenderGroup->PushBufferBase + BaseAddress);
+        Entries[i] = { Header->Key, Header->PushBufferOffset };
+
+        BaseAddress += GetSizeOf(Header->Type);
+    }
+
+    for (int i = 0; i < Count - 1; i++) {
+        if (Entries[i].Key > Entries[i + 1].Key) {
+            int j = i;
+            do {
+                SwapEntries(&Entries[j], &Entries[j + 1]);
+                j--;
+            } while (j > 0 && Entries[j].Key > Entries[j + 1].Key);
+        }
+    }
 }
 
 
