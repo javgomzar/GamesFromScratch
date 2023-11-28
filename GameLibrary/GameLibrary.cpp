@@ -12,7 +12,6 @@
 /*
     TODO:
         - Make it so when you change TileSize everything zooms in (possibly control this with mouse wheel).
-        - Render rooms in one sentence instead of rendering each tile. (preprocess map?)
         - Improve door rendering.
         - Improve door creation algorithm. Not all rooms need to be connected but maybe delete redundant doors sometimes and
           connect a little bit more rooms.
@@ -24,7 +23,6 @@
             * Holes can't be crossed.
             * Holes can be filled with a rock.
         - Implement tile type filled hole.
-        - Player position initialization.
         - Optimize rendering filtering which tiles need to be rendered?.
         - Implement inventory.
         - Main menu:
@@ -387,6 +385,63 @@ void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH]) {
     }
 }
 
+int ProcessMap(tile Map[MAP_HEIGHT][MAP_WIDTH], room Rooms[MAX_ROOMS]) {
+    int nRooms = 0;
+
+    tile_position TopLeftCorners[MAX_ROOMS] = { 0 };
+
+    for (int i = 0; i < MAP_HEIGHT; i++) {
+        for (int j = 0; j < MAP_WIDTH; j++) {
+            if (Map[i][j].Type == Floor) {
+                if (i == 0) {
+                    if (j == 0) {
+                        TopLeftCorners[nRooms] = { i, j, 0 };
+                        nRooms++;
+                    }
+                    else if (Map[i][j - 1].Type != Floor) {
+                        TopLeftCorners[nRooms] = { i, j, 0 };
+                        nRooms++;
+                    }
+                }
+                else if (j == 0) {
+                    if (Map[i - 1][j].Type != Floor) {
+                        TopLeftCorners[nRooms] = { i, j, 0 };
+                        nRooms++;
+                    }
+                }
+                else if (Map[i-1][j].Type != Floor && Map[i][j-1].Type != Floor) {
+                    TopLeftCorners[nRooms] = { i, j, 0 };
+                    nRooms++;
+                }
+            }
+        }
+    }
+
+    for (int i = 0; i < nRooms; i++) {
+        tile_position Position = TopLeftCorners[i];
+        room Room = { 0 };
+        
+        Room.ID = i;
+        Room.Explored = false;
+        Room.Left = Position.Col;
+        Room.Top = Position.Row;
+        Room.Width = 0;
+        
+        for (int j = Room.Left; j < MAP_WIDTH && Map[Room.Top][j].Type == Floor; j++) {
+            Room.Width++;
+        }
+
+        Room.Height = 0;
+        for (int k = Room.Top; k < MAP_HEIGHT && Map[k][Room.Left].Type == Floor; k++) {
+            Room.Height++;
+        }
+
+        Rooms[i] = Room;
+    }
+
+    return nRooms;
+}
+
 // Main
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
@@ -413,11 +468,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         srand(time(0));
         InitMap(pGameState->Map);
 
+        *pGameState->Rooms = { 0 };
+        pGameState->nRooms = ProcessMap(pGameState->Map, pGameState->Rooms);
+
         // Initialize game state
         pGameState->TileSize = 30;
         pGameState->Camera = { {0,0,0}, {0,0,0} };
 
-        pGameState->PlayerPosition = { 5, 5, 1 };
+        pGameState->PlayerPosition = { 5, 5, 2 };
         while (pGameState->Map[pGameState->PlayerPosition.Row][pGameState->PlayerPosition.Col].Type != Floor) {
             pGameState->PlayerPosition.Row++;
             pGameState->PlayerPosition.Col++;
@@ -454,6 +512,26 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     if (IsValid(NewPosition.Row, NewPosition.Col) && pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Wall) {
         pGameState->PlayerPosition = NewPosition;
     }
+
+    // Room exploration
+    for (int i = 0; i < pGameState->nRooms; i++) {
+        room* Room = &pGameState->Rooms[i];
+        if (pGameState->PlayerPosition.Row >= Room->Top && pGameState->PlayerPosition.Row < Room->Top + Room->Height &&
+            pGameState->PlayerPosition.Col >= Room->Left && pGameState->PlayerPosition.Col < Room->Left + Room->Width) {
+            Room->Explored = true;
+        }
+    }
+
+    // Bombs?
+    /*if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
+        tile_position Position = pGameState->PlayerPosition;
+        if (Position.Row - 1 >= 0 && pGameState->Map[Position.Row - 1][Position.Col].Type == Wall) {
+            pGameState->Map[Position.Row - 1][Position.Col].Type = Door;
+        }
+        if (Position.Col - 1 >= 0 && pGameState->Map[Position.Row][Position.Col-1].Type == Wall) {
+            pGameState->Map[Position.Row][Position.Col-1].Type = Door;
+        }
+    }*/
     
     // Camera movement
     v3 Direction = { 0 };
@@ -479,6 +557,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     // Reset room
     if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
         InitMap(pGameState->Map);
+        ProcessMap(pGameState->Map, pGameState->Rooms);
     }
 
     // Debug camera position and velocity
@@ -509,7 +588,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Target.Pitch = ScreenBuffer->Pitch;
     Target.Content = (uint32*)ScreenBuffer->Memory;
 
-    PushMap(Group, pGameState->Map, &Memory->Assets, pGameState->PlayerPosition, pGameState->TileSize);
+    PushMap(Group, pGameState->Map, pGameState->nRooms, pGameState->Rooms, &Memory->Assets, pGameState->PlayerPosition, pGameState->TileSize);
     
     PushBMP(Group, &Memory->Assets.PlayerBMP, ToScreenCoord({pGameState->PlayerPosition.Row - 1, pGameState->PlayerPosition.Col, pGameState->PlayerPosition.Z}, pGameState->TileSize));
 

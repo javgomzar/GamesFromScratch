@@ -414,14 +414,15 @@ game_screen_position ToScreenCoord(tile_position Position, int TileSize) {
 struct tile_direction {
     int Row;
     int Col;
+    int Z;
 };
 
 tile_position operator+(tile_position P, tile_direction D) {
-    return { P.Row + D.Row, P.Col + D.Col };
+    return { P.Row + D.Row, P.Col + D.Col, P.Z + D.Z};
 }
 
 tile_position operator+(tile_direction D, tile_position P) {
-    return { P.Row + D.Row, P.Col + D.Col };
+    return { P.Row + D.Row, P.Col + D.Col, P.Z + D.Z };
 }
 
 enum tile_type {
@@ -434,8 +435,6 @@ struct tile {
     tile_type Type;
 };
 
-
-
 struct tile_pointer {
     int Row;
     int Col;
@@ -443,8 +442,19 @@ struct tile_pointer {
     int IdleSteps;
 };
 
+struct room {
+    int ID;
+    int Top;
+    int Left;
+    int Width;
+    int Height;
+    bool Explored;
+};
+
 const int MAP_WIDTH = 100;
 const int MAP_HEIGHT = 100;
+
+const int MAX_ROOMS = 500;
 
 // Game State: Persistent (between frames) values
 struct game_state {
@@ -456,6 +466,8 @@ struct game_state {
     int TileSize;
     tile_position PlayerPosition;
     tile Map[MAP_HEIGHT][MAP_WIDTH];
+    int nRooms;
+    room Rooms[MAX_ROOMS];
 };
 
 // Game Memory

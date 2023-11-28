@@ -1,6 +1,6 @@
 #pragma once
 
-const int MAX_ENTRIES = 10000;
+const int MAX_ENTRIES = 500;
 
 struct render_basis {
 	v3 P;
@@ -10,6 +10,7 @@ enum render_group_entry_type {
 	group_type_render_entry_clear,
     group_type_render_entry_line,
 	group_type_render_entry_rect,
+    group_type_render_entry_textured_rect,
     group_type_render_entry_rect_outline,
 	group_type_render_entry_bmp,
     group_type_render_entry_text,
@@ -39,6 +40,12 @@ struct render_entry_rect {
 	render_group_header Header;
 	game_rect Rect;
 	color Color;
+};
+
+struct render_entry_textured_rect {
+    render_group_header Header;
+    game_rect Rect;
+    loaded_bmp* Texture;
 };
 
 struct render_entry_rect_outline {
@@ -71,18 +78,6 @@ struct render_entry_debug_lattice {
     int TileSize;
     color Color;
 };
-
-//struct render_entry_room {
-//    render_group_header Header;
-//    room* Room;
-//    int TileSize;
-//};
-//
-//struct render_entry_door {
-//    render_group_header Header;
-//    int TileSize;
-//    door* Door;
-//};
 
 struct render_group {
 	float MetersToPixels;
@@ -141,34 +136,47 @@ uint32 GetSizeOf(render_group_entry_type Type) {
         {
             return sizeof(render_entry_clear);
         } break;
+
         case group_type_render_entry_line:
         {
             return sizeof(render_entry_line);
         } break;
+
         case group_type_render_entry_rect:
         {
             return sizeof(render_entry_rect);
         } break;
+
         case group_type_render_entry_rect_outline:
         {
             return sizeof(render_entry_rect_outline);
         } break;
+
         case group_type_render_entry_bmp:
         {
             return sizeof(render_entry_bmp);
         } break;
+
         case group_type_render_entry_text:
         {
             return sizeof(render_entry_text);
         } break;
+
         case group_type_render_entry_button:
         {
             return sizeof(render_entry_button);
         } break;
+
         case group_type_render_entry_debug_lattice:
         {
             return sizeof(render_entry_debug_lattice);
         } break;
+
+        case group_type_render_entry_textured_rect:
+        {
+            return sizeof(render_entry_textured_rect);
+        } break;
+
         default:
         {
             Assert(false);
@@ -184,7 +192,7 @@ void PushClear(render_group* Group, color Color) {
 
 void PushLine(render_group* Group, color Color, game_screen_position Start, game_screen_position Finish) {
     render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
-    Entry->Header.Key = -1;
+    Entry->Header.Key = max(Start.Z, Finish.Z);
     Entry->Color = Color;
     Entry->Start = Start;
     Entry->Finish = Finish;
@@ -195,6 +203,13 @@ void PushRect(render_group* Group, game_rect Rect, color Color, int Z) {
     Entry->Header.Key = Z;
     Entry->Rect = Rect;
     Entry->Color = Color;
+}
+
+void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, int Z) {
+    render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
+    Entry->Header.Key = Z;
+    Entry->Rect = Rect;
+    Entry->Texture = Texture;
 }
 
 void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
@@ -228,49 +243,38 @@ void PushButton(render_group* Group, Character* Characters, button* Button) {
 
 void PushDebugLattice(render_group* Group, int TileSize,  color Color) {
     render_entry_debug_lattice* Entry = PushRenderElement(Group, render_entry_debug_lattice);
+    Entry->Header.Key = 999;
     Entry->TileSize = TileSize;
     Entry->Color = Color;
 }
 
-//void PushRoom(render_group* Group, room* Room, int TileSize) {
-//    render_entry_room* Entry = PushRenderElement(Group, render_entry_room);
-//    Entry->Room = Room;
-//    Entry->TileSize = TileSize;
-//}
-//
-//void PushDoor(render_group* Group, door* Door, int TileSize) {
-//    render_entry_door* Entry = PushRenderElement(Group, render_entry_door);
-//    Entry->Door = Door;
-//    Entry->TileSize = TileSize;
-//
-//}
-
-void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], game_assets* Assets, tile_position PlayerPosition, int TileSize) {
+void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, room Rooms[], game_assets* Assets, tile_position PlayerPosition, int TileSize) {
     
     for (int i = 0; i < MAP_HEIGHT; i++) {
         for (int j = 0; j < MAP_WIDTH; j++) {
             tile Tile = Map[i][j];
 
-            
             switch (Tile.Type) {
-                case Floor:
-                {
-                    game_screen_position Position = ToScreenCoord({ i, j, 0 }, TileSize);
-                    PushBMP(Group, &Assets->FloorBMP, Position);
-                } break;
-
                 case Door:
                 {
-                    game_screen_position Position = ToScreenCoord({ i-1, j, 0 }, TileSize);
-                    if (PlayerPosition.Col == j && PlayerPosition.Row == i - 1) Position.Z = 2;
+                    game_screen_position Position = ToScreenCoord({ i-1, j, 1 }, TileSize);
+                    if (PlayerPosition.Col == j && PlayerPosition.Row == i - 1) Position.Z = 3;
 
-                    if (i - 1 > 0 && Map[i - 1][j].Type == Floor) {
+                    if (i - 1 >= 0 && Map[i - 1][j].Type == Floor) {
                         PushBMP(Group, &Assets->FloorBMP, ToScreenCoord({ i, j, 0 }, TileSize));
                     }
                     
                     PushBMP(Group, &Assets->DoorBMP, Position);
                 } break;
             }
+        }
+    }
+
+    for (int i = 0; i < nRooms; i++) {
+        room Room = Rooms[i];
+        if (Room.Explored) {
+            game_screen_position Position = ToScreenCoord({ Room.Top, Room.Left, 0 }, TileSize);
+            PushTexturedRect(Group, { Position.X, Position.Y, Room.Width * TileSize, Room.Height * TileSize }, &Assets->FloorBMP, 0);
         }
     }
 }

@@ -21,52 +21,13 @@ void OpenGLRectangle(game_rect Rect, color Color)
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void OpenGLTexturedRectangle(game_rect Rect, loaded_bmp* BMP) 
-{
-	float MinVertexX = Rect.Left;
-	float MinVertexY = Rect.Top;
-	float MaxVertexX = Rect.Left + Rect.Width;
-	float MaxVertexY = Rect.Top + Rect.Height;
-
-	float MinTexX = 0.0f;
-	float MinTexY = 0.0f;
-	float MaxTexX = Rect.Width / BMP->Header.Width;
-	float MaxTexY = Rect.Height / BMP->Header.Height;
-
-	glEnable(GL_TEXTURE_2D);
-	glBegin(GL_TRIANGLES);
-
-	// Lower triangle
-	glTexCoord2f(MinTexX, MinTexY);
-	glVertex2f(MinVertexX, MaxVertexY);
-
-	glTexCoord2f(MaxTexX, MaxTexY);
-	glVertex2f(MaxVertexX, MinVertexY);
-
-	glTexCoord2f(MaxTexX, MinTexY);
-	glVertex2f(MaxVertexX, MaxVertexY);
-
-	// Upper triangle
-	glTexCoord2f(MinTexX, MaxTexY);
-	glVertex2f(MinVertexX, MinVertexY);
-
-	glTexCoord2f(MinTexX, MinTexY);
-	glVertex2f(MinVertexX, MaxVertexY);
-
-	glTexCoord2f(MaxTexX, MaxTexY);
-	glVertex2f(MaxVertexX, MinVertexY);
-
-	glEnd();
-	glDisable(GL_TEXTURE_2D);
-}
-
-enum OpenGLWrapMode 
+enum OpenGLWrapMode
 {
 	OpenGLClamp,
 	OpenGLRepeat
 };
 
-void OpenGLBindTexture(loaded_bmp* Bitmap, OpenGLWrapMode Mode) 
+void OpenGLBindTexture(loaded_bmp* Bitmap, OpenGLWrapMode Mode)
 {
 	int BMPWidth = Bitmap->Header.Width;
 	int BMPHeight = Bitmap->Header.Height;
@@ -108,11 +69,51 @@ void OpenGLBindTexture(loaded_bmp* Bitmap, OpenGLWrapMode Mode)
 	}
 }
 
+void OpenGLTexturedRect(game_rect Rect, loaded_bmp* BMP) 
+{
+	float MinVertexX = Rect.Left;
+	float MinVertexY = Rect.Top;
+	float MaxVertexX = Rect.Left + Rect.Width;
+	float MaxVertexY = Rect.Top + Rect.Height;
+
+	float MinTexX = 0.0f;
+	float MinTexY = 0.0f;
+	float MaxTexX = Rect.Width / BMP->Header.Width;
+	float MaxTexY = Rect.Height / BMP->Header.Height;
+
+	OpenGLBindTexture(BMP, OpenGLRepeat);
+
+	glEnable(GL_TEXTURE_2D);
+	glBegin(GL_TRIANGLES);
+
+	// Lower triangle
+	glTexCoord2f(MinTexX, MinTexY);
+	glVertex2f(MinVertexX, MaxVertexY);
+
+	glTexCoord2f(MaxTexX, MaxTexY);
+	glVertex2f(MaxVertexX, MinVertexY);
+
+	glTexCoord2f(MaxTexX, MinTexY);
+	glVertex2f(MaxVertexX, MaxVertexY);
+
+	// Upper triangle
+	glTexCoord2f(MinTexX, MaxTexY);
+	glVertex2f(MinVertexX, MinVertexY);
+
+	glTexCoord2f(MinTexX, MinTexY);
+	glVertex2f(MinVertexX, MaxVertexY);
+
+	glTexCoord2f(MaxTexX, MaxTexY);
+	glVertex2f(MaxVertexX, MinVertexY);
+
+	glEnd();
+	glDisable(GL_TEXTURE_2D);
+}
 
 void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) 
 {
 	OpenGLBindTexture(Bitmap, OpenGLClamp);
-	OpenGLTexturedRectangle({Position.X, Position.Y, Bitmap->Header.Width, Bitmap->Header.Height}, Bitmap);
+	OpenGLTexturedRect({Position.X, Position.Y, Bitmap->Header.Width, Bitmap->Header.Height}, Bitmap);
 }
 
 void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_position Position, text Text) 
@@ -181,35 +182,6 @@ void OpenGLDebugShineTile(tile_position Position, int TileSize) {
 	OpenGLRectangle({ScreenPosition.X, ScreenPosition.Y, TileSize, TileSize}, {0.5f, 1.0f, 1.0f, 1.0f});
 }
 
-//void OpenGLRenderDoor(door* Door, int TileSize) {
-//	OpenGLBindTexture(Door->Bitmap, OpenGLClamp);
-//
-//	game_screen_position DoorPosition = ToScreenCoord(Door->Position, TileSize);
-//	switch (Door->Type) {
-//		case Horizontal:
-//		{
-//			OpenGLTexturedRectangle({ DoorPosition.X, DoorPosition.Y - Door->Bitmap->Header.Height + TileSize / 2, Door->Bitmap->Header.Width, Door->Bitmap->Header.Height }, Door->Bitmap);
-//		} break;
-//
-//		case Vertical:
-//		{
-//			OpenGLTexturedRectangle({ DoorPosition.X, DoorPosition.Y - Door->Bitmap->Header.Height, Door->Bitmap->Header.Width, Door->Bitmap->Header.Height }, Door->Bitmap);
-//		} break;
-//	}
-//}
-
-//void OpenGLRenderRoom(room* Room, int TileSize) {
-//	// Floor
-//	OpenGLBindTexture(Room->FloorBMP, OpenGLRepeat);
-//	game_screen_position Position = ToScreenCoord(Room->Position, TileSize);
-//	int ScreenWidth = TileSize * Room->Width;
-//	int ScreenHeight = TileSize * Room->Height;
-//	OpenGLTexturedRectangle({ Position.X, Position.Y, ScreenWidth, ScreenHeight }, Room->FloorBMP);
-//}
-void OpenGLRenderMap(tile Map[MAP_HEIGHT][MAP_WIDTH], loaded_bmp* FloorBMP, loaded_bmp* DoorBMP, int TileSize) {
-	
-	
-}
 
 void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) 
 {
@@ -319,28 +291,12 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				OpenGLDebugRenderLattice(Width, Height, Entry.TileSize, Entry.Color, Group->Camera);
 			} break;
 
-			//case group_type_render_entry_room:
-			//{
-			//	render_entry_room Entry = *(render_entry_room*)Header;
+			case group_type_render_entry_textured_rect:
+			{
+				render_entry_textured_rect Entry = *(render_entry_textured_rect*)Header;
 
-			//	OpenGLRenderRoom(Entry.Room, Entry.TileSize);
-
-			//	//for (int j = 0; j < 4; j++) {
-			//	//	OpenGLDebugShineTile(GetDoorTilePosition(j, Entry.Room), Entry.TileSize);
-			//	//}
-
-			//	BaseAddress += sizeof(Entry);
-			//} break;
-
-			//case group_type_render_entry_door: 
-			//{
-			//	render_entry_door Entry = *(render_entry_door*)Header;
-
-			//	OpenGLRenderDoor(Entry.Door, Entry.TileSize);
-
-			//	BaseAddress += sizeof(Entry);
-
-			//} break;
+				OpenGLTexturedRect(Entry.Rect, Entry.Texture);
+			} break;
 
 			default:
 			{
