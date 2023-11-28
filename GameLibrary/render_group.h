@@ -248,33 +248,60 @@ void PushDebugLattice(render_group* Group, int TileSize,  color Color) {
     Entry->Color = Color;
 }
 
-void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, room Rooms[], game_assets* Assets, tile_position PlayerPosition, int TileSize) {
-    
-    for (int i = 0; i < MAP_HEIGHT; i++) {
-        for (int j = 0; j < MAP_WIDTH; j++) {
-            tile Tile = Map[i][j];
+void PushDoor(render_group* Group, game_assets* Assets, tile Map[MAP_HEIGHT][MAP_WIDTH], int Row, int Col, int TileSize, tile_position PlayerPosition) {
+    game_screen_position DoorPosition = ToScreenCoord({ Row - 1, Col, 1 }, TileSize);
+    if (PlayerPosition.Col == Col && PlayerPosition.Row == Row - 1) DoorPosition.Z = 3;
 
-            switch (Tile.Type) {
-                case Door:
-                {
-                    game_screen_position Position = ToScreenCoord({ i-1, j, 1 }, TileSize);
-                    if (PlayerPosition.Col == j && PlayerPosition.Row == i - 1) Position.Z = 3;
-
-                    if (i - 1 >= 0 && Map[i - 1][j].Type == Floor) {
-                        PushBMP(Group, &Assets->FloorBMP, ToScreenCoord({ i, j, 0 }, TileSize));
-                    }
-                    
-                    PushBMP(Group, &Assets->DoorBMP, Position);
-                } break;
-            }
-        }
+    if (Row > 0 && Map[Row - 1][Col].Type == Floor) {
+        PushBMP(Group, &Assets->FloorBMP, ToScreenCoord({ Row, Col, 0 }, TileSize));
     }
 
+    PushBMP(Group, &Assets->DoorBMP, DoorPosition);
+}
+
+void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, room Rooms[], game_assets* Assets, tile_position PlayerPosition, int TileSize) {
+    
     for (int i = 0; i < nRooms; i++) {
         room Room = Rooms[i];
         if (Room.Explored) {
             game_screen_position Position = ToScreenCoord({ Room.Top, Room.Left, 0 }, TileSize);
             PushTexturedRect(Group, { Position.X, Position.Y, Room.Width * TileSize, Room.Height * TileSize }, &Assets->FloorBMP, 0);
+
+            if (Room.Left > 0) {
+                int j = Room.Left - 1;
+                for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
+                    if (Map[i][j].Type == Door) {
+                        PushDoor(Group, Assets, Map, i, j, TileSize, PlayerPosition);
+                    }
+                }
+            }
+
+            if (Room.Left + Room.Width < MAP_WIDTH) {
+                int j = Room.Left + Room.Width;
+                for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
+                    if (Map[i][j].Type == Door) {
+                        PushDoor(Group, Assets, Map, i, j, TileSize, PlayerPosition);
+                    }
+                }
+            }
+
+            if (Room.Top > 0) {
+                int i = Room.Top - 1;
+                for (int j = Room.Left; j < Room.Left + Room.Width; j++) {
+                    if (Map[i][j].Type == Door) {
+                        PushDoor(Group, Assets, Map, i, j, TileSize, PlayerPosition);
+                    }
+                }
+            }
+
+            if (Room.Top + Room.Height < MAP_HEIGHT) {
+                int i = Room.Top + Room.Height;
+                for (int j = Room.Left; j < Room.Left + Room.Width; j++) {
+                    if (Map[i][j].Type == Door) {
+                        PushDoor(Group, Assets, Map, i, j, TileSize, PlayerPosition);
+                    }
+                }
+            }
         }
     }
 }
