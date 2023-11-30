@@ -291,6 +291,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				OpenGLDebugRenderLattice(Width, Height, Entry.TileSize, Entry.Color, Group->Camera);
 			} break;
 
+			case group_type_render_entry_debug_shine_tile:
+			{
+				render_entry_debug_shine_tile Entry = *(render_entry_debug_shine_tile*)Header;
+
+				OpenGLDebugShineTile(Entry.Position, Entry.TileSize);
+			} break;
+
 			case group_type_render_entry_textured_rect:
 			{
 				render_entry_textured_rect Entry = *(render_entry_textured_rect*)Header;
@@ -300,7 +307,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 
 			default:
 			{
-				OutputDebugStringA("ERROR: Unknow render entry type.");
+				OutputDebugStringA("ERROR: Unknow render entry type.\n");
 				//Assert(false);
 				return;
 			};

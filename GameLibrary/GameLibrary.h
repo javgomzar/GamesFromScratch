@@ -263,6 +263,7 @@ struct game_assets {
     loaded_bmp PlayerBMP;
     loaded_bmp FloorBMP;
     loaded_bmp DoorBMP;
+    loaded_bmp ChestBMP;
 };
 
 
@@ -288,6 +289,10 @@ game_screen_position ToScreenCoord(tile_position Position, int TileSize) {
     return { TileSize * Position.Col, TileSize * Position.Row, Position.Z };
 }
 
+tile_position ToTilePosition(game_screen_position Position, int TileSize, camera Camera) {
+    return { (Position.Y + (int)Camera.Position.Y) / TileSize, (Position.X + (int)Camera.Position.X) / TileSize, 0 };
+}
+
 struct tile_direction {
     int Row;
     int Col;
@@ -305,7 +310,8 @@ tile_position operator+(tile_direction D, tile_position P) {
 enum tile_type {
     Floor,
     Door,
-    Wall
+    Wall,
+    Chest
 };
 
 struct tile {

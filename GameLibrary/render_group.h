@@ -15,7 +15,8 @@ enum render_group_entry_type {
 	group_type_render_entry_bmp,
     group_type_render_entry_text,
     group_type_render_entry_button,
-    group_type_render_entry_debug_lattice
+    group_type_render_entry_debug_lattice,
+    group_type_render_entry_debug_shine_tile
 };
 
 struct render_group_header {
@@ -77,6 +78,12 @@ struct render_entry_debug_lattice {
     render_group_header Header;
     int TileSize;
     color Color;
+};
+
+struct render_entry_debug_shine_tile {
+    render_group_header Header;
+    int TileSize;
+    tile_position Position;
 };
 
 struct render_group {
@@ -177,6 +184,11 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_textured_rect);
         } break;
 
+        case group_type_render_entry_debug_shine_tile:
+        {
+            return sizeof(render_entry_debug_shine_tile);
+        } break;
+
         default:
         {
             Assert(false);
@@ -248,6 +260,13 @@ void PushDebugLattice(render_group* Group, int TileSize,  color Color) {
     Entry->Color = Color;
 }
 
+void PushDebugShineTile(render_group* Group, tile_position Position, int TileSize) {
+    render_entry_debug_shine_tile* Entry = PushRenderElement(Group, render_entry_debug_shine_tile);
+    Entry->Header.Key = 998;
+    Entry->TileSize = TileSize;
+    Entry->Position = Position;
+}
+
 void PushDoor(render_group* Group, game_assets* Assets, tile Map[MAP_HEIGHT][MAP_WIDTH], int Row, int Col, int TileSize, tile_position PlayerPosition) {
     game_screen_position DoorPosition = ToScreenCoord({ Row - 1, Col, 1 }, TileSize);
     if (PlayerPosition.Col == Col && PlayerPosition.Row == Row - 1) DoorPosition.Z = 3;
@@ -266,6 +285,14 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
         if (Room.Explored) {
             game_screen_position Position = ToScreenCoord({ Room.Top, Room.Left, 0 }, TileSize);
             PushTexturedRect(Group, { Position.X, Position.Y, Room.Width * TileSize, Room.Height * TileSize }, &Assets->FloorBMP, 0);
+
+            for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
+                for (int j = Room.Left; j < Room.Left + Room.Width; j++) {
+                    if (Map[i][j].Type == Chest) {
+                        PushBMP(Group, &Assets->ChestBMP, ToScreenCoord({ i,j,1 }, TileSize));
+                    }
+                }
+            }
 
             if (Room.Left > 0) {
                 int j = Room.Left - 1;

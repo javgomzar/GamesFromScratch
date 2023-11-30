@@ -242,18 +242,86 @@ tile_direction Rotate(tile_direction Direction, turn Turn) {
     return Result;
 }
 
-void AddPointer(tile_pointer* Pointers, tile_pointer Pointer, int* nPointers) {
-    *(Pointers + *nPointers) = Pointer;
+void AddPointer(tile_pointer Pointers[], tile_pointer Pointer, int* nPointers) {
+    Pointers[*nPointers] = Pointer;
     (*nPointers)++;
 }
 
-void RemovePointer(tile_pointer* Pointers, int Index, int* nPointers) {
-    *(Pointers + Index) = *(Pointers + *nPointers - 1);
-    *(Pointers + *nPointers - 1) = { 0 };
+void RemovePointer(tile_pointer Pointers[], int Index, int* nPointers) {
+    Pointers[Index] = Pointers[*nPointers - 1];
+    Pointers[*nPointers - 1] = { 0 };
     (*nPointers)--;
 }
 
-void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH]) {
+void ProcessRooms(tile Map[MAP_HEIGHT][MAP_WIDTH], int* NumberOfRooms, room Rooms[MAX_ROOMS]) {
+    int nRooms = 0;
+
+    tile_position TopLeftCorners[MAX_ROOMS] = { 0 };
+
+    for (int i = 0; i < MAP_HEIGHT; i++) {
+        for (int j = 0; j < MAP_WIDTH; j++) {
+            switch (Map[i][j].Type) {
+                case Floor:
+                {
+                    if (i == 0) {
+                        if (j == 0) {
+                            TopLeftCorners[nRooms] = { i, j, 0 };
+                            nRooms++;
+                        }
+                        else if (Map[i][j - 1].Type != Floor) {
+                            TopLeftCorners[nRooms] = { i, j, 0 };
+                            nRooms++;
+                        }
+                    }
+                    else if (j == 0) {
+                        if (Map[i - 1][j].Type != Floor) {
+                            TopLeftCorners[nRooms] = { i, j, 0 };
+                            nRooms++;
+                        }
+                    }
+                    else if (Map[i - 1][j].Type != Floor && Map[i][j - 1].Type != Floor) {
+                        TopLeftCorners[nRooms] = { i, j, 0 };
+                        nRooms++;
+                    }
+                } break;
+            }
+        }
+    }
+
+    for (int i = 0; i < nRooms; i++) {
+        tile_position Position = TopLeftCorners[i];
+        room Room = { 0 };
+
+        Room.ID = i;
+        Room.Explored = false;
+        Room.Left = Position.Col;
+        Room.Top = Position.Row;
+        Room.Width = 0;
+
+        for (int j = Room.Left; j < MAP_WIDTH && Map[Room.Top][j].Type == Floor; j++) {
+            Room.Width++;
+        }
+
+        Room.Height = 0;
+        for (int k = Room.Top; k < MAP_HEIGHT && Map[k][Room.Left].Type == Floor; k++) {
+            Room.Height++;
+        }
+
+        Rooms[i] = Room;
+
+        // Chests
+        float PChest = 0.02f;
+        if (Room.Width > 1 && Room.Height > 1 && randf() < PChest) {
+            int Row = Room.Top + (Room.Height / 2);
+            int Col = Room.Left + (Room.Width / 2);
+            Map[Row][Col] = { Chest };
+        }
+    }
+
+    *NumberOfRooms = nRooms;
+}
+
+void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH], room Rooms[], int* nRooms) {
 
     // Setting all the map to floor
     for (int i = 0; i < MAP_HEIGHT; i++) {
@@ -314,7 +382,7 @@ void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH]) {
             if (!IsValid(Pointer->Row, Pointer->Col) ||
                 Map[Pointer->Row][Pointer->Col].Type == Wall)
             {
-                RemovePointer(&Pointers[0], i, &nPointers);
+                RemovePointer(Pointers, i, &nPointers);
                 i--;
             }
             else {
@@ -325,21 +393,21 @@ void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH]) {
                     switch (rand() % 4) {
                         case 0:
                         {
-                            AddPointer(&Pointers[0], { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, Clockwise), 0 }, &nPointers);
+                            AddPointer(Pointers, { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, Clockwise), 0 }, &nPointers);
                         } break;
                         case 1:
                         {
-                            AddPointer(&Pointers[0], { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, CounterClockwise), 0 }, &nPointers);
+                            AddPointer(Pointers, { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, CounterClockwise), 0 }, &nPointers);
                         } break;
                         case 2:
                         {
-                            AddPointer(&Pointers[0], { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, Clockwise), 0 }, &nPointers);
+                            AddPointer(Pointers, { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, Clockwise), 0 }, &nPointers);
                             Pointer->Direction = Rotate(Pointer->Direction, CounterClockwise);
                         } break;
                         case 3:
                         {
-                            AddPointer(&Pointers[0], { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, Clockwise), 0 }, &nPointers);
-                            AddPointer(&Pointers[0], { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, CounterClockwise), 0 }, &nPointers);
+                            AddPointer(Pointers, { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, Clockwise), 0 }, &nPointers);
+                            AddPointer(Pointers, { Pointer->Row, Pointer->Col, Rotate(Pointer->Direction, CounterClockwise), 0 }, &nPointers);
                         } break;
                     }
                 }
@@ -350,8 +418,10 @@ void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH]) {
         }
     }
 
+    ProcessRooms(Map, nRooms, Rooms);
+
     // Doors
-    float PDoor = 0.1f;
+    float PDoor = 0.05f;
     for (int i = 1; i < MAP_HEIGHT - 1; i++) {
         for (int j = 1; j < MAP_WIDTH - 1; j++) {
             if (Map[i][j].Type == Wall) {
@@ -390,73 +460,30 @@ bool Contains(room Room, tile_position Position) {
           Room.Left <= Position.Col && Position.Col < Room.Left + Room.Width;
 }
 
-void ProcessMap(tile Map[MAP_HEIGHT][MAP_WIDTH], int* NumberOfRooms, room Rooms[MAX_ROOMS]) {
-    int nRooms = 0;
-    int nDoors = 0;
-
-    tile_position TopLeftCorners[MAX_ROOMS] = { 0 };
-
-    for (int i = 0; i < MAP_HEIGHT; i++) {
-        for (int j = 0; j < MAP_WIDTH; j++) {
-            switch (Map[i][j].Type) {
-                case Floor:
-                {
-                    if (i == 0) {
-                        if (j == 0) {
-                            TopLeftCorners[nRooms] = { i, j, 0 };
-                            nRooms++;
-                        }
-                        else if (Map[i][j - 1].Type != Floor) {
-                            TopLeftCorners[nRooms] = { i, j, 0 };
-                            nRooms++;
-                        }
-                    }
-                    else if (j == 0) {
-                        if (Map[i - 1][j].Type != Floor) {
-                            TopLeftCorners[nRooms] = { i, j, 0 };
-                            nRooms++;
-                        }
-                    }
-                    else if (Map[i - 1][j].Type != Floor && Map[i][j - 1].Type != Floor) {
-                        TopLeftCorners[nRooms] = { i, j, 0 };
-                        nRooms++;
-                    }
-                } break;
-            }
-        }
-    }
-
+// Returns ID of room containing given position
+int GetRoom(int nRooms, room Rooms[], tile_position Position) {
     for (int i = 0; i < nRooms; i++) {
-        tile_position Position = TopLeftCorners[i];
-        room Room = { 0 };
-        
-        Room.ID = i;
-        Room.Explored = false;
-        Room.Left = Position.Col;
-        Room.Top = Position.Row;
-        Room.Width = 0;
-        
-        for (int j = Room.Left; j < MAP_WIDTH && Map[Room.Top][j].Type == Floor; j++) {
-            Room.Width++;
+        if (Contains(Rooms[i], Position)) {
+            return i;
         }
+    }
+    return -1;
+}
 
-        Room.Height = 0;
-        for (int k = Room.Top; k < MAP_HEIGHT && Map[k][Room.Left].Type == Floor; k++) {
-            Room.Height++;
-        }
-
-        Rooms[i] = Room;
+bool AreContiguous(room Room1, room Room2) {
+    for (int i = Room1.Top; i < Room1.Top + Room1.Height; i++) {
+        if (Contains(Room2, { i, Room1.Left - 2, 0 })) return true;
+        if (Contains(Room2, { i, Room1.Left + Room1.Width + 1, 0 })) return true;
     }
 
-    //for (int i = 0; i < nDoors; i++) {
-    //    tile_position Position = Doors[i].Position;
-    //    for (int j = 0; j < nRooms; j++) {
-    //        if (Contains(Rooms[i], Position))
-    //    }
-    //}
+    for (int j = Room1.Left; j < Room1.Left + Room1.Width; j++) {
+        if (Contains(Room2, { Room1.Top - 2, j, 0 })) return true;
+        if (Contains(Room2, { Room1.Top + Room1.Height + 1, j, 0 })) return true;
+    }
 
-    *NumberOfRooms = nRooms;
+    return false;
 }
+
 
 // Main
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
@@ -476,26 +503,27 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Memory->Assets.PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
         Memory->Assets.FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
         Memory->Assets.DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Door.bmp");
+        Memory->Assets.ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Treasure.bmp");
 
         // User Interface
         // InitializeUI();
 
         // Initialize map
         srand(time(0));
-        InitMap(pGameState->Map);
-
         *pGameState->Rooms = { 0 };
-        ProcessMap(pGameState->Map, &pGameState->nRooms, pGameState->Rooms);
+        InitMap(pGameState->Map, pGameState->Rooms, &pGameState->nRooms);
 
         // Initialize game state
         pGameState->TileSize = 30;
-        pGameState->Camera = { {0,0,0}, {0,0,0} };
 
-        pGameState->PlayerPosition = { 5, 5, 2 };
+        pGameState->PlayerPosition = { MAP_HEIGHT / 2, MAP_WIDTH / 2, 2 };
         while (pGameState->Map[pGameState->PlayerPosition.Row][pGameState->PlayerPosition.Col].Type != Floor) {
-            pGameState->PlayerPosition.Row++;
-            pGameState->PlayerPosition.Col++;
+            pGameState->PlayerPosition.Row--;
+            pGameState->PlayerPosition.Col--;
         }
+
+        game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, pGameState->TileSize);
+        pGameState->Camera = { V3(Position.X - ScreenBuffer->Width / 2, Position.Y - ScreenBuffer->Height / 2, 0) , {0,0,0}};
 
         // Renderer --------------------------------------------------------------------------------------------------------------------------------------
         Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
@@ -525,17 +553,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     
     tile_position NewPosition = pGameState->PlayerPosition + PlayerMovement;
 
-    if (IsValid(NewPosition.Row, NewPosition.Col) && pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Wall) {
+    if (IsValid(NewPosition.Row, NewPosition.Col) && 
+        pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Wall && 
+        pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Chest) {
         pGameState->PlayerPosition = NewPosition;
     }
 
     // Room exploration
-    for (int i = 0; i < pGameState->nRooms; i++) {
-        room* Room = &pGameState->Rooms[i];
-        if (pGameState->PlayerPosition.Row >= Room->Top && pGameState->PlayerPosition.Row < Room->Top + Room->Height &&
-            pGameState->PlayerPosition.Col >= Room->Left && pGameState->PlayerPosition.Col < Room->Left + Room->Width) {
-            Room->Explored = true;
-        }
+    int CurrentRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->PlayerPosition);
+    if (CurrentRoom != -1) {
+        pGameState->Rooms[CurrentRoom].Explored = true;
     }
 
     // Bombs?
@@ -570,10 +597,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     UpdateCamera(&pGameState->Camera);
 
+    // TODO: Move camera pressing the wheel button
+
     // Reset room
     if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
-        InitMap(pGameState->Map);
-        ProcessMap(pGameState->Map, &pGameState->nRooms, pGameState->Rooms);
+        InitMap(pGameState->Map, pGameState->Rooms, &pGameState->nRooms);
     }
 
     // Debug camera position and velocity
@@ -586,16 +614,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     */
 
     GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
-
-    // Debug mouse position
-    //if (Input->Mouse.LeftClick.IsDown) {
-    //    game_rect Rect;
-    //    Rect.Top = Input->Mouse.Cursor.Y;
-    //    Rect.Left = Input->Mouse.Cursor.X;
-    //    Rect.Height = 20;
-    //    Rect.Width = 20;
-    //    DrawRectangle(ScreenBuffer, Rect, White);
-    //}
 
     // Render
     loaded_bmp Target = { 0 };
@@ -624,6 +642,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Text.Points = 20;
         Text.Content = Memory->DebugInfo;
         PushText(Group, Assets->Characters, { (int)pGameState->Camera.Position.X, (int)pGameState->Camera.Position.Y + 30, 1001 }, Text);
+
+        // Mouse
+        PushDebugShineTile(Group, ToTilePosition(Input->Mouse.Cursor, pGameState->TileSize, pGameState->Camera), pGameState->TileSize);
     }
 
 
