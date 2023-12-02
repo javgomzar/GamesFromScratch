@@ -321,6 +321,60 @@ void ProcessRooms(tile Map[MAP_HEIGHT][MAP_WIDTH], int* NumberOfRooms, room Room
     *NumberOfRooms = nRooms;
 }
 
+bool Contains(room Room, tile_position Position) {
+    return Room.Top <= Position.Row && Position.Row < Room.Top + Room.Height &&
+        Room.Left <= Position.Col && Position.Col < Room.Left + Room.Width;
+}
+
+// Returns ID of room containing given position
+int GetRoom(int nRooms, room Rooms[], tile_position Position) {
+    for (int i = 0; i < nRooms; i++) {
+        if (Contains(Rooms[i], Position)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+bool AreContiguous(room Room1, room Room2, int* nContiguous, tile_position ContiguousTiles[100]) {
+    *nContiguous = 0;
+    bool Result = false;
+
+    for (int i = Room1.Top; i < Room1.Top + Room1.Height; i++) {
+        tile_position Position = { i, Room1.Left - 2, 0 };
+        if (Contains(Room2, Position)) {
+            Result = true;
+            ContiguousTiles[*nContiguous] = {Position.Row, Position.Col + 1, 0};
+            (*nContiguous)++;
+        }
+
+        Position = { i, Room1.Left + Room1.Width + 1, 0 };
+        if (Contains(Room2, Position)) {
+            Result = true;
+            ContiguousTiles[*nContiguous] = { Position.Row, Position.Col - 1, 0 };
+            (*nContiguous)++;
+        }
+    }
+
+    for (int j = Room1.Left; j < Room1.Left + Room1.Width; j++) {
+        tile_position Position = { Room1.Top - 2, j, 0 };
+        if (Contains(Room2, Position)) {
+            Result = true;
+            ContiguousTiles[*nContiguous] = { Position.Row + 1, Position.Col, 0 };
+            (*nContiguous)++;
+        }
+
+        Position = { Room1.Top + Room1.Height + 1, j, 0 };
+        if (Contains(Room2, Position)) {
+            Result = true;
+            ContiguousTiles[*nContiguous] = { Position.Row - 1, Position.Col, 0 };
+            (*nContiguous)++;
+        }
+    }
+
+    return Result;
+}
+
 void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH], room Rooms[], int* nRooms) {
 
     // Setting all the map to floor
@@ -421,67 +475,56 @@ void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH], room Rooms[], int* nRooms) {
     ProcessRooms(Map, nRooms, Rooms);
 
     // Doors
-    float PDoor = 0.05f;
-    for (int i = 1; i < MAP_HEIGHT - 1; i++) {
-        for (int j = 1; j < MAP_WIDTH - 1; j++) {
-            if (Map[i][j].Type == Wall) {
-                int AdyacentDoors = 0;
+    float PDoor = 0.5f;
+    for (int i = 0; i < *nRooms; i++) {
+        for (int j = 0; j < i; j++) {
 
-                if (Map[i - 1][j].Type == Door) AdyacentDoors++;
-                if (Map[i + 1][j].Type == Door) AdyacentDoors++;
-                if (Map[i][j - 1].Type == Door) AdyacentDoors++;
-                if (Map[i][j + 1].Type == Door) AdyacentDoors++;
-
-                if (AdyacentDoors == 0) {
-                    int VerticalWalls = 0;
-                    int HorizontalWalls = 0;
-
-                    // Vertical
-                    if (Map[i - 1][j].Type == Wall) VerticalWalls++;
-                    if (Map[i + 1][j].Type == Wall) VerticalWalls++;
-
-                    // Horizontal
-                    if (Map[i][j - 1].Type == Wall) HorizontalWalls++;
-                    if (Map[i][j + 1].Type == Wall) HorizontalWalls++;
-
-                    if (HorizontalWalls + VerticalWalls == 2 && VerticalWalls*HorizontalWalls == 0) {
-                        if (randf() < PDoor) {
-                            Map[i][j] = { Door };
-                        }
-                    }
+            int nContiguousTiles = 0;
+            tile_position ContiguousTiles[100] = {0};
+            bool RoomsAreContiguous = AreContiguous(Rooms[i], Rooms[j], &nContiguousTiles, ContiguousTiles);
+            if (RoomsAreContiguous) {
+                if (randf() < PDoor) {
+                    int DoorResult = rand() % nContiguousTiles;
+                    tile_position Position = ContiguousTiles[DoorResult];
+                    Map[Position.Row][Position.Col] = { Door };
                 }
             }
         }
     }
-}
 
-bool Contains(room Room, tile_position Position) {
-    return Room.Top <= Position.Row && Position.Row < Room.Top + Room.Height &&
-          Room.Left <= Position.Col && Position.Col < Room.Left + Room.Width;
-}
 
-// Returns ID of room containing given position
-int GetRoom(int nRooms, room Rooms[], tile_position Position) {
-    for (int i = 0; i < nRooms; i++) {
-        if (Contains(Rooms[i], Position)) {
-            return i;
-        }
-    }
-    return -1;
-}
+    //float PDoor = 0.05f;
+    //for (int i = 1; i < MAP_HEIGHT - 1; i++) {
+    //    for (int j = 1; j < MAP_WIDTH - 1; j++) {
+    //        if (Map[i][j].Type == Wall) {
+    //            int AdyacentDoors = 0;
 
-bool AreContiguous(room Room1, room Room2) {
-    for (int i = Room1.Top; i < Room1.Top + Room1.Height; i++) {
-        if (Contains(Room2, { i, Room1.Left - 2, 0 })) return true;
-        if (Contains(Room2, { i, Room1.Left + Room1.Width + 1, 0 })) return true;
-    }
+    //            if (Map[i - 1][j].Type == Door) AdyacentDoors++;
+    //            if (Map[i + 1][j].Type == Door) AdyacentDoors++;
+    //            if (Map[i][j - 1].Type == Door) AdyacentDoors++;
+    //            if (Map[i][j + 1].Type == Door) AdyacentDoors++;
 
-    for (int j = Room1.Left; j < Room1.Left + Room1.Width; j++) {
-        if (Contains(Room2, { Room1.Top - 2, j, 0 })) return true;
-        if (Contains(Room2, { Room1.Top + Room1.Height + 1, j, 0 })) return true;
-    }
+    //            if (AdyacentDoors == 0) {
+    //                int VerticalWalls = 0;
+    //                int HorizontalWalls = 0;
 
-    return false;
+    //                // Vertical
+    //                if (Map[i - 1][j].Type == Wall) VerticalWalls++;
+    //                if (Map[i + 1][j].Type == Wall) VerticalWalls++;
+
+    //                // Horizontal
+    //                if (Map[i][j - 1].Type == Wall) HorizontalWalls++;
+    //                if (Map[i][j + 1].Type == Wall) HorizontalWalls++;
+
+    //                if (HorizontalWalls + VerticalWalls == 2 && VerticalWalls*HorizontalWalls == 0) {
+    //                    if (randf() < PDoor) {
+    //                        Map[i][j] = { Door };
+    //                    }
+    //                }
+    //            }
+    //        }
+    //    }
+    //}
 }
 
 
