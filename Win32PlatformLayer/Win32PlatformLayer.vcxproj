@@ -104,12 +104,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>D:\Code\C\SimonSays\GameLibrary\Linking\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\GameLibrary\Linking\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>D:\Code\C\SimonSays\GameLibrary\Linking\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>..\GameLibrary\Linking\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>$(CoreLibraryDependencies);freetype.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
@@ -130,7 +130,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\GameLibrary\Linking\include\ft2build.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="OpenGLRender.h" />
     <ClInclude Include="Resource.h" />

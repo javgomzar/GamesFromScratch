@@ -853,7 +853,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_WIN32PLATFORMLAYER));
 
     // Set up for main loop
-    LPCSTR SourceDLLPath = "D:\\Code\\C\\SimonSays\\x64\\Debug\\GameLibrary.dll";
+    LPCSTR SourceDLLPath = "..\\x64\\Debug\\GameLibrary.dll";
     game_code GameCode = LoadGameCode(SourceDLLPath);
     game_memory GameMemory = {};
     LPVOID BaseAddress = 0;
