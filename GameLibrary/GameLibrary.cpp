@@ -559,14 +559,19 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // Initialize game state
         pGameState->TileSize = 30;
 
-        pGameState->PlayerPosition = { MAP_HEIGHT / 2, MAP_WIDTH / 2, 2 };
+        /*pGameState->PlayerPosition = { MAP_HEIGHT / 2, MAP_WIDTH / 2, 2 };
         while (pGameState->Map[pGameState->PlayerPosition.Row][pGameState->PlayerPosition.Col].Type != Floor) {
             pGameState->PlayerPosition.Row--;
             pGameState->PlayerPosition.Col--;
-        }
+        }*/
+        pGameState->Player.BMP = &Memory->Assets.PlayerBMP;
+        pGameState->Player.Position = { 0,0,0 };
+        pGameState->Player.Velocity = { 0,0,0 };
+        pGameState->Player.BMPOffset = { (double)(pGameState->Player.BMP->Header.Width + pGameState->TileSize) / 2, (double)(pGameState->Player.BMP->Header.Height + pGameState->TileSize) / 2, 0 };
+        pGameState->Player.TilePosition = ToTilePosition(pGameState->Player.Position + pGameState->Player.BMPOffset, pGameState->TileSize);
 
-        game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, pGameState->TileSize);
-        pGameState->Camera = { V3(Position.X - ScreenBuffer->Width / 2, Position.Y - ScreenBuffer->Height / 2, 0) , {0,0,0}};
+        //game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, pGameState->TileSize);
+        pGameState->Camera = { {0,0,0} , {0,0,0}, (int)ScreenBuffer->Width, (int)ScreenBuffer->Height };
 
         // Renderer --------------------------------------------------------------------------------------------------------------------------------------
         Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
@@ -576,71 +581,133 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Memory->IsInitialized = true;
     }
 
+    pGameState->Camera.Width = (int)ScreenBuffer->Width;
+    pGameState->Camera.Height = (int)ScreenBuffer->Height;
+
     PushClear(Group, Black);
 
     // Controls
     // Character movement
-    tile_direction PlayerMovement = { 0,0 };
-    if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown) {
-        PlayerMovement.Col = 1;
-    }
-    if (Input->Keyboard.A.IsDown && !Input->Keyboard.A.WasDown) {
-        PlayerMovement.Col = -1;
-    }
-    if (Input->Keyboard.S.IsDown && !Input->Keyboard.S.WasDown) {
-        PlayerMovement.Row = 1;
-    }
-    if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown) {
-        PlayerMovement.Row = -1;
-    }
-    
-    tile_position NewPosition = pGameState->PlayerPosition + PlayerMovement;
 
-    if (IsValid(NewPosition.Row, NewPosition.Col) && 
-        pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Wall && 
-        pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Chest) {
-        pGameState->PlayerPosition = NewPosition;
+    // Discrete movement
+    //tile_direction PlayerMovement = { 0,0 };
+    //if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown) {
+    //    PlayerMovement.Col = 1;
+    //}
+    //if (Input->Keyboard.A.IsDown && !Input->Keyboard.A.WasDown) {
+    //    PlayerMovement.Col = -1;
+    //}
+    //if (Input->Keyboard.S.IsDown && !Input->Keyboard.S.WasDown) {
+    //    PlayerMovement.Row = 1;
+    //}
+    //if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown) {
+    //    PlayerMovement.Row = -1;
+    //}
+
+    //tile_position NewPosition = pGameState->PlayerPosition + PlayerMovement;
+
+    //if (IsValid(NewPosition.Row, NewPosition.Col) &&
+    //    pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Wall &&
+    //    pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Chest) {
+    //    pGameState->PlayerPosition = NewPosition;
+    //}
+
+    // Continuous movement
+    v3 Acceleration = { 0,0,0 };
+    bool SomeInput = false;
+    if (Input->Keyboard.D.IsDown) {
+        Acceleration.X += 1;
+        SomeInput = true;
+    }
+    if (Input->Keyboard.A.IsDown) {
+        Acceleration.X += -1;
+        SomeInput = true;
+    }
+    if (Input->Keyboard.S.IsDown) {
+        Acceleration.Y += 1;
+        SomeInput = true;
+    }
+    if (Input->Keyboard.W.IsDown) {
+        Acceleration.Y += -1;
+        SomeInput = true;
+    }
+
+    if (!SomeInput) {
+        Acceleration = -0.8 * pGameState->Player.Velocity;
+    }
+
+    v3 Direction = normalize(Acceleration);
+    Acceleration = 0.6 * Direction;
+
+    double MaxVelocity = 5.0;
+    double MinVelocity = 0.2;
+    v3 Velocity = pGameState->Player.Velocity + Acceleration;
+    if (module(Velocity) <= MaxVelocity) {
+        pGameState->Player.Velocity = Velocity;
+    }
+    else {
+        pGameState->Player.Velocity = MaxVelocity * Direction;
+    }
+
+    if (module(Velocity) < MinVelocity) {
+        pGameState->Player.Velocity = {0,0,0};
+    }
+
+    v3 Position = pGameState->Player.Position + pGameState->Player.Velocity;
+
+    tile_position TilePosition = ToTilePosition(pGameState->Player.Position + pGameState->Player.BMPOffset, pGameState->TileSize);
+    if (IsValid(TilePosition.Row, TilePosition.Col)) {
+        tile_type NewTile = pGameState->Map[TilePosition.Row][TilePosition.Col].Type;
+        if (NewTile == Door || NewTile == Floor) {
+            pGameState->Player.Position = Position;
+            pGameState->Player.TilePosition = TilePosition;
+        }
+        else {
+            pGameState->Player.Velocity = { 0,0,0 };
+        }
+    }
+    else {
+        pGameState->Player.Velocity = { 0,0,0 };
     }
 
     // Room exploration
-    int CurrentRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->PlayerPosition);
+    int CurrentRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.TilePosition);
     if (CurrentRoom != -1) {
         pGameState->Rooms[CurrentRoom].Explored = true;
     }
 
     // Bombs?
-    if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
-        tile_position Position = pGameState->PlayerPosition;
-        if (Position.Row - 1 >= 0 && pGameState->Map[Position.Row - 1][Position.Col].Type == Wall) {
-            pGameState->Map[Position.Row - 1][Position.Col].Type = Door;
-        }
-        if (Position.Col - 1 >= 0 && pGameState->Map[Position.Row][Position.Col-1].Type == Wall) {
-            pGameState->Map[Position.Row][Position.Col-1].Type = Door;
-        }
-    }
+    //if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
+    //    tile_position Position = pGameState->PlayerPosition;
+    //    if (Position.Row - 1 >= 0 && pGameState->Map[Position.Row - 1][Position.Col].Type == Wall) {
+    //        pGameState->Map[Position.Row - 1][Position.Col].Type = Door;
+    //    }
+    //    if (Position.Col - 1 >= 0 && pGameState->Map[Position.Row][Position.Col-1].Type == Wall) {
+    //        pGameState->Map[Position.Row][Position.Col-1].Type = Door;
+    //    }
+    //}
     
     // Camera movement
-    v3 Direction = { 0 };
-
+    /*v3 CameraDirection = { 0,0,0 };
     if (Input->Keyboard.Right.IsDown) {
-        Direction.X += 1;
+        CameraDirection.X += 1;
     }
     if (Input->Keyboard.Left.IsDown) {
-        Direction.X -= 1;
+        CameraDirection.X -= 1;
     }
     if (Input->Keyboard.Up.IsDown) {
-        Direction.Y -= 1;
+        CameraDirection.Y -= 1;
     }
     if (Input->Keyboard.Down.IsDown) {
-        Direction.Y += 1;
+        CameraDirection.Y += 1;
     }
-    Direction = normalize(Direction);
+    CameraDirection = normalize(CameraDirection);
 
-    pGameState->Camera.Velocity = 10 * Direction;
+    pGameState->Camera.Velocity = 10 * CameraDirection;*/
 
-    UpdateCamera(&pGameState->Camera);
-
-    // TODO: Move camera pressing the wheel button
+    // Autofollow player
+    pGameState->Camera.Velocity = 0.1*(pGameState->Player.Position - pGameState->Camera.Position);
+    pGameState->Camera.Position = pGameState->Camera.Position + pGameState->Camera.Velocity;
 
     // Reset room
     if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
@@ -665,9 +732,10 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Target.Pitch = ScreenBuffer->Pitch;
     Target.Content = (uint32*)ScreenBuffer->Memory;
 
-    PushMap(Group, pGameState->Map, pGameState->nRooms, pGameState->Rooms, &Memory->Assets, pGameState->PlayerPosition, pGameState->TileSize);
-    
-    PushBMP(Group, &Memory->Assets.PlayerBMP, ToScreenCoord({pGameState->PlayerPosition.Row - 1, pGameState->PlayerPosition.Col, pGameState->PlayerPosition.Z}, pGameState->TileSize));
+    PushMap(Group, pGameState->Map, pGameState->nRooms, pGameState->Rooms, &Memory->Assets, pGameState->TileSize);
+
+    game_screen_position PlayerPosition = { pGameState->Player.Position.X, pGameState->Player.Position.Y, 0};
+    PushBMP(Group, &Memory->Assets.PlayerBMP, PlayerPosition);
 
     static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
@@ -675,19 +743,23 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     if (ShowDebugInfo) {
-        game_rect DebugInfoRect = { pGameState->Camera.Position.X, pGameState->Camera.Position.Y, 450, 120 };
+        game_rect DebugInfoRect = { 0, 0, 450, 120 };
         PushDebugLattice(Group, pGameState->TileSize, {0.2f, 1.0f, 1.0f, 0.0f });
-        PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f},1000);
-        PushRectOutline(Group, DebugInfoRect, Gray);
+        PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f},1000, true);
+        PushRectOutline(Group, DebugInfoRect, Gray, true);
         text Text = { 0 };
         Text.Color = White;
         Text.Length = 48;
         Text.Points = 20;
         Text.Content = Memory->DebugInfo;
-        PushText(Group, Assets->Characters, { (int)pGameState->Camera.Position.X, (int)pGameState->Camera.Position.Y + 30, 1001 }, Text);
+        PushText(Group, Assets->Characters, { 0, 30, 1001 }, Text, true);
 
         // Mouse
-        PushDebugShineTile(Group, ToTilePosition(Input->Mouse.Cursor, pGameState->TileSize, pGameState->Camera), pGameState->TileSize);
+        game_screen_position MousePosition = { Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y, 0 };
+        PushDebugShineTile(Group, ToTilePosition(MousePosition, pGameState->TileSize, pGameState->Camera), {0.5f, 1.0f, 1.0f, 1.0f}, pGameState->TileSize);
+
+        // Player position
+        PushDebugShineTile(Group, pGameState->Player.TilePosition, {0.5f, 1.0f, 0, 0}, pGameState->TileSize);
     }
 
 

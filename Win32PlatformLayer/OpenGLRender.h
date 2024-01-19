@@ -164,22 +164,58 @@ void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, int TileSize, c
 	int OffsetY = TileSize * ((int)Camera->Position.Y / TileSize);
 
 	// Vertical lines
-	for (int x = 0; x < TargetWidth + TileSize; x += TileSize) {
-		// TODO: Calcular bien las coordenadas (esto está mal)
-		OpenGLRenderLine({ OffsetX + x, (int)Camera->Position.Y, 0 }, { OffsetX + x, (int)Camera->Position.Y + TargetHeight, 0 }, Color);
+	for (int x = 0; x < TargetWidth / 2 + TileSize; x += TileSize) {
+		OpenGLRenderLine({ OffsetX + x, (int)Camera->Position.Y - TargetHeight / 2, 0 }, { OffsetX + x, (int)Camera->Position.Y + TargetHeight / 2, 0 }, Color);
+	}
+
+	for (int x = -TileSize; x > -TargetWidth / 2 - TileSize; x -= TileSize) {
+		OpenGLRenderLine({ OffsetX + x, (int)Camera->Position.Y - TargetHeight / 2, 0 }, { OffsetX + x, (int)Camera->Position.Y + TargetHeight / 2, 0 }, Color);
 	}
 
 	// Horizontal lines
-	for (int y = 0; y < TargetHeight + TileSize; y += TileSize) {
+	for (int y = 0; y < TargetHeight / 2 + TileSize; y += TileSize) {
 		// TODO: Calcular bien las coordenadas (esto está mal)
-		OpenGLRenderLine({ (int)Camera->Position.X, OffsetY + y, 0 }, { (int)Camera->Position.X + TargetWidth, OffsetY + y, 0 }, Color);
+		OpenGLRenderLine({ (int)Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, { (int)Camera->Position.X + TargetWidth / 2, OffsetY + y, 0 }, Color);
+	}
+
+	for (int y = -TileSize; y > -TargetHeight / 2 - TileSize; y -= TileSize) {
+		// TODO: Calcular bien las coordenadas (esto está mal)
+		OpenGLRenderLine({ (int)Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, { (int)Camera->Position.X + TargetWidth / 2, OffsetY + y, 0 }, Color);
 	}
 }
 
-void OpenGLDebugShineTile(tile_position Position, int TileSize) {
+void OpenGLDebugShineTile(tile_position Position, color Color, int TileSize) {
 	game_screen_position ScreenPosition = ToScreenCoord(Position, TileSize);
 
-	OpenGLRectangle({ScreenPosition.X, ScreenPosition.Y, TileSize, TileSize}, {0.5f, 1.0f, 1.0f, 1.0f});
+	OpenGLRectangle({ScreenPosition.X, ScreenPosition.Y, TileSize, TileSize}, Color);
+}
+
+void SetCameraProjection(camera* Camera, int32 Width, int32 Height) {
+	float a = 2.0f / Width;
+	float b = 2.0f / Height;
+
+	glMatrixMode(GL_MODELVIEW);
+	float Proj[] = {
+		a,  0,  0,  0,
+		0,  -b,  0,  0,
+		0,  0,  1,  0,
+		-1 - 2 * (Camera->Position.X / Width - 0.5f),  1 + 2 * (Camera->Position.Y / Height - 0.5f),  0,  1,
+	};
+	glLoadMatrixf(Proj);
+}
+
+void SetScreenProjection(int32 Width, int32 Height) {
+	float a = 2.0f / Width;
+	float b = 2.0f / Height;
+
+	glMatrixMode(GL_MODELVIEW);
+	float Proj[] = {
+		a,  0,  0,  0,
+		0,  -b,  0,  0,
+		0,  0,  1,  0,
+		-1.0f, 1.0f,  0,  1,
+	};
+	glLoadMatrixf(Proj);
 }
 
 
@@ -191,19 +227,12 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
 
-	glMatrixMode(GL_MODELVIEW);
+	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
-	glMatrixMode(GL_PROJECTION);
-	float a = 2.0f / Width;
-	float b = 2.0f / Height;
-	float Proj[] = {
-		a,  0,  0,  0,
-		0,  -b,  0,  0,
-		0,  0,  1,  0,
-	    -1-2*Group->Camera->Position.X/Width,  1 + 2*Group->Camera->Position.Y / Height,  0,  1,
-	};
-	glLoadMatrixf(Proj);
+	glMatrixMode(GL_MODELVIEW);
+	SetCameraProjection(Group->Camera, Width, Height);
+
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
@@ -228,8 +257,15 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			case group_type_render_entry_rect:
 			{
 				render_entry_rect Entry = *(render_entry_rect*)Header;
+				if (Entry.isUI) {
+					SetScreenProjection(Width, Height);
+				}
 
 				OpenGLRectangle(Entry.Rect, Entry.Color);
+
+				if (Entry.isUI) {
+					SetCameraProjection(Group->Camera, Width, Height);
+				}
 			} break;
 
 			case group_type_render_entry_bmp:
@@ -241,7 +277,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			case group_type_render_entry_text:
 			{
 				render_entry_text Entry = *(render_entry_text*)Header;
+				if (Entry.isUI) {
+					SetScreenProjection(Width, Height);
+				}
 				OpenGLRenderText(Width, Entry.Characters, Entry.Position, Entry.Text);
+				if (Entry.isUI) {
+					SetCameraProjection(Group->Camera, Width, Height);
+				}
 			} break;
 
 			case group_type_render_entry_button:
@@ -277,11 +319,22 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			case group_type_render_entry_rect_outline:
 			{
 				render_entry_rect_outline Entry = *(render_entry_rect_outline*)Header;
+				game_screen_position TopLeft = { Entry.Rect.Left, Entry.Rect.Top, 0 };
+				game_screen_position TopRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 };
+				game_screen_position BottomLeft = { Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 };
+				game_screen_position BottomRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 };
 
-				OpenGLRenderLine({ Entry.Rect.Left, Entry.Rect.Top, 0 }, { Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 }, Entry.Color);
-				OpenGLRenderLine({ Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 }, { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 }, Entry.Color);
-				OpenGLRenderLine({ Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 }, { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 }, Entry.Color);
-				OpenGLRenderLine({ Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 }, { Entry.Rect.Left, Entry.Rect.Top, 0 }, Entry.Color);
+				if (Entry.isUI) {
+					SetScreenProjection(Width, Height);
+				}
+				OpenGLRenderLine(TopLeft, BottomLeft, Entry.Color);
+				OpenGLRenderLine(BottomLeft, BottomRight, Entry.Color);
+				OpenGLRenderLine(BottomRight, TopRight, Entry.Color);
+				OpenGLRenderLine(TopRight, TopLeft, Entry.Color);
+
+				if (Entry.isUI) {
+					SetCameraProjection(Group->Camera, Width, Height);
+				}
 			} break;
 
 			case group_type_render_entry_debug_lattice: 
@@ -295,7 +348,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			{
 				render_entry_debug_shine_tile Entry = *(render_entry_debug_shine_tile*)Header;
 
-				OpenGLDebugShineTile(Entry.Position, Entry.TileSize);
+				OpenGLDebugShineTile(Entry.Position, Entry.Color, Entry.TileSize);
 			} break;
 
 			case group_type_render_entry_textured_rect:

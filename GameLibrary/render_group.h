@@ -35,12 +35,14 @@ struct render_entry_line {
     color Color;
     game_screen_position Start;
     game_screen_position Finish;
+    bool isUI;
 };
 
 struct render_entry_rect {
 	render_group_header Header;
 	game_rect Rect;
 	color Color;
+    bool isUI;
 };
 
 struct render_entry_textured_rect {
@@ -53,6 +55,7 @@ struct render_entry_rect_outline {
     render_group_header Header;
     game_rect Rect;
     color Color;
+    bool isUI;
 };
 
 struct render_entry_bmp {
@@ -66,6 +69,7 @@ struct render_entry_text {
     Character* Characters;
     game_screen_position Position;
     text Text;
+    bool isUI;
 };
 
 struct render_entry_button {
@@ -84,6 +88,7 @@ struct render_entry_debug_shine_tile {
     render_group_header Header;
     int TileSize;
     tile_position Position;
+    color Color;
 };
 
 struct render_group {
@@ -210,11 +215,12 @@ void PushLine(render_group* Group, color Color, game_screen_position Start, game
     Entry->Finish = Finish;
 }
 
-void PushRect(render_group* Group, game_rect Rect, color Color, int Z) {
+void PushRect(render_group* Group, game_rect Rect, color Color, int Z, bool isUI) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
     Entry->Header.Key = Z;
     Entry->Rect = Rect;
     Entry->Color = Color;
+    Entry->isUI = isUI;
 }
 
 void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, int Z) {
@@ -224,11 +230,12 @@ void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, 
     Entry->Texture = Texture;
 }
 
-void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
+void PushRectOutline(render_group* Group, game_rect Rect, color Color, bool isUI) {
     render_entry_rect_outline *Entry = PushRenderElement(Group, render_entry_rect_outline);
     Entry->Header.Key = 0;
     Entry->Rect = Rect;
     Entry->Color = Color;
+    Entry->isUI = isUI;
 }
 
 void PushBMP(render_group* Group, loaded_bmp* Bitmap, game_screen_position Position) {
@@ -238,12 +245,13 @@ void PushBMP(render_group* Group, loaded_bmp* Bitmap, game_screen_position Posit
     Entry->Position = Position;
 }
 
-void PushText(render_group* Group, Character* Characters, game_screen_position Position, text Text) {
+void PushText(render_group* Group, Character* Characters, game_screen_position Position, text Text, bool isUI) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
     Entry->Header.Key = Position.Z;
     Entry->Characters = Characters;
     Entry->Position = Position;
     Entry->Text = Text;
+    Entry->isUI = isUI;
 }
 
 void PushButton(render_group* Group, Character* Characters, button* Button) {
@@ -260,16 +268,17 @@ void PushDebugLattice(render_group* Group, int TileSize,  color Color) {
     Entry->Color = Color;
 }
 
-void PushDebugShineTile(render_group* Group, tile_position Position, int TileSize) {
+void PushDebugShineTile(render_group* Group, tile_position Position, color Color, int TileSize) {
     render_entry_debug_shine_tile* Entry = PushRenderElement(Group, render_entry_debug_shine_tile);
     Entry->Header.Key = 998;
     Entry->TileSize = TileSize;
     Entry->Position = Position;
+    Entry->Color = Color;
 }
 
-void PushDoor(render_group* Group, game_assets* Assets, tile Map[MAP_HEIGHT][MAP_WIDTH], int Row, int Col, int TileSize, tile_position PlayerPosition) {
+void PushDoor(render_group* Group, game_assets* Assets, tile Map[MAP_HEIGHT][MAP_WIDTH], int Row, int Col, int TileSize) {
     game_screen_position DoorPosition = ToScreenCoord({ Row - 1, Col, 1 }, TileSize);
-    if (PlayerPosition.Col == Col && PlayerPosition.Row == Row - 1) DoorPosition.Z = 3;
+    DoorPosition.Z = 3;
 
     if (Row > 0 && Map[Row - 1][Col].Type == Floor) {
         PushBMP(Group, &Assets->FloorBMP, ToScreenCoord({ Row, Col, 0 }, TileSize));
@@ -278,7 +287,7 @@ void PushDoor(render_group* Group, game_assets* Assets, tile Map[MAP_HEIGHT][MAP
     PushBMP(Group, &Assets->DoorBMP, DoorPosition);
 }
 
-void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, room Rooms[], game_assets* Assets, tile_position PlayerPosition, int TileSize) {
+void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, room Rooms[], game_assets* Assets, int TileSize) {
     
     for (int i = 0; i < nRooms; i++) {
         room Room = Rooms[i];
@@ -298,7 +307,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
                 int j = Room.Left - 1;
                 for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
                     if (Map[i][j].Type == Door) {
-                        PushDoor(Group, Assets, Map, i, j, TileSize, PlayerPosition);
+                        PushDoor(Group, Assets, Map, i, j, TileSize);
                     }
                 }
             }
@@ -307,7 +316,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
                 int j = Room.Left + Room.Width;
                 for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
                     if (Map[i][j].Type == Door) {
-                        PushDoor(Group, Assets, Map, i, j, TileSize, PlayerPosition);
+                        PushDoor(Group, Assets, Map, i, j, TileSize);
                     }
                 }
             }
@@ -316,7 +325,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
                 int i = Room.Top - 1;
                 for (int j = Room.Left; j < Room.Left + Room.Width; j++) {
                     if (Map[i][j].Type == Door) {
-                        PushDoor(Group, Assets, Map, i, j, TileSize, PlayerPosition);
+                        PushDoor(Group, Assets, Map, i, j, TileSize);
                     }
                 }
             }
@@ -325,7 +334,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
                 int i = Room.Top + Room.Height;
                 for (int j = Room.Left; j < Room.Left + Room.Width; j++) {
                     if (Map[i][j].Type == Door) {
-                        PushDoor(Group, Assets, Map, i, j, TileSize, PlayerPosition);
+                        PushDoor(Group, Assets, Map, i, j, TileSize);
                     }
                 }
             }

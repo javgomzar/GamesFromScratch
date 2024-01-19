@@ -61,12 +61,8 @@ struct game_screen_position {
     int32 Z;
 };
 
-game_screen_position ToScreenPosition(v3 V) {
-    game_screen_position Result;
-    Result.X = CustomRound(V.X);
-    Result.Y = CustomRound(V.Y);
-    Result.Z = CustomRound(V.Z);
-    return Result;
+game_screen_position operator+(game_screen_position A, game_screen_position B) {
+    return { A.X + B.X, A.Y + B.Y, A.Z + B.Z };
 }
 
 v3 ToV3(game_screen_position Position) {
@@ -271,12 +267,10 @@ struct game_assets {
 struct camera {
     v3 Position;
     v3 Velocity;
+    int Width;
+    int Height;
 };
 
-
-void UpdateCamera(camera* Camera) {
-    Camera->Position = Camera->Position + Camera->Velocity;
-}
 
 // Tiles
 struct tile_position {
@@ -285,12 +279,28 @@ struct tile_position {
     int Z;
 };
 
+v3 ToWorldCoord(tile_position Position, int TileSize) {
+    return { (double)(TileSize * Position.Col), (double)(TileSize * Position.Row), (double)Position.Z };
+}
+
+v3 ToWorldCoord(game_screen_position ScreenPosition, camera Camera) {
+    return { (double)(ScreenPosition.X - Camera.Width / 2) + Camera.Position.X, (double)(ScreenPosition.Y - Camera.Height / 2) + Camera.Position.Y, (double)ScreenPosition.Z };
+}
+
 game_screen_position ToScreenCoord(tile_position Position, int TileSize) {
     return { TileSize * Position.Col, TileSize * Position.Row, Position.Z };
 }
 
+game_screen_position ToScreenCoord(v3 Position) {
+    return { (int)Position.X, (int)Position.Y, (int)Position.Z };
+}
+
+tile_position ToTilePosition(v3 WorldCoord, int TileSize) {
+    return {(int)(WorldCoord.Y / (double)TileSize), (int)(WorldCoord.X / (double)TileSize) };
+}
+
 tile_position ToTilePosition(game_screen_position Position, int TileSize, camera Camera) {
-    return { (Position.Y + (int)Camera.Position.Y) / TileSize, (Position.X + (int)Camera.Position.X) / TileSize, 0 };
+    return ToTilePosition(ToWorldCoord(Position, Camera), TileSize);
 }
 
 struct tile_direction {
@@ -334,6 +344,14 @@ struct room {
     bool Explored;
 };
 
+struct player {
+    loaded_bmp* BMP;
+    v3 BMPOffset;
+    v3 Position;
+    v3 Velocity;
+    tile_position TilePosition;
+};
+
 const int MAP_WIDTH = 100;
 const int MAP_HEIGHT = 100;
 
@@ -347,7 +365,7 @@ struct game_state {
     UI UserInterface;
     camera Camera;
     int TileSize;
-    tile_position PlayerPosition;
+    player Player;
     tile Map[MAP_HEIGHT][MAP_WIDTH];
     int nRooms;
     room Rooms[MAX_ROOMS];
