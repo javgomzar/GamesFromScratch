@@ -30,10 +30,10 @@ extern GAMELIBRARY_API int nGameLibrary;
 
 // Platform independent structs and types
 struct game_rect {
-    int Left;
-    int Top;
-    int Width;
-    int Height;
+    double Left;
+    double Top;
+    double Width;
+    double Height;
 };
 
 struct game_offscreen_buffer {
@@ -56,9 +56,9 @@ struct game_button_state {
 };
 
 struct game_screen_position {
-    int32 X;
-    int32 Y;
-    int32 Z;
+    double X;
+    double Y;
+    double Z;
 };
 
 game_screen_position operator+(game_screen_position A, game_screen_position B) {

@@ -73,7 +73,7 @@ void Plot(game_offscreen_buffer* Buffer, game_screen_position Position, color Co
     ScreenRect.Height = Buffer->Height;
 
     if (Collision(ScreenRect, Position)) {
-        uint8* PixelMemory = (uint8*)Buffer->Memory + Position.X * Buffer->BytesPerPixel + Position.Y * Buffer->Pitch;
+        uint8* PixelMemory = (uint8*)Buffer->Memory + (int)Position.X * Buffer->BytesPerPixel + (int)Position.Y * Buffer->Pitch;
         uint32* Pixel = (uint32*)PixelMemory;
         *Pixel = GetColorBytes(Color);
     }

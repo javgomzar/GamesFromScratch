@@ -131,7 +131,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>$(CoreLibraryDependencies);freetype.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>D:\Code\C\SimonSays\GameLibrary\Linking\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>.\Linking\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -162,7 +162,12 @@
     <ClInclude Include="GameLibrary.h" />
     <ClInclude Include="GameMath.h" />
     <ClInclude Include="GamePlatform.h" />
-    <ClInclude Include="Linking\include\ft2build.h" />
+    <ClInclude Include="Linking\include\ft2build.h">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
+    </ClInclude>
     <ClInclude Include="pch.h" />
     <ClInclude Include="render_group.h" />
   </ItemGroup>

@@ -34,10 +34,10 @@
     <ClInclude Include="GamePlatform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Linking\include\ft2build.h">
+    <ClInclude Include="render_group.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="render_group.h">
+    <ClInclude Include="Linking\include\ft2build.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
