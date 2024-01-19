@@ -9,8 +9,6 @@
 
 
 
-
-
 //// This is an example of an exported variable
 //GAMELIBRARY_API int nGameLibrary=0;
 //
