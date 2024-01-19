@@ -30,10 +30,10 @@ extern GAMELIBRARY_API int nGameLibrary;
 
 // Platform independent structs and types
 struct game_rect {
-    int Left;
-    int Top;
-    int Width;
-    int Height;
+    double Left;
+    double Top;
+    double Width;
+    double Height;
 };
 
 struct game_offscreen_buffer {
@@ -56,9 +56,9 @@ struct game_button_state {
 };
 
 struct game_screen_position {
-    int32 X;
-    int32 Y;
-    int32 Z;
+    double X;
+    double Y;
+    double Z;
 };
 
 game_screen_position ToScreenPosition(v3 V) {
@@ -260,8 +260,7 @@ struct UI {
 // Game Assets
 struct game_assets {
     Character* Characters;
-    loaded_bmp Image1;
-    loaded_bmp Image2;
+    loaded_bmp TestImage;
 };
 
 // Game State: Persistent (between frames) values

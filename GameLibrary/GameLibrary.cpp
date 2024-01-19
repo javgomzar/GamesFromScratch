@@ -52,7 +52,7 @@ void Plot(game_offscreen_buffer* Buffer, game_screen_position Position, color Co
     ScreenRect.Height = Buffer->Height;
 
     if (Collision(ScreenRect, Position)) {
-        uint8* PixelMemory = (uint8*)Buffer->Memory + Position.X * Buffer->BytesPerPixel + Position.Y * Buffer->Pitch;
+        uint8* PixelMemory = (uint8*)Buffer->Memory + (int)Position.X * Buffer->BytesPerPixel + (int)Position.Y * Buffer->Pitch;
         uint32* Pixel = (uint32*)PixelMemory;
         *Pixel = GetColorBytes(Color);
     }
@@ -198,7 +198,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        // Load your assets here        
+        // Load your assets here
         
 
         // User Interface
@@ -235,7 +235,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     if (ShowDebugInfo) {
         game_rect DebugInfoRect = { 0, 0, 450, 120 };
-        PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f}, -1);
+        PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, -1);
         PushRectOutline(Group, DebugInfoRect, Gray);
         text Text = { 0 };
         Text.Color = White;

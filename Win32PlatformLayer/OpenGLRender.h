@@ -112,13 +112,13 @@ void OpenGLBindTexture(loaded_bmp* Bitmap, OpenGLWrapMode Mode)
 void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) 
 {
 	OpenGLBindTexture(Bitmap, OpenGLClamp);
-	OpenGLTexturedRectangle({Position.X, Position.Y, Bitmap->Header.Width, Bitmap->Header.Height}, Bitmap);
+	OpenGLTexturedRectangle({Position.X, Position.Y, (double)Bitmap->Header.Width, (double)Bitmap->Header.Height}, Bitmap);
 }
 
 void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_position Position, text Text) 
 {
-	int PenX = Position.X;
-	int PenY = Position.Y;
+	double PenX = Position.X;
+	double PenY = Position.Y;
 
 	int LineJump = (int)(0.023f * Characters[1].Height); // 0.023 because height is in 64ths of pixel
 

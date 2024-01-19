@@ -444,8 +444,8 @@ void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, game_screen_position P
         }
 
         // BMP starts on the last row
-        uint32* SourceRow = BMP->Content + BMP->Header.Width * (BMP->Header.Height - SourcePosition.Y - 1) + SourcePosition.X;
-        uint8* DestinationRow = (uint8*)(OutputTarget->Content + DestinationPosition.X) + DestinationPosition.Y * OutputTarget->Pitch;
+        uint32* SourceRow = BMP->Content + BMP->Header.Width * (BMP->Header.Height - (int)SourcePosition.Y - 1) + (int)SourcePosition.X;
+        uint8* DestinationRow = (uint8*)(OutputTarget->Content + (int)DestinationPosition.X) + (int)DestinationPosition.Y * OutputTarget->Pitch;
         for (int32 Y = 0; Y < BlitHeight; Y++) {
             uint32* Destination = (uint32*)DestinationRow;
             uint32* Source = SourceRow;
@@ -592,7 +592,7 @@ void RenderText(loaded_bmp* OutputTarget, memory_arena* Arena, FT_Face* Font, ga
                 FT_Bitmap FTBMP = Slot->bitmap;
                 loaded_bmp BMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
                 LoadFTBMP(&FTBMP, &BMP);
-                RenderBMP(OutputTarget, &BMP, { PenX + Slot->bitmap_left, PenY - Slot->bitmap_top, 0 });
+                RenderBMP(OutputTarget, &BMP, { (double)(PenX + Slot->bitmap_left), (double)(PenY - Slot->bitmap_top), 0 });
                 PopSize(Arena, BMP.Header.FileSize / 8);
                 PenX += Slot->advance.x >> 6;
             }
