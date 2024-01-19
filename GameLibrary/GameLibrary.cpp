@@ -567,7 +567,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         pGameState->Player.BMP = &Memory->Assets.PlayerBMP;
         pGameState->Player.Position = { 0,0,0 };
         pGameState->Player.Velocity = { 0,0,0 };
-        pGameState->Player.BMPOffset = { (double)(pGameState->Player.BMP->Header.Width + pGameState->TileSize) / 2, (double)(pGameState->Player.BMP->Header.Height + pGameState->TileSize) / 2, 0 };
+        pGameState->Player.BMPOffset = { (double)(pGameState->Player.BMP->Header.Width) / 2, (double)(pGameState->Player.BMP->Header.Height + pGameState->TileSize) / 2, 0 };
         pGameState->Player.TilePosition = ToTilePosition(pGameState->Player.Position + pGameState->Player.BMPOffset, pGameState->TileSize);
 
         //game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, pGameState->TileSize);
@@ -655,7 +655,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     v3 Position = pGameState->Player.Position + pGameState->Player.Velocity;
 
-    tile_position TilePosition = ToTilePosition(pGameState->Player.Position + pGameState->Player.BMPOffset, pGameState->TileSize);
+    tile_position TilePosition = ToTilePosition(Position + pGameState->Player.BMPOffset, pGameState->TileSize);
     if (IsValid(TilePosition.Row, TilePosition.Col)) {
         tile_type NewTile = pGameState->Map[TilePosition.Row][TilePosition.Col].Type;
         if (NewTile == Door || NewTile == Floor) {

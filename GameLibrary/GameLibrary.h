@@ -260,6 +260,7 @@ struct game_assets {
     loaded_bmp FloorBMP;
     loaded_bmp DoorBMP;
     loaded_bmp ChestBMP;
+    loaded_bmp TestImage;
 };
 
 
@@ -288,15 +289,24 @@ v3 ToWorldCoord(game_screen_position ScreenPosition, camera Camera) {
 }
 
 game_screen_position ToScreenCoord(tile_position Position, int TileSize) {
-    return { TileSize * Position.Col, TileSize * Position.Row, Position.Z };
+    return { (double)TileSize * Position.Col, (double)TileSize * Position.Row, (double)Position.Z };
 }
 
-game_screen_position ToScreenCoord(v3 Position) {
-    return { (int)Position.X, (int)Position.Y, (int)Position.Z };
+game_screen_position ToScreenCoord(v3 Position, camera Camera) {
+    return { Position.X + Camera.Position.X + (double)Camera.Width/2, Position.Y + Camera.Position.Y + (double)Camera.Height/2, Position.Z};
 }
 
 tile_position ToTilePosition(v3 WorldCoord, int TileSize) {
-    return {(int)(WorldCoord.Y / (double)TileSize), (int)(WorldCoord.X / (double)TileSize) };
+    int Col = (int)(WorldCoord.X / (double)TileSize);
+    if (WorldCoord.X < 0) {
+        Col -= 1;
+    }
+
+    int Row = (int)(WorldCoord.Y / (double)TileSize);;
+    if (WorldCoord.Y < 0) {
+        Row -= 1;
+    }
+    return { Row, Col };
 }
 
 tile_position ToTilePosition(game_screen_position Position, int TileSize, camera Camera) {

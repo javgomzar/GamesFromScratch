@@ -293,7 +293,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
         room Room = Rooms[i];
         if (Room.Explored) {
             game_screen_position Position = ToScreenCoord({ Room.Top, Room.Left, 0 }, TileSize);
-            PushTexturedRect(Group, { Position.X, Position.Y, Room.Width * TileSize, Room.Height * TileSize }, &Assets->FloorBMP, 0);
+            PushTexturedRect(Group, { Position.X, Position.Y, (double)(Room.Width * TileSize), (double)(Room.Height * TileSize) }, &Assets->FloorBMP, 0);
 
             for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
                 for (int j = Room.Left; j < Room.Left + Room.Width; j++) {

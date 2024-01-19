@@ -113,7 +113,7 @@ void OpenGLTexturedRect(game_rect Rect, loaded_bmp* BMP)
 void OpenGLRenderBMP(loaded_bmp* Bitmap, game_screen_position Position) 
 {
 	OpenGLBindTexture(Bitmap, OpenGLClamp);
-	OpenGLTexturedRectangle({Position.X, Position.Y, (double)Bitmap->Header.Width, (double)Bitmap->Header.Height}, Bitmap);
+	OpenGLTexturedRect({Position.X, Position.Y, (double)Bitmap->Header.Width, (double)Bitmap->Header.Height}, Bitmap);
 }
 
 void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_position Position, text Text) 
@@ -160,34 +160,34 @@ void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, c
 }
 
 void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, int TileSize, color Color, camera* Camera) {
-	int OffsetX = TileSize * ((int)Camera->Position.X / TileSize);
-	int OffsetY = TileSize * ((int)Camera->Position.Y / TileSize);
+	double OffsetX = TileSize * ((int)Camera->Position.X / TileSize);
+	double OffsetY = TileSize * ((int)Camera->Position.Y / TileSize);
 
 	// Vertical lines
 	for (int x = 0; x < TargetWidth / 2 + TileSize; x += TileSize) {
-		OpenGLRenderLine({ OffsetX + x, (int)Camera->Position.Y - TargetHeight / 2, 0 }, { OffsetX + x, (int)Camera->Position.Y + TargetHeight / 2, 0 }, Color);
+		OpenGLRenderLine({ OffsetX + x, Camera->Position.Y - TargetHeight / 2, 0 }, { OffsetX + x, Camera->Position.Y + TargetHeight / 2, 0 }, Color);
 	}
 
 	for (int x = -TileSize; x > -TargetWidth / 2 - TileSize; x -= TileSize) {
-		OpenGLRenderLine({ OffsetX + x, (int)Camera->Position.Y - TargetHeight / 2, 0 }, { OffsetX + x, (int)Camera->Position.Y + TargetHeight / 2, 0 }, Color);
+		OpenGLRenderLine({ OffsetX + x, Camera->Position.Y - TargetHeight / 2, 0 }, { OffsetX + x, Camera->Position.Y + TargetHeight / 2, 0 }, Color);
 	}
 
 	// Horizontal lines
 	for (int y = 0; y < TargetHeight / 2 + TileSize; y += TileSize) {
 		// TODO: Calcular bien las coordenadas (esto está mal)
-		OpenGLRenderLine({ (int)Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, { (int)Camera->Position.X + TargetWidth / 2, OffsetY + y, 0 }, Color);
+		OpenGLRenderLine({ Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, { Camera->Position.X + TargetWidth / 2, OffsetY + y, 0 }, Color);
 	}
 
 	for (int y = -TileSize; y > -TargetHeight / 2 - TileSize; y -= TileSize) {
 		// TODO: Calcular bien las coordenadas (esto está mal)
-		OpenGLRenderLine({ (int)Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, { (int)Camera->Position.X + TargetWidth / 2, OffsetY + y, 0 }, Color);
+		OpenGLRenderLine({ Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, { Camera->Position.X + TargetWidth / 2, OffsetY + y, 0 }, Color);
 	}
 }
 
 void OpenGLDebugShineTile(tile_position Position, color Color, int TileSize) {
 	game_screen_position ScreenPosition = ToScreenCoord(Position, TileSize);
 
-	OpenGLRectangle({ScreenPosition.X, ScreenPosition.Y, TileSize, TileSize}, Color);
+	OpenGLRectangle({ScreenPosition.X, ScreenPosition.Y, (double)TileSize, (double)TileSize}, Color);
 }
 
 void SetCameraProjection(camera* Camera, int32 Width, int32 Height) {
