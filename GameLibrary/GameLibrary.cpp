@@ -206,15 +206,8 @@ void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSo
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
 }
 
-//void ResetRoom(room* Room) {
-//    Room->Width = rand() % 20 + 5;
-//    Room->Height = rand() % 20 + 5;
-//    Room->Doors[0] = rand() % 2;
-//    Room->Doors[1] = rand() % 2;
-//    Room->Doors[2] = rand() % 2;
-//    Room->Doors[3] = rand() % 2;
-//}
 
+// Returns true if row and col are non-negative and inside the map
 bool IsValid(int Row, int Col) {
     return Row >= 0 && Row < MAP_HEIGHT && Col >= 0 && Col < MAP_HEIGHT;
 }
@@ -336,6 +329,24 @@ int GetRoom(int nRooms, room Rooms[], tile_position Position) {
     return -1;
 }
 
+/*
+This functions returns a bool that is true if given rooms are contiguous.
+In this case, this function writes the number of contiguous tiles in nContiguous,
+and writes the tile positions that are between these two rooms in the array ContiguousTiles.
+
+Example of use:
+
+int nContiguousTiles = 0;
+tile_position ContiguousTiles[100] = { 0 };
+bool RoomsAreContiguous = AreContiguous(Rooms[i], Rooms[j], &nContiguousTiles, ContiguousTiles);
+if (RoomsAreContiguous) {
+    if (randf() < PDoor) {
+        for (int i=0; i<nContiguousTiles; i++) {
+            ContiguousTiles[i] // do something with a contiguous tile
+        }
+    }
+}
+*/
 bool AreContiguous(room Room1, room Room2, int* nContiguous, tile_position ContiguousTiles[100]) {
     *nContiguous = 0;
     bool Result = false;
@@ -491,42 +502,33 @@ void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH], room Rooms[], int* nRooms) {
             }
         }
     }
-
-
-    //float PDoor = 0.05f;
-    //for (int i = 1; i < MAP_HEIGHT - 1; i++) {
-    //    for (int j = 1; j < MAP_WIDTH - 1; j++) {
-    //        if (Map[i][j].Type == Wall) {
-    //            int AdyacentDoors = 0;
-
-    //            if (Map[i - 1][j].Type == Door) AdyacentDoors++;
-    //            if (Map[i + 1][j].Type == Door) AdyacentDoors++;
-    //            if (Map[i][j - 1].Type == Door) AdyacentDoors++;
-    //            if (Map[i][j + 1].Type == Door) AdyacentDoors++;
-
-    //            if (AdyacentDoors == 0) {
-    //                int VerticalWalls = 0;
-    //                int HorizontalWalls = 0;
-
-    //                // Vertical
-    //                if (Map[i - 1][j].Type == Wall) VerticalWalls++;
-    //                if (Map[i + 1][j].Type == Wall) VerticalWalls++;
-
-    //                // Horizontal
-    //                if (Map[i][j - 1].Type == Wall) HorizontalWalls++;
-    //                if (Map[i][j + 1].Type == Wall) HorizontalWalls++;
-
-    //                if (HorizontalWalls + VerticalWalls == 2 && VerticalWalls*HorizontalWalls == 0) {
-    //                    if (randf() < PDoor) {
-    //                        Map[i][j] = { Door };
-    //                    }
-    //                }
-    //            }
-    //        }
-    //    }
-    //}
 }
 
+
+tile_position RandomTile(tile Map[MAP_HEIGHT][MAP_WIDTH], tile_type Type) {
+    int Row = rand() % MAP_HEIGHT;
+    int Col = rand() % MAP_WIDTH;
+    while (Map[Row][Col].Type != Type) {
+        Row = rand() % MAP_HEIGHT;
+        Col = rand() % MAP_WIDTH;
+    }
+    return { Row, Col };
+}
+
+// Returns the door between Room1 and Room2 if it exists. If it doesn't, returns {-1,-1}.
+tile_position GetDoor(tile Map[MAP_HEIGHT][MAP_WIDTH], room Room1, room Room2) {
+    int nContiguous;
+    tile_position ContiguousTiles[100] = { 0 };
+    if (AreContiguous(Room1, Room2, &nContiguous, ContiguousTiles)) {
+        for (int i = 0; i < nContiguous; i++) {
+            tile_position Tile = ContiguousTiles[i];
+            if (Map[Tile.Row][Tile.Col].Type == Door) {
+                return Tile;
+            }
+        }
+    }
+    return { -1, -1 };
+}
 
 // Main
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
@@ -544,6 +546,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // Load your assets here
 
         Memory->Assets.PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
+        Memory->Assets.PlayerBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\PlayerBack.bmp");
         Memory->Assets.FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
         Memory->Assets.DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Door.bmp");
         Memory->Assets.ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Treasure.bmp");
@@ -559,19 +562,22 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // Initialize game state
         pGameState->TileSize = 30;
 
-        /*pGameState->PlayerPosition = { MAP_HEIGHT / 2, MAP_WIDTH / 2, 2 };
-        while (pGameState->Map[pGameState->PlayerPosition.Row][pGameState->PlayerPosition.Col].Type != Floor) {
-            pGameState->PlayerPosition.Row--;
-            pGameState->PlayerPosition.Col--;
-        }*/
-        pGameState->Player.BMP = &Memory->Assets.PlayerBMP;
-        pGameState->Player.Position = { 0,0,0 };
-        pGameState->Player.Velocity = { 0,0,0 };
-        pGameState->Player.BMPOffset = { (double)(pGameState->Player.BMP->Header.Width) / 2, (double)(pGameState->Player.BMP->Header.Height + pGameState->TileSize) / 2, 0 };
-        pGameState->Player.TilePosition = ToTilePosition(pGameState->Player.Position + pGameState->Player.BMPOffset, pGameState->TileSize);
+        // Initialize player
+        pGameState->Player.FrontBMP = &Memory->Assets.PlayerBMP;
+        pGameState->Player.BackBMP = &Memory->Assets.PlayerBackBMP;
+
+        pGameState->Player.Entity = { 0 };
+        pGameState->Player.Entity.BMP = pGameState->Player.FrontBMP;
+        pGameState->Player.Entity.BMPOffset = { -(double)(pGameState->Player.FrontBMP->Header.Width) / 2, -(double)(pGameState->Player.FrontBMP->Header.Height + pGameState->TileSize) / 2, 0 };
+        pGameState->Player.Entity.Basis = {V3(1,0,0), V3(0,1,0), V3(0,0,1)};
+        
+        pGameState->Player.Entity.TilePosition = RandomTile(pGameState->Map, Floor);
+        pGameState->Player.Entity.Position = ToWorldCoord(pGameState->Player.Entity.TilePosition, pGameState->TileSize);
+        pGameState->Player.Entity.Velocity = { 0,0,0 };
+
 
         //game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, pGameState->TileSize);
-        pGameState->Camera = { {0,0,0} , {0,0,0}, (int)ScreenBuffer->Width, (int)ScreenBuffer->Height };
+        pGameState->Camera = { pGameState->Player.Entity.Position, {0,0,0}, (int)ScreenBuffer->Width, (int)ScreenBuffer->Height };
 
         // Renderer --------------------------------------------------------------------------------------------------------------------------------------
         Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
@@ -633,7 +639,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     if (!SomeInput) {
-        Acceleration = -0.8 * pGameState->Player.Velocity;
+        Acceleration = -0.8 * pGameState->Player.Entity.Velocity;
     }
 
     v3 Direction = normalize(Acceleration);
@@ -641,37 +647,54 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     double MaxVelocity = 5.0;
     double MinVelocity = 0.2;
-    v3 Velocity = pGameState->Player.Velocity + Acceleration;
+    v3 Velocity = pGameState->Player.Entity.Velocity + Acceleration;
     if (module(Velocity) <= MaxVelocity) {
-        pGameState->Player.Velocity = Velocity;
+        pGameState->Player.Entity.Velocity = Velocity;
     }
     else {
-        pGameState->Player.Velocity = MaxVelocity * Direction;
+        pGameState->Player.Entity.Velocity = MaxVelocity * Direction;
     }
 
     if (module(Velocity) < MinVelocity) {
-        pGameState->Player.Velocity = {0,0,0};
+        pGameState->Player.Entity.Velocity = {0,0,0};
     }
 
-    v3 Position = pGameState->Player.Position + pGameState->Player.Velocity;
+    v3 Position = pGameState->Player.Entity.Position + pGameState->Player.Entity.Velocity;
 
-    tile_position TilePosition = ToTilePosition(Position + pGameState->Player.BMPOffset, pGameState->TileSize);
+    tile_position TilePosition = ToTilePosition(Position, pGameState->TileSize);
     if (IsValid(TilePosition.Row, TilePosition.Col)) {
         tile_type NewTile = pGameState->Map[TilePosition.Row][TilePosition.Col].Type;
         if (NewTile == Door || NewTile == Floor) {
-            pGameState->Player.Position = Position;
-            pGameState->Player.TilePosition = TilePosition;
+            pGameState->Player.Entity.Position = Position;
+            pGameState->Player.Entity.TilePosition = TilePosition;
         }
         else {
-            pGameState->Player.Velocity = { 0,0,0 };
+            pGameState->Player.Entity.Velocity = { 0,0,0 };
         }
     }
     else {
-        pGameState->Player.Velocity = { 0,0,0 };
+        pGameState->Player.Entity.Velocity = { 0,0,0 };
+    }
+
+    // Changing BMP with direction
+    if (pGameState->Player.Entity.Velocity.Y >= 0) {
+        pGameState->Player.Entity.BMP = pGameState->Player.FrontBMP;
+    }
+    else {
+        pGameState->Player.Entity.BMP = pGameState->Player.BackBMP;
+    }
+
+    if (pGameState->Player.Entity.Velocity.X < 0) {
+        pGameState->Player.Entity.Basis.X = V3(-1, 0, 0);
+        pGameState->Player.Entity.BMPOffset.X = (double)(pGameState->Player.FrontBMP->Header.Width) / 2;
+    }
+    else if (pGameState->Player.Entity.Velocity.X > 0) {
+        pGameState->Player.Entity.Basis.X = V3(1, 0, 0);
+        pGameState->Player.Entity.BMPOffset.X = -(double)(pGameState->Player.FrontBMP->Header.Width) / 2;
     }
 
     // Room exploration
-    int CurrentRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.TilePosition);
+    int CurrentRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.Entity.TilePosition);
     if (CurrentRoom != -1) {
         pGameState->Rooms[CurrentRoom].Explored = true;
     }
@@ -706,7 +729,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     pGameState->Camera.Velocity = 10 * CameraDirection;*/
 
     // Autofollow player
-    pGameState->Camera.Velocity = 0.1*(pGameState->Player.Position - pGameState->Camera.Position);
+    pGameState->Camera.Velocity = 0.1*(pGameState->Player.Entity.Position - pGameState->Camera.Position);
     pGameState->Camera.Position = pGameState->Camera.Position + pGameState->Camera.Velocity;
 
     // Reset room
@@ -734,8 +757,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     PushMap(Group, pGameState->Map, pGameState->nRooms, pGameState->Rooms, &Memory->Assets, pGameState->TileSize);
 
-    game_screen_position PlayerPosition = { pGameState->Player.Position.X, pGameState->Player.Position.Y, 0};
-    PushBMP(Group, &Memory->Assets.PlayerBMP, PlayerPosition);
+    PushEntity(Group, pGameState->Player.Entity, pGameState->Camera);
 
     static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
@@ -759,7 +781,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PushDebugShineTile(Group, ToTilePosition(MousePosition, pGameState->TileSize, pGameState->Camera), {0.5f, 1.0f, 1.0f, 1.0f}, pGameState->TileSize);
 
         // Player position
-        PushDebugShineTile(Group, pGameState->Player.TilePosition, {0.5f, 1.0f, 0, 0}, pGameState->TileSize);
+        PushDebugShineTile(Group, pGameState->Player.Entity.TilePosition, {0.5f, 1.0f, 0, 0}, pGameState->TileSize);
     }
 
 

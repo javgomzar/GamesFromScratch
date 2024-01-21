@@ -257,6 +257,7 @@ struct UI {
 struct game_assets {
     Character* Characters;
     loaded_bmp PlayerBMP;
+    loaded_bmp PlayerBackBMP;
     loaded_bmp FloorBMP;
     loaded_bmp DoorBMP;
     loaded_bmp ChestBMP;
@@ -354,12 +355,25 @@ struct room {
     bool Explored;
 };
 
-struct player {
-    loaded_bmp* BMP;
-    v3 BMPOffset;
+struct render_basis {
+    v3 X;
+    v3 Y;
+    v3 Z;
+};
+
+struct entity {
     v3 Position;
     v3 Velocity;
     tile_position TilePosition;
+    render_basis Basis;
+    loaded_bmp* BMP;
+    v3 BMPOffset;
+};
+
+struct player {
+    loaded_bmp* FrontBMP;
+    loaded_bmp* BackBMP;
+    entity Entity;
 };
 
 const int MAP_WIDTH = 100;
