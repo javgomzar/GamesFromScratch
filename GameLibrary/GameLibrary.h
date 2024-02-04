@@ -27,6 +27,11 @@ extern GAMELIBRARY_API int nGameLibrary;
 #include "ft2build.h"
 #include FT_FREETYPE_H
 
+// Constants
+const int MAP_WIDTH = 100;
+const int MAP_HEIGHT = 100;
+const int MAX_ROOMS = 500;
+const int TILESIZE = 30;
 
 // Platform independent structs and types
 struct game_rect {
@@ -218,6 +223,7 @@ struct game_mouse_input {
     game_button_state LeftClick;
     game_button_state RightClick;
     game_screen_position Cursor;
+    short Wheel;
 };
 
 struct game_input {
@@ -261,7 +267,9 @@ struct game_assets {
     loaded_bmp FloorBMP;
     loaded_bmp DoorBMP;
     loaded_bmp ChestBMP;
-    loaded_bmp TestImage;
+    loaded_bmp EnemyBMP;
+    loaded_bmp EnemyBackBMP;
+    loaded_bmp BombBMP;
 };
 
 
@@ -271,6 +279,7 @@ struct camera {
     v3 Velocity;
     int Width;
     int Height;
+    double Zoom;
 };
 
 
@@ -281,37 +290,37 @@ struct tile_position {
     int Z;
 };
 
-v3 ToWorldCoord(tile_position Position, int TileSize) {
-    return { (double)(TileSize * Position.Col), (double)(TileSize * Position.Row), (double)Position.Z };
+v3 ToWorldCoord(tile_position Position) {
+    return { (double)(TILESIZE * Position.Col), (double)(TILESIZE * Position.Row), (double)Position.Z };
 }
 
 v3 ToWorldCoord(game_screen_position ScreenPosition, camera Camera) {
     return { (double)(ScreenPosition.X - Camera.Width / 2) + Camera.Position.X, (double)(ScreenPosition.Y - Camera.Height / 2) + Camera.Position.Y, (double)ScreenPosition.Z };
 }
 
-game_screen_position ToScreenCoord(tile_position Position, int TileSize) {
-    return { (double)TileSize * Position.Col, (double)TileSize * Position.Row, (double)Position.Z };
+game_screen_position ToScreenCoord(v3 WorldPosition, camera Camera) {
+    return { WorldPosition.X - Camera.Position.X + (double)Camera.Width/2, WorldPosition.Y - Camera.Position.Y + (double)Camera.Height/2, WorldPosition.Z};
 }
 
-game_screen_position ToScreenCoord(v3 Position, camera Camera) {
-    return { Position.X + Camera.Position.X + (double)Camera.Width/2, Position.Y + Camera.Position.Y + (double)Camera.Height/2, Position.Z};
+game_screen_position ToScreenCoord(tile_position Position, camera Camera) {
+    return ToScreenCoord(ToWorldCoord(Position), Camera);
 }
 
-tile_position ToTilePosition(v3 WorldCoord, int TileSize) {
-    int Col = (int)(WorldCoord.X / (double)TileSize);
+tile_position ToTilePosition(v3 WorldCoord) {
+    int Col = (int)(WorldCoord.X / (double)TILESIZE);
     if (WorldCoord.X < 0) {
         Col -= 1;
     }
 
-    int Row = (int)(WorldCoord.Y / (double)TileSize);;
+    int Row = (int)(WorldCoord.Y / (double)TILESIZE);;
     if (WorldCoord.Y < 0) {
         Row -= 1;
     }
     return { Row, Col };
 }
 
-tile_position ToTilePosition(game_screen_position Position, int TileSize, camera Camera) {
-    return ToTilePosition(ToWorldCoord(Position, Camera), TileSize);
+tile_position ToTilePosition(game_screen_position Position, camera Camera) {
+    return ToTilePosition(ToWorldCoord(Position, Camera));
 }
 
 struct tile_direction {
@@ -361,6 +370,8 @@ struct render_basis {
     v3 Z;
 };
 
+
+// Entities
 struct entity {
     v3 Position;
     v3 Velocity;
@@ -374,12 +385,22 @@ struct player {
     loaded_bmp* FrontBMP;
     loaded_bmp* BackBMP;
     entity Entity;
+    int HP;
+    int MaxHP;
 };
 
-const int MAP_WIDTH = 100;
-const int MAP_HEIGHT = 100;
+struct follower {
+    loaded_bmp* FrontBMP;
+    loaded_bmp* BackBMP;
+    entity Entity;
+};
 
-const int MAX_ROOMS = 500;
+struct enemy {
+    loaded_bmp* FrontBMP;
+    loaded_bmp* BackBMP;
+    entity Entity;
+};
+
 
 // Game State: Persistent (between frames) values
 struct game_state {
@@ -388,8 +409,9 @@ struct game_state {
     memory_arena MapArena;
     UI UserInterface;
     camera Camera;
-    int TileSize;
     player Player;
+    follower Follower;
+    enemy Enemy;
     tile Map[MAP_HEIGHT][MAP_WIDTH];
     int nRooms;
     room Rooms[MAX_ROOMS];

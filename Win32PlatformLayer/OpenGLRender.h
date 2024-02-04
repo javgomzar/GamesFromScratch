@@ -38,8 +38,8 @@ void OpenGLBindTexture(loaded_bmp* Bitmap, WrapMode Mode)
 		glBindTexture(GL_TEXTURE_2D, Handle);
 		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, BMPWidth, BMPHeight, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Bitmap->Content);
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST); // Change to GL_LINEAR for color interpolation
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	}
 
@@ -145,7 +145,7 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 				OpenGLTexturedRect({ PenX + pCharacter->Left, PenY - pCharacter->Top, 0 }, pCharacter->Bitmap, Basis, Clamp);
 			}
 
-			PenX += pCharacter->Advance >> 6;
+			PenX += (pCharacter->Advance >> 6) * Basis.X.X;
 		}
 	}
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -163,47 +163,41 @@ void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, c
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, int TileSize, color Color, camera* Camera) {
-	double OffsetX = TileSize * ((int)Camera->Position.X / TileSize);
-	double OffsetY = TileSize * ((int)Camera->Position.Y / TileSize);
+void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, color Color, camera* Camera) {
+	double OffsetX = TILESIZE * ((int)Camera->Position.X / TILESIZE);
+	double OffsetY = TILESIZE * ((int)Camera->Position.Y / TILESIZE);
 
 	// Vertical lines
-	for (int x = 0; x < TargetWidth / 2 + TileSize; x += TileSize) {
+	for (int x = 0; x < TargetWidth / 2 + TILESIZE; x += TILESIZE) {
 		OpenGLRenderLine({ OffsetX + x, Camera->Position.Y - TargetHeight / 2, 0 }, { OffsetX + x, Camera->Position.Y + TargetHeight / 2, 0 }, Color);
 	}
 
-	for (int x = -TileSize; x > -TargetWidth / 2 - TileSize; x -= TileSize) {
+	for (int x = -TILESIZE; x > -TargetWidth / 2 - TILESIZE; x -= TILESIZE) {
 		OpenGLRenderLine({ OffsetX + x, Camera->Position.Y - TargetHeight / 2, 0 }, { OffsetX + x, Camera->Position.Y + TargetHeight / 2, 0 }, Color);
 	}
 
 	// Horizontal lines
-	for (int y = 0; y < TargetHeight / 2 + TileSize; y += TileSize) {
+	for (int y = 0; y < TargetHeight / 2 + TILESIZE; y += TILESIZE) {
 		// TODO: Calcular bien las coordenadas (esto está mal)
 		OpenGLRenderLine({ Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, { Camera->Position.X + TargetWidth / 2, OffsetY + y, 0 }, Color);
 	}
 
-	for (int y = -TileSize; y > -TargetHeight / 2 - TileSize; y -= TileSize) {
+	for (int y = -TILESIZE; y > -TargetHeight / 2 - TILESIZE; y -= TILESIZE) {
 		// TODO: Calcular bien las coordenadas (esto está mal)
 		OpenGLRenderLine({ Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, { Camera->Position.X + TargetWidth / 2, OffsetY + y, 0 }, Color);
 	}
-}
-
-void OpenGLDebugShineTile(tile_position Position, color Color, int TileSize) {
-	game_screen_position ScreenPosition = ToScreenCoord(Position, TileSize);
-
-	OpenGLRectangle({ScreenPosition.X, ScreenPosition.Y, (double)TileSize, (double)TileSize}, Color);
 }
 
 void SetCameraProjection(camera* Camera, int32 Width, int32 Height) {
-	float a = 2.0f / Width;
-	float b = 2.0f / Height;
+	float a = Camera->Zoom * 2.0f / Width;
+	float b = Camera->Zoom * 2.0f / Height;
 
 	glMatrixMode(GL_MODELVIEW);
 	float Proj[] = {
 		a,  0,  0,  0,
 		0,  -b,  0,  0,
 		0,  0,  1,  0,
-		-1 - 2 * (Camera->Position.X / Width - 0.5f),  1 + 2 * (Camera->Position.Y / Height - 0.5f),  0,  1,
+		-1 - 2  * (Camera->Zoom * Camera->Position.X / Width - 0.5f),  1 + 2 * (Camera->Zoom * Camera->Position.Y / Height - 0.5f),  0,  1,
 	};
 	glLoadMatrixf(Proj);
 }
@@ -240,6 +234,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
+
+	glShadeModel(GL_FLAT);
 
 	// Sorting render entries
 	sort_entry Entries[MAX_ENTRIES] = { 0 };
@@ -284,7 +280,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				if (Entry.isUI) {
 					SetScreenProjection(Width, Height);
 				}
-				OpenGLRenderText(Width, Entry.Characters, Entry.Position, Entry.Text, *Group->DefaultBasis);
+
+				double a = (double)Entry.Text.Points / 20.0;
+				OpenGLRenderText(Width, Entry.Characters, Entry.Position, Entry.Text, Entry.Basis);
 				if (Entry.isUI) {
 					SetCameraProjection(Group->Camera, Width, Height);
 				}
@@ -345,14 +343,17 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			{
 				render_entry_debug_lattice Entry = *(render_entry_debug_lattice*)Header;
 
-				OpenGLDebugRenderLattice(Width, Height, Entry.TileSize, Entry.Color, Group->Camera);
+				OpenGLDebugRenderLattice(Width, Height, Entry.Color, Group->Camera);
 			} break;
 
 			case group_type_render_entry_debug_shine_tile:
 			{
 				render_entry_debug_shine_tile Entry = *(render_entry_debug_shine_tile*)Header;
 
-				OpenGLDebugShineTile(Entry.Position, Entry.Color, Entry.TileSize);
+				v3 Position = ToWorldCoord(Entry.Position);
+				game_rect Rect = { Position.X, Position.Y, (double)TILESIZE, (double)TILESIZE };
+
+				OpenGLRectangle(Rect, Entry.Color);
 			} break;
 
 			case group_type_render_entry_textured_rect:

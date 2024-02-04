@@ -510,6 +510,11 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
         {
             pInput->Mouse.RightClick.IsDown = false;
         } break;
+        case WM_MOUSEWHEEL:
+        {
+            short zDelta = GET_WHEEL_DELTA_WPARAM(msg.wParam);
+            pInput->Mouse.Wheel = zDelta;
+        } break;
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
         {
@@ -913,6 +918,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         // Previous input
         Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;
         Input.Mouse.RightClick.WasDown = Input.Mouse.RightClick.IsDown;
+
+        Input.Mouse.Wheel = 0;
 
         Input.Keyboard.One.WasDown = Input.Keyboard.One.IsDown;
         Input.Keyboard.Two.WasDown = Input.Keyboard.Two.IsDown;

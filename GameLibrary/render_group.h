@@ -20,9 +20,18 @@ enum WrapMode {
     Repeat
 };
 
+struct sort_key {
+    double Z;
+    double Y;
+};
+
+bool LessThan(sort_key Key1, sort_key Key2) {
+    return Key1.Z < Key2.Z || ((Key1.Z == Key2.Z) && (Key1.Y < Key2.Y));
+}
+
 struct render_group_header {
 	render_group_entry_type Type;
-	uint32 Key;
+	sort_key Key;
 	uint32 PushBufferOffset;
 };
 
@@ -48,10 +57,10 @@ struct render_entry_rect {
 
 struct render_entry_textured_rect {
     render_group_header Header;
+    render_basis Basis;
     v3 Position;
     loaded_bmp* Texture;
     WrapMode Mode;
-    render_basis Basis;
 };
 
 struct render_entry_rect_outline {
@@ -70,6 +79,7 @@ struct render_entry_bmp {
 
 struct render_entry_text {
     render_group_header Header;
+    render_basis Basis;
     Character* Characters;
     game_screen_position Position;
     text Text;
@@ -84,13 +94,11 @@ struct render_entry_button {
 
 struct render_entry_debug_lattice {
     render_group_header Header;
-    int TileSize;
     color Color;
 };
 
 struct render_entry_debug_shine_tile {
     render_group_header Header;
-    int TileSize;
     tile_position Position;
     color Color;
 };
@@ -99,7 +107,7 @@ struct render_group {
 	float MetersToPixels;
 	render_basis* DefaultBasis;
     camera* Camera;
-
+    Character* Characters;
 	uint32 MaxPushBufferSize;
 	uint32 PushBufferSize;
 	uint32 PushBufferElementCount;
@@ -107,7 +115,7 @@ struct render_group {
 };
 
 struct sort_entry {
-    uint32 Key;
+    sort_key Key;
     uint32 PushBufferOffset;
 };
 
@@ -134,7 +142,7 @@ render_group_header* PushRenderElement_(render_group* Group, uint32 Size, render
 
     if ((Group->PushBufferSize + Size) < Group->MaxPushBufferSize) {
         Result = (render_group_header*)(Group->PushBufferBase + Group->PushBufferSize);
-        Result->Key = 0; // Must be set when pushed
+        Result->Key = { 0 }; // Must be set when pushed
         Result->Type = Type;
         Result->PushBufferOffset = Group->PushBufferSize;
 
@@ -209,29 +217,33 @@ uint32 GetSizeOf(render_group_entry_type Type) {
 
 void PushClear(render_group* Group, color Color) {
     render_entry_clear* Entry = PushRenderElement(Group, render_entry_clear);
-    Entry->Header.Key = 0;
+    Entry->Header.Key.Z = 0;
+    Entry->Header.Key.Y = 0;
     Entry->Color = Color;
 }
 
 void PushLine(render_group* Group, color Color, game_screen_position Start, game_screen_position Finish) {
     render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
-    Entry->Header.Key = max(Start.Z, Finish.Z);
+    Entry->Header.Key.Z = max(Start.Z, Finish.Z);
+    Entry->Header.Key.Y = 0;
     Entry->Color = Color;
     Entry->Start = Start;
     Entry->Finish = Finish;
 }
 
-void PushRect(render_group* Group, game_rect Rect, color Color, int Z, bool isUI) {
+void PushRect(render_group* Group, game_rect Rect, color Color, double Z, bool isUI) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
-    Entry->Header.Key = Z;
+    Entry->Header.Key.Z = Z;
+    Entry->Header.Key.Y = 0;
     Entry->Rect = Rect;
     Entry->Color = Color;
     Entry->isUI = isUI;
 }
 
-void PushTexturedRect(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis Basis, int Z, WrapMode Mode) {
+void PushTexturedRect(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis Basis, WrapMode Mode) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
-    Entry->Header.Key = Z;
+    Entry->Header.Key.Z = Position.Z;
+    Entry->Header.Key.Y = Position.Y;
     Entry->Texture = Texture;
     Entry->Basis = Basis;
     Entry->Position = Position;
@@ -240,7 +252,8 @@ void PushTexturedRect(render_group* Group, loaded_bmp* Texture, v3 Position, ren
 
 void PushRectOutline(render_group* Group, game_rect Rect, color Color, bool isUI) {
     render_entry_rect_outline *Entry = PushRenderElement(Group, render_entry_rect_outline);
-    Entry->Header.Key = 0;
+    Entry->Header.Key.Z = 300;
+    Entry->Header.Key.Y = 0;
     Entry->Rect = Rect;
     Entry->Color = Color;
     Entry->isUI = isUI;
@@ -248,70 +261,77 @@ void PushRectOutline(render_group* Group, game_rect Rect, color Color, bool isUI
 
 void PushBMP(render_group* Group, loaded_bmp* Bitmap, v3 Position) {
     render_entry_bmp* Entry = PushRenderElement(Group, render_entry_bmp);
-    Entry->Header.Key = Position.Z;
+    Entry->Header.Key.Z = Position.Z;
+    Entry->Header.Key.Y = Position.Y;
     Entry->Bitmap = Bitmap;
     Entry->Position = Position;
 }
 
-void PushText(render_group* Group, Character* Characters, game_screen_position Position, text Text, bool isUI) {
+void PushText(render_group* Group, game_screen_position Position, text Text, bool isUI) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
-    Entry->Header.Key = Position.Z;
-    Entry->Characters = Characters;
+    Entry->Header.Key.Z = Position.Z;
+    Entry->Header.Key.Y = Position.Y;
+    Entry->Characters = Group->Characters;
     Entry->Position = Position;
     Entry->Text = Text;
     Entry->isUI = isUI;
+    float a = (double)Text.Points / 20.0;
+    Entry->Basis.X = V3(a, 0, 0);
+    Entry->Basis.Y = V3(0, a, 0);
+    Entry->Basis.Z = V3(0, 0, a);
 }
 
 void PushButton(render_group* Group, Character* Characters, button* Button) {
     render_entry_button* Entry = PushRenderElement(Group, render_entry_button);
-    Entry->Header.Key = 0;
+    Entry->Header.Key.Z = 0;
+    Entry->Header.Key.Y = 0;
     Entry->Button = Button;
     Entry->Characters = Characters;
 }
 
-void PushDebugLattice(render_group* Group, int TileSize,  color Color) {
+void PushDebugLattice(render_group* Group, color Color) {
     render_entry_debug_lattice* Entry = PushRenderElement(Group, render_entry_debug_lattice);
-    Entry->Header.Key = 999;
-    Entry->TileSize = TileSize;
+    Entry->Header.Key.Z = 999;
+    Entry->Header.Key.Y = 0;
     Entry->Color = Color;
 }
 
-void PushDebugShineTile(render_group* Group, tile_position Position, color Color, int TileSize) {
+void PushDebugShineTile(render_group* Group, tile_position Position, color Color) {
     render_entry_debug_shine_tile* Entry = PushRenderElement(Group, render_entry_debug_shine_tile);
-    Entry->Header.Key = 998;
-    Entry->TileSize = TileSize;
+    Entry->Header.Key.Z = 998;
+    Entry->Header.Key.Y = 0;
     Entry->Position = Position;
     Entry->Color = Color;
 }
 
-void PushDoor(render_group* Group, game_assets* Assets, tile Map[MAP_HEIGHT][MAP_WIDTH], int Row, int Col, int TileSize) {
-    v3 DoorPosition = ToWorldCoord({ Row - 1, Col, 1 }, TileSize);
+void PushDoor(render_group* Group, game_assets* Assets, tile Map[MAP_HEIGHT][MAP_WIDTH], int Row, int Col) {
+    v3 DoorPosition = ToWorldCoord({ Row - 1, Col, 1 });
     DoorPosition.Z = 3;
 
     if (Row > 0 && Map[Row - 1][Col].Type == Floor) {
-        PushBMP(Group, &Assets->FloorBMP, ToWorldCoord({ Row, Col, 0 }, TileSize));
+        PushBMP(Group, &Assets->FloorBMP, ToWorldCoord({ Row, Col, 0 }));
     }
 
     PushBMP(Group, &Assets->DoorBMP, DoorPosition);
 }
 
-void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, room Rooms[], game_assets* Assets, int TileSize) {
+void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, room Rooms[], game_assets* Assets) {
     
     for (int i = 0; i < nRooms; i++) {
         room Room = Rooms[i];
         if (Room.Explored) {
-            v3 Position = ToWorldCoord({ Room.Top, Room.Left, 0 }, TileSize);
+            v3 Position = ToWorldCoord({ Room.Top, Room.Left, 0 });
             render_basis Basis = {
                 { Room.Width, 0, 0 },
                 { 0, Room.Height, 0},
                 { 0, 0, 1 }
             };
-            PushTexturedRect(Group, &Assets->FloorBMP,{ Position.X, Position.Y, 0 }, Basis, 0, Repeat);
+            PushTexturedRect(Group, &Assets->FloorBMP,{ Position.X, Position.Y, 0 }, Basis, Repeat);
 
             for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
                 for (int j = Room.Left; j < Room.Left + Room.Width; j++) {
                     if (Map[i][j].Type == Chest) {
-                        PushBMP(Group, &Assets->ChestBMP, ToWorldCoord({ i,j,1 }, TileSize));
+                        PushBMP(Group, &Assets->ChestBMP, ToWorldCoord({ i,j,1 }));
                     }
                 }
             }
@@ -320,7 +340,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
                 int j = Room.Left - 1;
                 for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
                     if (Map[i][j].Type == Door) {
-                        PushDoor(Group, Assets, Map, i, j, TileSize);
+                        PushDoor(Group, Assets, Map, i, j);
                     }
                 }
             }
@@ -329,7 +349,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
                 int j = Room.Left + Room.Width;
                 for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
                     if (Map[i][j].Type == Door) {
-                        PushDoor(Group, Assets, Map, i, j, TileSize);
+                        PushDoor(Group, Assets, Map, i, j);
                     }
                 }
             }
@@ -338,7 +358,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
                 int i = Room.Top - 1;
                 for (int j = Room.Left; j < Room.Left + Room.Width; j++) {
                     if (Map[i][j].Type == Door) {
-                        PushDoor(Group, Assets, Map, i, j, TileSize);
+                        PushDoor(Group, Assets, Map, i, j);
                     }
                 }
             }
@@ -347,7 +367,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
                 int i = Room.Top + Room.Height;
                 for (int j = Room.Left; j < Room.Left + Room.Width; j++) {
                     if (Map[i][j].Type == Door) {
-                        PushDoor(Group, Assets, Map, i, j, TileSize);
+                        PushDoor(Group, Assets, Map, i, j);
                     }
                 }
             }
@@ -356,7 +376,36 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
 }
 
 void PushEntity(render_group* Group, entity Entity, camera Camera) {
-    PushTexturedRect(Group, Entity.BMP, Entity.Position + Entity.BMPOffset, Entity.Basis, Entity.Position.Z, Clamp);
+    PushTexturedRect(Group, Entity.BMP, Entity.Position + Entity.BMPOffset, Entity.Basis, Clamp);
+}
+
+void PushHealthBar(render_group* Group, int HP, int MaxHP, char* HPTextContent, char* HealthTextContent) {
+    
+    double X = Group->Camera->Width - 120;
+    double p = (double)HP / (double)MaxHP;
+    PushRect(Group, { X,20,100,25 }, Gray, 9999, true);
+    PushRect(Group, { X,20,p*100.0,25 }, Red, 10000, true);
+
+    text HPText = { 0 };
+    HPText.Color = White;
+    HPText.Length = 2;
+    HPText.Points = 10;
+    HPText.Content = HPTextContent;
+
+    PushText(Group, {X - 27, 52, 10001}, HPText, true);
+
+    text HealthText = { 0 };
+    HealthText.Color = White;
+    if (HP == 100) {
+        HealthText.Length = 7;
+    }
+    else {
+        HealthText.Length = 6;
+    }
+    HealthText.Points = 10;
+    HealthText.Content = HealthTextContent;
+
+    PushText(Group, { X , 52, 10001 }, HealthText, true);
 }
 
 void ClearEntries(render_group* Group) {
@@ -365,7 +414,7 @@ void ClearEntries(render_group* Group) {
 }
 
 void SwapEntries(sort_entry* Entry1, sort_entry* Entry2) {
-    uint32 Key1 = Entry1->Key;
+    sort_key Key1 = Entry1->Key;
     uint32 Offset1 = Entry1->PushBufferOffset;
 
     *Entry1 = *Entry2;
@@ -384,12 +433,13 @@ void SortEntries(render_group* RenderGroup, sort_entry Entries[MAX_ENTRIES]) {
     }
 
     for (int i = 0; i < Count - 1; i++) {
-        if (Entries[i].Key > Entries[i + 1].Key) {
+        if (LessThan(Entries[i+1].Key, Entries[i].Key))
+        {
             int j = i;
             do {
                 SwapEntries(&Entries[j], &Entries[j + 1]);
                 j--;
-            } while (j > 0 && Entries[j].Key > Entries[j + 1].Key);
+            } while (j > 0 && LessThan(Entries[j + 1].Key, Entries[j].Key));
         }
     }
 }

@@ -170,6 +170,7 @@
     </ClInclude>
     <ClInclude Include="pch.h" />
     <ClInclude Include="render_group.h" />
+    <ClInclude Include="Tests.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />

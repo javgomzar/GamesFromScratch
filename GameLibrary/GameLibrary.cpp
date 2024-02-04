@@ -8,10 +8,11 @@
 #include "time.h"
 #include <gl/GL.h>
 
+#include "Tests.h"
 
 /*
     TODO:
-        - Make it so when you change TileSize everything zooms in (possibly control this with mouse wheel).
+        - Make it so when you change TILESIZE everything zooms in (possibly control this with mouse wheel).
         - Improve door creation algorithm. Not all rooms need to be connected but maybe delete redundant doors sometimes and
           connect a little bit more rooms.
         - Flip character's sprite when moving in different directions.
@@ -246,6 +247,12 @@ void RemovePointer(tile_pointer Pointers[], int Index, int* nPointers) {
     (*nPointers)--;
 }
 
+tile_position GetRoomCenter(room Room) {
+    int Row = Room.Top + (Room.Height / 2);
+    int Col = Room.Left + (Room.Width / 2);
+    return { Row, Col };
+}
+
 void ProcessRooms(tile Map[MAP_HEIGHT][MAP_WIDTH], int* NumberOfRooms, room Rooms[MAX_ROOMS]) {
     int nRooms = 0;
 
@@ -305,9 +312,8 @@ void ProcessRooms(tile Map[MAP_HEIGHT][MAP_WIDTH], int* NumberOfRooms, room Room
         // Chests
         float PChest = 0.02f;
         if (Room.Width > 1 && Room.Height > 1 && randf() < PChest) {
-            int Row = Room.Top + (Room.Height / 2);
-            int Col = Room.Left + (Room.Width / 2);
-            Map[Row][Col] = { Chest };
+            tile_position Center = GetRoomCenter(Room);
+            Map[Center.Row][Center.Col] = { Chest };
         }
     }
 
@@ -530,72 +536,24 @@ tile_position GetDoor(tile Map[MAP_HEIGHT][MAP_WIDTH], room Room1, room Room2) {
     return { -1, -1 };
 }
 
-// Main
-extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
-{
-    game_state* pGameState = (game_state*)Memory->PermanentStorage;
-    game_assets* Assets = &Memory->Assets;
-    platform_api* Platform = &Memory->Platform;
-    render_group* Group = Memory->Group;
 
-    if (!Memory->IsInitialized) {
-        // Memory arenas
-        InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
+// Entities
+void InitializeEntity(entity* Entity, tile_position TilePosition, loaded_bmp* BMP) {
+    *Entity = { 0 };
 
-        // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        // Load your assets here
+    Entity->BMP = BMP;
+    //Entity->BMPOffset = { -(double)(BMP->Header.Width) / 2, -(double)(BMP->Header.Height + TILESIZE) / 2, 0 };
+    Entity->BMPOffset = { -(double)(BMP->Header.Width) / 2, -(double)(BMP->Header.Height) / 2, 0 };
+    Entity->Basis = { V3(1,0,0), V3(0,1,0), V3(0,0,1) };
 
-        Memory->Assets.PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
-        Memory->Assets.PlayerBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\PlayerBack.bmp");
-        Memory->Assets.FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
-        Memory->Assets.DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Door.bmp");
-        Memory->Assets.ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Treasure.bmp");
+    Entity->TilePosition = TilePosition;
+    Entity->Position = ToWorldCoord(TilePosition);
+    Entity->Velocity = { 0,0,0 };
+}
 
-        // User Interface
-        // InitializeUI();
-
-        // Initialize map
-        srand(time(0));
-        *pGameState->Rooms = { 0 };
-        InitMap(pGameState->Map, pGameState->Rooms, &pGameState->nRooms);
-
-        // Initialize game state
-        pGameState->TileSize = 30;
-
-        // Initialize player
-        pGameState->Player.FrontBMP = &Memory->Assets.PlayerBMP;
-        pGameState->Player.BackBMP = &Memory->Assets.PlayerBackBMP;
-
-        pGameState->Player.Entity = { 0 };
-        pGameState->Player.Entity.BMP = pGameState->Player.FrontBMP;
-        pGameState->Player.Entity.BMPOffset = { -(double)(pGameState->Player.FrontBMP->Header.Width) / 2, -(double)(pGameState->Player.FrontBMP->Header.Height + pGameState->TileSize) / 2, 0 };
-        pGameState->Player.Entity.Basis = {V3(1,0,0), V3(0,1,0), V3(0,0,1)};
-        
-        pGameState->Player.Entity.TilePosition = RandomTile(pGameState->Map, Floor);
-        pGameState->Player.Entity.Position = ToWorldCoord(pGameState->Player.Entity.TilePosition, pGameState->TileSize);
-        pGameState->Player.Entity.Velocity = { 0,0,0 };
-
-
-        //game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, pGameState->TileSize);
-        pGameState->Camera = { pGameState->Player.Entity.Position, {0,0,0}, (int)ScreenBuffer->Width, (int)ScreenBuffer->Height };
-
-        // Renderer --------------------------------------------------------------------------------------------------------------------------------------
-        Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
-        Memory->Group->Camera = &pGameState->Camera;
-        Group = Memory->Group;
-
-        Memory->IsInitialized = true;
-    }
-
-    pGameState->Camera.Width = (int)ScreenBuffer->Width;
-    pGameState->Camera.Height = (int)ScreenBuffer->Height;
-
-    PushClear(Group, Black);
-
-    // Controls
-    // Character movement
-
-    // Discrete movement
+void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) {
+    // Movement
+        // Discrete
     //tile_direction PlayerMovement = { 0,0 };
     //if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown) {
     //    PlayerMovement.Col = 1;
@@ -618,7 +576,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //    pGameState->PlayerPosition = NewPosition;
     //}
 
-    // Continuous movement
+        // Continuous
     v3 Acceleration = { 0,0,0 };
     bool SomeInput = false;
     if (Input->Keyboard.D.IsDown) {
@@ -639,7 +597,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     if (!SomeInput) {
-        Acceleration = -0.8 * pGameState->Player.Entity.Velocity;
+        Acceleration = -0.8 * Player->Entity.Velocity;
     }
 
     v3 Direction = normalize(Acceleration);
@@ -647,51 +605,186 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     double MaxVelocity = 5.0;
     double MinVelocity = 0.2;
-    v3 Velocity = pGameState->Player.Entity.Velocity + Acceleration;
+    v3 Velocity = Player->Entity.Velocity + Acceleration;
     if (module(Velocity) <= MaxVelocity) {
-        pGameState->Player.Entity.Velocity = Velocity;
+        Player->Entity.Velocity = Velocity;
     }
     else {
-        pGameState->Player.Entity.Velocity = MaxVelocity * Direction;
+        Player->Entity.Velocity = MaxVelocity * Direction;
     }
 
     if (module(Velocity) < MinVelocity) {
-        pGameState->Player.Entity.Velocity = {0,0,0};
+        Player->Entity.Velocity = { 0,0,0 };
     }
 
-    v3 Position = pGameState->Player.Entity.Position + pGameState->Player.Entity.Velocity;
+    v3 Position = Player->Entity.Position + Player->Entity.Velocity;
 
-    tile_position TilePosition = ToTilePosition(Position, pGameState->TileSize);
+    tile_position TilePosition = ToTilePosition(Position);
     if (IsValid(TilePosition.Row, TilePosition.Col)) {
-        tile_type NewTile = pGameState->Map[TilePosition.Row][TilePosition.Col].Type;
+        tile_type NewTile = Map[TilePosition.Row][TilePosition.Col].Type;
         if (NewTile == Door || NewTile == Floor) {
-            pGameState->Player.Entity.Position = Position;
-            pGameState->Player.Entity.TilePosition = TilePosition;
+            Player->Entity.Position = Position;
+            Player->Entity.TilePosition = TilePosition;
         }
         else {
-            pGameState->Player.Entity.Velocity = { 0,0,0 };
+            Player->Entity.Velocity = { 0,0,0 };
         }
     }
     else {
-        pGameState->Player.Entity.Velocity = { 0,0,0 };
+        Player->Entity.Velocity = { 0,0,0 };
     }
 
     // Changing BMP with direction
-    if (pGameState->Player.Entity.Velocity.Y >= 0) {
-        pGameState->Player.Entity.BMP = pGameState->Player.FrontBMP;
+    if (Player->Entity.Velocity.Y >= 0) {
+        Player->Entity.BMP = Player->FrontBMP;
     }
     else {
-        pGameState->Player.Entity.BMP = pGameState->Player.BackBMP;
+        Player->Entity.BMP = Player->BackBMP;
     }
 
-    if (pGameState->Player.Entity.Velocity.X < 0) {
-        pGameState->Player.Entity.Basis.X = V3(-1, 0, 0);
-        pGameState->Player.Entity.BMPOffset.X = (double)(pGameState->Player.FrontBMP->Header.Width) / 2;
+    if (Player->Entity.Velocity.X < 0) {
+        Player->Entity.Basis.X = V3(-1, 0, 0);
+        Player->Entity.BMPOffset.X = (double)(Player->FrontBMP->Header.Width) / 2;
     }
-    else if (pGameState->Player.Entity.Velocity.X > 0) {
-        pGameState->Player.Entity.Basis.X = V3(1, 0, 0);
-        pGameState->Player.Entity.BMPOffset.X = -(double)(pGameState->Player.FrontBMP->Header.Width) / 2;
+    else if (Player->Entity.Velocity.X > 0) {
+        Player->Entity.Basis.X = V3(1, 0, 0);
+        Player->Entity.BMPOffset.X = -(double)(Player->FrontBMP->Header.Width) / 2;
     }
+}
+
+void Update(follower* Follower, v3 PlayerPosition) {
+    // Movement
+    if (module(PlayerPosition - Follower->Entity.Position) > 60) {
+        v3 Direction = normalize(PlayerPosition - Follower->Entity.Position);
+        double Distance = module(PlayerPosition - Follower->Entity.Position);
+        Follower->Entity.Velocity = 0.1 * (Distance - 60) * Direction;
+        Follower->Entity.Position = Follower->Entity.Position + Follower->Entity.Velocity;
+        
+        // BMP change
+        if (Follower->Entity.Velocity.Y > 0) {
+            Follower->Entity.BMP = Follower->FrontBMP;
+        }
+        else if (Follower->Entity.Velocity.Y < 0) {
+            Follower->Entity.BMP = Follower->BackBMP;
+        }
+
+        if (Follower->Entity.Velocity.X < 0) {
+            Follower->Entity.Basis.X = V3(-1, 0, 0);
+            Follower->Entity.BMPOffset.X = (double)(Follower->FrontBMP->Header.Width) / 2;
+        }
+        else if (Follower->Entity.Velocity.X > 0) {
+            Follower->Entity.Basis.X = V3(1, 0, 0);
+            Follower->Entity.BMPOffset.X = -(double)(Follower->FrontBMP->Header.Width) / 2;
+        }
+    }
+    else {
+        Follower->Entity.Velocity = { 0,0,0 };
+    }
+}
+
+void Update(enemy* Enemy) {
+
+}
+
+
+// Main
+extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
+{
+    game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    game_assets* Assets = &Memory->Assets;
+    platform_api* Platform = &Memory->Platform;
+    render_group* Group = Memory->Group;
+
+    if (!Memory->IsInitialized) {
+        Tests();
+
+        // Memory arenas
+        InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
+
+        // Assets ----------------------------------------------------------------------------------------------------------------------------------------
+        // Load your assets here
+
+        Memory->Assets.PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
+        Memory->Assets.PlayerBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\PlayerBack.bmp");
+        Memory->Assets.FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
+        Memory->Assets.DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Door.bmp");
+        Memory->Assets.ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Treasure.bmp");
+        Memory->Assets.EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Enemy.bmp");
+        Memory->Assets.EnemyBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\EnemyBack.bmp");
+        Memory->Assets.BombBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Bomb.bmp");
+
+        // User Interface
+        // InitializeUI();
+
+        // Initialize map
+        srand(time(0));
+        *pGameState->Rooms = { 0 };
+        InitMap(pGameState->Map, pGameState->Rooms, &pGameState->nRooms);
+
+        // Initialize game state
+        // Initialize player
+        pGameState->Player.FrontBMP = &Memory->Assets.PlayerBMP;
+        pGameState->Player.BackBMP = &Memory->Assets.PlayerBackBMP;
+
+        InitializeEntity(&pGameState->Player.Entity, RandomTile(pGameState->Map, Floor), pGameState->Player.FrontBMP);
+        pGameState->Player.Entity.Position.Z = 1.0;
+
+        pGameState->Player.Entity.BMPOffset.Y = -(double)(pGameState->Player.Entity.BMP->Header.Height);
+
+        pGameState->Player.MaxHP = 100;
+        pGameState->Player.HP = pGameState->Player.MaxHP;
+
+        // Initialize follower
+        pGameState->Follower.FrontBMP = &Memory->Assets.PlayerBMP;
+        pGameState->Follower.BackBMP = &Memory->Assets.PlayerBackBMP;
+
+        InitializeEntity(&pGameState->Follower.Entity, pGameState->Player.Entity.TilePosition, pGameState->Follower.FrontBMP);
+        pGameState->Follower.Entity.Position.Z = 1.0;
+
+        // Initialize enemy
+        pGameState->Enemy.FrontBMP = &Memory->Assets.EnemyBMP;
+        pGameState->Enemy.BackBMP = &Memory->Assets.EnemyBackBMP;
+
+        InitializeEntity(&pGameState->Enemy.Entity, pGameState->Player.Entity.TilePosition, pGameState->Enemy.FrontBMP);
+
+
+        //game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, TILESIZE);
+        pGameState->Camera = { pGameState->Player.Entity.Position, {0,0,0}, (int)ScreenBuffer->Width, (int)ScreenBuffer->Height, 1.0 };
+
+        // Renderer --------------------------------------------------------------------------------------------------------------------------------------
+        Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
+        Memory->Group->Camera = &pGameState->Camera;
+        Group = Memory->Group;
+        Group->Characters = Assets->Characters;
+
+        Memory->IsInitialized = true;
+    }
+
+    if (Input->Mouse.Wheel > 0) {
+        pGameState->Camera.Zoom *= 1.2;
+    }
+    else if (Input->Mouse.Wheel < 0) {
+        pGameState->Camera.Zoom /= 1.2;
+    }
+
+    if (Input->Keyboard.E.IsDown && !Input->Keyboard.E.WasDown) {
+        pGameState->Player.HP--;
+    }
+
+    pGameState->Camera.Width = (int)ScreenBuffer->Width;
+    pGameState->Camera.Height = (int)ScreenBuffer->Height;
+
+    PushClear(Group, Black);
+
+    // Reset room
+    if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
+        InitMap(pGameState->Map, pGameState->Rooms, &pGameState->nRooms);
+    }
+
+    // Update entities
+    Update(pGameState->Map, &pGameState->Player, Input);
+
+    Update(&pGameState->Follower, pGameState->Player.Entity.Position);
 
     // Room exploration
     int CurrentRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.Entity.TilePosition);
@@ -729,13 +822,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     pGameState->Camera.Velocity = 10 * CameraDirection;*/
 
     // Autofollow player
-    pGameState->Camera.Velocity = 0.1*(pGameState->Player.Entity.Position - pGameState->Camera.Position);
-    pGameState->Camera.Position = pGameState->Camera.Position + pGameState->Camera.Velocity;
-
-    // Reset room
-    if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
-        InitMap(pGameState->Map, pGameState->Rooms, &pGameState->nRooms);
+    v3 CameraVelocity = 0.1 * (pGameState->Player.Entity.Position - pGameState->Camera.Position);
+    if (module(CameraVelocity) > 0.5) {
+        pGameState->Camera.Velocity = CameraVelocity;
     }
+    else {
+        pGameState->Camera.Velocity = { 0,0,0 };
+    }
+    pGameState->Camera.Position = pGameState->Camera.Position + pGameState->Camera.Velocity;
 
     // Debug camera position and velocity
     /*
@@ -755,10 +849,53 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     Target.Pitch = ScreenBuffer->Pitch;
     Target.Content = (uint32*)ScreenBuffer->Memory;
 
-    PushMap(Group, pGameState->Map, pGameState->nRooms, pGameState->Rooms, &Memory->Assets, pGameState->TileSize);
+    PushMap(Group, pGameState->Map, pGameState->nRooms, pGameState->Rooms, &Memory->Assets);
 
     PushEntity(Group, pGameState->Player.Entity, pGameState->Camera);
 
+    PushEntity(Group, pGameState->Follower.Entity, pGameState->Camera);
+
+    PushEntity(Group, pGameState->Enemy.Entity, pGameState->Camera);
+    
+    char TestTextContent[160] = "Sabe una cosa? Quien es el mesenhero de Dios? Y quien es el mesenhero del mesenhero? Y quien es el mesenhero del mensehero de Dios? Estamo en el apoclipsis.";
+    static text TestText = { 0 };
+    TestText.Color = White;
+    TestText.Content = TestTextContent;
+    TestText.Wrapped = true;
+    game_rect DialogRect = { 0, 0.7 * Target.Header.Height, (double)Target.Header.Width, 0.3 * Target.Header.Height };
+
+    static bool Dialog = false;
+    if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
+        Dialog = !Dialog;
+    }
+
+    static int Counter = 0;
+    if (Dialog) {
+        Counter++;
+        if (Counter == 2) {
+            if (TestText.Length <= 160) {
+                TestText.Length++;
+            }
+            Counter = 0;
+        }
+        PushText(Group, {0,0.7*Target.Header.Height + 40,10}, TestText, true);
+        
+        PushRect(Group, DialogRect, { 0.5f, 0.0f, 0.0f, 0.0f }, 9, true);
+        PushRectOutline(Group, DialogRect, Gray, true);
+    }
+    else {
+        TestText.Length = 0;
+        Counter = 0;
+    }
+
+    // UI
+        // Health bar
+    char HPText[3] = "HP";
+    char HealthText[12];
+    sprintf_s(HealthText, "%i/%i", pGameState->Player.HP, pGameState->Player.MaxHP);
+    PushHealthBar(Group, pGameState->Player.HP, pGameState->Player.MaxHP, HPText, HealthText);
+
+        // Debug info
     static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
         ShowDebugInfo = !ShowDebugInfo;
@@ -766,7 +903,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     if (ShowDebugInfo) {
         game_rect DebugInfoRect = { 0, 0, 450, 120 };
-        PushDebugLattice(Group, pGameState->TileSize, {0.2f, 1.0f, 1.0f, 0.0f });
+        PushDebugLattice(Group, {0.2f, 1.0f, 1.0f, 0.0f });
         PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f},1000, true);
         PushRectOutline(Group, DebugInfoRect, Gray, true);
         text Text = { 0 };
@@ -774,14 +911,14 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Text.Length = 48;
         Text.Points = 20;
         Text.Content = Memory->DebugInfo;
-        PushText(Group, Assets->Characters, { 0, 30, 1001 }, Text, true);
+        PushText(Group, { 0, 30, 1001 }, Text, true);
 
         // Mouse
         game_screen_position MousePosition = { Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y, 0 };
-        PushDebugShineTile(Group, ToTilePosition(MousePosition, pGameState->TileSize, pGameState->Camera), {0.5f, 1.0f, 1.0f, 1.0f}, pGameState->TileSize);
+        PushDebugShineTile(Group, ToTilePosition(MousePosition, pGameState->Camera), {0.5f, 1.0f, 1.0f, 1.0f});
 
         // Player position
-        PushDebugShineTile(Group, pGameState->Player.Entity.TilePosition, {0.5f, 1.0f, 0, 0}, pGameState->TileSize);
+        PushDebugShineTile(Group, pGameState->Player.Entity.TilePosition, {0.5f, 1.0f, 0, 0});
     }
 
 
