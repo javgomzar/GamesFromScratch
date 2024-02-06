@@ -265,6 +265,7 @@ void PushBMP(render_group* Group, loaded_bmp* Bitmap, v3 Position) {
     Entry->Header.Key.Y = Position.Y;
     Entry->Bitmap = Bitmap;
     Entry->Position = Position;
+    Entry->Mode = Clamp;
 }
 
 void PushText(render_group* Group, game_screen_position Position, text Text, bool isUI) {

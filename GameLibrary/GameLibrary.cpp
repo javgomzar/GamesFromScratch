@@ -221,7 +221,8 @@ void PlaySound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
 
 void GameOutputSound(game_assets* Assets, game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
-    //WriteSineWave(pSoundBuffer, 480, 0);
+    // WriteSineWave(pSoundBuffer, 480, 0);
+    PlaySound(&Assets->TestSound, pSoundBuffer);
 }
 
 game_sound LoadWAV(platform_read_entire_file* PlatformReadEntireFile, const char* FileName) {
@@ -232,6 +233,32 @@ game_sound LoadWAV(platform_read_entire_file* PlatformReadEntireFile, const char
     if (ChunkType != 'FFIR') {
         Assert(false);
     }
+
+    DWORD RIFFChunkSize = *Pointer++;
+    DWORD FileType = *Pointer++;
+    if (FileType != 'EVAW') {
+        Assert(false);
+    }
+
+    ChunkType = *Pointer++;
+    if (ChunkType != ' tmf') {
+        Assert(false);
+    }
+    DWORD ChunkSize = *Pointer++;
+    waveformat WaveFMT = *(waveformat*)Pointer;
+
+    Pointer += 4;
+    ChunkType = *Pointer++;
+    if (ChunkType != 'atad') {
+        Assert(false);
+    }
+    ChunkSize = *Pointer++;
+
+    game_sound Result = { 0 };
+    Result.SampleOut = (int16*)Pointer;
+    Result.SampleCount = ChunkSize / 2;
+    return Result;
+}
 
 
 // Returns true if row and col are non-negative and inside the map
@@ -518,7 +545,7 @@ void InitMap(tile Map[MAP_HEIGHT][MAP_WIDTH], room Rooms[], int* nRooms) {
     ProcessRooms(Map, nRooms, Rooms);
 
     // Doors
-    float PDoor = 0.5f;
+    float PDoor = 0.6f;
     for (int i = 0; i < *nRooms; i++) {
         for (int j = 0; j < i; j++) {
 
@@ -713,32 +740,6 @@ void Update(enemy* Enemy) {
 }
 
 
-    DWORD RIFFChunkSize = *Pointer++;
-    DWORD FileType = *Pointer++;
-    if (FileType != 'EVAW') {
-        Assert(false);
-    }
-
-    ChunkType = *Pointer++;
-    if (ChunkType != ' tmf') {
-        Assert(false);
-    }
-    DWORD ChunkSize = *Pointer++;
-    waveformat WaveFMT = *(waveformat*)Pointer;
-
-    Pointer += 4;
-    ChunkType = *Pointer++;
-    if (ChunkType != 'atad') {
-        Assert(false);
-    }
-    ChunkSize = *Pointer++;
-
-    game_sound Result = {0};
-    Result.SampleOut = (int16*)Pointer;
-    Result.SampleCount = ChunkSize / 2;
-    return Result;
-}
-
 // Main
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
@@ -755,15 +756,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
-
-        Memory->Assets.PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
-        Memory->Assets.PlayerBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\PlayerBack.bmp");
-        Memory->Assets.FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
-        Memory->Assets.DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Door.bmp");
-        Memory->Assets.ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Treasure.bmp");
-        Memory->Assets.EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Enemy.bmp");
-        Memory->Assets.EnemyBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\EnemyBack.bmp");
-        Memory->Assets.BombBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Bomb.bmp");
+        Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
+        Assets->PlayerBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\PlayerBack.bmp");
+        Assets->FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
+        Assets->DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Door.bmp");
+        Assets->ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Treasure.bmp");
+        Assets->EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Enemy.bmp");
+        Assets->EnemyBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\EnemyBack.bmp");
+        Assets->BombBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Bomb.bmp");
+        Assets->TestSound = LoadWAV(Platform->ReadEntireFile, "..\\GameLibrary\\Media\\Sound\\wilfred_theme.wav");
 
         // User Interface
         // InitializeUI();
@@ -892,7 +893,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     OutputDebugStringA(TextBuffer);
     */
 
-    GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
+    GameOutputSound(Assets, ScreenBuffer, SoundBuffer, pGameState, Input);
 
     // Render
     loaded_bmp Target = { 0 };

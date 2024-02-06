@@ -287,6 +287,7 @@ struct game_assets {
     loaded_bmp EnemyBMP;
     loaded_bmp EnemyBackBMP;
     loaded_bmp BombBMP;
+    game_sound TestSound;
 };
 
 
