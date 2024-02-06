@@ -819,7 +819,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Audio initialization
     int SamplesPerSecond = 48000;
-    const int nBuffers = 3;                         // Number of audio buffers to rotate
+    const int nBuffers = 5;                         // Number of audio buffers to rotate
     int BufferSize = SamplesPerSecond / 60;         // Buffer size in samples
     WAVEFORMATEX WaveFormat;
     SetWaveFormat(SamplesPerSecond, &WaveFormat);
@@ -1053,6 +1053,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         //DebugSyncDisplay(&Buffer, &GameSoundBuffers[currentBuffer]);
         // DisplayBufferToWindow(&BackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
         SwapBuffers(DeviceContext);
+
+        XAUDIO2_VOICE_STATE VoiceState;
+        pSourceVoice->GetState(&VoiceState);
         if (FAILED(SubmitBuffer(&XAudio2Buffers[currentBuffer], pSourceVoice))) {
             OutputDebugStringA("Buffer playing went wrong.\n");
         }
