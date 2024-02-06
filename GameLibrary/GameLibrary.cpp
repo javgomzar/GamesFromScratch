@@ -179,8 +179,60 @@ void DebugPlotSoundBuffer(game_offscreen_buffer* pScreenBuffer, game_sound_buffe
     }
 }
 
-void GameOutputSound(game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSoundBuffer, game_state* pGameState) {
+void PlaySound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
+    if (Sound->Played + pSoundBuffer->BufferSize > Sound->SampleCount) {
+        Sound->Played = 0;
+    }
+
+    uint32 SampleCount = pSoundBuffer->BufferSize;
+    int16* SampleOut = pSoundBuffer->SampleOut;
+    int16* SampleIn = Sound->SampleOut + Sound->Played;
+    for (uint32 SampleIndex = 0; SampleIndex < SampleCount; SampleIndex++) {
+        *SampleOut++ = *SampleIn++; // LEFT
+        *SampleOut++ = *SampleIn++; // RIGHT
+    }
+
+    Sound->Played += 2*pSoundBuffer->BufferSize;
+}
+
+void GameOutputSound(game_assets* Assets, game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
+    //WriteSineWave(pSoundBuffer, 480, 0);
+}
+
+game_sound LoadWAV(platform_read_entire_file* PlatformReadEntireFile, const char* FileName) {
+    read_file_result File = PlatformReadEntireFile(FileName);
+    DWORD* Pointer = (DWORD*)File.Content;
+    
+    DWORD ChunkType = *Pointer++;
+    if (ChunkType != 'FFIR') {
+        Assert(false);
+    }
+
+    DWORD RIFFChunkSize = *Pointer++;
+    DWORD FileType = *Pointer++;
+    if (FileType != 'EVAW') {
+        Assert(false);
+    }
+
+    ChunkType = *Pointer++;
+    if (ChunkType != ' tmf') {
+        Assert(false);
+    }
+    DWORD ChunkSize = *Pointer++;
+    waveformat WaveFMT = *(waveformat*)Pointer;
+
+    Pointer += 4;
+    ChunkType = *Pointer++;
+    if (ChunkType != 'atad') {
+        Assert(false);
+    }
+    ChunkSize = *Pointer++;
+
+    game_sound Result = {0};
+    Result.SampleOut = (int16*)Pointer;
+    Result.SampleCount = ChunkSize / 2;
+    return Result;
 }
 
 // Main
@@ -197,7 +249,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
-        
+
 
         // User Interface
         // InitializeUI();
@@ -214,7 +266,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     // Controls
     // Put here your input code
         
-    GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
+    GameOutputSound(Assets, ScreenBuffer, SoundBuffer, pGameState, Input);
 
     // Debug mouse position
     //if (Input->Mouse.LeftClick.IsDown) {

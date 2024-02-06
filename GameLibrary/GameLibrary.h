@@ -257,10 +257,28 @@ struct UI {
 };
 
 
+// Sounds
+struct game_sound {
+    uint32 SampleCount;
+    uint32 Played;
+    int16* SampleOut;
+};
+
+struct waveformat {
+    WORD    wFormatTag;        /* format type */
+    WORD    nChannels;         /* number of channels (i.e. mono, stereo...) */
+    DWORD   nSamplesPerSec;    /* sample rate */
+    DWORD   nAvgBytesPerSec;   /* for buffer estimation */
+    WORD    nBlockAlign;       /* block size of data */
+    WORD    wBitsPerSample;    /* Number of bits per sample of mono data */
+    WORD    cbSize;            /* The count in bytes of the size of extra information (after cbSize) */
+};
+
 // Game Assets
 struct game_assets {
     Character* Characters;
     loaded_bmp TestImage;
+    game_sound TestSound;
 };
 
 // Game State: Persistent (between frames) values
