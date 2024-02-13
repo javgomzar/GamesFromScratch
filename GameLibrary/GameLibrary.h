@@ -22,6 +22,7 @@ extern GAMELIBRARY_API int nGameLibrary;
 #pragma once
 #include "GamePlatform.h"
 #include "GameMath.h"
+#include "FFMpeg.h"
 
 // Freetype
 #include "ft2build.h"
@@ -274,18 +275,30 @@ struct waveformat {
     WORD    cbSize;            /* The count in bytes of the size of extra information (after cbSize) */
 };
 
+// Video
+struct game_video {
+    video_context* VideoContext;
+    int Handle;
+    bool Loop;
+    double TimeElapsed;
+};
+
 // Game Assets
 struct game_assets {
     Character* Characters;
     loaded_bmp TestImage;
     game_sound TestSound;
+    game_video TestVideo;
 };
 
 // Game State: Persistent (between frames) values
 struct game_state {
     memory_arena TextArena;
     memory_arena RenderArena;
+    memory_arena VideoArena;
     UI UserInterface;
+    double Time;
+    double LastFrameTime;
 };
 
 // Game Memory

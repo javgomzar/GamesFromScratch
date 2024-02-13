@@ -1,30 +1,49 @@
 #pragma once
+#include "FFMPEG.h"
 
-const int MAX_ENTRIES = 100;
+const int MAX_ENTRIES = 500;
 
 struct render_basis {
-	v3 P;
+    v3 X;
+    v3 Y;
+    v3 Z;
 };
 
 enum render_group_entry_type {
-	group_type_render_entry_clear,
+    group_type_render_entry_clear,
     group_type_render_entry_line,
-	group_type_render_entry_rect,
+    group_type_render_entry_rect,
+    group_type_render_entry_textured_rect,
+    group_type_render_entry_textured_rect_basis,
     group_type_render_entry_rect_outline,
-	group_type_render_entry_bmp,
+    group_type_render_entry_bmp,
     group_type_render_entry_text,
-    group_type_render_entry_button
+    group_type_render_entry_button,
+    group_type_render_entry_video
 };
 
+enum wrap_mode {
+    Clamp,
+    Repeat
+};
+
+struct sort_key {
+    double Z;
+};
+
+bool LessThan(sort_key Key1, sort_key Key2) {
+    return Key1.Z < Key2.Z;
+}
+
 struct render_group_header {
-	render_group_entry_type Type;
-	uint32 Key;
-	uint32 PushBufferOffset;
+    render_group_entry_type Type;
+    sort_key Key;
+    uint32 PushBufferOffset;
 };
 
 struct render_entry_clear {
-	render_group_header Header;
-	color Color;
+    render_group_header Header;
+    color Color;
 };
 
 struct render_entry_line {
@@ -35,9 +54,25 @@ struct render_entry_line {
 };
 
 struct render_entry_rect {
-	render_group_header Header;
-	game_rect Rect;
-	color Color;
+    render_group_header Header;
+    game_rect Rect;
+    color Color;
+};
+
+struct render_entry_textured_rect_basis {
+    render_group_header Header;
+    render_basis* Basis;
+    v3 Position;
+    loaded_bmp* Texture;
+    wrap_mode Mode;
+    bool ForceTextureUpdate;
+};
+
+struct render_entry_textured_rect {
+    render_group_header Header;
+    game_rect Rect;
+    loaded_bmp* Texture;
+    bool ForceTextureUpdate;
 };
 
 struct render_entry_rect_outline {
@@ -47,13 +82,15 @@ struct render_entry_rect_outline {
 };
 
 struct render_entry_bmp {
-	render_group_header Header;
-	loaded_bmp* Bitmap;
-	game_screen_position Position;
+    render_group_header Header;
+    loaded_bmp* Bitmap;
+    v3 Position;
+    wrap_mode Mode;
 };
 
 struct render_entry_text {
     render_group_header Header;
+    render_basis Basis;
     Character* Characters;
     game_screen_position Position;
     text Text;
@@ -65,18 +102,24 @@ struct render_entry_button {
     button* Button;
 };
 
-struct render_group {
-	float MetersToPixels;
-	render_basis* DefaultBasis;
+struct render_entry_video {
+    render_group_header Header;
+    game_video* Video;
+    game_rect Rect;
+};
 
-	uint32 MaxPushBufferSize;
-	uint32 PushBufferSize;
-	uint32 PushBufferElementCount;
-	uint8* PushBufferBase;
+struct render_group {
+    float MetersToPixels;
+    render_basis* DefaultBasis;
+    Character* Characters;
+    uint32 MaxPushBufferSize;
+    uint32 PushBufferSize;
+    uint32 PushBufferElementCount;
+    uint8* PushBufferBase;
 };
 
 struct sort_entry {
-    uint32 Key;
+    sort_key Key;
     uint32 PushBufferOffset;
 };
 
@@ -88,7 +131,9 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->PushBufferSize = 0;
 
     Result->DefaultBasis = PushStruct(Arena, render_basis);
-    Result->DefaultBasis->P = V3(0, 0, 0);
+    Result->DefaultBasis->X = V3(1, 0, 0);
+    Result->DefaultBasis->Y = V3(0, 1, 0);
+    Result->DefaultBasis->Z = V3(0, 0, 1);
     Result->MetersToPixels = 1;
 
     return(Result);
@@ -101,7 +146,7 @@ render_group_header* PushRenderElement_(render_group* Group, uint32 Size, render
 
     if ((Group->PushBufferSize + Size) < Group->MaxPushBufferSize) {
         Result = (render_group_header*)(Group->PushBufferBase + Group->PushBufferSize);
-        Result->Key = 0; // Must be set when pushed
+        Result->Key = { 0 }; // Must be set when pushed
         Result->Type = Type;
         Result->PushBufferOffset = Group->PushBufferSize;
 
@@ -110,6 +155,7 @@ render_group_header* PushRenderElement_(render_group* Group, uint32 Size, render
     }
     else {
         // Invalid code path
+        Assert(false);
     }
 
     return Result;
@@ -121,81 +167,136 @@ uint32 GetSizeOf(render_group_entry_type Type) {
         {
             return sizeof(render_entry_clear);
         } break;
+
         case group_type_render_entry_line:
         {
             return sizeof(render_entry_line);
         } break;
+
         case group_type_render_entry_rect:
         {
             return sizeof(render_entry_rect);
         } break;
+
         case group_type_render_entry_rect_outline:
         {
             return sizeof(render_entry_rect_outline);
         } break;
+
         case group_type_render_entry_bmp:
         {
             return sizeof(render_entry_bmp);
         } break;
+
         case group_type_render_entry_text:
         {
             return sizeof(render_entry_text);
         } break;
+
         case group_type_render_entry_button:
         {
             return sizeof(render_entry_button);
+        } break;
+
+        case group_type_render_entry_textured_rect:
+        {
+            return sizeof(render_entry_textured_rect);
+        } break;
+
+        case group_type_render_entry_textured_rect_basis:
+        {
+            return sizeof(render_entry_textured_rect_basis);
+        } break;
+
+        case group_type_render_entry_video:
+        {
+            return sizeof(render_entry_video);
+        } break;
+
+        default:
+        {
+            Assert(false);
         } break;
     }
 }
 
 void PushClear(render_group* Group, color Color) {
     render_entry_clear* Entry = PushRenderElement(Group, render_entry_clear);
-    Entry->Header.Key = 0;
+    Entry->Header.Key.Z = 0;
     Entry->Color = Color;
 }
 
 void PushLine(render_group* Group, color Color, game_screen_position Start, game_screen_position Finish) {
     render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
-    Entry->Header.Key = 0;
+    Entry->Header.Key.Z = max(Start.Z, Finish.Z);
     Entry->Color = Color;
     Entry->Start = Start;
     Entry->Finish = Finish;
 }
 
-void PushRect(render_group* Group, game_rect Rect, color Color, int Z) {
+void PushRect(render_group* Group, game_rect Rect, color Color, double Z) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
-    Entry->Header.Key = Z;
+    Entry->Header.Key.Z = Z;
     Entry->Rect = Rect;
     Entry->Color = Color;
+}
+
+void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, double Z) {
+    render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
+    Entry->Header.Key.Z = Z;
+    Entry->Texture = Texture;
+    Entry->Rect = Rect;
+}
+
+void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis* Basis, wrap_mode Mode) {
+    render_entry_textured_rect_basis* Entry = PushRenderElement(Group, render_entry_textured_rect_basis);
+    Entry->Header.Key.Z = Position.Z;
+    Entry->Texture = Texture;
+    Entry->Basis = Basis;
+    Entry->Position = Position;
+    Entry->Mode = Mode;
 }
 
 void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
-    render_entry_rect_outline *Entry = PushRenderElement(Group, render_entry_rect_outline);
-    Entry->Header.Key = 0;
+    render_entry_rect_outline* Entry = PushRenderElement(Group, render_entry_rect_outline);
+    Entry->Header.Key.Z = 300;
     Entry->Rect = Rect;
     Entry->Color = Color;
 }
 
-void PushBMP(render_group* Group, loaded_bmp* Bitmap, game_screen_position Position) {
+void PushBMP(render_group* Group, loaded_bmp* Bitmap, v3 Position) {
     render_entry_bmp* Entry = PushRenderElement(Group, render_entry_bmp);
-    Entry->Header.Key = Position.Z;
+    Entry->Header.Key.Z = Position.Z;
     Entry->Bitmap = Bitmap;
     Entry->Position = Position;
+    Entry->Mode = Clamp;
 }
 
-void PushText(render_group* Group, Character* Characters, game_screen_position Position, text Text) {
+void PushText(render_group* Group, game_screen_position Position, text Text) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
-    Entry->Header.Key = Position.Z;
-    Entry->Characters = Characters;
+    Entry->Header.Key.Z = Position.Z;
+    Entry->Characters = Group->Characters;
     Entry->Position = Position;
     Entry->Text = Text;
+    float a = (double)Text.Points / 20.0;
+    Entry->Basis.X = V3(a, 0, 0);
+    Entry->Basis.Y = V3(0, a, 0);
+    Entry->Basis.Z = V3(0, 0, a);
 }
 
 void PushButton(render_group* Group, Character* Characters, button* Button) {
     render_entry_button* Entry = PushRenderElement(Group, render_entry_button);
-    Entry->Header.Key = 0;
+    Entry->Header.Key.Z = 0;
     Entry->Button = Button;
     Entry->Characters = Characters;
+}
+
+void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
+    render_entry_video* Entry = PushRenderElement(Group, render_entry_video);
+    
+    Entry->Header.Key.Z = Z;
+    Entry->Video = Video;
+    Entry->Rect = Rect;
 }
 
 void ClearEntries(render_group* Group) {
@@ -204,7 +305,7 @@ void ClearEntries(render_group* Group) {
 }
 
 void SwapEntries(sort_entry* Entry1, sort_entry* Entry2) {
-    uint32 Key1 = Entry1->Key;
+    sort_key Key1 = Entry1->Key;
     uint32 Offset1 = Entry1->PushBufferOffset;
 
     *Entry1 = *Entry2;
@@ -223,12 +324,13 @@ void SortEntries(render_group* RenderGroup, sort_entry Entries[MAX_ENTRIES]) {
     }
 
     for (int i = 0; i < Count - 1; i++) {
-        if (Entries[i].Key > Entries[i + 1].Key) {
+        if (LessThan(Entries[i + 1].Key, Entries[i].Key))
+        {
             int j = i;
             do {
                 SwapEntries(&Entries[j], &Entries[j + 1]);
                 j--;
-            } while (j > 0 && Entries[j].Key > Entries[j + 1].Key);
+            } while (j > 0 && LessThan(Entries[j + 1].Key, Entries[j].Key));
         }
     }
 }
@@ -298,13 +400,13 @@ int CheckLineSide(v2 P0, v2 P1, v2 Position) {
 
 void RenderLine(loaded_bmp* OutputTarget, color Color, game_screen_position Start, game_screen_position Finish) {
     // Deciding if we need to render at all
-    game_rect Rect = {0};
+    game_rect Rect = { 0 };
     Rect.Width = OutputTarget->Header.Width;
     Rect.Height = OutputTarget->Header.Height;
 
-    if (!IsInside(Start, Rect)                 && 
-        !IsInside(Finish, Rect)                && 
-        !IsInside({ Start.X, Finish.Y }, Rect) && 
+    if (!IsInside(Start, Rect) &&
+        !IsInside(Finish, Rect) &&
+        !IsInside({ Start.X, Finish.Y }, Rect) &&
         !IsInside({ Finish.X, Start.Y }, Rect)) {
         return;
     }
@@ -505,38 +607,6 @@ void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, game_screen_position P
 //    }
 //}
 
-
-// Bitmaps
-void ClearBitmap(loaded_bmp* Bitmap) {
-    if (Bitmap->Content) {
-        int32 TotalBitmapSize = Bitmap->Header.Width * Bitmap->Header.Height * 32;
-        ZeroSize(TotalBitmapSize, Bitmap->Content);
-    }
-}
-
-loaded_bmp MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool ClearToZero = true) {
-    loaded_bmp Result;
-    Result.Header = { 0 };
-    Result.Header.Width = Width;
-    Result.Header.Height = Height;
-    Result.Header.BitsPerPixel = 32;
-    Result.BytesPerPixel = 4;
-    Result.Pitch = 4 * Width;
-    int32 TotalBitmapSize = Width * Height * 32;
-    Result.Header.FileSize = TotalBitmapSize;
-
-    Result.Header.RedMask = 0x00ff0000;
-    Result.Header.GreenMask = 0x0000ff00;
-    Result.Header.BlueMask = 0x000000ff;
-    Result.AlphaMask = 0xff000000;
-
-    Result.Content = (uint32*)PushSize(Arena, TotalBitmapSize / 8);
-    if (ClearToZero) {
-        ClearBitmap(&Result);
-    }
-    return Result;
-}
-
 // Text
 void LoadFTBMP(FT_Bitmap* SourceBMP, loaded_bmp* DestBMP) {
     DestBMP->Header.Width = SourceBMP->width;
@@ -641,7 +711,7 @@ void RenderGroupToOutput(render_group* Group, loaded_bmp* OutputTarget) {
                 render_entry_button* Entry = (render_entry_button*)Header;
                 button* Button = Entry->Button;
                 RenderBMP(OutputTarget, Button->Clicked ? &Button->ClickedImage : &Button->Image, { Button->Collider.Left, Button->Collider.Top, 0 });
-                RenderText(OutputTarget, Entry->Arena, Button->Face, { 
+                RenderText(OutputTarget, Entry->Arena, Button->Face, {
                     Button->Collider.Left + Button->Image.Header.Width / 2,
                     Button->Collider.Top + Button->Image.Header.Height / 2,
                     0 }, Button->Text);

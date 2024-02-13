@@ -1,6 +1,10 @@
 #pragma once
 #include "stdint.h"
 
+#ifndef GAME_PLATFORM
+#define GAME_PLATFORM
+#endif
+
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
@@ -102,6 +106,36 @@ struct loaded_bmp {
     uint32 AlphaMask;
     uint32* Content;
 };
+
+void ClearBitmap(loaded_bmp* Bitmap) {
+    if (Bitmap->Content) {
+        int32 TotalBitmapSize = Bitmap->Header.Width * Bitmap->Header.Height * 8;
+        ZeroSize(TotalBitmapSize, Bitmap->Content);
+    }
+}
+
+loaded_bmp MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool ClearToZero = true) {
+    loaded_bmp Result = { 0 };
+    Result.Header = { 0 };
+    Result.Header.Width = Width;
+    Result.Header.Height = Height;
+    Result.Header.BitsPerPixel = 32;
+    Result.BytesPerPixel = 4;
+    Result.Pitch = 4 * Width;
+    int32 TotalBitmapSize = Width * Height * 32;
+    Result.Header.FileSize = TotalBitmapSize;
+
+    Result.Header.RedMask = 0x00ff0000;
+    Result.Header.GreenMask = 0x0000ff00;
+    Result.Header.BlueMask = 0x000000ff;
+    Result.AlphaMask = 0xff000000;
+
+    Result.Content = (uint32*)PushSize(Arena, TotalBitmapSize / 8);
+    if (ClearToZero) {
+        ClearBitmap(&Result);
+    }
+    return Result;
+}
 
 struct Character {
     unsigned char Letter;
