@@ -22,6 +22,7 @@ extern GAMELIBRARY_API int nGameLibrary;
 #pragma once
 #include "GamePlatform.h"
 #include "GameMath.h"
+#include "FFMpeg.h"
 
 // Freetype
 #include "ft2build.h"
@@ -276,6 +277,14 @@ struct waveformat {
     WORD    cbSize;            /* The count in bytes of the size of extra information (after cbSize) */
 };
 
+// Video
+struct game_video {
+    video_context* VideoContext;
+    int Handle;
+    bool Loop;
+    double TimeElapsed;
+};
+
 // Game Assets
 struct game_assets {
     Character* Characters;
@@ -288,6 +297,7 @@ struct game_assets {
     loaded_bmp EnemyBackBMP;
     loaded_bmp BombBMP;
     game_sound TestSound;
+    game_video TestVideo;
 };
 
 
@@ -424,6 +434,7 @@ struct enemy {
 struct game_state {
     memory_arena TextArena;
     memory_arena RenderArena;
+    memory_arena VideoArena;
     memory_arena MapArena;
     UI UserInterface;
     camera Camera;
@@ -433,6 +444,8 @@ struct game_state {
     tile Map[MAP_HEIGHT][MAP_WIDTH];
     int nRooms;
     room Rooms[MAX_ROOMS];
+    double Time;
+    double LastFrameTime;
 };
 
 // Game Memory

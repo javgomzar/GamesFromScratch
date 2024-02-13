@@ -6,7 +6,6 @@
 #include "GameLibrary.h"
 #include "render_group.h"
 #include "time.h"
-#include <gl/GL.h>
 
 #include "Tests.h"
 
@@ -31,7 +30,6 @@
             * Options.
             * Reset map?
 */
-
 
 //// This is an example of an exported variable
 //GAMELIBRARY_API int nGameLibrary=0;
@@ -258,6 +256,39 @@ game_sound LoadWAV(platform_read_entire_file* PlatformReadEntireFile, const char
     Result.SampleOut = (int16*)Pointer;
     Result.SampleCount = ChunkSize / 2;
     return Result;
+}
+
+// Video
+game_video LoadVideo(memory_arena* Arena, const char* Filename) {
+    game_video Result = { 0 };
+    Result.VideoContext = PushStruct(Arena, video_context);
+
+    InitializeVideo(Filename, Result.VideoContext);
+    int Width = Result.VideoContext->Frame->width;
+    int Height = Result.VideoContext->Frame->height;
+    Result.VideoContext->VideoOut = PushSize(Arena, Width * Height * 4);
+
+    return Result;
+}
+
+void PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z, double SecondsElapsed) {
+    
+    if (!Video->VideoContext->Ended) {
+        Video->TimeElapsed += SecondsElapsed;
+        char Text[256];
+        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext->PTS * Video->VideoContext->TimeBase);
+        OutputDebugStringA(Text);
+
+        if (Video->TimeElapsed > Video->VideoContext->PTS * Video->VideoContext->TimeBase) {
+            LoadFrame(Video->VideoContext);
+            Video->VideoContext->Width = Rect.Width;
+            Video->VideoContext->Height = Rect.Height;
+            WriteFrame(Video->VideoContext);
+        }
+    }
+    else {
+    }
+    _PushVideo(Group, Video, Rect, Z);
 }
 
 
@@ -747,12 +778,16 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
     render_group* Group = Memory->Group;
+    static video_context VideoContext = { 0 };
+    bool firstFrame = false;
 
     if (!Memory->IsInitialized) {
         Tests();
+        firstFrame = true;
 
         // Memory arenas
         InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
+        InitializeArena(&pGameState->VideoArena, Megabytes(15), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size + pGameState->RenderArena.Size);
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
@@ -955,15 +990,15 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     if (ShowDebugInfo) {
-        game_rect DebugInfoRect = { 0, 0, 450, 120 };
-        PushDebugLattice(Group, {0.2f, 1.0f, 1.0f, 0.0f });
-        PushRect(Group, DebugInfoRect, {0.5f, 0.0f, 0.0f, 0.0f},1000, true);
-        PushRectOutline(Group, DebugInfoRect, Gray, true);
+        game_rect DebugInfoRect = { 0, 0, 470, 150 };
+        PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 999);
+        PushRectOutline(Group, DebugInfoRect, Gray);
         text Text = { 0 };
         Text.Color = White;
-        Text.Length = 48;
+        Text.Length = 71;
         Text.Points = 20;
         Text.Content = Memory->DebugInfo;
+        PushDebugLattice(Group, { 0.2f, 1.0f, 1.0f, 0.0f });
         PushText(Group, { 0, 30, 1001 }, Text, true);
 
         // Mouse

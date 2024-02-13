@@ -1085,15 +1085,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             OutputDebugStringA("Missed a frame!\n");
         }
 
-        double ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
-        double msPerFrame = 1000.0f * ActualSecsElapsed;
-        double FPS = 1.0f / ActualSecsElapsed;
-        double MegaCyclesPerFrame = CyclesElapsed / 1000000.0f;
+        double ActualSecsElapsed = SecsElapsedPerFrame + 0.0005;
+        double msPerFrame = 1000.0 * ActualSecsElapsed;
+        double FPS = 1.0 / ActualSecsElapsed;
+        double MegaCyclesPerFrame = CyclesElapsed / 1000000.0;
         //TCHAR TextBuffer[256];
         //wsprintf(TextBuffer, L"%d ms/frame, %d fps, %d Mcycles/frame\n", (int)msPerFrame, (int)FPS, (int)MegaCyclesPerFrame);
         char TextBuffer[256];
-        sprintf_s(TextBuffer, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame", msPerFrame, FPS, MegaCyclesPerFrame);
+        sprintf_s(TextBuffer, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
         GameMemory.DebugInfo = TextBuffer;
+        pGameState->LastFrameTime = ActualSecsElapsed;
+        pGameState->Time += ActualSecsElapsed;
 
         if (FirstFrame) {
             pSourceVoice->Start(0, 0);
