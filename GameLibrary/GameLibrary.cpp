@@ -275,9 +275,10 @@ void PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z, do
     
     if (!Video->VideoContext->Ended) {
         Video->TimeElapsed += SecondsElapsed;
-        char Text[256];
-        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext->PTS * Video->VideoContext->TimeBase);
-        OutputDebugStringA(Text);
+        // DEBUG
+        //char Text[256];
+        //sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext->PTS * Video->VideoContext->TimeBase);
+        //OutputDebugStringA(Text);
 
         if (Video->TimeElapsed > Video->VideoContext->PTS * Video->VideoContext->TimeBase) {
             LoadFrame(Video->VideoContext);
@@ -289,6 +290,22 @@ void PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z, do
     else {
     }
     _PushVideo(Group, Video, Rect, Z);
+}
+
+void PushVideoLoop(render_group* Group, game_video* Video, game_rect Rect, int Z, double SecondsElapsed, int64_t StartOffset, int64_t EndOffset) {
+
+    PushVideo(Group, Video, Rect, Z, SecondsElapsed);
+    auto& VideoContext = Video->VideoContext;
+    auto& FormatContext = VideoContext->FormatContext;
+    auto& CodecContext = VideoContext->CodecContext;
+    auto& StreamIndex = VideoContext->VideoStreamIndex;
+    auto& PTS = VideoContext->PTS; // Presentation time-stamp (in time-base units)
+
+    if (PTS >= EndOffset) {
+        av_seek_frame(FormatContext, StreamIndex, StartOffset, AVSEEK_FLAG_ANY);
+        LoadFrame(VideoContext);
+        Video->TimeElapsed = Video->VideoContext->PTS * Video->VideoContext->TimeBase;
+    }
 }
 
 
@@ -771,6 +788,9 @@ void Update(enemy* Enemy) {
 }
 
 
+// Scenes
+
+
 // Main
 extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 {
@@ -799,7 +819,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Assets->EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Enemy.bmp");
         Assets->EnemyBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\EnemyBack.bmp");
         Assets->BombBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Bomb.bmp");
+        Assets->FadeFrame = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\FadeFrame.bmp");
         Assets->TestSound = LoadWAV(Platform->ReadEntireFile, "..\\GameLibrary\\Media\\Sound\\wilfred_theme.wav");
+        Assets->IntroVideo = LoadVideo(&pGameState->VideoArena, "..\\GameLibrary\\RogueMedia\\Video\\WILFREDCHILLIN2.mp4");
 
         // User Interface
         // InitializeUI();
@@ -810,6 +832,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         InitMap(pGameState->Map, pGameState->Rooms, &pGameState->nRooms);
 
         // Initialize game state
+        pGameState->Scene = Intro;
+         
         // Initialize player
         pGameState->Player.FrontBMP = &Memory->Assets.PlayerBMP;
         pGameState->Player.BackBMP = &Memory->Assets.PlayerBackBMP;
@@ -848,142 +872,210 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         Memory->IsInitialized = true;
     }
 
-    if (Input->Mouse.Wheel > 0) {
-        pGameState->Camera.Zoom *= 1.2;
-    }
-    else if (Input->Mouse.Wheel < 0) {
-        pGameState->Camera.Zoom /= 1.2;
-    }
+    // Text
+    char TitleTextBuffer[32] = "Press any key to continue";
+    text TitleText = { 0 };
+    TitleText.Color = White;
+    TitleText.Length = 25;
+    TitleText.Points = 18;
+    TitleText.Wrapped = false;
+    TitleText.Content = TitleTextBuffer;
 
-    if (Input->Keyboard.E.IsDown && !Input->Keyboard.E.WasDown) {
-        pGameState->Player.HP--;
-    }
-
-    pGameState->Camera.Width = (int)ScreenBuffer->Width;
-    pGameState->Camera.Height = (int)ScreenBuffer->Height;
-
-    PushClear(Group, Black);
-
-    // Reset room
-    if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
-        InitMap(pGameState->Map, pGameState->Rooms, &pGameState->nRooms);
-    }
-
-    // Update entities
-    Update(pGameState->Map, &pGameState->Player, Input);
-
-    Update(&pGameState->Follower, pGameState->Player.Entity.Position);
-
-    // Room exploration
-    int CurrentRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.Entity.TilePosition);
-    if (CurrentRoom != -1) {
-        pGameState->Rooms[CurrentRoom].Explored = true;
-    }
-
-    // Bombs?
-    //if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
-    //    tile_position Position = pGameState->PlayerPosition;
-    //    if (Position.Row - 1 >= 0 && pGameState->Map[Position.Row - 1][Position.Col].Type == Wall) {
-    //        pGameState->Map[Position.Row - 1][Position.Col].Type = Door;
-    //    }
-    //    if (Position.Col - 1 >= 0 && pGameState->Map[Position.Row][Position.Col-1].Type == Wall) {
-    //        pGameState->Map[Position.Row][Position.Col-1].Type = Door;
-    //    }
-    //}
-    
-    // Camera movement
-    /*v3 CameraDirection = { 0,0,0 };
-    if (Input->Keyboard.Right.IsDown) {
-        CameraDirection.X += 1;
-    }
-    if (Input->Keyboard.Left.IsDown) {
-        CameraDirection.X -= 1;
-    }
-    if (Input->Keyboard.Up.IsDown) {
-        CameraDirection.Y -= 1;
-    }
-    if (Input->Keyboard.Down.IsDown) {
-        CameraDirection.Y += 1;
-    }
-    CameraDirection = normalize(CameraDirection);
-
-    pGameState->Camera.Velocity = 10 * CameraDirection;*/
-
-    // Autofollow player
-    v3 CameraVelocity = 0.1 * (pGameState->Player.Entity.Position - pGameState->Camera.Position);
-    if (module(CameraVelocity) > 0.5) {
-        pGameState->Camera.Velocity = CameraVelocity;
-    }
-    else {
-        pGameState->Camera.Velocity = { 0,0,0 };
-    }
-    pGameState->Camera.Position = pGameState->Camera.Position + pGameState->Camera.Velocity;
-
-    // Debug camera position and velocity
-    /*
-    char TextBuffer[256];
-    sprintf_s(TextBuffer, " %.02f,%.02f,%.02f Position\n %.02f,%.02f,%.02f Velocity\n", 
-        pGameState->Camera.Position.X, pGameState->Camera.Position.Y, pGameState->Camera.Position.Z,
-        pGameState->Camera.Velocity.X, pGameState->Camera.Velocity.Y, pGameState->Camera.Velocity.Z);
-    OutputDebugStringA(TextBuffer);
-    */
-
-    GameOutputSound(Assets, ScreenBuffer, SoundBuffer, pGameState, Input);
-
-    // Render
-    loaded_bmp Target = { 0 };
-    Target.Header.Width = ScreenBuffer->Width;
-    Target.Header.Height = ScreenBuffer->Height;
-    Target.Pitch = ScreenBuffer->Pitch;
-    Target.Content = (uint32*)ScreenBuffer->Memory;
-
-    PushMap(Group, pGameState->Map, pGameState->nRooms, pGameState->Rooms, &Memory->Assets);
-
-    PushEntity(Group, pGameState->Player.Entity, pGameState->Camera);
-
-    PushEntity(Group, pGameState->Follower.Entity, pGameState->Camera);
-
-    PushEntity(Group, pGameState->Enemy.Entity, pGameState->Camera);
-    
     char TestTextContent[160] = "Sabe una cosa? Quien es el mesenhero de Dios? Y quien es el mesenhero del mesenhero? Y quien es el mesenhero del mensehero de Dios? Estamo en el apoclipsis.";
     static text TestText = { 0 };
     TestText.Color = White;
     TestText.Content = TestTextContent;
     TestText.Wrapped = true;
-    game_rect DialogRect = { 0, 0.7 * Target.Header.Height, (double)Target.Header.Width, 0.3 * Target.Header.Height };
 
-    static bool Dialog = false;
-    if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
-        Dialog = !Dialog;
-    }
+    switch (pGameState->Scene) {
+    case Intro:
+    {
+        PushClear(Group, Black);
 
-    static int Counter = 0;
-    if (Dialog) {
-        Counter++;
-        if (Counter == 2) {
-            if (TestText.Length <= 160) {
-                TestText.Length++;
+        static bool Start = false;
+        
+        if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
+            Start = true;
+        };
+
+        if (Start) {
+            game_rect WilfredRect = { 0 };
+            if (ScreenBuffer->Width >= ScreenBuffer->Height) {
+                WilfredRect.Top = 0;
+                WilfredRect.Left = (double)ScreenBuffer->Width / 2.0 - (double)ScreenBuffer->Height / 2.0;
+                WilfredRect.Width = (double)ScreenBuffer->Height;
+                WilfredRect.Height = (double)ScreenBuffer->Height;
             }
+            else {
+                WilfredRect.Left = 0;
+                WilfredRect.Top = (double)ScreenBuffer->Height / 2.0 - (double)ScreenBuffer->Width / 2.0;
+                WilfredRect.Width = (double)ScreenBuffer->Width;
+                WilfredRect.Height = (double)ScreenBuffer->Width;
+            }
+
+            GameOutputSound(Assets, ScreenBuffer, SoundBuffer, pGameState, Input);
+            PushVideoLoop(Group, &Assets->IntroVideo, WilfredRect, 10, pGameState->LastFrameTime, 185474, 250982);
+            PushTexturedRect(Group, WilfredRect, &Assets->FadeFrame, 20, true);
+            
+            TitleText.Color = Black;
+            PushText(Group, {(double)ScreenBuffer->Width / 2.0 - 235, (double)ScreenBuffer->Height / 1.2 - 2, 30}, TitleText, true);
+            TitleText.Color = White;
+            PushText(Group, { (double)ScreenBuffer->Width / 2.0 - 237, (double)ScreenBuffer->Height / 1.2, 31 }, TitleText, true);
+        }
+
+        if (Input->Keyboard.Eight.IsDown) {
+            pGameState->Scene = Main;
+            CloseVideo(Assets->IntroVideo.VideoContext);
+        }
+    } break;
+
+    case Main:
+    {
+        if (Input->Mouse.Wheel > 0) {
+            pGameState->Camera.Zoom *= 1.2;
+        }
+        else if (Input->Mouse.Wheel < 0) {
+            pGameState->Camera.Zoom /= 1.2;
+        }
+
+        if (Input->Keyboard.E.IsDown && !Input->Keyboard.E.WasDown) {
+            pGameState->Player.HP--;
+        }
+
+        pGameState->Camera.Width = (int)ScreenBuffer->Width;
+        pGameState->Camera.Height = (int)ScreenBuffer->Height;
+
+        PushClear(Group, Black);
+
+        // Reset room
+        if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
+            InitMap(pGameState->Map, pGameState->Rooms, &pGameState->nRooms);
+        }
+
+        // Update entities
+        Update(pGameState->Map, &pGameState->Player, Input);
+
+        Update(&pGameState->Follower, pGameState->Player.Entity.Position);
+
+        // Room exploration
+        int CurrentRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.Entity.TilePosition);
+        if (CurrentRoom != -1) {
+            pGameState->Rooms[CurrentRoom].Explored = true;
+        }
+
+        // Bombs?
+        //if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
+        //    tile_position Position = pGameState->PlayerPosition;
+        //    if (Position.Row - 1 >= 0 && pGameState->Map[Position.Row - 1][Position.Col].Type == Wall) {
+        //        pGameState->Map[Position.Row - 1][Position.Col].Type = Door;
+        //    }
+        //    if (Position.Col - 1 >= 0 && pGameState->Map[Position.Row][Position.Col-1].Type == Wall) {
+        //        pGameState->Map[Position.Row][Position.Col-1].Type = Door;
+        //    }
+        //}
+
+        // Camera movement
+        /*v3 CameraDirection = { 0,0,0 };
+        if (Input->Keyboard.Right.IsDown) {
+            CameraDirection.X += 1;
+        }
+        if (Input->Keyboard.Left.IsDown) {
+            CameraDirection.X -= 1;
+        }
+        if (Input->Keyboard.Up.IsDown) {
+            CameraDirection.Y -= 1;
+        }
+        if (Input->Keyboard.Down.IsDown) {
+            CameraDirection.Y += 1;
+        }
+        CameraDirection = normalize(CameraDirection);
+
+        pGameState->Camera.Velocity = 10 * CameraDirection;*/
+
+        // Autofollow player
+        v3 CameraVelocity = 0.1 * (pGameState->Player.Entity.Position - pGameState->Camera.Position);
+        if (module(CameraVelocity) > 0.5) {
+            pGameState->Camera.Velocity = CameraVelocity;
+        }
+        else {
+            pGameState->Camera.Velocity = { 0,0,0 };
+        }
+        pGameState->Camera.Position = pGameState->Camera.Position + pGameState->Camera.Velocity;
+
+        // Debug camera position and velocity
+        /*
+        char TextBuffer[256];
+        sprintf_s(TextBuffer, " %.02f,%.02f,%.02f Position\n %.02f,%.02f,%.02f Velocity\n",
+            pGameState->Camera.Position.X, pGameState->Camera.Position.Y, pGameState->Camera.Position.Z,
+            pGameState->Camera.Velocity.X, pGameState->Camera.Velocity.Y, pGameState->Camera.Velocity.Z);
+        OutputDebugStringA(TextBuffer);
+        */
+
+        Silence(SoundBuffer);
+
+        // Render
+        PushMap(Group, pGameState->Map, pGameState->nRooms, pGameState->Rooms, &Memory->Assets);
+
+        PushEntity(Group, pGameState->Player.Entity, pGameState->Camera);
+
+        PushEntity(Group, pGameState->Follower.Entity, pGameState->Camera);
+
+        PushEntity(Group, pGameState->Enemy.Entity, pGameState->Camera);
+
+        game_rect DialogRect = { 0, 0.7 * ScreenBuffer->Height, ScreenBuffer->Width, 0.3 * ScreenBuffer->Height };
+
+        static bool Dialog = false;
+        if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
+            Dialog = !Dialog;
+        }
+
+        static int Counter = 0;
+        if (Dialog) {
+            Counter++;
+            if (Counter == 2) {
+                if (TestText.Length <= 160) {
+                    TestText.Length++;
+                }
+                Counter = 0;
+            }
+            PushText(Group, { 0,0.7 * ScreenBuffer->Height + 40,10 }, TestText, true);
+
+            PushRect(Group, DialogRect, { 0.5f, 0.0f, 0.0f, 0.0f }, 9, true);
+            PushRectOutline(Group, DialogRect, Gray, true);
+        }
+        else {
+            TestText.Length = 0;
             Counter = 0;
         }
-        PushText(Group, {0,0.7*Target.Header.Height + 40,10}, TestText, true);
-        
-        PushRect(Group, DialogRect, { 0.5f, 0.0f, 0.0f, 0.0f }, 9, true);
-        PushRectOutline(Group, DialogRect, Gray, true);
-    }
-    else {
-        TestText.Length = 0;
-        Counter = 0;
-    }
 
-    // UI
-        // Health bar
-    char HPText[3] = "HP";
-    char HealthText[12];
-    sprintf_s(HealthText, "%i/%i", pGameState->Player.HP, pGameState->Player.MaxHP);
-    PushHealthBar(Group, pGameState->Player.HP, pGameState->Player.MaxHP, HPText, HealthText);
+        // UI
+            // Health bar
+        char HPText[3] = "HP";
+        char HealthText[12];
+        sprintf_s(HealthText, "%i/%i", pGameState->Player.HP, pGameState->Player.MaxHP);
+        PushHealthBar(Group, pGameState->Player.HP, pGameState->Player.MaxHP, HPText, HealthText);
 
-        // Debug info
+
+        // Software renderer as a fallback (toggle with Space)
+        //static bool SoftwareRenderer = false;
+        //if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
+        //    SoftwareRenderer = !SoftwareRenderer;
+        //}
+        //if (SoftwareRenderer) {
+        //    RenderGroupToOutput(Group, &Target);
+        //}
+        //else {
+        //    Platform.OpenGLRender(Group, &Target);
+        //}
+    } break;
+
+    default: 
+    {
+        Assert(false);
+    }
+}
+
+    // Debug info
     static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
         ShowDebugInfo = !ShowDebugInfo;
@@ -991,8 +1083,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     if (ShowDebugInfo) {
         game_rect DebugInfoRect = { 0, 0, 470, 150 };
-        PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 999);
-        PushRectOutline(Group, DebugInfoRect, Gray);
+        PushRect(Group, DebugInfoRect, { 0.5, 0.0, 0.0, 0.0 }, 999, true);
+        PushRectOutline(Group, DebugInfoRect, Gray, true);
         text Text = { 0 };
         Text.Color = White;
         Text.Length = 71;
@@ -1003,26 +1095,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
         // Mouse
         game_screen_position MousePosition = { Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y, 0 };
-        PushDebugShineTile(Group, ToTilePosition(MousePosition, pGameState->Camera), {0.5f, 1.0f, 1.0f, 1.0f});
+        PushDebugShineTile(Group, ToTilePosition(MousePosition, pGameState->Camera), { 0.5f, 1.0f, 1.0f, 1.0f });
 
         // Player position
-        PushDebugShineTile(Group, pGameState->Player.Entity.TilePosition, {0.5f, 1.0f, 0, 0});
+        PushDebugShineTile(Group, pGameState->Player.Entity.TilePosition, { 0.5f, 1.0f, 0, 0 });
     }
-
-
-    // Software renderer as a fallback (toggle with Space)
-    //static bool SoftwareRenderer = false;
-    //if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
-    //    SoftwareRenderer = !SoftwareRenderer;
-    //}
-    //if (SoftwareRenderer) {
-    //    RenderGroupToOutput(Group, &Target);
-    //}
-    //else {
-    //    Platform.OpenGLRender(Group, &Target);
-    //}
     
-    Platform->OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
+    Platform->OpenGLRender(Group, ScreenBuffer->Width, ScreenBuffer->Height);
 
     // Clear render group
     ClearEntries(Group);

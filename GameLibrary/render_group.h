@@ -3,10 +3,9 @@
 
 const int MAX_ENTRIES = 500;
 
-struct render_basis {
-    v3 X;
-    v3 Y;
-    v3 Z;
+enum coordinates {
+    Screen,
+    World,
 };
 
 enum render_group_entry_type {
@@ -16,7 +15,6 @@ enum render_group_entry_type {
     group_type_render_entry_textured_rect,
     group_type_render_entry_textured_rect_basis,
     group_type_render_entry_rect_outline,
-    group_type_render_entry_bmp,
     group_type_render_entry_text,
     group_type_render_entry_button,
     group_type_render_entry_debug_lattice,
@@ -42,6 +40,7 @@ struct render_group_header {
 	render_group_entry_type Type;
 	sort_key Key;
 	uint32 PushBufferOffset;
+    coordinates Coord;
 };
 
 struct render_entry_clear {
@@ -65,7 +64,7 @@ struct render_entry_rect {
 
 struct render_entry_textured_rect_basis {
     render_group_header Header;
-    render_basis* Basis;
+    render_basis Basis;
     v3 Position;
     loaded_bmp* Texture;
     wrap_mode Mode;
@@ -99,7 +98,6 @@ struct render_entry_text {
     Character* Characters;
     game_screen_position Position;
     text Text;
-    bool isUI;
 };
 
 struct render_entry_button {
@@ -127,7 +125,7 @@ struct render_entry_video {
 
 struct render_group {
 	float MetersToPixels;
-	render_basis* DefaultBasis;
+	render_basis DefaultBasis;
     camera* Camera;
     Character* Characters;
 	uint32 MaxPushBufferSize;
@@ -148,10 +146,10 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->MaxPushBufferSize = MaxPushBufferSize;
     Result->PushBufferSize = 0;
 
-    Result->DefaultBasis = PushStruct(Arena, render_basis);
-    Result->DefaultBasis->X = V3(1, 0, 0);
-    Result->DefaultBasis->Y = V3(0, 1, 0);
-    Result->DefaultBasis->Z = V3(0, 0, 1);
+    Result->DefaultBasis = { 0 };
+    Result->DefaultBasis.X = V3(1, 0, 0);
+    Result->DefaultBasis.Y = V3(0, 1, 0);
+    Result->DefaultBasis.Z = V3(0, 0, 1);
     Result->MetersToPixels = 1;
 
     return(Result);
@@ -201,11 +199,6 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_rect_outline);
         } break;
 
-        case group_type_render_entry_bmp:
-        {
-            return sizeof(render_entry_bmp);
-        } break;
-
         case group_type_render_entry_text:
         {
             return sizeof(render_entry_text);
@@ -224,6 +217,11 @@ uint32 GetSizeOf(render_group_entry_type Type) {
         case group_type_render_entry_textured_rect:
         {
             return sizeof(render_entry_textured_rect);
+        } break;
+
+        case group_type_render_entry_textured_rect_basis:
+        {
+            return sizeof(render_entry_textured_rect_basis);
         } break;
 
         case group_type_render_entry_debug_shine_tile:
@@ -245,6 +243,7 @@ uint32 GetSizeOf(render_group_entry_type Type) {
 
 void PushClear(render_group* Group, color Color) {
     render_entry_clear* Entry = PushRenderElement(Group, render_entry_clear);
+    Entry->Header.Coord = Screen;
     Entry->Header.Key.Z = 0;
     Entry->Header.Key.Y = 0;
     Entry->Color = Color;
@@ -252,6 +251,7 @@ void PushClear(render_group* Group, color Color) {
 
 void PushLine(render_group* Group, color Color, game_screen_position Start, game_screen_position Finish) {
     render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
+    Entry->Header.Coord = Screen;
     Entry->Header.Key.Z = max(Start.Z, Finish.Z);
     Entry->Header.Key.Y = 0;
     Entry->Color = Color;
@@ -259,51 +259,56 @@ void PushLine(render_group* Group, color Color, game_screen_position Start, game
     Entry->Finish = Finish;
 }
 
-void PushRect(render_group* Group, game_rect Rect, color Color, double Z) {
+void PushRect(render_group* Group, game_rect Rect, color Color, double Z, bool isUI = false) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
+    Entry->Header.Coord = isUI ? Screen : World;
     Entry->Header.Key.Z = Z;
     Entry->Header.Key.Y = 0;
     Entry->Rect = Rect;
     Entry->Color = Color;
-    Entry->isUI = isUI;
 }
 
-void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, double Z) {
+void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, double Z, bool isUI = false) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
+    Entry->Header.Coord = isUI ? Screen : World;
     Entry->Header.Key.Z = Z;
+    Entry->Header.Key.Y = 0;
     Entry->Texture = Texture;
     Entry->Rect = Rect;
 }
 
-void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis* Basis, wrap_mode Mode) {
+void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis Basis, wrap_mode Mode, bool isUI = false) {
     render_entry_textured_rect_basis* Entry = PushRenderElement(Group, render_entry_textured_rect_basis);
+    Entry->Header.Coord = isUI ? Screen : World;
     Entry->Header.Key.Z = Position.Z;
+    Entry->Header.Key.Y = Position.Y;
     Entry->Texture = Texture;
     Entry->Basis = Basis;
     Entry->Position = Position;
     Entry->Mode = Mode;
 }
 
-void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
+void PushRectOutline(render_group* Group, game_rect Rect, color Color, bool isUI = false) {
     render_entry_rect_outline *Entry = PushRenderElement(Group, render_entry_rect_outline);
+    Entry->Header.Coord = isUI ? Screen : World;
     Entry->Header.Key.Z = 300;
     Entry->Header.Key.Y = 0;
     Entry->Rect = Rect;
     Entry->Color = Color;
-    Entry->isUI = isUI;
 }
 
 void PushBMP(render_group* Group, loaded_bmp* Bitmap, v3 Position) {
-    render_entry_bmp* Entry = PushRenderElement(Group, render_entry_bmp);
+    render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
+    Entry->Header.Coord = World;
     Entry->Header.Key.Z = Position.Z;
     Entry->Header.Key.Y = Position.Y;
-    Entry->Bitmap = Bitmap;
-    Entry->Position = Position;
-    Entry->Mode = Clamp;
+    Entry->Rect = {Position.X, Position.Y, (double)Bitmap->Header.Width, (double)Bitmap->Header.Height};
+    Entry->Texture = Bitmap;
 }
 
-void PushText(render_group* Group, game_screen_position Position, text Text) {
+void PushText(render_group* Group, game_screen_position Position, text Text, bool isUI = false) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
+    Entry->Header.Coord = isUI ? Screen : World;
     Entry->Header.Key.Z = Position.Z;
     Entry->Header.Key.Y = Position.Y;
     Entry->Characters = Group->Characters;
@@ -325,6 +330,7 @@ void PushButton(render_group* Group, Character* Characters, button* Button) {
 
 void PushDebugLattice(render_group* Group, color Color) {
     render_entry_debug_lattice* Entry = PushRenderElement(Group, render_entry_debug_lattice);
+    Entry->Header.Coord = Screen;
     Entry->Header.Key.Z = 999;
     Entry->Header.Key.Y = 0;
     Entry->Color = Color;
@@ -332,6 +338,7 @@ void PushDebugLattice(render_group* Group, color Color) {
 
 void PushDebugShineTile(render_group* Group, tile_position Position, color Color) {
     render_entry_debug_shine_tile* Entry = PushRenderElement(Group, render_entry_debug_shine_tile);
+    Entry->Header.Coord = Screen;
     Entry->Header.Key.Z = 998;
     Entry->Header.Key.Y = 0;
     Entry->Position = Position;
@@ -360,7 +367,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
                 { 0, Room.Height, 0},
                 { 0, 0, 1 }
             };
-            PushTexturedRect(Group, &Assets->FloorBMP,{ Position.X, Position.Y, 0 }, Basis, Repeat);
+            PushTexturedRectBasis(Group, &Assets->FloorBMP,{ Position.X, Position.Y, 0 }, Basis, Repeat);
 
             for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
                 for (int j = Room.Left; j < Room.Left + Room.Width; j++) {
@@ -410,7 +417,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
 }
 
 void PushEntity(render_group* Group, entity Entity, camera Camera) {
-    PushTexturedRect(Group, Entity.BMP, Entity.Position + Entity.BMPOffset, Entity.Basis, Clamp);
+    PushTexturedRectBasis(Group, Entity.BMP, Entity.Position + Entity.BMPOffset, Entity.Basis, Clamp, false);
 }
 
 void PushHealthBar(render_group* Group, int HP, int MaxHP, char* HPTextContent, char* HealthTextContent) {
@@ -444,7 +451,7 @@ void PushHealthBar(render_group* Group, int HP, int MaxHP, char* HPTextContent, 
 
 void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
     render_entry_video* Entry = PushRenderElement(Group, render_entry_video);
-    
+    Entry->Header.Coord = Screen;
     Entry->Header.Key.Z = Z;
     Entry->Video = Video;
     Entry->Rect = Rect;

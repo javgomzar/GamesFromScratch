@@ -109,7 +109,7 @@ void OpenGLTexturedRect(game_rect Rect, bool FlipY = false, bool FlipX = false) 
 
 // Render a textured rectangle in OpenGL given position and basis.
 // It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis* Basis, wrap_mode Mode)
+void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, wrap_mode Mode)
 {
 	/*
 	*    A ---- B
@@ -119,17 +119,17 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis* Basis,
 	*      ->
 	*/
 	v3 A = Position;
-	v3 B = Position + Width * Basis->X;
-	v3 C = Position + Height * Basis->Y;
-	v3 D = Position + Width * Basis->X + Height * Basis->Y;
+	v3 B = Position + Width * Basis.X;
+	v3 C = Position + Height * Basis.Y;
+	v3 D = Position + Width * Basis.X + Height * Basis.Y;
 
 	float MinTexX = 0.0f;
 	float MinTexY = 0.0f;
 	float MaxTexX;
 	float MaxTexY;
 	if (Mode == Repeat) {
-		MaxTexX = module(Basis->X);
-		MaxTexY = module(Basis->Y);
+		MaxTexX = module(Basis.X);
+		MaxTexY = module(Basis.Y);
 	}
 	else {
 		MaxTexX = 1.0f;
@@ -143,80 +143,11 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis* Basis,
 	glTexCoord2f(MinTexX, MinTexY);
 	glVertex2f(C.X, C.Y);
 
-	switch (Mode) {
-		case Clamp:
-		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-		} break;
 	glTexCoord2f(MaxTexX, MinTexY);
 	glVertex2f(D.X, D.Y);
 
 	glTexCoord2f(MaxTexX, MaxTexY);
 	glVertex2f(B.X, B.Y);
-
-		case Repeat:
-		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		} break;
-	// Upper triangle
-	glTexCoord2f(MinTexX, MinTexY);
-	glVertex2f(C.X, C.Y);
-
-		default: {
-			OutputDebugStringA("Texture bind mode unknown. Falling back to GL_CLAMP as default.\n");
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-		}
-	}
-}
-
-void OpenGLTexturedRect(v3 Position, loaded_bmp* BMP, render_basis* Basis, wrap_mode Mode)
-{
-	/*      
-	*    A ---- B
-	*  ^ |      |
-	*  | |      |
-	*    C ---- D
-	*      ->
-	*/
-	v3 A = Position;
-	v3 B = Position + (double)(BMP->Header.Width) * Basis->X;
-	v3 C = Position + (double)(BMP->Header.Height) * Basis->Y;
-	v3 D = Position + (double)(BMP->Header.Width) * Basis->X + (double)(BMP->Header.Height) * Basis->Y;
-
-	OpenGLBindTexture(BMP, Mode);
-	
-	float MinTexX = 0.0f;
-	float MinTexY = 0.0f;
-	float MaxTexX;
-	float MaxTexY;
-	if (Mode == Repeat) {
-		MaxTexX = module(Basis->X);
-		MaxTexY = module(Basis->Y);
-	}
-	else {
-		MaxTexX = 1.0f;
-		MaxTexY = 1.0f;
-	}
-	glTexCoord2f(MaxTexX, MaxTexY);
-	glVertex2f(B.X, B.Y);
-
-	glEnable(GL_TEXTURE_2D);
-	glBegin(GL_TRIANGLES);
-
-	// Lower triangle
-	glTexCoord2f(MinTexX, MinTexY);
-	glVertex2f(C.X, C.Y);
-
-	glTexCoord2f(MaxTexX, MinTexY);
-	glVertex2f(D.X, D.Y);
-
-	glTexCoord2f(MaxTexX, MaxTexY);
-	glVertex2f(B.X, B.Y);
-	glTexCoord2f(MinTexX, MaxTexY);
-	glVertex2f(A.X, A.Y);
 
 	// Upper triangle
 	glTexCoord2f(MinTexX, MinTexY);
@@ -230,11 +161,9 @@ void OpenGLTexturedRect(v3 Position, loaded_bmp* BMP, render_basis* Basis, wrap_
 
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
-	glEnd();
-	glDisable(GL_TEXTURE_2D);
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_position Position, text Text, render_basis* Basis)
+void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_position Position, text Text, render_basis Basis)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;
@@ -256,7 +185,6 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 			}
 			if (c != ' ') {
 				glColor4f(Text.Color.R, Text.Color.G, Text.Color.B, Text.Color.Alpha);
-				OpenGLTexturedRect({ PenX + pCharacter->Left, PenY - pCharacter->Top, 0 }, pCharacter->Bitmap, Basis, Clamp);
 				OpenGLBindTexture(pCharacter->Bitmap, Clamp);
 				OpenGLTexturedRect(
 					{ PenX + pCharacter->Left, PenY - pCharacter->Top, 0 },
@@ -265,7 +193,7 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 				);
 			}
 
-			PenX += (pCharacter->Advance >> 6) * Basis->X.X;
+			PenX += (pCharacter->Advance >> 6) * Basis.X.X;
 		}
 	}
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -364,6 +292,20 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 	uint32 EntryCount = Group->PushBufferElementCount;
 	for (uint32 EntryIndex = 0; EntryIndex < EntryCount; EntryIndex++) {
 		render_group_header* Header = (render_group_header*)(Group->PushBufferBase + Entries[EntryIndex].PushBufferOffset);
+
+		// Render coordinates
+		switch (Header->Coord) {
+			case Screen: {
+				SetScreenProjection(Width, Height);
+			} break;
+
+			case World:
+			default: {
+				SetCameraProjection(Group->Camera, Width, Height);
+			}
+		}
+
+		// Rendering each type
 		switch (Header->Type) {
 			case group_type_render_entry_clear:
 			{
@@ -376,41 +318,16 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			case group_type_render_entry_rect:
 			{
 				render_entry_rect Entry = *(render_entry_rect*)Header;
-				if (Entry.isUI) {
-					SetScreenProjection(Width, Height);
-				}
-
 				OpenGLRectangle(Entry.Rect, Entry.Color);
-
-				if (Entry.isUI) {
-					SetCameraProjection(Group->Camera, Width, Height);
-				}
-			} break;
-
-			case group_type_render_entry_bmp:
-			{
-				render_entry_bmp Entry = *(render_entry_bmp*)Header;
-				OpenGLTexturedRect(Entry.Position, Entry.Bitmap, *Group->DefaultBasis, Entry.Mode);
-				OpenGLTexturedRect(
-					Entry.Position,
-					Entry.Bitmap->Header.Width, Entry.Bitmap->Header.Height,
-					Group->DefaultBasis, Clamp
-				);
 			} break;
 
 			case group_type_render_entry_text:
 			{
 				render_entry_text Entry = *(render_entry_text*)Header;
-				if (Entry.isUI) {
-					SetScreenProjection(Width, Height);
-				}
 
 				double a = (double)Entry.Text.Points / 20.0;
-				OpenGLRenderText(Width, Entry.Characters, Entry.Position, Entry.Text, Entry.Basis);
-				if (Entry.isUI) {
-					SetCameraProjection(Group->Camera, Width, Height);
-				}
-				OpenGLRenderText(Width, Entry.Characters, Entry.Position, Entry.Text, Group->DefaultBasis);
+				render_basis Basis = {V3(a,0,0), V3(0,a,0), V3(0,0,a)};
+				OpenGLRenderText(Width, Entry.Characters, Entry.Position, Entry.Text, Basis);
 			} break;
 
 			case group_type_render_entry_button:
@@ -420,9 +337,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				if (Button->Clicked) {
 					Assert(true);
 				}
-				OpenGLTexturedRect({ Button->Collider.Left, Button->Collider.Top, 0 }, Button->Clicked ? &Button->ClickedImage : &Button->Image, *Group->DefaultBasis, Clamp);
-
 				loaded_bmp* Texture = Button->Clicked ? &Button->ClickedImage : &Button->Image;
+				OpenGLBindTexture(Texture, Clamp);
+				OpenGLTexturedRect({ Button->Collider.Left, Button->Collider.Top, 0 }, Texture->Header.Width, Texture->Header.Height, Group->DefaultBasis, Clamp);
+
 				int Width = Texture->Header.Width;
 				int Height = Texture->Header.Height;
 				OpenGLTexturedRect(
@@ -441,10 +359,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 						Button->Collider.Left + (Button->Image.Header.Width - TextWidth) / 2,
 						Button->Collider.Top + Button->Image.Header.Height / 2 + TextHeight/4,
 						0 
-					}, Button->Text, *Group->DefaultBasis);
-						Button->Collider.Top + Button->Image.Header.Height / 2 + TextHeight / 4,
-						0
-					}, Button->Text, Group->DefaultBasis);
+					},
+					Button->Text, Group->DefaultBasis);
 			} break;
 
 			case group_type_render_entry_line:
@@ -452,27 +368,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				render_entry_line Entry = *(render_entry_line*)Header;
 
 				OpenGLRenderLine(Entry.Start, Entry.Finish, Entry.Color);
-			} break;
-
-			case group_type_render_entry_rect_outline:
-			{
-				render_entry_rect_outline Entry = *(render_entry_rect_outline*)Header;
-				game_screen_position TopLeft = { Entry.Rect.Left, Entry.Rect.Top, 0 };
-				game_screen_position TopRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 };
-				game_screen_position BottomLeft = { Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 };
-				game_screen_position BottomRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 };
-
-				if (Entry.isUI) {
-					SetScreenProjection(Width, Height);
-				}
-				OpenGLRenderLine(TopLeft, BottomLeft, Entry.Color);
-				OpenGLRenderLine(BottomLeft, BottomRight, Entry.Color);
-				OpenGLRenderLine(BottomRight, TopRight, Entry.Color);
-				OpenGLRenderLine(TopRight, TopLeft, Entry.Color);
-
-				if (Entry.isUI) {
-					SetCameraProjection(Group->Camera, Width, Height);
-				}
 			} break;
 
 			case group_type_render_entry_debug_lattice: 
@@ -492,9 +387,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				OpenGLRectangle(Rect, Entry.Color);
 			} break;
 
-			case group_type_render_entry_textured_rect:
+			case group_type_render_entry_rect_outline:
 			{
-				render_entry_textured_rect Entry = *(render_entry_textured_rect*)Header;
+				render_entry_rect_outline Entry = *(render_entry_rect_outline*)Header;
 				game_screen_position TopLeft = { Entry.Rect.Left, Entry.Rect.Top, 0 };
 				game_screen_position TopRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 };
 				game_screen_position BottomLeft = { Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 };
@@ -520,7 +415,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 
 				int Width = Entry.Texture->Header.Width;
 				int Height = Entry.Texture->Header.Height;
-				OpenGLBindTexture(Width, Height, &Entry.Texture->Handle, Entry.Texture->Content, Clamp);
+				OpenGLBindTexture(Width, Height, &Entry.Texture->Handle, Entry.Texture->Content, Entry.Mode);
 				OpenGLTexturedRect(Entry.Position, Width, Height, Entry.Basis, Entry.Mode);
 			} break;
 
@@ -539,8 +434,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 
 			default:
 			{
-				OutputDebugStringA("ERROR: Unknow render entry type.\n");
-				//Assert(false);
 				OutputDebugStringA("ERROR: Unknow render entry type.\n");
 				Assert(false);
 				return;

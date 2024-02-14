@@ -296,8 +296,9 @@ struct game_assets {
     loaded_bmp EnemyBMP;
     loaded_bmp EnemyBackBMP;
     loaded_bmp BombBMP;
+    loaded_bmp FadeFrame;
     game_sound TestSound;
-    game_video TestVideo;
+    game_video IntroVideo;
 };
 
 
@@ -392,12 +393,12 @@ struct room {
     bool Explored;
 };
 
+
 struct render_basis {
     v3 X;
     v3 Y;
     v3 Z;
 };
-
 
 // Entities
 struct entity {
@@ -429,9 +430,15 @@ struct enemy {
     entity Entity;
 };
 
+// Scenes
+enum scene {
+    Intro,
+    Main,
+};
 
 // Game State: Persistent (between frames) values
 struct game_state {
+    scene Scene;
     memory_arena TextArena;
     memory_arena RenderArena;
     memory_arena VideoArena;
