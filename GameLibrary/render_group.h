@@ -330,7 +330,7 @@ void PushButton(render_group* Group, Character* Characters, button* Button) {
 
 void PushDebugLattice(render_group* Group, color Color) {
     render_entry_debug_lattice* Entry = PushRenderElement(Group, render_entry_debug_lattice);
-    Entry->Header.Coord = Screen;
+    Entry->Header.Coord = World;
     Entry->Header.Key.Z = 999;
     Entry->Header.Key.Y = 0;
     Entry->Color = Color;
@@ -338,7 +338,7 @@ void PushDebugLattice(render_group* Group, color Color) {
 
 void PushDebugShineTile(render_group* Group, tile_position Position, color Color) {
     render_entry_debug_shine_tile* Entry = PushRenderElement(Group, render_entry_debug_shine_tile);
-    Entry->Header.Coord = Screen;
+    Entry->Header.Coord = World;
     Entry->Header.Key.Z = 998;
     Entry->Header.Key.Y = 0;
     Entry->Position = Position;
