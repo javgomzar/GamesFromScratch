@@ -572,7 +572,6 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 }
                 else if (VKCode == 'F') {
                     pInput->Keyboard.F.IsDown = true;
-                    ToggleFullScreen(msg.hwnd);
                 }
                 else if (VKCode == VK_UP) {
                     pInput->Keyboard.Up.IsDown = true;
@@ -597,6 +596,43 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 }
                 else if (VKCode == VK_F1) {
                     pInput->Keyboard.F1.IsDown = true;
+                }
+                else if (VKCode == VK_F2) {
+                    pInput->Keyboard.F2.IsDown = true;
+                }
+                else if (VKCode == VK_F3) {
+                    pInput->Keyboard.F3.IsDown = true;
+                }
+                else if (VKCode == VK_F4) {
+                    pInput->Keyboard.F4.IsDown = true;
+                }
+                else if (VKCode == VK_F4) {
+                    pInput->Keyboard.F4.IsDown = true;
+                }
+                else if (VKCode == VK_F5) {
+                    pInput->Keyboard.F5.IsDown = true;
+                }
+                else if (VKCode == VK_F6) {
+                    pInput->Keyboard.F6.IsDown = true;
+                }
+                else if (VKCode == VK_F7) {
+                    pInput->Keyboard.F7.IsDown = true;
+                }
+                else if (VKCode == VK_F8) {
+                    pInput->Keyboard.F8.IsDown = true;
+                }
+                else if (VKCode == VK_F9) {
+                    pInput->Keyboard.F9.IsDown = true;
+                }
+                else if (VKCode == VK_F10) {
+                    pInput->Keyboard.F10.IsDown = true;
+                }
+                else if (VKCode == VK_F11) {
+                    pInput->Keyboard.F11.IsDown = true;
+                    ToggleFullScreen(msg.hwnd);
+                }
+                else if (VKCode == VK_F12) {
+                    pInput->Keyboard.F12.IsDown = true;
                 }
                 else if (VKCode == 'L') {
                     if (RecordPlayback->RecordIndex == 0) {
@@ -695,6 +731,42 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             }
             else if (VKCode == VK_F1) {
                 pInput->Keyboard.F1.IsDown = false;
+            }
+            else if (VKCode == VK_F2) {
+                pInput->Keyboard.F2.IsDown = false;
+            }
+            else if (VKCode == VK_F3) {
+                pInput->Keyboard.F3.IsDown = false;
+            }
+            else if (VKCode == VK_F4) {
+                pInput->Keyboard.F4.IsDown = false;
+            }
+            else if (VKCode == VK_F4) {
+                pInput->Keyboard.F4.IsDown = false;
+            }
+            else if (VKCode == VK_F5) {
+                pInput->Keyboard.F5.IsDown = false;
+            }
+            else if (VKCode == VK_F6) {
+                pInput->Keyboard.F6.IsDown = false;
+            }
+            else if (VKCode == VK_F7) {
+                pInput->Keyboard.F7.IsDown = false;
+            }
+            else if (VKCode == VK_F8) {
+                pInput->Keyboard.F8.IsDown = false;
+            }
+            else if (VKCode == VK_F9) {
+                pInput->Keyboard.F9.IsDown = false;
+            }
+            else if (VKCode == VK_F10) {
+                pInput->Keyboard.F10.IsDown = false;
+            }
+            else if (VKCode == VK_F11) {
+                pInput->Keyboard.F11.IsDown = false;
+            }
+            else if (VKCode == VK_F12) {
+                pInput->Keyboard.F12.IsDown = false;
             }
         } break;
         case WM_CLOSE:

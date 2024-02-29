@@ -11,10 +11,8 @@
 
 /*
     TODO:
-        - Make it so when you change TILESIZE everything zooms in (possibly control this with mouse wheel).
         - Improve door creation algorithm. Not all rooms need to be connected but maybe delete redundant doors sometimes and
           connect a little bit more rooms.
-        - Flip character's sprite when moving in different directions.
         - Implement tile type Rock.
             * Rocks can be mined with a pickaxe.
             * Rocks can be moved when pushed.
@@ -25,6 +23,14 @@
         - Implement tile type filled hole.
         - Optimize rendering filtering which tiles need to be rendered?.
         - Implement inventory.
+        - Enemy movement
+        - Enemy entities
+        - Make follower collide with walls
+        - Dijkstras algorithm for shortest path
+        - Pre-render text so lengths can be calculated
+        - Load characters assets in one single texture
+        - Sound mixer
+        - Multithreading for audio
         - Main menu:
             * Save & load games.
             * Options.

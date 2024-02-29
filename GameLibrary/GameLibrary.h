@@ -218,6 +218,17 @@ struct game_keyboard_input {
     game_button_state Space;
     game_button_state Enter;
     game_button_state F1;
+    game_button_state F2;
+    game_button_state F3;
+    game_button_state F4;
+    game_button_state F5;
+    game_button_state F6;
+    game_button_state F7;
+    game_button_state F8;
+    game_button_state F9;
+    game_button_state F10;
+    game_button_state F11;
+    game_button_state F12;
 };
 
 struct game_mouse_input {
