@@ -552,8 +552,35 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 else if (VKCode == '0') {
                     pInput->Keyboard.Zero.IsDown = true;
                 }
+                else if (VKCode == 'Q') {
+                    pInput->Keyboard.Q.IsDown = true;
+                }
                 else if (VKCode == 'W') {
                     pInput->Keyboard.W.IsDown = true;
+                }
+                else if (VKCode == 'E') {
+                    pInput->Keyboard.E.IsDown = true;
+                }
+                else if (VKCode == 'R') {
+                    pInput->Keyboard.R.IsDown = true;
+                }
+                else if (VKCode == 'T') {
+                    pInput->Keyboard.T.IsDown = true;
+                }
+                else if (VKCode == 'Y') {
+                    pInput->Keyboard.Y.IsDown = true;
+                }
+                else if (VKCode == 'U') {
+                    pInput->Keyboard.U.IsDown = true;
+                }
+                else if (VKCode == 'I') {
+                    pInput->Keyboard.I.IsDown = true;
+                }
+                else if (VKCode == 'O') {
+                    pInput->Keyboard.O.IsDown = true;
+                }
+                else if (VKCode == 'P') {
+                    pInput->Keyboard.P.IsDown = true;
                 }
                 else if (VKCode == 'A') {
                     pInput->Keyboard.A.IsDown = true;
@@ -564,14 +591,44 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 else if (VKCode == 'D') {
                     pInput->Keyboard.D.IsDown = true;
                 }
-                else if (VKCode == 'E') {
-                    pInput->Keyboard.E.IsDown = true;
-                }
-                else if (VKCode == 'Q') {
-                    pInput->Keyboard.Q.IsDown = true;
-                }
                 else if (VKCode == 'F') {
                     pInput->Keyboard.F.IsDown = true;
+                }
+                else if (VKCode == 'G') {
+                    pInput->Keyboard.G.IsDown = true;
+                }
+                else if (VKCode == 'H') {
+                    pInput->Keyboard.H.IsDown = true;
+                }
+                else if (VKCode == 'J') {
+                    pInput->Keyboard.J.IsDown = true;
+                }
+                else if (VKCode == 'K') {
+                    pInput->Keyboard.K.IsDown = true;
+                }
+                else if (VKCode == 'L') {
+                    pInput->Keyboard.L.IsDown = true;
+                }
+                else if (VKCode == 'Z') {
+                    pInput->Keyboard.Z.IsDown = true;
+                }
+                else if (VKCode == 'X') {
+                    pInput->Keyboard.X.IsDown = true;
+                }
+                else if (VKCode == 'C') {
+                    pInput->Keyboard.C.IsDown = true;
+                }
+                else if (VKCode == 'V') {
+                    pInput->Keyboard.V.IsDown = true;
+                }
+                else if (VKCode == 'B') {
+                    pInput->Keyboard.B.IsDown = true;
+                }
+                else if (VKCode == 'N') {
+                    pInput->Keyboard.N.IsDown = true;
+                }
+                else if (VKCode == 'M') {
+                    pInput->Keyboard.M.IsDown = true;
                 }
                 else if (VKCode == VK_UP) {
                     pInput->Keyboard.Up.IsDown = true;
@@ -687,8 +744,35 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             else if (VKCode == '0') {
                 pInput->Keyboard.Zero.IsDown = false;
             }
+            else if (VKCode == 'Q') {
+                pInput->Keyboard.Q.IsDown = false;
+            }
             else if (VKCode == 'W') {
                 pInput->Keyboard.W.IsDown = false;
+            }
+            else if (VKCode == 'E') {
+                pInput->Keyboard.E.IsDown = false;
+            }
+            else if (VKCode == 'R') {
+                pInput->Keyboard.R.IsDown = false;
+            }
+            else if (VKCode == 'T') {
+                pInput->Keyboard.T.IsDown = false;
+            }
+            else if (VKCode == 'Y') {
+                pInput->Keyboard.Y.IsDown = false;
+            }
+            else if (VKCode == 'U') {
+                pInput->Keyboard.U.IsDown = false;
+            }
+            else if (VKCode == 'I') {
+                pInput->Keyboard.I.IsDown = false;
+            }
+            else if (VKCode == 'O') {
+                pInput->Keyboard.O.IsDown = false;
+            }
+            else if (VKCode == 'P') {
+                pInput->Keyboard.P.IsDown = false;
             }
             else if (VKCode == 'A') {
                 pInput->Keyboard.A.IsDown = false;
@@ -699,14 +783,44 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             else if (VKCode == 'D') {
                 pInput->Keyboard.D.IsDown = false;
             }
-            else if (VKCode == 'E') {
-                pInput->Keyboard.E.IsDown = false;
-            }
-            else if (VKCode == 'Q') {
-                pInput->Keyboard.Q.IsDown = false;
-            }
             else if (VKCode == 'F') {
                 pInput->Keyboard.F.IsDown = false;
+            }
+            else if (VKCode == 'G') {
+                pInput->Keyboard.G.IsDown = false;
+            }
+            else if (VKCode == 'H') {
+                pInput->Keyboard.H.IsDown = false;
+            }
+            else if (VKCode == 'J') {
+                pInput->Keyboard.J.IsDown = false;
+            }
+            else if (VKCode == 'K') {
+                pInput->Keyboard.K.IsDown = false;
+            }
+            else if (VKCode == 'L') {
+                pInput->Keyboard.L.IsDown = false;
+            }
+            else if (VKCode == 'Z') {
+                pInput->Keyboard.Z.IsDown = false;
+            }
+            else if (VKCode == 'X') {
+                pInput->Keyboard.X.IsDown = false;
+            }
+            else if (VKCode == 'C') {
+                pInput->Keyboard.C.IsDown = false;
+            }
+            else if (VKCode == 'V') {
+                pInput->Keyboard.V.IsDown = false;
+            }
+            else if (VKCode == 'B') {
+                pInput->Keyboard.B.IsDown = false;
+            }
+            else if (VKCode == 'N') {
+                pInput->Keyboard.N.IsDown = false;
+            }
+            else if (VKCode == 'M') {
+                pInput->Keyboard.M.IsDown = false;
             }
             else if (VKCode == VK_UP) {
                 pInput->Keyboard.Up.IsDown = false;
@@ -1003,12 +1117,32 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Keyboard.Eight.WasDown = Input.Keyboard.Eight.IsDown;
         Input.Keyboard.Nine.WasDown = Input.Keyboard.Nine.IsDown;
         Input.Keyboard.Zero.WasDown = Input.Keyboard.Zero.IsDown;
+        Input.Keyboard.Q.WasDown = Input.Keyboard.Q.IsDown;
         Input.Keyboard.W.WasDown = Input.Keyboard.W.IsDown;
+        Input.Keyboard.E.WasDown = Input.Keyboard.E.IsDown;
+        Input.Keyboard.R.WasDown = Input.Keyboard.R.IsDown;
+        Input.Keyboard.T.WasDown = Input.Keyboard.T.IsDown;
+        Input.Keyboard.Y.WasDown = Input.Keyboard.Y.IsDown;
+        Input.Keyboard.U.WasDown = Input.Keyboard.U.IsDown;
+        Input.Keyboard.I.WasDown = Input.Keyboard.I.IsDown;
+        Input.Keyboard.O.WasDown = Input.Keyboard.O.IsDown;
+        Input.Keyboard.P.WasDown = Input.Keyboard.P.IsDown;
         Input.Keyboard.A.WasDown = Input.Keyboard.A.IsDown;
         Input.Keyboard.S.WasDown = Input.Keyboard.S.IsDown;
         Input.Keyboard.D.WasDown = Input.Keyboard.D.IsDown;
-        Input.Keyboard.E.WasDown = Input.Keyboard.E.IsDown;
-        Input.Keyboard.Q.WasDown = Input.Keyboard.Q.IsDown;
+        Input.Keyboard.F.WasDown = Input.Keyboard.F.IsDown;
+        Input.Keyboard.G.WasDown = Input.Keyboard.G.IsDown;
+        Input.Keyboard.H.WasDown = Input.Keyboard.H.IsDown;
+        Input.Keyboard.J.WasDown = Input.Keyboard.J.IsDown;
+        Input.Keyboard.K.WasDown = Input.Keyboard.K.IsDown;
+        Input.Keyboard.L.WasDown = Input.Keyboard.L.IsDown;
+        Input.Keyboard.Z.WasDown = Input.Keyboard.Z.IsDown;
+        Input.Keyboard.X.WasDown = Input.Keyboard.X.IsDown;
+        Input.Keyboard.C.WasDown = Input.Keyboard.C.IsDown;
+        Input.Keyboard.V.WasDown = Input.Keyboard.V.IsDown;
+        Input.Keyboard.B.WasDown = Input.Keyboard.B.IsDown;
+        Input.Keyboard.N.WasDown = Input.Keyboard.N.IsDown;
+        Input.Keyboard.M.WasDown = Input.Keyboard.M.IsDown;
         Input.Keyboard.Up.WasDown = Input.Keyboard.Up.IsDown;
         Input.Keyboard.Down.WasDown = Input.Keyboard.Down.IsDown;
         Input.Keyboard.Left.WasDown = Input.Keyboard.Left.IsDown;
@@ -1017,6 +1151,30 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Keyboard.Space.WasDown = Input.Keyboard.Space.IsDown;
         Input.Keyboard.Enter.WasDown = Input.Keyboard.Enter.IsDown;
         Input.Keyboard.F1.WasDown = Input.Keyboard.F1.IsDown;
+        Input.Keyboard.F2.WasDown = Input.Keyboard.F2.IsDown;
+        Input.Keyboard.F3.WasDown = Input.Keyboard.F3.IsDown;
+        Input.Keyboard.F4.WasDown = Input.Keyboard.F4.IsDown;
+        Input.Keyboard.F5.WasDown = Input.Keyboard.F5.IsDown;
+        Input.Keyboard.F6.WasDown = Input.Keyboard.F6.IsDown;
+        Input.Keyboard.F7.WasDown = Input.Keyboard.F7.IsDown;
+        Input.Keyboard.F8.WasDown = Input.Keyboard.F8.IsDown;
+        Input.Keyboard.F9.WasDown = Input.Keyboard.F9.IsDown;
+        Input.Keyboard.F10.WasDown = Input.Keyboard.F10.IsDown;
+        Input.Keyboard.F11.WasDown = Input.Keyboard.F11.IsDown;
+        Input.Keyboard.F12.WasDown = Input.Keyboard.F12.IsDown;
+
+        bool Any = false;
+        game_button_state* pButton = (game_button_state*) &Input.Keyboard;
+        int nButtons = (sizeof(Input.Keyboard) - 1) / sizeof(game_button_state);
+        for (int i = 0; i < nButtons; i++) {
+            game_button_state Button = *pButton;
+            if (Button.IsDown) {
+                Any = true;
+                break;
+            }
+            pButton++;
+        }
+        Input.Keyboard.Any = Any;
 
         // Peek and dispatch messages
         ProcessPendingMessages(&Input, &RecordPlayback);

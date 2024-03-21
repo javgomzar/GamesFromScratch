@@ -203,13 +203,32 @@ struct game_keyboard_input {
     game_button_state Eight;
     game_button_state Nine;
     game_button_state Zero;
+    game_button_state Q;
     game_button_state W;
+    game_button_state E;
+    game_button_state R;
+    game_button_state T;
+    game_button_state Y;
+    game_button_state U;
+    game_button_state I;
+    game_button_state O;
+    game_button_state P;
     game_button_state A;
     game_button_state S;
     game_button_state D;
-    game_button_state Q;
-    game_button_state E;
     game_button_state F;
+    game_button_state G;
+    game_button_state H;
+    game_button_state J;
+    game_button_state K;
+    game_button_state L;
+    game_button_state Z;
+    game_button_state X;
+    game_button_state C;
+    game_button_state V;
+    game_button_state B;
+    game_button_state N;
+    game_button_state M;
     game_button_state Up;
     game_button_state Down;
     game_button_state Left;
@@ -229,6 +248,7 @@ struct game_keyboard_input {
     game_button_state F10;
     game_button_state F11;
     game_button_state F12;
+    bool Any;
 };
 
 struct game_mouse_input {

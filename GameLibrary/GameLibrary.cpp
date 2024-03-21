@@ -899,9 +899,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         PushClear(Group, Black);
 
         static bool Start = false;
+        static double StartTime = 0;
         
-        if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
+        if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown && !Start) {
             Start = true;
+            StartTime = pGameState->Time;
         };
 
         if (Start) {
@@ -927,12 +929,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
             PushText(Group, {(double)ScreenBuffer->Width / 2.0 - 235, (double)ScreenBuffer->Height / 1.2 - 2, 30}, TitleText, true);
             TitleText.Color = White;
             PushText(Group, { (double)ScreenBuffer->Width / 2.0 - 237, (double)ScreenBuffer->Height / 1.2, 31 }, TitleText, true);
+
+            if ((pGameState->Time > StartTime + 0.2) && Input->Keyboard.Any) {
+                pGameState->Scene = Main;
+                CloseVideo(Assets->IntroVideo.VideoContext);
+            }
         }
 
-        if (Input->Keyboard.Eight.IsDown) {
-            pGameState->Scene = Main;
-            CloseVideo(Assets->IntroVideo.VideoContext);
-        }
     } break;
 
     case Main:
