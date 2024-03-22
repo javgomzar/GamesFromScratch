@@ -142,6 +142,65 @@ color Blend(color Color, color Background) {
     return Result;
 }
 
+color operator+ (color Color1, color Color2) {
+    if (Color1.Alpha + Color2.Alpha != 1.0) {
+        throw("Color alphas must add to 1.\n");
+    }
+
+    return { 
+        1.0, 
+        Color1.Alpha * Color1.R + Color2.Alpha * Color2.R, 
+        Color1.Alpha * Color1.G + Color2.Alpha * Color2.G, 
+        Color1.Alpha * Color1.B + Color2.Alpha * Color2.B 
+    };
+}
+
+color GetHue(double Hue) {
+    color Result = { 1.0, 0, 0, 0 };
+
+    if (0 <= Hue && Hue < Sixth) {
+        Result.R = 1.0;
+        Result.G = 6.0 * Hue;
+    }
+    else if (Sixth <= Hue && Hue < 2.0 * Sixth) {
+        Result.R = 1.0 - 6.0 * (Hue - Sixth);
+        Result.G = 1.0;
+    }
+    else if (2.0 * Sixth <= Hue && Hue < 0.5) {
+        Result.G = 1.0;
+        Result.B = 6.0 * (Hue - 2.0 * Sixth);
+    }
+    else if (0.5 <= Hue && Hue < 4.0 * Sixth) {
+        Result.G = 1.0 - 6.0 * (Hue - 0.5);
+        Result.B = 1.0;
+    }
+    else if (4.0 * Sixth <= Hue && Hue < 5.0 * Sixth) {
+        Result.B = 1.0;
+        Result.R = 6.0 * (Hue - 4.0 * Sixth);
+    }
+    else if (5.0 * Sixth <= Hue && Hue <= 1.0) {
+        Result.B = 1.0 - 6.0 * (Hue - 5.0 * Sixth);;
+        Result.R = 1.0;
+    }
+
+    return Result;
+}
+
+color GetColor(double Hue, double Saturation, double Luminosity) {
+    color Result = GetHue(Hue);
+
+    // Saturation
+    Result.Alpha = Saturation;
+    color White2 = { 1.0 - Saturation, 1.0, 1.0, 1.0 };
+    color Saturated = Result + White2;
+
+    // Luminosity
+    Saturated.Alpha = Luminosity;
+    color Black2 = { 1.0 - Luminosity, 0.0, 0.0, 0.0 };
+    Result = Saturated + Black2;
+    return Result;
+}
+
 // Joysticks values should be floats between 0 and 1
 /*struct joystick_coordinate {
     float Start;
@@ -286,8 +345,16 @@ struct button {
     FT_Face* Face;
 };
 
-struct UI {
+struct color_selector {
+    color Color;
+    v3 Position;
+    double Hue;
+    double Saturation;
+    double Luminosity;
+};
 
+struct UI {
+    color_selector ColorSelector;
 };
 
 

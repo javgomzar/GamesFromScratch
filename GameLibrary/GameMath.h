@@ -11,6 +11,7 @@
 static float Pi = 3.14159265359f;
 static float Tau = 2.0f * Pi;
 static float twroot = 1.05946309436f;
+static double Sixth = 1.0 / 6.0;
 
 // Arithmetics
 int32 CustomRound(double X) {

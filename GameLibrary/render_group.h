@@ -20,6 +20,7 @@ enum render_group_entry_type {
     group_type_render_entry_debug_lattice,
     group_type_render_entry_debug_shine_tile,
     group_type_render_entry_video,
+    group_type_render_entry_color_selector,
 };
 
 enum wrap_mode {
@@ -115,6 +116,14 @@ struct render_entry_debug_shine_tile {
     render_group_header Header;
     tile_position Position;
     color Color;
+};
+
+struct render_entry_color_selector {
+    render_group_header Header;
+    v3 Position;
+    double Hue;
+    double Saturation;
+    double Luminosity;
 };
 
 struct render_entry_video {
@@ -232,6 +241,11 @@ uint32 GetSizeOf(render_group_entry_type Type) {
         case group_type_render_entry_video:
         {
             return sizeof(render_entry_video);
+        } break;
+
+        case group_type_render_entry_color_selector:
+        {
+            return sizeof(render_entry_color_selector);
         } break;
 
         default:
@@ -455,6 +469,16 @@ void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
     Entry->Header.Key.Z = Z;
     Entry->Video = Video;
     Entry->Rect = Rect;
+}
+
+void PushUI(render_group* Group, UI UserInterface) {
+    render_entry_color_selector* Entry = PushRenderElement(Group, render_entry_color_selector);
+    Entry->Header.Coord = Screen;
+    Entry->Header.Key.Z = UserInterface.ColorSelector.Position.Z;
+    Entry->Hue = UserInterface.ColorSelector.Hue;
+    Entry->Saturation = UserInterface.ColorSelector.Saturation;
+    Entry->Luminosity = UserInterface.ColorSelector.Luminosity;
+    Entry->Position = UserInterface.ColorSelector.Position;
 }
 
 void ClearEntries(render_group* Group) {

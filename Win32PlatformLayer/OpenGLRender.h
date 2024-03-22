@@ -21,6 +21,35 @@ void OpenGLRectangle(game_rect Rect, color Color)
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
+void OpenGLRectangle(game_rect Rect, color Color[4]) {
+
+	glBegin(GL_TRIANGLES);
+	/* 
+		0 -- 1
+		|    |
+		2 -- 3
+	*/
+
+	// Lower triangle
+	glColor3f(Color[2].R, Color[2].G, Color[2].B);
+	glVertex2f(Rect.Left, Rect.Top + Rect.Height);
+	glColor3f(Color[1].R, Color[1].G, Color[1].B);
+	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
+	glColor3f(Color[3].R, Color[3].G, Color[3].B);
+	glVertex2f(Rect.Left + Rect.Width, Rect.Top + Rect.Height);
+
+	// Upper triangle
+	glColor3f(Color[0].R, Color[0].G, Color[0].B);
+	glVertex2f(Rect.Left, Rect.Top);
+	glColor3f(Color[2].R, Color[2].G, Color[2].B);
+	glVertex2f(Rect.Left, Rect.Top + Rect.Height);
+	glColor3f(Color[1].R, Color[1].G, Color[1].B);
+	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
+
+	glEnd();
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
 void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_mode Mode, bool ForceUpdate = false)
 {
 	if (*Handle) {
@@ -282,7 +311,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 
-	glShadeModel(GL_FLAT);
+	// This turns off color interpolation
+	// glShadeModel(GL_FLAT); 
 
 	// Sorting render entries
 	sort_entry Entries[MAX_ENTRIES] = { 0 };
@@ -429,6 +459,34 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 
 				OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext->VideoOut, Clamp, true);
 				OpenGLTexturedRect(Entry.Rect, true);
+
+			} break;
+
+			case group_type_render_entry_color_selector:
+			{
+				render_entry_color_selector Entry = *(render_entry_color_selector*)Header;
+
+				color HueColor = GetHue(Entry.Hue);
+				
+				game_rect Rect1 = { Entry.Position.X, Entry.Position.Y, 120, 120 };
+				color Colors[4] = { White, HueColor, Black, Black };
+
+				OpenGLRectangle(Rect1, Colors);
+
+				int StartX = Entry.Position.X;
+				color Colors2[7] = { Red, Magenta, Blue, Cyan, Green, Yellow, Red};
+				for (int i = 0; i < 6; i++) {
+					color Colors3[4] = { Colors2[i], Colors2[i], Colors2[i+1], Colors2[i+1]};
+					game_rect Rect2 = { Entry.Position.X + 130, Entry.Position.Y + i*20, 15, 20 };
+					OpenGLRectangle( Rect2, Colors3);
+				}
+
+				double HueHeight = 120 * (1.0 - Entry.Hue);
+				glBegin(GL_TRIANGLES);
+				glVertex2f(Entry.Position.X + 150, Entry.Position.Y + HueHeight);
+				glVertex2f(Entry.Position.X + 155, Entry.Position.Y + HueHeight - 5);
+				glVertex2f(Entry.Position.X + 155, Entry.Position.Y + HueHeight + 5);
+				glEnd();
 
 			} break;
 

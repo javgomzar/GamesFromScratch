@@ -793,6 +793,27 @@ void Update(enemy* Enemy) {
 
 }
 
+void Update(color_selector* ColorSelector, game_input* Input) {
+    v3 Position = ColorSelector->Position;
+    color Color;
+    if (Input->Mouse.LeftClick.IsDown) {
+        // Hue selector
+        if ((Position.X + 130 <= Input->Mouse.Cursor.X) && (Input->Mouse.Cursor.X <= Position.X + 155) && 
+            (Position.Y <= Input->Mouse.Cursor.Y) && (Input->Mouse.Cursor.Y <= Position.Y + 120)) {
+            ColorSelector->Hue = 1.0 - (Input->Mouse.Cursor.Y - ColorSelector->Position.Y) / 120.0;
+        }
+
+        // Saturation & Luminosity
+        if ((Position.X <= Input->Mouse.Cursor.X) && (Input->Mouse.Cursor.X <= Position.X + 120) &&
+            (Position.Y <= Input->Mouse.Cursor.Y) && (Input->Mouse.Cursor.Y <= Position.Y + 120)) {
+            ColorSelector->Saturation = (Input->Mouse.Cursor.X - Position.X) / 120.0;
+            ColorSelector->Luminosity = 1.0 - (Input->Mouse.Cursor.Y - Position.Y) / 120.0;
+        }
+    }
+
+    ColorSelector->Color = GetColor(ColorSelector->Hue, ColorSelector->Saturation, ColorSelector->Luminosity);
+}
+
 
 // Scenes
 
@@ -1076,13 +1097,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         //else {
         //    Platform.OpenGLRender(Group, &Target);
         //}
-    } break;
+        } break;
 
-    default: 
-    {
-        Assert(false);
+        default: 
+        {
+            Assert(false);
+        }
     }
-}
 
     // Debug info
     static bool ShowDebugInfo = false;
