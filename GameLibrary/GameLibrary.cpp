@@ -655,6 +655,7 @@ void InitializeEntity(entity* Entity, tile_position TilePosition, loaded_bmp* BM
 
     Entity->TilePosition = TilePosition;
     Entity->Position = ToWorldCoord(TilePosition);
+    Entity->Position.Z = 1.0;
     Entity->Velocity = { 0,0,0 };
 }
 
@@ -789,8 +790,10 @@ void Update(follower* Follower, v3 PlayerPosition) {
     }
 }
 
-void Update(enemy* Enemy) {
-
+void Update(enemy* Enemy, v3 PlayerPosition, double Time) {
+    v3 Direction = normalize(PlayerPosition - Enemy->Entity.Position);
+    Enemy->Entity.Velocity = (abs(sin(3*Time)) + 0.2) * Direction;
+    Enemy->Entity.Position = Enemy->Entity.Position + Enemy->Entity.Velocity;
 }
 
 void Update(color_selector* ColorSelector, game_input* Input) {
@@ -866,7 +869,6 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         pGameState->Player.BackBMP = &Memory->Assets.PlayerBackBMP;
 
         InitializeEntity(&pGameState->Player.Entity, RandomTile(pGameState->Map, Floor), pGameState->Player.FrontBMP);
-        pGameState->Player.Entity.Position.Z = 1.0;
 
         pGameState->Player.Entity.BMPOffset.Y = -(double)(pGameState->Player.Entity.BMP->Header.Height);
 
@@ -878,14 +880,12 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         pGameState->Follower.BackBMP = &Memory->Assets.PlayerBackBMP;
 
         InitializeEntity(&pGameState->Follower.Entity, pGameState->Player.Entity.TilePosition, pGameState->Follower.FrontBMP);
-        pGameState->Follower.Entity.Position.Z = 1.0;
 
         // Initialize enemy
         pGameState->Enemy.FrontBMP = &Memory->Assets.EnemyBMP;
         pGameState->Enemy.BackBMP = &Memory->Assets.EnemyBackBMP;
 
         InitializeEntity(&pGameState->Enemy.Entity, pGameState->Player.Entity.TilePosition, pGameState->Enemy.FrontBMP);
-
 
         //game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, TILESIZE);
         pGameState->Camera = { pGameState->Player.Entity.Position, {0,0,0}, (int)ScreenBuffer->Width, (int)ScreenBuffer->Height, 1.0 };
@@ -985,7 +985,13 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // Update entities
         Update(pGameState->Map, &pGameState->Player, Input);
 
-        Update(&pGameState->Follower, pGameState->Player.Entity.Position);
+        Update(&pGameState->Follower, pGameState->Player.Entity.Position + 0.5 * pGameState->Player.Entity.BMPOffset);
+
+        int PlayerRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.Entity.TilePosition);
+        int EnemyRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Enemy.Entity.TilePosition);
+        if (PlayerRoom == EnemyRoom) {
+            Update(&pGameState->Enemy, pGameState->Player.Entity.Position + 0.5 * pGameState->Player.Entity.BMPOffset, pGameState->Time);
+        }
 
         // Room exploration
         int CurrentRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.Entity.TilePosition);
@@ -1130,7 +1136,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // Player position
         PushDebugShineTile(Group, pGameState->Player.Entity.TilePosition, { 0.5f, 1.0f, 0, 0 });
     }
-    
+
     Platform->OpenGLRender(Group, ScreenBuffer->Width, ScreenBuffer->Height);
 
     // Clear render group
