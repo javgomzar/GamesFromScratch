@@ -176,3 +176,58 @@ v3 SphereNormal(double Theta, double Phi) {
 	return Result;
 }
 
+// Quaternions
+struct quaternion {
+	float x0;
+	float x1;
+	float x2;
+	float x3;
+};
+
+quaternion I = { 0, 1, 0, 0 };
+quaternion J = { 0, 0, 1, 0 };
+quaternion K = { 0, 0, 0, 1 };
+
+quaternion operator*(quaternion a, quaternion b) {
+	return { a.x0 * b.x0 - a.x1 * b.x1 - a.x2 * b.x2 - a.x3 * b.x3,
+			 a.x0 * b.x1 + a.x1 * b.x0 + a.x2 * b.x3 - a.x3 * b.x2,
+			 a.x0 * b.x2 + a.x2 * b.x0 + a.x3 * b.x1 - a.x1 * b.x3,
+			 a.x0 * b.x3 + a.x3 * b.x0 + a.x1 * b.x2 - a.x2 * b.x1};
+}
+
+quaternion operator+(quaternion a, quaternion b) {
+	return { a.x0 + b.x0, a.x1 + b.x1, a.x2 + b.x2, a.x3 + b.x3 };
+}
+
+quaternion operator+(float a, quaternion b) {
+	return { a + b.x0, b.x1, b.x2, b.x3 };
+}
+
+quaternion operator+(quaternion a, float b) {
+	return { b + a.x0, a.x1, a.x2, a.x3 };
+}
+
+quaternion operator-(quaternion a) {
+	return { -a.x0, -a.x1, -a.x2, -a.x3 };
+}
+
+quaternion operator-(quaternion a, quaternion b) {
+	return { a.x0 - b.x0, a.x1 - b.x1, a.x2 - b.x2, a.x3 - b.x3 };
+}
+
+quaternion operator-(float a, quaternion b) {
+	return { a - b.x0, -b.x1, -b.x2, -b.x3 };
+}
+
+quaternion operator-(quaternion a, float b) {
+	return { a.x0 - b, a.x1, a.x2, a.x3 };
+}
+
+quaternion operator*(float a, quaternion b) {
+	return { a * b.x0, a * b.x1, a * b.x2, a * b.x3 };
+}
+
+quaternion operator*(quaternion a, float b) {
+	return { b * a.x0, b * a.x1, b * a.x2, b * a.x3 };
+}
+

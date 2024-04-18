@@ -222,13 +222,15 @@ void SortEntries(render_group* RenderGroup, sort_entry Entries[MAX_ENTRIES]) {
         BaseAddress += GetSizeOf(Header->Type);
     }
 
-    for (int i = 0; i < Count - 1; i++) {
-        if (Entries[i].Key > Entries[i + 1].Key) {
-            int j = i;
-            do {
-                SwapEntries(&Entries[j], &Entries[j + 1]);
-                j--;
-            } while (j > 0 && Entries[j].Key > Entries[j + 1].Key);
+    if (Count > 0) {
+        for (int i = 0; i < Count - 1; i++) {
+            if (Entries[i].Key > Entries[i + 1].Key) {
+                int j = i;
+                do {
+                    SwapEntries(&Entries[j], &Entries[j + 1]);
+                    j--;
+                } while (j > 0 && Entries[j].Key > Entries[j + 1].Key);
+            }
         }
     }
 }

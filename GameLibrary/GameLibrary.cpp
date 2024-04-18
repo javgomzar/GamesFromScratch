@@ -196,7 +196,9 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        // Load your assets here        
+        // Load your assets here
+        pGameState->AngleH = 0;
+        pGameState->AngleV = 0;
         
 
         // User Interface
@@ -213,6 +215,21 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
 
     // Controls
     // Put here your input code
+    if (Input->Keyboard.D.IsDown) {
+        pGameState->AngleH++;
+    }
+
+    if (Input->Keyboard.A.IsDown) {
+        pGameState->AngleH--;
+    }
+
+    if (Input->Keyboard.W.IsDown) {
+        pGameState->AngleV++;
+    }
+
+    if (Input->Keyboard.S.IsDown) {
+        pGameState->AngleV--;
+    }
         
     GameOutputSound(ScreenBuffer, SoundBuffer, pGameState);
 
@@ -262,7 +279,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //    Platform.OpenGLRender(Group, &Target);
     //}
     
-    Platform->OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
+    Platform->OpenGLRender(Group, Target.Header.Width, Target.Header.Height, pGameState->AngleH, pGameState->AngleV);
 
     // Clear render group
     ClearEntries(Group);

@@ -159,7 +159,7 @@ void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, c
 }
 
 
-void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) 
+void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height, float AngleH, float AngleV) 
 {
 	glViewport(0, 0, Width, Height);
 
@@ -176,7 +176,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 	float Proj[] = {
 		a,  0,  0,  0,
 		0,  -b,  0,  0,
-		0,  0,  1,  0,
+		0,  0,  (a + b) / 2,  0,
 	    -1,  1,  0,  1,
 	};
 	glLoadMatrixf(Proj);
@@ -198,7 +198,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 				render_entry_clear Entry = *(render_entry_clear*)Header;
 
 				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
-				glClear(GL_COLOR_BUFFER_BIT);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			} break;
 
 			case group_type_render_entry_rect:
@@ -268,4 +268,91 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			};
 		}
 	}
+
+	float side = 200.0f;
+
+	v3 A = V3(0, 0, 0); // RED
+	v3 B = V3(0, side, 0); // GREEN
+	v3 C = V3(side, side, 0); // BLUE
+	v3 D = V3(side, 0, 0); // YELLOW
+	v3 E = V3(0, 0, side); // MAGENTA
+	v3 F = V3(0, side, side); // CIAN
+	v3 G = V3(side, side, side); // BLACK
+	v3 H = V3(side, 0, side); // WHITE
+
+	glMatrixMode(GL_MODELVIEW);
+
+	glTranslatef(Width / 2, Height / 2, 0);
+	glRotatef(AngleH, 0, 1, 0);
+	glRotatef(AngleV, 1, 0, 0);
+
+	glTranslatef(-side / 2, -side / 2, -side / 2);
+
+	glEnable(GL_DEPTH_TEST);
+	glBegin(GL_QUADS);
+
+	// FRONT
+	glColor3f(1.0f, 0.0f, 0.0f);
+	glVertex3f(A.X, A.Y, A.Z);
+	glColor3f(0.0f, 1.0f, 0.0f);
+	glVertex3f(B.X, B.Y, B.Z);
+	glColor3f(0.0f, 0.0f, 1.0f);
+	glVertex3f(C.X, C.Y, C.Z);
+	glColor3f(1.0f, 1.0f, 0.0f);
+	glVertex3f(D.X, D.Y, D.Z);
+
+	// BACK
+	glColor3f(1.0f, 0.0f, 1.0f);
+	glVertex3f(E.X, E.Y, E.Z);
+	glColor3f(0.0f, 1.0f, 1.0f);
+	glVertex3f(F.X, F.Y, F.Z);
+	glColor3f(0.0f, 0.0f, 0.0f);
+	glVertex3f(G.X, G.Y, G.Z);
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glVertex3f(H.X, H.Y, H.Z);
+
+	// TOP
+	glColor3f(1.0f, 0.0f, 0.0f);
+	glVertex3f(A.X, A.Y, A.Z);
+	glColor3f(1.0f, 1.0f, 0.0f);
+	glVertex3f(D.X, D.Y, D.Z);
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glVertex3f(H.X, H.Y, H.Z);
+	glColor3f(1.0f, 0.0f, 1.0f);
+	glVertex3f(E.X, E.Y, E.Z);
+
+	// BOTTOM
+	glColor3f(0.0f, 1.0f, 0.0f);
+	glVertex3f(B.X, B.Y, B.Z);
+	glColor3f(0.0f, 0.0f, 1.0f);
+	glVertex3f(C.X, C.Y, C.Z);
+	glColor3f(0.0f, 0.0f, 0.0f);
+	glVertex3f(G.X, G.Y, G.Z);
+	glColor3f(0.0f, 1.0f, 1.0f);
+	glVertex3f(F.X, F.Y, F.Z);
+
+	// LEFT
+	glColor3f(1.0f, 0.0f, 0.0f);
+	glVertex3f(A.X, A.Y, A.Z);
+	glColor3f(0.0f, 1.0f, 0.0f);
+	glVertex3f(B.X, B.Y, B.Z);
+	glColor3f(0.0f, 1.0f, 1.0f);
+	glVertex3f(F.X, F.Y, F.Z);
+	glColor3f(1.0f, 0.0f, 1.0f);
+	glVertex3f(E.X, E.Y, E.Z);
+
+	// RIGHT
+	glColor3f(1.0f, 1.0f, 0.0f);
+	glVertex3f(D.X, D.Y, D.Z);
+	glColor3f(0.0f, 0.0f, 1.0f);
+	glVertex3f(C.X, C.Y, C.Z);
+	glColor3f(0.0f, 0.0f, 0.0f);
+	glVertex3f(G.X, G.Y, G.Z);
+	glColor3f(1.0f, 1.0f, 1.0f);
+	glVertex3f(H.X, H.Y, H.Z);
+
+	glEnd();
+	glDisable(GL_DEPTH_TEST);
+
+	glColor3f(1.0f, 1.0f, 1.0f);
 }

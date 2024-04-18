@@ -122,7 +122,7 @@ typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
 #define PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)
 typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 
-typedef void platform_opengl_render(struct render_group* Group, int32 Width, int32 Height);
+typedef void platform_opengl_render(struct render_group* Group, int32 Width, int32 Height, float AngleH, float AngleV);
 
 struct platform_api {
     platform_read_entire_file* ReadEntireFile;

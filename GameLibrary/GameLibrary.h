@@ -269,6 +269,8 @@ struct game_state {
     memory_arena TextArena;
     memory_arena RenderArena;
     UI UserInterface;
+    float AngleH;
+    float AngleV;
 };
 
 // Game Memory
