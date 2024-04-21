@@ -1112,12 +1112,11 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     }
 
     // Debug info
-    static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
-        ShowDebugInfo = !ShowDebugInfo;
+        pGameState->ShowDebugInfo = !pGameState->ShowDebugInfo;
     }
 
-    if (ShowDebugInfo) {
+    if (pGameState->ShowDebugInfo) {
         game_rect DebugInfoRect = { 0, 0, 470, 150 };
         PushRect(Group, DebugInfoRect, { 0.5, 0.0, 0.0, 0.0 }, 999, true);
         PushRectOutline(Group, DebugInfoRect, Gray, true);

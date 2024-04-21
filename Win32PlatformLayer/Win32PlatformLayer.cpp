@@ -920,37 +920,29 @@ FILETIME GetLastWriteTime(LPCSTR FilePath) {
     return Result;
 }
 
-game_code LoadGameCode(LPCSTR FilePath) {
-    game_code Result = {};
-    Result.UpdateAndRender = GameUpdateAndRenderStub;
+void LoadGameCode(game_code *Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
+    Result->UpdateAndRender = GameUpdateAndRenderStub;
 
-    /*LPCSTR TempDLLName = "GameLibraryTemp.dll";
-    if (CopyFileA(FilePath, TempDLLName, FALSE)) {
-        Result.GameCodeDLL = LoadLibraryA(TempDLLName);
-        if (Result.GameCodeDLL) {
-            Result.UpdateAndRender = (game_update_and_render*)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-            Result.IsValid = (Result.UpdateAndRender);
+    if (CopyFileA(SourceDLLName, TempDLLName, FALSE)) {
+        Result->GameCodeDLL = LoadLibraryA(TempDLLName);
+        if (Result->GameCodeDLL) {
+            Result->UpdateAndRender = (game_update_and_render*)GetProcAddress(Result->GameCodeDLL, "GameUpdateAndRender");
+            Result->IsValid = (Result->UpdateAndRender);
+        }
+
+        if (!Result->IsValid) {
+            Result->UpdateAndRender = GameUpdateAndRenderStub;
+            OutputDebugStringA("Loading game code failed.\n");
+        }
+        else {
+            FILETIME LastWriteTime = GetLastWriteTime(SourceDLLName);
+            Result->DLLLastWriteTime = LastWriteTime;
         }
     }
     else {
         DWORD Error = GetLastError();
         OutputDebugStringA("Error copying .dll file.\n");
-    }*/
-    Result.GameCodeDLL = LoadLibraryA(FilePath);
-    if (Result.GameCodeDLL) {
-        Result.UpdateAndRender = (game_update_and_render*)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-        Result.IsValid = (Result.UpdateAndRender);
     }
-
-    if (!Result.IsValid) {
-        Result.UpdateAndRender = GameUpdateAndRenderStub;
-        OutputDebugStringA("Loading game code failed.\n");
-    }
-    else {
-        Result.DLLLastWriteTime = GetLastWriteTime(FilePath);
-    }
-
-    return(Result);
 }
 
 void UnloadGameCode(game_code* GameCode) {
@@ -1044,8 +1036,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_WIN32PLATFORMLAYER));
 
     // Set up for main loop
-    LPCSTR SourceDLLPath = "..\\x64\\Debug\\GameLibrary.dll";
-    game_code GameCode = LoadGameCode(SourceDLLPath);
+    const LPCSTR SourceDLLName = "GameLibrary.dll";
+    const LPCSTR TempDLLName = "GameLibraryTemp.dll";
+
+    game_code GameCode = { 0 };
+    LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
     game_memory GameMemory = {};
     LPVOID BaseAddress = 0;
     GameMemory.PermanentStorageSize = Megabytes(64);
@@ -1093,12 +1088,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Main message loop:
     while (Running) {
         // Loading game code
-        /*FILETIME NewDLLWriteTime = GetLastWriteTime(SourceDLLPath);
+        FILETIME NewDLLWriteTime = GetLastWriteTime(SourceDLLName);
         LONG DebugFiletime = CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime);
         if (CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime) != 0) {
             UnloadGameCode(&GameCode);
-            GameCode = LoadGameCode(SourceDLLPath);
-        }*/
+            LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
+        }
 
 
         // Previous input

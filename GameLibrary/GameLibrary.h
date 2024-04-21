@@ -549,6 +549,7 @@ struct game_state {
     tile Map[MAP_HEIGHT][MAP_WIDTH];
     int nRooms;
     room Rooms[MAX_ROOMS];
+    bool ShowDebugInfo;
     double Time;
     double LastFrameTime;
 };
