@@ -286,12 +286,24 @@ struct game_video {
 // Game Assets
 struct game_assets {
     Character* Characters;
-    loaded_bmp TestImage;
+    loaded_bmp PlayerBMP;
+    loaded_bmp EnemyBMP;
     game_sound TestSound;
     game_video TestVideo;
 };
 
 // Game State: Persistent (between frames) values
+struct stats {
+    int Health;
+    int Strength;
+};
+
+struct character {
+    loaded_bmp* BMP;
+    stats Stats;
+};
+
+
 struct game_state {
     memory_arena TextArena;
     memory_arena RenderArena;
@@ -299,6 +311,7 @@ struct game_state {
     UI UserInterface;
     double Time;
     double LastFrameTime;
+    character Characters[];
 };
 
 // Game Memory

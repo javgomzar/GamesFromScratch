@@ -300,7 +300,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         InitializeArena(&pGameState->VideoArena, Megabytes(15), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size + pGameState->RenderArena.Size);
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        // Load your assets here
+        Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\Media\\Bitmaps\\Player.bmp");
 
         // User Interface
         // InitializeUI();
@@ -365,6 +365,8 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //else {
     //    Platform.OpenGLRender(Group, &Target);
     //}
+
+    PushTexturedRect(Group, {0,0,30,50}, &Assets->PlayerBMP, 10);
     
     Platform->OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
 
