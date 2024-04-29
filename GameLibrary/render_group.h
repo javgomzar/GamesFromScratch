@@ -109,13 +109,16 @@ struct render_entry_video {
 };
 
 struct render_group {
+    int32 Width;
+    int32 Height;
     float MetersToPixels;
     render_basis* DefaultBasis;
-    Character* Characters;
     uint32 MaxPushBufferSize;
     uint32 PushBufferSize;
     uint32 PushBufferElementCount;
     uint8* PushBufferBase;
+    bool OpenGLActive;
+    bool VSyncActive;
 };
 
 struct sort_entry {
@@ -275,7 +278,6 @@ void PushBMP(render_group* Group, loaded_bmp* Bitmap, v3 Position) {
 void PushText(render_group* Group, game_screen_position Position, text Text) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
     Entry->Header.Key.Z = Position.Z;
-    Entry->Characters = Group->Characters;
     Entry->Position = Position;
     Entry->Text = Text;
     float a = (double)Text.Points / 20.0;

@@ -155,6 +155,7 @@ struct text {
     color Color;
     int Points;
     bool Wrapped;
+    Character* Characters;
     char* Content;
 };
 
@@ -192,31 +193,49 @@ struct game_controller_input {
 };
 
 struct game_keyboard_input {
-    game_button_state One;
-    game_button_state Two;
-    game_button_state Three;
-    game_button_state Four;
-    game_button_state Five;
-    game_button_state Six;
-    game_button_state Seven;
-    game_button_state Eight;
-    game_button_state Nine;
-    game_button_state Zero;
-    game_button_state W;
-    game_button_state A;
-    game_button_state S;
-    game_button_state D;
-    game_button_state Q;
-    game_button_state E;
-    game_button_state F;
-    game_button_state Up;
-    game_button_state Down;
-    game_button_state Left;
-    game_button_state Right;
-    game_button_state Escape;
-    game_button_state Space;
-    game_button_state Enter;
-    game_button_state F1;
+    bool Any;
+    union
+    {
+        game_button_state Keys[25];
+        struct {
+            game_button_state One;
+            game_button_state Two;
+            game_button_state Three;
+            game_button_state Four;
+            game_button_state Five;
+            game_button_state Six;
+            game_button_state Seven;
+            game_button_state Eight;
+            game_button_state Nine;
+            game_button_state Zero;
+            game_button_state W;
+            game_button_state A;
+            game_button_state S;
+            game_button_state D;
+            game_button_state Q;
+            game_button_state E;
+            game_button_state F;
+            game_button_state Up;
+            game_button_state Down;
+            game_button_state Left;
+            game_button_state Right;
+            game_button_state Escape;
+            game_button_state Space;
+            game_button_state Enter;
+            game_button_state F1;
+            game_button_state F2;
+            game_button_state F3;
+            game_button_state F4;
+            game_button_state F5;
+            game_button_state F6;
+            game_button_state F7;
+            game_button_state F8;
+            game_button_state F9;
+            game_button_state F10;
+            game_button_state F11;
+            game_button_state F12;
+        };
+    };
 };
 
 struct game_mouse_input {
@@ -314,5 +333,5 @@ struct game_memory {
     char* DebugInfo;
 };
 
-#define GAME_UPDATE_AND_RENDER(name) void GAMELIBRARY_API name(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, game_offscreen_buffer* ScreenBuffer, game_input* Input)
-typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
+#define GAME_UPDATE(name) void GAMELIBRARY_API name(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, render_group* Group, game_input* Input)
+typedef GAME_UPDATE(game_update);
