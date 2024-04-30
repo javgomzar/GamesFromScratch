@@ -223,7 +223,7 @@ void PlaySound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
     Sound->Played += 2*pSoundBuffer->BufferSize;
 }
 
-void GameOutputSound(game_assets* Assets, game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
+void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
     // WriteSineWave(pSoundBuffer, 480, 0);
     PlaySound(&Assets->TestSound, pSoundBuffer);
@@ -822,22 +822,18 @@ void Update(color_selector* ColorSelector, game_input* Input) {
 
 
 // Main
-extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
+extern "C" GAME_UPDATE(GameUpdate)
 {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
-    render_group* Group = Memory->Group;
+    //render_group* Group = Memory->Group;
     static video_context VideoContext = { 0 };
     bool firstFrame = false;
 
     if (!Memory->IsInitialized) {
         Tests();
         firstFrame = true;
-
-        // Memory arenas
-        InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
-        InitializeArena(&pGameState->VideoArena, Megabytes(15), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size + pGameState->RenderArena.Size);
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
@@ -1135,10 +1131,5 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
         // Player position
         PushDebugShineTile(Group, pGameState->Player.Entity.TilePosition, { 0.5f, 1.0f, 0, 0 });
     }
-
-    Platform->OpenGLRender(Group, ScreenBuffer->Width, ScreenBuffer->Height);
-
-    // Clear render group
-    ClearEntries(Group);
 }
 

@@ -192,10 +192,12 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, 
 	glDisable(GL_TEXTURE_2D);
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_position Position, text Text, render_basis Basis)
+void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, text Text, render_basis* Basis)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;
+
+	Character* Characters = Text.Characters;
 
 	int LineJump = (int)(0.023f * Characters[1].Height); // 0.023 because height is in 64ths of pixel
 
@@ -294,8 +296,10 @@ void SetCameraProjection(camera* Camera, int32 Width, int32 Height) {
 }
 
 
-void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height) 
+void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRIES])
 {
+	int32 Width = Group->Width;
+	int32 Height = Group->Height;
 	glViewport(0, 0, Width, Height);
 
 	// Projection matrix
@@ -313,10 +317,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 
 	// This turns off color interpolation
 	// glShadeModel(GL_FLAT); 
-
-	// Sorting render entries
-	sort_entry Entries[MAX_ENTRIES] = { 0 };
-	SortEntries(Group, Entries);
 
 	// Render entries
 	uint32 EntryCount = Group->PushBufferElementCount;
@@ -364,6 +364,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			{
 				render_entry_button Entry = *(render_entry_button*)Header;
 				button* Button = Entry.Button;
+				Character* Characters = Button->Text.Characters;
 				if (Button->Clicked) {
 					Assert(true);
 				}
@@ -378,13 +379,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 					Width, Height, Group->DefaultBasis, Clamp
 				);
 				int TextWidth = 0;
-				int TextHeight = (int)(0.023f * Entry.Characters[1].Height);
+				int TextHeight = (int)(0.023f * Characters[1].Height);
 				for (int i = 0; i < Button->Text.Length; i++) {
 					char c = Button->Text.Content[i];
 					Character* pCharacter = Entry.Characters + (c - ' ');
 					TextWidth += pCharacter->Advance >> 6;
 				}
-				OpenGLRenderText(Width, Entry.Characters,
+				OpenGLRenderText(Width, 
 					{
 						Button->Collider.Left + (Button->Image.Header.Width - TextWidth) / 2,
 						Button->Collider.Top + Button->Image.Header.Height / 2 + TextHeight/4,

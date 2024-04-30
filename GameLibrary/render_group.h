@@ -133,14 +133,18 @@ struct render_entry_video {
 };
 
 struct render_group {
-	float MetersToPixels;
-	render_basis DefaultBasis;
+    int32 Width;
+    int32 Height;
+    float MetersToPixels;
+    render_basis* DefaultBasis;
+    uint32 MaxPushBufferSize;
+    uint32 PushBufferSize;
+    uint32 PushBufferElementCount;
+    uint8* PushBufferBase;
+    bool OpenGLActive;
+    bool VSyncActive;
     camera* Camera;
     Character* Characters;
-	uint32 MaxPushBufferSize;
-	uint32 PushBufferSize;
-	uint32 PushBufferElementCount;
-	uint8* PushBufferBase;
 };
 
 struct sort_entry {
@@ -325,7 +329,6 @@ void PushText(render_group* Group, game_screen_position Position, text Text, boo
     Entry->Header.Coord = isUI ? Screen : World;
     Entry->Header.Key.Z = Position.Z;
     Entry->Header.Key.Y = Position.Y;
-    Entry->Characters = Group->Characters;
     Entry->Position = Position;
     Entry->Text = Text;
     float a = (double)Text.Points / 20.0;
