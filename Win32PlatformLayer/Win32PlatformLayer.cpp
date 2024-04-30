@@ -648,6 +648,8 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                 }
                 else if (VKCode == VK_ESCAPE) {
                     pInput->Keyboard.Escape.IsDown = true;
+                    Running = false;
+                    PostQuitMessage(0);
                 }
                 else if (VKCode == VK_SPACE) {
                     pInput->Keyboard.Space.IsDown = true;
