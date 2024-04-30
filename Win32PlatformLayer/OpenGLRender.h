@@ -192,7 +192,7 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, 
 	glDisable(GL_TEXTURE_2D);
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, text Text, render_basis* Basis)
+void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, text Text, render_basis Basis)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;
@@ -217,8 +217,9 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, text T
 			if (c != ' ') {
 				glColor4f(Text.Color.R, Text.Color.G, Text.Color.B, Text.Color.Alpha);
 				OpenGLBindTexture(pCharacter->Bitmap, Clamp);
+				v3 Position = { PenX + pCharacter->Left, PenY - pCharacter->Top, 0 };
 				OpenGLTexturedRect(
-					{ PenX + pCharacter->Left, PenY - pCharacter->Top, 0 },
+					Position,
 					pCharacter->Bitmap->Header.Width, pCharacter->Bitmap->Header.Height,
 					Basis, Clamp
 				);
@@ -357,7 +358,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 
 				double a = (double)Entry.Text.Points / 20.0;
 				render_basis Basis = {V3(a,0,0), V3(0,a,0), V3(0,0,a)};
-				OpenGLRenderText(Width, Entry.Characters, Entry.Position, Entry.Text, Basis);
+				OpenGLRenderText(Width, Entry.Position, Entry.Text, Basis);
 			} break;
 
 			case group_type_render_entry_button:

@@ -136,7 +136,7 @@ struct render_group {
     int32 Width;
     int32 Height;
     float MetersToPixels;
-    render_basis* DefaultBasis;
+    render_basis DefaultBasis;
     uint32 MaxPushBufferSize;
     uint32 PushBufferSize;
     uint32 PushBufferElementCount;

@@ -415,8 +415,10 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
     }
     else {
         DWORD Error = GetLastError();
+        OutputDebugStringA("ERROR WHILE OPENING FILE IN PATH ");
         OutputDebugStringA(Filename);
-        OutputDebugStringA("ERROR WHILE OPENING FILE.\n");
+        OutputDebugStringA("\n");
+        Assert(false);
     }
     return Result;
 };
@@ -1118,6 +1120,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Render group
     Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
     Group->OpenGLActive = OpenGLResponse == 0;
+    Group->Characters = GameMemory.Assets.Characters;
 
     bool FirstFrame = true;
     // Main message loop:

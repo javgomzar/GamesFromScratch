@@ -837,17 +837,17 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
-        Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Player.bmp");
-        Assets->PlayerBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\PlayerBack.bmp");
-        Assets->FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Floor.bmp");
-        Assets->DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Door.bmp");
-        Assets->ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Treasure.bmp");
-        Assets->EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Enemy.bmp");
-        Assets->EnemyBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\EnemyBack.bmp");
-        Assets->BombBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\Bomb.bmp");
-        Assets->FadeFrame = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\RogueMedia\\FadeFrame.bmp");
-        Assets->TestSound = LoadWAV(Platform->ReadEntireFile, "..\\GameLibrary\\Media\\Sound\\wilfred_theme.wav");
-        Assets->IntroVideo = LoadVideo(&pGameState->VideoArena, "..\\GameLibrary\\RogueMedia\\Video\\WILFREDCHILLIN2.mp4");
+        Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Player.bmp");
+        Assets->PlayerBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\PlayerBack.bmp");
+        Assets->FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Floor.bmp");
+        Assets->DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Door.bmp");
+        Assets->ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Treasure.bmp");
+        Assets->EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Enemy.bmp");
+        Assets->EnemyBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\EnemyBack.bmp");
+        Assets->BombBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Bomb.bmp");
+        Assets->FadeFrame = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\FadeFrame.bmp");
+        Assets->TestSound = LoadWAV(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Sound\\wilfred_theme.wav");
+        Assets->IntroVideo = LoadVideo(&pGameState->VideoArena, "..\\..\\GameLibrary\\RogueMedia\\Video\\WILFREDCHILLIN2.mp4");
 
         // User Interface
         // InitializeUI();
@@ -884,13 +884,10 @@ extern "C" GAME_UPDATE(GameUpdate)
         InitializeEntity(&pGameState->Enemy.Entity, pGameState->Player.Entity.TilePosition, pGameState->Enemy.FrontBMP);
 
         //game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, TILESIZE);
-        pGameState->Camera = { pGameState->Player.Entity.Position, {0,0,0}, (int)ScreenBuffer->Width, (int)ScreenBuffer->Height, 1.0 };
+        pGameState->Camera = { pGameState->Player.Entity.Position, {0,0,0}, Group->Width, Group->Height, 1.0 };
 
         // Renderer --------------------------------------------------------------------------------------------------------------------------------------
-        Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
-        Memory->Group->Camera = &pGameState->Camera;
-        Group = Memory->Group;
-        Group->Characters = Assets->Characters;
+        Group->Camera = &pGameState->Camera;
 
         Memory->IsInitialized = true;
     }
@@ -903,12 +900,14 @@ extern "C" GAME_UPDATE(GameUpdate)
     TitleText.Points = 18;
     TitleText.Wrapped = false;
     TitleText.Content = TitleTextBuffer;
+    TitleText.Characters = Group->Characters;
 
     char TestTextContent[160] = "Sabe una cosa? Quien es el mesenhero de Dios? Y quien es el mesenhero del mesenhero? Y quien es el mesenhero del mensehero de Dios? Estamo en el apoclipsis.";
     static text TestText = { 0 };
     TestText.Color = White;
     TestText.Content = TestTextContent;
     TestText.Wrapped = true;
+    TestText.Characters = Group->Characters;
 
     switch (pGameState->Scene) {
     case Intro:
@@ -925,27 +924,27 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         if (Start) {
             game_rect WilfredRect = { 0 };
-            if (ScreenBuffer->Width >= ScreenBuffer->Height) {
+            if (Group->Width >= Group->Height) {
                 WilfredRect.Top = 0;
-                WilfredRect.Left = (double)ScreenBuffer->Width / 2.0 - (double)ScreenBuffer->Height / 2.0;
-                WilfredRect.Width = (double)ScreenBuffer->Height;
-                WilfredRect.Height = (double)ScreenBuffer->Height;
+                WilfredRect.Left = (double)Group->Width / 2.0 - (double)Group->Height / 2.0;
+                WilfredRect.Width = (double)Group->Height;
+                WilfredRect.Height = (double)Group->Height;
             }
             else {
                 WilfredRect.Left = 0;
-                WilfredRect.Top = (double)ScreenBuffer->Height / 2.0 - (double)ScreenBuffer->Width / 2.0;
-                WilfredRect.Width = (double)ScreenBuffer->Width;
-                WilfredRect.Height = (double)ScreenBuffer->Width;
+                WilfredRect.Top = (double)Group->Height / 2.0 - (double)Group->Width / 2.0;
+                WilfredRect.Width = (double)Group->Width;
+                WilfredRect.Height = (double)Group->Width;
             }
 
-            GameOutputSound(Assets, ScreenBuffer, SoundBuffer, pGameState, Input);
+            GameOutputSound(Assets, SoundBuffer, pGameState, Input);
             PushVideoLoop(Group, &Assets->IntroVideo, WilfredRect, 10, pGameState->LastFrameTime, 185474, 250982);
             PushTexturedRect(Group, WilfredRect, &Assets->FadeFrame, 20, true);
             
             TitleText.Color = Black;
-            PushText(Group, {(double)ScreenBuffer->Width / 2.0 - 235, (double)ScreenBuffer->Height / 1.2 - 2, 30}, TitleText, true);
+            PushText(Group, {(double)Group->Width / 2.0 - 235, (double)Group->Height / 1.2 - 2, 30}, TitleText, true);
             TitleText.Color = White;
-            PushText(Group, { (double)ScreenBuffer->Width / 2.0 - 237, (double)ScreenBuffer->Height / 1.2, 31 }, TitleText, true);
+            PushText(Group, { (double)Group->Width / 2.0 - 237, (double)Group->Height / 1.2, 31 }, TitleText, true);
 
             if ((pGameState->Time > StartTime + 0.2) && Input->Keyboard.Any) {
                 pGameState->Scene = Main;
@@ -968,8 +967,8 @@ extern "C" GAME_UPDATE(GameUpdate)
             pGameState->Player.HP--;
         }
 
-        pGameState->Camera.Width = (int)ScreenBuffer->Width;
-        pGameState->Camera.Height = (int)ScreenBuffer->Height;
+        pGameState->Camera.Width = (int)Group->Width;
+        pGameState->Camera.Height = (int)Group->Height;
 
         PushClear(Group, Black);
 
@@ -1054,7 +1053,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         PushEntity(Group, pGameState->Enemy.Entity, pGameState->Camera);
 
-        game_rect DialogRect = { 0, 0.7 * ScreenBuffer->Height, ScreenBuffer->Width, 0.3 * ScreenBuffer->Height };
+        game_rect DialogRect = { 0, 0.7 * Group->Height, Group->Width, 0.3 * Group->Height };
 
         static bool Dialog = false;
         if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
@@ -1070,7 +1069,7 @@ extern "C" GAME_UPDATE(GameUpdate)
                 }
                 Counter = 0;
             }
-            PushText(Group, { 0,0.7 * ScreenBuffer->Height + 40,10 }, TestText, true);
+            PushText(Group, { 0,0.7 * Group->Height + 40,10 }, TestText, true);
 
             PushRect(Group, DialogRect, { 0.5f, 0.0f, 0.0f, 0.0f }, 9, true);
             PushRectOutline(Group, DialogRect, Gray, true);
@@ -1120,6 +1119,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         Text.Color = White;
         Text.Length = 71;
         Text.Points = 20;
+        Text.Characters = Group->Characters;
         Text.Content = Memory->DebugInfo;
         PushDebugLattice(Group, { 0.2f, 1.0f, 1.0f, 0.0f });
         PushText(Group, { 0, 30, 1001 }, Text, true);
