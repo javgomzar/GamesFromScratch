@@ -514,6 +514,11 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
         {
             pInput->Mouse.RightClick.IsDown = false;
         } break;
+        case WM_MOUSEWHEEL:
+        {
+            short zDelta = GET_WHEEL_DELTA_WPARAM(msg.wParam);
+            pInput->Mouse.Wheel = zDelta;
+        } break;
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
         {
@@ -551,8 +556,35 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                 else if (VKCode == '0') {
                     pInput->Keyboard.Zero.IsDown = true;
                 }
+                else if (VKCode == 'Q') {
+                    pInput->Keyboard.Q.IsDown = true;
+                }
                 else if (VKCode == 'W') {
                     pInput->Keyboard.W.IsDown = true;
+                }
+                else if (VKCode == 'E') {
+                    pInput->Keyboard.E.IsDown = true;
+                }
+                else if (VKCode == 'R') {
+                    pInput->Keyboard.R.IsDown = true;
+                }
+                else if (VKCode == 'T') {
+                    pInput->Keyboard.T.IsDown = true;
+                }
+                else if (VKCode == 'Y') {
+                    pInput->Keyboard.Y.IsDown = true;
+                }
+                else if (VKCode == 'U') {
+                    pInput->Keyboard.U.IsDown = true;
+                }
+                else if (VKCode == 'I') {
+                    pInput->Keyboard.I.IsDown = true;
+                }
+                else if (VKCode == 'O') {
+                    pInput->Keyboard.O.IsDown = true;
+                }
+                else if (VKCode == 'P') {
+                    pInput->Keyboard.P.IsDown = true;
                 }
                 else if (VKCode == 'A') {
                     pInput->Keyboard.A.IsDown = true;
@@ -563,15 +595,44 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                 else if (VKCode == 'D') {
                     pInput->Keyboard.D.IsDown = true;
                 }
-                else if (VKCode == 'E') {
-                    pInput->Keyboard.E.IsDown = true;
-                }
-                else if (VKCode == 'Q') {
-                    pInput->Keyboard.Q.IsDown = true;
-                }
                 else if (VKCode == 'F') {
                     pInput->Keyboard.F.IsDown = true;
-                    ToggleFullScreen(msg.hwnd);
+                }
+                else if (VKCode == 'G') {
+                    pInput->Keyboard.G.IsDown = true;
+                }
+                else if (VKCode == 'H') {
+                    pInput->Keyboard.H.IsDown = true;
+                }
+                else if (VKCode == 'J') {
+                    pInput->Keyboard.J.IsDown = true;
+                }
+                else if (VKCode == 'K') {
+                    pInput->Keyboard.K.IsDown = true;
+                }
+                else if (VKCode == 'L') {
+                    pInput->Keyboard.L.IsDown = true;
+                }
+                else if (VKCode == 'Z') {
+                    pInput->Keyboard.Z.IsDown = true;
+                }
+                else if (VKCode == 'X') {
+                    pInput->Keyboard.X.IsDown = true;
+                }
+                else if (VKCode == 'C') {
+                    pInput->Keyboard.C.IsDown = true;
+                }
+                else if (VKCode == 'V') {
+                    pInput->Keyboard.V.IsDown = true;
+                }
+                else if (VKCode == 'B') {
+                    pInput->Keyboard.B.IsDown = true;
+                }
+                else if (VKCode == 'N') {
+                    pInput->Keyboard.N.IsDown = true;
+                }
+                else if (VKCode == 'M') {
+                    pInput->Keyboard.M.IsDown = true;
                 }
                 else if (VKCode == VK_UP) {
                     pInput->Keyboard.Up.IsDown = true;
@@ -1053,6 +1114,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         // Peek and dispatch messages
         ProcessPendingMessages(Window, &Input, &RecordPlayback);
+
+        Input.Keyboard.Any = false;
+        for (int i = 0; i < NUMBER_OF_KEYS; i++) {
+            if (Input.Keyboard.Keys[i].IsDown) {
+                Input.Keyboard.Any = true;
+                break;
+            }
+        }
 
         // XInput Controller
         for (DWORD ControllerIndex = 0; ControllerIndex < XUSER_MAX_COUNT; ++ControllerIndex) {
