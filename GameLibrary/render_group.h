@@ -91,14 +91,17 @@ struct render_entry_bmp {
 struct render_entry_text {
     render_group_header Header;
     render_basis Basis;
-    Character* Characters;
+    character* Characters;
     game_screen_position Position;
-    text Text;
+    color Color;
+    int Points;
+    string String;
+    bool Wrapped;
 };
 
 struct render_entry_button {
     render_group_header Header;
-    Character* Characters;
+    character* Characters;
     button* Button;
 };
 
@@ -275,18 +278,21 @@ void PushBMP(render_group* Group, loaded_bmp* Bitmap, v3 Position) {
     Entry->Mode = Clamp;
 }
 
-void PushText(render_group* Group, game_screen_position Position, text Text) {
+void PushText(render_group* Group, game_screen_position Position, character* Characters, color Color, int Points, string String) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
     Entry->Header.Key.Z = Position.Z;
     Entry->Position = Position;
-    Entry->Text = Text;
-    float a = (double)Text.Points / 20.0;
+    Entry->Characters = Characters;
+    Entry->Color = Color;
+    Entry->Points = Points;
+    Entry->String = String;
+    float a = (double)Points / 20.0;
     Entry->Basis.X = V3(a, 0, 0);
     Entry->Basis.Y = V3(0, a, 0);
     Entry->Basis.Z = V3(0, 0, a);
 }
 
-void PushButton(render_group* Group, Character* Characters, button* Button) {
+void PushButton(render_group* Group, character* Characters, button* Button) {
     render_entry_button* Entry = PushRenderElement(Group, render_entry_button);
     Entry->Header.Key.Z = 0;
     Entry->Button = Button;
@@ -626,51 +632,51 @@ void LoadFTBMP(FT_Bitmap* SourceBMP, loaded_bmp* DestBMP) {
     }
 }
 
-void RenderText(loaded_bmp* OutputTarget, memory_arena* Arena, FT_Face* Font, game_screen_position Position, text Text) {
-    FT_Error error;
-
-    error = FT_Set_Char_Size(*Font, 0, Text.Points * 64, 128, 128);
-    if (error) {
-        Assert(false);
-    }
-    else {
-        FT_GlyphSlot Slot = (*Font)->glyph;
-        int PenX = Position.X;
-        int PenY = Position.Y;
-
-        error = FT_Load_Char(*Font, '\n', FT_LOAD_RENDER);
-        if (error) {
-            Assert(false);
-        }
-
-        int LineJump = (int)(0.023f * (float)Slot->metrics.height); // 0.023 because height is in 64ths of pixel
-
-        for (int i = 0; i < Text.Length; i++) {
-            error = FT_Load_Char(*Font, Text.Content[i], FT_LOAD_RENDER);
-            if (error) {
-                Assert(false);
-            }
-
-            // Carriage returns
-            if (Text.Content[i] == '\n') {
-                PenY += LineJump;
-                PenX = Position.X;
-            }
-            else {
-                if (Text.Wrapped && PenX + (Slot->metrics.width >> 6) > OutputTarget->Header.Width) {
-                    PenX = Position.X;
-                    PenY += LineJump;
-                }
-                FT_Bitmap FTBMP = Slot->bitmap;
-                loaded_bmp BMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
-                LoadFTBMP(&FTBMP, &BMP);
-                RenderBMP(OutputTarget, &BMP, { (double)(PenX + Slot->bitmap_left), (double)(PenY - Slot->bitmap_top), 0 });
-                PopSize(Arena, BMP.Header.FileSize / 8);
-                PenX += Slot->advance.x >> 6;
-            }
-        }
-    }
-}
+//void RenderText(loaded_bmp* OutputTarget, memory_arena* Arena, FT_Face* Font, game_screen_position Position, text Text) {
+//    FT_Error error;
+//
+//    error = FT_Set_Char_Size(*Font, 0, Text.Points * 64, 128, 128);
+//    if (error) {
+//        Assert(false);
+//    }
+//    else {
+//        FT_GlyphSlot Slot = (*Font)->glyph;
+//        int PenX = Position.X;
+//        int PenY = Position.Y;
+//
+//        error = FT_Load_Char(*Font, '\n', FT_LOAD_RENDER);
+//        if (error) {
+//            Assert(false);
+//        }
+//
+//        int LineJump = (int)(0.023f * (float)Slot->metrics.height); // 0.023 because height is in 64ths of pixel
+//
+//        for (int i = 0; i < Text.Length; i++) {
+//            error = FT_Load_Char(*Font, Text.Content[i], FT_LOAD_RENDER);
+//            if (error) {
+//                Assert(false);
+//            }
+//
+//            // Carriage returns
+//            if (Text.Content[i] == '\n') {
+//                PenY += LineJump;
+//                PenX = Position.X;
+//            }
+//            else {
+//                if (Text.Wrapped && PenX + (Slot->metrics.width >> 6) > OutputTarget->Header.Width) {
+//                    PenX = Position.X;
+//                    PenY += LineJump;
+//                }
+//                FT_Bitmap FTBMP = Slot->bitmap;
+//                loaded_bmp BMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
+//                LoadFTBMP(&FTBMP, &BMP);
+//                RenderBMP(OutputTarget, &BMP, { (double)(PenX + Slot->bitmap_left), (double)(PenY - Slot->bitmap_top), 0 });
+//                PopSize(Arena, BMP.Header.FileSize / 8);
+//                PenX += Slot->advance.x >> 6;
+//            }
+//        }
+//    }
+//}
 
 /*
 void RenderGroupToOutput(render_group* Group, loaded_bmp* OutputTarget) {

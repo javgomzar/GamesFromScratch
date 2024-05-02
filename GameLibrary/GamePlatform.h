@@ -1,5 +1,6 @@
 #pragma once
 #include "stdint.h"
+#include "time.h"
 
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
@@ -137,7 +138,24 @@ loaded_bmp MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool 
     return Result;
 }
 
-struct Character {
+struct string {
+    int Length;
+    char* Content;
+};
+
+string PushString(memory_arena* Arena, int Length, const char* Content) {
+    string String = { 0 };
+    String.Length = Length;
+    String.Content = PushArray(Arena, Length, char);
+
+    for (int i = 0; i < Length; i++) {
+        String.Content[i] = Content[i];
+    }
+
+    return String;
+}
+
+struct character {
     unsigned char Letter;
     signed long Advance;
     signed long Width;
@@ -162,4 +180,19 @@ struct platform_api {
     platform_read_entire_file* ReadEntireFile;
     platform_free_file_memory* FreeFileMemory;
     platform_write_entire_file* WriteEntireFile;
+};
+
+enum log_mode {
+    File,
+    Terminal
+};
+
+enum log_level {
+    Info,
+    Warn,
+    Error
+};
+
+struct logger {
+    log_mode Mode;
 };

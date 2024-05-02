@@ -149,23 +149,6 @@ color Blend(color Color, color Background) {
     float End;
 };*/
 
-// Fonts
-struct text {
-    int Length;
-    color Color;
-    int Points;
-    bool Wrapped;
-    Character* Characters;
-    char* Content;
-};
-
-struct text_options {
-    int Length;
-    color Color;
-    int Points;
-    bool Wrapped;
-};
-
 struct game_joystick_state {
     float X;
     float Y;
@@ -290,8 +273,7 @@ struct button {
     game_rect Collider;
     loaded_bmp Image;
     loaded_bmp ClickedImage;
-    text Text;
-    FT_Face* Face;
+    string Text;
 };
 
 struct UI {
@@ -326,7 +308,7 @@ struct game_video {
 
 // Game Assets
 struct game_assets {
-    Character* Characters;
+    character* Characters;
     loaded_bmp TestImage;
     game_sound TestSound;
     game_video TestVideo;
@@ -350,9 +332,8 @@ struct game_memory {
     void* PermanentStorage;
     platform_api Platform;
     game_assets Assets;
-    FT_Library FTLibrary;
     render_group* Group;
-    char* DebugInfo;
+    string DebugInfo;
 };
 
 #define GAME_UPDATE(name) void GAMELIBRARY_API name(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, render_group* Group, game_input* Input)

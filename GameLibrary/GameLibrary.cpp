@@ -329,13 +329,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         game_rect DebugInfoRect = { 0, 0, 470, 150 };
         PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 999);
         PushRectOutline(Group, DebugInfoRect, Gray);
-        text Text = { 0 };
-        Text.Color = White;
-        Text.Length = 71;
-        Text.Points = 20;
-        Text.Content = Memory->DebugInfo;
-        Text.Characters = Assets->Characters;
-        PushText(Group, { 0,30,999 }, Text);
+        PushText(Group, { 0,30,999 }, Assets->Characters, White, 20, Memory->DebugInfo);
     }
 
     // Render

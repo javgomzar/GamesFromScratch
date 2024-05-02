@@ -82,6 +82,73 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 WNDDIMENSION    GetWindowDimension(HWND Window);
 
+// Logging
+log_mode LOG_MODE = File;
+
+void Log(log_level Level, const char* Content) {
+
+    // Level
+    char LevelString[9];
+    int LevelStringLength;
+    switch (Level) {
+        case Info:
+        {
+            strcpy_s(LevelString, "[INFO] ");
+            LevelStringLength = 7;
+        } break;
+        case Warn:
+        {
+            strcpy_s(LevelString, "[WARN] ");
+            LevelStringLength = 7;
+        } break;
+        case Error:
+        {
+            strcpy_s(LevelString, "[ERROR] ");
+            LevelStringLength = 8;
+        } break;
+    }
+    LevelString[LevelStringLength] = 0;
+
+    // Timestamp
+    time_t t = time(NULL);
+    struct tm tm;
+    localtime_s(&tm, &t);
+    char Date[21];
+    sprintf_s(Date, "%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    // Logging
+    switch (LOG_MODE) {
+        case File:
+        {
+            HANDLE FileHandle = CreateFileA("log.log", FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
+            if (FileHandle != INVALID_HANDLE_VALUE) {
+                DWORD BytesWritten = 0;
+                WriteFile(FileHandle, Date, 20, &BytesWritten, 0);
+                WriteFile(FileHandle, LevelString, LevelStringLength, &BytesWritten, 0);
+                int i = 0;
+                while (*(Content + i) != 0) {
+                    i++;
+                }
+                WriteFile(FileHandle, Content, i, &BytesWritten, 0);
+            }
+            else {
+                Assert(false);
+            }
+
+            CloseHandle(FileHandle);
+        } break;
+        case Terminal:
+        {
+            OutputDebugStringA(Date);
+            OutputDebugStringA(LevelString);
+            OutputDebugStringA(Content);
+        } break;
+    }
+}
+
+
+// Platform
+platform_api Platform;
 
 // Graphics
 struct OFFSCREENBUFFER {
@@ -96,7 +163,7 @@ struct OFFSCREENBUFFER {
 OFFSCREENBUFFER BackBuffer;
 WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
 
-Character* InitializeFonts(memory_arena* Arena) {
+character* InitializeFonts(memory_arena* Arena) {
     FT_Library FTLibrary;
     FT_Face Font;
     FT_Error error = FT_Init_FreeType(&FTLibrary);
@@ -119,9 +186,9 @@ Character* InitializeFonts(memory_arena* Arena) {
                 Assert(false);
             }
             
-            Character* Result = PushArray(Arena, 95, Character);
+            character* Result = PushArray(Arena, 95, character);
             loaded_bmp* CharacterBMP = PushArray(Arena, 95, loaded_bmp);
-            Character* pCharacter = Result;
+            character* pCharacter = Result;
             for (unsigned char c = ' '; c <= '~'; c++) {
                 error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
                 if (error) {
@@ -133,7 +200,7 @@ Character* InitializeFonts(memory_arena* Arena) {
                     *CharacterBMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
                     LoadFTBMP(&FTBMP, CharacterBMP);
 
-                    Character LoadCharacter = { 0 };
+                    character LoadCharacter = { 0 };
                     LoadCharacter.Letter = c;
                     LoadCharacter.Advance = Slot->advance.x;
                     LoadCharacter.Left = Slot->bitmap_left;
@@ -183,13 +250,13 @@ int InitOpenGL(HWND Window) {
 
     HGLRC OpenGLRC = wglCreateContext(WindowDC);
     if (wglMakeCurrent(WindowDC, OpenGLRC)) {
-        OutputDebugStringA("OpenGL successfully initialized.\n");
+        Log(Info, "OpenGL successfully initialized.\n");
 
         typedef BOOL WINAPI wgl_swap_interval_ext(int interval);
         wgl_swap_interval_ext *wglSwapInterval = (wgl_swap_interval_ext*)wglGetProcAddress("wglSwapIntervalEXT");
         if (wglSwapInterval) {
             wglSwapInterval(1);
-            OutputDebugStringA("VSync activated.\n");
+            Log(Info, "VSync activated.\n");
         }
 
         ReleaseDC(Window, WindowDC);
@@ -313,14 +380,14 @@ static void InitXAudio2(int nBuffers,
     hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     if (FAILED(hr = XAudio2Create(&pXAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
-        OutputDebugStringA("ERROR creating XAudio2");
+        Log(Error, "ERROR creating XAudio2");
     }
     else if (FAILED(hr = pXAudio2->CreateMasteringVoice(&pMasterVoice))) {
-        OutputDebugStringA("ERROR creating mastering voice");
+        Log(Error, "ERROR creating mastering voice");
     }
     else {
         if (FAILED(hr = pXAudio2->CreateSourceVoice(&pSourceVoice, pWaveFormat, 0, XAUDIO2_DEFAULT_FREQ_RATIO, &VoiceCallback))) {
-            OutputDebugStringA("ERROR creating source voice");
+            Log(Error, "ERROR creating source voice");
         }
         else {
             uint32 AudioBytes = BufferSize * pWaveFormat->nChannels * (pWaveFormat->wBitsPerSample / 8);
@@ -414,9 +481,10 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
         CloseHandle(FileHandle);
     }
     else {
-        DWORD Error = GetLastError();
-        OutputDebugStringA(Filename);
-        OutputDebugStringA("ERROR WHILE OPENING FILE.\n");
+        DWORD LastError = GetLastError();
+        char ErrorText[256];
+        sprintf_s(ErrorText, "Error while opening file %s. Error code %d", Filename, LastError);
+        Log(Error, ErrorText);
     }
     return Result;
 };
@@ -470,7 +538,7 @@ void BeginInputPlayback(record_and_playback* RecordPlayback, int PlaybackIndex) 
 
     }
     else {
-        OutputDebugStringA("Reading game state failed.");
+        Log(Error, "Reading game state failed.");
     }
 }
 
@@ -866,31 +934,51 @@ FILETIME GetLastWriteTime(LPCSTR FilePath) {
 void LoadGameCode(game_code *Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
     Result->Update = GameUpdateStub;
 
-    if (CopyFileA(SourceDLLName, TempDLLName, FALSE)) {
-        Result->GameCodeDLL = LoadLibraryA(TempDLLName);
-        if (Result->GameCodeDLL) {
-            Result->Update = (game_update*)GetProcAddress(Result->GameCodeDLL, "GameUpdate");
-            Result->IsValid = (Result->Update);
-        }
+    bool CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
 
-        if (!Result->IsValid) {
-            Result->Update = GameUpdateStub;
-            OutputDebugStringA("Loading game code failed.\n");
+    if (!CopyResult) {
+        DWORD LastError = GetLastError();
+        if (LastError == ERROR_SHARING_VIOLATION) {
+            int Retries = 0;
+            do {
+                Log(Error, "Retrying game code loading after sharing violation.\n");
+                Sleep(100);
+                CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
+                Retries++;
+                if (Retries > 100) {
+                    Log(Error, "Max number of retries reached.\n");
+                    break;
+                }
+            } while (!CopyResult);
         }
         else {
-            FILETIME LastWriteTime = GetLastWriteTime(SourceDLLName);
-            Result->DLLLastWriteTime = LastWriteTime;
+            char ErrorText[256];
+            sprintf_s(ErrorText, "Error copying .dll file. Code %d.\n", LastError);
+            Log(Error, ErrorText);
+            return;
         }
     }
-    else {
-        DWORD Error = GetLastError();
-        OutputDebugStringA("Error copying .dll file.\n");
+
+    Result->GameCodeDLL = LoadLibraryA(TempDLLName);
+    if (Result->GameCodeDLL) {
+        Result->Update = (game_update*)GetProcAddress(Result->GameCodeDLL, "GameUpdate");
+        Result->IsValid = (Result->Update);
     }
+
+    if (!Result->IsValid) {
+        Result->Update = GameUpdateStub;
+        Log(Error, "Loading game code failed.\n");
+    }
+    else {
+        FILETIME LastWriteTime = GetLastWriteTime(SourceDLLName);
+        Result->DLLLastWriteTime = LastWriteTime;
+    }
+
 }
 
 void UnloadGameCode(game_code* GameCode) {
     if (GameCode->GameCodeDLL) {
-        FreeLibrary(GameCode->GameCodeDLL);
+        bool UnloadResult = FreeLibrary(GameCode->GameCodeDLL);
     }
 
     GameCode->IsValid = false;
@@ -1018,7 +1106,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     void* GameMemoryBlock = VirtualAlloc(BaseAddress, GameMemory.PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     GameMemory.PermanentStorage = GameMemoryBlock;
 
-    platform_api Platform = {};
     Platform.FreeFileMemory = PlatformFreeFileMemory;
     Platform.ReadEntireFile = PlatformReadEntireFile;
     Platform.WriteEntireFile = PlatformWriteEntireFile;
@@ -1062,17 +1149,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
     Group->OpenGLActive = OpenGLResponse == 0;
 
+    // DebugInfo
+    GameMemory.DebugInfo = PushString(&pGameState->TextArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
+
     bool FirstFrame = true;
     // Main message loop:
     while (Running) {
         // Loading game code
         FILETIME NewDLLWriteTime = GetLastWriteTime(SourceDLLName);
         LONG DebugFiletime = CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime);
+
         if (CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime) != 0) {
             UnloadGameCode(&GameCode);
             LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
+            if (GameCode.IsValid) {
+                Log(Info, "New game code loaded.\n");
+            }
         }
-
 
         // Previous input
         Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;
@@ -1224,8 +1317,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         ClearEntries(Group);
 
         // Game function
-        GameCode.Update(&GameMemory, &GameSoundBuffers[(currentBuffer + 2) % nBuffers], &GameSoundBuffers[currentBuffer], Group, &Input);
-        Render(Window, Group);
+        if (GameCode.IsValid) {
+            GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], Group, &Input);
+            Render(Window, Group);
+        }
+        else {
+            Log(Error, "Could not update state due to invalid game code.\n");
+        }
 
         //DebugSyncDisplay(&Buffer, &GameSoundBuffers[currentBuffer]);
         // DisplayBufferToWindow(&BackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
@@ -1233,7 +1331,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         XAUDIO2_VOICE_STATE VoiceState;
         pSourceVoice->GetState(&VoiceState);
         if (FAILED(SubmitBuffer(&XAudio2Buffers[currentBuffer], pSourceVoice))) {
-            OutputDebugStringA("Buffer playing went wrong.\n");
+            Log(Error, "Buffer playing went wrong.\n");
         }
         else {
             currentBuffer = (currentBuffer + 1) % nBuffers;
@@ -1256,18 +1354,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
         else {
             // Missed a frame!
-            OutputDebugStringA("Missed a frame!\n");
+            Log(Warn, "Missed a frame!\n");
         }
 
         double ActualSecsElapsed = SecsElapsedPerFrame + 0.0005;
         double msPerFrame = 1000.0 * ActualSecsElapsed;
         double FPS = 1.0 / ActualSecsElapsed;
         double MegaCyclesPerFrame = CyclesElapsed / 1000000.0;
-        //TCHAR TextBuffer[256];
-        //wsprintf(TextBuffer, L"%d ms/frame, %d fps, %d Mcycles/frame\n", (int)msPerFrame, (int)FPS, (int)MegaCyclesPerFrame);
-        char TextBuffer[256];
-        sprintf_s(TextBuffer, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
-        GameMemory.DebugInfo = TextBuffer;
+
+        sprintf_s(GameMemory.DebugInfo.Content, GameMemory.DebugInfo.Length, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
+        
         pGameState->LastFrameTime = ActualSecsElapsed;
         pGameState->Time += ActualSecsElapsed;
 
