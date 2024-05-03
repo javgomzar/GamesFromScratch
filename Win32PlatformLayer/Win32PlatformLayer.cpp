@@ -941,7 +941,7 @@ void LoadGameCode(game_code *Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
         if (LastError == ERROR_SHARING_VIOLATION) {
             int Retries = 0;
             do {
-                Log(Error, "Retrying game code loading after sharing violation.\n");
+                Log(Warn, "Retrying game code loading after sharing violation.\n");
                 Sleep(100);
                 CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
                 Retries++;
