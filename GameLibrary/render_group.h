@@ -147,7 +147,7 @@ struct render_group {
     bool OpenGLActive;
     bool VSyncActive;
     camera* Camera;
-    Character* Characters;
+    character* Characters;
 };
 
 struct sort_entry {
@@ -327,9 +327,9 @@ void PushBMP(render_group* Group, loaded_bmp* Bitmap, v3 Position) {
     Entry->Texture = Bitmap;
 }
 
-void PushText(render_group* Group, game_screen_position Position, character* Characters, color Color, int Points, string String) {
+void PushText(render_group* Group, game_screen_position Position, character* Characters, color Color, int Points, string String, bool IsUI=false) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
-    Entry->Header.Coord = isUI ? Screen : World;
+    Entry->Header.Coord = IsUI ? Screen : World;
     Entry->Header.Key.Z = Position.Z;
     Entry->Header.Key.Y = Position.Y;
     Entry->Position = Position;
@@ -443,33 +443,18 @@ void PushEntity(render_group* Group, entity Entity, camera Camera) {
     PushTexturedRectBasis(Group, Entity.BMP, Entity.Position + Entity.BMPOffset, Entity.Basis, Clamp, false);
 }
 
-void PushHealthBar(render_group* Group, int HP, int MaxHP, char* HPTextContent, char* HealthTextContent) {
+void PushHealthBar(render_group* Group, character* Characters, string HPString, string HPNumbersString, int HP, int MaxHP) {
     
     double X = Group->Camera->Width - 120;
     double p = (double)HP / (double)MaxHP;
     PushRect(Group, { X,20,100,25 }, Gray, 9999, true);
     PushRect(Group, { X,20,p*100.0,25 }, Red, 10000, true);
 
-    text HPText = { 0 };
-    HPText.Color = White;
-    HPText.Length = 2;
-    HPText.Points = 10;
-    HPText.Content = HPTextContent;
+    PushText(Group, { X - 27, 52, 10001 }, Characters, White, 10, HPString, true);
 
-    PushText(Group, {X - 27, 52, 10001}, HPText, true);
+    sprintf_s(HPNumbersString.Content, HPNumbersString.Length, "%i/%i", HP, MaxHP);
 
-    text HealthText = { 0 };
-    HealthText.Color = White;
-    if (HP == 100) {
-        HealthText.Length = 7;
-    }
-    else {
-        HealthText.Length = 6;
-    }
-    HealthText.Points = 10;
-    HealthText.Content = HealthTextContent;
-
-    PushText(Group, { X , 52, 10001 }, HealthText, true);
+    PushText(Group, { X , 52, 10001 }, Characters, White, 10, HPNumbersString, true);
 }
 
 void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {

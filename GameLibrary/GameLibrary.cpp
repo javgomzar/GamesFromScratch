@@ -836,7 +836,13 @@ extern "C" GAME_UPDATE(GameUpdate)
         firstFrame = true;
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        // Load your assets here
+        // Text
+        Assets->TitleText = PushString(&pGameState->TextArena, 32, "Press any key to continue");
+        Assets->DialogText = PushString(&pGameState->TextArena, 160, "Sabe una cosa? Quien es el mesenhero de Dios? Y quien es el mesenhero del mesenhero? Y quien es el mesenhero del mensehero de Dios? Estamo en el apoclipsis.");
+        Assets->HPText = PushString(&pGameState->TextArena, 3, "HP");
+        Assets->HPNumbersText = PushString(&pGameState->TextArena, 10, "100/100");
+
+        // Images
         Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Player.bmp");
         Assets->PlayerBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\PlayerBack.bmp");
         Assets->FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Floor.bmp");
@@ -846,7 +852,11 @@ extern "C" GAME_UPDATE(GameUpdate)
         Assets->EnemyBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\EnemyBack.bmp");
         Assets->BombBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Bomb.bmp");
         Assets->FadeFrame = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\FadeFrame.bmp");
+
+        // Sound
         Assets->TestSound = LoadWAV(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Sound\\wilfred_theme.wav");
+
+        // Video
         Assets->IntroVideo = LoadVideo(&pGameState->VideoArena, "..\\..\\GameLibrary\\RogueMedia\\Video\\WILFREDCHILLIN2.mp4");
 
         // User Interface
@@ -892,23 +902,6 @@ extern "C" GAME_UPDATE(GameUpdate)
         Memory->IsInitialized = true;
     }
 
-    // Text
-    char TitleTextBuffer[32] = "Press any key to continue";
-    text TitleText = { 0 };
-    TitleText.Color = White;
-    TitleText.Length = 25;
-    TitleText.Points = 18;
-    TitleText.Wrapped = false;
-    TitleText.Content = TitleTextBuffer;
-    TitleText.Characters = Group->Characters;
-
-    char TestTextContent[160] = "Sabe una cosa? Quien es el mesenhero de Dios? Y quien es el mesenhero del mesenhero? Y quien es el mesenhero del mensehero de Dios? Estamo en el apoclipsis.";
-    static text TestText = { 0 };
-    TestText.Color = White;
-    TestText.Content = TestTextContent;
-    TestText.Wrapped = true;
-    TestText.Characters = Group->Characters;
-
     switch (pGameState->Scene) {
     case Intro:
     {
@@ -941,10 +934,8 @@ extern "C" GAME_UPDATE(GameUpdate)
             PushVideoLoop(Group, &Assets->IntroVideo, WilfredRect, 10, pGameState->LastFrameTime, 185474, 250982);
             PushTexturedRect(Group, WilfredRect, &Assets->FadeFrame, 20, true);
             
-            TitleText.Color = Black;
-            PushText(Group, {(double)Group->Width / 2.0 - 235, (double)Group->Height / 1.2 - 2, 30}, TitleText, true);
-            TitleText.Color = White;
-            PushText(Group, { (double)Group->Width / 2.0 - 237, (double)Group->Height / 1.2, 31 }, TitleText, true);
+            PushText(Group, {(double)Group->Width / 2.0 - 235, (double)Group->Height / 1.2 - 2, 30}, Assets->Characters, Black, 18, Assets->TitleText, true);
+            PushText(Group, { (double)Group->Width / 2.0 - 237, (double)Group->Height / 1.2, 31 }, Assets->Characters, White, 18, Assets->TitleText, true);
 
             if ((pGameState->Time > StartTime + 0.2) && Input->Keyboard.Any) {
                 pGameState->Scene = Main;
@@ -1064,27 +1055,24 @@ extern "C" GAME_UPDATE(GameUpdate)
         if (Dialog) {
             Counter++;
             if (Counter == 2) {
-                if (TestText.Length <= 160) {
-                    TestText.Length++;
+                if (Assets->DialogText.Length <= 160) {
+                    Assets->DialogText.Length++;
                 }
                 Counter = 0;
             }
-            PushText(Group, { 0,0.7 * Group->Height + 40,10 }, TestText, true);
+            PushText(Group, { 0,0.7 * Group->Height + 40,10 }, Assets->Characters, White, 20, Assets->DialogText, true);
 
             PushRect(Group, DialogRect, { 0.5f, 0.0f, 0.0f, 0.0f }, 9, true);
             PushRectOutline(Group, DialogRect, Gray, true);
         }
         else {
-            TestText.Length = 0;
+            Assets->DialogText.Length = 0;
             Counter = 0;
         }
 
         // UI
             // Health bar
-        char HPText[3] = "HP";
-        char HealthText[12];
-        sprintf_s(HealthText, "%i/%i", pGameState->Player.HP, pGameState->Player.MaxHP);
-        PushHealthBar(Group, pGameState->Player.HP, pGameState->Player.MaxHP, HPText, HealthText);
+        PushHealthBar(Group, Assets->Characters, Assets->HPText, Assets->HPNumbersText, pGameState->Player.HP, pGameState->Player.MaxHP);
 
 
         // Software renderer as a fallback (toggle with Space)
@@ -1115,14 +1103,9 @@ extern "C" GAME_UPDATE(GameUpdate)
         game_rect DebugInfoRect = { 0, 0, 470, 150 };
         PushRect(Group, DebugInfoRect, { 0.5, 0.0, 0.0, 0.0 }, 999, true);
         PushRectOutline(Group, DebugInfoRect, Gray, true);
-        text Text = { 0 };
-        Text.Color = White;
-        Text.Length = 71;
-        Text.Points = 20;
-        Text.Characters = Group->Characters;
-        Text.Content = Memory->DebugInfo;
+
         PushDebugLattice(Group, { 0.2f, 1.0f, 1.0f, 0.0f });
-        PushText(Group, { 0, 30, 1001 }, Text, true);
+        PushText(Group, { 0, 30, 1001 }, Assets->Characters, White, 25, Memory->DebugInfo, true);
 
         // Mouse
         game_screen_position MousePosition = { Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y, 0 };

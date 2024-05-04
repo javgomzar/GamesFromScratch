@@ -192,7 +192,7 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, 
 	glDisable(GL_TEXTURE_2D);
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, render_basis* Basis, bool Wrapped = false)
+void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, render_basis Basis, bool Wrapped = false)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;
@@ -353,7 +353,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 			case group_type_render_entry_text:
 			{
 				render_entry_text Entry = *(render_entry_text*)Header;
-				OpenGLRenderText(Width, Entry.Position, Entry.Characters, Entry.Color, Entry.Points, Entry.String, &Entry.Basis, Entry.Wrapped);
+				OpenGLRenderText(Width, Entry.Position, Entry.Characters, Entry.Color, Entry.Points, Entry.String, Entry.Basis, Entry.Wrapped);
 			} break;
 
 			case group_type_render_entry_button:
@@ -362,8 +362,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				button* Button = Entry.Button;
 				character* Characters = Entry.Characters;
 
-				int Width = Texture->Header.Width;
-				int Height = Texture->Header.Height;
+				int Width = Entry.Button->Image.Header.Width;
+				int Height = Entry.Button->Image.Header.Height ;
 				OpenGLTexturedRect(
 					{ Button->Collider.Left, Button->Collider.Top, 0 },
 					Width, Height, Group->DefaultBasis, Clamp

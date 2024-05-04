@@ -376,7 +376,7 @@ struct game_video {
 
 // Game Assets
 struct game_assets {
-    Character* Characters;
+    character* Characters;
     loaded_bmp PlayerBMP;
     loaded_bmp PlayerBackBMP;
     loaded_bmp FloorBMP;
@@ -388,6 +388,10 @@ struct game_assets {
     loaded_bmp FadeFrame;
     game_sound TestSound;
     game_video IntroVideo;
+    string TitleText;
+    string DialogText;
+    string HPText;
+    string HPNumbersText;
 };
 
 
