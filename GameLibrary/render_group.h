@@ -297,9 +297,9 @@ void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, 
     Entry->Rect = Rect;
 }
 
-void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis* Basis, wrap_mode Mode) {
+void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis Basis, wrap_mode Mode, bool IsUI = false) {
     render_entry_textured_rect_basis* Entry = PushRenderElement(Group, render_entry_textured_rect_basis);
-    Entry->Header.Coord = isUI ? Screen : World;
+    Entry->Header.Coord = IsUI ? Screen : World;
     Entry->Header.Key.Z = Position.Z;
     Entry->Header.Key.Y = Position.Y;
     Entry->Texture = Texture;

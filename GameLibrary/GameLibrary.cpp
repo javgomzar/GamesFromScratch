@@ -11,6 +11,7 @@
 
 /*
     TODO:
+        - Base points for bmps (the goal is to flip bmps from this point)
         - Improve door creation algorithm. Not all rooms need to be connected but maybe delete redundant doors sometimes and
           connect a little bit more rooms.
         - Implement tile type Rock.
@@ -23,18 +24,16 @@
         - Implement tile type filled hole.
         - Optimize rendering filtering which tiles need to be rendered?.
         - Implement inventory.
-        - Enemy movement
-        - Enemy entities
-        - Make follower collide with walls
-        - Dijkstras algorithm for shortest path
-        - Pre-render text so lengths can be calculated
-        - Load characters assets in one single texture
-        - Sound mixer
-        - Multithreading for audio
+        - Make follower collide with walls.
+        - Dijkstras algorithm for shortest path.
+        - Pre-render text so lengths can be calculated.
+        - Load characters assets in one single texture.
+        - Sound mixer.
         - Main menu:
             * Save & load games.
             * Options.
             * Reset map?
+        - Initialize enemies in different rooms. 
 */
 
 //// This is an example of an exported variable
