@@ -61,7 +61,7 @@ struct render_entry_rect {
 
 struct render_entry_textured_rect_basis {
     render_group_header Header;
-    render_basis* Basis;
+    render_basis Basis;
     v3 Position;
     loaded_bmp* Texture;
     wrap_mode Mode;
@@ -115,7 +115,7 @@ struct render_group {
     int32 Width;
     int32 Height;
     float MetersToPixels;
-    render_basis* DefaultBasis;
+    render_basis DefaultBasis;
     uint32 MaxPushBufferSize;
     uint32 PushBufferSize;
     uint32 PushBufferElementCount;
@@ -136,10 +136,9 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->MaxPushBufferSize = MaxPushBufferSize;
     Result->PushBufferSize = 0;
 
-    Result->DefaultBasis = PushStruct(Arena, render_basis);
-    Result->DefaultBasis->X = V3(1, 0, 0);
-    Result->DefaultBasis->Y = V3(0, 1, 0);
-    Result->DefaultBasis->Z = V3(0, 0, 1);
+    Result->DefaultBasis.X = V3(1, 0, 0);
+    Result->DefaultBasis.Y = V3(0, 1, 0);
+    Result->DefaultBasis.Z = V3(0, 0, 1);
     Result->MetersToPixels = 1;
 
     return(Result);
@@ -254,7 +253,7 @@ void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, 
     Entry->Rect = Rect;
 }
 
-void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis* Basis, wrap_mode Mode) {
+void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis Basis, wrap_mode Mode) {
     render_entry_textured_rect_basis* Entry = PushRenderElement(Group, render_entry_textured_rect_basis);
     Entry->Header.Key.Z = Position.Z;
     Entry->Texture = Texture;

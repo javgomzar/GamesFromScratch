@@ -110,7 +110,7 @@ void OpenGLTexturedRect(game_rect Rect, bool FlipY = false, bool FlipX = false) 
 
 // Render a textured rectangle in OpenGL given position and basis.
 // It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis* Basis, wrap_mode Mode)
+void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, wrap_mode Mode)
 {
 	/*
 	*    A ---- B
@@ -120,17 +120,17 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis* Basis,
 	*      ->
 	*/
 	v3 A = Position;
-	v3 B = Position + Width * Basis->X;
-	v3 C = Position + Height * Basis->Y;
-	v3 D = Position + Width * Basis->X + Height * Basis->Y;
+	v3 B = Position + Width * Basis.X;
+	v3 C = Position + Height * Basis.Y;
+	v3 D = Position + Width * Basis.X + Height * Basis.Y;
 
 	float MinTexX = 0.0f;
 	float MinTexY = 0.0f;
 	float MaxTexX;
 	float MaxTexY;
 	if (Mode == Repeat) {
-		MaxTexX = module(Basis->X);
-		MaxTexY = module(Basis->Y);
+		MaxTexX = module(Basis.X);
+		MaxTexY = module(Basis.Y);
 	}
 	else {
 		MaxTexX = 1.0f;
@@ -164,7 +164,7 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis* Basis,
 	glDisable(GL_TEXTURE_2D);
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, render_basis* Basis, bool Wrapped = false)
+void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, render_basis Basis, bool Wrapped = false)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;
@@ -194,7 +194,7 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, charac
 				);
 			}
 
-			PenX += (pCharacter->Advance >> 6) * Basis->X.X;
+			PenX += (pCharacter->Advance >> 6) * Basis.X.X;
 		}
 	}
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -281,7 +281,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 			case group_type_render_entry_text:
 			{
 				render_entry_text Entry = *(render_entry_text*)Header;
-				OpenGLRenderText(Width, Entry.Position, Entry.Characters, Entry.Color, Entry.Points, Entry.String, &Entry.Basis, Entry.Wrapped);
+				OpenGLRenderText(Width, Entry.Position, Entry.Characters, Entry.Color, Entry.Points, Entry.String, Entry.Basis, Entry.Wrapped);
 			} break;
 
 			case group_type_render_entry_button:
