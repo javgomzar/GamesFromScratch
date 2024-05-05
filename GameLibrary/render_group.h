@@ -162,7 +162,6 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->MaxPushBufferSize = MaxPushBufferSize;
     Result->PushBufferSize = 0;
 
-    Result->DefaultBasis = { 0 };
     Result->DefaultBasis.X = V3(1, 0, 0);
     Result->DefaultBasis.Y = V3(0, 1, 0);
     Result->DefaultBasis.Z = V3(0, 0, 1);
@@ -298,7 +297,7 @@ void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, 
     Entry->Rect = Rect;
 }
 
-void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis Basis, wrap_mode Mode, bool isUI = false) {
+void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis* Basis, wrap_mode Mode) {
     render_entry_textured_rect_basis* Entry = PushRenderElement(Group, render_entry_textured_rect_basis);
     Entry->Header.Coord = isUI ? Screen : World;
     Entry->Header.Key.Z = Position.Z;
