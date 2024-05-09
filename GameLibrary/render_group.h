@@ -326,7 +326,7 @@ void PushBMP(render_group* Group, loaded_bmp* Bitmap, v3 Position) {
     Entry->Texture = Bitmap;
 }
 
-void PushText(render_group* Group, game_screen_position Position, character* Characters, color Color, int Points, string String, bool IsUI=false) {
+void PushText(render_group* Group, game_screen_position Position, character* Characters, color Color, int Points, string String, bool Wrapped, bool IsUI = false) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
     Entry->Header.Coord = IsUI ? Screen : World;
     Entry->Header.Key.Z = Position.Z;
@@ -336,6 +336,7 @@ void PushText(render_group* Group, game_screen_position Position, character* Cha
     Entry->Color = Color;
     Entry->Points = Points;
     Entry->String = String;
+    Entry->Wrapped = Wrapped;
     float a = (double)Points / 20.0;
     Entry->Basis.X = V3(a, 0, 0);
     Entry->Basis.Y = V3(0, a, 0);
