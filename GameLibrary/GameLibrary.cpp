@@ -225,7 +225,16 @@ void PlaySound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
 void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
     // WriteSineWave(pSoundBuffer, 480, 0);
-    PlaySound(&Assets->TestSound, pSoundBuffer);
+    switch (pGameState->Scene) {
+        case Intro:
+        {
+            PlaySound(&Assets->TitleMusic, pSoundBuffer);
+        } break;
+        case Main:
+        {
+
+        } break;
+    }
 }
 
 game_sound LoadWAV(platform_read_entire_file* PlatformReadEntireFile, const char* FileName) {
@@ -742,11 +751,14 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
     }
 
     // Changing BMP with direction
-    if (Player->Entity.Velocity.Y >= 0) {
+    if (Player->Entity.Velocity.Y > 0) {
         Player->Entity.BMP = Player->FrontBMP;
     }
-    else {
+    else if (Player->Entity.Velocity.Y < 0) {
         Player->Entity.BMP = Player->BackBMP;
+    }
+    else if (module(Player->Entity.Velocity) > 0) {
+        Player->Entity.BMP = Player->SideBMP;
     }
 
     if (Player->Entity.Velocity.X < 0) {
@@ -842,21 +854,22 @@ extern "C" GAME_UPDATE(GameUpdate)
         Assets->HPNumbersText = PushString(&pGameState->TextArena, 10, "100/100");
 
         // Images
-        Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Player.bmp");
-        Assets->PlayerBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\PlayerBack.bmp");
-        Assets->FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Floor.bmp");
-        Assets->DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Door.bmp");
-        Assets->ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Treasure.bmp");
-        Assets->EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Enemy.bmp");
-        Assets->EnemyBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\EnemyBack.bmp");
-        Assets->BombBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\Bomb.bmp");
-        Assets->FadeFrame = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\RogueMedia\\FadeFrame.bmp");
+        Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Wilfred.bmp");
+        Assets->PlayerBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\WilfredBack.bmp");
+        Assets->PlayerSideBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\WilfredSide.bmp");
+        Assets->FloorBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Floor.bmp");
+        Assets->DoorBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Door.bmp");
+        Assets->ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Treasure.bmp");
+        Assets->EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Enemy.bmp");
+        Assets->EnemyBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\EnemyBack.bmp");
+        Assets->BombBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Bomb.bmp");
+        Assets->FadeFrame = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\FadeFrame.bmp");
 
         // Sound
-        Assets->TestSound = LoadWAV(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Sound\\wilfred_theme.wav");
+        Assets->TitleMusic = LoadWAV(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Sound\\wilfred_theme.wav");
 
         // Video
-        Assets->IntroVideo = LoadVideo(&pGameState->VideoArena, "..\\..\\GameLibrary\\RogueMedia\\Video\\WILFREDCHILLIN2.mp4");
+        Assets->IntroVideo = LoadVideo(&pGameState->VideoArena, "..\\..\\GameLibrary\\Media\\Video\\WILFREDCHILLIN2.mp4");
 
         // User Interface
         // InitializeUI();
@@ -872,6 +885,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // Initialize player
         pGameState->Player.FrontBMP = &Memory->Assets.PlayerBMP;
         pGameState->Player.BackBMP = &Memory->Assets.PlayerBackBMP;
+        pGameState->Player.SideBMP = &Memory->Assets.PlayerSideBMP;
 
         InitializeEntity(&pGameState->Player.Entity, RandomTile(pGameState->Map, Floor), pGameState->Player.FrontBMP);
 
@@ -933,8 +947,8 @@ extern "C" GAME_UPDATE(GameUpdate)
             PushVideoLoop(Group, &Assets->IntroVideo, WilfredRect, 10, pGameState->LastFrameTime, 185474, 250982);
             PushTexturedRect(Group, WilfredRect, &Assets->FadeFrame, 20, true);
             
-            PushText(Group, {(double)Group->Width / 2.0 - 235, (double)Group->Height / 1.2 - 2, 30}, Assets->Characters, Black, 18, Assets->TitleText, true);
-            PushText(Group, { (double)Group->Width / 2.0 - 237, (double)Group->Height / 1.2, 31 }, Assets->Characters, White, 18, Assets->TitleText, true);
+            PushText(Group, {(double)Group->Width / 2.0 - 235, (double)Group->Height / 1.2 - 2, 30}, Assets->Characters, Black, 18, Assets->TitleText, false, true);
+            PushText(Group, { (double)Group->Width / 2.0 - 237, (double)Group->Height / 1.2, 31 }, Assets->Characters, White, 18, Assets->TitleText, false, true);
 
             if ((pGameState->Time > StartTime + 0.2) && Input->Keyboard.Any) {
                 pGameState->Scene = Main;
@@ -1059,7 +1073,7 @@ extern "C" GAME_UPDATE(GameUpdate)
                 }
                 Counter = 0;
             }
-            PushText(Group, { 0,0.7 * Group->Height + 40,10 }, Assets->Characters, White, 20, Assets->DialogText, true);
+            PushText(Group, { 0,0.7 * Group->Height + 40,10 }, Assets->Characters, White, 20, Assets->DialogText, true, true);
 
             PushRect(Group, DialogRect, { 0.5f, 0.0f, 0.0f, 0.0f }, 9, true);
             PushRectOutline(Group, DialogRect, Gray, true);
@@ -1104,7 +1118,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushRectOutline(Group, DebugInfoRect, Gray, true);
 
         PushDebugLattice(Group, { 0.2f, 1.0f, 1.0f, 0.0f });
-        PushText(Group, { 0, 30, 1001 }, Assets->Characters, White, 25, Memory->DebugInfo, true);
+        PushText(Group, { 0, 30, 1001 }, Assets->Characters, White, 20, Memory->DebugInfo, false, true);
 
         // Mouse
         game_screen_position MousePosition = { Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y, 0 };

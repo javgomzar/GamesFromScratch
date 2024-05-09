@@ -379,6 +379,7 @@ struct game_assets {
     character* Characters;
     loaded_bmp PlayerBMP;
     loaded_bmp PlayerBackBMP;
+    loaded_bmp PlayerSideBMP;
     loaded_bmp FloorBMP;
     loaded_bmp DoorBMP;
     loaded_bmp ChestBMP;
@@ -386,7 +387,7 @@ struct game_assets {
     loaded_bmp EnemyBackBMP;
     loaded_bmp BombBMP;
     loaded_bmp FadeFrame;
-    game_sound TestSound;
+    game_sound TitleMusic;
     game_video IntroVideo;
     string TitleText;
     string DialogText;
@@ -506,6 +507,7 @@ struct entity {
 struct player {
     loaded_bmp* FrontBMP;
     loaded_bmp* BackBMP;
+    loaded_bmp* SideBMP;
     entity Entity;
     int HP;
     int MaxHP;

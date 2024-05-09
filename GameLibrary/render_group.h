@@ -370,7 +370,7 @@ void PushDebugShineTile(render_group* Group, tile_position Position, color Color
 
 void PushDoor(render_group* Group, game_assets* Assets, tile Map[MAP_HEIGHT][MAP_WIDTH], int Row, int Col) {
     v3 DoorPosition = ToWorldCoord({ Row - 1, Col, 1 });
-    DoorPosition.Z = 3;
+    DoorPosition.Z = 1;
 
     if (Row > 0 && Map[Row - 1][Col].Type == Floor) {
         PushBMP(Group, &Assets->FloorBMP, ToWorldCoord({ Row, Col, 0 }));
@@ -450,11 +450,11 @@ void PushHealthBar(render_group* Group, character* Characters, string HPString, 
     PushRect(Group, { X,20,100,25 }, Gray, 9999, true);
     PushRect(Group, { X,20,p*100.0,25 }, Red, 10000, true);
 
-    PushText(Group, { X - 27, 52, 10001 }, Characters, White, 10, HPString, true);
+    PushText(Group, { X - 27, 52, 10001 }, Characters, White, 10, HPString, false, true);
 
     sprintf_s(HPNumbersString.Content, HPNumbersString.Length, "%i/%i", HP, MaxHP);
 
-    PushText(Group, { X , 52, 10001 }, Characters, White, 10, HPNumbersString, true);
+    PushText(Group, { X , 52, 10001 }, Characters, White, 10, HPNumbersString, false, true);
 }
 
 void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
