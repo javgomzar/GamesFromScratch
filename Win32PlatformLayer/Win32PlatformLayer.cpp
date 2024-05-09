@@ -483,7 +483,7 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
     else {
         DWORD LastError = GetLastError();
         char ErrorText[256];
-        sprintf_s(ErrorText, "Error while opening file %s. Error code %d", Filename, LastError);
+        sprintf_s(ErrorText, "Error while opening file %s. Error code %d.\n", Filename, LastError);
         Log(Error, ErrorText);
     }
     return Result;
