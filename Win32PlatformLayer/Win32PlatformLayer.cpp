@@ -83,7 +83,7 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 WNDDIMENSION    GetWindowDimension(HWND Window);
 
 // Logging
-log_mode LOG_MODE = File;
+log_mode LOG_MODE = Terminal;
 
 void Log(log_level Level, const char* Content) {
 
@@ -815,8 +815,35 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
             else if (VKCode == '0') {
                 pInput->Keyboard.Zero.IsDown = false;
             }
+            else if (VKCode == 'Q') {
+                pInput->Keyboard.Q.IsDown = false;
+            }
             else if (VKCode == 'W') {
                 pInput->Keyboard.W.IsDown = false;
+            }
+            else if (VKCode == 'E') {
+                pInput->Keyboard.E.IsDown = false;
+            }
+            else if (VKCode == 'R') {
+                pInput->Keyboard.R.IsDown = false;
+            }
+            else if (VKCode == 'T') {
+                pInput->Keyboard.T.IsDown = false;
+            }
+            else if (VKCode == 'Y') {
+                pInput->Keyboard.Y.IsDown = false;
+            }
+            else if (VKCode == 'U') {
+                pInput->Keyboard.U.IsDown = false;
+            }
+            else if (VKCode == 'I') {
+                pInput->Keyboard.I.IsDown = false;
+            }
+            else if (VKCode == 'O') {
+                pInput->Keyboard.O.IsDown = false;
+            }
+            else if (VKCode == 'P') {
+                pInput->Keyboard.P.IsDown = false;
             }
             else if (VKCode == 'A') {
                 pInput->Keyboard.A.IsDown = false;
@@ -827,14 +854,44 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
             else if (VKCode == 'D') {
                 pInput->Keyboard.D.IsDown = false;
             }
-            else if (VKCode == 'E') {
-                pInput->Keyboard.E.IsDown = false;
-            }
-            else if (VKCode == 'Q') {
-                pInput->Keyboard.Q.IsDown = false;
-            }
             else if (VKCode == 'F') {
                 pInput->Keyboard.F.IsDown = false;
+            }
+            else if (VKCode == 'G') {
+                pInput->Keyboard.G.IsDown = false;
+            }
+            else if (VKCode == 'H') {
+                pInput->Keyboard.H.IsDown = false;
+            }
+            else if (VKCode == 'J') {
+                pInput->Keyboard.J.IsDown = false;
+            }
+            else if (VKCode == 'K') {
+                pInput->Keyboard.K.IsDown = false;
+            }
+            else if (VKCode == 'L') {
+                pInput->Keyboard.L.IsDown = false;
+            }
+            else if (VKCode == 'Z') {
+                pInput->Keyboard.Z.IsDown = false;
+            }
+            else if (VKCode == 'X') {
+                pInput->Keyboard.X.IsDown = false;
+            }
+            else if (VKCode == 'C') {
+                pInput->Keyboard.C.IsDown = false;
+            }
+            else if (VKCode == 'V') {
+                pInput->Keyboard.V.IsDown = false;
+            }
+            else if (VKCode == 'B') {
+                pInput->Keyboard.B.IsDown = false;
+            }
+            else if (VKCode == 'N') {
+                pInput->Keyboard.N.IsDown = false;
+            }
+            else if (VKCode == 'M') {
+                pInput->Keyboard.M.IsDown = false;
             }
             else if (VKCode == VK_UP) {
                 pInput->Keyboard.Up.IsDown = false;
@@ -1121,7 +1178,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     RecordPlayback.TotalSize = GameMemory.PermanentStorageSize;
 
     // Input
-    game_input Input = { 0 };
+    game_input Input = {};
+    Input.Mode = Keyboard;
 
     // Sound
     int currentBuffer = 1;
@@ -1218,6 +1276,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
         }
 
+        if ((Input.Mode != Keyboard) && Input.Keyboard.Any) {
+            Input.Mode = Keyboard;
+        }
+
         // XInput Controller
         for (DWORD ControllerIndex = 0; ControllerIndex < XUSER_MAX_COUNT; ++ControllerIndex) {
             XINPUT_STATE ControllerState;
@@ -1259,6 +1321,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 Input.Controller.RS.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_THUMB);
                 Input.Controller.LT.IsDown = (Pad->bLeftTrigger > 0);
                 Input.Controller.RT.IsDown = (Pad->bRightTrigger > 0);
+
+                Input.Controller.Any = false;
+                for (int i = 0; i < 16; i++) {
+                    if (Input.Controller.Buttons[i].IsDown) {
+                        Input.Controller.Any = true;
+                        break;
+                    }
+                }
+
+                if (Input.Mode != Controller && Input.Controller.Any) {
+                    Input.Mode = Controller;
+                }
 
                 SHORT LeftStickX = (float)Pad->sThumbLX;
                 SHORT LeftStickY = (float)Pad->sThumbLY;
