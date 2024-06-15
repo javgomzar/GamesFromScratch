@@ -516,6 +516,7 @@ struct player {
 struct follower {
     loaded_bmp* FrontBMP;
     loaded_bmp* BackBMP;
+    loaded_bmp* SideBMP;
     entity Entity;
 };
 

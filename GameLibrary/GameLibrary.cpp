@@ -780,11 +780,17 @@ void Update(follower* Follower, v3 PlayerPosition) {
         Follower->Entity.Position = Follower->Entity.Position + Follower->Entity.Velocity;
         
         // BMP change
-        if (Follower->Entity.Velocity.Y > 0) {
-            Follower->Entity.BMP = Follower->FrontBMP;
+        double Quad = pow(Follower->Entity.Velocity.Y, 2) - pow(Follower->Entity.Velocity.X, 2);
+        if (Quad >= 0) {
+            if (Follower->Entity.Velocity.Y < 0) {
+                Follower->Entity.BMP = Follower->BackBMP;
+            }
+            else {
+                Follower->Entity.BMP = Follower->FrontBMP;
+            }
         }
-        else if (Follower->Entity.Velocity.Y < 0) {
-            Follower->Entity.BMP = Follower->BackBMP;
+        else {
+            Follower->Entity.BMP = Follower->SideBMP;
         }
 
         if (Follower->Entity.Velocity.X < 0) {
@@ -897,6 +903,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // Initialize follower
         pGameState->Follower.FrontBMP = &Memory->Assets.PlayerBMP;
         pGameState->Follower.BackBMP = &Memory->Assets.PlayerBackBMP;
+        pGameState->Follower.SideBMP = &Memory->Assets.PlayerSideBMP;
 
         InitializeEntity(&pGameState->Follower.Entity, pGameState->Player.Entity.TilePosition, pGameState->Follower.FrontBMP);
 

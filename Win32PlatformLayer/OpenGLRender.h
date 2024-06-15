@@ -289,7 +289,7 @@ void SetCameraProjection(camera* Camera, int32 Width, int32 Height) {
 		a,  0,  0,  0,
 		0,  -b,  0,  0,
 		0,  0,  1,  0,
-		-1 - 2 * (Camera->Zoom * Camera->Position.X / Width - 0.5f),  1 + 2 * (Camera->Zoom * Camera->Position.Y / Height - 0.5f),  0,  1,
+		-1 - 2 * ((Camera->Zoom * Camera->Position.X + 5) / Width - 0.5f),  1 + 2 * (Camera->Zoom * (Camera->Position.Y - 20) / Height - 0.5f),  0,  1,
 	};
 	glLoadMatrixf(Proj);
 }
