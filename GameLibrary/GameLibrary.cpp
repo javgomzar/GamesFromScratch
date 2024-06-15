@@ -694,30 +694,50 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
 
         // Continuous
     v3 Acceleration = { 0,0,0 };
-    bool SomeInput = false;
-    if (Input->Keyboard.D.IsDown) {
-        Acceleration.X += 1;
-        SomeInput = true;
-    }
-    if (Input->Keyboard.A.IsDown) {
-        Acceleration.X += -1;
-        SomeInput = true;
-    }
-    if (Input->Keyboard.S.IsDown) {
-        Acceleration.Y += 1;
-        SomeInput = true;
-    }
-    if (Input->Keyboard.W.IsDown) {
-        Acceleration.Y += -1;
-        SomeInput = true;
-    }
+    switch (Input->Mode) {
+        case Keyboard:
+        {
+            bool SomeInput = false;
+            if (Input->Keyboard.D.IsDown) {
+                Acceleration.X += 1;
+                SomeInput = true;
+            }
+            if (Input->Keyboard.A.IsDown) {
+                Acceleration.X += -1;
+                SomeInput = true;
+            }
+            if (Input->Keyboard.S.IsDown) {
+                Acceleration.Y += 1;
+                SomeInput = true;
+            }
+            if (Input->Keyboard.W.IsDown) {
+                Acceleration.Y += -1;
+                SomeInput = true;
+            }
 
-    if (!SomeInput) {
-        Acceleration = -0.8 * Player->Entity.Velocity;
-    }
+            if (!SomeInput) {
+                Acceleration = -0.8 * Player->Entity.Velocity;
+            }
+            else {
+                Acceleration = 0.6 * normalize(Acceleration);
+            }
 
+        } break;
+        case Controller:
+        {
+            Acceleration.X = Input->Controller.LeftJoystick.X;
+            Acceleration.Y = -Input->Controller.LeftJoystick.Y;
+
+            if (module(Acceleration) < 0.05) {
+                Acceleration = -0.8 * Player->Entity.Velocity;
+            }
+            else {
+                Acceleration = 0.6 * normalize(Acceleration);
+            }
+        } break;
+    }
+    
     v3 Direction = normalize(Acceleration);
-    Acceleration = 0.6 * Direction;
 
     double MaxVelocity = 5.0;
     double MinVelocity = 0.2;
@@ -957,7 +977,7 @@ extern "C" GAME_UPDATE(GameUpdate)
             PushText(Group, {(double)Group->Width / 2.0 - 235, (double)Group->Height / 1.2 - 2, 30}, Assets->Characters, Black, 18, Assets->TitleText, false, true);
             PushText(Group, { (double)Group->Width / 2.0 - 237, (double)Group->Height / 1.2, 31 }, Assets->Characters, White, 18, Assets->TitleText, false, true);
 
-            if ((pGameState->Time > StartTime + 0.2) && Input->Keyboard.Any) {
+            if ((pGameState->Time > StartTime + 0.2) && (Input->Keyboard.Any || Input->Controller.Any)) {
                 pGameState->Scene = Main;
                 CloseVideo(Assets->IntroVideo.VideoContext);
             }

@@ -215,24 +215,30 @@ struct game_joystick_state {
 };
 
 struct game_controller_input {
+    bool Any;
     game_joystick_state LeftJoystick;
     game_joystick_state RightJoystick;
-    game_button_state AButton;
-    game_button_state BButton;
-    game_button_state XButton;
-    game_button_state YButton;
-    game_button_state PadUp;
-    game_button_state PadDown;
-    game_button_state PadLeft;
-    game_button_state PadRight;
-    game_button_state RB;
-    game_button_state LB;
-    game_button_state RS;
-    game_button_state LS;
-    game_button_state RT;
-    game_button_state LT;
-    game_button_state Start;
-    game_button_state Back;
+    union {
+        game_button_state Buttons[16];
+        struct {
+            game_button_state AButton;
+            game_button_state BButton;
+            game_button_state XButton;
+            game_button_state YButton;
+            game_button_state PadUp;
+            game_button_state PadDown;
+            game_button_state PadLeft;
+            game_button_state PadRight;
+            game_button_state RB;
+            game_button_state LB;
+            game_button_state RS;
+            game_button_state LS;
+            game_button_state RT;
+            game_button_state LT;
+            game_button_state Start;
+            game_button_state Back;
+        };
+    };
 };
 
 const int NUMBER_OF_KEYS = 55;
@@ -309,7 +315,13 @@ struct game_mouse_input {
     short Wheel;
 };
 
+enum game_input_mode {
+    Keyboard,
+    Controller
+};
+
 struct game_input {
+    game_input_mode Mode;
     game_controller_input Controller;
     game_keyboard_input Keyboard;
     game_mouse_input Mouse;

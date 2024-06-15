@@ -83,7 +83,7 @@ INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 WNDDIMENSION    GetWindowDimension(HWND Window);
 
 // Logging
-log_mode LOG_MODE = File;
+log_mode LOG_MODE = Terminal;
 
 void Log(log_level Level, const char* Content) {
 
@@ -1178,7 +1178,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     RecordPlayback.TotalSize = GameMemory.PermanentStorageSize;
 
     // Input
-    game_input Input = { 0 };
+    game_input Input = { };
+    Input.Mode = Keyboard;
 
     // Sound
     int currentBuffer = 1;
@@ -1298,6 +1299,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
         }
 
+        if ((Input.Mode != Keyboard) && Input.Keyboard.Any) {
+            Input.Mode = Keyboard;
+        }
+
         // XInput Controller
         for (DWORD ControllerIndex = 0; ControllerIndex < XUSER_MAX_COUNT; ++ControllerIndex) {
             XINPUT_STATE ControllerState;
@@ -1339,6 +1344,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 Input.Controller.RS.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_THUMB);
                 Input.Controller.LT.IsDown = (Pad->bLeftTrigger > 0);
                 Input.Controller.RT.IsDown = (Pad->bRightTrigger > 0);
+
+                Input.Controller.Any = false;
+                for (int i = 0; i < 16; i++) {
+                    if (Input.Controller.Buttons[i].IsDown) {
+                        Input.Controller.Any = true;
+                        break;
+                    }
+                }
+
+                if (Input.Mode != Controller && Input.Controller.Any) {
+                    Input.Mode = Controller;
+                }
 
                 SHORT LeftStickX = (float)Pad->sThumbLX;
                 SHORT LeftStickY = (float)Pad->sThumbLY;
