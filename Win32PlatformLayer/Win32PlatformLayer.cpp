@@ -1362,17 +1362,28 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 SHORT RightStickX = (float)Pad->sThumbRX;
                 SHORT RightStickY = (float)Pad->sThumbRY;
 
-                // Normalizing joystick values
-                Input.Controller.LeftJoystick.X = LeftStickX / (LeftStickX < 0 ? 32768.0f : 32767.0f);
-                Input.Controller.LeftJoystick.Y = LeftStickY / (LeftStickY < 0 ? 32768.0f : 32767.0f);
-                Input.Controller.RightJoystick.X = RightStickX / (RightStickX < 0 ? 32768.0f : 32767.0f);
-                Input.Controller.RightJoystick.Y = RightStickY / (RightStickY < 0 ? 32768.0f : 32767.0f);
+                char text_input_values[256];
+                sprintf_s(text_input_values, "L: X %i, Y %i\nR: X %i, Y %i\n",
+                    LeftStickX, LeftStickY,
+                    RightStickX, RightStickY);
+                // OutputDebugStringA(text_input_values);
 
-                char text[256];
-                sprintf_s(text, "L: X %f, Y %f\nR: X %f, Y %f\n",
+
+                // Normalizing joystick values
+                Input.Controller.LeftJoystick.X = (double)LeftStickX / (LeftStickX < 0 ? 32768.0 : 32767.0);
+                Input.Controller.LeftJoystick.Y = (double)LeftStickY / (LeftStickY < 0 ? 32768.0 : 32767.0);
+                Input.Controller.RightJoystick.X = (double)RightStickX / (RightStickX < 0 ? 32768.0 : 32767.0);
+                Input.Controller.RightJoystick.Y = (double)RightStickY / (RightStickY < 0 ? 32768.0 : 32767.0);
+
+                char text_normalized[256];
+                sprintf_s(text_normalized, "L: X %f, Y %f\nR: X %f, Y %f\n",
                     Input.Controller.LeftJoystick.X, Input.Controller.LeftJoystick.Y,
                     Input.Controller.RightJoystick.X, Input.Controller.RightJoystick.Y);
-                //OutputDebugStringA(text);
+                // OutputDebugStringA(text_normalized);
+
+                char text_module[20];
+                sprintf_s(text_module, "MODULE: %f\n", module(V2(Input.Controller.LeftJoystick.X, Input.Controller.LeftJoystick.Y)));
+                // OutputDebugStringA(text_module);
             }
         }
 

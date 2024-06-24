@@ -210,8 +210,8 @@ color GetColor(double Hue, double Saturation, double Luminosity) {
 };*/
 
 struct game_joystick_state {
-    float X;
-    float Y;
+    double X;
+    double Y;
 };
 
 struct game_controller_input {

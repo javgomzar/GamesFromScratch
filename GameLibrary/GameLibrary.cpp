@@ -328,6 +328,10 @@ bool IsValid(int Row, int Col) {
     return Row >= 0 && Row < MAP_HEIGHT && Col >= 0 && Col < MAP_HEIGHT;
 }
 
+bool IsValid(tile_position TilePosition) {
+    return IsValid(TilePosition.Row, TilePosition.Col);
+}
+
 void Advance(tile_pointer* Pointer) {
     Pointer->Row += Pointer->Direction.Row;
     Pointer->Col += Pointer->Direction.Col;
@@ -693,34 +697,41 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
     //}
 
         // Continuous
+    double MinVelocity = 0.1;
+    double Drag = 0.8;
+    double MaxAcceleration = 0.3;
+
     v3 Acceleration = { 0,0,0 };
+    double MaxVelocity;
     switch (Input->Mode) {
         case Keyboard:
         {
-            bool SomeInput = false;
             if (Input->Keyboard.D.IsDown) {
                 Acceleration.X += 1;
-                SomeInput = true;
             }
             if (Input->Keyboard.A.IsDown) {
                 Acceleration.X += -1;
-                SomeInput = true;
             }
             if (Input->Keyboard.S.IsDown) {
                 Acceleration.Y += 1;
-                SomeInput = true;
             }
             if (Input->Keyboard.W.IsDown) {
                 Acceleration.Y += -1;
-                SomeInput = true;
             }
 
-            if (!SomeInput) {
-                Acceleration = -0.8 * Player->Entity.Velocity;
+            Acceleration = 0.3 * normalize(Acceleration);
+
+            if ((!Input->Keyboard.D.IsDown && !Input->Keyboard.A.IsDown) ||
+                (Input->Keyboard.D.IsDown && Input->Keyboard.A.IsDown)) {
+                Acceleration.X = -Drag * Player->Entity.Velocity.X;
             }
-            else {
-                Acceleration = 0.6 * normalize(Acceleration);
+
+            if ((!Input->Keyboard.S.IsDown && !Input->Keyboard.W.IsDown) ||
+                (Input->Keyboard.S.IsDown && Input->Keyboard.W.IsDown)) {
+                Acceleration.Y = -Drag * Player->Entity.Velocity.Y;
             }
+
+            MaxVelocity = 5.0;
 
         } break;
         case Controller:
@@ -728,66 +739,139 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
             Acceleration.X = Input->Controller.LeftJoystick.X;
             Acceleration.Y = -Input->Controller.LeftJoystick.Y;
 
-            if (module(Acceleration) < 0.05) {
-                Acceleration = -0.8 * Player->Entity.Velocity;
+            double mod = module(Acceleration);
+            if (mod > 1.0) {
+                MaxVelocity = 5.0;
             }
             else {
-                Acceleration = 0.6 * normalize(Acceleration);
+                MaxVelocity = 5.0 * module(Acceleration);
             }
+
+            if (module(Acceleration) < 0.1) {
+                Acceleration = -Drag * Player->Entity.Velocity;
+            }
+            else if (module(Acceleration) > MaxAcceleration) {
+                    Acceleration = MaxAcceleration * normalize(Acceleration);
+            }
+
         } break;
     }
     
     v3 Direction = normalize(Acceleration);
 
-    double MaxVelocity = 5.0;
-    double MinVelocity = 0.2;
     v3 Velocity = Player->Entity.Velocity + Acceleration;
-    if (module(Velocity) <= MaxVelocity) {
-        Player->Entity.Velocity = Velocity;
-    }
-    else {
-        Player->Entity.Velocity = MaxVelocity * Direction;
+    if (abs(Velocity.X) < MinVelocity) {
+        Velocity.X = 0;
     }
 
-    if (module(Velocity) < MinVelocity) {
-        Player->Entity.Velocity = { 0,0,0 };
+    if (abs(Velocity.Y) < MinVelocity) {
+        Velocity.Y = 0;
     }
 
-    v3 Position = Player->Entity.Position + Player->Entity.Velocity;
+    // Max velocity capping
+    bool VelocityCapped = false;
+    v3 OldVelocity = Velocity;
+    if (module(Velocity) > MaxVelocity) {
+        Velocity = MaxVelocity * Direction;
+        VelocityCapped = true;
+    }
 
+    v3 Position = Player->Entity.Position + Velocity;
     tile_position TilePosition = ToTilePosition(Position);
-    if (IsValid(TilePosition.Row, TilePosition.Col)) {
-        tile_type NewTile = Map[TilePosition.Row][TilePosition.Col].Type;
-        if (NewTile == Door || NewTile == Floor) {
-            Player->Entity.Position = Position;
-            Player->Entity.TilePosition = TilePosition;
+    tile_type NewTile = IsValid(TilePosition) ? Map[TilePosition.Row][TilePosition.Col].Type : Wall;
+    
+    // Wall collision
+    if (NewTile != Floor && NewTile != Door) {
+        if (VelocityCapped) {
+            Velocity.X = abs(OldVelocity.X) <= MaxVelocity ? OldVelocity.X : Sign(OldVelocity.X) * MaxVelocity;
+            Velocity.Y = abs(OldVelocity.Y) <= MaxVelocity ? OldVelocity.Y : Sign(OldVelocity.Y) * MaxVelocity;
+        }
+
+        v3 HorizontalSlideVelocity = V3(Velocity.X, 0, 0);
+        v3 VerticalSlideVelocity = V3(0, Velocity.Y, 0);
+
+        v3 HorizontalSlidePosition = Player->Entity.Position + HorizontalSlideVelocity;
+        v3 VerticalSlidePosition = Player->Entity.Position + VerticalSlideVelocity;
+
+        tile_position HorizontalSlideTile = ToTilePosition(HorizontalSlidePosition);
+        tile_position VerticalSlideTile = ToTilePosition(VerticalSlidePosition);
+
+        tile_type HorizontalSlideTileType = IsValid(HorizontalSlideTile) ? Map[HorizontalSlideTile.Row][HorizontalSlideTile.Col].Type : Wall;
+        tile_type VerticalSlideTileType = IsValid(VerticalSlideTile) ? Map[VerticalSlideTile.Row][VerticalSlideTile.Col].Type : Wall;
+
+        bool Horizontal = HorizontalSlideTileType == Floor || HorizontalSlideTileType == Door;
+        bool Vertical = VerticalSlideTileType == Floor || VerticalSlideTileType == Door;
+
+        if (Horizontal && Vertical) {
+            if (abs(Velocity.X) > abs(Velocity.Y)) {
+                Horizontal = true;
+                Vertical = false;
+            }
+            else {
+                Horizontal = false;
+                Vertical = true;
+            }
+        }
+
+        if (Horizontal) {
+            Position = HorizontalSlidePosition;
+            TilePosition = HorizontalSlideTile;
+            Velocity.Y = 0;
+        }
+        else if (Vertical) {
+            Position = VerticalSlidePosition;
+            TilePosition = VerticalSlideTile;
+            Velocity.X = 0;
         }
         else {
-            Player->Entity.Velocity = { 0,0,0 };
+            Position = Player->Entity.Position;
+            Velocity = { 0 };
+            TilePosition = Player->Entity.TilePosition;
         }
     }
-    else {
-        Player->Entity.Velocity = { 0,0,0 };
+    
+    // Debug position and velocity
+    if (Input->Controller.RB.IsDown) {
+        if (module(Velocity) > 10) {
+            OutputDebugStringA("DEBUG\n");
+        }
+    //if (false) {
+        char DebugTextPosition[100];
+        char DebugTextVelocity[100];
+        sprintf_s(DebugTextPosition, "Position: (%f,%f,%f)\n", Player->Entity.Position.X, Player->Entity.Position.Y, Player->Entity.Position.Z);
+        sprintf_s(DebugTextVelocity, "Velocity: (%f,%f,%f)\n", Player->Entity.Velocity.X, Player->Entity.Velocity.Y, Player->Entity.Velocity.Z);
+        //OutputDebugStringA(DebugTextPosition);
+        OutputDebugStringA(DebugTextVelocity);
     }
+
+    // Commiting position and velocity
+    Player->Entity.Position = Position;
+    Player->Entity.Velocity = Velocity;
+    Player->Entity.TilePosition = TilePosition;
 
     // Changing BMP with direction
-    if (Player->Entity.Velocity.Y > 0) {
-        Player->Entity.BMP = Player->FrontBMP;
-    }
-    else if (Player->Entity.Velocity.Y < 0) {
-        Player->Entity.BMP = Player->BackBMP;
-    }
-    else if (module(Player->Entity.Velocity) > 0) {
-        Player->Entity.BMP = Player->SideBMP;
-    }
+    if (module(Player->Entity.Velocity) > MinVelocity) {
+        double Quad = pow(Player->Entity.Velocity.Y, 2) - pow(Player->Entity.Velocity.X, 2);
+        if (Quad >= 0) {
+            if (Player->Entity.Velocity.Y < 0) {
+                Player->Entity.BMP = Player->BackBMP;
+            }
+            else {
+                Player->Entity.BMP = Player->FrontBMP;
+            }
+        }
+        else {
+            Player->Entity.BMP = Player->SideBMP;
+        }
 
-    if (Player->Entity.Velocity.X < 0) {
-        Player->Entity.Basis.X = V3(-1, 0, 0);
-        Player->Entity.BMPOffset.X = (double)(Player->FrontBMP->Header.Width) / 2;
-    }
-    else if (Player->Entity.Velocity.X > 0) {
-        Player->Entity.Basis.X = V3(1, 0, 0);
-        Player->Entity.BMPOffset.X = -(double)(Player->FrontBMP->Header.Width) / 2;
+        if (Player->Entity.Velocity.X < 0) {
+            Player->Entity.Basis.X = V3(-1, 0, 0);
+            Player->Entity.BMPOffset.X = (double)(Player->FrontBMP->Header.Width) / 2;
+        }
+        else if (Player->Entity.Velocity.X > 0) {
+            Player->Entity.Basis.X = V3(1, 0, 0);
+            Player->Entity.BMPOffset.X = -(double)(Player->FrontBMP->Header.Width) / 2;
+        }
     }
 }
 
