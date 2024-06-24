@@ -429,7 +429,7 @@ void ProcessRooms(tile Map[MAP_HEIGHT][MAP_WIDTH], int* NumberOfRooms, room Room
         Rooms[i] = Room;
 
         // Chests
-        float PChest = 0.02f;
+        double PChest = 0.05;
         if (Room.Width > 1 && Room.Height > 1 && randf() < PChest) {
             tile_position Center = GetRoomCenter(Room);
             Map[Center.Row][Center.Col] = { Chest };

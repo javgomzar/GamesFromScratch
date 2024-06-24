@@ -86,13 +86,6 @@ struct render_entry_rect_outline {
     bool isUI;
 };
 
-struct render_entry_bmp {
-    render_group_header Header;
-    loaded_bmp* Bitmap;
-    v3 Position;
-    wrap_mode Mode;
-};
-
 struct render_entry_text {
     render_group_header Header;
     render_basis Basis;
@@ -292,7 +285,7 @@ void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, 
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
     Entry->Header.Coord = isUI ? Screen : World;
     Entry->Header.Key.Z = Z;
-    Entry->Header.Key.Y = 0;
+    Entry->Header.Key.Y = Rect.Top + Rect.Height / 2.0;
     Entry->Texture = Texture;
     Entry->Rect = Rect;
 }
@@ -384,6 +377,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
     for (int i = 0; i < nRooms; i++) {
         room Room = Rooms[i];
         if (Room.Explored) {
+            // Floors
             v3 Position = ToWorldCoord({ Room.Top, Room.Left, 0 });
             render_basis Basis = {
                 { Room.Width, 0, 0 },
@@ -392,14 +386,18 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
             };
             PushTexturedRectBasis(Group, &Assets->FloorBMP,{ Position.X, Position.Y, 0 }, Basis, Repeat);
 
+            // Chests
             for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
                 for (int j = Room.Left; j < Room.Left + Room.Width; j++) {
                     if (Map[i][j].Type == Chest) {
-                        PushBMP(Group, &Assets->ChestBMP, ToWorldCoord({ i,j,1 }));
+                        v3 Position = ToWorldCoord({ i,j,0 });
+                        Position.Z = 0.5;
+                        PushBMP(Group, &Assets->ChestBMP, Position);
                     }
                 }
             }
 
+            // Doors
             if (Room.Left > 0) {
                 int j = Room.Left - 1;
                 for (int i = Room.Top; i < Room.Top + Room.Height; i++) {
