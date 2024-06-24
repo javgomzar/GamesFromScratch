@@ -831,11 +831,8 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
     }
     
     // Debug position and velocity
-    if (Input->Controller.RB.IsDown) {
-        if (module(Velocity) > 10) {
-            OutputDebugStringA("DEBUG\n");
-        }
-    //if (false) {
+    if (false) {
+    //if (Input->Controller.RB.IsDown) {
         char DebugTextPosition[100];
         char DebugTextVelocity[100];
         sprintf_s(DebugTextPosition, "Position: (%f,%f,%f)\n", Player->Entity.Position.X, Player->Entity.Position.Y, Player->Entity.Position.Z);
@@ -875,13 +872,64 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
     }
 }
 
-void Update(follower* Follower, v3 PlayerPosition) {
+void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], follower* Follower, v3 PlayerPosition) {
     // Movement
     if (module(PlayerPosition - Follower->Entity.Position) > 60) {
         v3 Direction = normalize(PlayerPosition - Follower->Entity.Position);
         double Distance = module(PlayerPosition - Follower->Entity.Position);
-        Follower->Entity.Velocity = 0.1 * (Distance - 60) * Direction;
-        Follower->Entity.Position = Follower->Entity.Position + Follower->Entity.Velocity;
+        v3 Velocity = 0.1 * (Distance - 60) * Direction;
+        v3 Position = Follower->Entity.Position + Velocity;
+        tile_position TilePosition = ToTilePosition(Position);
+
+        // Wall collision
+        tile_type NewTile = IsValid(TilePosition) ? Map[TilePosition.Row][TilePosition.Col].Type : Wall;
+        if (NewTile != Door && NewTile != Floor) {
+            v3 HorizontalSlideVelocity = V3(Velocity.X, 0, 0);
+            v3 VerticalSlideVelocity = V3(0, Velocity.Y, 0);
+
+            v3 HorizontalSlidePosition = Follower->Entity.Position + HorizontalSlideVelocity;
+            v3 VerticalSlidePosition = Follower->Entity.Position + VerticalSlideVelocity;
+
+            tile_position HorizontalSlideTile = ToTilePosition(HorizontalSlidePosition);
+            tile_position VerticalSlideTile = ToTilePosition(VerticalSlidePosition);
+
+            tile_type HorizontalSlideTileType = IsValid(HorizontalSlideTile) ? Map[HorizontalSlideTile.Row][HorizontalSlideTile.Col].Type : Wall;
+            tile_type VerticalSlideTileType = IsValid(VerticalSlideTile) ? Map[VerticalSlideTile.Row][VerticalSlideTile.Col].Type : Wall;
+
+            bool Horizontal = HorizontalSlideTileType == Floor || HorizontalSlideTileType == Door;
+            bool Vertical = VerticalSlideTileType == Floor || VerticalSlideTileType == Door;
+
+            if (Horizontal && Vertical) {
+                if (abs(Velocity.X) > abs(Velocity.Y)) {
+                    Horizontal = true;
+                    Vertical = false;
+                }
+                else {
+                    Horizontal = false;
+                    Vertical = true;
+                }
+            }
+
+            if (Horizontal) {
+                Position = HorizontalSlidePosition;
+                TilePosition = HorizontalSlideTile;
+                Velocity.Y = 0;
+            }
+            else if (Vertical) {
+                Position = VerticalSlidePosition;
+                TilePosition = VerticalSlideTile;
+                Velocity.X = 0;
+            }
+            else {
+                Position = Follower->Entity.Position;
+                Velocity = { 0 };
+                TilePosition = Follower->Entity.TilePosition;
+            }
+        }
+
+        Follower->Entity.Velocity = Velocity;
+        Follower->Entity.Position = Position;
+        Follower->Entity.TilePosition = TilePosition;
         
         // BMP change
         double Quad = pow(Follower->Entity.Velocity.Y, 2) - pow(Follower->Entity.Velocity.X, 2);
@@ -1011,6 +1059,8 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         InitializeEntity(&pGameState->Follower.Entity, pGameState->Player.Entity.TilePosition, pGameState->Follower.FrontBMP);
 
+        pGameState->Follower.Entity.BMPOffset.Y = -(double)(pGameState->Follower.Entity.BMP->Header.Height);
+
         // Initialize enemy
         pGameState->Enemy.FrontBMP = &Memory->Assets.EnemyBMP;
         pGameState->Enemy.BackBMP = &Memory->Assets.EnemyBackBMP;
@@ -1095,7 +1145,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // Update entities
         Update(pGameState->Map, &pGameState->Player, Input);
 
-        Update(&pGameState->Follower, pGameState->Player.Entity.Position + 0.5 * pGameState->Player.Entity.BMPOffset);
+        Update(pGameState->Map, &pGameState->Follower, pGameState->Player.Entity.Position);
 
         int PlayerRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.Entity.TilePosition);
         int EnemyRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Enemy.Entity.TilePosition);
@@ -1237,6 +1287,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Player position
         PushDebugShineTile(Group, pGameState->Player.Entity.TilePosition, { 0.5f, 1.0f, 0, 0 });
+
+        // Follower position
+        PushDebugShineTile(Group, pGameState->Follower.Entity.TilePosition, { 0.5f, 0, 0, 1.0f });
     }
 }
 
