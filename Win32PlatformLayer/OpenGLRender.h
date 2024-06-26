@@ -247,22 +247,38 @@ void OpenGLDebugRenderLattice(int TargetWidth, int TargetHeight, color Color, ca
 
 	// Vertical lines
 	for (int x = 0; x < TargetWidth / 2 + TILESIZE; x += TILESIZE) {
-		OpenGLRenderLine({ OffsetX + x, Camera->Position.Y - TargetHeight / 2, 0 }, { OffsetX + x, Camera->Position.Y + TargetHeight / 2, 0 }, Color);
+		OpenGLRenderLine(
+			{ OffsetX + x, Camera->Position.Y - TILESIZE - TargetHeight / 2, 0 }, 
+			{ OffsetX + x, Camera->Position.Y + TargetHeight / 2, 0 }, 
+			Color
+		);
 	}
 
 	for (int x = -TILESIZE; x > -TargetWidth / 2 - TILESIZE; x -= TILESIZE) {
-		OpenGLRenderLine({ OffsetX + x, Camera->Position.Y - TargetHeight / 2, 0 }, { OffsetX + x, Camera->Position.Y + TargetHeight / 2, 0 }, Color);
+		OpenGLRenderLine(
+			{ OffsetX + x, Camera->Position.Y - TILESIZE - TargetHeight / 2, 0 }, 
+			{ OffsetX + x, Camera->Position.Y + TargetHeight / 2, 0 }, 
+			Color
+		);
 	}
 
 	// Horizontal lines
 	for (int y = 0; y < TargetHeight / 2 + TILESIZE; y += TILESIZE) {
 		// TODO: Calcular bien las coordenadas (esto está mal)
-		OpenGLRenderLine({ Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, { Camera->Position.X + TargetWidth / 2, OffsetY + y, 0 }, Color);
+		OpenGLRenderLine(
+			{ Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, 
+			{ Camera->Position.X + TILESIZE + TargetWidth / 2, OffsetY + y, 0 },
+			Color
+		);
 	}
 
 	for (int y = -TILESIZE; y > -TargetHeight / 2 - TILESIZE; y -= TILESIZE) {
 		// TODO: Calcular bien las coordenadas (esto está mal)
-		OpenGLRenderLine({ Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, { Camera->Position.X + TargetWidth / 2, OffsetY + y, 0 }, Color);
+		OpenGLRenderLine(
+			{ Camera->Position.X - TargetWidth / 2, OffsetY + y, 0 }, 
+			{ Camera->Position.X + TILESIZE + TargetWidth / 2, OffsetY + y, 0 }, 
+			Color
+		);
 	}
 }
 

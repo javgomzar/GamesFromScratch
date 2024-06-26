@@ -397,6 +397,7 @@ struct game_assets {
     loaded_bmp ChestBMP;
     loaded_bmp EnemyBMP;
     loaded_bmp EnemyBackBMP;
+    loaded_bmp ProjectileBMP;
     loaded_bmp BombBMP;
     loaded_bmp FadeFrame;
     game_sound TitleMusic;
@@ -521,6 +522,7 @@ struct player {
     loaded_bmp* BackBMP;
     loaded_bmp* SideBMP;
     entity Entity;
+    v3 Direction;
     int HP;
     int MaxHP;
 };
@@ -536,6 +538,13 @@ struct enemy {
     loaded_bmp* FrontBMP;
     loaded_bmp* BackBMP;
     entity Entity;
+};
+
+struct projectile {
+    loaded_bmp* FrontBMP;
+    bool Active;
+    entity Entity;
+    double Celerity;
 };
 
 // Scenes
@@ -556,6 +565,7 @@ struct game_state {
     player Player;
     follower Follower;
     enemy Enemy;
+    projectile Projectile;
     tile Map[MAP_HEIGHT][MAP_WIDTH];
     int nRooms;
     room Rooms[MAX_ROOMS];

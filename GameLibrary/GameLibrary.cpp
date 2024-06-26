@@ -661,8 +661,7 @@ void InitializeEntity(entity* Entity, tile_position TilePosition, loaded_bmp* BM
     *Entity = { 0 };
 
     Entity->BMP = BMP;
-    //Entity->BMPOffset = { -(double)(BMP->Header.Width) / 2, -(double)(BMP->Header.Height + TILESIZE) / 2, 0 };
-    Entity->BMPOffset = { -(double)(BMP->Header.Width) / 2, -(double)(BMP->Header.Height) / 2, 0 };
+    Entity->BMPOffset = { -(double)(BMP->Header.Width) / 2, -(double)(BMP->Header.Height), 0 };
     Entity->Basis = { V3(1,0,0), V3(0,1,0), V3(0,0,1) };
 
     Entity->TilePosition = TilePosition;
@@ -671,32 +670,7 @@ void InitializeEntity(entity* Entity, tile_position TilePosition, loaded_bmp* BM
     Entity->Velocity = { 0,0,0 };
 }
 
-void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) {
-    // Movement
-        // Discrete
-    //tile_direction PlayerMovement = { 0,0 };
-    //if (Input->Keyboard.D.IsDown && !Input->Keyboard.D.WasDown) {
-    //    PlayerMovement.Col = 1;
-    //}
-    //if (Input->Keyboard.A.IsDown && !Input->Keyboard.A.WasDown) {
-    //    PlayerMovement.Col = -1;
-    //}
-    //if (Input->Keyboard.S.IsDown && !Input->Keyboard.S.WasDown) {
-    //    PlayerMovement.Row = 1;
-    //}
-    //if (Input->Keyboard.W.IsDown && !Input->Keyboard.W.WasDown) {
-    //    PlayerMovement.Row = -1;
-    //}
-
-    //tile_position NewPosition = pGameState->PlayerPosition + PlayerMovement;
-
-    //if (IsValid(NewPosition.Row, NewPosition.Col) &&
-    //    pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Wall &&
-    //    pGameState->Map[NewPosition.Row][NewPosition.Col].Type != Chest) {
-    //    pGameState->PlayerPosition = NewPosition;
-    //}
-
-        // Continuous
+void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, projectile* Projectile, game_input* Input) {    
     double MinVelocity = 0.1;
     double Drag = 0.8;
     double MaxAcceleration = 0.3;
@@ -706,6 +680,7 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
     switch (Input->Mode) {
         case Keyboard:
         {
+            // Movement
             if (Input->Keyboard.D.IsDown) {
                 Acceleration.X += 1;
             }
@@ -757,7 +732,7 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
         } break;
     }
     
-    v3 Direction = normalize(Acceleration);
+
 
     v3 Velocity = Player->Entity.Velocity + Acceleration;
     if (abs(Velocity.X) < MinVelocity) {
@@ -772,7 +747,7 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
     bool VelocityCapped = false;
     v3 OldVelocity = Velocity;
     if (module(Velocity) > MaxVelocity) {
-        Velocity = MaxVelocity * Direction;
+        Velocity = MaxVelocity * Player->Direction;
         VelocityCapped = true;
     }
 
@@ -846,6 +821,20 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
     Player->Entity.Velocity = Velocity;
     Player->Entity.TilePosition = TilePosition;
 
+    if (Player->Entity.Velocity.X != 0 || Player->Entity.Velocity.Y != 0 || Player->Entity.Velocity.Z != 0) {
+        Player->Direction = normalize(Player->Entity.Velocity);
+    }
+
+    // Projectile
+    if (!Projectile->Active &&
+    ((Input->Mode == Keyboard) && Input->Keyboard.Space.IsDown) ||
+    ((Input->Mode == Controller) && Input->Controller.AButton.IsDown)) 
+    {
+        Projectile->Active = true;
+        Projectile->Entity.Position = Player->Entity.Position;
+        Projectile->Entity.Velocity = Projectile->Celerity * Player->Direction;
+    }
+
     // Changing BMP with direction
     if (module(Player->Entity.Velocity) > MinVelocity) {
         double Quad = pow(Player->Entity.Velocity.Y, 2) - pow(Player->Entity.Velocity.X, 2);
@@ -872,18 +861,41 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, game_input* Input) 
     }
 }
 
-void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], follower* Follower, v3 PlayerPosition) {
+void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], follower* Follower, v3 PlayerPosition, game_input* Input) {
     // Movement
     if (module(PlayerPosition - Follower->Entity.Position) > 60) {
+        double MaxVelocity = 5.0;
+        double MinVelocity = 0.1;
         v3 Direction = normalize(PlayerPosition - Follower->Entity.Position);
         double Distance = module(PlayerPosition - Follower->Entity.Position);
         v3 Velocity = 0.1 * (Distance - 60) * Direction;
+
+        bool VelocityCapped = false;
+        v3 OldVelocity = Velocity;
+        if (module(Velocity) > MaxVelocity) {
+            Velocity = MaxVelocity * Direction;
+            VelocityCapped = true;
+        }
+
+        if (abs(Velocity.X) < MinVelocity) {
+            Velocity.X = 0;
+        }
+
+        if (abs(Velocity.Y) < MinVelocity) {
+            Velocity.Y = 0;
+        }
+
         v3 Position = Follower->Entity.Position + Velocity;
         tile_position TilePosition = ToTilePosition(Position);
+        tile_type NewTile = IsValid(TilePosition) ? Map[TilePosition.Row][TilePosition.Col].Type : Wall;
 
         // Wall collision
-        tile_type NewTile = IsValid(TilePosition) ? Map[TilePosition.Row][TilePosition.Col].Type : Wall;
-        if (NewTile != Door && NewTile != Floor) {
+        if (NewTile != Floor && NewTile != Door) {
+            if (VelocityCapped) {
+                Velocity.X = abs(OldVelocity.X) <= MaxVelocity ? OldVelocity.X : Sign(OldVelocity.X) * MaxVelocity;
+                Velocity.Y = abs(OldVelocity.Y) <= MaxVelocity ? OldVelocity.Y : Sign(OldVelocity.Y) * MaxVelocity;
+            }
+
             v3 HorizontalSlideVelocity = V3(Velocity.X, 0, 0);
             v3 VerticalSlideVelocity = V3(0, Velocity.Y, 0);
 
@@ -925,12 +937,28 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], follower* Follower, v3 PlayerPositi
                 Velocity = { 0 };
                 TilePosition = Follower->Entity.TilePosition;
             }
+
+            if (abs(Velocity.X) > 0.0) {
+                bool Debug = true;
+            }
         }
 
         Follower->Entity.Velocity = Velocity;
         Follower->Entity.Position = Position;
         Follower->Entity.TilePosition = TilePosition;
         
+        // Debug position and velocity
+        //if (false) {
+            //if (Input->Controller.RB.IsDown) {
+        if (Input->Keyboard.B.IsDown) {
+            char DebugTextPosition[100];
+            char DebugTextVelocity[100];
+            sprintf_s(DebugTextPosition, "Position: (%f,%f,%f)\n", Follower->Entity.Position.X, Follower->Entity.Position.Y, Follower->Entity.Position.Z);
+            sprintf_s(DebugTextVelocity, "Velocity: (%f,%f,%f)\n", Follower->Entity.Velocity.X, Follower->Entity.Velocity.Y, Follower->Entity.Velocity.Z);
+            //OutputDebugStringA(DebugTextPosition);
+            OutputDebugStringA(DebugTextVelocity);
+        }
+
         // BMP change
         double Quad = pow(Follower->Entity.Velocity.Y, 2) - pow(Follower->Entity.Velocity.X, 2);
         if (Quad >= 0) {
@@ -961,8 +989,33 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], follower* Follower, v3 PlayerPositi
 
 void Update(enemy* Enemy, v3 PlayerPosition, double Time) {
     v3 Direction = normalize(PlayerPosition - Enemy->Entity.Position);
-    Enemy->Entity.Velocity = (abs(sin(3*Time)) + 0.2) * Direction;
-    Enemy->Entity.Position = Enemy->Entity.Position + Enemy->Entity.Velocity;
+
+    v3 Velocity = (abs(sin(3 * Time)) + 0.2) * Direction;
+    v3 Position = Enemy->Entity.Position + Velocity;
+    tile_position TilePosition = ToTilePosition(Position);
+    tile_position PlayerTilePosition = ToTilePosition(PlayerPosition);
+
+    if ((TilePosition.Row == PlayerTilePosition.Row) && (TilePosition.Col == PlayerTilePosition.Col)) {
+        Position = Enemy->Entity.Position;
+        Velocity = { 0 };
+        TilePosition = Enemy->Entity.TilePosition;
+    }
+
+    Enemy->Entity.Velocity = Velocity;
+    Enemy->Entity.Position = Position;
+    Enemy->Entity.TilePosition = TilePosition;
+
+}
+
+void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], projectile* Projectile) {
+    if (Projectile->Active) {
+        Projectile->Entity.Position = Projectile->Entity.Position + Projectile->Entity.Velocity;
+    }
+
+    tile_position TilePosition = ToTilePosition(Projectile->Entity.Position);
+    if (!IsValid(TilePosition) || Map[TilePosition.Row][TilePosition.Col].Type == Wall) {
+        Projectile->Active = false;
+    }
 }
 
 void Update(color_selector* ColorSelector, game_input* Input) {
@@ -1020,6 +1073,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         Assets->ChestBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Treasure.bmp");
         Assets->EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Enemy.bmp");
         Assets->EnemyBackBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\EnemyBack.bmp");
+        Assets->ProjectileBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Projectile.bmp");
         Assets->BombBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Bomb.bmp");
         Assets->FadeFrame = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\FadeFrame.bmp");
 
@@ -1047,10 +1101,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         InitializeEntity(&pGameState->Player.Entity, RandomTile(pGameState->Map, Floor), pGameState->Player.FrontBMP);
 
-        pGameState->Player.Entity.BMPOffset.Y = -(double)(pGameState->Player.Entity.BMP->Header.Height);
-
         pGameState->Player.MaxHP = 100;
         pGameState->Player.HP = pGameState->Player.MaxHP;
+        pGameState->Player.Direction = {0, 1.0, 0};
 
         // Initialize follower
         pGameState->Follower.FrontBMP = &Memory->Assets.PlayerBMP;
@@ -1059,13 +1112,20 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         InitializeEntity(&pGameState->Follower.Entity, pGameState->Player.Entity.TilePosition, pGameState->Follower.FrontBMP);
 
-        pGameState->Follower.Entity.BMPOffset.Y = -(double)(pGameState->Follower.Entity.BMP->Header.Height);
-
         // Initialize enemy
         pGameState->Enemy.FrontBMP = &Memory->Assets.EnemyBMP;
         pGameState->Enemy.BackBMP = &Memory->Assets.EnemyBackBMP;
 
         InitializeEntity(&pGameState->Enemy.Entity, pGameState->Player.Entity.TilePosition, pGameState->Enemy.FrontBMP);
+
+        // Initialize projectile
+        pGameState->Projectile.Active = false;
+        pGameState->Projectile.FrontBMP = &Assets->ProjectileBMP;
+
+        // Initialize projectile
+        InitializeEntity(&pGameState->Projectile.Entity, pGameState->Player.Entity.TilePosition, pGameState->Projectile.FrontBMP);
+
+        pGameState->Projectile.Celerity = 6.0;
 
         //game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, TILESIZE);
         pGameState->Camera = { pGameState->Player.Entity.Position, {0,0,0}, Group->Width, Group->Height, 1.0 };
@@ -1138,19 +1198,21 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushClear(Group, Black);
 
         // Reset room
-        if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
+        if (Input->Keyboard.F2.IsDown && !Input->Keyboard.F2.WasDown) {
             InitMap(pGameState->Map, pGameState->Rooms, &pGameState->nRooms);
         }
 
         // Update entities
-        Update(pGameState->Map, &pGameState->Player, Input);
+        Update(pGameState->Map, &pGameState->Player, &pGameState->Projectile, Input);
 
-        Update(pGameState->Map, &pGameState->Follower, pGameState->Player.Entity.Position);
+        Update(pGameState->Map, &pGameState->Follower, pGameState->Player.Entity.Position, Input);
+
+        Update(pGameState->Map, &pGameState->Projectile);
 
         int PlayerRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.Entity.TilePosition);
         int EnemyRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Enemy.Entity.TilePosition);
         if (PlayerRoom == EnemyRoom) {
-            Update(&pGameState->Enemy, pGameState->Player.Entity.Position + 0.5 * pGameState->Player.Entity.BMPOffset, pGameState->Time);
+            Update(&pGameState->Enemy, pGameState->Player.Entity.Position, pGameState->Time);
         }
 
         // Room exploration
@@ -1188,7 +1250,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         pGameState->Camera.Velocity = 10 * CameraDirection;*/
 
-        // Autofollow player
+        // Camera autofollow player
         v3 CameraVelocity = 0.1 * (pGameState->Player.Entity.Position - pGameState->Camera.Position);
         if (module(CameraVelocity) > 0.5) {
             pGameState->Camera.Velocity = CameraVelocity;
@@ -1214,9 +1276,13 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         PushEntity(Group, pGameState->Player.Entity, pGameState->Camera);
 
-        PushEntity(Group, pGameState->Follower.Entity, pGameState->Camera);
+        PushEntity(Group, pGameState->Follower.Entity, pGameState->Camera);                               
 
         PushEntity(Group, pGameState->Enemy.Entity, pGameState->Camera);
+
+        if (pGameState->Projectile.Active) {
+            PushEntity(Group, pGameState->Projectile.Entity, pGameState->Camera);
+        }
 
         game_rect DialogRect = { 0, 0.7 * Group->Height, Group->Width, 0.3 * Group->Height };
 
@@ -1226,7 +1292,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
 
         static int Counter = 0;
-        if (Dialog) {
+        if (Dialog) {                          
             Counter++;
             if (Counter == 2) {
                 if (Assets->DialogText.Length <= 160) {
@@ -1286,10 +1352,13 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugShineTile(Group, ToTilePosition(MousePosition, pGameState->Camera), { 0.5f, 1.0f, 1.0f, 1.0f });
 
         // Player position
-        PushDebugShineTile(Group, pGameState->Player.Entity.TilePosition, { 0.5f, 1.0f, 0, 0 });
+        PushDebugShineTile(Group, pGameState->Player.Entity.TilePosition, { 0.5f, 0, 0, 1.0f });
 
         // Follower position
         PushDebugShineTile(Group, pGameState->Follower.Entity.TilePosition, { 0.5f, 0, 0, 1.0f });
+
+        // Enemy position
+        PushDebugShineTile(Group, pGameState->Enemy.Entity.TilePosition, { 0.5f, 1.0f, 0, 0 });
     }
 }
 
