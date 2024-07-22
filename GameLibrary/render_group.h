@@ -12,6 +12,7 @@ struct render_basis {
 enum render_group_entry_type {
     group_type_render_entry_clear,
     group_type_render_entry_line,
+    group_type_render_entry_triangle,
     group_type_render_entry_rect,
     group_type_render_entry_textured_rect,
     group_type_render_entry_textured_rect_basis,
@@ -51,6 +52,12 @@ struct render_entry_line {
     color Color;
     game_screen_position Start;
     game_screen_position Finish;
+};
+
+struct render_entry_triangle {
+    render_group_header Header;
+    game_triangle Triangle;
+    color Color;
 };
 
 struct render_entry_rect {
@@ -178,6 +185,11 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_line);
         } break;
 
+        case group_type_render_entry_triangle:
+        {
+            return sizeof(render_entry_triangle);
+        } break;
+
         case group_type_render_entry_rect:
         {
             return sizeof(render_entry_rect);
@@ -237,6 +249,13 @@ void PushLine(render_group* Group, color Color, game_screen_position Start, game
     Entry->Color = Color;
     Entry->Start = Start;
     Entry->Finish = Finish;
+}
+
+void PushTriangle(render_group* Group, game_triangle Triangle, color Color) {
+    render_entry_triangle* Entry = PushRenderElement(Group, render_entry_triangle);
+    Entry->Header.Key.Z = 0;
+    Entry->Color = Color;
+    Entry->Triangle = Triangle;
 }
 
 void PushRect(render_group* Group, game_rect Rect, color Color, double Z) {

@@ -30,6 +30,11 @@ extern GAMELIBRARY_API int nGameLibrary;
 
 
 // Platform independent structs and types
+struct game_triangle {
+    v3 Points[3];
+};
+
+
 struct game_rect {
     double Left;
     double Top;
