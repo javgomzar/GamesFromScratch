@@ -2,6 +2,17 @@
 #include "..\GameLibrary\render_group.h"
 
 
+void OpenGLTriangle(game_triangle Triangle, color Color) {
+	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
+	glBegin(GL_TRIANGLES);
+	for (int i = 0; i < 3; i++) {
+		v3 Point = Triangle.Points[i];
+		glVertex2f(Point.X, Point.Y);
+	}
+	glEnd();
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
 void OpenGLRectangle(game_rect Rect, color Color)
 {
 	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
@@ -260,6 +271,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT);
 			} break;
+
+			case group_type_render_entry_triangle:
+			{
+				render_entry_triangle Entry = *(render_entry_triangle*)Header;
+
+				OpenGLTriangle(Entry.Triangle, Entry.Color);
+			}
 
 			case group_type_render_entry_rect:
 			{
