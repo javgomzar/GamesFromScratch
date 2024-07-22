@@ -95,6 +95,7 @@ static int Attenuation = 100;
 static color Black = { 1.0f, 0.0f, 0.0f, 0.0f };
 static color White = { 1.0f, 1.0f, 1.0f, 1.0f };
 static color Gray = { 1.0f, 0.5f, 0.5f, 0.5f };
+static color DarkGray = { 1.0f, 0.2f, 0.2f, 0.2f };
 static color Red = { 1.0f, 1.0f, 0.0f, 0.0f };
 static color Green = { 1.0f, 0.0f, 1.0f, 0.0f };
 static color Blue = { 1.0f, 0.0f, 0.0f, 1.0f };
@@ -537,6 +538,8 @@ struct follower {
 struct enemy {
     loaded_bmp* FrontBMP;
     loaded_bmp* BackBMP;
+    int HP;
+    int MaxHP;
     entity Entity;
 };
 

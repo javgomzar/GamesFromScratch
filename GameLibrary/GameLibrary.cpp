@@ -731,10 +731,9 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, projectile* Project
 
         } break;
     }
-    
-
 
     v3 Velocity = Player->Entity.Velocity + Acceleration;
+
     if (abs(Velocity.X) < MinVelocity) {
         Velocity.X = 0;
     }
@@ -747,7 +746,7 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], player* Player, projectile* Project
     bool VelocityCapped = false;
     v3 OldVelocity = Velocity;
     if (module(Velocity) > MaxVelocity) {
-        Velocity = MaxVelocity * Player->Direction;
+        Velocity = MaxVelocity * normalize(Velocity);
         VelocityCapped = true;
     }
 
@@ -987,7 +986,15 @@ void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], follower* Follower, v3 PlayerPositi
     }
 }
 
-void Update(enemy* Enemy, v3 PlayerPosition, double Time) {
+void Update(enemy* Enemy, projectile* Projectile, v3 PlayerPosition, double Time) {
+    if (Projectile->Active &&
+        (Projectile->Entity.TilePosition.Row == Enemy->Entity.TilePosition.Row) &&
+        (Projectile->Entity.TilePosition.Col == Enemy->Entity.TilePosition.Col))
+    {
+        Enemy->HP -= 1;
+        Projectile->Active = false;
+    }
+
     v3 Direction = normalize(PlayerPosition - Enemy->Entity.Position);
 
     v3 Velocity = (abs(sin(3 * Time)) + 0.2) * Direction;
@@ -995,7 +1002,9 @@ void Update(enemy* Enemy, v3 PlayerPosition, double Time) {
     tile_position TilePosition = ToTilePosition(Position);
     tile_position PlayerTilePosition = ToTilePosition(PlayerPosition);
 
-    if ((TilePosition.Row == PlayerTilePosition.Row) && (TilePosition.Col == PlayerTilePosition.Col)) {
+    if ((TilePosition.Row == PlayerTilePosition.Row) && 
+        (TilePosition.Col == PlayerTilePosition.Col)) 
+    {
         Position = Enemy->Entity.Position;
         Velocity = { 0 };
         TilePosition = Enemy->Entity.TilePosition;
@@ -1005,11 +1014,20 @@ void Update(enemy* Enemy, v3 PlayerPosition, double Time) {
     Enemy->Entity.Position = Position;
     Enemy->Entity.TilePosition = TilePosition;
 
+    if (Projectile->Active &&
+        (Projectile->Entity.TilePosition.Row == TilePosition.Row) && 
+        (Projectile->Entity.TilePosition.Col == TilePosition.Col)) 
+    {
+        Enemy->HP -= 1;
+        Projectile->Active = false;
+    }
+
 }
 
 void Update(tile Map[MAP_HEIGHT][MAP_WIDTH], projectile* Projectile) {
     if (Projectile->Active) {
         Projectile->Entity.Position = Projectile->Entity.Position + Projectile->Entity.Velocity;
+        Projectile->Entity.TilePosition = ToTilePosition(Projectile->Entity.Position);
     }
 
     tile_position TilePosition = ToTilePosition(Projectile->Entity.Position);
@@ -1118,6 +1136,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         InitializeEntity(&pGameState->Enemy.Entity, pGameState->Player.Entity.TilePosition, pGameState->Enemy.FrontBMP);
 
+        pGameState->Enemy.MaxHP = 5;
+        pGameState->Enemy.HP = pGameState->Enemy.MaxHP;        
+
         // Initialize projectile
         pGameState->Projectile.Active = false;
         pGameState->Projectile.FrontBMP = &Assets->ProjectileBMP;
@@ -1125,7 +1146,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // Initialize projectile
         InitializeEntity(&pGameState->Projectile.Entity, pGameState->Player.Entity.TilePosition, pGameState->Projectile.FrontBMP);
 
-        pGameState->Projectile.Celerity = 6.0;
+        pGameState->Projectile.Celerity = 10.0;
 
         //game_screen_position Position = ToScreenCoord(pGameState->PlayerPosition, TILESIZE);
         pGameState->Camera = { pGameState->Player.Entity.Position, {0,0,0}, Group->Width, Group->Height, 1.0 };
@@ -1212,7 +1233,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         int PlayerRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Player.Entity.TilePosition);
         int EnemyRoom = GetRoom(pGameState->nRooms, pGameState->Rooms, pGameState->Enemy.Entity.TilePosition);
         if (PlayerRoom == EnemyRoom) {
-            Update(&pGameState->Enemy, pGameState->Player.Entity.Position, pGameState->Time);
+            Update(&pGameState->Enemy, &pGameState->Projectile, pGameState->Player.Entity.Position, pGameState->Time);
         }
 
         // Room exploration
@@ -1279,6 +1300,15 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushEntity(Group, pGameState->Follower.Entity, pGameState->Camera);                               
 
         PushEntity(Group, pGameState->Enemy.Entity, pGameState->Camera);
+        int BarWidth = 40;
+        int BarHeight = 7;
+        game_rect Rect = {
+            pGameState->Enemy.Entity.Position.X - BarWidth / 2,
+            pGameState->Enemy.Entity.Position.Y + pGameState->Enemy.Entity.BMPOffset.Y - 10,
+            BarWidth,
+            BarHeight
+        };
+        PushHealthBar(Group, Rect, pGameState->Enemy.HP, pGameState->Enemy.MaxHP);
 
         if (pGameState->Projectile.Active) {
             PushEntity(Group, pGameState->Projectile.Entity, pGameState->Camera);
@@ -1312,7 +1342,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // UI
             // Health bar
-        PushHealthBar(Group, Assets->Characters, Assets->HPText, Assets->HPNumbersText, pGameState->Player.HP, pGameState->Player.MaxHP);
+        PushHealthBar(Group, &pGameState->Player, Assets->HPText, Assets->HPNumbersText);
 
 
         // Software renderer as a fallback (toggle with Space)
@@ -1359,6 +1389,11 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Enemy position
         PushDebugShineTile(Group, pGameState->Enemy.Entity.TilePosition, { 0.5f, 1.0f, 0, 0 });
+
+        // Projectile position
+        if (pGameState->Projectile.Active) {
+            PushDebugShineTile(Group, pGameState->Projectile.Entity.TilePosition, { 0.5f, 1.0f, 1.0f, 0 });
+        }
     }
 }
 

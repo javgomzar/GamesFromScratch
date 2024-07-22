@@ -441,18 +441,23 @@ void PushEntity(render_group* Group, entity Entity, camera Camera) {
     PushTexturedRectBasis(Group, Entity.BMP, Entity.Position + Entity.BMPOffset, Entity.Basis, Clamp, false);
 }
 
-void PushHealthBar(render_group* Group, character* Characters, string HPString, string HPNumbersString, int HP, int MaxHP) {
-    
-    double X = Group->Camera->Width - 120;
+void PushHealthBar(render_group* Group, game_rect Rect, int HP, int MaxHP, bool isUI = false) {
+    PushRect(Group, Rect, DarkGray, 10, isUI);
     double p = (double)HP / (double)MaxHP;
-    PushRect(Group, { X,20,100,25 }, Gray, 9999, true);
-    PushRect(Group, { X,20,p*100.0,25 }, Red, 10000, true);
+    Rect.Width = p * Rect.Width;
+    PushRect(Group, Rect, Red, 11, isUI);
+}
 
-    PushText(Group, { X - 27, 52, 10001 }, Characters, White, 10, HPString, false, true);
+void PushHealthBar(render_group* Group, player* Player, string HPString, string HPNumbersString) {
+    double X = Group->Camera->Width - 120;
+    game_rect Rect = { X,20,100,25 };
+    PushHealthBar(Group, Rect, Player->HP, Player->MaxHP, true);
 
-    sprintf_s(HPNumbersString.Content, HPNumbersString.Length, "%i/%i", HP, MaxHP);
+    PushText(Group, { X - 27, 52, 10001 }, Group->Characters, White, 10, HPString, false, true);
 
-    PushText(Group, { X , 52, 10001 }, Characters, White, 10, HPNumbersString, false, true);
+    sprintf_s(HPNumbersString.Content, HPNumbersString.Length, "%i/%i", Player->HP, Player->MaxHP);
+
+    PushText(Group, { X , 52, 10001 }, Group->Characters, White, 10, HPNumbersString, false, true);
 }
 
 void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
