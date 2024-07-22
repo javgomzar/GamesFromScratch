@@ -1,5 +1,6 @@
 #pragma once
 #include "stdint.h"
+#include "time.h"
 
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
@@ -137,7 +138,24 @@ loaded_bmp MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool 
     return Result;
 }
 
-struct Character {
+struct string {
+    int Length;
+    char* Content;
+};
+
+string PushString(memory_arena* Arena, int Length, const char* Content) {
+    string String = { 0 };
+    String.Length = Length;
+    String.Content = PushArray(Arena, Length, char);
+
+    for (int i = 0; i < Length; i++) {
+        String.Content[i] = Content[i];
+    }
+
+    return String;
+}
+
+struct character {
     unsigned char Letter;
     signed long Advance;
     signed long Width;
@@ -156,11 +174,25 @@ typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
 #define PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)
 typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 
-typedef void platform_opengl_render(struct render_group* Group, int32 Width, int32 Height);
+typedef void platform_opengl_render(struct render_group* Group);
 
 struct platform_api {
     platform_read_entire_file* ReadEntireFile;
     platform_free_file_memory* FreeFileMemory;
     platform_write_entire_file* WriteEntireFile;
-    platform_opengl_render* OpenGLRender;
+};
+
+enum log_mode {
+    File,
+    Terminal
+};
+
+enum log_level {
+    Info,
+    Warn,
+    Error
+};
+
+struct logger {
+    log_mode Mode;
 };

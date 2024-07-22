@@ -110,7 +110,7 @@ void OpenGLTexturedRect(game_rect Rect, bool FlipY = false, bool FlipX = false) 
 
 // Render a textured rectangle in OpenGL given position and basis.
 // It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis* Basis, wrap_mode Mode)
+void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, wrap_mode Mode)
 {
 	/*
 	*    A ---- B
@@ -120,17 +120,17 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis* Basis,
 	*      ->
 	*/
 	v3 A = Position;
-	v3 B = Position + Width * Basis->X;
-	v3 C = Position + Height * Basis->Y;
-	v3 D = Position + Width * Basis->X + Height * Basis->Y;
+	v3 B = Position + Width * Basis.X;
+	v3 C = Position + Height * Basis.Y;
+	v3 D = Position + Width * Basis.X + Height * Basis.Y;
 
 	float MinTexX = 0.0f;
 	float MinTexY = 0.0f;
 	float MaxTexX;
 	float MaxTexY;
 	if (Mode == Repeat) {
-		MaxTexX = module(Basis->X);
-		MaxTexY = module(Basis->Y);
+		MaxTexX = module(Basis.X);
+		MaxTexY = module(Basis.Y);
 	}
 	else {
 		MaxTexX = 1.0f;
@@ -164,28 +164,28 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis* Basis,
 	glDisable(GL_TEXTURE_2D);
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_position Position, text Text, render_basis* Basis)
+void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, render_basis Basis, bool Wrapped = false)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;
 
 	int LineJump = (int)(0.023f * Characters[1].Height); // 0.023 because height is in 64ths of pixel
 
-	for (int i = 0; i < Text.Length; i++) {
-		char c = Text.Content[i];
+	for (int i = 0; i < String.Length; i++) {
+		char c = String.Content[i];
 		// Carriage returns
 		if (c == '\n') {
 			PenY += LineJump;
 			PenX = Position.X;
 		}
 		else if (' ' <= c && c <= '~') {
-			Character* pCharacter = Characters + (c - ' ');
-			if (Text.Wrapped && PenX + (pCharacter->Advance >> 6) > DisplayWidth) {
+			character* pCharacter = Characters + (c - ' ');
+			if (Wrapped && PenX + (pCharacter->Advance >> 6) > DisplayWidth) {
 				PenX = Position.X;
 				PenY += LineJump;
 			}
 			if (c != ' ') {
-				glColor4f(Text.Color.R, Text.Color.G, Text.Color.B, Text.Color.Alpha);
+				glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
 				OpenGLBindTexture(pCharacter->Bitmap, Clamp);
 				OpenGLTexturedRect(
 					{ PenX + pCharacter->Left, PenY - pCharacter->Top, 0 },
@@ -194,7 +194,7 @@ void OpenGLRenderText(uint32 DisplayWidth, Character* Characters, game_screen_po
 				);
 			}
 
-			PenX += (pCharacter->Advance >> 6) * Basis->X.X;
+			PenX += (pCharacter->Advance >> 6) * Basis.X.X;
 		}
 	}
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -227,8 +227,10 @@ void SetScreenProjection(int32 Width, int32 Height) {
 }
 
 
-void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
+void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRIES])
 {
+	int32 Width = Group->Width;
+	int32 Height = Group->Height;
 	glViewport(0, 0, Width, Height);
 
 	// Projection matrix
@@ -245,10 +247,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 	glEnable(GL_BLEND);
 
 	glShadeModel(GL_FLAT);
-
-	// Sorting render entries
-	sort_entry Entries[MAX_ENTRIES] = { 0 };
-	SortEntries(Group, Entries);
 
 	// Render entries
 	uint32 EntryCount = Group->PushBufferElementCount;
@@ -283,13 +281,14 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 			case group_type_render_entry_text:
 			{
 				render_entry_text Entry = *(render_entry_text*)Header;
-				OpenGLRenderText(Width, Entry.Characters, Entry.Position, Entry.Text, Group->DefaultBasis);
+				OpenGLRenderText(Width, Entry.Position, Entry.Characters, Entry.Color, Entry.Points, Entry.String, Entry.Basis, Entry.Wrapped);
 			} break;
 
 			case group_type_render_entry_button:
 			{
 				render_entry_button Entry = *(render_entry_button*)Header;
 				button* Button = Entry.Button;
+				character* Characters = Entry.Characters;
 
 				loaded_bmp* Texture = Button->Clicked ? &Button->ClickedImage : &Button->Image;
 				int Width = Texture->Header.Width;
@@ -299,18 +298,18 @@ void OpenGLRenderGroupToOutput(render_group* Group, int32 Width, int32 Height)
 					Width, Height, Group->DefaultBasis, Clamp
 				);
 				int TextWidth = 0;
-				int TextHeight = (int)(0.023f * Entry.Characters[1].Height);
+				int TextHeight = (int)(0.023f * Characters[1].Height);
 				for (int i = 0; i < Button->Text.Length; i++) {
 					char c = Button->Text.Content[i];
-					Character* pCharacter = Entry.Characters + (c - ' ');
+					character* pCharacter = Entry.Characters + (c - ' ');
 					TextWidth += pCharacter->Advance >> 6;
 				}
-				OpenGLRenderText(Width, Entry.Characters,
+				OpenGLRenderText(Width,
 					{
 						Button->Collider.Left + (Button->Image.Header.Width - TextWidth) / 2,
 						Button->Collider.Top + Button->Image.Header.Height / 2 + TextHeight / 4,
 						0
-					}, Button->Text, Group->DefaultBasis);
+					}, Entry.Characters, White, 10, Entry.Button->Text, Group->DefaultBasis);
 			} break;
 
 			case group_type_render_entry_line:

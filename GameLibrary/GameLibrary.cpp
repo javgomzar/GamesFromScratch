@@ -193,7 +193,7 @@ void PlaySound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
     Sound->Played += 2*pSoundBuffer->BufferSize;
 }
 
-void GameOutputSound(game_assets* Assets, game_offscreen_buffer* ScreenBuffer, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
+void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
     //WriteSineWave(pSoundBuffer, 480, 0);
 }
@@ -283,32 +283,23 @@ void PushVideoLoop(render_group* Group, game_video* Video, game_rect Rect, int Z
 }
 
 // Main
-extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
+extern "C" GAME_UPDATE(GameUpdate)
 {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
-    render_group* Group = Memory->Group;
+    //render_group* Group = Memory->Group;
     static video_context VideoContext = { 0 };
     bool firstFrame = false;
 
     if (!Memory->IsInitialized) {
         firstFrame = true;
 
-        // Memory arenas
-        InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
-        InitializeArena(&pGameState->VideoArena, Megabytes(15), (uint8*)Memory->PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size + pGameState->RenderArena.Size);
-
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\Media\\Bitmaps\\Player.bmp");
 
         // User Interface
         // InitializeUI();
-
-        // Renderer --------------------------------------------------------------------------------------------------------------------------------------
-        Memory->Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
-        Group = Memory->Group;
-        Group->Characters = Assets->Characters;
 
         Memory->IsInitialized = true;
     }
@@ -318,7 +309,7 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     // Controls
     // Put here your input code
         
-    GameOutputSound(Assets, ScreenBuffer, SoundBuffer, pGameState, Input);
+    GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
     // Debug mouse position
     //if (Input->Mouse.LeftClick.IsDown) {
@@ -330,29 +321,18 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //    DrawRectangle(ScreenBuffer, Rect, White);
     //}
 
-    static bool ShowDebugInfo = false;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
-        ShowDebugInfo = !ShowDebugInfo;
+        pGameState->ShowDebugInfo = !pGameState->ShowDebugInfo;
     }
 
-    if (ShowDebugInfo) {
+    if (pGameState->ShowDebugInfo) {
         game_rect DebugInfoRect = { 0, 0, 470, 150 };
         PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 999);
         PushRectOutline(Group, DebugInfoRect, Gray);
-        text Text = { 0 };
-        Text.Color = White;
-        Text.Length = 71;
-        Text.Points = 20;
-        Text.Content = Memory->DebugInfo;
-        PushText(Group, { 0,30,999 }, Text);
+        PushText(Group, { 0,30,999 }, Assets->Characters, White, 20, Memory->DebugInfo, false);
     }
 
     // Render
-    loaded_bmp Target = { 0 };
-    Target.Header.Width = ScreenBuffer->Width;
-    Target.Header.Height = ScreenBuffer->Height;
-    Target.Pitch = ScreenBuffer->Pitch;
-    Target.Content = (uint32*)ScreenBuffer->Memory;
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;
@@ -365,12 +345,5 @@ extern "C" GAME_UPDATE_AND_RENDER(GameUpdateAndRender)
     //else {
     //    Platform.OpenGLRender(Group, &Target);
     //}
-
-    PushTexturedRect(Group, {0,0,30,50}, &Assets->PlayerBMP, 10);
-    
-    Platform->OpenGLRender(Group, Target.Header.Width, Target.Header.Height);
-
-    // Clear render group
-    ClearEntries(Group);
 }
 
