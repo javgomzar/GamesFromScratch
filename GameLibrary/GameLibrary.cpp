@@ -296,7 +296,10 @@ extern "C" GAME_UPDATE(GameUpdate)
         firstFrame = true;
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\Media\\Bitmaps\\Player.bmp");
+        //Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\Media\\Bitmaps\\Player.bmp");
+        Assets->AttackText = PushString(&pGameState->TextArena, 7, "Attack");
+        Assets->TechniqueText = PushString(&pGameState->TextArena, 10, "Technique");
+        Assets->MagicText = PushString(&pGameState->TextArena, 6, "Magic");
 
         // User Interface
         // InitializeUI();
@@ -333,6 +336,18 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     // Render
+    game_rect MenuRect = { 0, 0.5 * Group->Height, 200, 0.5 * Group->Height};
+    PushRect(Group, MenuRect, DarkGray, 0);
+    
+    game_screen_position AttackTextPosition = { 50, 0.6 * Group->Height, 0 };
+    PushText(Group, AttackTextPosition, Assets->Characters, White, 16, Assets->AttackText, false);
+
+    game_screen_position TechniqueTextPosition = { 25, 0.7 * Group->Height, 0 };
+    PushText(Group, TechniqueTextPosition, Assets->Characters, White, 16, Assets->TechniqueText, false);
+
+    game_screen_position MagicTextPosition = { 60, 0.8 * Group->Height, 0 };
+    PushText(Group, MagicTextPosition, Assets->Characters, White, 16, Assets->MagicText, false);
+
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;

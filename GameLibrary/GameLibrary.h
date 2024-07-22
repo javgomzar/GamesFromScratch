@@ -93,6 +93,7 @@ struct color {
 static int Attenuation = 100;
 static color Black = { 1.0f, 0.0f, 0.0f, 0.0f };
 static color White = { 1.0f, 1.0f, 1.0f, 1.0f };
+static color DarkGray = { 1.0f, 0.15f, 0.15f, 0.15f };
 static color Gray = { 1.0f, 0.5f, 0.5f, 0.5f };
 static color Red = { 1.0f, 1.0f, 0.0f, 0.0f };
 static color Green = { 1.0f, 0.0f, 1.0f, 0.0f };
@@ -324,6 +325,9 @@ struct game_assets {
     loaded_bmp TestImage;
     game_sound TestSound;
     game_video TestVideo;
+    string AttackText;
+    string TechniqueText;
+    string MagicText;
 };
 
 // Game State: Persistent (between frames) values
@@ -332,10 +336,6 @@ struct stats {
     int Strength;
 };
 
-struct character {
-    loaded_bmp* BMP;
-    stats Stats;
-};
 
 
 struct game_state {
