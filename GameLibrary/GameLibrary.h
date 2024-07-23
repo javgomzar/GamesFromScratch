@@ -34,7 +34,6 @@ struct game_triangle {
     v3 Points[3];
 };
 
-
 struct game_rect {
     double Left;
     double Top;
@@ -294,8 +293,16 @@ struct button {
     string Text;
 };
 
-struct UI {
+struct combat_menu {
+    bool Active;
+    int Cursor;
+    string AttackText;
+    string TechniqueText;
+    string MagicText;
+};
 
+struct UI {
+    combat_menu CombatMenu;
 };
 
 
@@ -327,22 +334,35 @@ struct game_video {
 // Game Assets
 struct game_assets {
     character* Characters;
-    loaded_bmp TestImage;
+    loaded_bmp PlayerBMP;
+    loaded_bmp EnemyBMP;
     game_sound TestSound;
     game_video TestVideo;
-    string AttackText;
-    string TechniqueText;
-    string MagicText;
 };
+
+// Game specific structs
+
+struct stats {
+    int HP;
+    int MaxHP;
+    int Strength;
+    int Defense;
+    int Speed;
+};
+
+struct player {
+    stats Stats;
+    loaded_bmp* BMP;
+};
+
+struct enemy {
+    stats Stats;
+    loaded_bmp* BMP;
+    bool Attacking;
+};
+
 
 // Game State: Persistent (between frames) values
-struct stats {
-    int Health;
-    int Strength;
-};
-
-
-
 struct game_state {
     memory_arena TextArena;
     memory_arena RenderArena;
@@ -351,6 +371,8 @@ struct game_state {
     bool ShowDebugInfo;
     double Time;
     double LastFrameTime;
+    player Player;
+    enemy Enemy;
     character Characters[];
 };
 

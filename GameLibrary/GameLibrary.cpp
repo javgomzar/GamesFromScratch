@@ -94,12 +94,6 @@ loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char
 }
 
 
-// UI
-void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, platform_read_entire_file* Read) {
-    // Initialize your UI elements here
-}
-
-
 // Sound
 int16 Amplitude = 4000;
 float WriteSineWave(game_sound_buffer* pSoundBuffer, float Hz, float InitialPhase) {
@@ -282,12 +276,26 @@ void PushVideoLoop(render_group* Group, game_video* Video, game_rect Rect, int Z
     }
 }
 
+// Game code
+void Attack(stats Attacker, stats* Defender) {
+    if (Attacker.Strength > Attacker.Defense) {
+        int NewHP = Defender->HP - Attacker.Strength + Attacker.Defense;
+        if (NewHP < 0) {
+            Defender->HP = 0;
+        }
+        else {
+            Defender->HP = NewHP;
+        }
+    }
+}
+
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
 {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
+    UI* UserInterface = &pGameState->UserInterface;
     //render_group* Group = Memory->Group;
     static video_context VideoContext = { 0 };
     bool firstFrame = false;
@@ -296,13 +304,37 @@ extern "C" GAME_UPDATE(GameUpdate)
         firstFrame = true;
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        //Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\GameLibrary\\Media\\Bitmaps\\Player.bmp");
-        Assets->AttackText = PushString(&pGameState->TextArena, 7, "Attack");
-        Assets->TechniqueText = PushString(&pGameState->TextArena, 10, "Technique");
-        Assets->MagicText = PushString(&pGameState->TextArena, 6, "Magic");
+        Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Player.bmp");
+        Assets->EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Enemy.bmp");
+
+        // Game state
+            // Player
+        pGameState->Player.BMP = &Assets->PlayerBMP;
+        stats* PlayerStats = &pGameState->Player.Stats;
+        PlayerStats->HP = 100;
+        PlayerStats->MaxHP = 100;
+        PlayerStats->Strength = 10;
+        PlayerStats->Defense = 5;
+        PlayerStats->Speed = 10;
+
+            // Enemy
+        pGameState->Enemy.BMP = &Assets->EnemyBMP;
+        pGameState->Enemy.Attacking = false;
+        stats* EnemyStats = &pGameState->Enemy.Stats;
+        EnemyStats->HP = 100;
+        EnemyStats->MaxHP = 100;
+        EnemyStats->Strength = 10;
+        EnemyStats->Defense = 5;
+        EnemyStats->Speed = 10;
+        
 
         // User Interface
-        // InitializeUI();
+            // Initialize your UI elements here
+        UserInterface->CombatMenu.Active = true;
+        UserInterface->CombatMenu.Cursor = 0;
+        UserInterface->CombatMenu.AttackText = PushString(&pGameState->TextArena, 7, "Attack");
+        UserInterface->CombatMenu.TechniqueText = PushString(&pGameState->TextArena, 10, "Technique");
+        UserInterface->CombatMenu.MagicText = PushString(&pGameState->TextArena, 6, "Magic");
 
         Memory->IsInitialized = true;
     }
@@ -324,30 +356,61 @@ extern "C" GAME_UPDATE(GameUpdate)
     //    DrawRectangle(ScreenBuffer, Rect, White);
     //}
 
+    // Input
+        // Debug Info
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
         pGameState->ShowDebugInfo = !pGameState->ShowDebugInfo;
+    }
+
+        // Combat menu
+    if (Input->Keyboard.Down.IsDown && !Input->Keyboard.Down.WasDown) {
+        if (pGameState->UserInterface.CombatMenu.Cursor < 3) {
+            pGameState->UserInterface.CombatMenu.Cursor += 1;
+        }
+    }
+    if (Input->Keyboard.Up.IsDown && !Input->Keyboard.Up.WasDown) {
+        if (pGameState->UserInterface.CombatMenu.Cursor > 0) {
+            pGameState->UserInterface.CombatMenu.Cursor -= 1;
+        }
+    }
+
+    static int Counter = 0;
+    if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown && 
+        UserInterface->CombatMenu.Cursor == 0 &&
+        !pGameState->Enemy.Attacking) {
+        Attack(pGameState->Player.Stats, &pGameState->Enemy.Stats);
+        pGameState->Enemy.Attacking = true;
+    }
+
+    if (pGameState->Enemy.Attacking) {
+        Counter++;
+        if (Counter == 100) {
+            Attack(pGameState->Enemy.Stats, &pGameState->Player.Stats);
+            Counter = 0;
+            pGameState->Enemy.Attacking = false;
+        }
     }
 
     if (pGameState->ShowDebugInfo) {
         game_rect DebugInfoRect = { 0, 0, 470, 150 };
         PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 999);
         PushRectOutline(Group, DebugInfoRect, Gray);
-        PushText(Group, { 0,30,999 }, Assets->Characters, White, 20, Memory->DebugInfo, false);
+        PushText(Group, { 0,30,999 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
     }
 
     // Render
-    game_rect MenuRect = { 0, 0.5 * Group->Height, 200, 0.5 * Group->Height};
-    PushRect(Group, MenuRect, DarkGray, 0);
-    
-    game_screen_position AttackTextPosition = { 50, 0.6 * Group->Height, 0 };
-    PushText(Group, AttackTextPosition, Assets->Characters, White, 16, Assets->AttackText, false);
+        // Player
+    game_screen_position PlayerPosition = { 300, 150, 0 };
+    PushTexturedRect(Group, { PlayerPosition.X, PlayerPosition.Y, 64, 188 }, &Assets->PlayerBMP, 0);
+    PushHealthBar(Group, { PlayerPosition.X - 15, PlayerPosition.Y - 20, 0 }, pGameState->Player.Stats.HP, pGameState->Player.Stats.MaxHP);
 
-    game_screen_position TechniqueTextPosition = { 25, 0.7 * Group->Height, 0 };
-    PushText(Group, TechniqueTextPosition, Assets->Characters, White, 16, Assets->TechniqueText, false);
+        // Enemy
+    game_screen_position EnemyPosition = { 700, 70, 0 };
+    PushTexturedRect(Group, { EnemyPosition.X, EnemyPosition.Y + 20 * sin(4.0 * pGameState->Time), 200, 200}, &Assets->EnemyBMP, 0);
+    PushHealthBar(Group, { EnemyPosition.X + 50, EnemyPosition.Y - 20, 0 }, pGameState->Enemy.Stats.HP, pGameState->Enemy.Stats.MaxHP);
 
-    game_screen_position MagicTextPosition = { 60, 0.8 * Group->Height, 0 };
-    PushText(Group, MagicTextPosition, Assets->Characters, White, 16, Assets->MagicText, false);
-
+        // Combat menu
+    PushCombatMenu(Group, Assets->Characters, &pGameState->UserInterface.CombatMenu);
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;

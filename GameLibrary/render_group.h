@@ -326,6 +326,39 @@ void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
     Entry->Rect = Rect;
 }
 
+void PushCombatMenu(render_group* Group, character* Characters, combat_menu* Menu) {
+    if (Menu->Active) {
+        // Background
+        game_rect MenuRect = { 0, Group->Height - 250, 200, 250 };
+        PushRect(Group, MenuRect, DarkGray, 0);
+
+        game_screen_position AttackTextPosition = { 50, 0.6 * Group->Height, 0 };
+        PushText(Group, AttackTextPosition, Characters, White, 16, Menu->AttackText, false);
+
+        game_screen_position TechniqueTextPosition = { 25, 0.7 * Group->Height, 0 };
+        PushText(Group, TechniqueTextPosition, Characters, White, 16, Menu->TechniqueText, false);
+
+        game_screen_position MagicTextPosition = { 60, 0.8 * Group->Height, 0 };
+        PushText(Group, MagicTextPosition, Characters, White, 16, Menu->MagicText, false);
+
+        v3 CursorPosition = V3(0, 0.1 * (6.0 + Menu->Cursor) * Group->Height , 0);
+        game_triangle Triangle = {
+            V3(CursorPosition.X, CursorPosition.Y - 10, 0),
+            V3(CursorPosition.X + 10, CursorPosition.Y,0),
+            V3(CursorPosition.X, CursorPosition.Y + 10, 0)
+        };
+        PushTriangle(Group, Triangle, White);
+        game_screen_position Start = { 0, 0.1 * (6.0 + Menu->Cursor) * Group->Height, 0 };
+        game_screen_position Finish = { 150, 0.1 * (6.0 + Menu->Cursor) * Group->Height, 0 };
+        PushLine(Group, White, Start, Finish);
+    }
+}
+
+void PushHealthBar(render_group* Group, game_screen_position Position, int HP, int MaxHP) {
+    PushRect(Group, { Position.X, Position.Y, 100, 4 }, DarkGray, Position.Z);
+    PushRect(Group, { Position.X, Position.Y, 100.0 * ((double)HP) / ((double)MaxHP), 4 }, Red, Position.Z + 1);
+}
+
 void ClearEntries(render_group* Group) {
     Group->PushBufferElementCount = 0;
     Group->PushBufferSize = 0;
