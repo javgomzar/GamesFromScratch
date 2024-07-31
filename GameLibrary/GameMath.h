@@ -176,3 +176,35 @@ v3 SphereNormal(double Theta, double Phi) {
 	return Result;
 }
 
+v3 Rotate(v3 v, double Angle) {
+	double X = v.X * cos(Angle) + v.Y * sin(Angle);
+	double Y = -v.X * sin(Angle) + v.Y * cos(Angle);
+	double Z = v.Z;
+	return V3(X, Y, Z);
+}
+
+struct basis {
+	v3 X;
+	v3 Y;
+	v3 Z;
+};
+
+basis Rotate(basis Basis, double Angle) {
+	basis Result;
+	Result.X = Rotate(Basis.X, Angle);
+	Result.Y = Rotate(Basis.Y, Angle);
+	Result.Z = Rotate(Basis.Z, Angle);
+	return Result;
+}
+
+basis Scale(basis Basis, double ScaleX, double ScaleY, double ScaleZ) {
+	basis Result;
+	Result.X = ScaleX * Basis.X;
+	Result.Y = ScaleY * Basis.Y;
+	Result.Z = ScaleZ * Basis.Z;
+	return Result;
+}
+
+basis Scale(basis Basis, double Factor) {
+	return Scale(Basis, Factor, Factor, Factor);
+}

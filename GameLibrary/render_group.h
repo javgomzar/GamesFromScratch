@@ -3,12 +3,6 @@
 
 const int MAX_ENTRIES = 500;
 
-struct render_basis {
-    v3 X;
-    v3 Y;
-    v3 Z;
-};
-
 enum render_group_entry_type {
     group_type_render_entry_clear,
     group_type_render_entry_line,
@@ -68,7 +62,7 @@ struct render_entry_rect {
 
 struct render_entry_textured_rect_basis {
     render_group_header Header;
-    render_basis Basis;
+    basis Basis;
     v3 Position;
     loaded_bmp* Texture;
     wrap_mode Mode;
@@ -119,7 +113,7 @@ struct render_group {
     int32 Width;
     int32 Height;
     float MetersToPixels;
-    render_basis DefaultBasis;
+    basis DefaultBasis;
     uint32 MaxPushBufferSize;
     uint32 PushBufferSize;
     uint32 PushBufferElementCount;
@@ -269,7 +263,7 @@ void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, 
     Entry->Rect = Rect;
 }
 
-void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis Basis, wrap_mode Mode) {
+void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, basis Basis, wrap_mode Mode) {
     render_entry_textured_rect_basis* Entry = PushRenderElement(Group, render_entry_textured_rect_basis);
     Entry->Header.Key.Z = Position.Z;
     Entry->Texture = Texture;

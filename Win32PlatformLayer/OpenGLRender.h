@@ -121,7 +121,7 @@ void OpenGLTexturedRect(game_rect Rect, bool FlipY = false, bool FlipX = false) 
 
 // Render a textured rectangle in OpenGL given position and basis.
 // It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, wrap_mode Mode)
+void OpenGLTexturedRect(v3 Position, int Width, int Height, basis Basis, wrap_mode Mode)
 {
 	/*
 	*    A ---- B
@@ -175,7 +175,7 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, 
 	glDisable(GL_TEXTURE_2D);
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, render_basis Basis, bool Wrapped = false)
+void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, basis Basis, bool Wrapped = false)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;
