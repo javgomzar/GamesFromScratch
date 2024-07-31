@@ -1,8 +1,7 @@
 #pragma once
 #include "FFMPEG.h"
 
-const int MAX_ENTRIES = 500;
-
+const int MAX_ENTRIES = 10000;
 
 
 enum render_group_entry_type {
@@ -253,6 +252,20 @@ void PushTriangle(render_group* Group, game_triangle Triangle, color Color) {
     Entry->Header.Key.Z = 0;
     Entry->Color = Color;
     Entry->Triangle = Triangle;
+}
+
+void PushCircle(render_group* Group, v3 Center, double Radius, color Color) {
+    int N = 100;
+    double dTheta = Tau / N;
+    double Theta = 0;
+    for (int i = 0; i < N; i++) {
+        game_triangle Triangle;
+        Triangle.Points[0] = Center;
+        Triangle.Points[1] = Center + Radius * V3(cos(Theta), sin(Theta), 0);
+        Theta += dTheta;
+        Triangle.Points[2] = Center + Radius * V3(cos(Theta), sin(Theta), 0);
+        PushTriangle(Group, Triangle, Color);
+    }
 }
 
 void PushRect(render_group* Group, game_rect Rect, color Color, double Z) {
