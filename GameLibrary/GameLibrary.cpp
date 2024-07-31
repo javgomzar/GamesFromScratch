@@ -297,6 +297,12 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
+        Assets->RenderArenaStr = PushString(&pGameState->RenderArena, 13, "Render Arena");
+        Assets->RenderPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
+        Assets->VideoArenaStr = PushString(&pGameState->VideoArena, 13, "Video Arena");
+        Assets->VideoPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
+        Assets->TextArenaStr = PushString(&pGameState->TextArena, 13, "Text Arena");
+        Assets->TextPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
 
         // User Interface
         // InitializeUI();
@@ -326,10 +332,36 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     if (pGameState->ShowDebugInfo) {
-        game_rect DebugInfoRect = { 0, 0, 470, 150 };
-        PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 999);
+        game_rect DebugInfoRect = { 0, 0, 350, 220 };
+        PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 980);
         PushRectOutline(Group, DebugInfoRect, Gray);
-        PushText(Group, { 0,30,999 }, Assets->Characters, White, 20, Memory->DebugInfo, false);
+        PushText(Group, { 0,30,981 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
+
+        // Render Arena
+        double RenderArenaPercentage = (double)pGameState->RenderArena.Used / (double)pGameState->RenderArena.Size;
+        double RenderGroupPercentage = (double)Group->PushBufferSize / (double)Group->MaxPushBufferSize;
+        PushRect(Group, { 20.0, 120.0, 100.0, 20.0 }, DarkGray, 981);
+        PushRect(Group, { 20.0, 120.0, 100.0 * RenderArenaPercentage, 20.0 }, Gray, 982);
+        PushRect(Group, { 20.0, 120.0, 100.0 * RenderGroupPercentage * RenderArenaPercentage, 20.0 }, Red, 983);
+        PushText(Group, { 20.0, 135.0, 985}, Assets->Characters, White, 8, Assets->RenderArenaStr, false);
+        sprintf_s(Assets->RenderPercentageStr.Content, 7, "%.02f%%", RenderGroupPercentage);
+        PushText(Group, { 125.0, 135.0, 983 }, Assets->Characters, White, 8, Assets->RenderPercentageStr, false);
+
+        // Video Arena
+        double VideoArenaPercentage = (double)pGameState->VideoArena.Used / (double)pGameState->VideoArena.Size;
+        PushRect(Group, { 20.0, 150.0, 100.0, 20.0 }, DarkGray, 981);
+        PushRect(Group, { 20.0, 150.0, 100.0 * VideoArenaPercentage, 20.0 }, Red, 982);
+        PushText(Group, { 20.0, 165.0, 983}, Assets->Characters, White, 8, Assets->VideoArenaStr, false);
+        sprintf_s(Assets->VideoPercentageStr.Content, 7, "%.02f%%", VideoArenaPercentage*100.0);
+        PushText(Group, { 125.0, 135.0 + 30.0, 983 }, Assets->Characters, White, 8, Assets->VideoPercentageStr, false);
+
+        // Text Arena
+        double TextArenaPercentage = (double)pGameState->TextArena.Used / (double)pGameState->TextArena.Size;
+        PushRect(Group, { 20.0, 180.0, 100.0, 20.0 }, DarkGray, 981);
+        PushRect(Group, { 20.0, 180.0, 100.0 * TextArenaPercentage, 20.0 }, Red, 982);
+        PushText(Group, { 20.0, 195.0, 983}, Assets->Characters, White, 8, Assets->TextArenaStr, false);
+        sprintf_s(Assets->TextPercentageStr.Content, 7, "%.02f%%", TextArenaPercentage*100.0);
+        PushText(Group, { 125.0, 135.0 + 60.0, 983 }, Assets->Characters, White, 8, Assets->TextPercentageStr, false);
     }
 
     // Render

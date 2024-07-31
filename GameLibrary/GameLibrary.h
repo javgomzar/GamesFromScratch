@@ -89,30 +89,31 @@ v3 ToV3(game_screen_position Position) {
 
 // Color
 struct color {
-    float Alpha;
-    float R;
-    float G;
-    float B;
+    double Alpha;
+    double R;
+    double G;
+    double B;
 };
 
 static int Attenuation = 100;
-static color Black = { 1.0f, 0.0f, 0.0f, 0.0f };
-static color White = { 1.0f, 1.0f, 1.0f, 1.0f };
-static color Gray = { 1.0f, 0.5f, 0.5f, 0.5f };
-static color Red = { 1.0f, 1.0f, 0.0f, 0.0f };
-static color Green = { 1.0f, 0.0f, 1.0f, 0.0f };
-static color Blue = { 1.0f, 0.0f, 0.0f, 1.0f };
-static color Magenta = { 1.0f, 1.0f, 0.0f, 1.0f };
-static color Yellow = { 1.0f, 1.0f, 1.0f, 0.0f };
-static color Cyan = { 1.0f, 0.0f, 1.0f, 1.0f };
-static color Orange = { 1.0f, 1.0f, 0.63f, 0.0f };
-static color BackgroundBlue = { 1.0f, 0.4f, 0.4f, 0.8f };
+static color Black = { 1.0, 0.0, 0.0, 0.0 };
+static color White = { 1.0, 1.0, 1.0, 1.0 };
+static color Gray = { 1.0, 0.5, 0.5, 0.5 };
+static color DarkGray = { 1.0, 0.1, 0.1, 0.1 };
+static color Red = { 1.0, 1.0, 0.0, 0.0 };
+static color Green = { 1.0, 0.0, 1.0, 0.0 };
+static color Blue = { 1.0, 0.0, 0.0, 1.0 };
+static color Magenta = { 1.0, 1.0, 0.0, 1.0 };
+static color Yellow = { 1.0, 1.0, 1.0, 0.0 };
+static color Cyan = { 1.0, 0.0, 1.0, 1.0 };
+static color Orange = { 1.0, 1.0, 0.63, 0.0 };
+static color BackgroundBlue = { 1.0, 0.4, 0.4, 0.8 };
 
 uint32 GetColorBytes(color Color) {
-    uint8 Alpha = Color.Alpha * 255.0f;
-    uint8 R = Color.R * 255.0f;
-    uint8 G = Color.G * 255.0f;
-    uint8 B = Color.B * 255.0f;
+    uint8 Alpha = Color.Alpha * 255.0;
+    uint8 R = Color.R * 255.0;
+    uint8 G = Color.G * 255.0;
+    uint8 B = Color.B * 255.0;
     return (Alpha << 24) | (R << 16) | (G << 8) | B;
 }
 
@@ -129,20 +130,20 @@ color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) 
     _BitScanForward((DWORD*)&AlphaShift, AlphaMask);
 
     color Color;
-    Color.R = (float)((RedMask & Bytes) >> RedShift) / 255.0f;
-    Color.G = (float)((GreenMask & Bytes) >> GreenShift) / 255.0f;
-    Color.B = (float)((BlueMask & Bytes) >> BlueShift) / 255.0f;
-    Color.Alpha = (float)((AlphaMask & Bytes) >> AlphaShift) / 255.0f;
+    Color.R = (double)((RedMask & Bytes) >> RedShift) / 255.0;
+    Color.G = (double)((GreenMask & Bytes) >> GreenShift) / 255.0;
+    Color.B = (double)((BlueMask & Bytes) >> BlueShift) / 255.0;
+    Color.Alpha = (double)((AlphaMask & Bytes) >> AlphaShift) / 255.0;
     return Color;
 }
 
 color Blend(color Color, color Background) {
     color Result;
-    float Alpha = (float)(Color.Alpha) / 255.0f;
-    Result.R = Background.R + (Alpha * (Color.R - Background.R) + 0.5f);
-    Result.G = Background.G + (Alpha * (Color.G - Background.G) + 0.5f);
-    Result.B = Background.B + (Alpha * (Color.B - Background.B) + 0.5f);
-    Result.Alpha = 255;
+    double Alpha = (double)(Color.Alpha) / 255.0;
+    Result.R = Background.R + (Alpha * (Color.R - Background.R) + 0.5);
+    Result.G = Background.G + (Alpha * (Color.G - Background.G) + 0.5);
+    Result.B = Background.B + (Alpha * (Color.B - Background.B) + 0.5);
+    Result.Alpha = 255.0;
     return Result;
 }
 
@@ -329,6 +330,12 @@ struct game_assets {
     loaded_bmp TestImage;
     game_sound TestSound;
     game_video TestVideo;
+    string RenderArenaStr;
+    string RenderPercentageStr;
+    string VideoArenaStr;
+    string VideoPercentageStr;
+    string TextArenaStr;
+    string TextPercentageStr;
 };
 
 // Game State: Persistent (between frames) values

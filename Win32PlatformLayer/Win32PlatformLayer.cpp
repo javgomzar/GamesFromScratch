@@ -202,7 +202,7 @@ character* InitializeFonts(memory_arena* Arena) {
 
                     character LoadCharacter = { 0 };
                     LoadCharacter.Letter = c;
-                    LoadCharacter.Advance = Slot->advance.x;
+                    LoadCharacter.Advance = Slot->advance.x >> 6;
                     LoadCharacter.Left = Slot->bitmap_left;
                     LoadCharacter.Top = Slot->bitmap_top;
                     LoadCharacter.Height = Slot->metrics.height;
