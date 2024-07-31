@@ -180,7 +180,9 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, charac
 	double PenX = Position.X;
 	double PenY = Position.Y;
 
-	int LineJump = (int)(0.023f * Characters[1].Height); // 0.023 because height is in 64ths of pixel
+	double Scale = (double)Points / 20.0;
+
+	double LineJump = 0.023 * (double)Characters[1].Height * Scale; // 0.023 because height is in 64ths of pixel
 
 	for (int i = 0; i < String.Length; i++) {
 		char c = String.Content[i];
@@ -191,7 +193,8 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, charac
 		}
 		else if (' ' <= c && c <= '~') {
 			character* pCharacter = Characters + (c - ' ');
-			if (Wrapped && PenX + (pCharacter->Advance >> 6) > DisplayWidth) {
+			double HorizontalAdvance = pCharacter->Advance * Scale;
+			if (Wrapped && (PenX + HorizontalAdvance > DisplayWidth)) {
 				PenX = Position.X;
 				PenY += LineJump;
 			}
@@ -199,13 +202,13 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, charac
 				glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
 				OpenGLBindTexture(pCharacter->Bitmap, Clamp);
 				OpenGLTexturedRect(
-					{ PenX + pCharacter->Left, PenY - pCharacter->Top, 0 },
-					pCharacter->Bitmap->Header.Width, pCharacter->Bitmap->Header.Height,
+					{ PenX + pCharacter->Left * Scale, floor(PenY - pCharacter->Top * Scale), 0 },
+					(double)pCharacter->Bitmap->Header.Width * Scale, ceil((double)pCharacter->Bitmap->Header.Height * Scale),
 					Basis, Clamp
 				);
 			}
 
-			PenX += (pCharacter->Advance >> 6) * Basis.X.X;
+			PenX += pCharacter->Advance * Scale;
 		}
 	}
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -299,7 +302,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 			case group_type_render_entry_text:
 			{
 				render_entry_text Entry = *(render_entry_text*)Header;
-				OpenGLRenderText(Width, Entry.Position, Entry.Characters, Entry.Color, Entry.Points, Entry.String, Entry.Basis, Entry.Wrapped);
+				OpenGLRenderText(Width, Entry.Position, Entry.Characters, Entry.Color, Entry.Points, Entry.String, Group->DefaultBasis, Entry.Wrapped);
 			} break;
 
 			case group_type_render_entry_button:

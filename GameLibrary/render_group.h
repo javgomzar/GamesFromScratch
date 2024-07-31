@@ -97,7 +97,6 @@ struct render_entry_bmp {
 
 struct render_entry_text {
     render_group_header Header;
-    render_basis Basis;
     character* Characters;
     game_screen_position Position;
     color Color;
@@ -305,10 +304,6 @@ void PushText(render_group* Group, game_screen_position Position, character* Cha
     Entry->Points = Points;
     Entry->String = String;
     Entry->Wrapped = Wrapped;
-    float a = (double)Points / 20.0;
-    Entry->Basis.X = V3(a, 0, 0);
-    Entry->Basis.Y = V3(0, a, 0);
-    Entry->Basis.Z = V3(0, 0, a);
 }
 
 void PushButton(render_group* Group, character* Characters, button* Button) {
