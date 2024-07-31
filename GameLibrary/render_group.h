@@ -72,14 +72,12 @@ struct render_entry_textured_rect_basis {
     v3 Position;
     loaded_bmp* Texture;
     wrap_mode Mode;
-    bool ForceTextureUpdate;
 };
 
 struct render_entry_textured_rect {
     render_group_header Header;
     game_rect Rect;
     loaded_bmp* Texture;
-    bool ForceTextureUpdate;
 };
 
 struct render_entry_rect_outline {
