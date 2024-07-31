@@ -335,6 +335,7 @@ struct game_video {
 struct game_assets {
     character* Characters;
     loaded_bmp PlayerBMP;
+    loaded_bmp ArmBMP;
     loaded_bmp EnemyBMP;
     game_sound TestSound;
     game_video TestVideo;
@@ -347,6 +348,12 @@ struct game_assets {
 };
 
 // Game specific structs
+struct entity {
+    v3 Position;
+    v3 Velocity;
+    loaded_bmp* BMP;
+    double Time;
+};
 
 struct stats {
     int HP;

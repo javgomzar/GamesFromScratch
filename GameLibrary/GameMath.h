@@ -176,3 +176,9 @@ v3 SphereNormal(double Theta, double Phi) {
 	return Result;
 }
 
+v3 Rotate(v3 v, double Angle) {
+	double X = v.X * cos(Angle) + v.Y * sin(Angle);
+	double Y = -v.X * sin(Angle) + v.Y * cos(Angle);
+	double Z = v.Z;
+	return V3(X, Y, Z);
+}

@@ -78,7 +78,7 @@ void OpenGLBindTexture(loaded_bmp* Bitmap, wrap_mode Mode) {
 
 // Render a textured rectangle in OpenGL given a rectangle, scaling the texture as needed to fit the rectangle.
 // It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(game_rect Rect, bool FlipY = false, bool FlipX = false) {
+void OpenGLTexturedRect(game_rect Rect, bool FlipX = false, bool FlipY = false) {
 
 	v3 A = V3(Rect.Left, Rect.Top, 0);
 	v3 B = V3(Rect.Left + Rect.Width, Rect.Top, 0);
@@ -121,7 +121,7 @@ void OpenGLTexturedRect(game_rect Rect, bool FlipY = false, bool FlipX = false) 
 
 // Render a textured rectangle in OpenGL given position and basis.
 // It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, wrap_mode Mode)
+void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, wrap_mode Mode, bool FlipX = false, bool FlipY = false)
 {
 	/*
 	*    A ---- B
@@ -135,8 +135,8 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, 
 	v3 C = Position + Height * Basis.Y;
 	v3 D = Position + Width * Basis.X + Height * Basis.Y;
 
-	float MinTexX = 0.0f;
-	float MinTexY = 0.0f;
+	float MinTexX = FlipX ? 1.0f : 0.0f;
+	float MinTexY = FlipY ? 1.0f : 0.0f;
 	float MaxTexX;
 	float MaxTexY;
 	if (Mode == Repeat) {
@@ -144,8 +144,8 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, 
 		MaxTexY = module(Basis.Y);
 	}
 	else {
-		MaxTexX = 1.0f;
-		MaxTexY = 1.0f;
+		MaxTexX = FlipX ? 0.0f : 1.0f;
+		MaxTexY = FlipY ? 0.0f : 1.0f;
 	}
 
 	glEnable(GL_TEXTURE_2D);
@@ -214,7 +214,7 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, charac
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color)
+void OpenGLRenderLine(v3 Start, v3 Finish, color Color)
 {
 	glBegin(GL_LINES);
 	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
@@ -343,10 +343,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 			case group_type_render_entry_rect_outline:
 			{
 				render_entry_rect_outline Entry = *(render_entry_rect_outline*)Header;
-				game_screen_position TopLeft = { Entry.Rect.Left, Entry.Rect.Top, 0 };
-				game_screen_position TopRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 };
-				game_screen_position BottomLeft = { Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 };
-				game_screen_position BottomRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 };
+				v3 TopLeft = { Entry.Rect.Left, Entry.Rect.Top, 0 };
+				v3 TopRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 };
+				v3 BottomLeft = { Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 };
+				v3 BottomRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 };
 
 				OpenGLRenderLine(TopLeft, BottomLeft, Entry.Color);
 				OpenGLRenderLine(BottomLeft, BottomRight, Entry.Color);

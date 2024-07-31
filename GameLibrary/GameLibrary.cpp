@@ -312,6 +312,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         Assets->TextArenaStr = PushString(&pGameState->TextArena, 13, "Text Arena");
         Assets->TextPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
         Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Player.bmp");
+        Assets->ArmBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Arm.bmp");
         Assets->EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Enemy.bmp");
 
         // Game state
@@ -436,6 +437,15 @@ extern "C" GAME_UPDATE(GameUpdate)
     game_screen_position PlayerPosition = { 300, 150, 0 };
     PushTexturedRect(Group, { PlayerPosition.X, PlayerPosition.Y, 64, 188 }, &Assets->PlayerBMP, 0);
     PushHealthBar(Group, { PlayerPosition.X - 15, PlayerPosition.Y - 20, 0 }, pGameState->Player.Stats.HP, pGameState->Player.Stats.MaxHP);
+
+    bone Bone;
+    Bone.Start = V3(310,216,0);
+    Bone.Finish = V3(310,266,0);
+    Bone.BMP = &Assets->ArmBMP;
+    Bone.BMPOffset = V3(-10,-10,0);
+    Bone.Basis = Scale(Group->DefaultBasis, 4);
+    Rotate(&Bone, -pGameState->Time);
+    PushBone(Group, Bone);
 
         // Enemy
     game_screen_position EnemyPosition = { 700, 70, 0 };

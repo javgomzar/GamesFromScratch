@@ -9,6 +9,26 @@ struct render_basis {
     v3 Z;
 };
 
+render_basis Rotate(render_basis Basis, double Angle) {
+    render_basis Result;
+    Result.X = Rotate(Basis.X, Angle);
+    Result.Y = Rotate(Basis.Y, Angle);
+    Result.Z = Rotate(Basis.Z, Angle);
+    return Result;
+}
+
+render_basis Scale(render_basis Basis, double ScaleX, double ScaleY, double ScaleZ) {
+    render_basis Result;
+    Result.X = ScaleX * Basis.X;
+    Result.Y = ScaleY * Basis.Y;
+    Result.Z = ScaleZ * Basis.Z;
+    return Result;
+}
+
+render_basis Scale(render_basis Basis, double Factor) {
+    return Scale(Basis, Factor, Factor, Factor);
+}
+
 enum render_group_entry_type {
     group_type_render_entry_clear,
     group_type_render_entry_line,
@@ -50,8 +70,8 @@ struct render_entry_clear {
 struct render_entry_line {
     render_group_header Header;
     color Color;
-    game_screen_position Start;
-    game_screen_position Finish;
+    v3 Start;
+    v3 Finish;
 };
 
 struct render_entry_triangle {
@@ -116,6 +136,22 @@ struct render_entry_video {
     game_video* Video;
     game_rect Rect;
 };
+
+// Bones
+struct bone {
+    loaded_bmp* BMP;
+    v3 BMPOffset;
+    bone* Parent;
+    v3 Start;
+    v3 Finish;
+    render_basis Basis;
+};
+
+void Rotate(bone* Bone, double Angle) {
+    Bone->Basis = Rotate(Bone->Basis, Angle);
+    Bone->Finish = Bone->Start + Rotate(Bone->Finish - Bone->Start, Angle);
+    Bone->BMPOffset = Rotate(Bone->BMPOffset, Angle);
+}
 
 struct render_group {
     int32 Width;
@@ -242,7 +278,7 @@ void PushClear(render_group* Group, color Color) {
     Entry->Color = Color;
 }
 
-void PushLine(render_group* Group, color Color, game_screen_position Start, game_screen_position Finish) {
+void PushLine(render_group* Group, color Color, v3 Start, v3 Finish) {
     render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
     Entry->Header.Key.Z = max(Start.Z, Finish.Z);
     Entry->Color = Color;
@@ -306,6 +342,11 @@ void PushText(render_group* Group, game_screen_position Position, character* Cha
     Entry->Wrapped = Wrapped;
 }
 
+void PushBone(render_group* Group, bone Bone) {
+    PushTexturedRectBasis(Group, Bone.BMP, Bone.Start + Bone.BMPOffset, Bone.Basis, Clamp);
+    PushLine(Group, Magenta, Bone.Start, Bone.Finish);
+}
+
 void PushButton(render_group* Group, character* Characters, button* Button) {
     render_entry_button* Entry = PushRenderElement(Group, render_entry_button);
     Entry->Header.Key.Z = 0;
@@ -343,8 +384,8 @@ void PushCombatMenu(render_group* Group, character* Characters, combat_menu* Men
             V3(CursorPosition.X, CursorPosition.Y + 10, 0)
         };
         PushTriangle(Group, Triangle, White);
-        game_screen_position Start = { 0, 0.1 * (6.0 + Menu->Cursor) * Group->Height, 0 };
-        game_screen_position Finish = { 150, 0.1 * (6.0 + Menu->Cursor) * Group->Height, 0 };
+        v3 Start = { 0, 0.1 * (6.0 + Menu->Cursor) * Group->Height, 0 };
+        v3 Finish = { 150, 0.1 * (6.0 + Menu->Cursor) * Group->Height, 0 };
         PushLine(Group, White, Start, Finish);
     }
 }
