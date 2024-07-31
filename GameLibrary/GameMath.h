@@ -7,9 +7,9 @@
 #define Gigabytes(Value) ((uint64)Megabytes(Value)*1024)
 
 // Platform independent constants
-static float Pi = 3.14159265359f;
-static float Tau = 2.0f * Pi;
-static float twroot = 1.05946309436f;
+static double Pi = 3.14159265359;
+static double Tau = 2.0 * Pi;
+static double twroot = 1.05946309436;
 
 // Arithmetics
 int32 CustomRound(double X) {
