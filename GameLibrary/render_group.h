@@ -3,31 +3,7 @@
 
 const int MAX_ENTRIES = 500;
 
-struct render_basis {
-    v3 X;
-    v3 Y;
-    v3 Z;
-};
 
-render_basis Rotate(render_basis Basis, double Angle) {
-    render_basis Result;
-    Result.X = Rotate(Basis.X, Angle);
-    Result.Y = Rotate(Basis.Y, Angle);
-    Result.Z = Rotate(Basis.Z, Angle);
-    return Result;
-}
-
-render_basis Scale(render_basis Basis, double ScaleX, double ScaleY, double ScaleZ) {
-    render_basis Result;
-    Result.X = ScaleX * Basis.X;
-    Result.Y = ScaleY * Basis.Y;
-    Result.Z = ScaleZ * Basis.Z;
-    return Result;
-}
-
-render_basis Scale(render_basis Basis, double Factor) {
-    return Scale(Basis, Factor, Factor, Factor);
-}
 
 enum render_group_entry_type {
     group_type_render_entry_clear,
@@ -88,18 +64,20 @@ struct render_entry_rect {
 
 struct render_entry_textured_rect_basis {
     render_group_header Header;
-    render_basis Basis;
+    basis Basis;
     v3 Position;
     loaded_bmp* Texture;
     wrap_mode Mode;
-    bool ForceTextureUpdate;
+    bool FlipX;
+    bool FlipY;
 };
 
 struct render_entry_textured_rect {
     render_group_header Header;
     game_rect Rect;
     loaded_bmp* Texture;
-    bool ForceTextureUpdate;
+    bool FlipX;
+    bool FlipY;
 };
 
 struct render_entry_rect_outline {
@@ -137,27 +115,11 @@ struct render_entry_video {
     game_rect Rect;
 };
 
-// Bones
-struct bone {
-    loaded_bmp* BMP;
-    v3 BMPOffset;
-    bone* Parent;
-    v3 Start;
-    v3 Finish;
-    render_basis Basis;
-};
-
-void Rotate(bone* Bone, double Angle) {
-    Bone->Basis = Rotate(Bone->Basis, Angle);
-    Bone->Finish = Bone->Start + Rotate(Bone->Finish - Bone->Start, Angle);
-    Bone->BMPOffset = Rotate(Bone->BMPOffset, Angle);
-}
-
 struct render_group {
     int32 Width;
     int32 Height;
     float MetersToPixels;
-    render_basis DefaultBasis;
+    basis DefaultBasis;
     uint32 MaxPushBufferSize;
     uint32 PushBufferSize;
     uint32 PushBufferElementCount;
@@ -300,20 +262,24 @@ void PushRect(render_group* Group, game_rect Rect, color Color, double Z) {
     Entry->Color = Color;
 }
 
-void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, double Z) {
+void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, double Z, bool FlipX = false, bool FlipY = false) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
     Entry->Header.Key.Z = Z;
     Entry->Texture = Texture;
     Entry->Rect = Rect;
+    Entry->FlipX = FlipX;
+    Entry->FlipY = FlipY;
 }
 
-void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis Basis, wrap_mode Mode) {
+void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, basis Basis, wrap_mode Mode, bool FlipX = false, bool FlipY = false) {
     render_entry_textured_rect_basis* Entry = PushRenderElement(Group, render_entry_textured_rect_basis);
     Entry->Header.Key.Z = Position.Z;
     Entry->Texture = Texture;
     Entry->Basis = Basis;
     Entry->Position = Position;
     Entry->Mode = Mode;
+    Entry->FlipX = FlipX;
+    Entry->FlipY = FlipY;
 }
 
 void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
@@ -342,9 +308,9 @@ void PushText(render_group* Group, game_screen_position Position, character* Cha
     Entry->Wrapped = Wrapped;
 }
 
-void PushBone(render_group* Group, bone Bone) {
-    PushTexturedRectBasis(Group, Bone.BMP, Bone.Start + Bone.BMPOffset, Bone.Basis, Clamp);
-    PushLine(Group, Magenta, Bone.Start, Bone.Finish);
+void PushBone(render_group* Group, bone Bone, v3 Position) {
+    PushTexturedRectBasis(Group, Bone.BMP, Position + Bone.Start + Bone.BMPOffset, Bone.Basis, Clamp, Bone.FlipX, Bone.FlipY);
+    PushLine(Group, White, Position + Bone.Start, Position + Bone.Finish);
 }
 
 void PushButton(render_group* Group, character* Characters, button* Button) {

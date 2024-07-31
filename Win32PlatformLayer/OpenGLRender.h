@@ -121,7 +121,7 @@ void OpenGLTexturedRect(game_rect Rect, bool FlipX = false, bool FlipY = false) 
 
 // Render a textured rectangle in OpenGL given position and basis.
 // It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, wrap_mode Mode, bool FlipX = false, bool FlipY = false)
+void OpenGLTexturedRect(v3 Position, int Width, int Height, basis Basis, wrap_mode Mode, bool FlipX = false, bool FlipY = false)
 {
 	/*
 	*    A ---- B
@@ -175,7 +175,7 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, 
 	glDisable(GL_TEXTURE_2D);
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, render_basis Basis, bool Wrapped = false)
+void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, basis Basis, bool Wrapped = false)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;
@@ -359,7 +359,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				render_entry_textured_rect Entry = *(render_entry_textured_rect*)Header;
 
 				OpenGLBindTexture(Entry.Texture, Clamp);
-				OpenGLTexturedRect(Entry.Rect);
+				OpenGLTexturedRect(Entry.Rect, Entry.FlipX, Entry.FlipY);
 			} break;
 
 			case group_type_render_entry_textured_rect_basis:
@@ -369,7 +369,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				int Width = Entry.Texture->Header.Width;
 				int Height = Entry.Texture->Header.Height;
 				OpenGLBindTexture(Width, Height, &Entry.Texture->Handle, Entry.Texture->Content, Clamp);
-				OpenGLTexturedRect(Entry.Position, Width, Height, Entry.Basis, Entry.Mode);
+				OpenGLTexturedRect(Entry.Position, Width, Height, Entry.Basis, Entry.Mode, Entry.FlipX, Entry.FlipY);
 			} break;
 
 			case group_type_render_entry_video:

@@ -351,9 +351,39 @@ struct game_assets {
 struct entity {
     v3 Position;
     v3 Velocity;
-    loaded_bmp* BMP;
     double Time;
 };
+
+// Bones
+struct bone {
+    loaded_bmp* BMP;
+    v3 BMPOffset;
+    bone* Parent;
+    v3 Start;
+    v3 Finish;
+    basis Basis;
+    bool FlipX;
+    bool FlipY;
+};
+
+bone Bone(loaded_bmp* BMP, bone* Parent, v3 BMPOffset, v3 Start, v3 Finish, basis Basis, bool FlipX = false, bool FlipY = false) {
+    bone Result = { 0 };
+    Result.BMP = BMP;
+    Result.Parent = Parent;
+    Result.BMPOffset = BMPOffset;
+    Result.Start = Start;
+    Result.Finish = Finish;
+    Result.Basis = Basis;
+    Result.FlipX = FlipX;
+    Result.FlipY = FlipY;
+    return Result;
+}
+
+void Rotate(bone* Bone, double Angle) {
+    Bone->Basis = Rotate(Bone->Basis, Angle);
+    Bone->Finish = Bone->Start + Rotate(Bone->Finish - Bone->Start, Angle);
+    Bone->BMPOffset = Rotate(Bone->BMPOffset, Angle);
+}
 
 struct stats {
     int HP;
@@ -365,11 +395,27 @@ struct stats {
 
 struct player {
     stats Stats;
-    loaded_bmp* BMP;
+    entity Entity;
+    union {
+        bone Skeleton[12];
+        struct {
+            bone LeftHip;
+            bone RightHip;
+            bone LeftLeg;
+            bone RightLeg;
+            bone Spine;
+            bone Head;
+            bone LeftShoulder;
+            bone RightShoulder;
+            bone LeftArm;
+            bone RightArm;
+        };
+    };
 };
 
 struct enemy {
     stats Stats;
+    entity Entity;
     loaded_bmp* BMP;
     bool Attacking;
 };
