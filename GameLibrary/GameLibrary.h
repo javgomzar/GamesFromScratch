@@ -353,7 +353,10 @@ struct game_assets {
     loaded_bmp ArmBMP;
     loaded_bmp LegBMP;
     loaded_bmp TorsoBMP;
-    loaded_bmp EnemyBMP;
+    loaded_bmp EnemyBMP1;
+    loaded_bmp EnemyBMP2;
+    loaded_bmp EnemyBMP3;
+    loaded_bmp EnemyBMP4;
     game_sound TestSound;
     game_video TestVideo;
     string RenderArenaStr;
@@ -410,9 +413,16 @@ struct stats {
     int Speed;
 };
 
+enum player_animation {
+    Player_Idle,
+    Player_Defending,
+    Player_Attacking
+};
+
 struct player {
     stats Stats;
     entity Entity;
+    player_animation Animation;
     union {
         bone Skeleton[12];
         struct {
@@ -430,10 +440,18 @@ struct player {
     };
 };
 
+enum enemy_animation {
+    Enemy_Idle,
+    Enemy_Defending,
+    Enemy_Attacking
+};
+
+
 struct enemy {
     stats Stats;
     entity Entity;
     loaded_bmp* BMP;
+    enemy_animation Animation;
     bool Attacking;
 };
 
