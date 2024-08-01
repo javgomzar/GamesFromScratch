@@ -1390,6 +1390,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         // Clear render group
         ClearEntries(Group);
 
+        if (FirstFrame) {
+            RECT Rect = { 0 };
+            GetClientRect(Window, &Rect);
+
+            Group->Width = Rect.right - Rect.left;
+            Group->Height = Rect.bottom - Rect.top;
+        }
+
         // Game function
         if (GameCode.IsValid) {
             GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], Group, &Input);

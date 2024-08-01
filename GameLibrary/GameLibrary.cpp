@@ -296,16 +296,16 @@ void Initialize(entity* Entity, v3 Position = V3(0,0,0), v3 Velocity = V3(0,0,0)
 }
 
 void InitializeSkeleton(player* Player, basis Basis, game_assets* Assets) {
-    Player->LeftHip = Bone(0, 0, V3(0, 0, 0), { 0 }, { 0 }, { 1,0,0 });
-    Player->RightHip = Bone(0, &Player->LeftHip, V3(0, 0, 0), { 0 }, { 0 }, { 1,0,0 });
-    Player->LeftLeg = Bone(0, &Player->LeftHip, V3(0, 0, 0), { 0 }, { 0 }, { 1,0,0 });
-    Player->RightLeg = Bone(0, &Player->RightHip, V3(0, 0, 0), { 0 }, { 0 }, { 1,0,0 });
-    Player->Spine = Bone(0, 0, V3(0, 0, 0), { 0 }, { 0 }, { 1,0,0 });
-    Player->Head = Bone(0, &Player->Spine, V3(0,0,0), {0}, {0}, {1,0,0});
-    Player->LeftShoulder = Bone(0, &Player->Spine, V3(0, 0, 0), { 0 }, { 0 }, { 1,0,0 });
-    Player->RightShoulder = Bone(0, &Player->Spine, V3(0, 0, 0), { 0 }, { 0 }, { 1,0,0 });
-    Player->LeftArm = Bone(&Assets->ArmBMP, &Player->Spine, V3(-10, -10, 0), V3(10, 66, 0), V3(10, 116, 0), Basis);
-    Player->RightArm = Bone(&Assets->ArmBMP, &Player->Spine, V3(-6, -10, 0), V3(50, 66, 0), V3(50, 116, 0), Basis, true);
+    Player->LeftHip = Bone(0, 0, V3(0, 0, 0), V3(30, 120, 1), V3(24, 120, 1), Basis);
+    Player->RightHip = Bone(0, &Player->LeftHip, V3(0, 0, 0), V3(30, 120, 1), V3(36, 120, 1), Basis);
+    Player->LeftLeg = Bone(&Assets->LegBMP, &Player->LeftHip, V3(-10, 0, 0), V3(24, 120, 1.5), V3(24, 180, 1.5), Basis);
+    Player->RightLeg = Bone(&Assets->LegBMP, &Player->RightHip, V3(-10, 0, 0), V3(36, 120, 0), V3(36, 180, 0), Basis);
+    Player->Spine = Bone(&Assets->TorsoBMP, 0, V3(-28, -20, 0), V3(30, 66, 1), V3(30, 120, 1), Basis);
+    Player->Head = Bone(&Assets->HeadBMP, &Player->Spine, V3(-30, -68, 0), V3(30, 66, 1), V3(30, 30, 1), Basis);
+    Player->LeftShoulder = Bone(0, &Player->Spine, {0}, V3(30, 66, 1), V3(10, 66, 1), Basis);
+    Player->RightShoulder = Bone(0, &Player->Spine, V3(0, 0, 0), V3(30, 66, 1), V3(50, 66, 1), Basis);
+    Player->LeftArm = Bone(&Assets->ArmBMP, &Player->Spine, V3(-10, -10, 0), V3(10, 66, 1), V3(10, 116, 1), Basis);
+    Player->RightArm = Bone(&Assets->ArmBMP, &Player->Spine, V3(-6, -10, 0), V3(50, 66, 1), V3(50, 116, 1), Basis, true);
 }
 
 // Main
@@ -331,8 +331,10 @@ extern "C" GAME_UPDATE(GameUpdate)
         Assets->VideoPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
         Assets->TextArenaStr = PushString(&pGameState->TextArena, 13, "Text Arena");
         Assets->TextPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
-        Assets->PlayerBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Player.bmp");
+        Assets->HeadBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Head.bmp");
         Assets->ArmBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Arm.bmp");
+        Assets->TorsoBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Torso.bmp");
+        Assets->LegBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Leg.bmp");
         Assets->EnemyBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Enemy.bmp");
 
         // Game state
@@ -421,7 +423,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     if (pGameState->ShowDebugInfo) {
-        game_rect DebugInfoRect = { 0, 0, 350, 220 };
+        game_rect DebugInfoRect = { 0, 0, 300, 220 };
         PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 980);
         PushRectOutline(Group, DebugInfoRect, Gray);
         PushText(Group, { 0,30,981 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
@@ -456,13 +458,15 @@ extern "C" GAME_UPDATE(GameUpdate)
     // Render
         // Player
     game_screen_position PlayerPosition = { 300, 150, 0 };
-    PushTexturedRect(Group, { PlayerPosition.X, PlayerPosition.Y, 64, 188 }, &Assets->PlayerBMP, 0);
+    //PushTexturedRect(Group, { PlayerPosition.X, PlayerPosition.Y, 64, 188 }, &Assets->PlayerBMP, 0);
     PushHealthBar(Group, { PlayerPosition.X - 15, PlayerPosition.Y - 20, 0 }, pGameState->Player.Stats.HP, pGameState->Player.Stats.MaxHP);
 
     Rotate(&Player->LeftArm, 0.03);
     Rotate(&Player->RightArm, -0.03);
-    PushBone(Group, Player->RightArm, Player->Entity.Position);
-    PushBone(Group, Player->LeftArm, Player->Entity.Position);
+    Rotate(&Player->LeftLeg, 0.02 * sin(10.0*pGameState->Time));
+    Rotate(&Player->RightLeg, -0.02 * sin(10.0 * pGameState->Time));
+    PushSkeleton(Group, 10, Player->Skeleton, Player->Entity.Position, pGameState->ShowDebugInfo);
+    PushCircle(Group, V3(500, 300, 0), 100, Red);
 
         // Enemy
     game_screen_position EnemyPosition = { 700, 70, 0 };

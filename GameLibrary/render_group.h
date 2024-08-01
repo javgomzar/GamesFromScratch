@@ -1,7 +1,8 @@
 #pragma once
 #include "FFMPEG.h"
 
-const int MAX_ENTRIES = 10000;
+const int MAX_ENTRIES = 500;
+
 
 
 enum render_group_entry_type {
@@ -249,21 +250,27 @@ void PushLine(render_group* Group, color Color, v3 Start, v3 Finish) {
 
 void PushTriangle(render_group* Group, game_triangle Triangle, color Color) {
     render_entry_triangle* Entry = PushRenderElement(Group, render_entry_triangle);
-    Entry->Header.Key.Z = 0;
+    Entry->Header.Key.Z = Triangle.Point0.Z;
     Entry->Color = Color;
     Entry->Triangle = Triangle;
 }
 
 void PushCircle(render_group* Group, v3 Center, double Radius, color Color) {
-    int N = 100;
-    double dTheta = Tau / N;
+    int N = 0;
+    if (Radius > 10.0) {
+        N = 100;
+    }
+    else {
+        N = 10;
+    }
+    double dTheta = Tau / (double)N;
     double Theta = 0;
     for (int i = 0; i < N; i++) {
-        game_triangle Triangle;
+        game_triangle Triangle = { 0 };
         Triangle.Points[0] = Center;
-        Triangle.Points[1] = Center + Radius * V3(cos(Theta), sin(Theta), 0);
+        Triangle.Points[1] = Center + Radius * V3(cos(Theta), sin(Theta), Center.Z);
         Theta += dTheta;
-        Triangle.Points[2] = Center + Radius * V3(cos(Theta), sin(Theta), 0);
+        Triangle.Points[2] = Center + Radius * V3(cos(Theta), sin(Theta), Center.Z);
         PushTriangle(Group, Triangle, Color);
     }
 }
@@ -321,9 +328,21 @@ void PushText(render_group* Group, game_screen_position Position, character* Cha
     Entry->Wrapped = Wrapped;
 }
 
-void PushBone(render_group* Group, bone Bone, v3 Position) {
-    PushTexturedRectBasis(Group, Bone.BMP, Position + Bone.Start + Bone.BMPOffset, Bone.Basis, Clamp, Bone.FlipX, Bone.FlipY);
-    PushLine(Group, White, Position + Bone.Start, Position + Bone.Finish);
+void PushBone(render_group* Group, bone Bone, v3 Position, bool Debug = false) {
+    if (Bone.BMP) {
+        PushTexturedRectBasis(Group, Bone.BMP, Position + Bone.Start + Bone.BMPOffset, Bone.Basis, Clamp, Bone.FlipX, Bone.FlipY);
+    }
+    if (Debug) {
+        PushLine(Group, White, Position + Bone.Start + V3(0,0,10), Position + Bone.Finish + V3(0,0,10));
+        PushCircle(Group, Position + Bone.Start + V3(0, 0, 10), 2.0, White);
+        PushCircle(Group, Position + Bone.Finish + V3(0, 0, 10), 2.0, White);
+    }
+}
+
+void PushSkeleton(render_group* Group, int N, bone* Bones, v3 Position, bool Debug = false) {
+    for (int i = 0; i < N; i++) {
+        PushBone(Group, Bones[i], Position, Debug);
+    }
 }
 
 void PushButton(render_group* Group, character* Characters, button* Button) {

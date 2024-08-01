@@ -31,7 +31,14 @@ extern GAMELIBRARY_API int nGameLibrary;
 
 // Platform independent structs and types
 struct game_triangle {
-    v3 Points[3];
+    union {
+        v3 Points[3];
+        struct {
+            v3 Point0;
+            v3 Point1;
+            v3 Point2;
+        };
+    };
 };
 
 struct game_rect {
@@ -93,6 +100,14 @@ struct color {
     double G;
     double B;
 };
+
+bool operator==(color A, color B) {
+    return A.Alpha == B.Alpha && A.R == B.R && A.G == B.G && A.B == B.B;
+}
+
+bool operator!=(color A, color B) {
+    return A.Alpha != B.Alpha || A.R != B.R || A.G != B.G || A.B != B.B;
+}
 
 static int Attenuation = 100;
 static color Black = { 1.0, 0.0, 0.0, 0.0 };
@@ -334,8 +349,10 @@ struct game_video {
 // Game Assets
 struct game_assets {
     character* Characters;
-    loaded_bmp PlayerBMP;
+    loaded_bmp HeadBMP;
     loaded_bmp ArmBMP;
+    loaded_bmp LegBMP;
+    loaded_bmp TorsoBMP;
     loaded_bmp EnemyBMP;
     game_sound TestSound;
     game_video TestVideo;
