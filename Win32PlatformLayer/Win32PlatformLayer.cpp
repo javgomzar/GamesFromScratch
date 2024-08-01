@@ -202,7 +202,7 @@ character* InitializeFonts(memory_arena* Arena) {
 
                     character LoadCharacter = { 0 };
                     LoadCharacter.Letter = c;
-                    LoadCharacter.Advance = Slot->advance.x;
+                    LoadCharacter.Advance = Slot->advance.x >> 6;
                     LoadCharacter.Left = Slot->bitmap_left;
                     LoadCharacter.Top = Slot->bitmap_top;
                     LoadCharacter.Height = Slot->metrics.height;
@@ -1178,8 +1178,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     RecordPlayback.TotalSize = GameMemory.PermanentStorageSize;
 
     // Input
-    game_input Input = { };
-    Input.Mode = Keyboard;
+    game_input Input = { 0 };
 
     // Sound
     int currentBuffer = 1;
@@ -1297,6 +1296,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 Input.Keyboard.Any = true;
                 break;
             }
+        }
+
+        if ((Input.Mode != Keyboard) && Input.Keyboard.Any) {
+            Input.Mode = Keyboard;
         }
 
         if ((Input.Mode != Keyboard) && Input.Keyboard.Any) {

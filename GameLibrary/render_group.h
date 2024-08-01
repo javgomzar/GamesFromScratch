@@ -7,10 +7,12 @@ enum coordinates {
     Screen,
     World,
 };
+const int MAX_ENTRIES = 10000;
 
 enum render_group_entry_type {
     group_type_render_entry_clear,
     group_type_render_entry_line,
+    group_type_render_entry_triangle,
     group_type_render_entry_rect,
     group_type_render_entry_textured_rect,
     group_type_render_entry_textured_rect_basis,
@@ -57,6 +59,12 @@ struct render_entry_line {
     bool isUI;
 };
 
+struct render_entry_triangle {
+    render_group_header Header;
+    game_triangle Triangle;
+    color Color;
+};
+
 struct render_entry_rect {
     render_group_header Header;
     game_rect Rect;
@@ -65,18 +73,16 @@ struct render_entry_rect {
 
 struct render_entry_textured_rect_basis {
     render_group_header Header;
-    render_basis Basis;
+    basis Basis;
     v3 Position;
     loaded_bmp* Texture;
     wrap_mode Mode;
-    bool ForceTextureUpdate;
 };
 
 struct render_entry_textured_rect {
     render_group_header Header;
     game_rect Rect;
     loaded_bmp* Texture;
-    bool ForceTextureUpdate;
 };
 
 struct render_entry_rect_outline {
@@ -88,7 +94,6 @@ struct render_entry_rect_outline {
 
 struct render_entry_text {
     render_group_header Header;
-    render_basis Basis;
     character* Characters;
     game_screen_position Position;
     color Color;
@@ -132,7 +137,7 @@ struct render_group {
     int32 Width;
     int32 Height;
     float MetersToPixels;
-    render_basis DefaultBasis;
+    basis DefaultBasis;
     uint32 MaxPushBufferSize;
     uint32 PushBufferSize;
     uint32 PushBufferElementCount;
@@ -195,6 +200,11 @@ uint32 GetSizeOf(render_group_entry_type Type) {
         case group_type_render_entry_line:
         {
             return sizeof(render_entry_line);
+        } break;
+
+        case group_type_render_entry_triangle:
+        {
+            return sizeof(render_entry_triangle);
         } break;
 
         case group_type_render_entry_rect:
@@ -272,6 +282,28 @@ void PushLine(render_group* Group, color Color, game_screen_position Start, game
     Entry->Finish = Finish;
 }
 
+void PushTriangle(render_group* Group, game_triangle Triangle, color Color) {
+    render_entry_triangle* Entry = PushRenderElement(Group, render_entry_triangle);
+    Entry->Header.Key.Z = 0;
+    Entry->Color = Color;
+    Entry->Triangle = Triangle;
+}
+
+void PushCircle(render_group* Group, v3 Center, double Radius, color Color) {
+    int N = 100;
+    double dTheta = Tau / N;
+    double Theta = 0;
+    for (int i = 0; i < N; i++) {
+        game_triangle Triangle;
+        Triangle.Points[0] = Center;
+        Triangle.Points[1] = Center + Radius * V3(cos(Theta), sin(Theta), 0);
+        Theta += dTheta;
+        Triangle.Points[2] = Center + Radius * V3(cos(Theta), sin(Theta), 0);
+        PushTriangle(Group, Triangle, Color);
+    }
+}
+
+void PushRect(render_group* Group, game_rect Rect, color Color, double Z) {
 void PushRect(render_group* Group, game_rect Rect, color Color, double Z, bool isUI = false) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
     Entry->Header.Coord = isUI ? Screen : World;
@@ -290,6 +322,7 @@ void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, 
     Entry->Rect = Rect;
 }
 
+void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, basis Basis, wrap_mode Mode) {
 void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis Basis, wrap_mode Mode, bool IsUI = false) {
     render_entry_textured_rect_basis* Entry = PushRenderElement(Group, render_entry_textured_rect_basis);
     Entry->Header.Coord = IsUI ? Screen : World;
@@ -330,10 +363,6 @@ void PushText(render_group* Group, game_screen_position Position, character* Cha
     Entry->Points = Points;
     Entry->String = String;
     Entry->Wrapped = Wrapped;
-    float a = (double)Points / 20.0;
-    Entry->Basis.X = V3(a, 0, 0);
-    Entry->Basis.Y = V3(0, a, 0);
-    Entry->Basis.Z = V3(0, 0, a);
 }
 
 void PushButton(render_group* Group, character* Characters, button* Button) {

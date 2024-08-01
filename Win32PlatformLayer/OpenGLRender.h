@@ -2,6 +2,17 @@
 #include "..\GameLibrary\render_group.h"
 
 
+void OpenGLTriangle(game_triangle Triangle, color Color) {
+	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
+	glBegin(GL_TRIANGLES);
+	for (int i = 0; i < 3; i++) {
+		v3 Point = Triangle.Points[i];
+		glVertex2f(Point.X, Point.Y);
+	}
+	glEnd();
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
 void OpenGLRectangle(game_rect Rect, color Color)
 {
 	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
@@ -138,7 +149,7 @@ void OpenGLTexturedRect(game_rect Rect, bool FlipY = false, bool FlipX = false) 
 
 // Render a textured rectangle in OpenGL given position and basis.
 // It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, wrap_mode Mode)
+void OpenGLTexturedRect(v3 Position, int Width, int Height, basis Basis, wrap_mode Mode)
 {
 	/*
 	*    A ---- B
@@ -192,12 +203,14 @@ void OpenGLTexturedRect(v3 Position, int Width, int Height, render_basis Basis, 
 	glDisable(GL_TEXTURE_2D);
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, render_basis Basis, bool Wrapped = false)
+void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, basis Basis, bool Wrapped = false)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;
 
-	int LineJump = (int)(0.023f * Characters[1].Height); // 0.023 because height is in 64ths of pixel
+	double Scale = (double)Points / 20.0;
+
+	double LineJump = 0.023 * (double)Characters[1].Height * Scale; // 0.023 because height is in 64ths of pixel
 
 	for (int i = 0; i < String.Length; i++) {
 		char c = String.Content[i];
@@ -208,7 +221,8 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, charac
 		}
 		else if (' ' <= c && c <= '~') {
 			character* pCharacter = Characters + (c - ' ');
-			if (Wrapped && PenX + (pCharacter->Advance >> 6) > DisplayWidth) {
+			double HorizontalAdvance = pCharacter->Advance * Scale;
+			if (Wrapped && (PenX + HorizontalAdvance > DisplayWidth)) {
 				PenX = Position.X;
 				PenY += LineJump;
 			}
@@ -217,13 +231,13 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, charac
 				OpenGLBindTexture(pCharacter->Bitmap, Clamp);
 				v3 Position = { PenX + pCharacter->Left, PenY - pCharacter->Top, 0 };
 				OpenGLTexturedRect(
-					Position,
-					pCharacter->Bitmap->Header.Width, pCharacter->Bitmap->Header.Height,
+					{ PenX + pCharacter->Left * Scale, floor(PenY - pCharacter->Top * Scale), 0 },
+					(double)pCharacter->Bitmap->Header.Width * Scale, ceil((double)pCharacter->Bitmap->Header.Height * Scale),
 					Basis, Clamp
 				);
 			}
 
-			PenX += (pCharacter->Advance >> 6) * Basis.X.X;
+			PenX += pCharacter->Advance * Scale;
 		}
 	}
 	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
@@ -360,6 +374,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				glClear(GL_COLOR_BUFFER_BIT);
 			} break;
 
+			case group_type_render_entry_triangle:
+			{
+				render_entry_triangle Entry = *(render_entry_triangle*)Header;
+
+				OpenGLTriangle(Entry.Triangle, Entry.Color);
+			} break;
+
 			case group_type_render_entry_rect:
 			{
 				render_entry_rect Entry = *(render_entry_rect*)Header;
@@ -369,7 +390,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 			case group_type_render_entry_text:
 			{
 				render_entry_text Entry = *(render_entry_text*)Header;
-				OpenGLRenderText(Width, Entry.Position, Entry.Characters, Entry.Color, Entry.Points, Entry.String, Entry.Basis, Entry.Wrapped);
+				OpenGLRenderText(Width, Entry.Position, Entry.Characters, Entry.Color, Entry.Points, Entry.String, Group->DefaultBasis, Entry.Wrapped);
 			} break;
 
 			case group_type_render_entry_button:
