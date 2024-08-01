@@ -280,7 +280,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				render_entry_triangle Entry = *(render_entry_triangle*)Header;
 
 				OpenGLTriangle(Entry.Triangle, Entry.Color);
-			}
+			} break;
 
 			case group_type_render_entry_rect:
 			{
