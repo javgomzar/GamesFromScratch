@@ -1,13 +1,12 @@
 #pragma once
 #include "FFMPEG.h"
 
-const int MAX_ENTRIES = 500;
+const int MAX_ENTRIES = 10000;
 
 enum coordinates {
     Screen,
     World,
 };
-const int MAX_ENTRIES = 10000;
 
 enum render_group_entry_type {
     group_type_render_entry_clear,
@@ -303,7 +302,6 @@ void PushCircle(render_group* Group, v3 Center, double Radius, color Color) {
     }
 }
 
-void PushRect(render_group* Group, game_rect Rect, color Color, double Z) {
 void PushRect(render_group* Group, game_rect Rect, color Color, double Z, bool isUI = false) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
     Entry->Header.Coord = isUI ? Screen : World;
@@ -322,8 +320,7 @@ void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, 
     Entry->Rect = Rect;
 }
 
-void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, basis Basis, wrap_mode Mode) {
-void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, render_basis Basis, wrap_mode Mode, bool IsUI = false) {
+void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, basis Basis, wrap_mode Mode, bool IsUI = false) {
     render_entry_textured_rect_basis* Entry = PushRenderElement(Group, render_entry_textured_rect_basis);
     Entry->Header.Coord = IsUI ? Screen : World;
     Entry->Header.Key.Z = Position.Z;
@@ -408,7 +405,7 @@ void PushMap(render_group* Group, tile Map[MAP_HEIGHT][MAP_WIDTH], int nRooms, r
         if (Room.Explored) {
             // Floors
             v3 Position = ToWorldCoord({ Room.Top, Room.Left, 0 });
-            render_basis Basis = {
+            basis Basis = {
                 { Room.Width, 0, 0 },
                 { 0, Room.Height, 0},
                 { 0, 0, 1 }

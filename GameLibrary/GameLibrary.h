@@ -408,6 +408,12 @@ struct game_assets {
     loaded_bmp FadeFrame;
     game_sound TitleMusic;
     game_video IntroVideo;
+    string RenderArenaStr;
+    string RenderPercentageStr;
+    string VideoArenaStr;
+    string VideoPercentageStr;
+    string TextArenaStr;
+    string TextPercentageStr;
     string TitleText;
     string DialogText;
     string HPText;
@@ -507,18 +513,12 @@ struct room {
 };
 
 
-struct render_basis {
-    v3 X;
-    v3 Y;
-    v3 Z;
-};
-
 // Entities
 struct entity {
     v3 Position;
     v3 Velocity;
     tile_position TilePosition;
-    render_basis Basis;
+    basis Basis;
     loaded_bmp* BMP;
     v3 BMPOffset;
 };
@@ -558,16 +558,7 @@ struct projectile {
 // Scenes
 enum scene {
     Intro,
-    Main,
-    loaded_bmp TestImage;
-    game_sound TestSound;
-    game_video TestVideo;
-    string RenderArenaStr;
-    string RenderPercentageStr;
-    string VideoArenaStr;
-    string VideoPercentageStr;
-    string TextArenaStr;
-    string TextPercentageStr;
+    Main
 };
 
 // Game State: Persistent (between frames) values

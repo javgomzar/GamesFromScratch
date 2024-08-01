@@ -1178,7 +1178,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     RecordPlayback.TotalSize = GameMemory.PermanentStorageSize;
 
     // Input
-    game_input Input = { 0 };
+    game_input Input = { };
 
     // Sound
     int currentBuffer = 1;

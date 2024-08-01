@@ -11,9 +11,6 @@
 static double Pi = 3.14159265359;
 static double Tau = 2.0 * Pi;
 static double twroot = 1.05946309436;
-static float Pi = 3.14159265359f;
-static float Tau = 2.0f * Pi;
-static float twroot = 1.05946309436f;
 static double Sixth = 1.0 / 6.0;
 
 // Arithmetics
@@ -217,6 +214,7 @@ basis Scale(basis Basis, double ScaleX, double ScaleY, double ScaleZ) {
 basis Scale(basis Basis, double Factor) {
 	return Scale(Basis, Factor, Factor, Factor);
 }
+
 float randf() {
 	return (float)rand() / (float)RAND_MAX;
 }
