@@ -1193,7 +1193,7 @@ extern "C" GAME_UPDATE(GameUpdate)
             }
 
             GameOutputSound(Assets, SoundBuffer, pGameState, Input);
-            PushVideoLoop(Group, &Assets->IntroVideo, WilfredRect, 10, pGameState->LastFrameTime, 185474, 250982);
+            PushVideoLoop(Group, &Assets->IntroVideo, WilfredRect, 10, pGameState->dt, 185474, 250982);
             PushTexturedRect(Group, WilfredRect, &Assets->FadeFrame, 20, true);
             
             PushText(Group, {(double)Group->Width / 2.0 - 235, (double)Group->Height / 1.2 - 2, 30}, Assets->Characters, Black, 18, Assets->TitleText, false, true);
