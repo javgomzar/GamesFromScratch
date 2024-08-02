@@ -1446,7 +1446,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         sprintf_s(GameMemory.DebugInfo.Content, GameMemory.DebugInfo.Length, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
         
-        pGameState->LastFrameTime = ActualSecsElapsed;
+        pGameState->dt = ActualSecsElapsed;
         pGameState->Time += ActualSecsElapsed;
 
         if (FirstFrame) {

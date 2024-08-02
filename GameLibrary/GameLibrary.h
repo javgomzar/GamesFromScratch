@@ -353,6 +353,7 @@ struct game_assets {
     loaded_bmp ArmBMP;
     loaded_bmp LegBMP;
     loaded_bmp TorsoBMP;
+    loaded_bmp SwordBMP;
     loaded_bmp EnemyBMP1;
     loaded_bmp EnemyBMP2;
     loaded_bmp EnemyBMP3;
@@ -375,34 +376,49 @@ struct entity {
 };
 
 // Bones
+const int MAX_BONE_CHILD = 8;
+
 struct bone {
+    bone* Parent;
+    int nChildren;
+    bone* Children[MAX_BONE_CHILD];
     loaded_bmp* BMP;
     v3 BMPOffset;
-    bone* Parent;
     v3 Start;
     v3 Finish;
+    double Length;
     basis Basis;
     bool FlipX;
     bool FlipY;
 };
 
-bone Bone(loaded_bmp* BMP, bone* Parent, v3 BMPOffset, v3 Start, v3 Finish, basis Basis, bool FlipX = false, bool FlipY = false) {
-    bone Result = { 0 };
-    Result.BMP = BMP;
-    Result.Parent = Parent;
-    Result.BMPOffset = BMPOffset;
-    Result.Start = Start;
-    Result.Finish = Finish;
-    Result.Basis = Basis;
-    Result.FlipX = FlipX;
-    Result.FlipY = FlipY;
-    return Result;
+void AddChild(bone* Parent, bone* Child) {
+    Parent->Children[Parent->nChildren] = Child;
+    Parent->nChildren++;
+    Child->Parent = Parent;
+}
+
+void Bone(bone* Bone, loaded_bmp* BMP, bone* Parent, v3 BMPOffset, v3 Start, v3 Finish, basis Basis, bool FlipX = false, bool FlipY = false) {
+    Bone->BMP = BMP;
+    if (Parent) {
+        AddChild(Parent, Bone);
+    }
+    Bone->BMPOffset = BMPOffset;
+    Bone->Start = Start;
+    Bone->Finish = Finish;
+    Bone->Length = module(Finish - Start);
+    Bone->Basis = Basis;
+    Bone->FlipX = FlipX;
+    Bone->FlipY = FlipY;
 }
 
 void Rotate(bone* Bone, double Angle) {
     Bone->Basis = Rotate(Bone->Basis, Angle);
     Bone->Finish = Bone->Start + Rotate(Bone->Finish - Bone->Start, Angle);
     Bone->BMPOffset = Rotate(Bone->BMPOffset, Angle);
+    for (int i = 0; i < Bone->nChildren; i++) {
+        Rotate(Bone->Children[i], Angle);
+    }
 }
 
 struct stats {
@@ -416,7 +432,8 @@ struct stats {
 enum player_animation {
     Player_Idle,
     Player_Defending,
-    Player_Attacking
+    Player_Attacking,
+    Player_Walking
 };
 
 struct player {
@@ -436,6 +453,7 @@ struct player {
             bone RightShoulder;
             bone LeftArm;
             bone RightArm;
+            bone Sword;
         };
     };
 };
@@ -463,8 +481,8 @@ struct game_state {
     memory_arena VideoArena;
     UI UserInterface;
     bool ShowDebugInfo;
+    double dt;
     double Time;
-    double LastFrameTime;
     player Player;
     enemy Enemy;
     character Characters[];
