@@ -578,8 +578,8 @@ struct game_state {
     int nRooms;
     room Rooms[MAX_ROOMS];
     bool ShowDebugInfo;
+    double dt;
     double Time;
-    double LastFrameTime;
 };
 
 // Game Memory
