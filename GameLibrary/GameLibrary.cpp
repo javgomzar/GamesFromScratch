@@ -1103,7 +1103,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // Load your assets here
         Assets->RenderArenaStr = PushString(&pGameState->RenderArena, 13, "Render Arena");
         Assets->RenderPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
-        Assets->VideoArenaStr = PushString(&pGameState->VideoArena, 13, "Video Arena");
+        Assets->VideoArenaStr = PushString(&pGameState->TextArena, 13, "Video Arena");
         Assets->VideoPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
         Assets->TextArenaStr = PushString(&pGameState->TextArena, 13, "Text Arena");
         Assets->TextPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");

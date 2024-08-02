@@ -479,11 +479,11 @@ void PushHealthBar(render_group* Group, player* Player, string HPString, string 
     game_rect Rect = { X,20,100,25 };
     PushHealthBar(Group, Rect, Player->HP, Player->MaxHP, true);
 
-    PushText(Group, { X - 27, 52, 10001 }, Group->Characters, White, 10, HPString, false, true);
+    PushText(Group, { X - 27, 38, 10001 }, Group->Characters, White, 10, HPString, false, true);
 
     sprintf_s(HPNumbersString.Content, HPNumbersString.Length, "%i/%i", Player->HP, Player->MaxHP);
 
-    PushText(Group, { X , 52, 10001 }, Group->Characters, White, 10, HPNumbersString, false, true);
+    PushText(Group, { X , 38, 10001 }, Group->Characters, White, 10, HPNumbersString, false, true);
 }
 
 void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {

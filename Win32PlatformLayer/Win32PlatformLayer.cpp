@@ -1197,7 +1197,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Memory arenas
     InitializeArena(&pGameState->TextArena, Megabytes(1), (uint8*)GameMemory.PermanentStorage + sizeof(game_state));
     InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)GameMemory.PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
-    InitializeArena(&pGameState->VideoArena, Megabytes(15), (uint8*)GameMemory.PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size + pGameState->RenderArena.Size);
+    InitializeArena(&pGameState->VideoArena, Kilobytes(1), (uint8*)GameMemory.PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size + pGameState->RenderArena.Size);
 
     // Fonts
     GameMemory.Assets.Characters = InitializeFonts(&pGameState->TextArena);
