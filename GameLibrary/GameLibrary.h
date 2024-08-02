@@ -345,8 +345,8 @@ struct game_state {
     memory_arena VideoArena;
     UI UserInterface;
     bool ShowDebugInfo;
+    double dt;
     double Time;
-    double LastFrameTime;
 };
 
 // Game Memory
