@@ -333,15 +333,16 @@ void PushBone(render_group* Group, bone Bone, v3 Position, bool Debug = false) {
         PushTexturedRectBasis(Group, Bone.BMP, Position + Bone.Start + Bone.BMPOffset, Bone.Basis, Clamp, Bone.FlipX, Bone.FlipY);
     }
     if (Debug) {
-        PushLine(Group, White, Position + Bone.Start + V3(0,0,10), Position + Bone.Finish + V3(0,0,10));
-        PushCircle(Group, Position + Bone.Start + V3(0, 0, 10), 2.0, White);
-        PushCircle(Group, Position + Bone.Finish + V3(0, 0, 10), 2.0, White);
+        double Z = Bone.BMPOffset.Z + 100.0;
+        PushLine(Group, White, Position + Bone.Start + V3(0,0,Z), Position + Bone.Finish + V3(0,0,10));
+        PushCircle(Group, Position + Bone.Start + V3(0, 0, Z), 2.0, White);
+        PushCircle(Group, Position + Bone.Finish + V3(0, 0, Z), 2.0, White);
     }
 }
 
-void PushSkeleton(render_group* Group, int N, bone* Bones, v3 Position, bool Debug = false) {
+void PushSkeleton(render_group* Group, int N, player_bone* Bones, v3 Position, bool Debug = false) {
     for (int i = 0; i < N; i++) {
-        PushBone(Group, Bones[i], Position, Debug);
+        PushBone(Group, Bones[i].Bone, Position, Debug);
     }
 }
 
@@ -364,26 +365,29 @@ void PushCombatMenu(render_group* Group, character* Characters, combat_menu* Men
     if (Menu->Active) {
         // Background
         game_rect MenuRect = { 0, Group->Height - 250, 200, 250 };
-        PushRect(Group, MenuRect, DarkGray, 0);
+        PushRect(Group, MenuRect, DarkGray, 500);
 
-        game_screen_position AttackTextPosition = { 50, 0.6 * Group->Height, 0 };
+        game_screen_position AttackTextPosition = { 50, Group->Height - 200, 501 };
         PushText(Group, AttackTextPosition, Characters, White, 16, Menu->AttackText, false);
 
-        game_screen_position TechniqueTextPosition = { 25, 0.7 * Group->Height, 0 };
+        game_screen_position TechniqueTextPosition = { 25, Group->Height - 150, 501 };
         PushText(Group, TechniqueTextPosition, Characters, White, 16, Menu->TechniqueText, false);
 
-        game_screen_position MagicTextPosition = { 60, 0.8 * Group->Height, 0 };
+        game_screen_position MagicTextPosition = { 60, Group->Height - 100, 501 };
         PushText(Group, MagicTextPosition, Characters, White, 16, Menu->MagicText, false);
 
-        v3 CursorPosition = V3(0, 0.1 * (6.0 + Menu->Cursor) * Group->Height , 0);
+        game_screen_position ItemsTextPosition = { 60, Group->Height - 50, 501 };
+        PushText(Group, ItemsTextPosition, Characters, White, 16, Menu->ItemsText, false);
+
+        v3 CursorPosition = V3(0, Group->Height - 198 + 50 * Menu->Cursor, 501);
         game_triangle Triangle = {
-            V3(CursorPosition.X, CursorPosition.Y - 10, 0),
-            V3(CursorPosition.X + 10, CursorPosition.Y,0),
-            V3(CursorPosition.X, CursorPosition.Y + 10, 0)
+            V3(CursorPosition.X, CursorPosition.Y - 10, 502),
+            V3(CursorPosition.X + 10, CursorPosition.Y, 502),
+            V3(CursorPosition.X, CursorPosition.Y + 10, 502)
         };
         PushTriangle(Group, Triangle, White);
-        v3 Start = { 0, 0.1 * (6.0 + Menu->Cursor) * Group->Height, 0 };
-        v3 Finish = { 150, 0.1 * (6.0 + Menu->Cursor) * Group->Height, 0 };
+        v3 Start = { 0, Group->Height - 198 + 50 * Menu->Cursor, 502 };
+        v3 Finish = { 150, Group->Height - 198 + 50 * Menu->Cursor, 502 };
         PushLine(Group, White, Start, Finish);
     }
 }

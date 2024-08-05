@@ -183,6 +183,12 @@ v3 Rotate(v3 v, double Angle) {
 	return V3(X, Y, Z);
 }
 
+v3 Rotate(v3 Position, double Angle, v3 RotationCenter) {
+	v3 Displacement = Position - RotationCenter;
+	v3 Rotated = Rotate(Displacement, Angle);
+	return Rotated + RotationCenter;
+}
+
 struct basis {
 	v3 X;
 	v3 Y;

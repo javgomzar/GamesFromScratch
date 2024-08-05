@@ -314,6 +314,7 @@ struct combat_menu {
     string AttackText;
     string TechniqueText;
     string MagicText;
+    string ItemsText;
 };
 
 struct UI {
@@ -398,6 +399,25 @@ void AddChild(bone* Parent, bone* Child) {
     Child->Parent = Parent;
 }
 
+void RemoveChild(bone* Parent, bone* Child) {
+    bool Removed = false;
+    for (int i = 0; i < Parent->nChildren; i++) {
+        if (Parent->Children[i] == Child) {
+            Removed = true;
+        }
+        if (Removed) {
+            if (i == Parent->nChildren - 1) {
+                Parent->nChildren--;
+                Child->Parent = 0;
+                break;
+            }
+            else {
+                Parent->Children[i] = Parent->Children[i + 1];
+            }
+        }
+    }
+}
+
 void Bone(bone* Bone, loaded_bmp* BMP, bone* Parent, v3 BMPOffset, v3 Start, v3 Finish, basis Basis, bool FlipX = false, bool FlipY = false) {
     Bone->BMP = BMP;
     if (Parent) {
@@ -412,13 +432,66 @@ void Bone(bone* Bone, loaded_bmp* BMP, bone* Parent, v3 BMPOffset, v3 Start, v3 
     Bone->FlipY = FlipY;
 }
 
+void Rotate(bone* Bone, double Angle, v3 RotationCenter) {
+    Bone->Start = Rotate(Bone->Start, Angle, RotationCenter);
+    Bone->Finish = Rotate(Bone->Finish, Angle, RotationCenter);
+    Bone->BMPOffset = Rotate(Bone->BMPOffset, Angle);
+    Bone->Basis = Rotate(Bone->Basis, Angle);
+    for (int i = 0; i < Bone->nChildren; i++) {
+        Rotate(Bone->Children[i], Angle, RotationCenter);
+    }
+}
+
 void Rotate(bone* Bone, double Angle) {
     Bone->Basis = Rotate(Bone->Basis, Angle);
     Bone->Finish = Bone->Start + Rotate(Bone->Finish - Bone->Start, Angle);
     Bone->BMPOffset = Rotate(Bone->BMPOffset, Angle);
     for (int i = 0; i < Bone->nChildren; i++) {
-        Rotate(Bone->Children[i], Angle);
+        Rotate(Bone->Children[i], Angle, Bone->Start);
     }
+}
+
+void Flip(bone* Bone, bool FlipX = false, bool FlipY = false) {
+    if (FlipX) {
+        Bone->FlipX = !Bone->FlipX;
+    }
+    if (FlipY) {
+        Bone->FlipY = !Bone->FlipY;
+    }
+}
+
+enum player_bone_id {
+    Head,
+    Spine,
+    LeftShoulder,
+    RightShoulder,
+    LeftArm,
+    RightArm,
+    LeftHip,
+    RightHip,
+    LeftLeg,
+    RightLeg,
+    Sword
+};
+
+struct player_bone {
+    player_bone_id Id;
+    bone Bone;
+};
+
+void PlayerBone(
+    player_bone_id Id, 
+    player_bone* PlayerBone, 
+    loaded_bmp* BMP, 
+    player_bone* Parent, 
+    v3 BMPOffset, 
+    v3 Start, v3 Finish, 
+    basis Basis, 
+    bool FlipX = false, bool FlipY = false
+) {
+    PlayerBone->Id = Id;
+    bone* ParentBone = Parent ? &Parent->Bone : 0;
+    Bone(&PlayerBone->Bone, BMP, ParentBone, BMPOffset, Start, Finish, Basis, FlipX, FlipY);
 }
 
 struct stats {
@@ -441,19 +514,19 @@ struct player {
     entity Entity;
     player_animation Animation;
     union {
-        bone Skeleton[12];
+        player_bone Skeleton[12];
         struct {
-            bone LeftHip;
-            bone RightHip;
-            bone LeftLeg;
-            bone RightLeg;
-            bone Spine;
-            bone Head;
-            bone LeftShoulder;
-            bone RightShoulder;
-            bone LeftArm;
-            bone RightArm;
-            bone Sword;
+            player_bone LeftHip;
+            player_bone RightHip;
+            player_bone LeftLeg;
+            player_bone RightLeg;
+            player_bone Spine;
+            player_bone Head;
+            player_bone LeftShoulder;
+            player_bone RightShoulder;
+            player_bone LeftArm;
+            player_bone RightArm;
+            player_bone Sword;
         };
     };
 };

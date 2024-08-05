@@ -295,39 +295,114 @@ void Initialize(entity* Entity, v3 Position = V3(0,0,0), v3 Velocity = V3(0,0,0)
     Entity->Time = 0;
 }
 
-void InitializeSkeleton(player* Player, basis Basis, game_assets* Assets) {
-    Bone(&Player->LeftHip, 0, 0, V3(0, 0, 0), V3(30, 120, 1), V3(24, 120, 1), Basis);
-    Bone(&Player->RightHip, 0, &Player->LeftHip, V3(0, 0, 0), V3(30, 120, 1), V3(36, 120, 1), Basis);
-    Bone(&Player->LeftLeg, &Assets->LegBMP, &Player->LeftHip, V3(-10, 0, 0), V3(24, 122, 1.5), V3(24, 180, 1.5), Basis);
-    Bone(&Player->RightLeg, &Assets->LegBMP, &Player->RightHip, V3(-10, 0, 0), V3(36, 122, 0), V3(36, 180, 0), Basis);
-    Bone(&Player->Spine, &Assets->TorsoBMP, 0, V3(-28, -75, 0), V3(30, 120, 1), V3(30, 66, 1), Basis);
-    Bone(&Player->Head, &Assets->HeadBMP, &Player->Spine, V3(-30, -68, 0), V3(30, 66, 1), V3(30, 30, 1), Basis);
-    Bone(&Player->LeftShoulder, 0, &Player->Spine, { 0 }, V3(30, 66, 1), V3(10, 66, 1), Basis);
-    Bone(&Player->RightShoulder, 0, &Player->Spine, V3(0, 0, 0), V3(30, 66, 1), V3(50, 66, 1), Basis);
-    Bone(&Player->LeftArm, &Assets->ArmBMP, &Player->Spine, V3(-10, -10, 0), V3(10, 66, 2), V3(10, 125, 2), Basis);
-    Bone(&Player->RightArm, &Assets->ArmBMP, &Player->Spine, V3(-6, -10, 0), V3(50, 66, 2), V3(50, 125, 2), Basis, true);
-    Bone(&Player->Sword, &Assets->SwordBMP, &Player->RightArm, V3(200,-20,-3), V3(50,125,2), V3(200, 125,3), Rotate(Basis, -Tau / 4.0), true);
+void RestoreDefault(player_bone* Bone) {
+    basis Basis = Identity(4.0);
+    switch (Bone->Id) {
+        case Head:
+        {
+            Bone->Bone.BMPOffset = V3(-28.0, -66.0, 12.0);
+            Bone->Bone.Start = V3(30, 70, 0);
+            Bone->Bone.Finish = V3(30, 35, 0);
+            Bone->Bone.Basis = Basis;
+        } break;
+        case Spine:
+        {
+            Bone->Bone.BMPOffset = V3(-28.0, -68.0, 10.0);
+            Bone->Bone.Start = V3(30, 120, 0);
+            Bone->Bone.Finish = V3(30, 70, 0);
+            Bone->Bone.Basis = Basis;
+        } break;
+        case LeftShoulder:
+        {
+            Bone->Bone.Start = V3(30, 70, 0);
+            Bone->Bone.Finish = V3(10, 70, 0);
+            Bone->Bone.Basis = Basis;
+        } break;
+        case RightShoulder:
+        {
+            Bone->Bone.Start = V3(30, 70, 0);
+            Bone->Bone.Finish = V3(50, 70, 0);
+            Bone->Bone.Basis = Basis;
+        } break;
+        case LeftArm:
+        {
+            Bone->Bone.BMPOffset = V3(-8.0, -6.0, 15.0);
+            Bone->Bone.Start = V3(10, 70, 0);
+            Bone->Bone.Finish = V3(10, 125, 0);
+            Bone->Bone.Basis = Basis;
+        } break;
+        case RightArm:
+        {
+            Bone->Bone.BMPOffset = V3(-8.0, -6.0, 12.0);
+            Bone->Bone.Start = V3(50, 70, 0);
+            Bone->Bone.Finish = V3(50, 125, 0);
+            Bone->Bone.Basis = Basis;
+        } break;
+        case LeftHip:
+        {
+            Bone->Bone.Start = V3(30, 120, 0);
+            Bone->Bone.Finish = V3(24, 120, 0);
+            Bone->Bone.Basis = Basis;
+        } break;
+        case RightHip:
+        {
+            Bone->Bone.Start = V3(30, 120, 0);
+            Bone->Bone.Finish = V3(36, 120, 0);
+            Bone->Bone.Basis = Basis;
+
+        } break;
+        case LeftLeg:
+        {
+            Bone->Bone.BMPOffset = V3(-10.0, 6.0, 12.0);
+            Bone->Bone.Start = V3(24, 122, 0);
+            Bone->Bone.Finish = V3(24, 180, 0);
+            Bone->Bone.Basis = Basis;
+
+        } break;
+        case RightLeg:
+        {
+            Bone->Bone.BMPOffset = V3(-10.0, 6.0, 6.0);
+            Bone->Bone.Start = V3(36, 122, 0);
+            Bone->Bone.Finish = V3(36, 180, 0);
+            Bone->Bone.Basis = Basis;
+        } break;
+        case Sword:
+        {
+            Bone->Bone.BMPOffset = V3(154, -16, 5.0);
+            Bone->Bone.Start = V3(50, 125, 0);
+            Bone->Bone.Finish = V3(200, 125, 0);
+            Bone->Bone.Basis = Rotate(Basis, -Tau / 4.0);
+        } break;
+    }
 }
+
+void InitializeSkeleton(player* Player, basis Basis, game_assets* Assets) {
+    PlayerBone(LeftHip, &Player->LeftHip, 0, 0, V3(0, 0, 0), V3(30, 120, 0), V3(24, 120, 0), Basis);
+    PlayerBone(RightHip, &Player->RightHip, 0, &Player->LeftHip, V3(0, 0, 0), V3(30, 120, 0), V3(36, 120, 0), Basis);
+    PlayerBone(LeftLeg, &Player->LeftLeg, &Assets->LegBMP, &Player->LeftHip, V3(-10.0, 6.0, 12.0), V3(24, 122, 0), V3(24, 180, 0), Basis);
+    PlayerBone(RightLeg, &Player->RightLeg, &Assets->LegBMP, &Player->RightHip, V3(-10.0, 6.0, 6.0), V3(36, 122, 0), V3(36, 180, 0), Basis);
+    PlayerBone(Spine, &Player->Spine, &Assets->TorsoBMP, &Player->LeftHip, V3(-28.0, -68.0, 10.0), V3(30, 120, 0), V3(30, 70, 0), Basis);
+    PlayerBone(Head, &Player->Head, &Assets->HeadBMP, &Player->Spine, V3(-28.0, -66.0, 12.0), V3(30, 70, 0), V3(30, 35, 0), Basis);
+    PlayerBone(LeftShoulder, &Player->LeftShoulder, 0, &Player->Spine, V3(0, 0, 0), V3(30, 70, 0), V3(10, 70, 0), Basis);
+    PlayerBone(RightShoulder, &Player->RightShoulder, 0, &Player->Spine, V3(0, 0, 0), V3(30, 70, 0), V3(50, 70, 0), Basis);
+    PlayerBone(LeftArm, &Player->LeftArm, &Assets->ArmBMP, &Player->LeftShoulder, V3(-8.0, -6.0, 15), V3(10, 70, 0), V3(10, 125, 0), Basis);
+    PlayerBone(RightArm, &Player->RightArm, &Assets->ArmBMP, &Player->RightShoulder, V3(-8.0, -6.0, 12.0), V3(50, 70, 0), V3(50, 125, 0), Basis, true);
+    PlayerBone(Sword, &Player->Sword, &Assets->SwordBMP, &Player->RightArm, V3(154, -16, 5.0), V3(50,125,0), V3(200, 125,0), Rotate(Basis, -Tau / 4.0), true);
+}
+
+
 
 void Animate(player* Player, game_input* Input, double dt) {
     double* Time = &Player->Entity.Time;
     player_animation* CurrentAnimation = &Player->Animation;
 
-    //Rotate(&Player->Spine, 0.01);
-
-    if (Input->Keyboard.D.IsDown) {
-        Player->Entity.Position = Player->Entity.Position + 100.0 * dt * V3(1.0, 0.0, 0.0);
-        Player->Animation = Player_Walking;
+    if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
+        Player->Animation = Player_Attacking;
     }
 
     if (Input->Keyboard.D.WasDown && !Input->Keyboard.D.IsDown) {
         *CurrentAnimation = Player_Idle;
-        Player->LeftLeg.Finish = Player->LeftLeg.Start + Player->LeftLeg.Length * V3(0, 1, 0);
-        Player->LeftLeg.Basis = Identity(4.0);
-        Player->LeftLeg.BMPOffset = V3(-10, 0, 0);
-        Player->RightLeg.Finish = Player->RightLeg.Start + Player->RightLeg.Length * V3(0, 1, 0);
-        Player->RightLeg.Basis = Identity(4.0);
-        Player->RightLeg.BMPOffset = V3(-10, 0, 0);
+
     }
 
     switch (*CurrentAnimation) {
@@ -338,24 +413,99 @@ void Animate(player* Player, game_input* Input, double dt) {
 
         case Player_Attacking:
         {
+            if (*Time < 1.0) {
+                Rotate(&Player->Spine.Bone, 0.02 * cos(10.0 * *Time));
+                Rotate(&Player->LeftLeg.Bone, 0.02 * -cos(10.0 * *Time));
+                Rotate(&Player->RightLeg.Bone, 0.02 * cos(10.0 * *Time));
+                Rotate(&Player->LeftArm.Bone, 0.02 * cos(10.0 * *Time));
+                Rotate(&Player->RightArm.Bone, 0.03 * -cos(10.0 * *Time));
+                Player->Entity.Position = Player->Entity.Position + 300.0 * dt * V3(1.0, 0.0, 0.0);
+            }
+            
+            static bool Swinging = false;
+            if (1.0 < *Time && *Time < 2.0) {
+                if (Swinging) Rotate(&Player->RightArm.Bone, 0.05);
+                else { 
+                    Swinging = true;
+                    RestoreDefault(&Player->Head);
+                    RestoreDefault(&Player->Spine);
+                    RestoreDefault(&Player->LeftArm);
+                    RestoreDefault(&Player->RightArm);
+                    RestoreDefault(&Player->LeftLeg);
+                    RestoreDefault(&Player->RightLeg);
+                    RestoreDefault(&Player->LeftShoulder);
+                    RestoreDefault(&Player->RightShoulder);
+                }
+            }
 
+            if (2.0 < *Time && *Time < 2.3) {
+                Rotate(&Player->RightArm.Bone, -0.15);
+            }
+
+            static bool Returning = false;
+            if (*Time > 2.5) {
+                if (Returning) {
+                    Rotate(&Player->Spine.Bone, 0.02 * cos(10.0 * *Time));
+                    Rotate(&Player->LeftLeg.Bone, 0.02 * -cos(10.0 * *Time));
+                    Rotate(&Player->RightLeg.Bone, 0.02 * cos(10.0 * *Time));
+                    Rotate(&Player->LeftArm.Bone, 0.02 * cos(10.0 * *Time));
+                    Rotate(&Player->RightArm.Bone, 0.03 * -cos(10.0 * *Time));
+                    Player->Entity.Position = Player->Entity.Position - 300.0 * dt * V3(1.0, 0.0, 0.0);
+                }
+                else {
+                    Returning = true;
+                    RestoreDefault(&Player->RightArm);
+                    RestoreDefault(&Player->Sword);
+                    Flip(&Player->Head.Bone, true);
+                    Flip(&Player->LeftLeg.Bone, true);
+                    Flip(&Player->RightLeg.Bone, true);
+                    Flip(&Player->Sword.Bone, false, true);
+                    Flip(&Player->Spine.Bone, true);
+                    RemoveChild(&Player->RightArm.Bone, &Player->Sword.Bone);
+                    AddChild(&Player->LeftArm.Bone, &Player->Sword.Bone);
+                    Player->Sword.Bone.Start = Player->LeftArm.Bone.Finish;
+                    Player->Sword.Bone.Finish = Player->LeftArm.Bone.Finish - Player->Sword.Bone.Length * V3(1,0,0);
+                    Player->Sword.Bone.BMPOffset.X = 24.0;
+                }
+            }
+
+            *Time += dt;
+
+            if (*Time > 3.5) {
+                RestoreDefault(&Player->Head);
+                RestoreDefault(&Player->Spine);
+                RestoreDefault(&Player->LeftArm);
+                RestoreDefault(&Player->RightArm);
+                RestoreDefault(&Player->LeftLeg);
+                RestoreDefault(&Player->RightLeg);
+                RestoreDefault(&Player->Sword);
+                RestoreDefault(&Player->LeftShoulder);
+                RestoreDefault(&Player->RightShoulder);
+                RemoveChild(&Player->LeftArm.Bone, &Player->Sword.Bone);
+                AddChild(&Player->RightArm.Bone, &Player->Sword.Bone);
+                Flip(&Player->Head.Bone, true);
+                Flip(&Player->LeftLeg.Bone, true);
+                Flip(&Player->RightLeg.Bone, true);
+                Flip(&Player->Sword.Bone, false, true);
+                Flip(&Player->Spine.Bone, true);
+
+                Player->Entity.Position = V3(300, 150, 1);
+  
+                *CurrentAnimation = Player_Idle;
+                Returning = false;
+                Swinging = false;
+            }
         } break;
 
         case Player_Walking:
         {
-            Rotate(&Player->LeftLeg, 0.02 * -cos(10.0 * *Time));
-            Rotate(&Player->RightLeg, 0.02 * cos(10.0 * *Time));
+            Rotate(&Player->Spine.Bone, 0.02 * cos(10.0 * *Time));
+            Rotate(&Player->LeftLeg.Bone, 0.02 * -cos(10.0 * *Time));
+            Rotate(&Player->RightLeg.Bone, 0.02 * cos(10.0 * *Time));
+            Rotate(&Player->LeftArm.Bone, 0.02 * cos(10.0 * *Time));
+            Rotate(&Player->RightArm.Bone, 0.02 * -cos(10.0 * *Time));
             *Time += dt;
         } break;
-    }
-}
-
-void Flip(bone* Bone, bool FlipX = false, bool FlipY = false) {
-    if (FlipX) {
-        Bone->FlipX = !Bone->FlipX;
-    }
-    if (FlipY) {
-        Bone->FlipY = !Bone->FlipY;
     }
 }
 
@@ -383,6 +533,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         Assets->VideoPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
         Assets->TextArenaStr = PushString(&pGameState->TextArena, 13, "Text Arena");
         Assets->TextPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
+
+        // BMPs
         Assets->HeadBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Head.bmp");
         Assets->ArmBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Arm.bmp");
         Assets->TorsoBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Torso.bmp");
@@ -422,6 +574,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         UserInterface->CombatMenu.AttackText = PushString(&pGameState->TextArena, 7, "Attack");
         UserInterface->CombatMenu.TechniqueText = PushString(&pGameState->TextArena, 10, "Technique");
         UserInterface->CombatMenu.MagicText = PushString(&pGameState->TextArena, 6, "Magic");
+        UserInterface->CombatMenu.ItemsText = PushString(&pGameState->TextArena, 6, "Items");
 
         Memory->IsInitialized = true;
     }
