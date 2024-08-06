@@ -396,15 +396,6 @@ void Animate(player* Player, game_input* Input, double dt) {
     double* Time = &Player->Entity.Time;
     player_animation* CurrentAnimation = &Player->Animation;
 
-    if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown) {
-        Player->Animation = Player_Attacking;
-    }
-
-    if (Input->Keyboard.D.WasDown && !Input->Keyboard.D.IsDown) {
-        *CurrentAnimation = Player_Idle;
-
-    }
-
     switch (*CurrentAnimation) {
         case Player_Idle:
         {
@@ -494,6 +485,7 @@ void Animate(player* Player, game_input* Input, double dt) {
                 *CurrentAnimation = Player_Idle;
                 Returning = false;
                 Swinging = false;
+                Player->Stats.Busy = false;
             }
         } break;
 
@@ -555,17 +547,20 @@ extern "C" GAME_UPDATE(GameUpdate)
         PlayerStats->Strength = 10;
         PlayerStats->Defense = 5;
         PlayerStats->Speed = 10;
+        PlayerStats->Busy = false;
 
             // Enemy
         pGameState->Enemy.BMP = &Assets->EnemyBMP1;
-        pGameState->Enemy.Attacking = false;
         stats* EnemyStats = &pGameState->Enemy.Stats;
         EnemyStats->HP = 100;
         EnemyStats->MaxHP = 100;
         EnemyStats->Strength = 10;
         EnemyStats->Defense = 5;
         EnemyStats->Speed = 10;
-        
+        EnemyStats->Busy = false;
+
+            // Turn
+        pGameState->Turn = &Player->Stats;
 
         // User Interface
             // Initialize your UI elements here
@@ -575,6 +570,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         UserInterface->CombatMenu.TechniqueText = PushString(&pGameState->TextArena, 10, "Technique");
         UserInterface->CombatMenu.MagicText = PushString(&pGameState->TextArena, 6, "Magic");
         UserInterface->CombatMenu.ItemsText = PushString(&pGameState->TextArena, 6, "Items");
+        UserInterface->TurnQueue.Length = 2;
 
         Memory->IsInitialized = true;
     }
@@ -615,19 +611,21 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     static int Counter = 0;
+    static bool Busy = pGameState->Turn;
     if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown && 
         UserInterface->CombatMenu.Cursor == 0 &&
-        !pGameState->Enemy.Attacking) {
+        !Enemy->Stats.Busy) {
         Attack(pGameState->Player.Stats, &pGameState->Enemy.Stats);
-        pGameState->Enemy.Attacking = true;
+        Player->Stats.Busy = true;
+        Player->Animation = Player_Attacking;
     }
 
-    if (pGameState->Enemy.Attacking) {
+    if (pGameState->Enemy.Stats.Busy) {
         Counter++;
         if (Counter == 100) {
             Attack(pGameState->Enemy.Stats, &pGameState->Player.Stats);
             Counter = 0;
-            pGameState->Enemy.Attacking = false;
+            pGameState->Enemy.Stats.Busy = false;
         }
     }
 
@@ -692,6 +690,10 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Combat menu
     PushCombatMenu(Group, Assets->Characters, &pGameState->UserInterface.CombatMenu);
+
+        // Turn queue
+    PushTurnQueue(Group, &UserInterface->TurnQueue);
+    PushTexturedRectBasis(Group, &Assets->HeadBMP, V3(0,0,0), Identity(4.0), Clamp, 100);
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;

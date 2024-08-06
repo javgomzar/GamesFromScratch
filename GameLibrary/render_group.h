@@ -21,7 +21,8 @@ enum render_group_entry_type {
 
 enum wrap_mode {
     Clamp,
-    Repeat
+    Repeat,
+    Crop
 };
 
 struct sort_key {
@@ -289,6 +290,7 @@ void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, 
     Entry->Rect = Rect;
     Entry->FlipX = FlipX;
     Entry->FlipY = FlipY;
+
 }
 
 void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, basis Basis, wrap_mode Mode, bool FlipX = false, bool FlipY = false) {
@@ -395,6 +397,13 @@ void PushCombatMenu(render_group* Group, character* Characters, combat_menu* Men
 void PushHealthBar(render_group* Group, game_screen_position Position, int HP, int MaxHP) {
     PushRect(Group, { Position.X, Position.Y, 100, 4 }, DarkGray, Position.Z);
     PushRect(Group, { Position.X, Position.Y, 100.0 * ((double)HP) / ((double)MaxHP), 4 }, Red, Position.Z + 1);
+}
+
+void PushTurnQueue(render_group* Group, turn_queue* TurnQueue) {
+    for (int i = 0; i < TurnQueue->Length; i++) {
+        game_rect Rect = {20, 0.3*Group->Height + i*20, 60, 20};
+        PushRectOutline(Group, Rect, Black);
+    }
 }
 
 void ClearEntries(render_group* Group) {

@@ -297,31 +297,6 @@ struct record_and_playback {
 };
 
 
-
-// User Interface
-struct button {
-    bool Clicked;
-    bool Active;
-    game_rect Collider;
-    loaded_bmp Image;
-    loaded_bmp ClickedImage;
-    string Text;
-};
-
-struct combat_menu {
-    bool Active;
-    int Cursor;
-    string AttackText;
-    string TechniqueText;
-    string MagicText;
-    string ItemsText;
-};
-
-struct UI {
-    combat_menu CombatMenu;
-};
-
-
 // Sounds
 struct game_sound {
     uint32 SampleCount;
@@ -494,12 +469,19 @@ void PlayerBone(
     Bone(&PlayerBone->Bone, BMP, ParentBone, BMPOffset, Start, Finish, Basis, FlipX, FlipY);
 }
 
+enum combatant_type {
+    Player,
+    Enemy
+};
+
 struct stats {
+    combatant_type Type;
     int HP;
     int MaxHP;
     int Strength;
     int Defense;
     int Speed;
+    bool Busy;
 };
 
 enum player_animation {
@@ -537,15 +519,43 @@ enum enemy_animation {
     Enemy_Attacking
 };
 
-
 struct enemy {
     stats Stats;
     entity Entity;
     loaded_bmp* BMP;
     enemy_animation Animation;
-    bool Attacking;
 };
 
+// User Interface
+struct button {
+    bool Clicked;
+    bool Active;
+    game_rect Collider;
+    loaded_bmp Image;
+    loaded_bmp ClickedImage;
+    string Text;
+};
+
+struct combat_menu {
+    bool Active;
+    int Cursor;
+    string AttackText;
+    string TechniqueText;
+    string MagicText;
+    string ItemsText;
+};
+
+const int MAX_TURN_QUEUE_LENGTH = 10;
+struct turn_queue {
+    int Length;
+    loaded_bmp* BMPs[MAX_TURN_QUEUE_LENGTH];
+    v3 BMPOffsets[MAX_TURN_QUEUE_LENGTH];
+};
+
+struct UI {
+    combat_menu CombatMenu;
+    turn_queue TurnQueue;
+};
 
 // Game State: Persistent (between frames) values
 struct game_state {
@@ -558,6 +568,7 @@ struct game_state {
     double Time;
     player Player;
     enemy Enemy;
+    stats* Turn;
     character Characters[];
 };
 
