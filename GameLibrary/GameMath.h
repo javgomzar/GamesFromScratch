@@ -208,3 +208,7 @@ basis Scale(basis Basis, double ScaleX, double ScaleY, double ScaleZ) {
 basis Scale(basis Basis, double Factor) {
 	return Scale(Basis, Factor, Factor, Factor);
 }
+
+basis Identity(double Scale = 1.0) {
+	return { V3(Scale, 0.0, 0.0), V3(0.0, Scale, 0.0), V3(0.0, 0.0, Scale) };
+}
