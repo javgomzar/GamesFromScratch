@@ -296,7 +296,7 @@ void Initialize(entity* Entity, v3 Position = V3(0,0,0), v3 Velocity = V3(0,0,0)
 }
 
 void RestoreDefault(player_bone* Bone) {
-    basis Basis = Identity(4.0);
+    basis Basis = Identity(1.0);
     switch (Bone->Id) {
         case Head:
         {
@@ -540,7 +540,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // Game state
             // Player
         Initialize(&pGameState->Player.Entity, V3(300, 150, 1));
-        InitializeSkeleton(&pGameState->Player, Scale(Group->DefaultBasis, 4.0), Assets);
+        InitializeSkeleton(&pGameState->Player, Group->DefaultBasis, Assets);
         stats* PlayerStats = &pGameState->Player.Stats;
         PlayerStats->HP = 100;
         PlayerStats->MaxHP = 100;
@@ -571,6 +571,10 @@ extern "C" GAME_UPDATE(GameUpdate)
         UserInterface->CombatMenu.MagicText = PushString(&pGameState->TextArena, 6, "Magic");
         UserInterface->CombatMenu.ItemsText = PushString(&pGameState->TextArena, 6, "Items");
         UserInterface->TurnQueue.Length = 2;
+        UserInterface->TurnQueue.BMPs[0] = &Assets->HeadBMP;
+        UserInterface->TurnQueue.BMPs[1] = &Assets->EnemyBMP1;
+        UserInterface->TurnQueue.BMPOffsets[0] = V3(0, 0, 0);
+        UserInterface->TurnQueue.BMPOffsets[1] = V3(0, 0, 0);
 
         Memory->IsInitialized = true;
     }
@@ -685,15 +689,16 @@ extern "C" GAME_UPDATE(GameUpdate)
         Enemy->BMP = &Assets->EnemyBMP2;
     }
     Enemy->Entity.Time++;
-    PushTexturedRect(Group, { EnemyPosition.X, EnemyPosition.Y + 20 * sin(4.0 * pGameState->Time), 200, 200}, Enemy->BMP, 0);
+    game_rect EnemyRect = { EnemyPosition.X, EnemyPosition.Y + 20 * sin(4.0 * pGameState->Time), 200, 200 };
+    PushTexturedRect(Group, Enemy->BMP, EnemyRect, Clamp);
     PushHealthBar(Group, { EnemyPosition.X + 50, EnemyPosition.Y - 20, 0 }, pGameState->Enemy.Stats.HP, pGameState->Enemy.Stats.MaxHP);
 
         // Combat menu
     PushCombatMenu(Group, Assets->Characters, &pGameState->UserInterface.CombatMenu);
 
         // Turn queue
-    PushTurnQueue(Group, &UserInterface->TurnQueue);
-    PushTexturedRectBasis(Group, &Assets->HeadBMP, V3(0,0,0), Identity(4.0), Clamp, 100);
+    PushTurnQueue(Group, Assets, &UserInterface->TurnQueue);
+    
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;

@@ -195,14 +195,6 @@ struct basis {
 	v3 Z;
 };
 
-basis Identity() {
-	basis Result;
-	Result.X = V3(1.0, 0.0, 0.0);
-	Result.Y = V3(0.0, 1.0, 0.0);
-	Result.Z = V3(0.0, 0.0, 1.0);
-	return Result;
-}
-
 basis Rotate(basis Basis, double Angle) {
 	basis Result;
 	Result.X = Rotate(Basis.X, Angle);
