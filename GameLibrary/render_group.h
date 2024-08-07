@@ -11,9 +11,7 @@ enum render_group_entry_type {
     group_type_render_entry_triangle,
     group_type_render_entry_rect,
     group_type_render_entry_textured_rect,
-    group_type_render_entry_textured_rect_basis,
     group_type_render_entry_rect_outline,
-    group_type_render_entry_bmp,
     group_type_render_entry_text,
     group_type_render_entry_button,
     group_type_render_entry_video
@@ -63,35 +61,23 @@ struct render_entry_rect {
     color Color;
 };
 
-struct render_entry_textured_rect_basis {
-    render_group_header Header;
-    basis Basis;
-    v3 Position;
-    loaded_bmp* Texture;
-    wrap_mode Mode;
-    bool FlipX;
-    bool FlipY;
-};
-
 struct render_entry_textured_rect {
     render_group_header Header;
+    basis Basis;
     game_rect Rect;
     loaded_bmp* Texture;
-    bool FlipX;
-    bool FlipY;
+    color Color;
+    wrap_mode Mode;
+    double MinTexX;
+    double MinTexY;
+    double MaxTexX;
+    double MaxTexY;
 };
 
 struct render_entry_rect_outline {
     render_group_header Header;
     game_rect Rect;
     color Color;
-};
-
-struct render_entry_bmp {
-    render_group_header Header;
-    loaded_bmp* Bitmap;
-    v3 Position;
-    wrap_mode Mode;
 };
 
 struct render_entry_text {
@@ -198,11 +184,6 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_rect_outline);
         } break;
 
-        case group_type_render_entry_bmp:
-        {
-            return sizeof(render_entry_bmp);
-        } break;
-
         case group_type_render_entry_text:
         {
             return sizeof(render_entry_text);
@@ -216,11 +197,6 @@ uint32 GetSizeOf(render_group_entry_type Type) {
         case group_type_render_entry_textured_rect:
         {
             return sizeof(render_entry_textured_rect);
-        } break;
-
-        case group_type_render_entry_textured_rect_basis:
-        {
-            return sizeof(render_entry_textured_rect_basis);
         } break;
 
         case group_type_render_entry_video:
@@ -283,25 +259,55 @@ void PushRect(render_group* Group, game_rect Rect, color Color, double Z) {
     Entry->Color = Color;
 }
 
-void PushTexturedRect(render_group* Group, game_rect Rect, loaded_bmp* Texture, double Z, bool FlipX = false, bool FlipY = false) {
+void PushTexturedRect(
+    render_group* Group,
+    loaded_bmp* Texture,
+    game_rect Rect,
+    wrap_mode Mode = Clamp, 
+    color Color = White, 
+    basis Basis = Identity(),
+    double Z = 0.0,
+    bool FlipX = false, bool FlipY = false,
+    v3 Offset = V3(0,0,0)
+) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
-    Entry->Header.Key.Z = Z;
-    Entry->Texture = Texture;
+    Entry->Header.Key.Z = Z + Offset.Z;
+
     Entry->Rect = Rect;
-    Entry->FlipX = FlipX;
-    Entry->FlipY = FlipY;
-
-}
-
-void PushTexturedRectBasis(render_group* Group, loaded_bmp* Texture, v3 Position, basis Basis, wrap_mode Mode, bool FlipX = false, bool FlipY = false) {
-    render_entry_textured_rect_basis* Entry = PushRenderElement(Group, render_entry_textured_rect_basis);
-    Entry->Header.Key.Z = Position.Z;
     Entry->Texture = Texture;
+    Entry->Color = Color;
     Entry->Basis = Basis;
-    Entry->Position = Position;
     Entry->Mode = Mode;
-    Entry->FlipX = FlipX;
-    Entry->FlipY = FlipY;
+    
+    switch (Mode) {
+        case Clamp:
+        {
+            Entry->MinTexX = FlipX ? 1.0 : 0.0;
+            Entry->MaxTexX = FlipX ? 0.0 : 1.0;
+            Entry->MinTexY = FlipY ? 1.0 : 0.0;
+            Entry->MaxTexY = FlipY ? 0.0 : 1.0;
+        } break;
+        case Repeat:
+        {
+            double MaxX = Rect.Width / (module(Basis.Y) * (double)Texture->Header.Height);
+            double MaxY = Rect.Height / (module(Basis.X) * (double)Texture->Header.Height);
+            Entry->MinTexX = FlipX ? MaxX : 0.0;
+            Entry->MaxTexX = FlipX ? 0.0 : MaxX;
+            Entry->MinTexY = FlipY ? MaxY : 0.0;
+            Entry->MaxTexY = FlipY ? 0.0 : MaxY;
+        } break;
+        case Crop:
+        {
+            double MinX = Offset.X / (double)Texture->Header.Width;
+            double MinY = Offset.Y / (double)Texture->Header.Height;
+            double MaxX = (Rect.Width + Offset.X) / (double)Texture->Header.Width;
+            double MaxY = (Rect.Height + Offset.Y) / (double)Texture->Header.Height;
+            Entry->MinTexX = FlipX ? MaxX : MinX;
+            Entry->MaxTexX = FlipX ? MinX : MaxX;
+            Entry->MinTexY = FlipY ? MaxY : MinY;
+            Entry->MaxTexY = FlipY ? MinY : MaxY;
+        } break;
+    }
 }
 
 void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
@@ -309,14 +315,6 @@ void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
     Entry->Header.Key.Z = 300;
     Entry->Rect = Rect;
     Entry->Color = Color;
-}
-
-void PushBMP(render_group* Group, loaded_bmp* Bitmap, v3 Position) {
-    render_entry_bmp* Entry = PushRenderElement(Group, render_entry_bmp);
-    Entry->Header.Key.Z = Position.Z;
-    Entry->Bitmap = Bitmap;
-    Entry->Position = Position;
-    Entry->Mode = Clamp;
 }
 
 void PushText(render_group* Group, game_screen_position Position, character* Characters, color Color, int Points, string String, bool Wrapped) {

@@ -3,33 +3,33 @@
 
 
 void OpenGLTriangle(game_triangle Triangle, color Color) {
-	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
+	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
 	glBegin(GL_TRIANGLES);
 	for (int i = 0; i < 3; i++) {
 		v3 Point = Triangle.Points[i];
-		glVertex2f(Point.X, Point.Y);
+		glVertex2d(Point.X, Point.Y);
 	}
 	glEnd();
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void OpenGLRectangle(game_rect Rect, color Color)
 {
-	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
+	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
 	glBegin(GL_TRIANGLES);
 
 	// Lower triangle
-	glVertex2f(Rect.Left, Rect.Top + Rect.Height);
-	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
-	glVertex2f(Rect.Left + Rect.Width, Rect.Top + Rect.Height);
+	glVertex2d(Rect.Left, Rect.Top + Rect.Height);
+	glVertex2d(Rect.Left + Rect.Width, Rect.Top);
+	glVertex2d(Rect.Left + Rect.Width, Rect.Top + Rect.Height);
 
 	// Upper triangle
-	glVertex2f(Rect.Left, Rect.Top);
-	glVertex2f(Rect.Left, Rect.Top + Rect.Height);
-	glVertex2f(Rect.Left + Rect.Width, Rect.Top);
+	glVertex2d(Rect.Left, Rect.Top);
+	glVertex2d(Rect.Left, Rect.Top + Rect.Height);
+	glVertex2d(Rect.Left + Rect.Width, Rect.Top);
 
 	glEnd();
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_mode Mode, bool ForceUpdate = false)
@@ -53,6 +53,7 @@ void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_m
 
 	switch (Mode) {
 		case Clamp:
+		case Crop:
 		{
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
@@ -72,107 +73,48 @@ void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_m
 	}
 }
 
-void OpenGLBindTexture(loaded_bmp* Bitmap, wrap_mode Mode) {
+void OpenGLBindTexture(loaded_bmp* Bitmap, wrap_mode Mode = Clamp) {
 	OpenGLBindTexture(Bitmap->Header.Width, Bitmap->Header.Height, &Bitmap->Handle, Bitmap->Content, Mode);
 }
 
 // Render a textured rectangle in OpenGL given a rectangle, scaling the texture as needed to fit the rectangle.
 // It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(game_rect Rect, bool FlipX = false, bool FlipY = false) {
+void OpenGLTexturedRect(game_rect Rect, color Color = White, basis Basis = Identity(), double MinTexX = 0.0, double MaxTexX = 1.0, double MinTexY = 0.0, double MaxTexY = 1.0) {
 
 	v3 A = V3(Rect.Left, Rect.Top, 0);
-	v3 B = V3(Rect.Left + Rect.Width, Rect.Top, 0);
-	v3 C = V3(Rect.Left, Rect.Top + Rect.Height, 0);
-	v3 D = V3(Rect.Left + Rect.Width, Rect.Top + Rect.Height, 0);
+	v3 B = A + Rect.Width * Basis.X;
+	v3 C = A + Rect.Height * Basis.Y;
+	v3 D = A + Rect.Width * Basis.X + Rect.Height * Basis.Y;
 
-	float MinTexX = FlipX ? 1.0f: 0.0f;
-	float MaxTexX = FlipX ? 0.0f : 1.0f;
-	float MinTexY = FlipY ? 1.0f : 0.0f;
-	float MaxTexY = FlipY ? 0.0f : 1.0f;
-
+	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
 	glEnable(GL_TEXTURE_2D);
 	glBegin(GL_TRIANGLES);
 
 	// Lower triangle
-	glTexCoord2f(MinTexX, MinTexY);
-	glVertex2f(C.X, C.Y);
+	glTexCoord2d(MinTexX, MinTexY);
+	glVertex2d(C.X, C.Y);
 
-	glTexCoord2f(MaxTexX, MinTexY);
-	glVertex2f(D.X, D.Y);
+	glTexCoord2d(MaxTexX, MinTexY);
+	glVertex2d(D.X, D.Y);
 
-	glTexCoord2f(MaxTexX, MaxTexY);
-	glVertex2f(B.X, B.Y);
+	glTexCoord2d(MaxTexX, MaxTexY);
+	glVertex2d(B.X, B.Y);
 
 	// Upper triangle
-	glTexCoord2f(MinTexX, MinTexY);
-	glVertex2f(C.X, C.Y);
+	glTexCoord2d(MinTexX, MinTexY);
+	glVertex2d(C.X, C.Y);
 
-	glTexCoord2f(MaxTexX, MaxTexY);
-	glVertex2f(B.X, B.Y);
+	glTexCoord2d(MaxTexX, MaxTexY);
+	glVertex2d(B.X, B.Y);
 
-	glTexCoord2f(MinTexX, MaxTexY);
-	glVertex2f(A.X, A.Y);
+	glTexCoord2d(MinTexX, MaxTexY);
+	glVertex2d(A.X, A.Y);
 
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
+	glColor4d(1.0, 1.0, 1.0, 1.0);
 
 	return;
-}
-
-// Render a textured rectangle in OpenGL given position and basis.
-// It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(v3 Position, int Width, int Height, basis Basis, wrap_mode Mode, bool FlipX = false, bool FlipY = false)
-{
-	/*
-	*    A ---- B
-	*  ^ |      |
-	*  | |      |
-	*    C ---- D
-	*      ->
-	*/
-	v3 A = Position;
-	v3 B = Position + Width * Basis.X;
-	v3 C = Position + Height * Basis.Y;
-	v3 D = Position + Width * Basis.X + Height * Basis.Y;
-
-	float MinTexX = FlipX ? 1.0f : 0.0f;
-	float MinTexY = FlipY ? 1.0f : 0.0f;
-	float MaxTexX;
-	float MaxTexY;
-	if (Mode == Repeat) {
-		MaxTexX = module(Basis.X);
-		MaxTexY = module(Basis.Y);
-	}
-	else {
-		MaxTexX = FlipX ? 0.0f : 1.0f;
-		MaxTexY = FlipY ? 0.0f : 1.0f;
-	}
-
-	glEnable(GL_TEXTURE_2D);
-	glBegin(GL_TRIANGLES);
-
-	// Lower triangle
-	glTexCoord2f(MinTexX, MinTexY);
-	glVertex2f(C.X, C.Y);
-
-	glTexCoord2f(MaxTexX, MinTexY);
-	glVertex2f(D.X, D.Y);
-
-	glTexCoord2f(MaxTexX, MaxTexY);
-	glVertex2f(B.X, B.Y);
-
-	// Upper triangle
-	glTexCoord2f(MinTexX, MinTexY);
-	glVertex2f(C.X, C.Y);
-
-	glTexCoord2f(MaxTexX, MaxTexY);
-	glVertex2f(B.X, B.Y);
-
-	glTexCoord2f(MinTexX, MaxTexY);
-	glVertex2f(A.X, A.Y);
-
-	glEnd();
-	glDisable(GL_TEXTURE_2D);
 }
 
 void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, basis Basis, bool Wrapped = false)
@@ -199,31 +141,31 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, charac
 				PenY += LineJump;
 			}
 			if (c != ' ') {
-				glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
 				OpenGLBindTexture(pCharacter->Bitmap, Clamp);
-				OpenGLTexturedRect(
-					{ PenX + pCharacter->Left * Scale, floor(PenY - pCharacter->Top * Scale), 0 },
-					(double)pCharacter->Bitmap->Header.Width * Scale, ceil((double)pCharacter->Bitmap->Header.Height * Scale),
-					Basis, Clamp
-				);
+				game_rect Rect;
+				Rect.Left = PenX + pCharacter->Left * Scale;
+				Rect.Top = floor(PenY - pCharacter->Top * Scale);
+				Rect.Width = (double)pCharacter->Bitmap->Header.Width * Scale;
+				Rect.Height = (double)pCharacter->Bitmap->Header.Height * Scale;
+				OpenGLTexturedRect(Rect, Color);
 			}
 
 			PenX += pCharacter->Advance * Scale;
 		}
 	}
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void OpenGLRenderLine(v3 Start, v3 Finish, color Color)
 {
 	glBegin(GL_LINES);
-	glColor4f(Color.R, Color.G, Color.B, Color.Alpha);
+	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
 
-	glVertex2f(Start.X, Start.Y);
-	glVertex2f(Finish.X, Finish.Y);
+	glVertex2d(Start.X, Start.Y);
+	glVertex2d(Finish.X, Finish.Y);
 
 	glEnd();
-	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void SetScreenProjection(int32 Width, int32 Height) {
@@ -289,16 +231,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				OpenGLRectangle(Entry.Rect, Entry.Color);
 			} break;
 
-			case group_type_render_entry_bmp:
-			{
-				render_entry_bmp Entry = *(render_entry_bmp*)Header;
-				OpenGLTexturedRect(
-					Entry.Position,
-					Entry.Bitmap->Header.Width, Entry.Bitmap->Header.Height,
-					Group->DefaultBasis, Clamp
-				);
-			} break;
-
 			case group_type_render_entry_text:
 			{
 				render_entry_text Entry = *(render_entry_text*)Header;
@@ -312,12 +244,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				character* Characters = Entry.Characters;
 
 				loaded_bmp* Texture = Button->Clicked ? &Button->ClickedImage : &Button->Image;
-				int Width = Texture->Header.Width;
-				int Height = Texture->Header.Height;
-				OpenGLTexturedRect(
-					{ Button->Collider.Left, Button->Collider.Top, 0 },
-					Width, Height, Group->DefaultBasis, Clamp
-				);
+				game_rect Rect;
+				Rect.Left = Button->Collider.Left;
+				Rect.Top = Button->Collider.Top;
+				Rect.Width = Texture->Header.Width;
+				Rect.Height = Texture->Header.Height;
+				OpenGLBindTexture(Texture);
+				OpenGLTexturedRect(Rect);
 				int TextWidth = 0;
 				int TextHeight = (int)(0.023f * Characters[1].Height);
 				for (int i = 0; i < Button->Text.Length; i++) {
@@ -358,18 +291,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 			{
 				render_entry_textured_rect Entry = *(render_entry_textured_rect*)Header;
 
-				OpenGLBindTexture(Entry.Texture, Clamp);
-				OpenGLTexturedRect(Entry.Rect, Entry.FlipX, Entry.FlipY);
-			} break;
-
-			case group_type_render_entry_textured_rect_basis:
-			{
-				render_entry_textured_rect_basis Entry = *(render_entry_textured_rect_basis*)Header;
-
-				int Width = Entry.Texture->Header.Width;
-				int Height = Entry.Texture->Header.Height;
-				OpenGLBindTexture(Width, Height, &Entry.Texture->Handle, Entry.Texture->Content, Clamp);
-				OpenGLTexturedRect(Entry.Position, Width, Height, Entry.Basis, Entry.Mode, Entry.FlipX, Entry.FlipY);
+				OpenGLBindTexture(Entry.Texture, Entry.Mode);
+				OpenGLTexturedRect(Entry.Rect, Entry.Color, Entry.Basis, Entry.MinTexX, Entry.MaxTexX, Entry.MinTexY, Entry.MaxTexY);
 			} break;
 
 			case group_type_render_entry_video:
@@ -381,7 +304,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				int Height = Video->VideoContext->Height;
 
 				OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext->VideoOut, Clamp, true);
-				OpenGLTexturedRect(Entry.Rect, true);
+				OpenGLTexturedRect(Entry.Rect);
 
 			} break;
 
