@@ -286,6 +286,7 @@ void PushVideoLoop(render_group* Group, game_video* Video, game_rect Rect, int Z
 extern "C" GAME_UPDATE(GameUpdate)
 {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    double* Time = &pGameState->Time;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
     //render_group* Group = Memory->Group;

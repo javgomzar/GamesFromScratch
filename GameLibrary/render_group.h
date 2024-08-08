@@ -251,55 +251,91 @@ void PushRect(render_group* Group, game_rect Rect, color Color, double Z) {
     Entry->Color = Color;
 }
 
-void PushTexturedRect(
+void PushTexturedRectClamp(
     render_group* Group,
     loaded_bmp* Texture,
     game_rect Rect,
-    wrap_mode Mode = Clamp, 
-    color Color = White, 
-    basis Basis = Identity(),
+    basis Basis = Identity(1.0),
+    color Color = White,
     double Z = 0.0,
-    bool FlipX = false, bool FlipY = false,
-    v3 Offset = V3(0,0,0)
+    bool FlipX = false, bool FlipY = false
 ) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
-    Entry->Header.Key.Z = Z + Offset.Z;
+    Entry->Header.Key.Z = Z;
 
     Entry->Rect = Rect;
     Entry->Texture = Texture;
     Entry->Color = Color;
-    Entry->Basis = Basis;
-    Entry->Mode = Mode;
-    
-    switch (Mode) {
-        case Clamp:
-        {
-            Entry->MinTexX = FlipX ? 1.0 : 0.0;
-            Entry->MaxTexX = FlipX ? 0.0 : 1.0;
-            Entry->MinTexY = FlipY ? 1.0 : 0.0;
-            Entry->MaxTexY = FlipY ? 0.0 : 1.0;
-        } break;
-        case Repeat:
-        {
-            double MaxX = Rect.Width / (module(Basis.Y) * (double)Texture->Header.Height);
-            double MaxY = Rect.Height / (module(Basis.X) * (double)Texture->Header.Height);
-            Entry->MinTexX = FlipX ? MaxX : 0.0;
-            Entry->MaxTexX = FlipX ? 0.0 : MaxX;
-            Entry->MinTexY = FlipY ? MaxY : 0.0;
-            Entry->MaxTexY = FlipY ? 0.0 : MaxY;
-        } break;
-        case Crop:
-        {
-            double MinX = Offset.X / (double)Texture->Header.Width;
-            double MinY = 1.0 - (Rect.Height + Offset.Y) / (double)Texture->Header.Height;
-            double MaxX = (Rect.Width + Offset.X) / (double)Texture->Header.Width;
-            double MaxY = 1.0 - Offset.Y / (double)Texture->Header.Height;
-            Entry->MinTexX = FlipX ? MaxX : MinX;
-            Entry->MaxTexX = FlipX ? MinX : MaxX;
-            Entry->MinTexY = FlipY ? MaxY : MinY;
-            Entry->MaxTexY = FlipY ? MinY : MaxY;
-        } break;
-    }
+    Entry->Basis = normalize(Basis);
+    Entry->Mode = Clamp;
+
+    Entry->MinTexX = FlipX ? 1.0 : 0.0;
+    Entry->MaxTexX = FlipX ? 0.0 : 1.0;
+    Entry->MinTexY = FlipY ? 1.0 : 0.0;
+    Entry->MaxTexY = FlipY ? 0.0 : 1.0;
+}
+
+void PushTexturedRectRepeat(
+    render_group* Group,
+    loaded_bmp* Texture,
+    game_rect Rect,
+    basis Basis = Identity(1.0),
+    color Color = White,
+    double Z = 0.0,
+    bool FlipX = false, bool FlipY = false
+) {
+    render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
+    Entry->Header.Key.Z = Z;
+
+    Entry->Rect = Rect;
+    Entry->Texture = Texture;
+    Entry->Color = Color;
+    Entry->Basis = normalize(Basis);
+    Entry->Mode = Repeat;
+
+    double ScaleX = module(Basis.X);
+    double ScaleY = module(Basis.Y);
+
+    double MinX = 0.0;
+    double MinY = -Rect.Height / (ScaleY * (double)Texture->Header.Height);
+    double MaxX = Rect.Width / (ScaleX * (double)Texture->Header.Width);
+    double MaxY = 1.0;
+    Entry->MinTexX = FlipX ? MaxX : MinX;
+    Entry->MaxTexX = FlipX ? MinX : MaxX;
+    Entry->MinTexY = FlipY ? MaxY : MinY;
+    Entry->MaxTexY = FlipY ? MinY : MaxY;
+}
+
+void PushTexturedRectCrop(
+    render_group* Group,
+    loaded_bmp* Texture,
+    game_rect Rect,
+    v3 Offset = V3(0,0,0),
+    basis Basis = Identity(1.0),
+    color Color = White,
+    double Z = 0.0,
+    bool FlipX = false, bool FlipY = false
+) {
+    render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
+    Entry->Header.Key.Z = Z;
+
+    Entry->Rect = Rect;
+    Entry->Texture = Texture;
+    Entry->Color = Color;
+    Entry->Basis = normalize(Basis);
+    Entry->Mode = Crop;
+
+    double ScaleX = module(Basis.X);
+    double ScaleY = module(Basis.Y);
+
+    double MinX = Offset.X / ScaleX / (double)Texture->Header.Width;
+    double MinY = 1.0 - (Rect.Height + Offset.Y) / ScaleY / (double)Texture->Header.Height;
+    double MaxX = (Rect.Width + Offset.X) / ScaleX / (double)Texture->Header.Width;
+    double MaxY = 1.0 - Offset.Y / ScaleY / (double)Texture->Header.Height;
+    Entry->MinTexX = FlipX ? MaxX : MinX;
+    Entry->MaxTexX = FlipX ? MinX : MaxX;
+    Entry->MinTexY = FlipY ? MaxY : MinY;
+    Entry->MaxTexY = FlipY ? MinY : MaxY;
 }
 
 void PushRectOutline(render_group* Group, game_rect Rect, color Color) {

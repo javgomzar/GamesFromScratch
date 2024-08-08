@@ -328,6 +328,7 @@ struct game_video {
 struct game_assets {
     character* Characters;
     loaded_bmp TestImage;
+    loaded_bmp TestImage2;
     game_sound TestSound;
     game_video TestVideo;
     string RenderArenaStr;
