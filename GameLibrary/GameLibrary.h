@@ -550,6 +550,7 @@ struct turn_queue {
     int Length;
     loaded_bmp* BMPs[MAX_TURN_QUEUE_LENGTH];
     v3 BMPOffsets[MAX_TURN_QUEUE_LENGTH];
+    double Scales[MAX_TURN_QUEUE_LENGTH];
 };
 
 struct UI {

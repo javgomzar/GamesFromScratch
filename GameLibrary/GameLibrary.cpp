@@ -300,15 +300,15 @@ void RestoreDefault(player_bone* Bone) {
     switch (Bone->Id) {
         case Head:
         {
-            Bone->Bone.BMPOffset = V3(-28.0, -66.0, 12.0);
-            Bone->Bone.Start = V3(30, 70, 0);
+            Bone->Bone.BMPOffset = V3(-28.0, -66.0, 0.0);
+            Bone->Bone.Start = V3(30, 70, 12);
             Bone->Bone.Finish = V3(30, 35, 0);
             Bone->Bone.Basis = Basis;
         } break;
         case Spine:
         {
-            Bone->Bone.BMPOffset = V3(-28.0, -68.0, 10.0);
-            Bone->Bone.Start = V3(30, 120, 0);
+            Bone->Bone.BMPOffset = V3(-28.0, -68.0, 0.0);
+            Bone->Bone.Start = V3(30, 120, 10);
             Bone->Bone.Finish = V3(30, 70, 0);
             Bone->Bone.Basis = Basis;
         } break;
@@ -326,15 +326,15 @@ void RestoreDefault(player_bone* Bone) {
         } break;
         case LeftArm:
         {
-            Bone->Bone.BMPOffset = V3(-8.0, -6.0, 15.0);
-            Bone->Bone.Start = V3(10, 70, 0);
+            Bone->Bone.BMPOffset = V3(-8.0, -6.0, 0.0);
+            Bone->Bone.Start = V3(10, 70, 15);
             Bone->Bone.Finish = V3(10, 125, 0);
             Bone->Bone.Basis = Basis;
         } break;
         case RightArm:
         {
-            Bone->Bone.BMPOffset = V3(-8.0, -6.0, 12.0);
-            Bone->Bone.Start = V3(50, 70, 0);
+            Bone->Bone.BMPOffset = V3(-8.0, -6.0, 0.0);
+            Bone->Bone.Start = V3(50, 70, 12);
             Bone->Bone.Finish = V3(50, 125, 0);
             Bone->Bone.Basis = Basis;
         } break;
@@ -353,23 +353,23 @@ void RestoreDefault(player_bone* Bone) {
         } break;
         case LeftLeg:
         {
-            Bone->Bone.BMPOffset = V3(-10.0, 6.0, 12.0);
-            Bone->Bone.Start = V3(24, 122, 0);
+            Bone->Bone.BMPOffset = V3(-10.0, 6.0, 0.0);
+            Bone->Bone.Start = V3(24, 122, 12);
             Bone->Bone.Finish = V3(24, 180, 0);
             Bone->Bone.Basis = Basis;
 
         } break;
         case RightLeg:
         {
-            Bone->Bone.BMPOffset = V3(-10.0, 6.0, 6.0);
-            Bone->Bone.Start = V3(36, 122, 0);
+            Bone->Bone.BMPOffset = V3(-10.0, 6.0, 0.0);
+            Bone->Bone.Start = V3(36, 122, 6);
             Bone->Bone.Finish = V3(36, 180, 0);
             Bone->Bone.Basis = Basis;
         } break;
         case Sword:
         {
-            Bone->Bone.BMPOffset = V3(154, -16, 5.0);
-            Bone->Bone.Start = V3(50, 125, 0);
+            Bone->Bone.BMPOffset = V3(154, -16, 0);
+            Bone->Bone.Start = V3(50, 125, 5);
             Bone->Bone.Finish = V3(200, 125, 0);
             Bone->Bone.Basis = Rotate(Basis, -Tau / 4.0);
         } break;
@@ -379,15 +379,15 @@ void RestoreDefault(player_bone* Bone) {
 void InitializeSkeleton(player* Player, basis Basis, game_assets* Assets) {
     PlayerBone(LeftHip, &Player->LeftHip, 0, 0, V3(0, 0, 0), V3(30, 120, 0), V3(24, 120, 0), Basis);
     PlayerBone(RightHip, &Player->RightHip, 0, &Player->LeftHip, V3(0, 0, 0), V3(30, 120, 0), V3(36, 120, 0), Basis);
-    PlayerBone(LeftLeg, &Player->LeftLeg, &Assets->LegBMP, &Player->LeftHip, V3(-10.0, 6.0, 12.0), V3(24, 122, 0), V3(24, 180, 0), Basis);
-    PlayerBone(RightLeg, &Player->RightLeg, &Assets->LegBMP, &Player->RightHip, V3(-10.0, 6.0, 6.0), V3(36, 122, 0), V3(36, 180, 0), Basis);
-    PlayerBone(Spine, &Player->Spine, &Assets->TorsoBMP, &Player->LeftHip, V3(-28.0, -68.0, 10.0), V3(30, 120, 0), V3(30, 70, 0), Basis);
+    PlayerBone(LeftLeg, &Player->LeftLeg, &Assets->LegBMP, &Player->LeftHip, V3(-10.0, 6.0, 0), V3(24, 122, 12), V3(24, 180, 0), Basis);
+    PlayerBone(RightLeg, &Player->RightLeg, &Assets->LegBMP, &Player->RightHip, V3(-10.0, 6.0, 0), V3(36, 122, 6), V3(36, 180, 0), Basis);
+    PlayerBone(Spine, &Player->Spine, &Assets->TorsoBMP, &Player->LeftHip, V3(-28.0, -68.0, 0), V3(30, 120, 10), V3(30, 70, 0), Basis);
     PlayerBone(Head, &Player->Head, &Assets->HeadBMP, &Player->Spine, V3(-28.0, -66.0, 12.0), V3(30, 70, 0), V3(30, 35, 0), Basis);
     PlayerBone(LeftShoulder, &Player->LeftShoulder, 0, &Player->Spine, V3(0, 0, 0), V3(30, 70, 0), V3(10, 70, 0), Basis);
     PlayerBone(RightShoulder, &Player->RightShoulder, 0, &Player->Spine, V3(0, 0, 0), V3(30, 70, 0), V3(50, 70, 0), Basis);
-    PlayerBone(LeftArm, &Player->LeftArm, &Assets->ArmBMP, &Player->LeftShoulder, V3(-8.0, -6.0, 15), V3(10, 70, 0), V3(10, 125, 0), Basis);
-    PlayerBone(RightArm, &Player->RightArm, &Assets->ArmBMP, &Player->RightShoulder, V3(-8.0, -6.0, 12.0), V3(50, 70, 0), V3(50, 125, 0), Basis, true);
-    PlayerBone(Sword, &Player->Sword, &Assets->SwordBMP, &Player->RightArm, V3(154, -16, 5.0), V3(50,125,0), V3(200, 125,0), Rotate(Basis, -Tau / 4.0), true);
+    PlayerBone(LeftArm, &Player->LeftArm, &Assets->ArmBMP, &Player->LeftShoulder, V3(-8.0, -6.0, 0), V3(10, 70, 15), V3(10, 125, 0), Basis);
+    PlayerBone(RightArm, &Player->RightArm, &Assets->ArmBMP, &Player->RightShoulder, V3(-8.0, -6.0, 0), V3(50, 70, 12), V3(50, 125, 0), Basis, true);
+    PlayerBone(Sword, &Player->Sword, &Assets->SwordBMP, &Player->RightArm, V3(154, -16, 0), V3(50,125,5), V3(200, 125,0), Rotate(Basis, -Tau / 4.0), true);
 }
 
 
@@ -575,7 +575,9 @@ extern "C" GAME_UPDATE(GameUpdate)
         UserInterface->TurnQueue.BMPs[0] = &Assets->HeadBMP;
         UserInterface->TurnQueue.BMPs[1] = &Assets->EnemyBMP1;
         UserInterface->TurnQueue.BMPOffsets[0] = V3(0, 0, 0);
-        UserInterface->TurnQueue.BMPOffsets[1] = V3(0, 0, 0);
+        UserInterface->TurnQueue.BMPOffsets[1] = V3(0, 15.0, 0);
+        UserInterface->TurnQueue.Scales[0] = 2.0;
+        UserInterface->TurnQueue.Scales[1] = 1.0;
 
         Memory->IsInitialized = true;
     }
@@ -691,7 +693,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
     Enemy->Entity.Time++;
     game_rect EnemyRect = { EnemyPosition.X, EnemyPosition.Y + 20 * sin(4.0 * pGameState->Time), 200, 200 };
-    PushTexturedRect(Group, Enemy->BMP, EnemyRect, Clamp);
+    PushTexturedRectClamp(Group, Enemy->BMP, EnemyRect);
     PushHealthBar(Group, { EnemyPosition.X + 50, EnemyPosition.Y - 20, 0 }, pGameState->Enemy.Stats.HP, pGameState->Enemy.Stats.MaxHP);
 
         // Combat menu

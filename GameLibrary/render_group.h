@@ -372,7 +372,7 @@ void PushBone(render_group* Group, bone Bone, v3 Position, bool Debug = false) {
             (double)Bone.BMP->Header.Width * 4.0,
             (double)Bone.BMP->Header.Height * 4.0
         };
-        PushTexturedRect(Group, Bone.BMP, Rect, Clamp, White, Bone.Basis, Bone.Start.Z, Bone.FlipX, Bone.FlipY, Bone.BMPOffset);
+        PushTexturedRectClamp(Group, Bone.BMP, Rect, Bone.Basis, White, Bone.Start.Z, Bone.FlipX, Bone.FlipY);
     }
     if (Debug) {
         double Z = Bone.BMPOffset.Z + 100.0;
@@ -441,10 +441,13 @@ void PushHealthBar(render_group* Group, game_screen_position Position, int HP, i
 
 void PushTurnQueue(render_group* Group, game_assets* Assets, turn_queue* TurnQueue) {
     for (int i = 0; i < TurnQueue->Length; i++) {
-        game_rect Rect = {20, 0.3*Group->Height + i*20, 60, 20};
-        PushRectOutline(Group, Rect, Black);
-        PushTexturedRect(Group, TurnQueue->BMPs[i], Rect, Crop, White, Identity(4.0), 10, false, false, TurnQueue->BMPOffsets[i]);
+        double Width = TurnQueue->Scales[i] * TurnQueue->BMPs[i]->Header.Width;
+        game_rect Rect = {20, 0.3*Group->Height + i*20, Width, 20};
+        
+        PushRectOutline(Group, { 20, 0.3 * Group->Height + i * 20, 60, 20 }, Black);
+        PushTexturedRectCrop(Group, TurnQueue->BMPs[i], Rect, TurnQueue->BMPOffsets[i], Identity(TurnQueue->Scales[i]), White, 10, false, false);
     }
+    PushRectOutline(Group, { 20, 0.3 * Group->Height, 60, 20 }, Yellow);
 }
 
 void ClearEntries(render_group* Group) {
