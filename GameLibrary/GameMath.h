@@ -218,3 +218,11 @@ basis Scale(basis Basis, double Factor) {
 basis Identity(double Scale = 1.0) {
 	return { V3(Scale, 0.0, 0.0), V3(0.0, Scale, 0.0), V3(0.0, 0.0, Scale) };
 }
+
+basis normalize(basis Basis) {
+	return {
+		normalize(Basis.X),
+		normalize(Basis.Y),
+		normalize(Basis.Z)
+	};
+}

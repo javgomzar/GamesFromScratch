@@ -505,6 +505,7 @@ void Animate(player* Player, game_input* Input, double dt) {
 extern "C" GAME_UPDATE(GameUpdate)
 {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    double* Time = &pGameState->Time;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
     UI* UserInterface = &pGameState->UserInterface;
