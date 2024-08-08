@@ -291,9 +291,9 @@ void PushTexturedRect(
         case Crop:
         {
             double MinX = Offset.X / (double)Texture->Header.Width;
-            double MinY = Offset.Y / (double)Texture->Header.Height;
+            double MinY = 1.0 - (Rect.Height + Offset.Y) / (double)Texture->Header.Height;
             double MaxX = (Rect.Width + Offset.X) / (double)Texture->Header.Width;
-            double MaxY = (Rect.Height + Offset.Y) / (double)Texture->Header.Height;
+            double MaxY = 1.0 - Offset.Y / (double)Texture->Header.Height;
             Entry->MinTexX = FlipX ? MaxX : MinX;
             Entry->MaxTexX = FlipX ? MinX : MaxX;
             Entry->MinTexY = FlipY ? MaxY : MinY;
