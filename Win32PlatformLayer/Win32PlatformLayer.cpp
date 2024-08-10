@@ -762,6 +762,12 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                 else if (VKCode == VK_F12) {
                     pInput->Keyboard.F12.IsDown = true;
                 }
+                else if (VKCode == VK_PRIOR) {
+                    pInput->Keyboard.PageUp.IsDown = true;
+                }
+                else if (VKCode == VK_NEXT) {
+                    pInput->Keyboard.PageDown.IsDown = true;
+                }
                 else if (VKCode == 'L') {
                     if (RecordPlayback->RecordIndex == 0) {
                         BeginRecordingInput(RecordPlayback, 1);
@@ -949,6 +955,12 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
             }
             else if (VKCode == VK_F12) {
                 pInput->Keyboard.F12.IsDown = false;
+            }
+            else if (VKCode == VK_PRIOR) {
+                pInput->Keyboard.PageUp.IsDown = false;
+            }
+            else if (VKCode == VK_NEXT) {
+                pInput->Keyboard.PageDown.IsDown = false;
             }
         } break;
         case WM_CLOSE:
@@ -1264,6 +1276,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Keyboard.F10.WasDown = Input.Keyboard.F10.IsDown;
         Input.Keyboard.F11.WasDown = Input.Keyboard.F11.IsDown;
         Input.Keyboard.F12.WasDown = Input.Keyboard.F12.IsDown;
+        Input.Keyboard.PageUp.WasDown = Input.Keyboard.PageUp.IsDown;
+        Input.Keyboard.PageDown.WasDown = Input.Keyboard.PageDown.IsDown;
 
         // Peek and dispatch messages
         ProcessPendingMessages(Window, &Input, &RecordPlayback);
