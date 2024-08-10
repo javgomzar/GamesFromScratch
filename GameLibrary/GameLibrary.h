@@ -187,7 +187,7 @@ struct game_controller_input {
     };
 };
 
-const int NUMBER_OF_KEYS = 55;
+const int NUMBER_OF_KEYS = 57;
 
 struct game_keyboard_input {
     bool Any;
@@ -250,6 +250,8 @@ struct game_keyboard_input {
             game_button_state F10;
             game_button_state F11;
             game_button_state F12;
+            game_button_state PageUp;
+            game_button_state PageDown;
         };
     };
 };
