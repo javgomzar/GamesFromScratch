@@ -548,6 +548,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         PlayerStats->Strength = 10;
         PlayerStats->Defense = 5;
         PlayerStats->Speed = 10;
+        PlayerStats->ATB = 100;
         PlayerStats->Busy = false;
 
             // Enemy
@@ -557,7 +558,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         EnemyStats->MaxHP = 100;
         EnemyStats->Strength = 10;
         EnemyStats->Defense = 5;
-        EnemyStats->Speed = 10;
+        EnemyStats->Speed = 20;
+        EnemyStats->ATB = 100;
         EnemyStats->Busy = false;
 
             // Turn
@@ -565,19 +567,29 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // User Interface
             // Initialize your UI elements here
+        // Combat menu
         UserInterface->CombatMenu.Active = true;
         UserInterface->CombatMenu.Cursor = 0;
         UserInterface->CombatMenu.AttackText = PushString(&pGameState->TextArena, 7, "Attack");
         UserInterface->CombatMenu.TechniqueText = PushString(&pGameState->TextArena, 10, "Technique");
         UserInterface->CombatMenu.MagicText = PushString(&pGameState->TextArena, 6, "Magic");
         UserInterface->CombatMenu.ItemsText = PushString(&pGameState->TextArena, 6, "Items");
-        UserInterface->TurnQueue.Length = 2;
+
+        // Turn queue
+        UserInterface->TurnQueue.Combatants = 2;
+        UserInterface->TurnQueue.ShowTurns = 6;
         UserInterface->TurnQueue.BMPs[0] = &Assets->HeadBMP;
         UserInterface->TurnQueue.BMPs[1] = &Assets->EnemyBMP1;
-        UserInterface->TurnQueue.BMPOffsets[0] = V3(0, 0, 0);
+        UserInterface->TurnQueue.BMPOffsets[0] = V3(0.0, 3.0, 0.0);
         UserInterface->TurnQueue.BMPOffsets[1] = V3(0, 15.0, 0);
         UserInterface->TurnQueue.Scales[0] = 2.0;
         UserInterface->TurnQueue.Scales[1] = 1.0;
+        UserInterface->TurnQueue.RectOffsets[0] = V3(15.0, 0.0, 0.0);
+        UserInterface->TurnQueue.RectOffsets[1] = V3(6.0, 0.0, 0.0);
+        UserInterface->TurnQueue.Stats[0] = &Player->Stats;
+        UserInterface->TurnQueue.Stats[1] = &Enemy->Stats;
+
+        InitializeQueue(&UserInterface->TurnQueue);
 
         Memory->IsInitialized = true;
     }

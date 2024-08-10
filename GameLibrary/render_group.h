@@ -440,14 +440,19 @@ void PushHealthBar(render_group* Group, game_screen_position Position, int HP, i
 }
 
 void PushTurnQueue(render_group* Group, game_assets* Assets, turn_queue* TurnQueue) {
-    for (int i = 0; i < TurnQueue->Length; i++) {
-        double Width = TurnQueue->Scales[i] * TurnQueue->BMPs[i]->Header.Width;
-        game_rect Rect = {20, 0.3*Group->Height + i*20, Width, 20};
+    for (int i = 0; i < TurnQueue->ShowTurns; i++) {
+        int Turn = TurnQueue->Queue[i];
+        double Width = TurnQueue->Scales[Turn] * TurnQueue->BMPs[Turn]->Header.Width;
+        v3 Offset = TurnQueue->RectOffsets[Turn];
+        game_rect Rect = {
+            20 + Offset.X, 
+            0.1*Group->Height + i*20 + Offset.Y,
+            Width, 20};
         
-        PushRectOutline(Group, { 20, 0.3 * Group->Height + i * 20, 60, 20 }, Black);
-        PushTexturedRectCrop(Group, TurnQueue->BMPs[i], Rect, TurnQueue->BMPOffsets[i], Identity(TurnQueue->Scales[i]), White, 10, false, false);
+        PushRectOutline(Group, { 20, 0.1 * Group->Height + i * 20, 60, 20 }, Black);
+        PushTexturedRectCrop(Group, TurnQueue->BMPs[Turn], Rect, TurnQueue->BMPOffsets[Turn], Identity(TurnQueue->Scales[Turn]), White, 10, false, false);
     }
-    PushRectOutline(Group, { 20, 0.3 * Group->Height, 60, 20 }, Yellow);
+    PushRectOutline(Group, { 20, 0.1 * Group->Height, 60, 20 }, Yellow);
 }
 
 void ClearEntries(render_group* Group) {

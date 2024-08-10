@@ -476,6 +476,7 @@ enum combatant_type {
 
 struct stats {
     combatant_type Type;
+    int ATB;
     int HP;
     int MaxHP;
     int Strength;
@@ -546,12 +547,66 @@ struct combat_menu {
 };
 
 const int MAX_TURN_QUEUE_LENGTH = 10;
+const int MAX_COMBATANTS = 10;
 struct turn_queue {
-    int Length;
-    loaded_bmp* BMPs[MAX_TURN_QUEUE_LENGTH];
-    v3 BMPOffsets[MAX_TURN_QUEUE_LENGTH];
-    double Scales[MAX_TURN_QUEUE_LENGTH];
+    int CurrentTurn;
+    int Queue[MAX_TURN_QUEUE_LENGTH];
+    int ShowTurns;
+    int Combatants;
+    stats* Stats[MAX_COMBATANTS];
+    loaded_bmp* BMPs[MAX_COMBATANTS];
+    v3 BMPOffsets[MAX_COMBATANTS];
+    double Scales[MAX_COMBATANTS];
+    v3 RectOffsets[MAX_COMBATANTS];
 };
+
+void NextTurn(turn_queue* TurnQueue) {
+    for (int i = 0; i < TurnQueue->Combatants; i++) {
+        TurnQueue->Stats[i]->ATB += TurnQueue->Stats[i]->Speed;
+        if (TurnQueue->Stats[i]->ATB > 100) TurnQueue->Stats[i]->ATB = 100;
+    }
+    if (++TurnQueue->CurrentTurn == MAX_TURN_QUEUE_LENGTH) TurnQueue->CurrentTurn = 0;
+}
+
+void InitializeQueue(turn_queue* TurnQueue) {
+    int Filled = 0;
+    int Speeds[MAX_COMBATANTS] = { 0 };
+    int ATBs[MAX_COMBATANTS] = { 0 };
+    int FullATBs[MAX_COMBATANTS] = { 0 };
+    for (int i = 0; i < TurnQueue->Combatants; i++) {
+        Speeds[i] = TurnQueue->Stats[i]->Speed;
+        ATBs[i] = TurnQueue->Stats[i]->ATB;
+    }
+
+    int Actions = 0;
+    while (Filled < MAX_TURN_QUEUE_LENGTH) {
+        Actions = 0;
+        for (int i = 0; i < TurnQueue->Combatants; i++) {
+            if (ATBs[i] == 100) {
+                FullATBs[Actions++] = i;
+            }
+        }
+
+        if (Actions > 0) {
+            int Action = FullATBs[0];
+            int MaxSpeed = Speeds[Action];
+            for (int i = 1; i < Actions; i++) {
+                if (Speeds[FullATBs[i]] > MaxSpeed) {
+                    Action = FullATBs[i];
+                    MaxSpeed = Speeds[Action];
+                }
+            }
+            TurnQueue->Queue[Filled++] = Action;
+            ATBs[Action] = 0;
+        }
+        else {
+            for (int i = 0; i < TurnQueue->Combatants; i++) {
+                ATBs[i] += Speeds[i];
+                if (ATBs[i] > 100) ATBs[i] = 100;
+            }
+        }
+    }
+}
 
 struct UI {
     combat_menu CombatMenu;
