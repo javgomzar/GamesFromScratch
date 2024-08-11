@@ -232,22 +232,16 @@ void PushTriangle(render_group* Group, game_triangle Triangle, color Color) {
     Entry->Triangle = Triangle;
 }
 
-void PushCircle(render_group* Group, v3 Center, double Radius, color Color) {
-    int N = 0;
-    if (Radius > 10.0) {
-        N = 100;
-    }
-    else {
-        N = 10;
-    }
-    double dTheta = Tau / (double)N;
+void PushCircle(render_group* Group, v3 Center, double Radius, color Color, basis Basis = Identity()) {
+    int N = 100;
+    double dTheta = Tau / N;
     double Theta = 0;
     for (int i = 0; i < N; i++) {
         game_triangle Triangle = { 0 };
         Triangle.Points[0] = Center;
-        Triangle.Points[1] = Center + Radius * V3(cos(Theta), sin(Theta), Center.Z);
+        Triangle.Points[1] = Center + Radius * (cos(Theta) * Basis.X + sin(Theta) * Basis.Y);
         Theta += dTheta;
-        Triangle.Points[2] = Center + Radius * V3(cos(Theta), sin(Theta), Center.Z);
+        Triangle.Points[2] = Center + Radius * (cos(Theta) * Basis.X + sin(Theta) * Basis.Y);
         PushTriangle(Group, Triangle, Color);
     }
 }
