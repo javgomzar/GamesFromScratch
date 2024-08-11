@@ -234,6 +234,9 @@ void PushTriangle(render_group* Group, game_triangle Triangle, color Color) {
 
 void PushCircle(render_group* Group, v3 Center, double Radius, color Color, basis Basis = Identity()) {
     int N = 100;
+    if (Radius <= 10.0) {
+        N = 10;
+    }
     double dTheta = Tau / N;
     double Theta = 0;
     for (int i = 0; i < N; i++) {
