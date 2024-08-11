@@ -761,7 +761,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     ShadowColor.G = 0.1;
     ShadowColor.B = 0.1;
     ShadowColor.Alpha = 0.5;
-    // PushCircle(Group, V3(700, 300, 0), 50, ShadowColor);
+    PushCircle(Group, V3(pGameState->Enemy.Entity.Position.X + 100, 320, 0), 50, ShadowColor, Scale(Identity(), 1.0, 0.3, 1.0));
 
     if (!Player->Busy && !pGameState->Enemy.Busy) {
         NextTurn(&UserInterface->TurnQueue);

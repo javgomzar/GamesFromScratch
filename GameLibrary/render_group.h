@@ -1,7 +1,7 @@
 #pragma once
 #include "FFMPEG.h"
 
-const int MAX_ENTRIES = 500;
+const int MAX_ENTRIES = 3000;
 
 
 
