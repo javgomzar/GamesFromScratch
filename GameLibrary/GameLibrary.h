@@ -484,7 +484,6 @@ struct stats {
     int Strength;
     int Defense;
     int Speed;
-    bool Busy;
 };
 
 enum player_animation {
@@ -514,6 +513,7 @@ struct player {
             player_bone Sword;
         };
     };
+    bool Busy;
 };
 
 enum enemy_animation {
@@ -526,31 +526,37 @@ struct enemy {
     stats Stats;
     entity Entity;
     loaded_bmp* BMP;
+    loaded_bmp* BMP1;
+    loaded_bmp* BMP2;
+    loaded_bmp* BMP3;
+    loaded_bmp* BMP4;
     enemy_animation Animation;
+    bool Busy;
 };
 
 // User Interface
 struct button {
-    bool Clicked;
-    bool Active;
     game_rect Collider;
     loaded_bmp Image;
     loaded_bmp ClickedImage;
     string Text;
+    bool Clicked;
+    bool Active;
 };
 
 struct combat_menu {
-    bool Active;
     int Cursor;
     string AttackText;
     string TechniqueText;
     string MagicText;
     string ItemsText;
+    bool Active;
 };
 
 const int MAX_TURN_QUEUE_LENGTH = 10;
 const int MAX_COMBATANTS = 10;
 struct turn_queue {
+    double Time;
     int CurrentTurn;
     int Queue[MAX_TURN_QUEUE_LENGTH];
     int ShowTurns;
@@ -560,17 +566,11 @@ struct turn_queue {
     v3 BMPOffsets[MAX_COMBATANTS];
     double Scales[MAX_COMBATANTS];
     v3 RectOffsets[MAX_COMBATANTS];
+    bool Active;
+    bool Animating;
 };
 
-void NextTurn(turn_queue* TurnQueue) {
-    for (int i = 0; i < TurnQueue->Combatants; i++) {
-        TurnQueue->Stats[i]->ATB += TurnQueue->Stats[i]->Speed;
-        if (TurnQueue->Stats[i]->ATB > 100) TurnQueue->Stats[i]->ATB = 100;
-    }
-    if (++TurnQueue->CurrentTurn == MAX_TURN_QUEUE_LENGTH) TurnQueue->CurrentTurn = 0;
-}
-
-void InitializeQueue(turn_queue* TurnQueue) {
+void UpdateQueue(turn_queue* TurnQueue) {
     int Filled = 0;
     int Speeds[MAX_COMBATANTS] = { 0 };
     int ATBs[MAX_COMBATANTS] = { 0 };
@@ -610,6 +610,32 @@ void InitializeQueue(turn_queue* TurnQueue) {
     }
 }
 
+void NextTurn(turn_queue* TurnQueue) {
+    int* CurrentTurn = &TurnQueue->CurrentTurn;
+    TurnQueue->Stats[*CurrentTurn]->ATB = 0;
+    bool Done = false;
+    for (int i = 0; i < TurnQueue->Combatants; i++) {
+        if (i != *CurrentTurn) TurnQueue->Stats[i]->ATB += TurnQueue->Stats[i]->Speed;
+        if (TurnQueue->Stats[i]->ATB > 100) {
+            TurnQueue->Stats[i]->ATB = 100;
+            Done = true;
+        }
+    }
+
+    while (!Done) {
+        for (int i = 0; i < TurnQueue->Combatants; i++) {
+            TurnQueue->Stats[i]->ATB += TurnQueue->Stats[i]->Speed;
+            if (TurnQueue->Stats[i]->ATB > 100) {
+                TurnQueue->Stats[i]->ATB = 100;
+                Done = true;
+            }
+        }
+    }
+
+    *CurrentTurn = TurnQueue->Queue[1];
+    UpdateQueue(TurnQueue);
+}
+
 struct UI {
     combat_menu CombatMenu;
     turn_queue TurnQueue;
@@ -626,7 +652,6 @@ struct game_state {
     double Time;
     player Player;
     enemy Enemy;
-    stats* Turn;
     character Characters[];
 };
 

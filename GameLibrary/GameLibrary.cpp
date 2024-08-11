@@ -328,14 +328,14 @@ void RestoreDefault(player_bone* Bone) {
         {
             Bone->Bone.BMPOffset = V3(-8.0, -6.0, 0.0);
             Bone->Bone.Start = V3(10, 70, 15);
-            Bone->Bone.Finish = V3(10, 125, 0);
+            Bone->Bone.Finish = V3(10, 135, 0);
             Bone->Bone.Basis = Basis;
         } break;
         case RightArm:
         {
             Bone->Bone.BMPOffset = V3(-8.0, -6.0, 0.0);
             Bone->Bone.Start = V3(50, 70, 12);
-            Bone->Bone.Finish = V3(50, 125, 0);
+            Bone->Bone.Finish = V3(50, 135, 0);
             Bone->Bone.Basis = Basis;
         } break;
         case LeftHip:
@@ -368,9 +368,9 @@ void RestoreDefault(player_bone* Bone) {
         } break;
         case Sword:
         {
-            Bone->Bone.BMPOffset = V3(154, -16, 0);
-            Bone->Bone.Start = V3(50, 125, 5);
-            Bone->Bone.Finish = V3(200, 125, 0);
+            Bone->Bone.BMPOffset = V3(154, -20, 0);
+            Bone->Bone.Start = V3(50, 135, 5);
+            Bone->Bone.Finish = V3(200, 135, 0);
             Bone->Bone.Basis = Rotate(Basis, -Tau / 4.0);
         } break;
     }
@@ -385,12 +385,10 @@ void InitializeSkeleton(player* Player, basis Basis, game_assets* Assets) {
     PlayerBone(Head, &Player->Head, &Assets->HeadBMP, &Player->Spine, V3(-28.0, -66.0, 12.0), V3(30, 70, 0), V3(30, 35, 0), Basis);
     PlayerBone(LeftShoulder, &Player->LeftShoulder, 0, &Player->Spine, V3(0, 0, 0), V3(30, 70, 0), V3(10, 70, 0), Basis);
     PlayerBone(RightShoulder, &Player->RightShoulder, 0, &Player->Spine, V3(0, 0, 0), V3(30, 70, 0), V3(50, 70, 0), Basis);
-    PlayerBone(LeftArm, &Player->LeftArm, &Assets->ArmBMP, &Player->LeftShoulder, V3(-8.0, -6.0, 0), V3(10, 70, 15), V3(10, 125, 0), Basis);
-    PlayerBone(RightArm, &Player->RightArm, &Assets->ArmBMP, &Player->RightShoulder, V3(-8.0, -6.0, 0), V3(50, 70, 12), V3(50, 125, 0), Basis, true);
-    PlayerBone(Sword, &Player->Sword, &Assets->SwordBMP, &Player->RightArm, V3(154, -16, 0), V3(50,125,5), V3(200, 125,0), Rotate(Basis, -Tau / 4.0), true);
+    PlayerBone(LeftArm, &Player->LeftArm, &Assets->ArmBMP, &Player->LeftShoulder, V3(-8.0, -6.0, 0), V3(10, 70, 15), V3(10, 135, 0), Basis);
+    PlayerBone(RightArm, &Player->RightArm, &Assets->ArmBMP, &Player->RightShoulder, V3(-8.0, -6.0, 0), V3(50, 70, 12), V3(50, 135, 0), Basis, true);
+    PlayerBone(Sword, &Player->Sword, &Assets->SwordBMP, &Player->RightArm, V3(154, -20, 0), V3(50, 135, 5), V3(200, 135, 0), Rotate(Basis, -Tau / 4.0), true);
 }
-
-
 
 void Animate(player* Player, game_input* Input, double dt) {
     double* Time = &Player->Entity.Time;
@@ -485,7 +483,7 @@ void Animate(player* Player, game_input* Input, double dt) {
                 *CurrentAnimation = Player_Idle;
                 Returning = false;
                 Swinging = false;
-                Player->Stats.Busy = false;
+                Player->Busy = false;
             }
         } break;
 
@@ -497,6 +495,56 @@ void Animate(player* Player, game_input* Input, double dt) {
             Rotate(&Player->LeftArm.Bone, 0.02 * cos(10.0 * *Time));
             Rotate(&Player->RightArm.Bone, 0.02 * -cos(10.0 * *Time));
             *Time += dt;
+        } break;
+    }
+}
+
+void Animate(enemy* Enemy, double dt) {
+    double* Time = &Enemy->Entity.Time;
+    switch (Enemy->Animation) {
+        case Enemy_Idle:
+        {
+            static int Count = 0;
+            int Frames = 8;
+            if (Count > 3 * Frames) {
+                Count = 0;
+            }
+            else if (Count > 2 * Frames) {
+                Enemy->BMP = Enemy->BMP3;
+            }
+            else if (Count > Frames) {
+                Enemy->BMP = Enemy->BMP2;
+            }
+            else {
+                Enemy->BMP = Enemy->BMP1;
+            }
+            Count++;
+            Enemy->Entity.Position.Y = 80 + 20 * sin(Tau / 2.0 * *Time);
+            *Time += dt;
+        } break;
+
+        case Enemy_Attacking:
+        {
+            if (*Time > 1.0) {
+                Enemy->Entity.Position.X = 700;
+                Enemy->Entity.Time = 0;
+                Enemy->Animation = Enemy_Idle;
+                Enemy->Busy = false;
+            }
+            if (*Time > 0.5) {
+                Enemy->Entity.Position.X += 800.0 * dt;
+            }
+            else {
+                Enemy->Entity.Position.Y = 80;
+                Enemy->Entity.Position.X -= 800.0 * dt;
+            }
+
+            *Time += dt;
+        } break;
+
+        case Enemy_Defending:
+        {
+
         } break;
     }
 }
@@ -542,54 +590,62 @@ extern "C" GAME_UPDATE(GameUpdate)
             // Player
         Initialize(&pGameState->Player.Entity, V3(300, 150, 1));
         InitializeSkeleton(&pGameState->Player, Group->DefaultBasis, Assets);
+        Player->Busy = false;
         stats* PlayerStats = &pGameState->Player.Stats;
         PlayerStats->HP = 100;
         PlayerStats->MaxHP = 100;
         PlayerStats->Strength = 10;
         PlayerStats->Defense = 5;
-        PlayerStats->Speed = 10;
+        PlayerStats->Speed = 20;
         PlayerStats->ATB = 100;
-        PlayerStats->Busy = false;
 
             // Enemy
-        pGameState->Enemy.BMP = &Assets->EnemyBMP1;
-        stats* EnemyStats = &pGameState->Enemy.Stats;
+        enemy* Enemy = &pGameState->Enemy;
+        Enemy->Busy = false;
+        Enemy->BMP1 = &Assets->EnemyBMP1;
+        Enemy->BMP2 = &Assets->EnemyBMP2;
+        Enemy->BMP3 = &Assets->EnemyBMP3;
+        Enemy->BMP4 = &Assets->EnemyBMP4;
+        Enemy->BMP = Enemy->BMP1;
+        Enemy->Entity.Position = V3(700, 70, 0);
+        Enemy->Entity.Time = 0;
+        stats* EnemyStats = &Enemy->Stats;
         EnemyStats->HP = 100;
         EnemyStats->MaxHP = 100;
         EnemyStats->Strength = 10;
         EnemyStats->Defense = 5;
-        EnemyStats->Speed = 20;
+        EnemyStats->Speed = 12;
         EnemyStats->ATB = 100;
-        EnemyStats->Busy = false;
-
-            // Turn
-        pGameState->Turn = &Player->Stats;
 
         // User Interface
             // Initialize your UI elements here
         // Combat menu
-        UserInterface->CombatMenu.Active = true;
-        UserInterface->CombatMenu.Cursor = 0;
-        UserInterface->CombatMenu.AttackText = PushString(&pGameState->TextArena, 7, "Attack");
-        UserInterface->CombatMenu.TechniqueText = PushString(&pGameState->TextArena, 10, "Technique");
-        UserInterface->CombatMenu.MagicText = PushString(&pGameState->TextArena, 6, "Magic");
-        UserInterface->CombatMenu.ItemsText = PushString(&pGameState->TextArena, 6, "Items");
+        combat_menu* CombatMenu = &UserInterface->CombatMenu;
+        CombatMenu->Active = true;
+        CombatMenu->Cursor = 0;
+        CombatMenu->AttackText = PushString(&pGameState->TextArena, 7, "Attack");
+        CombatMenu->TechniqueText = PushString(&pGameState->TextArena, 10, "Technique");
+        CombatMenu->MagicText = PushString(&pGameState->TextArena, 6, "Magic");
+        CombatMenu->ItemsText = PushString(&pGameState->TextArena, 6, "Items");
 
         // Turn queue
-        UserInterface->TurnQueue.Combatants = 2;
-        UserInterface->TurnQueue.ShowTurns = 6;
-        UserInterface->TurnQueue.BMPs[0] = &Assets->HeadBMP;
-        UserInterface->TurnQueue.BMPs[1] = &Assets->EnemyBMP1;
-        UserInterface->TurnQueue.BMPOffsets[0] = V3(0.0, 3.0, 0.0);
-        UserInterface->TurnQueue.BMPOffsets[1] = V3(0, 15.0, 0);
-        UserInterface->TurnQueue.Scales[0] = 2.0;
-        UserInterface->TurnQueue.Scales[1] = 1.0;
-        UserInterface->TurnQueue.RectOffsets[0] = V3(15.0, 0.0, 0.0);
-        UserInterface->TurnQueue.RectOffsets[1] = V3(6.0, 0.0, 0.0);
-        UserInterface->TurnQueue.Stats[0] = &Player->Stats;
-        UserInterface->TurnQueue.Stats[1] = &Enemy->Stats;
+        turn_queue* TurnQueue = &UserInterface->TurnQueue;
+        TurnQueue->Time = 0;
+        TurnQueue->Combatants = 2;
+        TurnQueue->ShowTurns = 6;
+        TurnQueue->BMPs[0] = &Assets->HeadBMP;
+        TurnQueue->BMPs[1] = &Assets->EnemyBMP1;
+        TurnQueue->BMPOffsets[0] = V3(0.0, 3.0, 0.0);
+        TurnQueue->BMPOffsets[1] = V3(0, 15.0, 0);
+        TurnQueue->Scales[0] = 2.0;
+        TurnQueue->Scales[1] = 1.0;
+        TurnQueue->RectOffsets[0] = V3(15.0, 0.0, 0.0);
+        TurnQueue->RectOffsets[1] = V3(6.0, 0.0, 0.0);
+        TurnQueue->Stats[0] = &Player->Stats;
+        TurnQueue->Stats[1] = &Enemy->Stats;
 
-        InitializeQueue(&UserInterface->TurnQueue);
+        UpdateQueue(&UserInterface->TurnQueue);
+        TurnQueue->CurrentTurn = TurnQueue->Queue[0];
 
         Memory->IsInitialized = true;
     }
@@ -629,23 +685,27 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
     }
 
-    static int Counter = 0;
-    static bool Busy = pGameState->Turn;
-    if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown && 
-        UserInterface->CombatMenu.Cursor == 0 &&
-        !Enemy->Stats.Busy) {
-        Attack(pGameState->Player.Stats, &pGameState->Enemy.Stats);
-        Player->Stats.Busy = true;
-        Player->Animation = Player_Attacking;
+    if (Input->Keyboard.PageDown.IsDown && !Input->Keyboard.PageDown.WasDown) {
+        NextTurn(&UserInterface->TurnQueue);
     }
 
-    if (pGameState->Enemy.Stats.Busy) {
-        Counter++;
-        if (Counter == 100) {
-            Attack(pGameState->Enemy.Stats, &pGameState->Player.Stats);
-            Counter = 0;
-            pGameState->Enemy.Stats.Busy = false;
-        }
+    // Attack if it's the enemy's turn
+    if (UserInterface->TurnQueue.CurrentTurn == 0) {
+        Player->Busy = true;
+    }
+    if ((UserInterface->TurnQueue.CurrentTurn == 1) && !pGameState->Enemy.Busy) {
+        pGameState->Enemy.Busy = true;
+        pGameState->Enemy.Entity.Time = 0;
+        pGameState->Enemy.Animation = Enemy_Attacking;
+        Attack(pGameState->Enemy.Stats, &Player->Stats);
+    }
+
+    if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown && 
+        UserInterface->CombatMenu.Cursor == 0 &&
+        !Enemy->Busy) {
+        Attack(pGameState->Player.Stats, &pGameState->Enemy.Stats);
+        Player->Busy = true;
+        Player->Animation = Player_Attacking;
     }
 
     if (pGameState->ShowDebugInfo) {
@@ -688,32 +748,30 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushSkeleton(Group, 11, Player->Skeleton, Player->Entity.Position, pGameState->ShowDebugInfo);
 
         // Enemy
-    game_screen_position EnemyPosition = { 700, 70, 0 };
-    static int Count = 0;
-    if (Enemy->Entity.Time > 20) {
-        Enemy->Entity.Time = 0;
-        Enemy->BMP = &Assets->EnemyBMP1;
-    }
-    if (Enemy->Entity.Time > 15) {
-        Enemy->BMP = &Assets->EnemyBMP4;
-    }
-    else if (Enemy->Entity.Time > 10) {
-        Enemy->BMP = &Assets->EnemyBMP3;
-    }
-    else if (Enemy->Entity.Time > 5) {
-        Enemy->BMP = &Assets->EnemyBMP2;
-    }
-    Enemy->Entity.Time++;
-    game_rect EnemyRect = { EnemyPosition.X, EnemyPosition.Y + 20 * sin(4.0 * pGameState->Time), 200, 200 };
+    PushHealthBar(Group, { 750, 50, 0 }, pGameState->Enemy.Stats.HP, pGameState->Enemy.Stats.MaxHP);
+    Animate(&pGameState->Enemy, pGameState->dt);
+    game_rect EnemyRect;
+    EnemyRect.Left = pGameState->Enemy.Entity.Position.X;
+    EnemyRect.Top = pGameState->Enemy.Entity.Position.Y;
+    EnemyRect.Width = 200;
+    EnemyRect.Height = 200;
     PushTexturedRectClamp(Group, Enemy->BMP, EnemyRect);
-    PushHealthBar(Group, { EnemyPosition.X + 50, EnemyPosition.Y - 20, 0 }, pGameState->Enemy.Stats.HP, pGameState->Enemy.Stats.MaxHP);
+    color ShadowColor;
+    ShadowColor.R = 0.1;
+    ShadowColor.G = 0.1;
+    ShadowColor.B = 0.1;
+    ShadowColor.Alpha = 0.5;
+    // PushCircle(Group, V3(700, 300, 0), 50, ShadowColor);
+
+    if (!Player->Busy && !pGameState->Enemy.Busy) {
+        NextTurn(&UserInterface->TurnQueue);
+    }
 
         // Combat menu
     PushCombatMenu(Group, Assets->Characters, &pGameState->UserInterface.CombatMenu);
 
         // Turn queue
-    PushTurnQueue(Group, Assets, &UserInterface->TurnQueue);
-    
+    PushTurnQueue(Group, &UserInterface->TurnQueue);
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;

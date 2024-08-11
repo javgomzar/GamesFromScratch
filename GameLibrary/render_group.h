@@ -439,7 +439,7 @@ void PushHealthBar(render_group* Group, game_screen_position Position, int HP, i
     PushRect(Group, { Position.X, Position.Y, 100.0 * ((double)HP) / ((double)MaxHP), 4 }, Red, Position.Z + 1);
 }
 
-void PushTurnQueue(render_group* Group, game_assets* Assets, turn_queue* TurnQueue) {
+void PushTurnQueue(render_group* Group, turn_queue* TurnQueue) {
     for (int i = 0; i < TurnQueue->ShowTurns; i++) {
         int Turn = TurnQueue->Queue[i];
         double Width = TurnQueue->Scales[Turn] * TurnQueue->BMPs[Turn]->Header.Width;
