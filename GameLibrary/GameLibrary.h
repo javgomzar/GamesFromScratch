@@ -336,6 +336,14 @@ struct game_assets {
     loaded_bmp EnemyBMP2;
     loaded_bmp EnemyBMP3;
     loaded_bmp EnemyBMP4;
+    loaded_bmp HeadBMPInverted;
+    loaded_bmp ArmBMPInverted;
+    loaded_bmp TorsoBMPInverted;
+    loaded_bmp LegBMPInverted;
+    loaded_bmp EnemyBMP1Inverted;
+    loaded_bmp EnemyBMP2Inverted;
+    loaded_bmp EnemyBMP3Inverted;
+    loaded_bmp EnemyBMP4Inverted;
     game_sound TestSound;
     game_video TestVideo;
     string RenderArenaStr;
@@ -496,6 +504,7 @@ enum player_animation {
 struct player {
     stats Stats;
     entity Entity;
+    v3 DefaultPosition;
     player_animation Animation;
     union {
         player_bone Skeleton[12];
@@ -525,6 +534,7 @@ enum enemy_animation {
 struct enemy {
     stats Stats;
     entity Entity;
+    v3 DefaultPosition;
     loaded_bmp* BMP;
     loaded_bmp* BMP1;
     loaded_bmp* BMP2;
@@ -579,6 +589,9 @@ void UpdateQueue(turn_queue* TurnQueue) {
         Speeds[i] = TurnQueue->Stats[i]->Speed;
         ATBs[i] = TurnQueue->Stats[i]->ATB;
     }
+    //char Text[256];
+    //sprintf_s(Text, "STARTING UPDATE: %i, %i\n", ATBs[0], ATBs[1]);
+    //OutputDebugStringA(Text);
 
     int Actions = 0;
     while (Filled < MAX_TURN_QUEUE_LENGTH) {
@@ -600,19 +613,30 @@ void UpdateQueue(turn_queue* TurnQueue) {
             }
             TurnQueue->Queue[Filled++] = Action;
             ATBs[Action] = 0;
+            for (int i = 0; i < TurnQueue->Combatants; i++) {
+                if (i != Action) {
+                    ATBs[i] += Speeds[i];
+                    if (ATBs[i] > 100) ATBs[i] = 100;
+                }
+            }
+            //OutputDebugStringA("FILLED\n");
+            //sprintf_s(Text, "NEXT: %i, %i\n", ATBs[0], ATBs[1]);
+            //OutputDebugStringA(Text);
         }
         else {
             for (int i = 0; i < TurnQueue->Combatants; i++) {
                 ATBs[i] += Speeds[i];
                 if (ATBs[i] > 100) ATBs[i] = 100;
             }
+            //sprintf_s(Text, "NEXT: %i, %i\n", ATBs[0], ATBs[1]);
+            //OutputDebugStringA(Text);
         }
     }
 }
 
 void NextTurn(turn_queue* TurnQueue) {
     int* CurrentTurn = &TurnQueue->CurrentTurn;
-    TurnQueue->Stats[*CurrentTurn]->ATB = 0;
+    TurnQueue->Stats[*CurrentTurn]->ATB = 0; // Substract ATB of movement here
     bool Done = false;
     for (int i = 0; i < TurnQueue->Combatants; i++) {
         if (i != *CurrentTurn) TurnQueue->Stats[i]->ATB += TurnQueue->Stats[i]->Speed;
@@ -625,10 +649,8 @@ void NextTurn(turn_queue* TurnQueue) {
     while (!Done) {
         for (int i = 0; i < TurnQueue->Combatants; i++) {
             TurnQueue->Stats[i]->ATB += TurnQueue->Stats[i]->Speed;
-            if (TurnQueue->Stats[i]->ATB > 100) {
-                TurnQueue->Stats[i]->ATB = 100;
-                Done = true;
-            }
+            if (TurnQueue->Stats[i]->ATB > 100) TurnQueue->Stats[i]->ATB = 100;
+            if (TurnQueue->Stats[i]->ATB == 100) Done = true;
         }
     }
 
@@ -650,8 +672,10 @@ struct game_state {
     bool ShowDebugInfo;
     double dt;
     double Time;
-    player Player;
-    enemy Enemy;
+    player Player1;
+    player Player2;
+    enemy Enemy1;
+    enemy Enemy2;
     character Characters[];
 };
 

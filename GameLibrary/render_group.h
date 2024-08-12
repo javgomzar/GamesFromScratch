@@ -1,7 +1,7 @@
 #pragma once
 #include "FFMPEG.h"
 
-const int MAX_ENTRIES = 3000;
+const int MAX_ENTRIES = 1000;
 
 
 
@@ -369,7 +369,7 @@ void PushBone(render_group* Group, bone Bone, v3 Position, bool Debug = false) {
             (double)Bone.BMP->Header.Width * 4.0,
             (double)Bone.BMP->Header.Height * 4.0
         };
-        PushTexturedRectClamp(Group, Bone.BMP, Rect, Bone.Basis, White, Bone.Start.Z, Bone.FlipX, Bone.FlipY);
+        PushTexturedRectClamp(Group, Bone.BMP, Rect, Bone.Basis, White, Position.Z + Bone.Start.Z, Bone.FlipX, Bone.FlipY);
     }
     if (Debug) {
         double Z = Bone.BMPOffset.Z + 100.0;
@@ -431,7 +431,7 @@ void PushCombatMenu(render_group* Group, character* Characters, combat_menu* Men
     }
 }
 
-void PushHealthBar(render_group* Group, game_screen_position Position, int HP, int MaxHP) {
+void PushHealthBar(render_group* Group, v3 Position, int HP, int MaxHP) {
     PushRect(Group, { Position.X, Position.Y, 100, 4 }, DarkGray, Position.Z);
     PushRect(Group, { Position.X, Position.Y, 100.0 * ((double)HP) / ((double)MaxHP), 4 }, Red, Position.Z + 1);
 }
