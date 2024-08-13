@@ -256,9 +256,9 @@ void PushTexturedRectClamp(
     render_group* Group,
     loaded_bmp* Texture,
     game_rect Rect,
+    double Z = 0.0,
     basis Basis = Identity(1.0),
     color Color = White,
-    double Z = 0.0,
     bool FlipX = false, bool FlipY = false
 ) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
@@ -280,9 +280,9 @@ void PushTexturedRectRepeat(
     render_group* Group,
     loaded_bmp* Texture,
     game_rect Rect,
+    double Z = 0.0,
     basis Basis = Identity(1.0),
     color Color = White,
-    double Z = 0.0,
     bool FlipX = false, bool FlipY = false
 ) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
@@ -312,9 +312,9 @@ void PushTexturedRectCrop(
     loaded_bmp* Texture,
     game_rect Rect,
     v3 Offset = V3(0,0,0),
+    double Z = 0.0,
     basis Basis = Identity(1.0),
     color Color = White,
-    double Z = 0.0,
     bool FlipX = false, bool FlipY = false
 ) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
