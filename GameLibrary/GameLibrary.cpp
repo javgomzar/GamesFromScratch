@@ -806,6 +806,9 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 980);
         PushRectOutline(Group, DebugInfoRect, Gray);
         PushText(Group, { 0,30,981 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
+        char DebugTurn[32];
+        sprintf_s(DebugTurn, "CURRENT TURN: %i\n", UserInterface->TurnQueue.CurrentTurn);
+        OutputDebugStringA(DebugTurn);
 
         // Render Arena
         double RenderArenaPercentage = (double)pGameState->RenderArena.Used / (double)pGameState->RenderArena.Size;
@@ -845,8 +848,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     Animate(Player2, Input, pGameState->dt);
     PushSkeleton(Group, 11, Player2->Skeleton, Player2->Entity.Position, pGameState->ShowDebugInfo);
 
-        // Enemy
-    PushHealthBar(Group, { Enemy1->Entity.Position.X + 50, Enemy1->Entity.Position.Y - 20, 0}, Enemy1->Stats.HP, Enemy1->Stats.MaxHP);
+        // Enemy 1
+    PushHealthBar(Group, Enemy1->Entity.Position + V3(50, -20, 0), Enemy1->Stats.HP, Enemy1->Stats.MaxHP);
     Animate(Enemy1, pGameState->dt);
     game_rect EnemyRect1;
     EnemyRect1.Left = Enemy1->Entity.Position.X;
@@ -861,8 +864,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     ShadowColor.Alpha = 0.5;
     PushCircle(Group, V3(Enemy1->Entity.Position.X + 100, Enemy1->DefaultPosition.Y + 250, 0), 50, ShadowColor, Scale(Identity(), 1.0, 0.3, 1.0));
 
-        // Enemy2
-    PushHealthBar(Group, { Enemy2->Entity.Position.X + 50, Enemy2->Entity.Position.Y - 20, 0 }, Enemy2->Stats.HP, Enemy2->Stats.MaxHP);
+        // Enemy 2
+    PushHealthBar(Group, Enemy2->Entity.Position + V3(50, -20, 0), Enemy2->Stats.HP, Enemy2->Stats.MaxHP);
     Animate(Enemy2, pGameState->dt);
     game_rect EnemyRect2;
     EnemyRect2.Left = Enemy2->Entity.Position.X;

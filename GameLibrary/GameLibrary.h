@@ -590,7 +590,7 @@ void UpdateQueue(turn_queue* TurnQueue) {
         ATBs[i] = TurnQueue->Stats[i]->ATB;
     }
     //char Text[256];
-    //sprintf_s(Text, "STARTING UPDATE: %i, %i\n", ATBs[0], ATBs[1]);
+    //sprintf_s(Text, "STARTING UPDATE: %i, %i, %i, %i\n", ATBs[0], ATBs[1], ATBs[2], ATBs[3]);
     //OutputDebugStringA(Text);
 
     int Actions = 0;
@@ -619,16 +619,16 @@ void UpdateQueue(turn_queue* TurnQueue) {
                     if (ATBs[i] > 100) ATBs[i] = 100;
                 }
             }
-            //OutputDebugStringA("FILLED\n");
-            //sprintf_s(Text, "NEXT: %i, %i\n", ATBs[0], ATBs[1]);
-            //OutputDebugStringA(Text);
+            /*OutputDebugStringA("FILLED\n");
+            sprintf_s(Text, "NEXT: %i, %i, %i, %i\n", ATBs[0], ATBs[1], ATBs[2], ATBs[3]);
+            OutputDebugStringA(Text);*/
         }
         else {
             for (int i = 0; i < TurnQueue->Combatants; i++) {
                 ATBs[i] += Speeds[i];
                 if (ATBs[i] > 100) ATBs[i] = 100;
             }
-            //sprintf_s(Text, "NEXT: %i, %i\n", ATBs[0], ATBs[1]);
+            //sprintf_s(Text, "NEXT: %i, %i, %i, %i\n", ATBs[0], ATBs[1], ATBs[2], ATBs[3]);
             //OutputDebugStringA(Text);
         }
     }
@@ -640,7 +640,7 @@ void NextTurn(turn_queue* TurnQueue) {
     bool Done = false;
     for (int i = 0; i < TurnQueue->Combatants; i++) {
         if (i != *CurrentTurn) TurnQueue->Stats[i]->ATB += TurnQueue->Stats[i]->Speed;
-        if (TurnQueue->Stats[i]->ATB > 100) {
+        if (TurnQueue->Stats[i]->ATB >= 100) {
             TurnQueue->Stats[i]->ATB = 100;
             Done = true;
         }
@@ -654,8 +654,12 @@ void NextTurn(turn_queue* TurnQueue) {
         }
     }
 
-    *CurrentTurn = TurnQueue->Queue[1];
+    int PredictedTurn = TurnQueue->Queue[1];
     UpdateQueue(TurnQueue);
+    *CurrentTurn = TurnQueue->Queue[0];
+    if (*CurrentTurn != PredictedTurn) {
+        Assert(false);
+    }
 }
 
 struct UI {
