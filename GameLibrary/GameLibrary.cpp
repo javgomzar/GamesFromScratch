@@ -22,6 +22,16 @@
 //    return;
 //}
 
+/*
+    TODO LIST : 
+    - Submenus
+    - Select enemy to be attacked
+    - Alternate between combat and walking
+    - Dying in combat
+    - Magic animation
+*/
+
+
 // Game logic
 bool Collision(game_rect Rect, game_screen_position Cursor) {
     return Cursor.X > Rect.Left &&
@@ -612,41 +622,36 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Game state
             // Player 1
-        Initialize(&pGameState->Player1.Entity, V3(300, 150, 1));
-        Player1->DefaultPosition = V3(300, 150, 1);
+        Initialize(&pGameState->Player1.Entity, V3(250, 150, 1));
+        Player1->DefaultPosition = V3(250, 150, 1);
         InitializeSkeleton(&pGameState->Player1, Group->DefaultBasis, Assets);
-        Player1->Busy = false;
         stats* PlayerStats1 = &pGameState->Player1.Stats;
         PlayerStats1->HP = 100;
         PlayerStats1->MaxHP = 100;
         PlayerStats1->Strength = 30;
         PlayerStats1->Defense = 8;
         PlayerStats1->Speed = 10;
-        PlayerStats1->ATB = 100;
 
             // Player 2
         Initialize(&pGameState->Player2.Entity, V3(300, 250, 40));
         Player2->DefaultPosition = V3(300, 250, 40);
         InitializeSkeletonInverted(&pGameState->Player2, Group->DefaultBasis, Assets);
-        Player2->Busy = false;
         stats* PlayerStats2 = &pGameState->Player2.Stats;
         PlayerStats2->HP = 100;
         PlayerStats2->MaxHP = 100;
         PlayerStats2->Strength = 10;
         PlayerStats2->Defense = 5;
         PlayerStats2->Speed = 30;
-        PlayerStats2->ATB = 100;
 
             // Enemy 1
         enemy* Enemy1 = &pGameState->Enemy1;
-        Enemy1->Busy = false;
         Enemy1->BMP1 = &Assets->EnemyBMP1;
         Enemy1->BMP2 = &Assets->EnemyBMP2;
         Enemy1->BMP3 = &Assets->EnemyBMP3;
         Enemy1->BMP4 = &Assets->EnemyBMP4;
         Enemy1->BMP = Enemy1->BMP1;
-        Enemy1->Entity.Position = V3(700, 120, 0);
-        Enemy1->DefaultPosition = V3(700, 120, 0);
+        Enemy1->Entity.Position = V3(650, 120, 0);
+        Enemy1->DefaultPosition = V3(650, 120, 0);
         Enemy1->Entity.Time = 0;
         stats* EnemyStats1 = &Enemy1->Stats;
         EnemyStats1->HP = 100;
@@ -654,11 +659,9 @@ extern "C" GAME_UPDATE(GameUpdate)
         EnemyStats1->Strength = 15;
         EnemyStats1->Defense = 5;
         EnemyStats1->Speed = 15;
-        EnemyStats1->ATB = 100;
 
-        // Enemy 2
+            // Enemy 2
         enemy* Enemy2 = &pGameState->Enemy2;
-        Enemy2->Busy = false;
         Enemy2->BMP1 = &Assets->EnemyBMP1Inverted;
         Enemy2->BMP2 = &Assets->EnemyBMP2Inverted;
         Enemy2->BMP3 = &Assets->EnemyBMP3Inverted;
@@ -673,47 +676,41 @@ extern "C" GAME_UPDATE(GameUpdate)
         EnemyStats2->Strength = 10;
         EnemyStats2->Defense = 5;
         EnemyStats2->Speed = 20;
-        EnemyStats2->ATB = 100;
+
+        // Turn queue
+        turn_queue* TurnQueue = &pGameState->TurnQueue;
+        TurnQueue->Time = 0;
+        TurnQueue->nCombatants = 4;
+        TurnQueue->ShowTurns = 8;
+        TurnQueue->Combatants[0] = Combatant(Player1);
+        TurnQueue->Combatants[1] = Combatant(Player2);
+        TurnQueue->Combatants[2] = Combatant(Enemy1);
+        TurnQueue->Combatants[3] = Combatant(Enemy2);
+
+        UpdateQueue(&pGameState->TurnQueue);
+        TurnQueue->CurrentTurn = TurnQueue->Queue[0];
+        TurnQueue->CurrentCombatant = &TurnQueue->Combatants[TurnQueue->CurrentTurn];
 
         // User Interface
             // Initialize your UI elements here
         // Combat menu
-        combat_menu* CombatMenu = &UserInterface->CombatMenu;
+        menu* CombatMenu = &UserInterface->CombatMenu;
         CombatMenu->Active = true;
         CombatMenu->Cursor = 0;
-        CombatMenu->AttackText = PushString(&pGameState->TextArena, 7, "Attack");
-        CombatMenu->TechniqueText = PushString(&pGameState->TextArena, 10, "Technique");
-        CombatMenu->MagicText = PushString(&pGameState->TextArena, 6, "Magic");
-        CombatMenu->ItemsText = PushString(&pGameState->TextArena, 6, "Items");
+        CombatMenu->Length = 4;
+        CombatMenu->Options[0] = PushString(&pGameState->TextArena, 7, "Attack");
+        CombatMenu->Options[1] = PushString(&pGameState->TextArena, 10, "Technique");
+        CombatMenu->Options[2] = PushString(&pGameState->TextArena, 6, "Magic");
+        CombatMenu->Options[3] = PushString(&pGameState->TextArena, 6, "Items");
 
-        // Turn queue
-        turn_queue* TurnQueue = &UserInterface->TurnQueue;
-        TurnQueue->Time = 0;
-        TurnQueue->Combatants = 4;
-        TurnQueue->ShowTurns = 8;
-        TurnQueue->BMPs[0] = &Assets->HeadBMP;
-        TurnQueue->BMPs[1] = &Assets->HeadBMPInverted;
-        TurnQueue->BMPs[2] = &Assets->EnemyBMP1;
-        TurnQueue->BMPs[3] = &Assets->EnemyBMP1Inverted;
-        TurnQueue->BMPOffsets[0] = V3(0.0, 3.0, 0.0);
-        TurnQueue->BMPOffsets[1] = V3(0.0, 3.0, 0.0);
-        TurnQueue->BMPOffsets[2] = V3(0, 15.0, 0);
-        TurnQueue->BMPOffsets[3] = V3(0, 15.0, 0);
-        TurnQueue->Scales[0] = 2.0;
-        TurnQueue->Scales[1] = 2.0;
-        TurnQueue->Scales[2] = 1.0;
-        TurnQueue->Scales[3] = 1.0;
-        TurnQueue->RectOffsets[0] = V3(15.0, 0.0, 0.0);
-        TurnQueue->RectOffsets[1] = V3(15.0, 0.0, 0.0);
-        TurnQueue->RectOffsets[2] = V3(6.0, 0.0, 0.0);
-        TurnQueue->RectOffsets[3] = V3(6.0, 0.0, 0.0);
-        TurnQueue->Stats[0] = &Player1->Stats;
-        TurnQueue->Stats[1] = &Player2->Stats;
-        TurnQueue->Stats[2] = &Enemy1->Stats;
-        TurnQueue->Stats[3] = &Enemy2->Stats;
+        menu* TechniquesMenu = &UserInterface->TechniquesMenu;
+        TechniquesMenu->Active = false;
 
-        UpdateQueue(&UserInterface->TurnQueue);
-        TurnQueue->CurrentTurn = TurnQueue->Queue[0];
+        menu* MagicMenu = &UserInterface->MagicMenu;
+        MagicMenu->Active = false;
+
+        menu* ItemsMenu = &UserInterface->ItemsMenu;
+        ItemsMenu->Active = false;
 
         Memory->IsInitialized = true;
     }
@@ -754,51 +751,38 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     if (Input->Keyboard.PageDown.IsDown && !Input->Keyboard.PageDown.WasDown) {
-        NextTurn(&UserInterface->TurnQueue);
+        NextTurn(&pGameState->TurnQueue);
     }
 
-    // Attack if it's the enemy's turn
-    switch (UserInterface->TurnQueue.CurrentTurn) {
-        case 0:
-        {
-            Player1->Busy = true;
-            if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown &&
-                UserInterface->CombatMenu.Cursor == 0 &&
-                !Enemy1->Busy && !Enemy2->Busy) {
-                Attack(pGameState->Player1.Stats, &pGameState->Enemy1.Stats);
-                Player1->Busy = true;
-                Player1->Animation = Player_Attacking;
-            }
-        } break;
-        case 1:
-        {
-            Player2->Busy = true;
-            if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown &&
-                UserInterface->CombatMenu.Cursor == 0 &&
-                !Enemy1->Busy && !Enemy2->Busy) {
-                Attack(pGameState->Player2.Stats, &pGameState->Enemy2.Stats);
-                Player2->Busy = true;
-                Player2->Animation = Player_Attacking;
-            }
-        } break;
-        case 2:
-        {
-            if (!pGameState->Enemy1.Busy && !pGameState->Enemy2.Busy) {
-                pGameState->Enemy1.Busy = true;
-                pGameState->Enemy1.Entity.Time = 0;
-                pGameState->Enemy1.Animation = Enemy_Attacking;
-                Attack(pGameState->Enemy1.Stats, &Player1->Stats);
-            }
-        } break;
-        case 3:
-        {
-            if (!pGameState->Enemy1.Busy && !pGameState->Enemy2.Busy) {
-                pGameState->Enemy2.Busy = true;
-                pGameState->Enemy2.Entity.Time = 0;
-                pGameState->Enemy2.Animation = Enemy_Attacking;
-                Attack(pGameState->Enemy2.Stats, &Player2->Stats);
-            }
-        } break;
+    // Attacks
+    bool EnemiesBusy = false;
+    for (int i = 0; i < pGameState->TurnQueue.nCombatants; i++) {
+        combatant Combatant = pGameState->TurnQueue.Combatants[i];
+        if (Combatant.Type == Enemy && IsBusy(Combatant)) {
+            EnemiesBusy = true;
+            break;
+        }
+    }
+
+    combatant* CurrentCombatant = pGameState->TurnQueue.CurrentCombatant;
+    if (CurrentCombatant->Type == Enemy && !EnemiesBusy) {
+        enemy* Enemy = (enemy*)CurrentCombatant->Origin;
+        Enemy->Busy = true;
+        Enemy->Entity.Time = 0;
+        Enemy->Animation = Enemy_Attacking;
+        stats* Victim = pGameState->TurnQueue.CurrentTurn == 2 ? &Player1->Stats : &Player2->Stats;
+        Attack(Enemy->Stats, Victim);
+    }
+    else if (CurrentCombatant->Type == Player) {
+        player* CurrentPlayer = (player*)CurrentCombatant->Origin;
+        CurrentPlayer->Busy = true;
+
+        if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown && 
+            UserInterface->CombatMenu.Cursor == 0 && !EnemiesBusy) {
+            CurrentPlayer->Animation = Player_Attacking;
+            stats* Victim = pGameState->TurnQueue.CurrentTurn == 0 ? &Enemy1->Stats : &Enemy2->Stats;
+            Attack(CurrentPlayer->Stats, Victim);
+        }
     }
 
     if (pGameState->ShowDebugInfo) {
@@ -806,9 +790,6 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 980);
         PushRectOutline(Group, DebugInfoRect, Gray);
         PushText(Group, { 0,30,981 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
-        char DebugTurn[32];
-        sprintf_s(DebugTurn, "CURRENT TURN: %i\n", UserInterface->TurnQueue.CurrentTurn);
-        OutputDebugStringA(DebugTurn);
 
         // Render Arena
         double RenderArenaPercentage = (double)pGameState->RenderArena.Used / (double)pGameState->RenderArena.Size;
@@ -856,7 +837,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     EnemyRect1.Top = Enemy1->Entity.Position.Y;
     EnemyRect1.Width = 200;
     EnemyRect1.Height = 200;
-    PushTexturedRectClamp(Group, Enemy1->BMP, EnemyRect1);
+    PushTexturedRectClamp(Group, Enemy1->BMP, EnemyRect1, Enemy1->Entity.Position.Z);
     color ShadowColor;
     ShadowColor.R = 0.1;
     ShadowColor.G = 0.1;
@@ -872,18 +853,27 @@ extern "C" GAME_UPDATE(GameUpdate)
     EnemyRect2.Top = Enemy2->Entity.Position.Y;
     EnemyRect2.Width = 200;
     EnemyRect2.Height = 200;
-    PushTexturedRectClamp(Group, Enemy2->BMP, EnemyRect2);
+    PushTexturedRectClamp(Group, Enemy2->BMP, EnemyRect2, Enemy2->Entity.Position.Z);
     PushCircle(Group, V3(Enemy2->Entity.Position.X + 100, Enemy2->DefaultPosition.Y + 250, 0), 50, ShadowColor, Scale(Identity(), 1.0, 0.3, 1.0));
 
     if (!Player1->Busy && !Enemy1->Busy && !Player2->Busy && !Enemy2->Busy) {
-        NextTurn(&UserInterface->TurnQueue);
+        NextTurn(&pGameState->TurnQueue);
     }
 
         // Combat menu
-    PushCombatMenu(Group, Assets->Characters, &pGameState->UserInterface.CombatMenu);
+    PushMenu(Group, Assets->Characters, &pGameState->UserInterface.CombatMenu);
+
+        // Technique submenu
+    PushMenu(Group, Assets->Characters, &pGameState->UserInterface.TechniquesMenu);
+    
+        // Magic submenu
+    PushMenu(Group, Assets->Characters, &pGameState->UserInterface.CombatMenu);
+
+        // Items submenu
+    PushMenu(Group, Assets->Characters, &pGameState->UserInterface.CombatMenu);
 
         // Turn queue
-    PushTurnQueue(Group, &UserInterface->TurnQueue);
+    PushTurnQueue(Group, &pGameState->TurnQueue);
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;

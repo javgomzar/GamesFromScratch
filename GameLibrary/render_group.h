@@ -367,7 +367,7 @@ void PushBone(render_group* Group, bone Bone, v3 Position, bool Debug = false) {
             (double)Bone.BMP->Header.Width * 4.0,
             (double)Bone.BMP->Header.Height * 4.0
         };
-        PushTexturedRectClamp(Group, Bone.BMP, Rect, Bone.Basis, White, Position.Z + Bone.Start.Z, Bone.FlipX, Bone.FlipY);
+        PushTexturedRectClamp(Group, Bone.BMP, Rect, Position.Z + Bone.Start.Z, Bone.Basis, White, Bone.FlipX, Bone.FlipY);
     }
     if (Debug) {
         double Z = Bone.BMPOffset.Z + 100.0;
@@ -398,24 +398,18 @@ void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
     Entry->Rect = Rect;
 }
 
-void PushCombatMenu(render_group* Group, character* Characters, combat_menu* Menu) {
+void PushMenu(render_group* Group, character* Characters, menu* Menu) {
     if (Menu->Active) {
         // Background
         game_rect MenuRect = { 0, Group->Height - 250, 200, 250 };
         PushRect(Group, MenuRect, DarkGray, 500);
 
-        game_screen_position AttackTextPosition = { 50, Group->Height - 200, 501 };
-        PushText(Group, AttackTextPosition, Characters, White, 16, Menu->AttackText, false);
+        // Text
+        for (int i = 0; i < min(Menu->Length, 4); i++) {
+            PushText(Group, { 25, Group->Height - (double)(200 - 50*i), 501 }, Characters, White, 16, Menu->Options[i], false);
+        }
 
-        game_screen_position TechniqueTextPosition = { 25, Group->Height - 150, 501 };
-        PushText(Group, TechniqueTextPosition, Characters, White, 16, Menu->TechniqueText, false);
-
-        game_screen_position MagicTextPosition = { 60, Group->Height - 100, 501 };
-        PushText(Group, MagicTextPosition, Characters, White, 16, Menu->MagicText, false);
-
-        game_screen_position ItemsTextPosition = { 60, Group->Height - 50, 501 };
-        PushText(Group, ItemsTextPosition, Characters, White, 16, Menu->ItemsText, false);
-
+        // Cursor
         v3 CursorPosition = V3(0, Group->Height - 198 + 50 * Menu->Cursor, 501);
         game_triangle Triangle = {
             V3(CursorPosition.X, CursorPosition.Y - 10, 502),
@@ -437,15 +431,15 @@ void PushHealthBar(render_group* Group, v3 Position, int HP, int MaxHP) {
 void PushTurnQueue(render_group* Group, turn_queue* TurnQueue) {
     for (int i = 0; i < TurnQueue->ShowTurns; i++) {
         int Turn = TurnQueue->Queue[i];
-        double Width = TurnQueue->Scales[Turn] * TurnQueue->BMPs[Turn]->Header.Width;
-        v3 Offset = TurnQueue->RectOffsets[Turn];
+        miniature Miniature = TurnQueue->Combatants[Turn].Miniature;
+        double Width = Miniature.Scale * Miniature.BMP->Header.Width;
         game_rect Rect = {
-            20 + Offset.X, 
-            0.1*Group->Height + i*20 + Offset.Y,
+            20 + Miniature.RectOffset.X, 
+            0.1*Group->Height + i*20 + Miniature.RectOffset.Y,
             Width, 20};
         
         PushRectOutline(Group, { 20, 0.1 * Group->Height + i * 20, 60, 20 }, Black);
-        PushTexturedRectCrop(Group, TurnQueue->BMPs[Turn], Rect, TurnQueue->BMPOffsets[Turn], Identity(TurnQueue->Scales[Turn]), White, 10, false, false);
+        PushTexturedRectCrop(Group, Miniature.BMP, Rect, Miniature.BMPOffset, 10, Identity(Miniature.Scale), White, false, false);
     }
     PushRectOutline(Group, { 20, 0.1 * Group->Height, 60, 20 }, Yellow);
 }

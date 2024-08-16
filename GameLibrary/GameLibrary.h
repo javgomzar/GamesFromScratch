@@ -484,14 +484,69 @@ enum combatant_type {
     Enemy
 };
 
+struct miniature {
+    loaded_bmp* BMP;
+    v3 BMPOffset;
+    v3 RectOffset;
+    double Scale;
+};
+
 struct stats {
-    combatant_type Type;
-    int ATB;
     int HP;
     int MaxHP;
     int Strength;
     int Defense;
     int Speed;
+};
+
+stats Bonus(int HP = 0, int MaxHP = 0, int Strength = 0, int Defense = 0, int Speed = 0) {
+    return { HP, MaxHP, Strength, Defense, Speed };
+}
+
+stats operator+(stats Stats, stats Bonus) {
+    stats Result;
+    Result.HP = Stats.HP + Bonus.HP;
+    Result.MaxHP = Stats.MaxHP + Bonus.MaxHP;
+    Result.Strength = Stats.Strength + Bonus.Strength;
+    Result.Defense = Stats.Defense + Bonus.Defense;
+    Result.Speed = Stats.Speed + Bonus.Speed;
+    return Result;
+}
+
+stats operator-(stats Stats, stats Bonus) {
+    stats Result;
+    Result.HP = Stats.HP - Bonus.HP;
+    Result.MaxHP = Stats.MaxHP - Bonus.MaxHP;
+    Result.Strength = Stats.Strength - Bonus.Strength;
+    Result.Defense = Stats.Defense - Bonus.Defense;
+    Result.Speed = Stats.Speed - Bonus.Speed;
+    return Result;
+}
+
+// Techniques
+const int MAX_TECHNIQUES = 10;
+struct technique {
+    int ATBCost;
+    stats Bonus;
+};
+
+technique FAST_ATTACK = {
+    50,
+
+};
+
+// Magic
+const int MAX_SPELLS = 10;
+struct spell {
+    int ATBCost;
+    stats Bonus;
+};
+
+// Items
+const int MAX_ITEMS = 10;
+struct item {
+    int ATBCost;
+    stats Bonus;
 };
 
 enum player_animation {
@@ -506,6 +561,12 @@ struct player {
     entity Entity;
     v3 DefaultPosition;
     player_animation Animation;
+    int nTechniques;
+    technique Techniques[MAX_TECHNIQUES];
+    int nSpells;
+    spell Spells[MAX_SPELLS];
+    int nItems;
+    item Items[MAX_ITEMS];
     union {
         player_bone Skeleton[12];
         struct {
@@ -544,6 +605,58 @@ struct enemy {
     bool Busy;
 };
 
+// Combat
+struct combatant {
+    combatant_type Type;
+    miniature Miniature;
+    int ATB;
+    stats* Stats;
+    void* Origin;
+};
+
+combatant Combatant(player* pPlayer) {
+    combatant Result;
+    Result.Type = Player;
+    Result.ATB = 100;
+    Result.Stats = &pPlayer->Stats;
+    Result.Origin = (void*)pPlayer;
+
+    miniature Miniature;
+    Miniature.BMP = pPlayer->Head.Bone.BMP;
+    Miniature.BMPOffset = V3(0.0, 3.0, 0.0);
+    Miniature.RectOffset = V3(15.0, 0.0, 0.0);
+    Miniature.Scale = 2.0;
+    Result.Miniature = Miniature;
+    return Result;
+}
+
+combatant Combatant(enemy* pEnemy) {
+    combatant Result;
+    Result.Type = Enemy;
+    Result.ATB = 100;
+    Result.Stats = &pEnemy->Stats;
+    Result.Origin = (void*)pEnemy;
+
+    miniature Miniature;
+    Miniature.BMP = pEnemy->BMP1;
+    Miniature.BMPOffset = V3(0.0, 15.0, 0.0);
+    Miniature.Scale = 1.0;
+    Miniature.RectOffset = V3(6.0, 0.0, 0.0);
+    Result.Miniature = Miniature;
+    return Result;
+}
+
+bool IsBusy(combatant Combatant) {
+    if (Combatant.Type == Player) {
+        player* pPlayer = (player*)Combatant.Origin;
+        return pPlayer->Busy;
+    }
+    else if (Combatant.Type == Enemy) {
+        enemy* pEnemy = (enemy*)Combatant.Origin;
+        return pEnemy->Busy;
+    }
+}
+
 // User Interface
 struct button {
     game_rect Collider;
@@ -554,12 +667,11 @@ struct button {
     bool Active;
 };
 
-struct combat_menu {
+const int MAX_MENU_ITEMS = 10;
+struct menu {
     int Cursor;
-    string AttackText;
-    string TechniqueText;
-    string MagicText;
-    string ItemsText;
+    int Length;
+    string Options[MAX_MENU_ITEMS];
     bool Active;
 };
 
@@ -568,14 +680,11 @@ const int MAX_COMBATANTS = 10;
 struct turn_queue {
     double Time;
     int CurrentTurn;
+    combatant* CurrentCombatant;
     int Queue[MAX_TURN_QUEUE_LENGTH];
     int ShowTurns;
-    int Combatants;
-    stats* Stats[MAX_COMBATANTS];
-    loaded_bmp* BMPs[MAX_COMBATANTS];
-    v3 BMPOffsets[MAX_COMBATANTS];
-    double Scales[MAX_COMBATANTS];
-    v3 RectOffsets[MAX_COMBATANTS];
+    int nCombatants;
+    combatant Combatants[MAX_COMBATANTS];
     bool Active;
     bool Animating;
 };
@@ -585,9 +694,9 @@ void UpdateQueue(turn_queue* TurnQueue) {
     int Speeds[MAX_COMBATANTS] = { 0 };
     int ATBs[MAX_COMBATANTS] = { 0 };
     int FullATBs[MAX_COMBATANTS] = { 0 };
-    for (int i = 0; i < TurnQueue->Combatants; i++) {
-        Speeds[i] = TurnQueue->Stats[i]->Speed;
-        ATBs[i] = TurnQueue->Stats[i]->ATB;
+    for (int i = 0; i < TurnQueue->nCombatants; i++) {
+        Speeds[i] = TurnQueue->Combatants[i].Stats->Speed;
+        ATBs[i] = TurnQueue->Combatants[i].ATB;
     }
     //char Text[256];
     //sprintf_s(Text, "STARTING UPDATE: %i, %i, %i, %i\n", ATBs[0], ATBs[1], ATBs[2], ATBs[3]);
@@ -596,7 +705,7 @@ void UpdateQueue(turn_queue* TurnQueue) {
     int Actions = 0;
     while (Filled < MAX_TURN_QUEUE_LENGTH) {
         Actions = 0;
-        for (int i = 0; i < TurnQueue->Combatants; i++) {
+        for (int i = 0; i < TurnQueue->nCombatants; i++) {
             if (ATBs[i] == 100) {
                 FullATBs[Actions++] = i;
             }
@@ -613,7 +722,7 @@ void UpdateQueue(turn_queue* TurnQueue) {
             }
             TurnQueue->Queue[Filled++] = Action;
             ATBs[Action] = 0;
-            for (int i = 0; i < TurnQueue->Combatants; i++) {
+            for (int i = 0; i < TurnQueue->nCombatants; i++) {
                 if (i != Action) {
                     ATBs[i] += Speeds[i];
                     if (ATBs[i] > 100) ATBs[i] = 100;
@@ -624,7 +733,7 @@ void UpdateQueue(turn_queue* TurnQueue) {
             OutputDebugStringA(Text);*/
         }
         else {
-            for (int i = 0; i < TurnQueue->Combatants; i++) {
+            for (int i = 0; i < TurnQueue->nCombatants; i++) {
                 ATBs[i] += Speeds[i];
                 if (ATBs[i] > 100) ATBs[i] = 100;
             }
@@ -636,35 +745,37 @@ void UpdateQueue(turn_queue* TurnQueue) {
 
 void NextTurn(turn_queue* TurnQueue) {
     int* CurrentTurn = &TurnQueue->CurrentTurn;
-    TurnQueue->Stats[*CurrentTurn]->ATB = 0; // Substract ATB of movement here
+    combatant* CurrentCombatant = TurnQueue->CurrentCombatant;
+    CurrentCombatant->ATB = 0; // Substract ATB of movement here
     bool Done = false;
-    for (int i = 0; i < TurnQueue->Combatants; i++) {
-        if (i != *CurrentTurn) TurnQueue->Stats[i]->ATB += TurnQueue->Stats[i]->Speed;
-        if (TurnQueue->Stats[i]->ATB >= 100) {
-            TurnQueue->Stats[i]->ATB = 100;
-            Done = true;
-        }
+    for (int i = 0; i < TurnQueue->nCombatants; i++) {
+        if (i != *CurrentTurn) TurnQueue->Combatants[i].ATB += TurnQueue->Combatants[i].Stats->Speed;
+        if (TurnQueue->Combatants[i].ATB > 100) TurnQueue->Combatants[i].ATB = 100;
+        if (TurnQueue->Combatants[i].ATB == 100) Done = true;
     }
 
     while (!Done) {
-        for (int i = 0; i < TurnQueue->Combatants; i++) {
-            TurnQueue->Stats[i]->ATB += TurnQueue->Stats[i]->Speed;
-            if (TurnQueue->Stats[i]->ATB > 100) TurnQueue->Stats[i]->ATB = 100;
-            if (TurnQueue->Stats[i]->ATB == 100) Done = true;
+        for (int i = 0; i < TurnQueue->nCombatants; i++) {
+            TurnQueue->Combatants[i].ATB += TurnQueue->Combatants[i].Stats->Speed;
+            if (TurnQueue->Combatants[i].ATB > 100) TurnQueue->Combatants[i].ATB = 100;
+            if (TurnQueue->Combatants[i].ATB == 100) Done = true;
         }
     }
 
     int PredictedTurn = TurnQueue->Queue[1];
     UpdateQueue(TurnQueue);
     *CurrentTurn = TurnQueue->Queue[0];
+    TurnQueue->CurrentCombatant = &TurnQueue->Combatants[*CurrentTurn];
     if (*CurrentTurn != PredictedTurn) {
-        Assert(false);
+        //Assert(false);
     }
 }
 
 struct UI {
-    combat_menu CombatMenu;
-    turn_queue TurnQueue;
+    menu CombatMenu;
+    menu TechniquesMenu;
+    menu MagicMenu;
+    menu ItemsMenu;
 };
 
 // Game State: Persistent (between frames) values
@@ -673,13 +784,14 @@ struct game_state {
     memory_arena RenderArena;
     memory_arena VideoArena;
     UI UserInterface;
-    bool ShowDebugInfo;
     double dt;
     double Time;
     player Player1;
     player Player2;
     enemy Enemy1;
     enemy Enemy2;
+    turn_queue TurnQueue;
+    bool ShowDebugInfo;
     character Characters[];
 };
 
