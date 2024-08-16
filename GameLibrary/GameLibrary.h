@@ -41,6 +41,22 @@ struct game_triangle {
     };
 };
 
+game_triangle operator+(v3 Translation, game_triangle Triangle) {
+    return {
+        Translation + Triangle.Point0,
+        Translation + Triangle.Point1,
+        Translation + Triangle.Point2,
+    };
+}
+
+game_triangle operator+(game_triangle Triangle, v3 Translation) {
+    return {
+        Translation + Triangle.Point0,
+        Translation + Triangle.Point1,
+        Translation + Triangle.Point2,
+    };
+}
+
 struct game_rect {
     double Left;
     double Top;
@@ -354,11 +370,25 @@ struct game_assets {
     string TextPercentageStr;
 };
 
+// Animations
+enum animation {
+    Player_Idle,
+    Player_Defending,
+    Player_Attacking,
+    Player_Walking,
+    Enemy_Idle,
+    Enemy_Defending,
+    Enemy_Attacking
+};
+
 // Game specific structs
 struct entity {
     v3 Position;
     v3 Velocity;
+    v3 Destination;
     double Time;
+    animation Animation;
+    bool Busy;
 };
 
 // Bones
@@ -549,18 +579,12 @@ struct item {
     stats Bonus;
 };
 
-enum player_animation {
-    Player_Idle,
-    Player_Defending,
-    Player_Attacking,
-    Player_Walking
-};
-
+// Player
 struct player {
     stats Stats;
     entity Entity;
     v3 DefaultPosition;
-    player_animation Animation;
+    v3 Destination;
     int nTechniques;
     technique Techniques[MAX_TECHNIQUES];
     int nSpells;
@@ -583,14 +607,8 @@ struct player {
             player_bone Sword;
         };
     };
-    bool Busy;
 };
 
-enum enemy_animation {
-    Enemy_Idle,
-    Enemy_Defending,
-    Enemy_Attacking
-};
 
 struct enemy {
     stats Stats;
@@ -601,8 +619,6 @@ struct enemy {
     loaded_bmp* BMP2;
     loaded_bmp* BMP3;
     loaded_bmp* BMP4;
-    enemy_animation Animation;
-    bool Busy;
 };
 
 // Combat
@@ -611,7 +627,7 @@ struct combatant {
     miniature Miniature;
     int ATB;
     stats* Stats;
-    void* Origin;
+    entity* Entity;
 };
 
 combatant Combatant(player* pPlayer) {
@@ -619,7 +635,7 @@ combatant Combatant(player* pPlayer) {
     Result.Type = Player;
     Result.ATB = 100;
     Result.Stats = &pPlayer->Stats;
-    Result.Origin = (void*)pPlayer;
+    Result.Entity = &pPlayer->Entity;
 
     miniature Miniature;
     Miniature.BMP = pPlayer->Head.Bone.BMP;
@@ -635,7 +651,7 @@ combatant Combatant(enemy* pEnemy) {
     Result.Type = Enemy;
     Result.ATB = 100;
     Result.Stats = &pEnemy->Stats;
-    Result.Origin = (void*)pEnemy;
+    Result.Entity = &pEnemy->Entity;
 
     miniature Miniature;
     Miniature.BMP = pEnemy->BMP1;
@@ -644,17 +660,6 @@ combatant Combatant(enemy* pEnemy) {
     Miniature.RectOffset = V3(6.0, 0.0, 0.0);
     Result.Miniature = Miniature;
     return Result;
-}
-
-bool IsBusy(combatant Combatant) {
-    if (Combatant.Type == Player) {
-        player* pPlayer = (player*)Combatant.Origin;
-        return pPlayer->Busy;
-    }
-    else if (Combatant.Type == Enemy) {
-        enemy* pEnemy = (enemy*)Combatant.Origin;
-        return pEnemy->Busy;
-    }
 }
 
 // User Interface
@@ -771,11 +776,19 @@ void NextTurn(turn_queue* TurnQueue) {
     }
 }
 
+struct enemy_selector {
+    int Selected;
+    v3 Position;
+    game_triangle Triangle;
+    bool Active;
+};
+
 struct UI {
     menu CombatMenu;
     menu TechniquesMenu;
     menu MagicMenu;
     menu ItemsMenu;
+    enemy_selector EnemySelector;
 };
 
 // Game State: Persistent (between frames) values
