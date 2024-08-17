@@ -370,6 +370,8 @@ struct game_assets {
     string TextPercentageStr;
     string FastAttackStr;
     string ShieldBreakerStr;
+    string FireSpellStr;
+    string IceSpellStr;
 };
 
 // Animations
@@ -377,6 +379,8 @@ enum animation {
     Player_Idle,
     Player_Defending,
     Player_Attacking,
+    Player_Fire_Spell,
+    Player_Ice_Spell,
     Player_Walking,
     Enemy_Idle,
     Enemy_Defending,
@@ -604,6 +608,7 @@ enum technique_type {
 
 struct technique {
     technique_type Type;
+    animation Animation;
     int ATBCost;
     string Name;
 };
@@ -615,18 +620,22 @@ enum spell_type {
 };
 
 struct spell {
+    spell_type Type;
+    animation Animation;
     int ATBCost;
-    stats Bonus;
+    string Name;
 };
 
 const int MAX_ITEMS = 10;
 enum item_type {
-
+    Potion
 };
 
 struct item {
+    item_type Type;
+    animation Animation;
     int ATBCost;
-    stats Bonus;
+    string Name;
 };
 
 struct combatant {
@@ -699,11 +708,13 @@ void UseTechnique(technique Technique, combatant* Attacker, combatant* Victim) {
 
 technique FAST_ATTACK = {
     FastAttack,
+    Player_Attacking,
     50
 };
 
 technique SHIELD_BREAKER = {
     ShieldBreaker,
+    Player_Attacking,
     100
 };
 
@@ -719,11 +730,13 @@ void UseSpell(spell Spell, combatant* User, stats* Victim) {
 
 spell FIRE_SPELL = {
     Fire,
+    Player_Fire_Spell,
     100
 };
 
 spell ICE_SPELL = {
     Ice,
+    Player_Ice_Spell,
     100
 };
 

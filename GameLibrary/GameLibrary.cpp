@@ -24,7 +24,7 @@
 
 /*
     TODO LIST : 
-    - Submenus
+    - Submenus: In combat menu make options available if combatant has any item in that submenu
     - Alternate between combat and walking
     - Dying in combat
     - Magic animation
@@ -512,6 +512,16 @@ void Animate(player* Player, game_input* Input, double dt) {
             Rotate(&Player->RightArm.Bone, 0.02 * -cos(10.0 * *Time));
             *Time += dt;
         } break;
+
+        case Player_Fire_Spell: {
+            Player->Entity.Busy = false;
+            *CurrentAnimation = Player_Idle;
+        } break;
+
+        case Player_Ice_Spell: {
+            Player->Entity.Busy = false;
+            *CurrentAnimation = Player_Idle;
+        } break;
     }
 }
 
@@ -596,10 +606,16 @@ extern "C" GAME_UPDATE(GameUpdate)
         Assets->TextPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
         Assets->FastAttackStr = PushString(&pGameState->TextArena, 11, "Fast attack");
         Assets->ShieldBreakerStr = PushString(&pGameState->TextArena, 16, "Shield breaker");
+        Assets->FireSpellStr = PushString(&pGameState->TextArena, 5, "Fire");
+        Assets->IceSpellStr = PushString(&pGameState->TextArena, 4, "Ice");
 
         // Techniques
         FAST_ATTACK.Name = Assets->FastAttackStr;
         SHIELD_BREAKER.Name = Assets->ShieldBreakerStr;
+
+        // Spells
+        FIRE_SPELL.Name = Assets->FireSpellStr;
+        ICE_SPELL.Name = Assets->IceSpellStr;
 
         // BMPs
         Assets->HeadBMP = LoadBMP(Platform->ReadEntireFile, "..\\..\\GameLibrary\\Media\\Bitmaps\\Head.bmp");
@@ -631,6 +647,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         PlayerStats1->MaxHP = 100;
         PlayerStats1->Strength = 30;
         PlayerStats1->Defense = 8;
+        PlayerStats1->Intelligence = 10;
+        PlayerStats1->Wisdom = 10;
         PlayerStats1->Speed = 45;
 
             // Player 2
@@ -643,6 +661,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         PlayerStats2->MaxHP = 100;
         PlayerStats2->Strength = 10;
         PlayerStats2->Defense = 5;
+        PlayerStats2->Intelligence = 50;
+        PlayerStats2->Wisdom = 10;
         PlayerStats2->Speed = 30;
 
             // Enemy 1
@@ -661,6 +681,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         EnemyStats1->MaxHP = 100;
         EnemyStats1->Strength = 15;
         EnemyStats1->Defense = 5;
+        EnemyStats1->Intelligence = 10;
+        EnemyStats1->Wisdom = 10;
         EnemyStats1->Speed = 15;
 
             // Enemy 2
@@ -679,6 +701,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         EnemyStats2->MaxHP = 100;
         EnemyStats2->Strength = 10;
         EnemyStats2->Defense = 5;
+        EnemyStats2->Intelligence = 10;
+        EnemyStats2->Wisdom = 10;
         EnemyStats2->Speed = 20;
 
         // Turn queue
@@ -689,7 +713,9 @@ extern "C" GAME_UPDATE(GameUpdate)
         TurnQueue->Combatants[0] = Combatant(Player1, 2);
         TurnQueue->Combatants[0].Techniques[0] = FAST_ATTACK;
         TurnQueue->Combatants[0].Techniques[1] = SHIELD_BREAKER;
-        TurnQueue->Combatants[1] = Combatant(Player2);
+        TurnQueue->Combatants[1] = Combatant(Player2, 0, 2);
+        TurnQueue->Combatants[1].Spells[0] = FIRE_SPELL;
+        TurnQueue->Combatants[1].Spells[1] = ICE_SPELL;
         TurnQueue->Combatants[2] = Combatant(Enemy1);
         TurnQueue->Combatants[3] = Combatant(Enemy2);
 
@@ -860,10 +886,10 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         if (Input->Keyboard.Enter.IsDown && !Input->Keyboard.Enter.WasDown && !EnemiesBusy) {
             if (UserInterface->EnemySelector.Active) {
-                CurrentEntity->Animation = Player_Attacking;
                 int Selected = UserInterface->EnemySelector.Selected;
                 combatant* Victim = &pGameState->TurnQueue.Combatants[Selected];
                 if (UserInterface->CombatMenu.Active) {
+                    CurrentEntity->Animation = Player_Attacking;
                     Attack(*CurrentCombatant->Stats, Victim->Stats);
                     CurrentCombatant->ATB = 0;
                 }
@@ -871,12 +897,19 @@ extern "C" GAME_UPDATE(GameUpdate)
                     int TechniqueID = UserInterface->TechniquesMenu.Cursor;
                     technique Technique = CurrentCombatant->Techniques[TechniqueID];
                     UseTechnique(Technique, CurrentCombatant, Victim);
+                    CurrentEntity->Animation = Technique.Animation;
                     UserInterface->TechniquesMenu.Active = false;
                     UserInterface->CombatMenu.Active = true;
                     UserInterface->CombatMenu.Cursor = 0;
                 }
                 else if (UserInterface->MagicMenu.Active) {
-                    //UseSpell();
+                    int SpellID = UserInterface->MagicMenu.Cursor;
+                    spell Spell = CurrentCombatant->Spells[SpellID];
+                    UseSpell(Spell, CurrentCombatant, Victim->Stats);
+                    CurrentEntity->Animation = Spell.Animation;
+                    UserInterface->MagicMenu.Active = false;
+                    UserInterface->CombatMenu.Active = true;
+                    UserInterface->CombatMenu.Cursor = 0;
                 }
                 else if (UserInterface->ItemsMenu.Active) {
                     //UseItem();
@@ -902,11 +935,17 @@ extern "C" GAME_UPDATE(GameUpdate)
                         UserInterface->CombatMenu.Active = false;
                         UserInterface->MagicMenu.Active = true;
                         UserInterface->MagicMenu.Length = CurrentCombatant->nSpells;
+                        for (int i = 0; i < UserInterface->MagicMenu.Length; i++) {
+                            UserInterface->MagicMenu.Options[i] = CurrentCombatant->Spells[i].Name;
+                        }
                     } break;
                     case 3: {
                         UserInterface->CombatMenu.Active = false;
                         UserInterface->ItemsMenu.Active = true;
                         UserInterface->ItemsMenu.Length = CurrentCombatant->nItems;
+                        for (int i = 0; i < UserInterface->ItemsMenu.Length; i++) {
+                            UserInterface->ItemsMenu.Options[i] = CurrentCombatant->Items[i].Name;
+                        }
                     } break;
                 }
             }
