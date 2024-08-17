@@ -368,6 +368,8 @@ struct game_assets {
     string VideoPercentageStr;
     string TextArenaStr;
     string TextPercentageStr;
+    string FastAttackStr;
+    string ShieldBreakerStr;
 };
 
 // Animations
@@ -526,11 +528,13 @@ struct stats {
     int MaxHP;
     int Strength;
     int Defense;
+    int Intelligence;
+    int Wisdom;
     int Speed;
 };
 
-stats Bonus(int HP = 0, int MaxHP = 0, int Strength = 0, int Defense = 0, int Speed = 0) {
-    return { HP, MaxHP, Strength, Defense, Speed };
+stats Bonus(int HP = 0, int MaxHP = 0, int Strength = 0, int Defense = 0, int Intelligence = 0, int Wisdom = 0, int Speed = 0) {
+    return { HP, MaxHP, Strength, Defense, Intelligence, Wisdom, Speed };
 }
 
 stats operator+(stats Stats, stats Bonus) {
@@ -539,6 +543,8 @@ stats operator+(stats Stats, stats Bonus) {
     Result.MaxHP = Stats.MaxHP + Bonus.MaxHP;
     Result.Strength = Stats.Strength + Bonus.Strength;
     Result.Defense = Stats.Defense + Bonus.Defense;
+    Result.Intelligence = Stats.Intelligence + Bonus.Intelligence;
+    Result.Wisdom = Stats.Wisdom + Bonus.Wisdom;
     Result.Speed = Stats.Speed + Bonus.Speed;
     return Result;
 }
@@ -553,44 +559,12 @@ stats operator-(stats Stats, stats Bonus) {
     return Result;
 }
 
-// Techniques
-const int MAX_TECHNIQUES = 10;
-struct technique {
-    int ATBCost;
-    stats Bonus;
-};
-
-technique FAST_ATTACK = {
-    50,
-
-};
-
-// Magic
-const int MAX_SPELLS = 10;
-struct spell {
-    int ATBCost;
-    stats Bonus;
-};
-
-// Items
-const int MAX_ITEMS = 10;
-struct item {
-    int ATBCost;
-    stats Bonus;
-};
-
 // Player
 struct player {
     stats Stats;
     entity Entity;
     v3 DefaultPosition;
     v3 Destination;
-    int nTechniques;
-    technique Techniques[MAX_TECHNIQUES];
-    int nSpells;
-    spell Spells[MAX_SPELLS];
-    int nItems;
-    item Items[MAX_ITEMS];
     union {
         player_bone Skeleton[12];
         struct {
@@ -622,20 +596,62 @@ struct enemy {
 };
 
 // Combat
+const int MAX_TECHNIQUES = 10;
+enum technique_type {
+    FastAttack,
+    ShieldBreaker
+};
+
+struct technique {
+    technique_type Type;
+    int ATBCost;
+    string Name;
+};
+
+const int MAX_SPELLS = 10;
+enum spell_type {
+    Fire,
+    Ice
+};
+
+struct spell {
+    int ATBCost;
+    stats Bonus;
+};
+
+const int MAX_ITEMS = 10;
+enum item_type {
+
+};
+
+struct item {
+    int ATBCost;
+    stats Bonus;
+};
+
 struct combatant {
     combatant_type Type;
     miniature Miniature;
     int ATB;
     stats* Stats;
     entity* Entity;
+    int nTechniques;
+    technique Techniques[MAX_TECHNIQUES];
+    int nSpells;
+    spell Spells[MAX_SPELLS];
+    int nItems;
+    item Items[MAX_ITEMS];
 };
 
-combatant Combatant(player* pPlayer) {
+combatant Combatant(player* pPlayer, int nTechniques = 0, int nSpells = 0, int nItems = 0) {
     combatant Result;
     Result.Type = Player;
     Result.ATB = 100;
     Result.Stats = &pPlayer->Stats;
     Result.Entity = &pPlayer->Entity;
+    Result.nTechniques = nTechniques;
+    Result.nSpells = nSpells;
+    Result.nItems = nItems;
 
     miniature Miniature;
     Miniature.BMP = pPlayer->Head.Bone.BMP;
@@ -660,6 +676,60 @@ combatant Combatant(enemy* pEnemy) {
     Miniature.RectOffset = V3(6.0, 0.0, 0.0);
     Result.Miniature = Miniature;
     return Result;
+}
+
+void Attack(stats Attacker, stats* Defender) {
+    if (Attacker.Strength > Attacker.Defense) {
+        int NewHP = Defender->HP - Attacker.Strength + Attacker.Defense;
+        if (NewHP < 0) Defender->HP = 0;
+        else Defender->HP = NewHP;
+    }
+}
+
+// Techniques
+void UseTechnique(technique Technique, combatant* Attacker, combatant* Victim) {
+    Attacker->ATB -= Technique.ATBCost;
+    switch (Technique.Type) {
+        case ShieldBreaker: {
+            Victim->Stats->Defense = Victim->Stats->Defense / 2.0;
+        }
+    }
+    Attack(*Attacker->Stats, Victim->Stats);
+}
+
+technique FAST_ATTACK = {
+    FastAttack,
+    50
+};
+
+technique SHIELD_BREAKER = {
+    ShieldBreaker,
+    100
+};
+
+// Magic
+void UseSpell(spell Spell, combatant* User, stats* Victim) {
+    User->ATB -= Spell.ATBCost;
+    if (User->Stats->Intelligence > Victim->Wisdom) {
+        int NewHP = Victim->HP - User->Stats->Intelligence + Victim->Wisdom;
+        if (NewHP < 0) Victim->HP = 0;
+        else Victim->HP = NewHP;
+    }
+}
+
+spell FIRE_SPELL = {
+    Fire,
+    100
+};
+
+spell ICE_SPELL = {
+    Ice,
+    100
+};
+
+// Items
+void UseItem(item Item, combatant* User, stats* Victim) {
+
 }
 
 // User Interface
@@ -751,7 +821,6 @@ void UpdateQueue(turn_queue* TurnQueue) {
 void NextTurn(turn_queue* TurnQueue) {
     int* CurrentTurn = &TurnQueue->CurrentTurn;
     combatant* CurrentCombatant = TurnQueue->CurrentCombatant;
-    CurrentCombatant->ATB = 0; // Substract ATB of movement here
     bool Done = false;
     for (int i = 0; i < TurnQueue->nCombatants; i++) {
         if (i != *CurrentTurn) TurnQueue->Combatants[i].ATB += TurnQueue->Combatants[i].Stats->Speed;

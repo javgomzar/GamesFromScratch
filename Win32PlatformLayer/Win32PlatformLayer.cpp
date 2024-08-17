@@ -1405,6 +1405,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         ClearEntries(Group);
 
         if (FirstFrame) {
+            ToggleFullScreen(Window);
+
             RECT Rect = { 0 };
             GetClientRect(Window, &Rect);
 

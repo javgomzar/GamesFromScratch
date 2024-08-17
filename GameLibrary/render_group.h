@@ -401,7 +401,7 @@ void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
 void PushMenu(render_group* Group, character* Characters, menu* Menu) {
     if (Menu->Active) {
         // Background
-        game_rect MenuRect = { 0, Group->Height - 250, 200, 250 };
+        game_rect MenuRect = { 0, Group->Height - 250, 300, 250 };
         PushRect(Group, MenuRect, DarkGray, 500);
 
         // Text
