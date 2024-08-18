@@ -1208,9 +1208,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     int OpenGLResponse = InitOpenGL(Window);
 
     // Memory arenas
-    InitializeArena(&pGameState->TextArena, Megabytes(1), (uint8*)GameMemory.PermanentStorage + sizeof(game_state));
-    InitializeArena(&pGameState->RenderArena, Megabytes(5), (uint8*)GameMemory.PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size);
-    InitializeArena(&pGameState->VideoArena, Megabytes(15), (uint8*)GameMemory.PermanentStorage + sizeof(game_state) + pGameState->TextArena.Size + pGameState->RenderArena.Size);
+    uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
+    InitializeArena(&pGameState->TextArena, Megabytes(1), ArenaStart);
+    ArenaStart += pGameState->TextArena.Size;
+    InitializeArena(&pGameState->RenderArena, Megabytes(5), ArenaStart);
+    ArenaStart += pGameState->RenderArena.Size;
+    InitializeArena(&pGameState->VideoArena, Megabytes(15), ArenaStart);
+    ArenaStart += pGameState->VideoArena.Size;
+    InitializeArena(&pGameState->MeshArena, Megabytes(5), ArenaStart);
 
     // Fonts
     GameMemory.Assets.Characters = InitializeFonts(&pGameState->TextArena);
@@ -1240,6 +1245,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         // Previous input
         Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;
         Input.Mouse.RightClick.WasDown = Input.Mouse.RightClick.IsDown;
+
+        Input.Mouse.Wheel = 0;
 
         Input.Keyboard.One.WasDown = Input.Keyboard.One.IsDown;
         Input.Keyboard.Two.WasDown = Input.Keyboard.Two.IsDown;

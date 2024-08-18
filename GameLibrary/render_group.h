@@ -103,7 +103,7 @@ struct render_entry_video {
 struct render_group {
     int32 Width;
     int32 Height;
-    float MetersToPixels;
+    double MetersToPixels;
     basis DefaultBasis;
     uint32 MaxPushBufferSize;
     uint32 PushBufferSize;
@@ -225,7 +225,7 @@ void PushLine(render_group* Group, color Color, game_screen_position Start, game
 
 void PushTriangle(render_group* Group, game_triangle Triangle, color Color) {
     render_entry_triangle* Entry = PushRenderElement(Group, render_entry_triangle);
-    Entry->Header.Key.Z = 0;
+    Entry->Header.Key.Z = 10;
     Entry->Color = Color;
     Entry->Triangle = Triangle;
 }
@@ -641,6 +641,43 @@ void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, game_screen_position P
     }
 }
 
+void PushMesh(render_group* Group, mesh Mesh, v3 Position) {
+    uint8* Pointer = (uint8*)Mesh.Faces;
+    v3 LightDirection = normalize(V3(1.0, 1.0, 1.0));
+    for (int i = 0; i < Mesh.nFaces; i++) {
+        face Face = *(face*)Pointer;
+        Pointer += sizeof(face);
+        if (Face.Size == 3) {
+            game_triangle Triangle = {
+                Position + Mesh.Vertices[Face.Vertex[0].Vertex - 1],
+                Position + Mesh.Vertices[Face.Vertex[1].Vertex - 1],
+                Position + Mesh.Vertices[Face.Vertex[2].Vertex - 1]
+            };
+            double Luminosity = LightDirection * Mesh.Normals[Face.Normal - 1];
+            PushTriangle(Group, Triangle, {1.0, Luminosity, Luminosity, Luminosity});
+        }
+        else if (Face.Size == 4) {
+            game_triangle Triangle = {
+                Position + Mesh.Vertices[Face.Vertex[0].Vertex - 1],
+                Position + Mesh.Vertices[Face.Vertex[1].Vertex - 1],
+                Position + Mesh.Vertices[Face.Vertex[2].Vertex - 1]
+            };
+            double Luminosity = LightDirection * Mesh.Normals[Face.Normal - 1];
+            PushTriangle(Group, Triangle, { 1.0, Luminosity, Luminosity, Luminosity });
+            Triangle = {
+                Position + Mesh.Vertices[Face.Vertex[2].Vertex - 1],
+                Position + Mesh.Vertices[Face.Vertex[3].Vertex - 1],
+                Position + Mesh.Vertices[Face.Vertex[0].Vertex - 1]
+            };
+            Luminosity = LightDirection * Mesh.Normals[Face.Normal - 1];
+            PushTriangle(Group, Triangle, { 1.0, Luminosity, Luminosity, Luminosity });
+        }
+        else {
+            OutputDebugStringA("3D Model face has more than 4 vertices");
+        }
+        Pointer += Face.Size * sizeof(vertex);
+    }
+}
 
 //void RenderWhiteNoise(game_offscreen_buffer* Buffer) {
 //    uint8* Row = (uint8*)Buffer->Memory;

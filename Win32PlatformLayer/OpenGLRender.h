@@ -168,18 +168,18 @@ void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, c
 	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void SetScreenProjection(int32 Width, int32 Height) {
-	float a = 2.0f / Width;
-	float b = 2.0f / Height;
+void SetScreenProjection(double MetersToPixels, int32 Width, int32 Height) {
+	double a = 2.0 / (MetersToPixels * Width);
+	double b = 2.0 / (MetersToPixels * Height);
 
 	glMatrixMode(GL_MODELVIEW);
-	float Proj[] = {
+	double Proj[] = {
 		a,  0,  0,  0,
 		0,  -b,  0,  0,
 		0,  0,  1,  0,
-		-1.0f, 1.0f,  0,  1,
+		-1.0, 1.0,  0,  1,
 	};
-	glLoadMatrixf(Proj);
+	glLoadMatrixd(Proj);
 }
 
 
@@ -197,7 +197,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 	glLoadIdentity();
 
 	glMatrixMode(GL_MODELVIEW);
-	SetScreenProjection(Width, Height);
+	SetScreenProjection(Group->MetersToPixels, Width, Height);
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);

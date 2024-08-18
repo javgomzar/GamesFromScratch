@@ -56,10 +56,10 @@ void Plot(game_offscreen_buffer* Buffer, game_screen_position Position, color Co
 
 // Asset loading
  // BMP
-loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char* FileName) {
+loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char* Path) {
     loaded_bmp Result = { 0 };
     Result.Handle = 0;
-    read_file_result ReadResult = PlatformReadEntireFile(FileName);
+    read_file_result ReadResult = PlatformReadEntireFile(Path);
     if (ReadResult.ContentSize != 0) {
         bitmap_header* Header = (bitmap_header*)ReadResult.Content;
         Result.Header = *Header;
@@ -87,7 +87,6 @@ loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char
                     *Contents = AlphaMask | (*Contents++ & ~AlphaMask);
                 }
             }
-            return Result;
         }
     }
     return Result;
@@ -305,6 +304,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         Assets->TextArenaStr = PushString(&pGameState->TextArena, 13, "Text Arena");
         Assets->TextPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
 
+        Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, &pGameState->MeshArena, "../../GameLibrary/Media/Models/sword.obj");
+
         // User Interface
         // InitializeUI();
 
@@ -327,6 +328,13 @@ extern "C" GAME_UPDATE(GameUpdate)
     //    Rect.Width = 20;
     //    DrawRectangle(ScreenBuffer, Rect, White);
     //}
+
+    if (Input->Mouse.Wheel > 0) {
+        Group->MetersToPixels *= 1.2;
+    }
+    else if (Input->Mouse.Wheel < 0) {
+        Group->MetersToPixels /= 1.2;
+    }
 
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
         pGameState->ShowDebugInfo = !pGameState->ShowDebugInfo;
@@ -366,6 +374,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     // Render
+    PushMesh(Group, Assets->TestMesh, V3(5, 5, 0));
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;

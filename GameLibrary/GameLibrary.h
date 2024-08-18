@@ -23,6 +23,7 @@ extern GAMELIBRARY_API int nGameLibrary;
 #include "GamePlatform.h"
 #include "GameMath.h"
 #include "FFMpeg.h"
+#include "string.h"
 
 // Freetype
 #include "ft2build.h"
@@ -326,6 +327,156 @@ struct game_video {
     double TimeElapsed;
 };
 
+// 3D Models
+struct vertex {
+    int Vertex;
+    int Texture;
+};
+struct face {
+    int Size;
+    vertex* Vertex;
+    int Normal;
+};
+
+struct mesh {
+    string Name;
+    int nVertices;
+    v3* Vertices;
+    int nTextureVertices;
+    v2* TextureVertices;
+    int nNormals;
+    v3* Normals;
+    int nFaces;
+    face* Faces;
+};
+
+mesh LoadMesh(platform_read_entire_file Read, memory_arena* Arena, const char* Path) {
+    mesh Result = { 0 };
+    read_file_result ReadResult = Read(Path);
+    if (ReadResult.ContentSize > 50) {
+        char* Pointer = (char*)ReadResult.Content;
+        uint32 ReadSize = 0;
+        char FirstChar;
+        char SecondChar;
+        char ThirdChar;
+        do {
+            FirstChar = *Pointer;
+            SecondChar = *(Pointer + 1);
+            ThirdChar = *(Pointer++ + 2);
+            ReadSize++;
+        } while (FirstChar != '\n' || SecondChar != 'o' || ThirdChar != ' ');
+        if (ReadSize + 2 >= ReadResult.ContentSize) {
+            OutputDebugStringA("No objects found on .obj file.");
+        }
+        else {
+            Pointer += 2;
+            ReadSize += 2;
+            for (int i = 0; i < 20; i++) {
+                if (*(Pointer + i) == '\n') {
+                    Result.Name = PushString(Arena, i, Pointer);
+                    break;
+                }
+            }
+            do { ReadSize++; }
+            while (*Pointer++ != '\n');
+            char Prefix[2] = { *Pointer++, *Pointer++ };
+            while (ReadSize < ReadResult.ContentSize) {
+                Result.Vertices = (v3*)(Arena->Base + Arena->Used);
+                while (Prefix[0] == 'v' && Prefix[1] == ' ') {
+                    char* XEnd = 0;
+                    double X = strtod(Pointer, &XEnd);
+                    char* YEnd = 0;
+                    double Y = strtod(XEnd+1, &YEnd);
+                    char* ZEnd = 0;
+                    double Z = strtod(YEnd + 1, &ZEnd);
+                    v3* Vertex = PushStruct(Arena, v3);
+                    *Vertex = V3(X, Y, Z);
+                    Result.nVertices++;
+                    while (*Pointer++ != '\n') {
+                        ReadSize++;
+                    }
+                    Prefix[0] = *Pointer++;
+                    Prefix[1] = *Pointer++;
+                    ReadSize += 3;
+                }
+                Result.TextureVertices = (v2*)(Arena->Base + Arena->Used);
+                while (Prefix[0] == 'v' && Prefix[1] == 't') {
+                    Pointer++;
+                    ReadSize++;
+                    char* XEnd = 0;
+                    double X = strtod(Pointer, &XEnd);
+                    char* YEnd = 0;
+                    double Y = strtod(XEnd + 1, &YEnd);
+                    v2* Vertex = PushStruct(Arena, v2);
+                    *Vertex = V2(X, Y);
+                    Result.nTextureVertices++;
+                    while (*Pointer++ != '\n') {
+                        ReadSize++;
+                    }
+                    Prefix[0] = *Pointer++;
+                    Prefix[1] = *Pointer++;
+                    ReadSize += 3;
+                }
+                Result.Normals = (v3*)(Arena->Base + Arena->Used);
+                while (Prefix[0] == 'v' && Prefix[1] == 'n') {
+                    char* XEnd = 0;
+                    double X = strtod(Pointer, &XEnd);
+                    char* YEnd = 0;
+                    double Y = strtod(XEnd + 1, &YEnd);
+                    char* ZEnd = 0;
+                    double Z = strtod(YEnd + 1, &ZEnd);
+                    v3* Vertex = PushStruct(Arena, v3);
+                    *Vertex = V3(X, Y, Z);
+                    Result.nNormals++;
+                    while (*Pointer++ != '\n') {
+                        ReadSize++;
+                    }
+                    Prefix[0] = *Pointer++;
+                    Prefix[1] = *Pointer++;
+                    ReadSize += 3;
+                }
+                while (Prefix[0] != 'f') {
+                    Prefix[0] = *Pointer++;
+                    Prefix[1] = *Pointer++;
+                    ReadSize += 2;
+                }
+                Result.Faces = (face*)(Arena->Base + Arena->Used);
+                Pointer += 2;
+                ReadSize += 2;
+                while (ReadSize < ReadResult.ContentSize) {
+                    Result.nFaces++;
+                    face* Face = PushStruct(Arena, face);
+                    Face->Vertex = (vertex*)(Arena->Base + Arena->Used);
+                    for (int i = 0; i < 4; i++) {
+                        vertex* Vertex = PushStruct(Arena, vertex);
+                        char* EndV = 0;
+                        Vertex->Vertex = strtol(Pointer, &EndV, 10);
+                        char* EndVT = 0;
+                        Vertex->Texture = strtol(EndV + 1, &EndVT, 10);
+                        char* EndVN = 0;
+                        Face->Normal = strtol(EndVT + 1, &EndVN, 10);
+                        Face->Size++;
+                        bool Break = false;
+                        while (*Pointer != ' ') {
+                            if (*Pointer == '\n') {
+                                Break = true;
+                                Pointer += 3;
+                                ReadSize += 3;
+                                break;
+                            }
+                            Pointer++;
+                            ReadSize++;
+                        }
+                        if (Break) break;
+                        else Pointer++; ReadSize++;
+                    }
+                }
+            }
+        }
+    }
+    return Result;
+}
+
 // Game Assets
 struct game_assets {
     character* Characters;
@@ -339,6 +490,7 @@ struct game_assets {
     string VideoPercentageStr;
     string TextArenaStr;
     string TextPercentageStr;
+    mesh TestMesh;
 };
 
 // Game State: Persistent (between frames) values
@@ -346,6 +498,7 @@ struct game_state {
     memory_arena TextArena;
     memory_arena RenderArena;
     memory_arena VideoArena;
+    memory_arena MeshArena;
     UI UserInterface;
     bool ShowDebugInfo;
     double dt;
