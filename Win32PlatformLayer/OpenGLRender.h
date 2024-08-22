@@ -2,36 +2,73 @@
 #include "..\GameLibrary\render_group.h"
 
 
-void OpenGLTriangle(game_triangle Triangle, color Color) {
-	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
-	glBegin(GL_TRIANGLES);
-	for (int i = 0; i < 3; i++) {
-		v3 Point = Triangle.Points[i];
-		glVertex2d(Point.X, Point.Y);
-	}
-	glEnd();
-	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
+// Screen coordinates.
+void SetScreenProjection(int32 Width, int32 Height) {
+	double a = 2.0 / Width;
+	double b = 2.0 / Height;
+
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+
+	glMatrixMode(GL_MODELVIEW);
+
+	double Proj[] = {
+		   a, 0.0, 0.0, 0.0,
+		 0.0,  -b, 0.0, 0.0,
+		 0.0, 0.0, 1.0, 0.0,
+		-1.0, 1.0, 0.0, 1.0,
+	};
+	glLoadMatrixd(Proj);
 }
 
-void OpenGLRectangle(game_rect Rect, color Color)
-{
-	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
-	glBegin(GL_TRIANGLES);
+// 3D Coordinates
+void SetCameraProjection(camera Camera, int32 Width, int32 Height) {
+	double sX = Camera.MetersToPixels;
+	double sY = Camera.MetersToPixels * (double)Width / (double)Height;
 
-	// Lower triangle
-	glVertex2d(Rect.Left, Rect.Top + Rect.Height);
-	glVertex2d(Rect.Left + Rect.Width, Rect.Top);
-	glVertex2d(Rect.Left + Rect.Width, Rect.Top + Rect.Height);
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glRotated(Camera.Angle, 0, 1, 0);
+	glRotated(Camera.Pitch, 1, 0, 0);
 
-	// Upper triangle
-	glVertex2d(Rect.Left, Rect.Top);
-	glVertex2d(Rect.Left, Rect.Top + Rect.Height);
-	glVertex2d(Rect.Left + Rect.Width, Rect.Top);
-
-	glEnd();
-	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
+	glMatrixMode(GL_MODELVIEW);
+	double Proj[] = {
+		sX,  0.0, 0.0, 0.0,
+		0.0, sY,  0.0, 0.0,
+		0.0, 0.0, 1.0, 1.0,
+		0.0, 0.0, 0.0, 1.0,
+	};
+	glLoadMatrixd(Proj);
 }
 
+void Set3DProjection(double MetersToPixels, basis Basis, v3 Translation, int32 Width, int32 Height) {
+	double sX = 1.0;
+	double sY = 1.0 * (double)Width / (double)Height;
+	double sZ = 0.1;
+
+	v3 X = Basis.X;
+	v3 Y = Basis.Y;
+	v3 Z = Basis.Z;
+
+	glMatrixMode(GL_MODELVIEW);
+
+	double Proj[] = {
+		sX * X.X,  sY * X.Y, sZ * X.Z, X.Z,
+		sX * Y.X,  sY * Y.Y, sZ * Y.Z, Y.Z,
+		sX * Z.X,  sY * Z.Y, sZ * Z.Z, Z.Z,
+		Translation.X, Translation.Y, 0, 0.5 * Translation.Z / MetersToPixels,
+	};
+
+	//double Proj[] = {
+	//	sX, 0.0, 0.0, 0.0,
+	//	0.0, sY, 0.0, 0.0,
+	//	0.0, 0.0, 1.0, 0.0,
+	//	0.0, 0.0, 0.0, 1.0,
+	//};
+	glLoadMatrixd(Proj);
+}
+
+// Texture binding
 void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_mode Mode, bool ForceUpdate = false)
 {
 	if (*Handle) {
@@ -77,10 +114,70 @@ void OpenGLBindTexture(loaded_bmp* Bitmap, wrap_mode Mode = Clamp) {
 	OpenGLBindTexture(Bitmap->Header.Width, Bitmap->Header.Height, &Bitmap->Handle, Bitmap->Content, Mode);
 }
 
+
+// Primitives
+void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color)
+{
+	glBegin(GL_LINES);
+	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
+
+	glVertex2d(Start.X, Start.Y);
+	glVertex2d(Finish.X, Finish.Y);
+
+	glEnd();
+	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
+void OpenGLTriangle(game_triangle Triangle, color Color) {
+	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
+	glBegin(GL_TRIANGLES);
+	for (int i = 0; i < 3; i++) {
+		v3 Point = Triangle.Points[i];
+		glVertex3d(Point.X, Point.Y, Point.Z);
+	}
+	glEnd();
+	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
+void OpenGLTriangle(game_triangle Triangle, color Color, v3 Normal) {
+	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
+	glBegin(GL_TRIANGLES);
+	for (int i = 0; i < 3; i++) {
+		v3 Point = Triangle.Points[i];
+		glVertex3d(Point.X, Point.Y, Point.Z);
+	}
+	glNormal3d(Normal.X, Normal.Y, Normal.Z);
+	glEnd();
+	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
+void OpenGLRectangle(game_rect Rect, color Color)
+{
+	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
+	glBegin(GL_TRIANGLES);
+
+	// Lower triangle
+	glVertex2d(Rect.Left, Rect.Top + Rect.Height);
+	glVertex2d(Rect.Left + Rect.Width, Rect.Top);
+	glVertex2d(Rect.Left + Rect.Width, Rect.Top + Rect.Height);
+
+	// Upper triangle
+	glVertex2d(Rect.Left, Rect.Top);
+	glVertex2d(Rect.Left, Rect.Top + Rect.Height);
+	glVertex2d(Rect.Left + Rect.Width, Rect.Top);
+
+	glEnd();
+	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
+}
+
 // Render a textured rectangle in OpenGL given a rectangle, scaling the texture as needed to fit the rectangle.
 // It is assumed that the texture has alredy been loaded.
-void OpenGLTexturedRect(game_rect Rect, color Color = White, basis Basis = Identity(), double MinTexX = 0.0, double MaxTexX = 1.0, double MinTexY = 0.0, double MaxTexY = 1.0) {
-
+void OpenGLTexturedRect(
+	game_rect Rect, color Color = White, double Z = 0.0,
+	basis Basis = Identity(),
+	double MinTexX = 0.0, double MaxTexX = 1.0,
+	double MinTexY = 0.0, double MaxTexY = 1.0
+) {
 	v3 A = V3(Rect.Left, Rect.Top, 0);
 	v3 B = A + Rect.Width * Basis.X;
 	v3 C = A + Rect.Height * Basis.Y;
@@ -92,23 +189,23 @@ void OpenGLTexturedRect(game_rect Rect, color Color = White, basis Basis = Ident
 
 	// Lower triangle
 	glTexCoord2d(MinTexX, MinTexY);
-	glVertex2d(C.X, C.Y);
+	glVertex3d(C.X, C.Y, Z);
 
 	glTexCoord2d(MaxTexX, MinTexY);
-	glVertex2d(D.X, D.Y);
+	glVertex3d(D.X, D.Y, Z);
 
 	glTexCoord2d(MaxTexX, MaxTexY);
-	glVertex2d(B.X, B.Y);
+	glVertex3d(B.X, B.Y, Z);
 
 	// Upper triangle
 	glTexCoord2d(MinTexX, MinTexY);
-	glVertex2d(C.X, C.Y);
+	glVertex3d(C.X, C.Y, Z);
 
 	glTexCoord2d(MaxTexX, MaxTexY);
-	glVertex2d(B.X, B.Y);
+	glVertex3d(B.X, B.Y, Z);
 
 	glTexCoord2d(MinTexX, MaxTexY);
-	glVertex2d(A.X, A.Y);
+	glVertex3d(A.X, A.Y, Z);
 
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
@@ -147,7 +244,7 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, charac
 				Rect.Top = floor(PenY - pCharacter->Top * Scale);
 				Rect.Width = (double)pCharacter->Bitmap->Header.Width * Scale;
 				Rect.Height = (double)pCharacter->Bitmap->Header.Height * Scale;
-				OpenGLTexturedRect(Rect, Color);
+				OpenGLTexturedRect(Rect, Color, Position.Z);
 			}
 
 			PenX += pCharacter->Advance * Scale;
@@ -156,48 +253,20 @@ void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, charac
 	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color)
-{
-	glBegin(GL_LINES);
-	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
-
-	glVertex2d(Start.X, Start.Y);
-	glVertex2d(Finish.X, Finish.Y);
-
-	glEnd();
-	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
-}
-
-void SetScreenProjection(double MetersToPixels, int32 Width, int32 Height) {
-	double a = 2.0 / (MetersToPixels * Width);
-	double b = 2.0 / (MetersToPixels * Height);
-
-	glMatrixMode(GL_MODELVIEW);
-	double Proj[] = {
-		a,  0,  0,  0,
-		0,  -b,  0,  0,
-		0,  0,  1,  0,
-		-1.0, 1.0,  0,  1,
-	};
-	glLoadMatrixd(Proj);
-}
 
 
 void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRIES])
 {
 	int32 Width = Group->Width;
 	int32 Height = Group->Height;
+	double MetersToPixels = Group->Camera.MetersToPixels;
 	glViewport(0, 0, Width, Height);
 
 	// Projection matrix
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
 
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-
-	glMatrixMode(GL_MODELVIEW);
-	SetScreenProjection(Group->MetersToPixels, Width, Height);
+	SetScreenProjection(Width, Height);
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
@@ -214,7 +283,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				render_entry_clear Entry = *(render_entry_clear*)Header;
 
 				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
-				glClear(GL_COLOR_BUFFER_BIT);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 			} break;
 
 			case group_type_render_entry_triangle:
@@ -292,7 +361,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				render_entry_textured_rect Entry = *(render_entry_textured_rect*)Header;
 
 				OpenGLBindTexture(Entry.Texture, Entry.Mode);
-				OpenGLTexturedRect(Entry.Rect, Entry.Color, Entry.Basis, Entry.MinTexX, Entry.MaxTexX, Entry.MinTexY, Entry.MaxTexY);
+				OpenGLTexturedRect(Entry.Rect, Entry.Color, Entry.Header.Key.Z, Entry.Basis, Entry.MinTexX, Entry.MaxTexX, Entry.MinTexY, Entry.MaxTexY);
 			} break;
 
 			case group_type_render_entry_video:
@@ -306,6 +375,64 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext->VideoOut, Clamp, true);
 				OpenGLTexturedRect(Entry.Rect);
 
+			} break;
+
+			case group_type_render_entry_mesh:
+			{
+				render_entry_mesh Entry = *(render_entry_mesh*)Header;
+
+				mesh Mesh = Entry.Mesh;
+				v3 Position = Entry.Position;
+				basis Basis = Entry.Basis;
+
+				glEnable(GL_DEPTH_TEST);
+
+				SetCameraProjection(Group->Camera, Width, Height);
+				glTranslated(Entry.Position.X, Entry.Position.Y, Entry.Position.Z);
+				//Set3DProjection(MetersToPixels, Basis, Position - Group->Camera.Position, Width, Height);
+
+				uint8* Pointer = (uint8*)Mesh.Faces;
+
+				for (int i = 0; i < Mesh.nFaces; i++) {
+					face Face = *(face*)Pointer;
+					Pointer += sizeof(face);
+					v3 Normal = Mesh.Normals[Face.Normal - 1];
+					v3 BasisNormal = Normal.X * Basis.X + Normal.Y * Basis.Y + Normal.Z * Basis.Z;
+					// Color
+					double Diffuse = max(-Entry.Light.Direction * BasisNormal, 0.0);
+					color Color = (Entry.Light.Ambient + Diffuse) * Entry.Light.Color;
+
+					if (Face.Size == 3) {
+						game_triangle Triangle = {
+							Mesh.Vertices[Face.Vertex[0].Vertex - 1],
+							Mesh.Vertices[Face.Vertex[1].Vertex - 1],
+							Mesh.Vertices[Face.Vertex[2].Vertex - 1]
+						};
+
+						OpenGLTriangle(Triangle, Color, Normal);
+					}
+					else if (Face.Size == 4) {
+						game_triangle Triangle = {
+							Mesh.Vertices[Face.Vertex[0].Vertex - 1],
+							Mesh.Vertices[Face.Vertex[1].Vertex - 1],
+							Mesh.Vertices[Face.Vertex[2].Vertex - 1]
+						};
+						OpenGLTriangle(Triangle, Color, Normal);
+						Triangle = {
+							Mesh.Vertices[Face.Vertex[2].Vertex - 1],
+							Mesh.Vertices[Face.Vertex[3].Vertex - 1],
+							Mesh.Vertices[Face.Vertex[0].Vertex - 1]
+						};
+						OpenGLTriangle(Triangle, Color, Normal);
+					}
+					else {
+						OutputDebugStringA("3D Model face has more than 4 vertices");
+					}
+					Pointer += Face.Size * sizeof(vertex);
+				}
+
+				glDisable(GL_DEPTH_TEST);
+				SetScreenProjection(Width, Height);
 			} break;
 
 			default:

@@ -135,6 +135,14 @@ v3 operator*(double C, v3 A) {
 	return Result;
 }
 
+v3 operator*(v3 A, double C) {
+	v3 Result;
+	Result.X = C * A.X;
+	Result.Y = C * A.Y;
+	Result.Z = C * A.Z;
+	return Result;
+}
+
 double operator*(v3 A, v3 B) {
 	return A.X * B.X + A.Y * B.Y + A.Z * B.Z;
 }
@@ -183,6 +191,13 @@ v3 Rotate(v3 v, double Angle) {
 	return V3(X, Y, Z);
 }
 
+v3 Rotate(v3 v, v3 w) {
+	double Angle = Tau * module(w);
+	v3 n = normalize(w);
+	// Rodrigues formula
+	return cos(Angle) * v + sin(Angle) * cross(n, v) + (1 - cos(Angle)) * (n * v) * n;
+}
+
 struct basis {
 	v3 X;
 	v3 Y;
@@ -195,6 +210,14 @@ basis Rotate(basis Basis, double Angle) {
 	Result.Y = Rotate(Basis.Y, Angle);
 	Result.Z = Rotate(Basis.Z, Angle);
 	return Result;
+}
+
+basis Rotate(basis Basis, v3 w) {
+	return {
+		Rotate(Basis.X, w),
+		Rotate(Basis.Y, w),
+		Rotate(Basis.Z, w)
+	};
 }
 
 basis Scale(basis Basis, double ScaleX, double ScaleY, double ScaleZ) {

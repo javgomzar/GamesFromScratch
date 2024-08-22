@@ -181,18 +181,3 @@ struct platform_api {
     platform_free_file_memory* FreeFileMemory;
     platform_write_entire_file* WriteEntireFile;
 };
-
-enum log_mode {
-    File,
-    Terminal
-};
-
-enum log_level {
-    Info,
-    Warn,
-    Error
-};
-
-struct logger {
-    log_mode Mode;
-};

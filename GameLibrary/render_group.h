@@ -12,7 +12,8 @@ enum render_group_entry_type {
     group_type_render_entry_rect_outline,
     group_type_render_entry_text,
     group_type_render_entry_button,
-    group_type_render_entry_video
+    group_type_render_entry_video,
+    group_type_render_entry_mesh,
 };
 
 enum wrap_mode {
@@ -51,6 +52,7 @@ struct render_entry_triangle {
     render_group_header Header;
     game_triangle Triangle;
     color Color;
+    basis Basis;
 };
 
 struct render_entry_rect {
@@ -100,15 +102,37 @@ struct render_entry_video {
     game_rect Rect;
 };
 
+struct light {
+    double Ambient;
+    v3 Direction;
+    color Color;
+};
+
+struct render_entry_mesh {
+    render_group_header Header;
+    mesh Mesh;
+    v3 Position;
+    basis Basis;
+    light Light;
+};
+
+struct camera {
+    double MetersToPixels;
+    v3 Position;
+    v3 Velocity;
+    double Pitch;
+    double Angle;
+};
+
 struct render_group {
     int32 Width;
     int32 Height;
-    double MetersToPixels;
     basis DefaultBasis;
     uint32 MaxPushBufferSize;
     uint32 PushBufferSize;
     uint32 PushBufferElementCount;
     uint8* PushBufferBase;
+    camera Camera;
     bool OpenGLActive;
     bool VSyncActive;
 };
@@ -128,7 +152,13 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->DefaultBasis.X = V3(1, 0, 0);
     Result->DefaultBasis.Y = V3(0, 1, 0);
     Result->DefaultBasis.Z = V3(0, 0, 1);
-    Result->MetersToPixels = 1;
+    Result->Camera = { 0 };
+    Result->Camera.MetersToPixels = 1.0;
+    Result->Camera.Position = V3(0, 0, 1.0);
+    Result->Camera.Velocity = V3(0, 0, 0);
+    Result->Camera.Angle = 0;
+    Result->Camera.Pitch = 0;
+    //Result->Camera.Basis = Identity(1.0);
 
     return(Result);
 }
@@ -202,6 +232,11 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_video);
         } break;
 
+        case group_type_render_entry_mesh:
+        {
+            return sizeof(render_entry_mesh);
+        } break;
+
         default:
         {
             Assert(false);
@@ -211,7 +246,7 @@ uint32 GetSizeOf(render_group_entry_type Type) {
 
 void PushClear(render_group* Group, color Color) {
     render_entry_clear* Entry = PushRenderElement(Group, render_entry_clear);
-    Entry->Header.Key.Z = 0;
+    Entry->Header.Key.Z = -1.0;
     Entry->Color = Color;
 }
 
@@ -223,11 +258,12 @@ void PushLine(render_group* Group, color Color, game_screen_position Start, game
     Entry->Finish = Finish;
 }
 
-void PushTriangle(render_group* Group, game_triangle Triangle, color Color) {
+void PushTriangle(render_group* Group, game_triangle Triangle, color Color, basis Basis = Identity()) {
     render_entry_triangle* Entry = PushRenderElement(Group, render_entry_triangle);
-    Entry->Header.Key.Z = 10;
+    Entry->Header.Key.Z = max(Triangle.Points[0].Z, Triangle.Points[1].Z, Triangle.Points[2].Z);
     Entry->Color = Color;
     Entry->Triangle = Triangle;
+    Entry->Basis = Basis;
 }
 
 void PushCircle(render_group* Group, v3 Center, double Radius, color Color, basis Basis = Identity()) {
@@ -370,6 +406,16 @@ void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
     Entry->Header.Key.Z = Z;
     Entry->Video = Video;
     Entry->Rect = Rect;
+}
+
+void PushMesh(render_group* Group, mesh Mesh, v3 Position, light Light, basis Basis = Identity()) {
+    render_entry_mesh* Entry = PushRenderElement(Group, render_entry_mesh);
+    Entry->Header.Key.Z = Position.Z;
+
+    Entry->Basis = Basis;
+    Entry->Position = Position;
+    Entry->Mesh = Mesh;
+    Entry->Light = Light;
 }
 
 void ClearEntries(render_group* Group) {
@@ -638,44 +684,6 @@ void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, game_screen_position P
             SourceRow -= BMP->Header.Width;
             DestinationRow += OutputTarget->Pitch;
         }
-    }
-}
-
-void PushMesh(render_group* Group, mesh Mesh, v3 Position) {
-    uint8* Pointer = (uint8*)Mesh.Faces;
-    v3 LightDirection = normalize(V3(1.0, 1.0, 1.0));
-    for (int i = 0; i < Mesh.nFaces; i++) {
-        face Face = *(face*)Pointer;
-        Pointer += sizeof(face);
-        if (Face.Size == 3) {
-            game_triangle Triangle = {
-                Position + Mesh.Vertices[Face.Vertex[0].Vertex - 1],
-                Position + Mesh.Vertices[Face.Vertex[1].Vertex - 1],
-                Position + Mesh.Vertices[Face.Vertex[2].Vertex - 1]
-            };
-            double Luminosity = LightDirection * Mesh.Normals[Face.Normal - 1];
-            PushTriangle(Group, Triangle, {1.0, Luminosity, Luminosity, Luminosity});
-        }
-        else if (Face.Size == 4) {
-            game_triangle Triangle = {
-                Position + Mesh.Vertices[Face.Vertex[0].Vertex - 1],
-                Position + Mesh.Vertices[Face.Vertex[1].Vertex - 1],
-                Position + Mesh.Vertices[Face.Vertex[2].Vertex - 1]
-            };
-            double Luminosity = LightDirection * Mesh.Normals[Face.Normal - 1];
-            PushTriangle(Group, Triangle, { 1.0, Luminosity, Luminosity, Luminosity });
-            Triangle = {
-                Position + Mesh.Vertices[Face.Vertex[2].Vertex - 1],
-                Position + Mesh.Vertices[Face.Vertex[3].Vertex - 1],
-                Position + Mesh.Vertices[Face.Vertex[0].Vertex - 1]
-            };
-            Luminosity = LightDirection * Mesh.Normals[Face.Normal - 1];
-            PushTriangle(Group, Triangle, { 1.0, Luminosity, Luminosity, Luminosity });
-        }
-        else {
-            OutputDebugStringA("3D Model face has more than 4 vertices");
-        }
-        Pointer += Face.Size * sizeof(vertex);
     }
 }
 

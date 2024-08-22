@@ -288,7 +288,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     double* Time = &pGameState->Time;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
-    //render_group* Group = Memory->Group;
+    camera* Camera = &Group->Camera;
     static video_context VideoContext = { 0 };
     bool firstFrame = false;
 
@@ -304,10 +304,13 @@ extern "C" GAME_UPDATE(GameUpdate)
         Assets->TextArenaStr = PushString(&pGameState->TextArena, 13, "Text Arena");
         Assets->TextPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
 
-        Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, &pGameState->MeshArena, "../../GameLibrary/Media/Models/sword.obj");
+        Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, &pGameState->MeshArena, "../../GameLibrary/Media/Models/sphere.mdl");
+        Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, &pGameState->MeshArena, "../../GameLibrary/Media/Models/sword.mdl");
 
         // User Interface
         // InitializeUI();
+
+        Camera->Position = V3(0, 0, -10.0);
 
         Memory->IsInitialized = true;
     }
@@ -329,52 +332,89 @@ extern "C" GAME_UPDATE(GameUpdate)
     //    DrawRectangle(ScreenBuffer, Rect, White);
     //}
 
+    // Camera
     if (Input->Mouse.Wheel > 0) {
-        Group->MetersToPixels *= 1.2;
+        Camera->MetersToPixels *= 1.2;
     }
     else if (Input->Mouse.Wheel < 0) {
-        Group->MetersToPixels /= 1.2;
+        Camera->MetersToPixels /= 1.2;
     }
 
+    Camera->Velocity = V3(0, 0, 0);
+    if (Input->Keyboard.D.IsDown) {
+        Camera->Angle += 0.5;
+    }
+    else if (Input->Keyboard.A.IsDown) {
+        Camera->Angle -= 0.5;
+    }
+    if (Input->Keyboard.W.IsDown) {
+        Camera->Pitch += 0.5;
+    }
+    else if (Input->Keyboard.S.IsDown) {
+        Camera->Pitch -= 0.5;
+    }
+
+    Camera->Velocity = 0.1 * normalize(Camera->Velocity);
+    Camera->Position = Camera->Position + Camera->Velocity;
+    //Camera->Position = V3(-10 * sin(pGameState->Time), 0, 10 * cos(pGameState->Time));
+    //Camera->Basis.X = V3(1,0,0);
+    //Camera->Basis.Z = V3(0,0,1);
+
+    // Debug info
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
         pGameState->ShowDebugInfo = !pGameState->ShowDebugInfo;
     }
 
     if (pGameState->ShowDebugInfo) {
         game_rect DebugInfoRect = { 0, 0, 350, 220 };
-        PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 980);
+        PushRect(Group, DebugInfoRect, {0.5, 0.0, 0.0, 0.0}, 0);
         PushRectOutline(Group, DebugInfoRect, Gray);
-        PushText(Group, { 0,30,981 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
+        PushText(Group, { 0, 30, 0.5 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
 
         // Render Arena
         double RenderArenaPercentage = (double)pGameState->RenderArena.Used / (double)pGameState->RenderArena.Size;
         double RenderGroupPercentage = (double)Group->PushBufferSize / (double)Group->MaxPushBufferSize;
-        PushRect(Group, { 20.0, 120.0, 100.0, 20.0 }, DarkGray, 981);
-        PushRect(Group, { 20.0, 120.0, 100.0 * RenderArenaPercentage, 20.0 }, Gray, 982);
-        PushRect(Group, { 20.0, 120.0, 100.0 * RenderGroupPercentage * RenderArenaPercentage, 20.0 }, Red, 983);
-        PushText(Group, { 20.0, 135.0, 985}, Assets->Characters, White, 8, Assets->RenderArenaStr, false);
+        PushRect(Group, { 20.0, 120.0, 100.0, 20.0 }, DarkGray, 0.1);
+        PushRect(Group, { 20.0, 120.0, 100.0 * RenderArenaPercentage, 20.0 }, Gray, 0.2);
+        PushRect(Group, { 20.0, 120.0, 100.0 * RenderGroupPercentage * RenderArenaPercentage, 20.0 }, Red, 0.3);
+        PushText(Group, { 20.0, 135.0, 0.5}, Assets->Characters, White, 8, Assets->RenderArenaStr, false);
         sprintf_s(Assets->RenderPercentageStr.Content, 7, "%.02f%%", RenderGroupPercentage);
-        PushText(Group, { 125.0, 135.0, 983 }, Assets->Characters, White, 8, Assets->RenderPercentageStr, false);
+        PushText(Group, { 125.0, 135.0, 0.5 }, Assets->Characters, White, 8, Assets->RenderPercentageStr, false);
 
         // Video Arena
         double VideoArenaPercentage = (double)pGameState->VideoArena.Used / (double)pGameState->VideoArena.Size;
-        PushRect(Group, { 20.0, 150.0, 100.0, 20.0 }, DarkGray, 981);
-        PushRect(Group, { 20.0, 150.0, 100.0 * VideoArenaPercentage, 20.0 }, Red, 982);
-        PushText(Group, { 20.0, 165.0, 983}, Assets->Characters, White, 8, Assets->VideoArenaStr, false);
+        PushRect(Group, { 20.0, 150.0, 100.0, 20.0 }, DarkGray, 0.1);
+        PushRect(Group, { 20.0, 150.0, 100.0 * VideoArenaPercentage, 20.0 }, Red, 0.2);
+        PushText(Group, { 20.0, 165.0, 0.5 }, Assets->Characters, White, 8, Assets->VideoArenaStr, false);
         sprintf_s(Assets->VideoPercentageStr.Content, 7, "%.02f%%", VideoArenaPercentage*100.0);
-        PushText(Group, { 125.0, 135.0 + 30.0, 983 }, Assets->Characters, White, 8, Assets->VideoPercentageStr, false);
+        PushText(Group, { 125.0, 135.0 + 30.0, 0.5 }, Assets->Characters, White, 8, Assets->VideoPercentageStr, false);
 
         // Text Arena
         double TextArenaPercentage = (double)pGameState->TextArena.Used / (double)pGameState->TextArena.Size;
-        PushRect(Group, { 20.0, 180.0, 100.0, 20.0 }, DarkGray, 981);
-        PushRect(Group, { 20.0, 180.0, 100.0 * TextArenaPercentage, 20.0 }, Red, 982);
-        PushText(Group, { 20.0, 195.0, 983}, Assets->Characters, White, 8, Assets->TextArenaStr, false);
+        PushRect(Group, { 20.0, 180.0, 100.0, 20.0 }, DarkGray, 0.1);
+        PushRect(Group, { 20.0, 180.0, 100.0 * TextArenaPercentage, 20.0 }, Red, 0.2);
+        PushText(Group, { 20.0, 195.0, 0.5}, Assets->Characters, White, 8, Assets->TextArenaStr, false);
         sprintf_s(Assets->TextPercentageStr.Content, 7, "%.02f%%", TextArenaPercentage*100.0);
-        PushText(Group, { 125.0, 135.0 + 60.0, 983 }, Assets->Characters, White, 8, Assets->TextPercentageStr, false);
+        PushText(Group, { 125.0, 135.0 + 60.0, 0.5 }, Assets->Characters, White, 8, Assets->TextPercentageStr, false);
     }
 
     // Render
-    PushMesh(Group, Assets->TestMesh, V3(5, 5, 0));
+    light Light = { 0 };
+    Light.Ambient = 0.2;
+    Light.Direction = normalize(V3(-0.5,-1,1));
+    Light.Color = Red;
+
+    basis Basis = Rotate(Identity(), 0.2 * pGameState->Time * V3(0,1,0));
+    //basis Basis = { V3(0, 0, 1), V3(0,1,0), V3(1,0,0) };
+    //PushMesh(Group, Assets->TestMesh, V3(5.0, 0.0, -1.0), Light, Basis);
+
+    basis Basis2 = Rotate(Identity(0.5), -0.2 * pGameState->Time * V3(0, 1, 0));
+    Basis2.X = Basis2.X;
+    Basis2.Y = Basis2.Y;
+    //basis Basis = { V3(0, 0, 1), V3(0,1,0), V3(1,0,0) };
+
+    Light.Color = Green;
+    PushMesh(Group, Assets->TestMesh2, V3(0.0, 0.0, 5.0), Light, Basis2);
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;

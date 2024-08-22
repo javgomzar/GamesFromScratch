@@ -96,6 +96,15 @@ struct color {
     double B;
 };
 
+color operator*(double Luminosity, color Color) {
+    return {
+        Color.Alpha,
+        min(Luminosity * Color.R, 1.0),
+        min(Luminosity * Color.G, 1.0),
+        min(Luminosity * Color.B, 1.0),
+    };
+}
+
 static int Attenuation = 100;
 static color Black = { 1.0, 0.0, 0.0, 0.0 };
 static color White = { 1.0, 1.0, 1.0, 1.0 };
@@ -491,6 +500,7 @@ struct game_assets {
     string TextArenaStr;
     string TextPercentageStr;
     mesh TestMesh;
+    mesh TestMesh2;
 };
 
 // Game State: Persistent (between frames) values
