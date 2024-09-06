@@ -191,8 +191,10 @@ v3 Rotate(v3 v, double Angle) {
 	return V3(X, Y, Z);
 }
 
-v3 Rotate(v3 v, v3 w) {
-	double Angle = Tau * module(w);
+v3 Rotate(v3 v, v3 w, double Angle = 0.0) {
+	if (Angle == 0.0) {
+		double Angle = Tau * module(w);
+	}
 	v3 n = normalize(w);
 	// Rodrigues formula
 	return cos(Angle) * v + sin(Angle) * cross(n, v) + (1 - cos(Angle)) * (n * v) * n;
@@ -203,6 +205,10 @@ struct basis {
 	v3 Y;
 	v3 Z;
 };
+
+v3 ChangeBasis(v3 V, basis Basis) {
+	return V.X * Basis.X + V.Y * Basis.Y + V.Z * Basis.Z;
+}
 
 basis Rotate(basis Basis, double Angle) {
 	basis Result;
@@ -241,5 +247,72 @@ basis normalize(basis Basis) {
 		normalize(Basis.X),
 		normalize(Basis.Y),
 		normalize(Basis.Z)
+	};
+}
+
+struct quaternion {
+	double c;
+	double i;
+	double j;
+	double k;
+};
+
+const quaternion I = { 0.0, 1.0, 0.0, 0.0 };
+const quaternion J = { 0.0, 0.0, 1.0, 0.0 };
+const quaternion K = { 0.0, 0.0, 0.0, 1.0 };
+
+quaternion Quaternion(double c, double i = 0.0, double j = 0.0, double k = 0.0) {
+	return { c, i, j, k };
+}
+
+quaternion Quaternion(double Angle, v3 Vector) {
+	double sin_angle = sin(Angle / 2);
+	return { cos(Angle / 2.0), sin_angle * Vector.X, sin_angle * Vector.Y, sin_angle * Vector.Z};
+}
+
+quaternion Conjugate(quaternion q) {
+	return { q.c, -q.i, -q.j, -q.k};
+}
+
+quaternion operator*(quaternion q1, quaternion q2) {
+	return { 
+		q1.c * q2.c - q1.i * q2.i - q1.j * q2.j - q1.k * q2.k,
+		q1.c * q2.i + q1.i * q2.c + q1.j * q2.k - q1.k * q2.j,
+		q1.c * q2.j + q1.j * q2.c + q1.k * q2.i - q1.i * q2.k,
+		q1.c * q2.k + q1.k * q2.c + q1.i * q2.j - q1.j * q2.i,
+	};
+}
+
+quaternion operator*(double c, quaternion q) {
+	return { c * q.c, c * q.i, c * q.j, c * q.k};
+}
+
+quaternion operator*(quaternion q, double c) {
+	return { c * q.c, c * q.i, c * q.j, c * q.k };
+}
+
+quaternion operator+(quaternion q1, quaternion q2) {
+	return {q1.c + q2.c, q1.i + q2.i, q1.j + q2.j, q1.k + q2.k };
+}
+
+quaternion operator-(quaternion q1, quaternion q2) {
+	return { q1.c - q2.c, q1.i - q2.i, q1.j - q2.j, q1.k - q2.k };
+}
+
+quaternion operator-(quaternion q) {
+	return { -q.c, -q.i, -q.j, -q.k };
+}
+
+v3 Rotate(v3 Vector, quaternion Q) {
+	double S = Q.c;
+	v3 U = V3(Q.i, Q.j, Q.k);
+	return 2.0 * ((U * Vector) * U + S * cross(U, Vector)) + (S*S - U * U) * Vector;
+}
+
+basis Rotate(basis Basis, quaternion Q) {
+	return {
+		Rotate(Basis.X, Q),
+		Rotate(Basis.Y, Q),
+		Rotate(Basis.Z, Q)
 	};
 }

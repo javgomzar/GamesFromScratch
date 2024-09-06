@@ -269,7 +269,8 @@ struct game_keyboard_input {
 struct game_mouse_input {
     game_button_state LeftClick;
     game_button_state RightClick;
-    game_screen_position Cursor;
+    v3 Cursor;
+    v3 LastCursor;
     short Wheel;
 };
 

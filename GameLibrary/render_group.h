@@ -153,7 +153,7 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->DefaultBasis.Y = V3(0, 1, 0);
     Result->DefaultBasis.Z = V3(0, 0, 1);
     Result->Camera = { 0 };
-    Result->Camera.MetersToPixels = 1.0;
+    Result->Camera.MetersToPixels = 0.06;
     Result->Camera.Position = V3(0, 0, 1.0);
     Result->Camera.Velocity = V3(0, 0, 0);
     Result->Camera.Angle = 0;
@@ -408,11 +408,14 @@ void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
     Entry->Rect = Rect;
 }
 
-void PushMesh(render_group* Group, mesh Mesh, v3 Position, light Light, basis Basis = Identity()) {
+void PushMesh(render_group* Group, mesh Mesh, v3 Position, light Light, 
+    quaternion Rotation = Quaternion(1.0,0.0,0.0,0.0), 
+    double sX = 1.0, double sY = 1.0, double sZ = 1.0) 
+{
     render_entry_mesh* Entry = PushRenderElement(Group, render_entry_mesh);
     Entry->Header.Key.Z = Position.Z;
 
-    Entry->Basis = Basis;
+    Entry->Basis = Rotate(Scale(Identity(1.0), sX, sY, sZ), Rotation);
     Entry->Position = Position;
     Entry->Mesh = Mesh;
     Entry->Light = Light;

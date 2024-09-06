@@ -12,17 +12,18 @@
 /* TODO:
     - Saved game locations
     - Getting a handle to our own executable file
-    - Asset loading path
+    - Asset loading (separate compilation process probably?) Asset hot loading?
     - Threading
-    - Raw Input (multiple keyboards?)
+    - Multiple keyboards?)
     - Sleep/timeBeginPeriod
     - ClipCursor() multimonitor support
     - WM_SETCURSOR
     - QueryCancelAutoplay
     - WM_ACTIVEAPP (when we are not the active application)
     - Blit speed improvements (BitBlt)
-    - Hardware acceleration (OpenGL)
+    - Shaders
     - GetKeyboardLayout (international wasd support)
+    - Restore software renderer as fallback
 */
 
 #define MAX_LOADSTRING 100
@@ -1364,6 +1365,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         int ScreenX = rect.left;
         int ScreenY = rect.bottom;
 
+        Input.Mouse.LastCursor.X = Input.Mouse.Cursor.X;
+        Input.Mouse.LastCursor.Y = Input.Mouse.Cursor.Y;
+        Input.Mouse.LastCursor.Z = 0;
+        
         Input.Mouse.Cursor.X = MouseP.x;
         Input.Mouse.Cursor.Y = MouseP.y;
         Input.Mouse.Cursor.Z = 0;

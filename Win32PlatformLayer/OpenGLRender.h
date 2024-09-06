@@ -25,48 +25,24 @@ void SetScreenProjection(int32 Width, int32 Height) {
 void SetCameraProjection(camera Camera, int32 Width, int32 Height) {
 	double sX = Camera.MetersToPixels;
 	double sY = Camera.MetersToPixels * (double)Width / (double)Height;
+	double sZ = Camera.MetersToPixels;
 
 	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glRotated(Camera.Angle, 0, 1, 0);
-	glRotated(Camera.Pitch, 1, 0, 0);
 
-	glMatrixMode(GL_MODELVIEW);
 	double Proj[] = {
 		sX,  0.0, 0.0, 0.0,
 		0.0, sY,  0.0, 0.0,
-		0.0, 0.0, 1.0, 1.0,
+		0.0, 0.0,  sZ,  sZ,
 		0.0, 0.0, 0.0, 1.0,
 	};
 	glLoadMatrixd(Proj);
-}
-
-void Set3DProjection(double MetersToPixels, basis Basis, v3 Translation, int32 Width, int32 Height) {
-	double sX = 1.0;
-	double sY = 1.0 * (double)Width / (double)Height;
-	double sZ = 0.1;
-
-	v3 X = Basis.X;
-	v3 Y = Basis.Y;
-	v3 Z = Basis.Z;
-
+	
 	glMatrixMode(GL_MODELVIEW);
-
-	double Proj[] = {
-		sX * X.X,  sY * X.Y, sZ * X.Z, X.Z,
-		sX * Y.X,  sY * Y.Y, sZ * Y.Z, Y.Z,
-		sX * Z.X,  sY * Z.Y, sZ * Z.Z, Z.Z,
-		Translation.X, Translation.Y, 0, 0.5 * Translation.Z / MetersToPixels,
-	};
-
-	//double Proj[] = {
-	//	sX, 0.0, 0.0, 0.0,
-	//	0.0, sY, 0.0, 0.0,
-	//	0.0, 0.0, 1.0, 0.0,
-	//	0.0, 0.0, 0.0, 1.0,
-	//};
-	glLoadMatrixd(Proj);
+	glLoadIdentity();
+	glRotated(Camera.Pitch, 1, 0, 0);
+	glRotated(Camera.Angle, 0, 1, 0);
 }
+
 
 // Texture binding
 void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_mode Mode, bool ForceUpdate = false)
@@ -389,7 +365,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 
 				SetCameraProjection(Group->Camera, Width, Height);
 				glTranslated(Entry.Position.X, Entry.Position.Y, Entry.Position.Z);
-				//Set3DProjection(MetersToPixels, Basis, Position - Group->Camera.Position, Width, Height);
 
 				uint8* Pointer = (uint8*)Mesh.Faces;
 
@@ -398,31 +373,28 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 					Pointer += sizeof(face);
 					v3 Normal = Mesh.Normals[Face.Normal - 1];
 					v3 BasisNormal = Normal.X * Basis.X + Normal.Y * Basis.Y + Normal.Z * Basis.Z;
+					//v3 BasisNormal = Normal;
 					// Color
 					double Diffuse = max(-Entry.Light.Direction * BasisNormal, 0.0);
 					color Color = (Entry.Light.Ambient + Diffuse) * Entry.Light.Color;
 
 					if (Face.Size == 3) {
-						game_triangle Triangle = {
-							Mesh.Vertices[Face.Vertex[0].Vertex - 1],
-							Mesh.Vertices[Face.Vertex[1].Vertex - 1],
-							Mesh.Vertices[Face.Vertex[2].Vertex - 1]
-						};
+						v3 Vertex1 = ChangeBasis(Mesh.Vertices[Face.Vertex[0].Vertex - 1], Basis);
+						v3 Vertex2 = ChangeBasis(Mesh.Vertices[Face.Vertex[1].Vertex - 1], Basis);
+						v3 Vertex3 = ChangeBasis(Mesh.Vertices[Face.Vertex[2].Vertex - 1], Basis);
 
+						game_triangle Triangle = { Vertex1, Vertex2, Vertex3 };
 						OpenGLTriangle(Triangle, Color, Normal);
 					}
 					else if (Face.Size == 4) {
-						game_triangle Triangle = {
-							Mesh.Vertices[Face.Vertex[0].Vertex - 1],
-							Mesh.Vertices[Face.Vertex[1].Vertex - 1],
-							Mesh.Vertices[Face.Vertex[2].Vertex - 1]
-						};
+						v3 Vertex1 = ChangeBasis(Mesh.Vertices[Face.Vertex[0].Vertex - 1], Basis);
+						v3 Vertex2 = ChangeBasis(Mesh.Vertices[Face.Vertex[1].Vertex - 1], Basis);
+						v3 Vertex3 = ChangeBasis(Mesh.Vertices[Face.Vertex[2].Vertex - 1], Basis);
+						v3 Vertex4 = ChangeBasis(Mesh.Vertices[Face.Vertex[3].Vertex - 1], Basis);
+
+						game_triangle Triangle = { Vertex1, Vertex2, Vertex3 };
 						OpenGLTriangle(Triangle, Color, Normal);
-						Triangle = {
-							Mesh.Vertices[Face.Vertex[2].Vertex - 1],
-							Mesh.Vertices[Face.Vertex[3].Vertex - 1],
-							Mesh.Vertices[Face.Vertex[0].Vertex - 1]
-						};
+						Triangle = { Vertex3, Vertex1, Vertex4 };
 						OpenGLTriangle(Triangle, Color, Normal);
 					}
 					else {
