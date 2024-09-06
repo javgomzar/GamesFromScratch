@@ -303,10 +303,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         Assets->VideoPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
         Assets->TextArenaStr = PushString(&pGameState->TextArena, 13, "Text Arena");
         Assets->TextPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
-
-        Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, &pGameState->MeshArena, "../../GameLibrary/Media/Models/sphere.mdl");
-        Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, &pGameState->MeshArena, "../../GameLibrary/Media/Models/sword.mdl");
-        
+                
         // User Interface
         // InitializeUI();
 
@@ -370,15 +367,6 @@ extern "C" GAME_UPDATE(GameUpdate)
 
 
     // Render
-    light Light = { 0 };
-    Light.Ambient = 0.2;
-    Light.Direction = normalize(V3(-0.5,-1,1));
-
-    Light.Color = Red;
-    PushMesh(Group, Assets->TestMesh, V3(5.0, 0.0, -1.0), Light, Quaternion(pGameState->Time, V3(0.0, -1.0, 0.0)));
-
-    Light.Color = Green;
-    PushMesh(Group, Assets->TestMesh2, V3(0.0, 0.0, 5.0), Light, Quaternion(pGameState->Time, V3(0.0, 1.0, 0.0)));
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;
