@@ -41,6 +41,15 @@ void SetCameraProjection(camera Camera, int32 Width, int32 Height) {
 	glLoadIdentity();
 	glRotated(Camera.Pitch, 1, 0, 0);
 	glRotated(Camera.Angle, 0, 1, 0);
+	//quaternion PitchRotation = Quaternion(Camera.Pitch, V3(1.0, 0.0, 0.0));
+	//quaternion AngleRotation = Quaternion(Camera.Pitch, V3(0.0, 1.0, 0.0));
+	//v3 Translation = Rotate(Camera.Pivot, Conjugate(PitchRotation * AngleRotation));
+	//v3 Translation = sqrt() * V3(
+	//	cos(Camera.Angle) * Camera.Pivot.X + sin(Camera.Angle) * Camera.Pivot.Z,
+	//	Camera.Pivot.Y,
+	//	-sin(Camera.Angle) * Camera.Pivot.X + cos(Camera.Angle) * Camera.Pivot.Z);
+	v3 Translation = Camera.Pivot;
+	glTranslated(Translation.X, Translation.Y, Translation.Z);
 }
 
 

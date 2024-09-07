@@ -350,24 +350,24 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     Camera->Velocity = V3(0, 0, 0);
     if (Input->Keyboard.D.IsDown) {
-        Camera->Angle += 0.5;
+        Camera->Velocity.X -= 1.0;
     }
     else if (Input->Keyboard.A.IsDown) {
-        Camera->Angle -= 0.5;
+        Camera->Velocity.X += 1.0;
     }
     if (Input->Keyboard.W.IsDown) {
-        Camera->Pitch -= 0.5;
+        Camera->Velocity.Z -= 1.0;
     }
     else if (Input->Keyboard.S.IsDown) {
-        Camera->Pitch += 0.5;
+        Camera->Velocity.Z += 1.0;
     }
 
-    Camera->Velocity = 0.1 * normalize(Camera->Velocity);
-    Camera->Position = Camera->Position + Camera->Velocity;
-    //Camera->Position = V3(-10 * sin(pGameState->Time), 0, 10 * cos(pGameState->Time));
-    //Camera->Basis.X = V3(1,0,0);
-    //Camera->Basis.Z = V3(0,0,1);
-
+    v3 Direction = normalize(Camera->Velocity);
+    v3 X2 = V3(cos(Camera->Angle * Pi / 180.0), 0, sin(Camera->Angle * Pi / 180.0));
+    v3 Z2 = V3(-sin(Camera->Angle * Pi / 180.0), 0, cos(Camera->Angle * Pi / 180.0));
+    Camera->Velocity = 0.2 * (Direction.X * X2 + Direction.Z * Z2);
+    Camera->Pivot = Camera->Pivot + Camera->Velocity;
+    Camera->Position = Camera->Pivot - 10.0 * V3(sin(Camera->Angle) * cos(Camera->Pitch), sin(Camera->Pitch), cos(Camera->Angle) * cos(Camera->Pitch));
 
     // Render
     light Light = { 0 };

@@ -118,6 +118,7 @@ struct render_entry_mesh {
 
 struct camera {
     double MetersToPixels;
+    v3 Pivot;
     v3 Position;
     v3 Velocity;
     double Pitch;
@@ -154,7 +155,7 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->DefaultBasis.Z = V3(0, 0, 1);
     Result->Camera = { 0 };
     Result->Camera.MetersToPixels = 0.06;
-    Result->Camera.Position = V3(0, 0, 1.0);
+    Result->Camera.Position = V3(0, 0, 0.0);
     Result->Camera.Velocity = V3(0, 0, 0);
     Result->Camera.Angle = 0;
     Result->Camera.Pitch = 0;
