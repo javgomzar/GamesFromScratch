@@ -39,17 +39,13 @@ void SetCameraProjection(camera Camera, int32 Width, int32 Height) {
 	
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+	glTranslated(0, 0, Camera.Distance);
 	glRotated(Camera.Pitch, 1, 0, 0);
 	glRotated(Camera.Angle, 0, 1, 0);
-	//quaternion PitchRotation = Quaternion(Camera.Pitch, V3(1.0, 0.0, 0.0));
-	//quaternion AngleRotation = Quaternion(Camera.Pitch, V3(0.0, 1.0, 0.0));
-	//v3 Translation = Rotate(Camera.Pivot, Conjugate(PitchRotation * AngleRotation));
-	//v3 Translation = sqrt() * V3(
-	//	cos(Camera.Angle) * Camera.Pivot.X + sin(Camera.Angle) * Camera.Pivot.Z,
-	//	Camera.Pivot.Y,
-	//	-sin(Camera.Angle) * Camera.Pivot.X + cos(Camera.Angle) * Camera.Pivot.Z);
-	v3 Translation = Camera.Pivot;
-	glTranslated(Translation.X, Translation.Y, Translation.Z);
+	glTranslated(0, 0, 10.0);
+	glTranslated(Camera.Position.X, Camera.Position.Y, Camera.Position.Z);
+
+	glEnable(GL_DEPTH_TEST);
 }
 
 
@@ -101,13 +97,13 @@ void OpenGLBindTexture(loaded_bmp* Bitmap, wrap_mode Mode = Clamp) {
 
 
 // Primitives
-void OpenGLRenderLine(game_screen_position Start, game_screen_position Finish, color Color)
+void OpenGLRenderLine(v3 Start, v3 Finish, color Color)
 {
 	glBegin(GL_LINES);
 	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
 
-	glVertex2d(Start.X, Start.Y);
-	glVertex2d(Finish.X, Finish.Y);
+	glVertex3d(Start.X, Start.Y, Start.Z);
+	glVertex3d(Finish.X, Finish.Y, Finish.Z);
 
 	glEnd();
 	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
@@ -269,6 +265,15 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 
 				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+				// Debug lattice
+				SetCameraProjection(Group->Camera, Width, Height);
+				color LatticeColor = Color(1.0, 1.0, 1.0, 0.2);
+				for (int i = 0; i < 100; i++) {
+					OpenGLRenderLine(V3(50 - i, 0, -50), V3(50 - i, 0, 50), LatticeColor);
+					OpenGLRenderLine(V3(-50, 0, 50 - i), V3(50, 0, 50 - i), LatticeColor);
+				}
+				SetScreenProjection(Width, Height);
 			} break;
 
 			case group_type_render_entry_triangle:
@@ -330,10 +335,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 			case group_type_render_entry_rect_outline:
 			{
 				render_entry_rect_outline Entry = *(render_entry_rect_outline*)Header;
-				game_screen_position TopLeft = { Entry.Rect.Left, Entry.Rect.Top, 0 };
-				game_screen_position TopRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0 };
-				game_screen_position BottomLeft = { Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0 };
-				game_screen_position BottomRight = { Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0 };
+				v3 TopLeft = V3(Entry.Rect.Left, Entry.Rect.Top, 0);
+				v3 TopRight = V3(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0);
+				v3 BottomLeft = V3(Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0);
+				v3 BottomRight = V3(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0);
 
 				OpenGLRenderLine(TopLeft, BottomLeft, Entry.Color);
 				OpenGLRenderLine(BottomLeft, BottomRight, Entry.Color);
@@ -369,8 +374,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				mesh Mesh = Entry.Mesh;
 				v3 Position = Entry.Position;
 				basis Basis = Entry.Basis;
-
-				glEnable(GL_DEPTH_TEST);
 
 				SetCameraProjection(Group->Camera, Width, Height);
 				glTranslated(Entry.Position.X, Entry.Position.Y, Entry.Position.Z);

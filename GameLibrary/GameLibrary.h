@@ -96,6 +96,10 @@ struct color {
     double B;
 };
 
+color Color(double R, double G, double B, double Alpha = 1.0) {
+    return { Alpha, R, G, B };
+}
+
 color operator*(double Luminosity, color Color) {
     return {
         Color.Alpha,

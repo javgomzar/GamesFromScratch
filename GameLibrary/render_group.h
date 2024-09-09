@@ -44,8 +44,8 @@ struct render_entry_clear {
 struct render_entry_line {
     render_group_header Header;
     color Color;
-    game_screen_position Start;
-    game_screen_position Finish;
+    v3 Start;
+    v3 Finish;
 };
 
 struct render_entry_triangle {
@@ -118,9 +118,9 @@ struct render_entry_mesh {
 
 struct camera {
     double MetersToPixels;
-    v3 Pivot;
     v3 Position;
     v3 Velocity;
+    double Distance;
     double Pitch;
     double Angle;
 };
@@ -154,8 +154,8 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->DefaultBasis.Y = V3(0, 1, 0);
     Result->DefaultBasis.Z = V3(0, 0, 1);
     Result->Camera = { 0 };
-    Result->Camera.MetersToPixels = 0.06;
-    Result->Camera.Position = V3(0, 0, 0.0);
+    Result->Camera.MetersToPixels = 0.4;
+    Result->Camera.Distance = 10.0;
     Result->Camera.Velocity = V3(0, 0, 0);
     Result->Camera.Angle = 0;
     Result->Camera.Pitch = 0;
@@ -251,7 +251,7 @@ void PushClear(render_group* Group, color Color) {
     Entry->Color = Color;
 }
 
-void PushLine(render_group* Group, color Color, game_screen_position Start, game_screen_position Finish) {
+void PushLine(render_group* Group, v3 Start, v3 Finish, color Color) {
     render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
     Entry->Header.Key.Z = max(Start.Z, Finish.Z);
     Entry->Color = Color;

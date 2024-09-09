@@ -333,12 +333,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     //}
 
     // Camera
-    if (Input->Mouse.Wheel > 0) {
-        Camera->MetersToPixels *= 1.2;
-    }
-    else if (Input->Mouse.Wheel < 0) {
-        Camera->MetersToPixels /= 1.2;
-    }
+    if (Input->Mouse.Wheel > 0) Camera->Distance /= 1.2;
+    else if (Input->Mouse.Wheel < 0) Camera->Distance *= 1.2;
 
     if (Input->Mouse.LeftClick.IsDown && Input->Mouse.LeftClick.WasDown) {
         v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
@@ -366,8 +362,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     v3 X2 = V3(cos(Camera->Angle * Pi / 180.0), 0, sin(Camera->Angle * Pi / 180.0));
     v3 Z2 = V3(-sin(Camera->Angle * Pi / 180.0), 0, cos(Camera->Angle * Pi / 180.0));
     Camera->Velocity = 0.2 * (Direction.X * X2 + Direction.Z * Z2);
-    Camera->Pivot = Camera->Pivot + Camera->Velocity;
-    Camera->Position = Camera->Pivot - 10.0 * V3(sin(Camera->Angle) * cos(Camera->Pitch), sin(Camera->Pitch), cos(Camera->Angle) * cos(Camera->Pitch));
+    Camera->Position += Camera->Velocity;
 
     // Render
     light Light = { 0 };
@@ -375,7 +370,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     Light.Direction = normalize(V3(-0.5,-1,1));
 
     Light.Color = Red;
-    PushMesh(Group, Assets->TestMesh, V3(5.0, 0.0, -1.0), Light, Quaternion(pGameState->Time, V3(0.0, -1.0, 0.0)));
+    PushMesh(Group, Assets->TestMesh, V3(0.0, 0.0, 0.0), Light, Quaternion(pGameState->Time, V3(0.0, -1.0, 0.0)));
 
     Light.Color = Green;
     PushMesh(Group, Assets->TestMesh2, V3(0.0, 0.0, 5.0), Light, Quaternion(pGameState->Time, V3(0.0, 1.0, 0.0)));

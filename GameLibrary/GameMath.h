@@ -143,6 +143,27 @@ v3 operator*(v3 A, double C) {
 	return Result;
 }
 
+v3& operator+=(v3& A, v3 B) {
+	A.X += B.X;
+	A.Y += B.Y;
+	A.Z += B.Z;
+	return A;
+}
+
+v3& operator-=(v3& A, v3 B) {
+	A.X -= B.X;
+	A.Y -= B.Y;
+	A.Z -= B.Z;
+	return A;
+}
+
+v3& operator*=(v3& A, double C) {
+	A.X *= C;
+	A.Y *= C;
+	A.Z *= C;
+	return A;
+}
+
 double operator*(v3 A, v3 B) {
 	return A.X * B.X + A.Y * B.Y + A.Z * B.Z;
 }
