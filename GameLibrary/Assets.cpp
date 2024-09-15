@@ -197,7 +197,7 @@ game_video LoadVideo(memory_arena* Arena, const char* Filename) {
 
 
 // 3D Models
-mesh LoadMesh(platform_read_entire_file Read, memory_arena* Arena, const char* Path) {
+mesh LoadMesh(platform_read_entire_file Read, memory_arena* StringsArena, memory_arena* MeshArena, const char* Path) {
     mesh Result = { 0 };
     read_file_result ReadResult = Read(Path);
     if (ReadResult.ContentSize > 50) {
@@ -220,14 +220,14 @@ mesh LoadMesh(platform_read_entire_file Read, memory_arena* Arena, const char* P
             ReadSize += 2;
             for (int i = 0; i < 20; i++) {
                 if (*(Pointer + i) == '\n') {
-                    Result.Name = PushString(Arena, i, Pointer);
+                    Result.Name = PushString(StringsArena, i, Pointer);
                     break;
                 }
             }
             do { ReadSize++; } while (*Pointer++ != '\n');
             char Prefix[2] = { *Pointer++, *Pointer++ };
             while (ReadSize < ReadResult.ContentSize) {
-                Result.Vertices = (v3*)(Arena->Base + Arena->Used);
+                Result.Vertices = (v3*)(MeshArena->Base + MeshArena->Used);
                 while (Prefix[0] == 'v' && Prefix[1] == ' ') {
                     char* XEnd = 0;
                     double X = strtod(Pointer, &XEnd);
@@ -235,7 +235,7 @@ mesh LoadMesh(platform_read_entire_file Read, memory_arena* Arena, const char* P
                     double Y = strtod(XEnd + 1, &YEnd);
                     char* ZEnd = 0;
                     double Z = strtod(YEnd + 1, &ZEnd);
-                    v3* Vertex = PushStruct(Arena, v3);
+                    v3* Vertex = PushStruct(MeshArena, v3);
                     *Vertex = V3(X, Y, Z);
                     Result.nVertices++;
                     while (*Pointer++ != '\n') {
@@ -245,7 +245,7 @@ mesh LoadMesh(platform_read_entire_file Read, memory_arena* Arena, const char* P
                     Prefix[1] = *Pointer++;
                     ReadSize += 3;
                 }
-                Result.TextureVertices = (v2*)(Arena->Base + Arena->Used);
+                Result.TextureVertices = (v2*)(MeshArena->Base + MeshArena->Used);
                 while (Prefix[0] == 'v' && Prefix[1] == 't') {
                     Pointer++;
                     ReadSize++;
@@ -253,7 +253,7 @@ mesh LoadMesh(platform_read_entire_file Read, memory_arena* Arena, const char* P
                     double X = strtod(Pointer, &XEnd);
                     char* YEnd = 0;
                     double Y = strtod(XEnd + 1, &YEnd);
-                    v2* Vertex = PushStruct(Arena, v2);
+                    v2* Vertex = PushStruct(MeshArena, v2);
                     *Vertex = V2(X, Y);
                     Result.nTextureVertices++;
                     while (*Pointer++ != '\n') {
@@ -263,7 +263,7 @@ mesh LoadMesh(platform_read_entire_file Read, memory_arena* Arena, const char* P
                     Prefix[1] = *Pointer++;
                     ReadSize += 3;
                 }
-                Result.Normals = (v3*)(Arena->Base + Arena->Used);
+                Result.Normals = (v3*)(MeshArena->Base + MeshArena->Used);
                 while (Prefix[0] == 'v' && Prefix[1] == 'n') {
                     char* XEnd = 0;
                     double X = strtod(Pointer, &XEnd);
@@ -271,7 +271,7 @@ mesh LoadMesh(platform_read_entire_file Read, memory_arena* Arena, const char* P
                     double Y = strtod(XEnd + 1, &YEnd);
                     char* ZEnd = 0;
                     double Z = strtod(YEnd + 1, &ZEnd);
-                    v3* Vertex = PushStruct(Arena, v3);
+                    v3* Vertex = PushStruct(MeshArena, v3);
                     *Vertex = V3(X, Y, Z);
                     Result.nNormals++;
                     while (*Pointer++ != '\n') {
@@ -314,9 +314,9 @@ mesh LoadMesh(platform_read_entire_file Read, memory_arena* Arena, const char* P
 
                 Result.nFaces = FaceCount;
 
-                Result.FaceVertices = PushArray(Arena, 3 * FaceCount, uint32);
-                Result.FaceTextures = PushArray(Arena, 3 * FaceCount, uint32);
-                Result.FaceNormals = PushArray(Arena, FaceCount, uint32);
+                Result.FaceVertices = PushArray(MeshArena, 3 * FaceCount, uint32);
+                Result.FaceTextures = PushArray(MeshArena, 3 * FaceCount, uint32);
+                Result.FaceNormals = PushArray(MeshArena, FaceCount, uint32);
 
                 uint32* FaceVertices = Result.FaceVertices;
                 uint32* FaceTextures = Result.FaceTextures;
@@ -394,23 +394,28 @@ void LoadAssets(
     game_assets* Assets,
     platform_api* Platform,
     memory_arena* RenderArena,
-    memory_arena* MeshArena,
+    memory_arena* StringsArena,
+    memory_arena* FontsArena,
     memory_arena* VideoArena,
-    memory_arena* TextArena
+    memory_arena* MeshArena
 ) {
-    Assets->Characters = InitializeFonts(TextArena);
+    Assets->Characters = InitializeFonts(FontsArena);
 
-    Assets->RenderArenaStr = PushString(RenderArena, 13, "Render Arena");
-    Assets->RenderPercentageStr = PushString(TextArena, 7, "0.0%");
-    Assets->VideoArenaStr = PushString(VideoArena, 13, "Video Arena");
-    Assets->VideoPercentageStr = PushString(TextArena, 7, "0.0%");
-    Assets->TextArenaStr = PushString(TextArena, 13, "Text Arena");
-    Assets->TextPercentageStr = PushString(TextArena, 7, "0.0%");
+    StringsArena->Name = PushString(StringsArena, 13, "Strings Arena");
+    StringsArena->Percentage = PushString(StringsArena, 7, "0.0%");
+    FontsArena->Name = PushString(StringsArena, 12, "Fonts Arena");
+    FontsArena->Percentage = PushString(StringsArena, 7, "0.0%");
+    RenderArena->Name = PushString(StringsArena, 13, "Render Arena");
+    RenderArena->Percentage = PushString(StringsArena, 7, "0.0%");
+    VideoArena->Name = PushString(StringsArena, 13, "Video Arena");
+    VideoArena->Percentage = PushString(StringsArena, 7, "0.0%");
+    MeshArena->Name = PushString(StringsArena, 11, "Mesh Arena");
+    MeshArena->Percentage = PushString(StringsArena, 7, "0.0%");
 
     //Assets->TestImage = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Media/Bitmaps/Player.bmp");
 
-    Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Media/Models/sphere.mdl");
-    Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Media/Models/sword.mdl");
+    Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, StringsArena, MeshArena, "../../GameLibrary/Media/Models/sphere.mdl");
+    Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, StringsArena, MeshArena, "../../GameLibrary/Media/Models/sword.mdl");
 
     Assets->TestShader = LoadShader(Platform->ReadEntireFile, MeshArena);
 }

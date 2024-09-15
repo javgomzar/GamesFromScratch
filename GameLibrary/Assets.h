@@ -94,7 +94,7 @@ struct mesh {
     uint32 EBO;
 };
 
-mesh LoadMesh(platform_read_entire_file Read, memory_arena* Arena, const char* Path);
+mesh LoadMesh(platform_read_entire_file Read, memory_arena* StringsArena, memory_arena* MeshArena, const char* Path);
 
 
 // Shaders
@@ -112,12 +112,6 @@ struct game_assets {
     loaded_bmp TestImage2;
     game_sound TestSound;
     game_video TestVideo;
-    string RenderArenaStr;
-    string RenderPercentageStr;
-    string VideoArenaStr;
-    string VideoPercentageStr;
-    string TextArenaStr;
-    string TextPercentageStr;
     mesh TestMesh;
     mesh TestMesh2;
     shader TestShader;
@@ -127,9 +121,10 @@ void LoadAssets(
     game_assets* Assets,
     platform_api* Platform,
     memory_arena* RenderArena,
-    memory_arena* MeshArena,
+    memory_arena* StringsArena,
+    memory_arena* FontsArena,
     memory_arena* VideoArena,
-    memory_arena* TextArena
+    memory_arena* MeshArena
 );
 
 #endif

@@ -49,31 +49,6 @@ struct game_button_state {
     bool WasDown;
 };
 
-struct game_screen_position {
-    double X;
-    double Y;
-    double Z;
-};
-
-game_screen_position ToScreenPosition(v3 V) {
-    game_screen_position Result;
-    Result.X = CustomRound(V.X);
-    Result.Y = CustomRound(V.Y);
-    Result.Z = CustomRound(V.Z);
-    return Result;
-}
-
-v3 ToV3(game_screen_position Position) {
-    v3 Result;
-    double X = Position.X;
-    double Y = Position.Y;
-    double Z = Position.Z;
-    Result.X = X;
-    Result.Y = Y;
-    Result.Z = Z;
-    return Result;
-}
-
 
 // Color
 struct color {
@@ -295,8 +270,9 @@ struct UI {
 
 // Game State: Persistent (between frames) values
 struct game_state {
-    memory_arena TextArena;
     memory_arena RenderArena;
+    memory_arena StringsArena;
+    memory_arena FontsArena;
     memory_arena VideoArena;
     memory_arena MeshArena;
     UI UserInterface;

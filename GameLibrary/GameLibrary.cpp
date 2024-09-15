@@ -23,7 +23,7 @@
 //}
 
 // Game logic
-bool Collision(game_rect Rect, game_screen_position Cursor) {
+bool Collision(game_rect Rect, v3 Cursor) {
     return Cursor.X > Rect.Left &&
         Cursor.X < Rect.Left + Rect.Width &&
         Cursor.Y > Rect.Top &&
@@ -40,7 +40,7 @@ color Lighten(color RGB) {
     return Result;
 }
 
-void Plot(game_offscreen_buffer* Buffer, game_screen_position Position, color Color) {
+void Plot(game_offscreen_buffer* Buffer, v3 Position, color Color) {
     game_rect ScreenRect;
     ScreenRect.Left = 0;
     ScreenRect.Top = 0;
@@ -122,7 +122,7 @@ void Silence(game_sound_buffer* pSoundBuffer) {
     }
 }
 
-void DebugPlotSoundBuffer(game_offscreen_buffer* pScreenBuffer, game_sound_buffer* pSoundBuffer, game_screen_position PlotOrigin) {
+void DebugPlotSoundBuffer(game_offscreen_buffer* pScreenBuffer, game_sound_buffer* pSoundBuffer, v3 PlotOrigin) {
     uint32 SampleCount = pSoundBuffer->BufferSize;
     uint16 PlotHeight = 200;
     uint16 PlotWidth = 400;
@@ -130,7 +130,7 @@ void DebugPlotSoundBuffer(game_offscreen_buffer* pScreenBuffer, game_sound_buffe
 
     int16* SampleOut = pSoundBuffer->SampleOut;
     for (int i = 0; i < SampleCount; i++) {
-        game_screen_position Position = { PlotOrigin.X + (i * PlotWidth / SampleCount), (uint32)((*SampleOut * PlotHeight / Amplitude) + PlotOrigin.Y), 0 };
+        v3 Position = { PlotOrigin.X + (i * PlotWidth / SampleCount), (uint32)((*SampleOut * PlotHeight / Amplitude) + PlotOrigin.Y), 0 };
         Plot(pScreenBuffer, Position, White);
         SampleOut++;
         SampleOut++;
@@ -211,7 +211,13 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
-        LoadAssets(Assets, Platform, &pGameState->RenderArena, &pGameState->MeshArena, &pGameState->VideoArena, &pGameState->TextArena);
+        LoadAssets(Assets, Platform, 
+            &pGameState->RenderArena, 
+            &pGameState->StringsArena, 
+            &pGameState->FontsArena, 
+            &pGameState->MeshArena, 
+            &pGameState->VideoArena
+        );
 
         // User Interface
         // InitializeUI();
@@ -302,36 +308,22 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     if (pGameState->ShowDebugInfo) {
-        game_rect DebugInfoRect = { 0, 0, 350, 220 };
+        game_rect DebugInfoRect = { 0, 0, 350, 250 };
         PushRect(Group, DebugInfoRect, { 0.5, 0.0, 0.0, 0.0 }, 0);
         PushRectOutline(Group, DebugInfoRect, Gray);
         PushText(Group, { 0, 30, 0.5 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
 
-        // Render Arena
-        double RenderArenaPercentage = (double)pGameState->RenderArena.Used / (double)pGameState->RenderArena.Size;
-        double RenderGroupPercentage = (double)Group->PushBufferSize / (double)Group->MaxPushBufferSize;
-        PushRect(Group, { 20.0, 120.0, 100.0, 20.0 }, DarkGray, 0.1);
-        PushRect(Group, { 20.0, 120.0, 100.0 * RenderArenaPercentage, 20.0 }, Gray, 0.2);
-        PushRect(Group, { 20.0, 120.0, 100.0 * RenderGroupPercentage * RenderArenaPercentage, 20.0 }, Red, 0.3);
-        PushText(Group, { 20.0, 135.0, 0.5 }, Assets->Characters, White, 8, Assets->RenderArenaStr, false);
-        sprintf_s(Assets->RenderPercentageStr.Content, 7, "%.02f%%", RenderGroupPercentage);
-        PushText(Group, { 125.0, 135.0, 0.5 }, Assets->Characters, White, 8, Assets->RenderPercentageStr, false);
+        // Strings Arena
+        PushDebugArena(Group, Assets->Characters, pGameState->StringsArena, V3(20.0, 120.0, 0.5));
+
+        // Fonts Arena
+        PushDebugArena(Group, Assets->Characters, pGameState->FontsArena, V3(20.0, 150.0, 0.5));
+
+        // Mesh Arena
+        PushDebugArena(Group, Assets->Characters, pGameState->MeshArena, V3(20.0, 180.0, 0.5));
 
         // Video Arena
-        double VideoArenaPercentage = (double)pGameState->VideoArena.Used / (double)pGameState->VideoArena.Size;
-        PushRect(Group, { 20.0, 150.0, 100.0, 20.0 }, DarkGray, 0.1);
-        PushRect(Group, { 20.0, 150.0, 100.0 * VideoArenaPercentage, 20.0 }, Red, 0.2);
-        PushText(Group, { 20.0, 165.0, 0.5 }, Assets->Characters, White, 8, Assets->VideoArenaStr, false);
-        sprintf_s(Assets->VideoPercentageStr.Content, 7, "%.02f%%", VideoArenaPercentage * 100.0);
-        PushText(Group, { 125.0, 135.0 + 30.0, 0.5 }, Assets->Characters, White, 8, Assets->VideoPercentageStr, false);
-
-        // Text Arena
-        double TextArenaPercentage = (double)pGameState->TextArena.Used / (double)pGameState->TextArena.Size;
-        PushRect(Group, { 20.0, 180.0, 100.0, 20.0 }, DarkGray, 0.1);
-        PushRect(Group, { 20.0, 180.0, 100.0 * TextArenaPercentage, 20.0 }, Red, 0.2);
-        PushText(Group, { 20.0, 195.0, 0.5 }, Assets->Characters, White, 8, Assets->TextArenaStr, false);
-        sprintf_s(Assets->TextPercentageStr.Content, 7, "%.02f%%", TextArenaPercentage * 100.0);
-        PushText(Group, { 125.0, 135.0 + 60.0, 0.5 }, Assets->Characters, White, 8, Assets->TextPercentageStr, false);
+        PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 210.0, 0.5));
     }
 }
 

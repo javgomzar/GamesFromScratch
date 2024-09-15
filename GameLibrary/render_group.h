@@ -83,7 +83,7 @@ struct render_entry_rect_outline {
 struct render_entry_text {
     render_group_header Header;
     character* Characters;
-    game_screen_position Position;
+    v3 Position;
     color Color;
     int Points;
     string String;
@@ -383,7 +383,7 @@ void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
     Entry->Color = Color;
 }
 
-void PushText(render_group* Group, game_screen_position Position, character* Characters, color Color, int Points, string String, bool Wrapped) {
+void PushText(render_group* Group, v3 Position, character* Characters, color Color, int Points, string String, bool Wrapped) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
     Entry->Header.Key.Z = Position.Z;
     Entry->Position = Position;
@@ -420,6 +420,17 @@ void PushMesh(render_group* Group, mesh* Mesh, transform Transform, light Light,
     Entry->Shader = Shader;
 }
 
+void PushDebugArena(render_group* Group, character* Characters, memory_arena Arena, v3 Position) {
+    double ArenaPercentage = (double)Arena.Used / (double)Arena.Size;
+    PushRect(Group, { Position.X, Position.Y, 120.0, 20.0 }, DarkGray, Position.Z + 0.1);
+    PushRect(Group, { Position.X, Position.Y, 120.0 * ArenaPercentage, 20.0 }, Red, Position.Z + 0.2);
+    PushText(Group, { Position.X, Position.Y + 15.0, Position.Z + 0.3 }, Characters, White, 8, Arena.Name, false);
+    sprintf_s(Arena.Percentage.Content, 7, "%.02f%%", ArenaPercentage * 100.0);
+    PushText(Group, { Position.X + 125.0, Position.Y + 15.0, Position.Z + 0.3}, Characters, White, 8, Arena.Percentage, false);
+}
+
+
+// Render entries sorting
 void ClearEntries(render_group* Group) {
     Group->PushBufferElementCount = 0;
     Group->PushBufferSize = 0;
@@ -481,7 +492,7 @@ void Clear(loaded_bmp* OutputTarget, color Color) {
 //    return (uint32*)Bitmap->Content + Position.X + Position.Y * Bitmap->Header.Width;
 //}
 
-bool IsInside(game_screen_position Position, game_rect Rect) {
+bool IsInside(v3 Position, game_rect Rect) {
     bool A = Position.X >= Rect.Left && Position.X <= Rect.Left + Rect.Width;
     bool B = Position.Y >= Rect.Top && Position.Y <= Rect.Top + Rect.Height;
     return A && B;
@@ -519,7 +530,7 @@ int CheckLineSide(v2 P0, v2 P1, v2 Position) {
     }
 }
 
-void RenderLine(loaded_bmp* OutputTarget, color Color, game_screen_position Start, game_screen_position Finish) {
+void RenderLine(loaded_bmp* OutputTarget, color Color, v3 Start, v3 Finish) {
     // Deciding if we need to render at all
     game_rect Rect = { 0 };
     Rect.Width = OutputTarget->Header.Width;
@@ -619,7 +630,7 @@ void RenderRectangle(loaded_bmp* OutputTarget, game_rect Rect, color Color) {
 }
 
 
-void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, game_screen_position Position) {
+void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, v3 Position) {
     int32 BMPWidth = BMP->Header.Width;
     int32 BMPHeight = BMP->Header.Height;
 
@@ -630,8 +641,8 @@ void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, game_screen_position P
         Position.Y + BMPHeight > 0 && Position.Y < TargetHeight) {
         int32 BlitWidth;
         int32 BlitHeight;
-        game_screen_position SourcePosition;
-        game_screen_position DestinationPosition;
+        v3 SourcePosition;
+        v3 DestinationPosition;
 
         // Cropping
         if (Position.X < 0) {

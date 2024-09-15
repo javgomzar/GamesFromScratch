@@ -197,7 +197,7 @@ void OpenGLTexturedRect(
 	return;
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, basis Basis, bool Wrapped = false)
+void OpenGLRenderText(uint32 DisplayWidth, v3 Position, character* Characters, color Color, int Points, string String, basis Basis, bool Wrapped = false)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;
@@ -317,16 +317,14 @@ GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_f
 	glAttachShader(ProgramID, VertexShaderID);
 	glAttachShader(ProgramID, FragmentShaderID);
 
-	//glBindAttribLocation(ProgramID, 0, "position");
-
 	glLinkProgram(ProgramID);
 
 	glValidateProgram(ProgramID);
 	GLint Validation = 0;
 	glGetProgramiv(ProgramID, GL_VALIDATE_STATUS, &Validation);
 	if (Validation) {
-		//glDeleteShader(VertexShaderID);
-		//glDeleteShader(FragmentShaderID);
+		glDeleteShader(VertexShaderID);
+		glDeleteShader(FragmentShaderID);
 	}
 	else {
 		GLsizei Length;
@@ -529,12 +527,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				glUniformMatrix4fv(ModelviewLocation, 1, GL_FALSE, Modelview);
 				Error = glGetError();
 
-				double Points[] = {
-					0.0, 0.0, 0.0,
-					1.0, 0.0, 0.0,
-					0.0, 1.0, 0.0
-				};
-
 				if (Mesh->VBO) {
 					glBindVertexArray(Mesh->VAO);
 				}
@@ -559,61 +551,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 					
 					glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 3 * sizeof(double), (void*)0);
 					glEnableVertexAttribArray(0);
-
-					char Buffer[100];
-					GLint Size;
-					GLenum Type;
-
-					glGetActiveAttrib(Shader->ProgramID, 0, 100, NULL, &Size, &Type, Buffer);
-					Error = glGetError();
-					GLint count;
-					glGetProgramiv(Shader->ProgramID, GL_ACTIVE_ATTRIBUTES, &count);
 				}
 
 				glDrawElements(GL_TRIANGLES, 3 * Mesh->nFaces, GL_UNSIGNED_INT, 0);
 				Error = glGetError();
-				//glBegin(GL_TRIANGLES);
-				//glVertex3d(0.0,0.0,0.0);
-				//glVertex3d(1.0, 0.0, 0.0);
-				//glVertex3d(0.0, 1.0, 0.0);
-				//glEnd();
-
-				//uint8* Pointer = (uint8*)Mesh->Faces;
-
-				//for (int i = 0; i < Mesh->nFaces; i++) {
-				//	face Face = *(face*)Pointer;
-				//	Pointer += sizeof(face);
-				//	v3 Normal = Mesh->Normals[Face.Normal - 1];
-				//	v3 BasisNormal = Normal.X * Basis.X + Normal.Y * Basis.Y + Normal.Z * Basis.Z;
-				//	//v3 BasisNormal = Normal;
-				//	// Color
-				//	double Diffuse = max(-Entry.Light.Direction * BasisNormal, 0.0);
-				//	color Color = (Entry.Light.Ambient + Diffuse) * Entry.Light.Color;
-
-				//	if (Face.Size == 3) {
-				//		v3 Vertex1 = ChangeBasis(Mesh->Vertices[Face.Vertex[0].Vertex - 1], Basis);
-				//		v3 Vertex2 = ChangeBasis(Mesh->Vertices[Face.Vertex[1].Vertex - 1], Basis);
-				//		v3 Vertex3 = ChangeBasis(Mesh->Vertices[Face.Vertex[2].Vertex - 1], Basis);
-
-				//		game_triangle Triangle = { Vertex1, Vertex2, Vertex3 };
-				//		OpenGLTriangle(Triangle, Color, Normal);
-				//	}
-				//	else if (Face.Size == 4) {
-				//		v3 Vertex1 = ChangeBasis(Mesh->Vertices[Face.Vertex[0].Vertex - 1], Basis);
-				//		v3 Vertex2 = ChangeBasis(Mesh->Vertices[Face.Vertex[1].Vertex - 1], Basis);
-				//		v3 Vertex3 = ChangeBasis(Mesh->Vertices[Face.Vertex[2].Vertex - 1], Basis);
-				//		v3 Vertex4 = ChangeBasis(Mesh->Vertices[Face.Vertex[3].Vertex - 1], Basis);
-
-				//		game_triangle Triangle = { Vertex1, Vertex2, Vertex3 };
-				//		OpenGLTriangle(Triangle, Color, Normal);
-				//		Triangle = { Vertex3, Vertex1, Vertex4 };
-				//		OpenGLTriangle(Triangle, Color, Normal);
-				//	}
-				//	else {
-				//		OutputDebugStringA("3D Model face has more than 4 vertices");
-				//	}
-				//	Pointer += Face.Size * sizeof(vertex);
-				//}
 
 				glUseProgram(0);
 				glBindVertexArray(0);

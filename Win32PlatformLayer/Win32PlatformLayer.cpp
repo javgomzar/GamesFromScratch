@@ -1101,24 +1101,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
-    InitializeArena(&pGameState->TextArena, Megabytes(1), ArenaStart);
-    ArenaStart += pGameState->TextArena.Size;
+    InitializeArena(&pGameState->StringsArena, Kilobytes(10), ArenaStart);
+    ArenaStart += pGameState->StringsArena.Size;
+    InitializeArena(&pGameState->FontsArena, Megabytes(1), ArenaStart);
+    ArenaStart += pGameState->FontsArena.Size;
     InitializeArena(&pGameState->RenderArena, Megabytes(5), ArenaStart);
     ArenaStart += pGameState->RenderArena.Size;
-    InitializeArena(&pGameState->VideoArena, Megabytes(15), ArenaStart);
-    ArenaStart += pGameState->VideoArena.Size;
     InitializeArena(&pGameState->MeshArena, Megabytes(5), ArenaStart);
+    ArenaStart += pGameState->VideoArena.Size;
+    InitializeArena(&pGameState->VideoArena, Megabytes(15), ArenaStart);
 
     // Render group
     Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
     Group->OpenGLActive = OpenGLResponse == 0;
 
-    read_file_result HeaderShaderHandle = PlatformReadEntireFile("..\\..\\Shaders\\HeaderShader.h.glsl");
-    read_file_result VertexShaderHandle = PlatformReadEntireFile("..\\..\\Shaders\\VertexShader.vert.glsl");
-    read_file_result FragmentShaderHandle = PlatformReadEntireFile("..\\..\\Shaders\\FragmentShader.frag.glsl");
-
     // DebugInfo
-    GameMemory.DebugInfo = PushString(&pGameState->TextArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
+    GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
 
     bool FirstFrame = true;
     // Main message loop:
