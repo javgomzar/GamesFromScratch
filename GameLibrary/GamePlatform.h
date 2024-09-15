@@ -4,7 +4,7 @@
 
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
-#endif
+
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -19,7 +19,7 @@ typedef int64_t int64;
 typedef size_t memory_index;
 
 // Assert
-void Assert(bool assertion) {
+inline void Assert(bool assertion) {
     if (!assertion) {
         throw("Assert failed");
     }
@@ -32,13 +32,13 @@ struct memory_arena {
     memory_index Used;
 };
 
-void InitializeArena(memory_arena* Arena, memory_index Size, uint8* Base) {
+inline void InitializeArena(memory_arena* Arena, memory_index Size, uint8* Base) {
     Arena->Size = Size;
     Arena->Base = Base;
     Arena->Used = 0;
 }
 
-void ZeroSize(memory_index Size, void* Ptr) {
+inline void ZeroSize(memory_index Size, void* Ptr) {
     uint8* Byte = (uint8*)Ptr;
     while (Size--) {
         *Byte++ = 0;
@@ -48,7 +48,7 @@ void ZeroSize(memory_index Size, void* Ptr) {
 #define PushStruct(Arena, type) (type *)PushSize_(Arena, sizeof(type))
 #define PushArray(Arena, Count, type) (type *)PushSize_(Arena, Count*sizeof(type))
 #define PushSize(Arena, Size) (void*)PushSize_(Arena, Size)
-void* PushSize_(memory_arena* Arena, memory_index Size) {
+inline void* PushSize_(memory_arena* Arena, memory_index Size) {
     Assert(Arena->Size >= Arena->Used + Size);
     void* Result = Arena->Base + Arena->Used;
     Arena->Used += Size;
@@ -58,12 +58,30 @@ void* PushSize_(memory_arena* Arena, memory_index Size) {
 #define PopStruct(Arena, type) (type *)PopSize_(Arena, sizeof(type))
 #define PopArray(Arena, Count, type) (type *)PopSize_(Arena, Count*sizeof(type))
 #define PopSize(Arena, Size) (void*)PopSize_(Arena, Size)
-void* PopSize_(memory_arena* Arena, memory_index Size) {
+inline void* PopSize_(memory_arena* Arena, memory_index Size) {
     memory_index BytesErased = Size < Arena->Used? Size : Arena->Used;
     void* Result = (void*)(Arena->Base + Arena->Used - BytesErased);
     ZeroSize(BytesErased, Result);
     Arena->Used -= BytesErased;
     return Result;
+}
+
+// Strings
+struct string {
+    int Length;
+    char* Content;
+};
+
+inline string PushString(memory_arena* Arena, int Length, const char* Content) {
+    string String = { 0 };
+    String.Length = Length;
+    String.Content = PushArray(Arena, Length, char);
+
+    for (int i = 0; i < Length; i++) {
+        String.Content[i] = Content[i];
+    }
+
+    return String;
 }
 
 
@@ -99,72 +117,6 @@ struct bitmap_header {
 };
 #pragma pack(pop)
 
-struct loaded_bmp {
-    bitmap_header Header;
-    uint32 Handle;
-    uint32 BytesPerPixel;
-    uint32 Pitch;
-    uint32 AlphaMask;
-    uint32* Content;
-};
-
-void ClearBitmap(loaded_bmp* Bitmap) {
-    if (Bitmap->Content) {
-        int32 TotalBitmapSize = Bitmap->Header.Width * Bitmap->Header.Height * 8;
-        ZeroSize(TotalBitmapSize, Bitmap->Content);
-    }
-}
-
-loaded_bmp MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool ClearToZero = true) {
-    loaded_bmp Result = { 0 };
-    Result.Header = { 0 };
-    Result.Header.Width = Width;
-    Result.Header.Height = Height;
-    Result.Header.BitsPerPixel = 32;
-    Result.BytesPerPixel = 4;
-    Result.Pitch = 4 * Width;
-    int32 TotalBitmapSize = Width * Height * 32;
-    Result.Header.FileSize = TotalBitmapSize;
-
-    Result.Header.RedMask = 0x00ff0000;
-    Result.Header.GreenMask = 0x0000ff00;
-    Result.Header.BlueMask = 0x000000ff;
-    Result.AlphaMask = 0xff000000;
-
-    Result.Content = (uint32*)PushSize(Arena, TotalBitmapSize / 8);
-    if (ClearToZero) {
-        ClearBitmap(&Result);
-    }
-    return Result;
-}
-
-struct string {
-    int Length;
-    char* Content;
-};
-
-string PushString(memory_arena* Arena, int Length, const char* Content) {
-    string String = { 0 };
-    String.Length = Length;
-    String.Content = PushArray(Arena, Length, char);
-
-    for (int i = 0; i < Length; i++) {
-        String.Content[i] = Content[i];
-    }
-
-    return String;
-}
-
-struct character {
-    unsigned char Letter;
-    signed long Advance;
-    signed long Width;
-    signed long Height;
-    int Left;
-    int Top;
-    loaded_bmp* Bitmap;
-};
-
 #define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Filename)
 typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
 
@@ -181,3 +133,5 @@ struct platform_api {
     platform_free_file_memory* FreeFileMemory;
     platform_write_entire_file* WriteEntireFile;
 };
+
+#endif

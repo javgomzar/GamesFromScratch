@@ -24,6 +24,7 @@
     - Shaders
     - GetKeyboardLayout (international wasd support)
     - Restore software renderer as fallback
+    - Make Render function not use so much space
 */
 
 #define MAX_LOADSTRING 100
@@ -157,75 +158,6 @@ struct OFFSCREENBUFFER {
 
 OFFSCREENBUFFER BackBuffer;
 WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
-
-character* InitializeFonts(memory_arena* Arena) {
-    FT_Library FTLibrary;
-    FT_Face Font;
-    FT_Error error = FT_Init_FreeType(&FTLibrary);
-    if (error) {
-        Assert(false);
-    }
-    else {
-        error = FT_New_Face(FTLibrary, "C:/Windows/Fonts/CascadiaMono.ttf", 0, &Font);
-        if (error == FT_Err_Unknown_File_Format) {
-            Assert(false);
-        }
-        else if (error) {
-            Assert(false);
-        }
-        else {
-            // Initializing char bitmaps
-            int Points = 20;
-            error = FT_Set_Char_Size(Font, 0, Points * 64, 128, 128);
-            if (error) {
-                Assert(false);
-            }
-            
-            character* Result = PushArray(Arena, 95, character);
-            loaded_bmp* CharacterBMP = PushArray(Arena, 95, loaded_bmp);
-            character* pCharacter = Result;
-            for (unsigned char c = ' '; c <= '~'; c++) {
-                error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
-                if (error) {
-                    Assert(false);
-                }
-                else {
-                    FT_GlyphSlot Slot = Font->glyph;
-                    FT_Bitmap FTBMP = Slot->bitmap;
-                    *CharacterBMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
-                    LoadFTBMP(&FTBMP, CharacterBMP);
-
-                    character LoadCharacter = { 0 };
-                    LoadCharacter.Letter = c;
-                    LoadCharacter.Advance = Slot->advance.x >> 6;
-                    LoadCharacter.Left = Slot->bitmap_left;
-                    LoadCharacter.Top = Slot->bitmap_top;
-                    LoadCharacter.Height = Slot->metrics.height;
-                    LoadCharacter.Width = Slot->metrics.width;
-                    LoadCharacter.Bitmap = CharacterBMP++;
-
-                    GLuint Handle;
-                    glGenTextures(1, &Handle);
-                    LoadCharacter.Bitmap->Handle = Handle;
-
-                    *(pCharacter++) = LoadCharacter;
-
-                    glBindTexture(GL_TEXTURE_2D, Handle);
-                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, LoadCharacter.Bitmap->Header.Width, LoadCharacter.Bitmap->Header.Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, LoadCharacter.Bitmap->Content);
-
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-                }
-            }
-            FT_Done_Face(Font);
-            FT_Done_FreeType(FTLibrary);
-            return Result;
-        }
-    }
-}
 
 
 WNDDIMENSION GetWindowDimension(HWND Window) {
@@ -1177,12 +1109,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     ArenaStart += pGameState->VideoArena.Size;
     InitializeArena(&pGameState->MeshArena, Megabytes(5), ArenaStart);
 
-    // Fonts
-    GameMemory.Assets.Characters = InitializeFonts(&pGameState->TextArena);
-
     // Render group
     Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
     Group->OpenGLActive = OpenGLResponse == 0;
+
+    read_file_result HeaderShaderHandle = PlatformReadEntireFile("..\\..\\Shaders\\HeaderShader.h.glsl");
+    read_file_result VertexShaderHandle = PlatformReadEntireFile("..\\..\\Shaders\\VertexShader.vert.glsl");
+    read_file_result FragmentShaderHandle = PlatformReadEntireFile("..\\..\\Shaders\\FragmentShader.frag.glsl");
 
     // DebugInfo
     GameMemory.DebugInfo = PushString(&pGameState->TextArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
