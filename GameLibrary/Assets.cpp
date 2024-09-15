@@ -407,10 +407,5 @@ void LoadAssets(
     Assets->TextArenaStr = PushString(TextArena, 13, "Text Arena");
     Assets->TextPercentageStr = PushString(TextArena, 7, "0.0%");
 
-    //Assets->TestImage = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Media/Bitmaps/Player.bmp");
-
-    Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Media/Models/sphere.mdl");
-    Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Media/Models/sword.mdl");
-
     Assets->TestShader = LoadShader(Platform->ReadEntireFile, MeshArena);
 }
