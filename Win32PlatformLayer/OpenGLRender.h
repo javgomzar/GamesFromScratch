@@ -197,7 +197,7 @@ void OpenGLTexturedRect(
 	return;
 }
 
-void OpenGLRenderText(uint32 DisplayWidth, game_screen_position Position, character* Characters, color Color, int Points, string String, basis Basis, bool Wrapped = false)
+void OpenGLRenderText(uint32 DisplayWidth, v3 Position, character* Characters, color Color, int Points, string String, basis Basis, bool Wrapped = false)
 {
 	double PenX = Position.X;
 	double PenY = Position.Y;

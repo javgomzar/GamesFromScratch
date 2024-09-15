@@ -25,14 +25,24 @@ inline void Assert(bool assertion) {
     }
 }
 
+// Strings
+struct string {
+    int Length;
+    char* Content;
+};
+
+
 // Memory Arenas
 struct memory_arena {
     memory_index Size;
     uint8* Base;
     memory_index Used;
+    string Name;
+    string Percentage;
 };
 
 inline void InitializeArena(memory_arena* Arena, memory_index Size, uint8* Base) {
+    *Arena = { 0 };
     Arena->Size = Size;
     Arena->Base = Base;
     Arena->Used = 0;
@@ -66,12 +76,6 @@ inline void* PopSize_(memory_arena* Arena, memory_index Size) {
     return Result;
 }
 
-// Strings
-struct string {
-    int Length;
-    char* Content;
-};
-
 inline string PushString(memory_arena* Arena, int Length, const char* Content) {
     string String = { 0 };
     String.Length = Length;
@@ -83,7 +87,6 @@ inline string PushString(memory_arena* Arena, int Length, const char* Content) {
 
     return String;
 }
-
 
 // Services that the platform layer provides for the game
 struct read_file_result {
