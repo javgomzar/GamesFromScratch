@@ -1,3 +1,5 @@
+#include "GamePlatform.h"
+
 #ifndef FFMPEG
 #define FFMPEG
 

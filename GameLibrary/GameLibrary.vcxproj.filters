@@ -43,6 +43,9 @@
     <ClInclude Include="FFMpeg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="Assets.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameLibrary.cpp">
@@ -55,6 +58,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="FFMpeg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Assets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

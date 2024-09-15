@@ -54,45 +54,6 @@ void Plot(game_offscreen_buffer* Buffer, game_screen_position Position, color Co
     }
 }
 
-// Asset loading
- // BMP
-loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char* Path) {
-    loaded_bmp Result = { 0 };
-    Result.Handle = 0;
-    read_file_result ReadResult = PlatformReadEntireFile(Path);
-    if (ReadResult.ContentSize != 0) {
-        bitmap_header* Header = (bitmap_header*)ReadResult.Content;
-        Result.Header = *Header;
-        uint32 BytesPerPixel = Header->BitsPerPixel >> 3;
-        Result.BytesPerPixel = BytesPerPixel;
-        Result.Pitch = Header->Width * BytesPerPixel;
-        Result.Content = (uint32*)((uint8*)ReadResult.Content + Header->BitmapOffset);
-        
-        bool HasAlpha = false;
-        if (Result.Header.BitsPerPixel == 32 && Result.Header.Compression == 3) {
-            uint32 AlphaMask = ~(Result.Header.RedMask | Result.Header.GreenMask | Result.Header.BlueMask);
-            // If not all Alphas are zero, we need to use them
-            uint32* Contents = Result.Content;
-            for (int32 i = 0; i < Result.Header.Height * Result.Header.Width; i++) {
-                if ((*Contents++ & AlphaMask) > 0) {
-                    HasAlpha = true;
-                    break;
-                }
-            }
-
-            // If all alphas are zero, turn them to one
-            Contents = Result.Content;
-            if (!HasAlpha) {
-                for (int32 j = 0; j < Result.Header.Height * Result.Header.Width; j++) {
-                    *Contents = AlphaMask | (*Contents++ & ~AlphaMask);
-                }
-            }
-        }
-    }
-    return Result;
-}
-
-
 // UI
 void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, platform_read_entire_file* Read) {
     // Initialize your UI elements here
@@ -197,54 +158,7 @@ void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_
     //WriteSineWave(pSoundBuffer, 480, 0);
 }
 
-game_sound LoadWAV(platform_read_entire_file* PlatformReadEntireFile, const char* FileName) {
-    read_file_result File = PlatformReadEntireFile(FileName);
-    DWORD* Pointer = (DWORD*)File.Content;
-    
-    DWORD ChunkType = *Pointer++;
-    if (ChunkType != 'FFIR') {
-        Assert(false);
-    }
-
-    DWORD RIFFChunkSize = *Pointer++;
-    DWORD FileType = *Pointer++;
-    if (FileType != 'EVAW') {
-        Assert(false);
-    }
-
-    ChunkType = *Pointer++;
-    if (ChunkType != ' tmf') {
-        Assert(false);
-    }
-    DWORD ChunkSize = *Pointer++;
-    waveformat WaveFMT = *(waveformat*)Pointer;
-
-    Pointer += 4;
-    ChunkType = *Pointer++;
-    if (ChunkType != 'atad') {
-        Assert(false);
-    }
-    ChunkSize = *Pointer++;
-
-    game_sound Result = {0};
-    Result.SampleOut = (int16*)Pointer;
-    Result.SampleCount = ChunkSize / 2;
-    return Result;
-}
-
 // Video
-game_video LoadVideo(memory_arena* Arena, const char* Filename) {
-    game_video Result = { 0 };
-    Result.VideoContext = PushStruct(Arena, video_context);
-
-    InitializeVideo(Filename, Result.VideoContext);
-    int Width = Result.VideoContext->Frame->width;
-    int Height = Result.VideoContext->Frame->height;
-    Result.VideoContext->VideoOut = PushSize(Arena, Width * Height * 4);
-
-    return Result;
-}
-
 void PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z, double SecondsElapsed) {
     
     if (!Video->VideoContext->Ended) {
@@ -297,16 +211,8 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
-        Assets->RenderArenaStr = PushString(&pGameState->RenderArena, 13, "Render Arena");
-        Assets->RenderPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
-        Assets->VideoArenaStr = PushString(&pGameState->VideoArena, 13, "Video Arena");
-        Assets->VideoPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
-        Assets->TextArenaStr = PushString(&pGameState->TextArena, 13, "Text Arena");
-        Assets->TextPercentageStr = PushString(&pGameState->TextArena, 7, "0.0%");
+        LoadAssets(Assets, Platform, &pGameState->RenderArena, &pGameState->MeshArena, &pGameState->VideoArena, &pGameState->TextArena);
 
-        Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, &pGameState->MeshArena, "../../GameLibrary/Media/Models/sphere.mdl");
-        Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, &pGameState->MeshArena, "../../GameLibrary/Media/Models/sword.mdl");
-        
         // User Interface
         // InitializeUI();
 
@@ -370,10 +276,13 @@ extern "C" GAME_UPDATE(GameUpdate)
     Light.Direction = normalize(V3(-0.5,-1,1));
 
     Light.Color = Red;
-    PushMesh(Group, Assets->TestMesh, V3(0.0, 0.0, 0.0), Light, Quaternion(pGameState->Time, V3(0.0, -1.0, 0.0)));
+    //transform Transform1 = Transform(Quaternion(pGameState->Time, V3(0.0, -1.0, 0.0)));
+    transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0));
+    PushMesh(Group, &Assets->TestMesh, Transform1, Light, &Assets->TestShader);
 
     Light.Color = Green;
-    PushMesh(Group, Assets->TestMesh2, V3(0.0, 0.0, 5.0), Light, Quaternion(pGameState->Time, V3(0.0, 1.0, 0.0)));
+    transform Transform2 = Transform(Quaternion(pGameState->Time, V3(0.0, 1.0, 0.0)), V3(3.0, 0.0, 0.0));
+    PushMesh(Group, &Assets->TestMesh2, Transform2, Light, &Assets->TestShader);
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;

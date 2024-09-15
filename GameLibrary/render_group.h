@@ -1,5 +1,5 @@
 #pragma once
-#include "FFMPEG.h"
+#include "Assets.h"
 
 const int MAX_ENTRIES = 10000;
 
@@ -110,9 +110,9 @@ struct light {
 
 struct render_entry_mesh {
     render_group_header Header;
-    mesh Mesh;
-    v3 Position;
-    basis Basis;
+    mesh* Mesh;
+    transform Transform;
+    shader* Shader;
     light Light;
 };
 
@@ -409,17 +409,15 @@ void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
     Entry->Rect = Rect;
 }
 
-void PushMesh(render_group* Group, mesh Mesh, v3 Position, light Light, 
-    quaternion Rotation = Quaternion(1.0,0.0,0.0,0.0), 
-    double sX = 1.0, double sY = 1.0, double sZ = 1.0) 
+void PushMesh(render_group* Group, mesh* Mesh, transform Transform, light Light, shader* Shader)
 {
     render_entry_mesh* Entry = PushRenderElement(Group, render_entry_mesh);
-    Entry->Header.Key.Z = Position.Z;
+    Entry->Header.Key.Z = Transform.Translation.Z;
 
-    Entry->Basis = Rotate(Scale(Identity(1.0), sX, sY, sZ), Rotation);
-    Entry->Position = Position;
+    Entry->Transform = Transform;
     Entry->Mesh = Mesh;
     Entry->Light = Light;
+    Entry->Shader = Shader;
 }
 
 void ClearEntries(render_group* Group) {
@@ -730,21 +728,6 @@ void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, game_screen_position P
 //}
 
 // Text
-void LoadFTBMP(FT_Bitmap* SourceBMP, loaded_bmp* DestBMP) {
-    DestBMP->Header.Width = SourceBMP->width;
-    DestBMP->Header.Height = SourceBMP->rows;
-    uint32* DestRow = DestBMP->Content + DestBMP->Header.Width * (DestBMP->Header.Height - 1);
-    uint8* Source = SourceBMP->buffer;
-    for (int Y = 0; Y < SourceBMP->rows; Y++) {
-        uint32* Pixel = DestRow;
-        for (int X = 0; X < SourceBMP->width; X++) {
-            // FreeType BMPs come with only one byte representing alpha. We load it as a white BMP so changing
-            // the color is easier with OpenGL.
-            *Pixel++ = (*Source++ << 24) | 0x00ffffff;
-        }
-        DestRow -= SourceBMP->pitch;
-    }
-}
 
 //void RenderText(loaded_bmp* OutputTarget, memory_arena* Arena, FT_Face* Font, game_screen_position Position, text Text) {
 //    FT_Error error;
