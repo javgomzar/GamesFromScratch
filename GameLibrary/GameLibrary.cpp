@@ -210,7 +210,6 @@ extern "C" GAME_UPDATE(GameUpdate)
         firstFrame = true;
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        // Load your assets here
         LoadAssets(Assets, Platform, 
             &pGameState->RenderArena, 
             &pGameState->StringsArena, 
@@ -219,10 +218,28 @@ extern "C" GAME_UPDATE(GameUpdate)
             &pGameState->VideoArena
         );
 
+        // Faces
+        pGameState->Cube = { 0 };
+            // Distance between faces
+        double D = 2.2;
+            // Cube length
+        double L = 3.3;
+
+        for (int i = 0; i < 9; i++) {
+            double sub_x = D * (double)(i % 3 - 1);
+            double sub_y = D * (double)(i / 3 - 1);
+            pGameState->Cube.Top[i] = { White, V3(sub_x, L, sub_y), Quaternion(1.0) };
+            pGameState->Cube.Bottom[i] = { Red, V3(sub_x, -L, sub_y), Quaternion(Tau / 2.0, V3(1.0, 0.0, 0.0)) };
+            pGameState->Cube.Left[i] = { Blue, V3(sub_x, sub_y, -L), Quaternion(Tau / 4.0, V3(1.0, 0.0, 0.0)) };
+            pGameState->Cube.Right[i] = { Green, V3(sub_x, sub_y, L), Quaternion(-Tau / 4.0, V3(1.0, 0.0, 0.0)) };
+            pGameState->Cube.Front[i] = { Yellow, V3(L, sub_y, sub_x), Quaternion(Tau / 4.0, V3(0.0, 0.0, 1.0)) };
+            pGameState->Cube.Back[i] = { Orange, V3(-L, sub_y, sub_x), Quaternion(-Tau / 4.0, V3(0.0, 0.0, 1.0)) };
+        }
+
         // User Interface
         // InitializeUI();
 
-        Camera->Position = V3(0, 0, -10.0);
+        Camera->Position = V3(0, 0, -15.0);
 
         Memory->IsInitialized = true;
     }
@@ -287,13 +304,12 @@ extern "C" GAME_UPDATE(GameUpdate)
     Light.Ambient = 0.2;
     Light.Direction = normalize(V3(-0.5,-1,1));
 
-    Light.Color = Red;
-    transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(5.0, 0.0, 0.0));
-    PushMesh(Group, &Assets->TestMesh, Transform1, Light, &Assets->SphereShader);
-
-    Light.Color = White;
-    transform Transform2 = Transform(Quaternion(Tau / 4.0, V3(0.0, 1.0, 0.0)), V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0));
-    PushMesh(Group, &Assets->TestMesh2, Transform2, Light, &Assets->TestShader);
+    for (int i = 0; i < 54; i++) {
+        face Face = pGameState->Cube.Faces[i];
+        Light.Color = Face.Color;
+        transform FaceTransform = Transform(Face.Rotation, Face.Position + V3(0.0, 0.0, 5.0));
+        PushMesh(Group, &Assets->FaceMesh, FaceTransform, Light, &Assets->TextureShader);
+    }
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;

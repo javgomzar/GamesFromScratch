@@ -107,9 +107,8 @@ struct game_assets {
     loaded_bmp EmptyTexture;
     game_sound TestSound;
     game_video TestVideo;
-    mesh TestMesh;
-    mesh TestMesh2;
-    shader TestShader;
+    mesh FaceMesh;
+    shader TextureShader;
     shader SphereShader;
 };
 

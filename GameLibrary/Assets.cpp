@@ -512,17 +512,13 @@ void LoadAssets(
     MeshArena->Name = PushString(StringsArena, 11, "Mesh Arena");
     MeshArena->Percentage = PushString(StringsArena, 7, "0.0%");
 
-    //Assets->TestImage = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Media/Bitmaps/Player.bmp");
-    Assets->TestImage = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Assets/Bitmaps/Enemy.bmp");
     Assets->EmptyTexture = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Assets/Bitmaps/Empty.bmp");
 
-    Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Assets/Models/sphere.mdl");
-    Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Assets/Models/enemy.mdl");
+    Assets->FaceMesh = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Assets/Models/Plane.mdl");
 
-    Assets->TestMesh.Texture = &Assets->EmptyTexture;
-    Assets->TestMesh2.Texture = &Assets->TestImage;
+    Assets->FaceMesh.Texture = &Assets->EmptyTexture;
 
-    Assets->TestShader = LoadShader(Platform->ReadEntireFile, MeshArena, 
+    Assets->TextureShader = LoadShader(Platform->ReadEntireFile, MeshArena, 
         "../../GameLibrary/Assets/Shaders/HeaderShader.h.glsl", 
         "../../GameLibrary/Assets/Shaders/VertexShader.vert.glsl",
         "../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl"

@@ -368,6 +368,10 @@ inline transform Transform(quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
 	return { Translation, Scaling, Rotation };
 }
 
+inline transform Transform(v3 Translation = V3(0.0, 0.0, 0.0), quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = Scale()) {
+	return { Translation, Scaling, Rotation };
+}
+
 inline v3 operator*(transform Transform, v3 Vector) {
 	return Rotate((Transform.Scale * Vector), Transform.Rotation) + Transform.Translation;
 }

@@ -268,6 +268,27 @@ struct UI {
 
 };
 
+// Faces
+struct face {
+    color Color;
+    v3 Position;
+    quaternion Rotation;
+};
+
+struct rubiks_cube {
+    union {
+        struct {
+            face Top[9];
+            face Bottom[9];
+            face Left[9];
+            face Right[9];
+            face Front[9];
+            face Back[9];
+        };
+        face Faces[54];
+    };
+};
+
 
 // Game State: Persistent (between frames) values
 struct game_state {
@@ -276,6 +297,7 @@ struct game_state {
     memory_arena FontsArena;
     memory_arena VideoArena;
     memory_arena MeshArena;
+    rubiks_cube Cube;
     UI UserInterface;
     bool ShowDebugInfo;
     double dt;
