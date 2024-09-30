@@ -78,23 +78,17 @@ struct game_video {
 
 // 3D Models
 struct mesh {
-    string Name;
     int nVertices;
-    v3* Vertices;
-    int nTextureVertices;
-    v2* TextureVertices;
-    int nNormals;
-    v3* Normals;
+    double* Vertices;
     int nFaces;
-    uint32* FaceVertices;
-    uint32* FaceTextures;
-    uint32* FaceNormals;
+    uint32* Faces;
     uint32 VBO;
     uint32 VAO;
     uint32 EBO;
+    loaded_bmp* Texture;
 };
 
-mesh LoadMesh(platform_read_entire_file Read, memory_arena* StringsArena, memory_arena* MeshArena, const char* Path);
+mesh LoadMesh(platform_read_entire_file Read, memory_arena* MeshArena, const char* Path);
 
 
 // Shaders
@@ -110,11 +104,13 @@ struct game_assets {
     character* Characters;
     loaded_bmp TestImage;
     loaded_bmp TestImage2;
+    loaded_bmp EmptyTexture;
     game_sound TestSound;
     game_video TestVideo;
     mesh TestMesh;
     mesh TestMesh2;
     shader TestShader;
+    shader SphereShader;
 };
 
 void LoadAssets(

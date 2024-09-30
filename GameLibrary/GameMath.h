@@ -372,22 +372,22 @@ inline v3 operator*(transform Transform, v3 Vector) {
 	return Rotate((Transform.Scale * Vector), Transform.Rotation) + Transform.Translation;
 }
 
-inline void Matrix(matrix4 Matrix, transform Transform) {
+inline void Matrix(float* Matrix, transform Transform) {
 	Matrix[0]  = 2.0 * Transform.Scale.X * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.i * Transform.Rotation.i) - 1.0;
 	Matrix[1]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.j + Transform.Rotation.c * Transform.Rotation.k);
 	Matrix[2]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.j);
-	Matrix[3]  = Transform.Translation.X;
+	Matrix[3]  = 0.0;
 	Matrix[4]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.j - Transform.Rotation.c * Transform.Rotation.k);
 	Matrix[5]  = 2.0 * Transform.Scale.Y * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.j * Transform.Rotation.j) - 1.0;
 	Matrix[6]  = 2.0 * (Transform.Rotation.j * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.i);
-	Matrix[7]  = Transform.Translation.Y;
+	Matrix[7]  = 0.0;
 	Matrix[8]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.j);
 	Matrix[9]  = 2.0 * (Transform.Rotation.j * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.i);
 	Matrix[10] = 2.0 * Transform.Scale.Z * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.k * Transform.Rotation.k) - 1.0;
-	Matrix[11] = Transform.Translation.Z;
-	Matrix[12] = 0.0;
-	Matrix[13] = 0.0;
-	Matrix[14] = 0.0;
+	Matrix[11] = 0.0;
+	Matrix[12] = Transform.Translation.X;;
+	Matrix[13] = Transform.Translation.Y;
+	Matrix[14] = Transform.Translation.Z;
 	Matrix[15] = 1.0;
 }
 

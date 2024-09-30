@@ -197,6 +197,98 @@ game_video LoadVideo(memory_arena* Arena, const char* Filename) {
 
 
 // 3D Models
+mesh LoadMesh(platform_read_entire_file Read, memory_arena* MeshArena, const char* Path) {
+    mesh Result = { 0 };
+
+    read_file_result ReadResult = Read(Path);
+    if (ReadResult.ContentSize > 0) {
+        char* Pointer = (char*)ReadResult.Content;
+        uint32 ReadSize = 0;
+
+        uint32 nVertices = 0;
+        uint32 nFaces = 0;
+        while (ReadSize < ReadResult.ContentSize) {
+            char ReadChar = *Pointer++;
+            if (ReadChar == 'v') {
+                nVertices++;
+            }
+            else if (ReadChar == 'f') {
+                nFaces++;
+            }
+            ReadSize++;
+        }
+        
+        Pointer = (char*)ReadResult.Content;
+        ReadSize = 0;
+
+        Result.nVertices = nVertices;
+        Result.nFaces = nFaces;
+        double* VerticesData = PushArray(MeshArena, 8 * nVertices, double);
+        uint32* FacesData = PushArray(MeshArena, 3 * nFaces, uint32);
+
+        Result.Vertices = VerticesData;
+        Result.Faces = FacesData;
+
+        double* Vertices = VerticesData;
+        for (int i = 0; i < nVertices; i++) {
+            Pointer += 2;
+
+            char* VXEnd = 0;
+            double VX = strtod(Pointer, &VXEnd);
+            char* VYEnd = 0;
+            double VY = strtod(VXEnd + 1, &VYEnd);
+            char* VZEnd = 0;
+            double VZ = strtod(VYEnd + 1, &VZEnd);
+
+            char* VNXEnd = 0;
+            double VNX = strtod(VZEnd + 1, &VNXEnd);
+            char* VNYEnd = 0;
+            double VNY = strtod(VNXEnd + 1, &VNYEnd);
+            char* VNZEnd = 0;
+            double VNZ = strtod(VNYEnd + 1, &VNZEnd);
+
+            char* VTXEnd = 0;
+            double VTX = strtod(VNZEnd + 1, &VTXEnd);
+            char* VTYEnd = 0;
+            double VTY = strtod(VTXEnd + 1, &VTYEnd);
+
+            *Vertices++ = VX;
+            *Vertices++ = VY;
+            *Vertices++ = VZ;
+            *Vertices++ = VNX;
+            *Vertices++ = VNY;
+            *Vertices++ = VNZ;
+            *Vertices++ = VTX;
+            *Vertices++ = VTY;
+
+            Pointer = VTYEnd + 1;
+        }
+
+        uint32* Faces = FacesData;
+        for (int i = 0; i < nFaces; i++) {
+            Pointer += 2;
+
+            char* Point1End = 0;
+            uint32 Point1 = strtol(Pointer, &Point1End, 10);
+            char* Point2End = 0;
+            uint32 Point2 = strtol(Point1End + 1, &Point2End, 10);
+            char* Point3End = 0;
+            uint32 Point3 = strtol(Point2End + 1, &Point3End, 10);
+
+            *Faces++ = Point1;
+            *Faces++ = Point2;
+            *Faces++ = Point3;
+
+            Pointer = Point3End + 1;
+        }
+
+        OutputDebugStringA("Model loaded.");
+    }
+    return Result;
+}
+
+
+/*
 mesh LoadMesh(platform_read_entire_file Read, memory_arena* StringsArena, memory_arena* MeshArena, const char* Path) {
     mesh Result = { 0 };
     read_file_result ReadResult = Read(Path);
@@ -372,15 +464,23 @@ mesh LoadMesh(platform_read_entire_file Read, memory_arena* StringsArena, memory
     }
     return Result;
 }
+*/
+
 
 
 // Shaders
-shader LoadShader(platform_read_entire_file Read, memory_arena* Arena) {
+shader LoadShader(
+    platform_read_entire_file Read, 
+    memory_arena* Arena, 
+    const char* HeaderShaderPath,
+    const char* VertexShaderPath,
+    const char* FragmentShaderPath
+) {
     shader Result = { 0 };
 
-    read_file_result Header = Read("../../Shaders/HeaderShader.h.glsl");
-    read_file_result Vertex = Read("../../Shaders/VertexShader.vert.glsl");
-    read_file_result Fragment = Read("../../Shaders/FragmentShader.frag.glsl");
+    read_file_result Header = Read(HeaderShaderPath);
+    read_file_result Vertex = Read(VertexShaderPath);
+    read_file_result Fragment = Read(FragmentShaderPath);
 
     Result.HeaderShaderCode = Header;
     Result.VertexShaderCode = Vertex;
@@ -413,9 +513,24 @@ void LoadAssets(
     MeshArena->Percentage = PushString(StringsArena, 7, "0.0%");
 
     //Assets->TestImage = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Media/Bitmaps/Player.bmp");
+    Assets->TestImage = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Assets/Bitmaps/Enemy.bmp");
+    Assets->EmptyTexture = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Assets/Bitmaps/Empty.bmp");
 
-    Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, StringsArena, MeshArena, "../../GameLibrary/Media/Models/sphere.mdl");
-    Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, StringsArena, MeshArena, "../../GameLibrary/Media/Models/sword.mdl");
+    Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Assets/Models/sphere.mdl");
+    Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Assets/Models/enemy.mdl");
 
-    Assets->TestShader = LoadShader(Platform->ReadEntireFile, MeshArena);
+    Assets->TestMesh.Texture = &Assets->EmptyTexture;
+    Assets->TestMesh2.Texture = &Assets->TestImage;
+
+    Assets->TestShader = LoadShader(Platform->ReadEntireFile, MeshArena, 
+        "../../GameLibrary/Assets/Shaders/HeaderShader.h.glsl", 
+        "../../GameLibrary/Assets/Shaders/VertexShader.vert.glsl",
+        "../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl"
+    );
+
+    Assets->SphereShader = LoadShader(Platform->ReadEntireFile, MeshArena,
+        "../../GameLibrary/Assets/Shaders/HeaderShader.h.glsl",
+        "../../GameLibrary/Assets/Shaders/VertexShader.vert.glsl",
+        "../../GameLibrary/Assets/Shaders/SphereFragmentShader.frag.glsl"
+    );
 }

@@ -291,8 +291,8 @@ GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_f
 	};
 	glShaderSource(VertexShaderID, 2, VertexShaderCode, VertexShaderCodeLengths);
 
-	char VertexCode[183];
-	for (int i = 0; i < 183; i++) {
+	char VertexCode[4096] = { 0 };
+	for (int i = 0; i < Vertex.ContentSize; i++) {
 		VertexCode[i] = ((char*)Vertex.Content)[i];
 	}
 
@@ -305,8 +305,8 @@ GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_f
 	};
 	glShaderSource(FragmentShaderID, 2, FragmentShaderCode, FragmentShaderCodeLengths);
 
-	char FragmentCode[99];
-	for (int i = 0; i < 99; i++) {
+	char FragmentCode[4096] = { 0 };
+	for (int i = 0; i < Fragment.ContentSize; i++) {
 		FragmentCode[i] = ((char*)Fragment.Content)[i];
 	}
 
@@ -480,11 +480,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 
 				mesh* Mesh = Entry.Mesh;
 				shader* Shader = Entry.Shader;
-				v3 Position = Entry.Transform.Translation;
-				basis Basis = Identity();
+				light Light = Entry.Light;
+				transform Transform = Entry.Transform;
+
+				v3 Position = Transform.Translation;
 
 				SetCameraProjection(Group->Camera, Width, Height);
-				glTranslated(Position.X, Position.Y, Position.Z);
+				//glTranslated(Position.X, Position.Y, Position.Z);
 
 				if (!Shader->ProgramID) {
 					Shader->ProgramID = OpenGLLoadShader(
@@ -504,27 +506,57 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 					0.0f, 0.0f, 1.0f, 0.0f,
 					0.0f, 0.0f, 0.0f, 1.0f,
 				};
-
 				glGetFloatv(GL_PROJECTION_MATRIX, Projection);
 
-				float Modelview[16] = {
+				float View[16] = {
 					1.0f, 0.0f, 0.0f, 0.0f,
 					0.0f, 1.0f, 0.0f, 0.0f,
 					0.0f, 0.0f, 1.0f, 0.0f,
 					0.0f, 0.0f, 0.0f, 1.0f,
 				};
-				glGetFloatv(GL_MODELVIEW_MATRIX, Modelview);
+				glGetFloatv(GL_MODELVIEW_MATRIX, View);
+
+				float Model[16] = {
+					1.0f, 0.0f, 0.0f, 0.0f,
+					0.0f, 1.0f, 0.0f, 0.0f,
+					0.0f, 0.0f, 1.0f, 0.0f,
+					0.0f, 0.0f, 0.0f, 1.0f,
+				};
+				Matrix(Model, Transform);
 
 				glUseProgram(Shader->ProgramID);
 
 				GLint Error = 0;
 
+				// Setting uniforms
+					// Projection and modelview matrices
 				GLint ProjectionLocation = glGetUniformLocation(Entry.Shader->ProgramID, "projection");
 				glUniformMatrix4fv(ProjectionLocation, 1, GL_FALSE, Projection);
 				Error = glGetError();
 
-				GLint ModelviewLocation = glGetUniformLocation(Entry.Shader->ProgramID, "modelview");
-				glUniformMatrix4fv(ModelviewLocation, 1, GL_FALSE, Modelview);
+				GLint ViewLocation = glGetUniformLocation(Entry.Shader->ProgramID, "view");
+				glUniformMatrix4fv(ViewLocation, 1, GL_FALSE, View);
+				Error = glGetError();
+
+				GLint ModelLocation = glGetUniformLocation(Entry.Shader->ProgramID, "model");
+				glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, Model);
+				Error = glGetError();
+
+					// Light
+				GLint LightDirectionLocation = glGetUniformLocation(Entry.Shader->ProgramID, "light_direction");
+				glUniform3f(LightDirectionLocation, Light.Direction.X, Light.Direction.Y, Light.Direction.Z);
+				Error = glGetError();
+
+				GLint LightColorLocation = glGetUniformLocation(Entry.Shader->ProgramID, "light_color");
+				glUniform3f(LightColorLocation, Light.Color.R, Light.Color.G, Light.Color.B);
+				Error = glGetError();
+
+				GLint LightAmbientLocation = glGetUniformLocation(Entry.Shader->ProgramID, "light_ambient");
+				glUniform1f(LightAmbientLocation, 0.5f);
+				Error = glGetError();
+
+				GLint LightDiffuseLocation = glGetUniformLocation(Entry.Shader->ProgramID, "light_diffuse");
+				glUniform1f(LightDiffuseLocation, 0.5f);
 				Error = glGetError();
 
 				if (Mesh->VBO) {
@@ -541,16 +573,27 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 					// GL_STATIC_DRAW  : Data is set only once and used many times
 					// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
 					// GL_STREAM_DRAW  : Set only once, used a few times
-					glBufferData(GL_ARRAY_BUFFER, 3 * Mesh->nVertices * sizeof(double), Mesh->Vertices, GL_STATIC_DRAW);
+					glBufferData(GL_ARRAY_BUFFER, 8 * Mesh->nVertices * sizeof(double), Mesh->Vertices, GL_STATIC_DRAW);
 					Error = glGetError();
 
 					glGenBuffers(1, &Mesh->EBO);
 					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Mesh->EBO);
 
-					glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * Mesh->nFaces * sizeof(uint32), Mesh->FaceVertices, GL_STATIC_DRAW);
+					glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * Mesh->nFaces * sizeof(uint32), Mesh->Faces, GL_STATIC_DRAW);
 					
-					glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 3 * sizeof(double), (void*)0);
+					glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 8 * sizeof(double), (void*)0);
+					glVertexAttribPointer(1, 3, GL_DOUBLE, GL_FALSE, 8 * sizeof(double), (void*)(3 * sizeof(double)));
+					glVertexAttribPointer(2, 2, GL_DOUBLE, GL_FALSE, 8 * sizeof(double), (void*)(6 * sizeof(double)));
 					glEnableVertexAttribArray(0);
+					glEnableVertexAttribArray(1);
+					glEnableVertexAttribArray(2);
+				}
+
+				if (Mesh->Texture) {
+					OpenGLBindTexture(Mesh->Texture, Clamp);
+				}
+				else {
+					glBindTexture(GL_TEXTURE_2D, 0);
 				}
 
 				glDrawElements(GL_TRIANGLES, 3 * Mesh->nFaces, GL_UNSIGNED_INT, 0);

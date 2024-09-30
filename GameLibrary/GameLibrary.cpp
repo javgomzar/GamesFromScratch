@@ -269,11 +269,17 @@ extern "C" GAME_UPDATE(GameUpdate)
     else if (Input->Keyboard.S.IsDown) {
         Camera->Velocity.Z += 1.0;
     }
+    if (Input->Keyboard.Space.IsDown) {
+        Camera->Velocity.Y -= 1.0;
+    }
+    else if (Input->Keyboard.Shift.IsDown) {
+        Camera->Velocity.Y += 1.0;
+    }
 
     v3 Direction = normalize(Camera->Velocity);
     v3 X2 = V3(cos(Camera->Angle * Pi / 180.0), 0, sin(Camera->Angle * Pi / 180.0));
     v3 Z2 = V3(-sin(Camera->Angle * Pi / 180.0), 0, cos(Camera->Angle * Pi / 180.0));
-    Camera->Velocity = 0.2 * (Direction.X * X2 + Direction.Z * Z2);
+    Camera->Velocity = 0.2 * (Direction.X * X2 + Direction.Y * V3(0.0, 1.0, 0.0) + Direction.Z * Z2);
     Camera->Position += Camera->Velocity;
 
     // Render
@@ -282,12 +288,11 @@ extern "C" GAME_UPDATE(GameUpdate)
     Light.Direction = normalize(V3(-0.5,-1,1));
 
     Light.Color = Red;
-    //transform Transform1 = Transform(Quaternion(pGameState->Time, V3(0.0, -1.0, 0.0)));
-    transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0));
-    PushMesh(Group, &Assets->TestMesh, Transform1, Light, &Assets->TestShader);
+    transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(5.0, 0.0, 0.0));
+    PushMesh(Group, &Assets->TestMesh, Transform1, Light, &Assets->SphereShader);
 
-    Light.Color = Green;
-    transform Transform2 = Transform(Quaternion(pGameState->Time, V3(0.0, 1.0, 0.0)), V3(3.0, 0.0, 0.0));
+    Light.Color = White;
+    transform Transform2 = Transform(Quaternion(Tau / 4.0, V3(0.0, 1.0, 0.0)), V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0));
     PushMesh(Group, &Assets->TestMesh2, Transform2, Light, &Assets->TestShader);
 
     // Software renderer as a fallback (toggle with Space)
