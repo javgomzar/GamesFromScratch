@@ -134,6 +134,7 @@ struct render_group {
     uint32 PushBufferElementCount;
     uint8* PushBufferBase;
     camera Camera;
+    bool Debug;
     bool OpenGLActive;
     bool VSyncActive;
 };

@@ -309,10 +309,10 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Debug info
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
-        pGameState->ShowDebugInfo = !pGameState->ShowDebugInfo;
+        Group->Debug = !Group->Debug;
     }
 
-    if (pGameState->ShowDebugInfo) {
+    if (Group->Debug) {
         game_rect DebugInfoRect = { 0, 0, 350, 250 };
         PushRect(Group, DebugInfoRect, { 0.5, 0.0, 0.0, 0.0 }, 0);
         PushRectOutline(Group, DebugInfoRect, Gray);

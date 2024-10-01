@@ -277,7 +277,6 @@ struct game_state {
     memory_arena VideoArena;
     memory_arena MeshArena;
     UI UserInterface;
-    bool ShowDebugInfo;
     double dt;
     double Time;
 };
