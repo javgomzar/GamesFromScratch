@@ -374,13 +374,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 				// Debug lattice
-				SetCameraProjection(Group->Camera, Width, Height);
-				color LatticeColor = Color(1.0, 1.0, 1.0, 0.2);
-				for (int i = 0; i < 100; i++) {
-					OpenGLRenderLine(V3(50 - i, 0, -50), V3(50 - i, 0, 50), LatticeColor);
-					OpenGLRenderLine(V3(-50, 0, 50 - i), V3(50, 0, 50 - i), LatticeColor);
-				}
-				SetScreenProjection(Width, Height);
+				//SetCameraProjection(Group->Camera, Width, Height);
+				//color LatticeColor = Color(1.0, 1.0, 1.0, 0.2);
+				//for (int i = 0; i < 100; i++) {
+				//	OpenGLRenderLine(V3(50 - i, 0, -50), V3(50 - i, 0, 50), LatticeColor);
+				//	OpenGLRenderLine(V3(-50, 0, 50 - i), V3(50, 0, 50 - i), LatticeColor);
+				//}
+				//SetScreenProjection(Width, Height);
 			} break;
 
 			case group_type_render_entry_triangle:

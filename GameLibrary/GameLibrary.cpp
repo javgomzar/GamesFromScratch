@@ -229,11 +229,11 @@ extern "C" GAME_UPDATE(GameUpdate)
             double sub_x = D * (double)(i % 3 - 1);
             double sub_y = D * (double)(i / 3 - 1);
             pGameState->Cube.Top[i] = { White, V3(sub_x, L, sub_y), Quaternion(1.0) };
-            pGameState->Cube.Bottom[i] = { Red, V3(sub_x, -L, sub_y), Quaternion(Tau / 2.0, V3(1.0, 0.0, 0.0)) };
+            pGameState->Cube.Bottom[i] = { Yellow, V3(sub_x, -L, sub_y), Quaternion(Tau / 2.0, V3(1.0, 0.0, 0.0)) };
             pGameState->Cube.Left[i] = { Blue, V3(sub_x, sub_y, -L), Quaternion(Tau / 4.0, V3(1.0, 0.0, 0.0)) };
             pGameState->Cube.Right[i] = { Green, V3(sub_x, sub_y, L), Quaternion(-Tau / 4.0, V3(1.0, 0.0, 0.0)) };
-            pGameState->Cube.Front[i] = { Yellow, V3(L, sub_y, sub_x), Quaternion(Tau / 4.0, V3(0.0, 0.0, 1.0)) };
-            pGameState->Cube.Back[i] = { Orange, V3(-L, sub_y, sub_x), Quaternion(-Tau / 4.0, V3(0.0, 0.0, 1.0)) };
+            pGameState->Cube.Front[i] = { Orange, V3(L, sub_y, sub_x), Quaternion(Tau / 4.0, V3(0.0, 0.0, 1.0)) };
+            pGameState->Cube.Back[i] = { Red, V3(-L, sub_y, sub_x), Quaternion(-Tau / 4.0, V3(0.0, 0.0, 1.0)) };
         }
 
         // User Interface
