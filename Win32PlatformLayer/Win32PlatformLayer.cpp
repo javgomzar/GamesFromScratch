@@ -976,7 +976,7 @@ void DebugDrawVertical(game_offscreen_buffer* Buffer, int X, int Top, int Bottom
 }
 
 // Render
-void Render(HWND Window, render_group* Group) {
+void Render(HWND Window, render_group* Group, openGL OpenGL) {
 
     RECT Rect = { 0 };
     GetClientRect(Window, &Rect);
@@ -985,11 +985,10 @@ void Render(HWND Window, render_group* Group) {
     Group->Height = Rect.bottom - Rect.top;
 
     // Sorting render entries
-    sort_entry Entries[MAX_ENTRIES] = { 0 };
-    SortEntries(Group, Entries);
+    SortEntries(Group);
 
-    if (Group->OpenGLActive) {
-        OpenGLRenderGroupToOutput(Group, Entries);
+    if (OpenGL.Initialized) {
+        OpenGLRenderGroupToOutput(Group, OpenGL);
     }
     else {
         // TODO: Call software renderer (fix it first)
@@ -1002,6 +1001,7 @@ void Render(HWND Window, render_group* Group) {
 }
 
 render_group* Group;
+openGL OpenGL;
 
 // Main window callback
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -1103,7 +1103,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     uint64 LastCycleCount = __rdtsc();
 
     // OpenGl
-    int OpenGLResponse = InitOpenGL(Window);
+    OpenGL = InitOpenGL(Window);
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
@@ -1111,7 +1111,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     ArenaStart += pGameState->StringsArena.Size;
     InitializeArena(&pGameState->FontsArena, Megabytes(1), ArenaStart);
     ArenaStart += pGameState->FontsArena.Size;
-    InitializeArena(&pGameState->RenderArena, Megabytes(5), ArenaStart);
+    InitializeArena(&pGameState->RenderArena, Megabytes(9), ArenaStart);
     ArenaStart += pGameState->RenderArena.Size;
     InitializeArena(&pGameState->MeshArena, Megabytes(5), ArenaStart);
     ArenaStart += pGameState->VideoArena.Size;
@@ -1119,7 +1119,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Render group
     Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
-    Group->OpenGLActive = OpenGLResponse == 0;
 
     // DebugInfo
     GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
@@ -1336,7 +1335,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         // Game function
         if (GameCode.IsValid) {
             GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], Group, &Input);
-            Render(Window, Group);
+            Render(Window, Group, OpenGL);
         }
         else {
             Log(Error, "Could not update state due to invalid game code.\n");
@@ -1511,7 +1510,7 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
         HDC hdc = BeginPaint(Window, &ps);
 
         if (Group) {
-            Render(Window, Group);
+            Render(Window, Group, OpenGL);
         }
 
         EndPaint(Window, &ps);

@@ -2,6 +2,169 @@
 #include "..\GameLibrary\render_group.h"
 
 
+struct openGL {
+	uint32 FrameBuffersCount;
+	uint32 FrameBuffers[MAX_FRAME_BUFFER_COUNT];
+	uint32 FrameBufferTextures[MAX_FRAME_BUFFER_COUNT];
+	uint32 QuadVAO;
+	bool Initialized;
+	bool VSync;
+};
+
+
+// Initialization
+openGL InitOpenGL(HWND Window) {
+	openGL Result = { 0 };
+
+	HDC WindowDC = GetDC(Window);
+
+	RECT Rect = { 0 };
+	GetClientRect(Window, &Rect);
+
+	int32 Width = Rect.right - Rect.left;
+	int32 Height = Rect.bottom - Rect.top;
+
+	PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
+	DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
+	DesiredPixelFormat.nVersion = 1;
+	DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
+	DesiredPixelFormat.cColorBits = 32;
+	DesiredPixelFormat.cAlphaBits = 8;
+	DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
+
+	int SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
+	PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
+	DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex, sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
+	SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
+
+	HGLRC OpenGLRC = wglCreateContext(WindowDC);
+	if (wglMakeCurrent(WindowDC, OpenGLRC)) {
+		Result.Initialized = true;
+		Log(Info, "OpenGL successfully initialized.\n");
+
+		typedef BOOL WINAPI wgl_swap_interval_ext(int interval);
+		wgl_swap_interval_ext* wglSwapInterval = (wgl_swap_interval_ext*)wglGetProcAddress("wglSwapIntervalEXT");
+		if (wglSwapInterval) {
+			wglSwapInterval(1);
+			Result.VSync = true;
+			Log(Info, "VSync activated.\n");
+		}
+
+		GLenum Error = glewInit();
+		if (Error != GLEW_OK) {
+			OutputDebugStringA("GLEW initialization failed.");
+			return Result;
+		}
+
+		Result.FrameBuffersCount = 2;
+		glGenFramebuffers(Result.FrameBuffersCount, Result.FrameBuffers);
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			OutputDebugStringA("Frame buffer intialization failed.");
+			return Result;
+		}
+
+		glGenTextures(Result.FrameBuffersCount, Result.FrameBufferTextures);
+
+		// World buffer
+		glBindFramebuffer(GL_FRAMEBUFFER, Result.FrameBuffers[0]);
+
+		uint32 Texture = Result.FrameBufferTextures[0];
+		glBindTexture(GL_TEXTURE_2D, Texture);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
+		Error = glGetError();
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture, 0);
+		Error = glGetError();
+
+		uint32 Depth = 0;
+		glGenRenderbuffers(1, &Depth);
+		glBindRenderbuffer(GL_RENDERBUFFER, Depth);
+		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, Width, Height);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Depth);
+
+		Error = glGetError();
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			Assert(false);
+		}
+
+		// Screen buffer
+		glBindFramebuffer(GL_FRAMEBUFFER, Result.FrameBuffers[1]);
+
+		Texture = Result.FrameBufferTextures[1];
+		glBindTexture(GL_TEXTURE_2D, Texture);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture, 0);
+		Error = glGetError();
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			Assert(false);
+		}
+
+		glBindTexture(GL_TEXTURE_2D, 0);
+		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+		// Quad vertices
+		double QuadVertices[24] = {
+			-1.0, -1.0, 0.0, 0.0,
+			 1.0, -1.0, 1.0, 0.0,
+			 1.0,  1.0, 1.0, 1.0,
+			-1.0, -1.0, 0.0, 0.0,
+			 1.0,  1.0, 1.0, 1.0,
+			-1.0,  1.0, 0.0, 1.0,
+		};
+
+		uint32 QuadVBO = 0;
+		uint32 QuadVAO = 0;
+		glGenBuffers(1, &QuadVBO);
+		glGenVertexArrays(1, &QuadVAO);
+
+		glBindVertexArray(QuadVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
+		// GL_STATIC_DRAW  : Data is set only once and used many times
+		// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
+		// GL_STREAM_DRAW  : Set only once, used a few times
+		glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(double), QuadVertices, GL_STATIC_DRAW);
+		Error = glGetError();
+
+		glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, 4 * sizeof(double), (void*)0);
+		glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, 4 * sizeof(double), (void*)(2 * sizeof(double)));
+		Error = glGetError();
+
+		glEnableVertexAttribArray(0);
+		glEnableVertexAttribArray(1);
+		Error = glGetError();
+
+		glBindVertexArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		Result.QuadVAO = QuadVAO;
+	}
+	
+	ReleaseDC(Window, WindowDC);
+	return Result;
+}
+
 // Screen coordinates.
 void SetScreenProjection(int32 Width, int32 Height) {
 	double a = 2.0 / Width;
@@ -237,50 +400,6 @@ void OpenGLRenderText(uint32 DisplayWidth, v3 Position, character* Characters, c
 }
 
 
-// Initialization
-int InitOpenGL(HWND Window) {
-	HDC WindowDC = GetDC(Window);
-
-	PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
-	DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
-	DesiredPixelFormat.nVersion = 1;
-	DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
-	DesiredPixelFormat.cColorBits = 32;
-	DesiredPixelFormat.cAlphaBits = 8;
-	DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
-
-	int SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
-	PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
-	DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex, sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
-	SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
-
-	HGLRC OpenGLRC = wglCreateContext(WindowDC);
-	if (wglMakeCurrent(WindowDC, OpenGLRC)) {
-		Log(Info, "OpenGL successfully initialized.\n");
-
-		typedef BOOL WINAPI wgl_swap_interval_ext(int interval);
-		wgl_swap_interval_ext* wglSwapInterval = (wgl_swap_interval_ext*)wglGetProcAddress("wglSwapIntervalEXT");
-		if (wglSwapInterval) {
-			wglSwapInterval(1);
-			Log(Info, "VSync activated.\n");
-		}
-
-		GLenum Error = glewInit();
-		if (Error != GLEW_OK) {
-			OutputDebugStringA("GLEW initialization failed.");
-			return 1;
-		}
-
-		ReleaseDC(Window, WindowDC);
-		return 0;
-	}
-	else {
-		ReleaseDC(Window, WindowDC);
-		return 1;
-	}
-}
-
-
 GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_file_result Fragment) {
 	GLint VertexShaderCodeLengths[] = { Header.ContentSize, Vertex.ContentSize };
 
@@ -343,7 +462,7 @@ GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_f
 
 
 // Render
-void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRIES])
+void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 {
 	int32 Width = Group->Width;
 	int32 Height = Group->Height;
@@ -358,35 +477,127 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
+	//glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+	//glEnable(GL_SAMPLE_ALPHA_TO_ONE);
+	//glEnable(GL_MULTISAMPLE);
 
 	glShadeModel(GL_FLAT);
+
+	// Initial clear
+	sort_entry* Entries = (sort_entry*)Group->SortedBufferBase;
+
+	glEnable(GL_DEPTH_TEST);
 
 	// Render entries
 	uint32 EntryCount = Group->PushBufferElementCount;
 	for (uint32 EntryIndex = 0; EntryIndex < EntryCount; EntryIndex++) {
 		render_group_header* Header = (render_group_header*)(Group->PushBufferBase + Entries[EntryIndex].PushBufferOffset);
+
+		uint32 TargetFramebuffer = 0;
+		switch (Header->Target) {
+			case World: {
+				TargetFramebuffer = OpenGL.FrameBuffers[0];
+				SetCameraProjection(Group->Camera, Width, Height);
+			} break;
+
+			case Screen:
+			{
+				TargetFramebuffer = OpenGL.FrameBuffers[1];
+				SetScreenProjection(Width, Height);
+			} break;
+			
+			default: {
+				SetCameraProjection(Group->Camera, Width, Height);
+			}
+		}
+
+		glBindFramebuffer(GL_FRAMEBUFFER, TargetFramebuffer);
+
 		switch (Header->Type) {
 			case group_type_render_entry_clear:
 			{
 				render_entry_clear Entry = *(render_entry_clear*)Header;
 
-				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				switch (Header->Target) {
+					case World:
+					{
+						glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
+						glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-				if (Group->Debug) {
-					SetCameraProjection(Group->Camera, Width, Height);
+						if (Group->Debug) {
+							// Debug lattice
+							color LatticeColor = Color(1.0, 1.0, 1.0, 0.2);
+							for (int i = 0; i < 100; i++) {
+								OpenGLRenderLine(V3(50 - i, 0, -50), V3(50 - i, 0, 50), LatticeColor);
+								OpenGLRenderLine(V3(-50, 0, 50 - i), V3(50, 0, 50 - i), LatticeColor);
+							}
+						}
+					} break;
 
-					// Debug lattice
-					color LatticeColor = Color(1.0, 1.0, 1.0, 0.2);
-					for (int i = 0; i < 100; i++) {
-						OpenGLRenderLine(V3(50 - i, 0, -50), V3(50 - i, 0, 50), LatticeColor);
-						OpenGLRenderLine(V3(-50, 0, 50 - i), V3(50, 0, 50 - i), LatticeColor);
+					case Screen:
+					{
+						glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.G, Entry.Color.Alpha);
+						glClear(GL_COLOR_BUFFER_BIT);
+
+						if (Group->Debug) {
+							// Debug axis
+							double AxisLength = 0.08 * Height;
+							v3 AxisOrigin = V3(Width - AxisLength - 10.0, 0.1 * Height, 0);
+
+							v3 YAxis = V3(0.0, -cos(Group->Camera.Pitch * Pi / 180.0), 0.0);
+							game_triangle YArrow = {
+								AxisOrigin + AxisLength * YAxis,
+								AxisOrigin + 0.8 * AxisLength * YAxis + (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
+								AxisOrigin + 0.8 * AxisLength * YAxis - (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
+							};
+							OpenGLRenderLine(AxisOrigin, AxisOrigin + AxisLength * YAxis, Green);
+							OpenGLTriangle({
+								AxisOrigin + AxisLength * YAxis,
+								AxisOrigin + 0.875 * AxisLength * YAxis,
+								AxisOrigin + 0.8 * AxisLength * YAxis - (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
+								}, Green);
+							OpenGLTriangle({
+								AxisOrigin + AxisLength * YAxis,
+								AxisOrigin + 0.875 * AxisLength * YAxis,
+								AxisOrigin + 0.8 * AxisLength * YAxis + (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
+								}, Green);
+
+							v3 XAxis = V3(cos(Group->Camera.Angle * Pi / 180.0), -sin(Group->Camera.Angle * Pi / 180.0) * sin(Group->Camera.Pitch * Pi / 180.0), 0.0);
+							v3 XOrthogonal = normalize(V3(sin(Group->Camera.Angle * Pi / 180.0) * sin(Group->Camera.Pitch * Pi / 180.0), cos(Group->Camera.Angle * Pi / 180.0), 0.0));
+							OpenGLRenderLine(AxisOrigin, AxisOrigin + AxisLength * XAxis, Red);
+							OpenGLTriangle({
+								AxisOrigin + AxisLength * XAxis,
+								AxisOrigin + 0.875 * AxisLength * XAxis,
+								AxisOrigin + 0.8 * AxisLength * XAxis + (AxisLength / 15.0) * XOrthogonal,
+								}, Red);
+							OpenGLTriangle({
+								AxisOrigin + AxisLength * XAxis,
+								AxisOrigin + 0.875 * AxisLength * XAxis,
+								AxisOrigin + 0.8 * AxisLength * XAxis - (AxisLength / 15.0) * XOrthogonal,
+								}, Red);
+
+
+							v3 ZAxis = V3(-sin(Group->Camera.Angle * Pi / 180.0), -sin(Group->Camera.Pitch * Pi / 180.0) * cos(Group->Camera.Angle * Pi / 180.0), 0.0);
+							v3 ZOrthogonal = normalize(V3(-sin(Group->Camera.Pitch * Pi / 180.0) * cos(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Angle * Pi / 180.0), 0.0));
+							OpenGLRenderLine(AxisOrigin, AxisOrigin + AxisLength * ZAxis, Blue);
+							OpenGLTriangle({
+								AxisOrigin + AxisLength * ZAxis,
+								AxisOrigin + 0.875 * AxisLength * ZAxis,
+								AxisOrigin + 0.8 * AxisLength * ZAxis + (AxisLength / 15.0) * ZOrthogonal,
+								}, Blue);
+							OpenGLTriangle({
+								AxisOrigin + AxisLength * ZAxis,
+								AxisOrigin + 0.875 * AxisLength * ZAxis,
+								AxisOrigin + 0.8 * AxisLength * ZAxis - (AxisLength / 15.0) * ZOrthogonal,
+								}, Blue);
+						}
+					} break;
+
+					case None:
+					{
+						glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, Entry.Color.Alpha);
+						glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 					}
-
-					// Debug axis
-					// TODO: Debug axis
-
-					SetScreenProjection(Width, Height);
 				}
 			} break;
 
@@ -491,9 +702,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 				transform Transform = Entry.Transform;
 
 				v3 Position = Transform.Translation;
-
-				SetCameraProjection(Group->Camera, Width, Height);
-				//glTranslated(Position.X, Position.Y, Position.Z);
 
 				if (!Shader->ProgramID) {
 					Shader->ProgramID = OpenGLLoadShader(
@@ -608,7 +816,47 @@ void OpenGLRenderGroupToOutput(render_group* Group, sort_entry Entries[MAX_ENTRI
 
 				glUseProgram(0);
 				glBindVertexArray(0);
-				SetScreenProjection(Width, Height);
+			} break;
+
+			case group_type_render_entry_render_target:
+			{
+				render_entry_render_target Entry = *(render_entry_render_target*)Header;
+
+				glMatrixMode(GL_PROJECTION);
+				glLoadIdentity();
+
+				glMatrixMode(GL_MODELVIEW);
+				glLoadIdentity();
+
+				shader* Shader = Entry.Shader;
+
+				if (!Shader->ProgramID) {
+					Shader->ProgramID = OpenGLLoadShader(Shader->HeaderShaderCode, Shader->VertexShaderCode, Shader->FragmentShaderCode);
+				}
+
+				glUseProgram(Shader->ProgramID);
+
+				GLint AlphaLocation = glGetUniformLocation(Shader->ProgramID, "Alpha");
+				glUniform1f(AlphaLocation, Entry.Alpha);
+
+				GLint Error = 0;
+				Error = glGetError();
+
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
+				Error = glGetError();
+
+				glDisable(GL_DEPTH_TEST);
+				glBindTexture(GL_TEXTURE_2D, OpenGL.FrameBufferTextures[Entry.TargetIndex]);
+				Error = glGetError();
+
+				glBindVertexArray(OpenGL.QuadVAO);
+				Error = glGetError();
+
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+				Error = glGetError();
+
+				glUseProgram(0);
+				glBindVertexArray(0);
 			} break;
 
 			default:

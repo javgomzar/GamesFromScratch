@@ -209,7 +209,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     if (!Memory->IsInitialized) {
         firstFrame = true;
 
-        // Assets ----------------------------------------------------------------------------------------------------------------------------------------
+    // Assets ----------------------------------------------------------------------------------------------------------------------------------------
         // Load your assets here
         LoadAssets(Assets, Platform, 
             &pGameState->RenderArena, 
@@ -227,9 +227,11 @@ extern "C" GAME_UPDATE(GameUpdate)
         Memory->IsInitialized = true;
     }
 
-    PushClear(Group, BackgroundBlue);
+    PushClear(Group, BackgroundBlue, World);
+    PushClear(Group, {0.0, 0.0, 0.0, 0.0}, Screen);
+    PushClear(Group, { 1.0, 1.0, 1.0, 1.0 }, None);
 
-    // Controls
+// Controls
     // Put here your input code
         
     GameOutputSound(Assets, SoundBuffer, pGameState, Input);
@@ -307,28 +309,45 @@ extern "C" GAME_UPDATE(GameUpdate)
     //    Platform.OpenGLRender(Group, &Target);
     //}
 
-        // Debug info
+    // Debug info
+    static double Alpha = 0.0;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
         Group->Debug = !Group->Debug;
+        if (!Group->Debug) {
+            Alpha = 0.0;
+        }
     }
 
     if (Group->Debug) {
-        game_rect DebugInfoRect = { 0, 0, 350, 250 };
+        if (Alpha < 1.0) {
+            Alpha += 0.05;
+        }
+        else {
+            Alpha = 1.0;
+        }
+
+        game_rect DebugInfoRect = { 0, 0, 350, 270 };
         PushRect(Group, DebugInfoRect, { 0.5, 0.0, 0.0, 0.0 }, 0);
         PushRectOutline(Group, DebugInfoRect, Gray);
         PushText(Group, { 0, 30, 0.5 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
 
+        // Render Arena
+        PushDebugArena(Group, Assets->Characters, pGameState->RenderArena, V3(20.0, 120.0, 0.5));
+
         // Strings Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->StringsArena, V3(20.0, 120.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->StringsArena, V3(20.0, 150.0, 0.5));
 
         // Fonts Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->FontsArena, V3(20.0, 150.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->FontsArena, V3(20.0, 180.0, 0.5));
 
         // Mesh Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->MeshArena, V3(20.0, 180.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->MeshArena, V3(20.0, 210.0, 0.5));
 
         // Video Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 210.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 240.0, 0.5));
     }
+
+    PushRenderTarget(Group, World, &Assets->FramebufferShader, 1.0);
+    PushRenderTarget(Group, Screen, &Assets->FramebufferShader, Alpha);
 }
 

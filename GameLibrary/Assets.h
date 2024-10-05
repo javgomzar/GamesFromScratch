@@ -111,6 +111,7 @@ struct game_assets {
     mesh TestMesh2;
     shader TestShader;
     shader SphereShader;
+    shader FramebufferShader;
 };
 
 void LoadAssets(
