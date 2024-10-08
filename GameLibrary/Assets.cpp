@@ -468,28 +468,6 @@ mesh LoadMesh(platform_read_entire_file Read, memory_arena* StringsArena, memory
 
 
 
-// Shaders
-shader LoadShader(
-    platform_read_entire_file Read, 
-    memory_arena* Arena, 
-    const char* HeaderShaderPath,
-    const char* VertexShaderPath,
-    const char* FragmentShaderPath
-) {
-    shader Result = { 0 };
-
-    read_file_result Header = Read(HeaderShaderPath);
-    read_file_result Vertex = Read(VertexShaderPath);
-    read_file_result Fragment = Read(FragmentShaderPath);
-
-    Result.HeaderShaderCode = Header;
-    Result.VertexShaderCode = Vertex;
-    Result.FragmentShaderCode = Fragment;
-
-    return Result;
-}
-
-
 void LoadAssets(
     game_assets* Assets,
     platform_api* Platform,
@@ -501,6 +479,7 @@ void LoadAssets(
 ) {
     Assets->Characters = InitializeFonts(FontsArena);
 
+    // Strings
     StringsArena->Name = PushString(StringsArena, 13, "Strings Arena");
     StringsArena->Percentage = PushString(StringsArena, 7, "0.0%");
     FontsArena->Name = PushString(StringsArena, 12, "Fonts Arena");
@@ -518,15 +497,37 @@ void LoadAssets(
 
     Assets->FaceMesh.Texture = &Assets->EmptyTexture;
 
-    Assets->TextureShader = LoadShader(Platform->ReadEntireFile, MeshArena, 
-        "../../GameLibrary/Assets/Shaders/HeaderShader.h.glsl", 
-        "../../GameLibrary/Assets/Shaders/VertexShader.vert.glsl",
-        "../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl"
-    );
+// Shaders
+    // Header file
+    read_file_result HeaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/HeaderShader.h.glsl");
 
-    Assets->SphereShader = LoadShader(Platform->ReadEntireFile, MeshArena,
-        "../../GameLibrary/Assets/Shaders/HeaderShader.h.glsl",
-        "../../GameLibrary/Assets/Shaders/VertexShader.vert.glsl",
-        "../../GameLibrary/Assets/Shaders/SphereFragmentShader.frag.glsl"
-    );
+    // Vertex shaders files
+    read_file_result VertexCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/VertexShader.vert.glsl");
+    read_file_result FramebufferVertexCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferVertexShader.vert.glsl");
+
+    // Fragment shaders files
+    read_file_result FragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl");
+    read_file_result SphereFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SphereFragmentShader.frag.glsl");
+    read_file_result FramebufferFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferFragmentShader.frag.glsl");
+
+    Assets->TestShader = {
+        0,
+        HeaderCode,
+        VertexCode,
+        FragmentCode
+    };
+
+    Assets->SphereShader = {
+        0,
+        HeaderCode,
+        VertexCode,
+        SphereFragmentCode
+    };
+
+    Assets->FramebufferShader = {
+        0,
+        HeaderCode,
+        FramebufferVertexCode,
+        FramebufferFragmentCode
+    };
 }

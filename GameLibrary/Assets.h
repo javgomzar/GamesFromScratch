@@ -110,6 +110,7 @@ struct game_assets {
     mesh FaceMesh;
     shader TextureShader;
     shader SphereShader;
+    shader FramebufferShader;
 };
 
 void LoadAssets(

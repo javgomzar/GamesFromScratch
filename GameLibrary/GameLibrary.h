@@ -299,7 +299,6 @@ struct game_state {
     memory_arena MeshArena;
     rubiks_cube Cube;
     UI UserInterface;
-    bool ShowDebugInfo;
     double dt;
     double Time;
 };

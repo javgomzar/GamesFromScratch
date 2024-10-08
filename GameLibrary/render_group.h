@@ -14,6 +14,15 @@ enum render_group_entry_type {
     group_type_render_entry_button,
     group_type_render_entry_video,
     group_type_render_entry_mesh,
+    group_type_render_entry_render_target,
+};
+
+enum render_group_target {
+    None,
+    Screen,
+    World,
+    Postprocessing_Screen,
+    Postprocessing_World
 };
 
 enum wrap_mode {
@@ -32,6 +41,7 @@ bool LessThan(sort_key Key1, sort_key Key2) {
 
 struct render_group_header {
     render_group_entry_type Type;
+    render_group_target Target;
     sort_key Key;
     uint32 PushBufferOffset;
 };
@@ -46,6 +56,7 @@ struct render_entry_line {
     color Color;
     v3 Start;
     v3 Finish;
+    float Thickness;
 };
 
 struct render_entry_triangle {
@@ -116,6 +127,14 @@ struct render_entry_mesh {
     light Light;
 };
 
+struct render_entry_render_target {
+    render_group_header Header;
+    shader* Shader;
+    uint32 TargetIndex;
+    uint32 SourceIndex;
+    double Alpha;
+};
+
 struct camera {
     double MetersToPixels;
     v3 Position;
@@ -125,6 +144,7 @@ struct camera {
     double Angle;
 };
 
+const int MAX_FRAME_BUFFER_COUNT = 16;
 struct render_group {
     int32 Width;
     int32 Height;
@@ -133,9 +153,9 @@ struct render_group {
     uint32 PushBufferSize;
     uint32 PushBufferElementCount;
     uint8* PushBufferBase;
+    uint8* SortedBufferBase;
     camera Camera;
-    bool OpenGLActive;
-    bool VSyncActive;
+    bool Debug;
 };
 
 struct sort_entry {
@@ -150,6 +170,8 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->MaxPushBufferSize = MaxPushBufferSize;
     Result->PushBufferSize = 0;
 
+    Result->SortedBufferBase = (uint8*)PushSize(Arena, MaxPushBufferSize);
+
     Result->DefaultBasis.X = V3(1, 0, 0);
     Result->DefaultBasis.Y = V3(0, 1, 0);
     Result->DefaultBasis.Z = V3(0, 0, 1);
@@ -159,7 +181,6 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->Camera.Velocity = V3(0, 0, 0);
     Result->Camera.Angle = 0;
     Result->Camera.Pitch = 0;
-    //Result->Camera.Basis = Identity(1.0);
 
     return(Result);
 }
@@ -172,6 +193,7 @@ render_group_header* PushRenderElement_(render_group* Group, uint32 Size, render
     if ((Group->PushBufferSize + Size) < Group->MaxPushBufferSize) {
         Result = (render_group_header*)(Group->PushBufferBase + Group->PushBufferSize);
         Result->Key = { 0 }; // Must be set when pushed
+        Result->Target = None;
         Result->Type = Type;
         Result->PushBufferOffset = Group->PushBufferSize;
 
@@ -238,6 +260,11 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_mesh);
         } break;
 
+        case group_type_render_entry_render_target:
+        {
+            return sizeof(render_entry_render_target);
+        } break;
+
         default:
         {
             Assert(false);
@@ -245,23 +272,27 @@ uint32 GetSizeOf(render_group_entry_type Type) {
     }
 }
 
-void PushClear(render_group* Group, color Color) {
+void PushClear(render_group* Group, color Color, render_group_target Target = None) {
     render_entry_clear* Entry = PushRenderElement(Group, render_entry_clear);
     Entry->Header.Key.Z = -1.0;
+    Entry->Header.Target = Target;
     Entry->Color = Color;
 }
 
-void PushLine(render_group* Group, v3 Start, v3 Finish, color Color) {
+void PushLine(render_group* Group, v3 Start, v3 Finish, color Color, int Thickness, render_group_target Target = None) {
     render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
     Entry->Header.Key.Z = max(Start.Z, Finish.Z);
+    Entry->Header.Target = Target;
     Entry->Color = Color;
     Entry->Start = Start;
     Entry->Finish = Finish;
+    Entry->Thickness = Thickness;
 }
 
 void PushTriangle(render_group* Group, game_triangle Triangle, color Color, basis Basis = Identity()) {
     render_entry_triangle* Entry = PushRenderElement(Group, render_entry_triangle);
     Entry->Header.Key.Z = max(Triangle.Points[0].Z, Triangle.Points[1].Z, Triangle.Points[2].Z);
+    Entry->Header.Target = Screen;
     Entry->Color = Color;
     Entry->Triangle = Triangle;
     Entry->Basis = Basis;
@@ -285,6 +316,7 @@ void PushCircle(render_group* Group, v3 Center, double Radius, color Color, basi
 void PushRect(render_group* Group, game_rect Rect, color Color, double Z) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
     Entry->Header.Key.Z = Z;
+    Entry->Header.Target = Screen;
     Entry->Rect = Rect;
     Entry->Color = Color;
 }
@@ -300,6 +332,7 @@ void PushTexturedRectClamp(
 ) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
     Entry->Header.Key.Z = Z;
+    Entry->Header.Target = Screen;
 
     Entry->Rect = Rect;
     Entry->Texture = Texture;
@@ -324,6 +357,7 @@ void PushTexturedRectRepeat(
 ) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
     Entry->Header.Key.Z = Z;
+    Entry->Header.Target = Screen;
 
     Entry->Rect = Rect;
     Entry->Texture = Texture;
@@ -356,6 +390,7 @@ void PushTexturedRectCrop(
 ) {
     render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
     Entry->Header.Key.Z = Z;
+    Entry->Header.Target = Screen;
 
     Entry->Rect = Rect;
     Entry->Texture = Texture;
@@ -379,6 +414,7 @@ void PushTexturedRectCrop(
 void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
     render_entry_rect_outline* Entry = PushRenderElement(Group, render_entry_rect_outline);
     Entry->Header.Key.Z = 300;
+    Entry->Header.Target = Screen;
     Entry->Rect = Rect;
     Entry->Color = Color;
 }
@@ -386,6 +422,7 @@ void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
 void PushText(render_group* Group, v3 Position, character* Characters, color Color, int Points, string String, bool Wrapped) {
     render_entry_text* Entry = PushRenderElement(Group, render_entry_text);
     Entry->Header.Key.Z = Position.Z;
+    Entry->Header.Target = Screen;
     Entry->Position = Position;
     Entry->Characters = Characters;
     Entry->Color = Color;
@@ -397,22 +434,23 @@ void PushText(render_group* Group, v3 Position, character* Characters, color Col
 void PushButton(render_group* Group, character* Characters, button* Button) {
     render_entry_button* Entry = PushRenderElement(Group, render_entry_button);
     Entry->Header.Key.Z = 0;
+    Entry->Header.Target = Screen;
     Entry->Button = Button;
     Entry->Characters = Characters;
 }
 
 void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
     render_entry_video* Entry = PushRenderElement(Group, render_entry_video);
-    
     Entry->Header.Key.Z = Z;
+    Entry->Header.Target = Screen;
     Entry->Video = Video;
     Entry->Rect = Rect;
 }
 
-void PushMesh(render_group* Group, mesh* Mesh, transform Transform, light Light, shader* Shader)
-{
+void PushMesh(render_group* Group, mesh* Mesh, transform Transform, light Light, shader* Shader) {
     render_entry_mesh* Entry = PushRenderElement(Group, render_entry_mesh);
     Entry->Header.Key.Z = Transform.Translation.Z;
+    Entry->Header.Target = World;
 
     Entry->Transform = Transform;
     Entry->Mesh = Mesh;
@@ -427,6 +465,36 @@ void PushDebugArena(render_group* Group, character* Characters, memory_arena Are
     PushText(Group, { Position.X, Position.Y + 15.0, Position.Z + 0.3 }, Characters, White, 8, Arena.Name, false);
     sprintf_s(Arena.Percentage.Content, 7, "%.02f%%", ArenaPercentage * 100.0);
     PushText(Group, { Position.X + 125.0, Position.Y + 15.0, Position.Z + 0.3}, Characters, White, 8, Arena.Percentage, false);
+}
+
+uint32 GetTargetIndex(render_group_target Target) {
+    switch (Target) {
+        case Screen: { return 1; } break;
+        case World: { return 0; } break;
+        case Postprocessing_Screen: { return 3; } break;
+        case Postprocessing_World: { return 2; } break;
+        case None: { Assert(false); } break;
+        default: { Assert(false); } break;
+    }
+}
+
+void PushRenderTarget(render_group* Group, render_group_target Target, shader* Shader, double Alpha = 1.0) {
+    render_entry_render_target* Entry = PushRenderElement(Group, render_entry_render_target);
+    Entry->Header.Key.Z = 99999;
+    Entry->Header.Target = Target;
+    
+    Entry->SourceIndex = GetTargetIndex(Target);
+
+    Entry->TargetIndex = -1;
+    if (Target == World) {
+        Entry->TargetIndex = 2;
+    }
+    else if (Target == Screen) {
+        Entry->TargetIndex = 3;
+    }
+
+    Entry->Shader = Shader;
+    Entry->Alpha = Alpha;
 }
 
 
@@ -444,8 +512,10 @@ void SwapEntries(sort_entry* Entry1, sort_entry* Entry2) {
     *Entry2 = { Key1, Offset1 };
 }
 
-void SortEntries(render_group* RenderGroup, sort_entry Entries[MAX_ENTRIES]) {
+void SortEntries(render_group* RenderGroup) {
     uint32 Count = RenderGroup->PushBufferElementCount;
+
+    sort_entry* Entries = (sort_entry*)RenderGroup->SortedBufferBase;
 
     uint32 BaseAddress = 0;
     for (int i = 0; i < Count; i++) {

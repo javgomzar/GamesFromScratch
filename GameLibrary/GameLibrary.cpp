@@ -239,14 +239,20 @@ extern "C" GAME_UPDATE(GameUpdate)
         // User Interface
         // InitializeUI();
 
-        Camera->Position = V3(0, 0, -15.0);
+        Camera->Position = V3(0, 0, -10.0);
+        Camera->Angle = 45;
+        Camera->Pitch = 45;
 
         Memory->IsInitialized = true;
     }
 
-    PushClear(Group, BackgroundBlue);
+    PushClear(Group, BackgroundBlue, World);
+    PushClear(Group, { 0.0, 0.0, 0.0, 0.0 }, Screen);
+    PushClear(Group, { 0.0, 0.0, 0.0, 0.0 }, Postprocessing_World);
+    PushClear(Group, { 0.0, 0.0, 0.0, 0.0 }, Postprocessing_Screen);
+    PushClear(Group, { 1.0, 1.0, 1.0, 1.0 }, None);
 
-    // Controls
+// Controls
     // Put here your input code
         
     GameOutputSound(Assets, SoundBuffer, pGameState, Input);
@@ -269,7 +275,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
         double AngularVelocity = 0.5;
 
-        Camera->Pitch -= AngularVelocity * Offset.Y;
+        Camera->Pitch += AngularVelocity * Offset.Y;
         Camera->Angle -= AngularVelocity * Offset.X;
     }
 
@@ -323,28 +329,47 @@ extern "C" GAME_UPDATE(GameUpdate)
     //    Platform.OpenGLRender(Group, &Target);
     //}
 
-        // Debug info
+    // Debug info
+    static double Alpha = 0.0;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
-        pGameState->ShowDebugInfo = !pGameState->ShowDebugInfo;
+        Group->Debug = !Group->Debug;
+        if (!Group->Debug) {
+            Alpha = 0.0;
+        }
     }
 
-    if (pGameState->ShowDebugInfo) {
-        game_rect DebugInfoRect = { 0, 0, 350, 250 };
+    if (Group->Debug) {
+        if (Alpha < 1.0) {
+            double x = (pGameState->dt - 1.8) / 1.1;
+            Alpha += exp(- x * x);
+        }
+        else {
+            Alpha = 1.0;
+        }
+
+        game_rect DebugInfoRect = { 0, 0, 350, 270 };
         PushRect(Group, DebugInfoRect, { 0.5, 0.0, 0.0, 0.0 }, 0);
         PushRectOutline(Group, DebugInfoRect, Gray);
         PushText(Group, { 0, 30, 0.5 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
 
+        // Render Arena
+        PushDebugArena(Group, Assets->Characters, pGameState->RenderArena, V3(20.0, 120.0, 0.5));
+
         // Strings Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->StringsArena, V3(20.0, 120.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->StringsArena, V3(20.0, 150.0, 0.5));
 
         // Fonts Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->FontsArena, V3(20.0, 150.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->FontsArena, V3(20.0, 180.0, 0.5));
 
         // Mesh Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->MeshArena, V3(20.0, 180.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->MeshArena, V3(20.0, 210.0, 0.5));
 
         // Video Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 210.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 240.0, 0.5));
     }
-}
 
+    PushRenderTarget(Group, World, &Assets->FramebufferShader, 1.0);
+    PushRenderTarget(Group, Screen, &Assets->FramebufferShader, Alpha);
+    PushRenderTarget(Group, Postprocessing_World, &Assets->FramebufferShader, 1.0);
+    PushRenderTarget(Group, Postprocessing_Screen, &Assets->FramebufferShader, 1.0);
+}
