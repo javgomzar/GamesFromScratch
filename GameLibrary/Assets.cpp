@@ -510,7 +510,7 @@ void LoadAssets(
     read_file_result SphereFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SphereFragmentShader.frag.glsl");
     read_file_result FramebufferFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferFragmentShader.frag.glsl");
 
-    Assets->TestShader = {
+    Assets->TextureShader = {
         0,
         HeaderCode,
         VertexCode,

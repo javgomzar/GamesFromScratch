@@ -228,12 +228,12 @@ extern "C" GAME_UPDATE(GameUpdate)
         for (int i = 0; i < 9; i++) {
             double sub_x = D * (double)(i % 3 - 1);
             double sub_y = D * (double)(i / 3 - 1);
-            pGameState->Cube.Top[i] = { White, V3(sub_x, L, sub_y), Quaternion(1.0) };
-            pGameState->Cube.Bottom[i] = { Yellow, V3(sub_x, -L, sub_y), Quaternion(Tau / 2.0, V3(1.0, 0.0, 0.0)) };
-            pGameState->Cube.Left[i] = { Blue, V3(sub_x, sub_y, -L), Quaternion(Tau / 4.0, V3(1.0, 0.0, 0.0)) };
-            pGameState->Cube.Right[i] = { Green, V3(sub_x, sub_y, L), Quaternion(-Tau / 4.0, V3(1.0, 0.0, 0.0)) };
-            pGameState->Cube.Front[i] = { Orange, V3(L, sub_y, sub_x), Quaternion(Tau / 4.0, V3(0.0, 0.0, 1.0)) };
-            pGameState->Cube.Back[i] = { Red, V3(-L, sub_y, sub_x), Quaternion(-Tau / 4.0, V3(0.0, 0.0, 1.0)) };
+            pGameState->Cube.Top[i]    = { White,  Transform(V3(sub_x, L, sub_y),  Quaternion(1.0)) };
+            pGameState->Cube.Bottom[i] = { Yellow, Transform(V3(sub_x, -L, sub_y), Quaternion(Tau / 2.0, V3(1.0, 0.0, 0.0))) };
+            pGameState->Cube.Left[i]   = { Blue,   Transform(V3(sub_x, sub_y, -L), Quaternion(Tau / 4.0, V3(1.0, 0.0, 0.0))) };
+            pGameState->Cube.Right[i]  = { Green,  Transform(V3(sub_x, sub_y, L),  Quaternion(-Tau / 4.0, V3(1.0, 0.0, 0.0))) };
+            pGameState->Cube.Front[i]  = { Orange, Transform(V3(L, sub_y, sub_x),  Quaternion(-Tau / 4.0, V3(0.0, 0.0, 1.0))) };
+            pGameState->Cube.Back[i]   = { Red,    Transform(V3(-L, sub_y, sub_x), Quaternion(Tau / 4.0, V3(0.0, 0.0, 1.0))) };
         }
 
         // User Interface
@@ -308,13 +308,40 @@ extern "C" GAME_UPDATE(GameUpdate)
     // Render
     light Light = { 0 };
     Light.Ambient = 0.2;
-    Light.Direction = normalize(V3(-0.5,-1,1));
+    Light.Direction = normalize(V3(-1,-1,-1));
+
+    for (int i = 0; i < 9; i++) {
+        face* Face = &pGameState->Cube.Top[i];
+        quaternion Rotation = Quaternion(0.01, V3(0.0, 1.0, 0.0));
+        Face->Transform.Translation = Rotate(Face->Transform.Translation, Rotation);
+        Face->Transform.Rotation = Face->Transform.Rotation * Rotation;
+    }
+
+    for (int i = 0; i < 3; i++) {
+        face* FaceLeft = &pGameState->Cube.Left[6+i];
+        face* FaceRight = &pGameState->Cube.Right[6+i];
+        face* FaceFront = &pGameState->Cube.Front[6+i];
+        face* FaceBack = &pGameState->Cube.Back[6+i];
+
+        quaternion Rotation = Quaternion(0.01, V3(0.0, 1.0, 0.0));
+        quaternion LeftRotation = Quaternion(-0.01, V3(0.0, 1.0, 0.0));
+        quaternion RightRotation = Quaternion(0.01, V3(0.0, 0.0, 1.0));
+        quaternion FrontRotation = Quaternion(0.01, V3(-1.0, 0.0, 0.0));
+        quaternion BackRotation = Quaternion(0.01, V3(1.0, 0.0, 0.0));
+        FaceLeft->Transform.Translation = Rotate(FaceLeft->Transform.Translation, Rotation);
+        FaceLeft->Transform.Rotation = FaceLeft->Transform.Rotation;
+        FaceRight->Transform.Translation = Rotate(FaceRight->Transform.Translation, Rotation);
+        FaceRight->Transform.Rotation = FaceRight->Transform.Rotation * RightRotation;
+        FaceFront->Transform.Translation = Rotate(FaceFront->Transform.Translation, Rotation);
+        FaceFront->Transform.Rotation = FaceFront->Transform.Rotation * FrontRotation;
+        FaceBack->Transform.Translation = Rotate(FaceBack->Transform.Translation, Rotation);
+        FaceBack->Transform.Rotation = FaceBack->Transform.Rotation * BackRotation;
+    }
 
     for (int i = 0; i < 54; i++) {
         face Face = pGameState->Cube.Faces[i];
         Light.Color = Face.Color;
-        transform FaceTransform = Transform(Face.Rotation, Face.Position + V3(0.0, 0.0, 5.0));
-        PushMesh(Group, &Assets->FaceMesh, FaceTransform, Light, &Assets->TextureShader);
+        PushMesh(Group, &Assets->FaceMesh, Face.Transform, Light, &Assets->TextureShader);
     }
 
     // Software renderer as a fallback (toggle with Space)

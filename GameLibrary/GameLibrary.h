@@ -271,8 +271,7 @@ struct UI {
 // Faces
 struct face {
     color Color;
-    v3 Position;
-    quaternion Rotation;
+    transform Transform;
 };
 
 struct rubiks_cube {
