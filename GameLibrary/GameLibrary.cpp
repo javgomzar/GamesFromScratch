@@ -393,6 +393,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Video Arena
         PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 240.0, 0.5));
+
+        // Debug normals
+        PushDebugNormals(Group, Assets->TestMesh2, Transform2);
     }
 
     PushRenderTarget(Group, World, &Assets->FramebufferShader, 1.0);
