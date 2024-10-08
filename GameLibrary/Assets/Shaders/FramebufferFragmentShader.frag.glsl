@@ -8,6 +8,15 @@ in vec2 v_texture;
 
 void main() {
 	vec4 TextureColor = texture(binded_texture, v_texture);
-	TextureColor.xyz = vec3(TextureColor.x + TextureColor.y + TextureColor.z) / 3.0;
+
+	// Inverted
+	// TextureColor.xyz = vec3(1.0) - TextureColor.xyz;
+
+	//	Black and white
+	// TextureColor.xyz = vec3(TextureColor.x + TextureColor.y + TextureColor.z) / 6.0;
+
 	FragColor = TextureColor * vec4(1.0, 1.0, 1.0, Alpha);
+
+	// Old computer
+	// FragColor = TextureColor * vec4(0.5, 1.0, 0.5, Alpha);
 }

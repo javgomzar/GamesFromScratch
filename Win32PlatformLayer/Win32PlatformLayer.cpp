@@ -14,17 +14,15 @@
     - Getting a handle to our own executable file
     - Asset loading (separate compilation process probably?) Asset hot loading?
     - Threading
-    - Multiple keyboards?)
+    - Multiple keyboards?
     - Sleep/timeBeginPeriod
     - ClipCursor() multimonitor support
     - WM_SETCURSOR
     - QueryCancelAutoplay
     - WM_ACTIVEAPP (when we are not the active application)
     - Blit speed improvements (BitBlt)
-    - Shaders
     - GetKeyboardLayout (international wasd support)
     - Restore software renderer as fallback
-    - Make Render function not use so much space
 */
 
 #define MAX_LOADSTRING 100
@@ -172,7 +170,7 @@ WNDDIMENSION GetWindowDimension(HWND Window) {
     return Result;
 };
 
-
+// Software render
 VOID ResizeDIBSection(OFFSCREENBUFFER* Buffer, int Width, int Height) {
 
     //if (Buffer->Memory) {
@@ -212,6 +210,42 @@ VOID DisplayBufferToWindow(
     SwapBuffers(DeviceContext);
 }
 
+// OpenGL render
+void Render(HWND Window, render_group* Group, openGL OpenGL) {
+    // Sorting render entries
+    SortEntries(Group);
+
+    if (OpenGL.Initialized) {
+        OpenGLRenderGroupToOutput(Group, OpenGL);
+    }
+    else {
+        // TODO: Call software renderer (fix it first)
+    }
+
+    HDC hdc = GetDC(Window);
+    SwapBuffers(hdc);
+
+    ReleaseDC(Window, hdc);
+}
+
+void ResizeWindow(HWND Window, render_group* Group, openGL OpenGL) {
+    RECT Rect = { 0 };
+    GetClientRect(Window, &Rect);
+
+    int32 NewWidth = Rect.right - Rect.left;
+    int32 NewHeight = Rect.bottom - Rect.top;
+
+    if (NewWidth != Group->Width || NewHeight != Group->Height) {
+        Group->Width = NewWidth;
+        Group->Height = NewHeight;
+        ResizeFramebuffers(OpenGL, NewWidth, NewHeight);
+    }
+}
+
+render_group* Group;
+openGL OpenGL;
+
+// Full screen
 VOID ToggleFullScreen(HWND Window) {
     DWORD Style = GetWindowLong(Window, GWL_STYLE);
 
@@ -975,34 +1009,6 @@ void DebugDrawVertical(game_offscreen_buffer* Buffer, int X, int Top, int Bottom
     }
 }
 
-// Render
-void Render(HWND Window, render_group* Group, openGL OpenGL) {
-
-    RECT Rect = { 0 };
-    GetClientRect(Window, &Rect);
-
-    Group->Width = Rect.right - Rect.left;
-    Group->Height = Rect.bottom - Rect.top;
-
-    // Sorting render entries
-    SortEntries(Group);
-
-    if (OpenGL.Initialized) {
-        OpenGLRenderGroupToOutput(Group, OpenGL);
-    }
-    else {
-        // TODO: Call software renderer (fix it first)
-    }
-
-    HDC hdc = GetDC(Window);
-    SwapBuffers(hdc);
-
-    ReleaseDC(Window, hdc);
-}
-
-render_group* Group;
-openGL OpenGL;
-
 // Main window callback
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -1017,9 +1023,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Loading XInputLibrary
     LoadXInput();
-
-    // Starting resolution
-    //ResizeDIBSection(&BackBuffer, 860, 140);
 
     // Audio initialization
     int SamplesPerSecond = 48000;
@@ -1119,6 +1122,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Render group
     Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
+
+    // Starting resolution
+    //ResizeWindow(Window, Group);
 
     // DebugInfo
     GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
@@ -1334,6 +1340,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         // Game function
         if (GameCode.IsValid) {
+            ResizeWindow(Window, Group, OpenGL);
             GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], Group, &Input);
             Render(Window, Group, OpenGL);
         }
@@ -1510,6 +1517,7 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
         HDC hdc = BeginPaint(Window, &ps);
 
         if (Group) {
+            ResizeWindow(Window, Group, OpenGL);
             Render(Window, Group, OpenGL);
         }
 

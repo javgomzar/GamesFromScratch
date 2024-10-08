@@ -2,14 +2,125 @@
 #include "..\GameLibrary\render_group.h"
 
 
+/*
+	TODO:
+
+		- Fix fullscreen mode: Framebuffers change size when fullscreening? Maybe keep the biggest size as the framebuffer size?
+		- Stencil buffers
+		- Kernel operations
+*/
+
+struct render_target {
+	uint32 Framebuffer;
+	uint32 Renderbuffer;
+	uint32 Texture;
+	int Samples;
+	bool Multisampling;
+	bool Depth;
+};
+
 struct openGL {
-	uint32 FrameBuffersCount;
-	uint32 FrameBuffers[MAX_FRAME_BUFFER_COUNT];
-	uint32 FrameBufferTextures[MAX_FRAME_BUFFER_COUNT];
+	uint32 TargetCount;
+	render_target Targets[MAX_FRAME_BUFFER_COUNT];
 	uint32 QuadVAO;
 	bool Initialized;
 	bool VSync;
 };
+
+
+// Frame Buffers
+void CreateFramebuffer(
+	int Width, int Height, 
+	uint32 Framebuffer, 
+	uint32 FramebufferTexture
+) {
+	GLenum Error = 0;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer);
+
+	glBindTexture(GL_TEXTURE_2D, FramebufferTexture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FramebufferTexture, 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		Assert(false);
+	}
+}
+
+void CreateFramebufferMultisampling(
+	int Width, int Height,
+	int Samples,
+	uint32 Framebuffer,
+	uint32 FramebufferTexture,
+	bool DepthAttachment = false,
+	uint32* Renderbuffer = 0
+) {
+	GLenum Error = 0;
+
+	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer);
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, FramebufferTexture);
+
+	glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GL_RGBA8, Width, Height, GL_TRUE);
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, FramebufferTexture, 0);
+
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		Assert(false);
+	}
+
+	if (DepthAttachment) {
+		glGenRenderbuffers(1, Renderbuffer);
+		glBindRenderbuffer(GL_RENDERBUFFER, *Renderbuffer);
+		glRenderbufferStorageMultisample(GL_RENDERBUFFER, Samples, GL_DEPTH24_STENCIL8, Width, Height);
+
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, *Renderbuffer);
+
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			Assert(false);
+		}
+	}
+}
+
+void ResizeFramebuffers(openGL OpenGL, int32 Width, int32 Height) {
+	for (int i = 0; i < OpenGL.TargetCount; i++) {
+		render_target Target = OpenGL.Targets[i];
+
+		if (Target.Multisampling) {
+			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Target.Texture);
+			glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Target.Samples, GL_RGBA8, Width, Height, GL_TRUE);
+
+			if (Target.Depth) {
+				glBindRenderbuffer(GL_RENDERBUFFER, Target.Renderbuffer);
+				glRenderbufferStorageMultisample(GL_RENDERBUFFER, Target.Samples, GL_DEPTH24_STENCIL8, Width, Height);
+				glBindRenderbuffer(GL_RENDERBUFFER, 0);
+			}
+		}
+		else {
+			glBindTexture(GL_TEXTURE_2D, Target.Texture);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		}
+	}
+
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
 
 
 // Initialization
@@ -56,73 +167,70 @@ openGL InitOpenGL(HWND Window) {
 			return Result;
 		}
 
-		Result.FrameBuffersCount = 2;
-		glGenFramebuffers(Result.FrameBuffersCount, Result.FrameBuffers);
+		const int nFramebuffers = 4;
+		Result.TargetCount = nFramebuffers;
 
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-			OutputDebugStringA("Frame buffer intialization failed.");
-			return Result;
-		}
+		uint32 Framebuffers[nFramebuffers] = { 0 };
+		glGenFramebuffers(nFramebuffers, Framebuffers);
 
-		glGenTextures(Result.FrameBuffersCount, Result.FrameBufferTextures);
+		uint32 Textures[nFramebuffers] = { 0 };
+		glGenTextures(nFramebuffers, Textures);
 
 		// World buffer
-		glBindFramebuffer(GL_FRAMEBUFFER, Result.FrameBuffers[0]);
-
-		uint32 Texture = Result.FrameBufferTextures[0];
-		glBindTexture(GL_TEXTURE_2D, Texture);
-
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
-		Error = glGetError();
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture, 0);
-		Error = glGetError();
-
-		uint32 Depth = 0;
-		glGenRenderbuffers(1, &Depth);
-		glBindRenderbuffer(GL_RENDERBUFFER, Depth);
-		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, Width, Height);
-		glBindRenderbuffer(GL_RENDERBUFFER, 0);
-
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, Depth);
-
-		Error = glGetError();
-
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-			Assert(false);
-		}
+		render_target WorldTarget = {
+			Framebuffers[0],
+			0,
+			Textures[0],
+			9,
+			true,
+			true
+		};
+		CreateFramebufferMultisampling(
+			Width, Height, 9, 
+			WorldTarget.Framebuffer, WorldTarget.Texture,
+			true, &WorldTarget.Renderbuffer
+		);
+		Result.Targets[0] = WorldTarget;
 
 		// Screen buffer
-		glBindFramebuffer(GL_FRAMEBUFFER, Result.FrameBuffers[1]);
+		render_target ScreenTarget = {
+			Framebuffers[1],
+			0,
+			Textures[1],
+			9,
+			true,
+			false
+		};
+		CreateFramebufferMultisampling(
+			Width, Height, 9,
+			ScreenTarget.Framebuffer, ScreenTarget.Texture
+		);
+		Result.Targets[1] = ScreenTarget;
 
-		Texture = Result.FrameBufferTextures[1];
-		glBindTexture(GL_TEXTURE_2D, Texture);
+		// World postprocessing
+		render_target WorldPostprocessing = {
+			Framebuffers[2],
+			0,
+			Textures[2],
+			1,
+			false,
+			false
+		};
+		CreateFramebuffer(Width, Height, WorldPostprocessing.Framebuffer, WorldPostprocessing.Texture);
+		Result.Targets[2] = WorldPostprocessing;
 
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
+		// Screen postprocessing
+		render_target ScreenPostprocessing = {
+			Framebuffers[3],
+			0,
+			Textures[3],
+			1,
+			false,
+			false
+		};
+		CreateFramebuffer(Width, Height, ScreenPostprocessing.Framebuffer, ScreenPostprocessing.Texture);
+		Result.Targets[3] = ScreenPostprocessing;
 
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-
-		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, Texture, 0);
-		Error = glGetError();
-
-		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-			Assert(false);
-		}
-
-		glBindTexture(GL_TEXTURE_2D, 0);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		// Quad vertices
 		double QuadVertices[24] = {
@@ -205,7 +313,7 @@ void SetCameraProjection(camera Camera, int32 Width, int32 Height) {
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glTranslated(0, 0, Camera.Distance);
-	glRotated(Camera.Pitch, 1, 0, 0);
+	glRotated(Camera.Pitch, -1, 0, 0);
 	glRotated(Camera.Angle, 0, 1, 0);
 	glTranslated(0, 0, 10.0);
 	glTranslated(Camera.Position.X, Camera.Position.Y, Camera.Position.Z);
@@ -213,6 +321,13 @@ void SetCameraProjection(camera Camera, int32 Width, int32 Height) {
 	glEnable(GL_DEPTH_TEST);
 }
 
+// Normalized coordinates
+void SetIdentityProjection() {
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+}
 
 // Texture binding
 void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_mode Mode, bool ForceUpdate = false)
@@ -262,8 +377,9 @@ void OpenGLBindTexture(loaded_bmp* Bitmap, wrap_mode Mode = Clamp) {
 
 
 // Primitives
-void OpenGLRenderLine(v3 Start, v3 Finish, color Color)
+void OpenGLRenderLine(v3 Start, v3 Finish, color Color, float Thickness = 1.0)
 {
+	glLineWidth(Thickness);
 	glBegin(GL_LINES);
 	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
 
@@ -272,6 +388,7 @@ void OpenGLRenderLine(v3 Start, v3 Finish, color Color)
 
 	glEnd();
 	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
+	glLineWidth(1.0);
 }
 
 void OpenGLTriangle(game_triangle Triangle, color Color) {
@@ -467,26 +584,21 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 	int32 Width = Group->Width;
 	int32 Height = Group->Height;
 	double MetersToPixels = Group->Camera.MetersToPixels;
-	glViewport(0, 0, Width, Height);
 
 	// Projection matrix
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
 
-	SetScreenProjection(Width, Height);
-
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
 	//glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
 	//glEnable(GL_SAMPLE_ALPHA_TO_ONE);
-	//glEnable(GL_MULTISAMPLE);
+	glEnable(GL_MULTISAMPLE);
 
 	glShadeModel(GL_FLAT);
 
 	// Initial clear
 	sort_entry* Entries = (sort_entry*)Group->SortedBufferBase;
-
-	glEnable(GL_DEPTH_TEST);
 
 	// Render entries
 	uint32 EntryCount = Group->PushBufferElementCount;
@@ -496,18 +608,24 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 		uint32 TargetFramebuffer = 0;
 		switch (Header->Target) {
 			case World: {
-				TargetFramebuffer = OpenGL.FrameBuffers[0];
+				TargetFramebuffer = OpenGL.Targets[0].Framebuffer;
 				SetCameraProjection(Group->Camera, Width, Height);
+				glEnable(GL_DEPTH_TEST);
+				glViewport(0, 0, Width, Height);
 			} break;
 
 			case Screen:
 			{
-				TargetFramebuffer = OpenGL.FrameBuffers[1];
+				TargetFramebuffer = OpenGL.Targets[1].Framebuffer;
 				SetScreenProjection(Width, Height);
+				glDisable(GL_DEPTH_TEST);
+				glViewport(0, 0, Width, Height);
 			} break;
 			
 			default: {
-				SetCameraProjection(Group->Camera, Width, Height);
+				SetIdentityProjection();
+				glDisable(GL_DEPTH_TEST);
+				glViewport(0, 0, Width, Height);
 			}
 		}
 
@@ -540,6 +658,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 						glClear(GL_COLOR_BUFFER_BIT);
 
 						if (Group->Debug) {
+							float AxisWidth = 0.0025f * (float)Height;
+
 							// Debug axis
 							double AxisLength = 0.08 * Height;
 							v3 AxisOrigin = V3(Width - AxisLength - 10.0, 0.1 * Height, 0);
@@ -550,7 +670,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 								AxisOrigin + 0.8 * AxisLength * YAxis + (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
 								AxisOrigin + 0.8 * AxisLength * YAxis - (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
 							};
-							OpenGLRenderLine(AxisOrigin, AxisOrigin + AxisLength * YAxis, Green);
+							OpenGLRenderLine(AxisOrigin, AxisOrigin + 0.875 * AxisLength * YAxis, Green, AxisWidth);
 							OpenGLTriangle({
 								AxisOrigin + AxisLength * YAxis,
 								AxisOrigin + 0.875 * AxisLength * YAxis,
@@ -562,9 +682,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 								AxisOrigin + 0.8 * AxisLength * YAxis + (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
 								}, Green);
 
-							v3 XAxis = V3(cos(Group->Camera.Angle * Pi / 180.0), -sin(Group->Camera.Angle * Pi / 180.0) * sin(Group->Camera.Pitch * Pi / 180.0), 0.0);
-							v3 XOrthogonal = normalize(V3(sin(Group->Camera.Angle * Pi / 180.0) * sin(Group->Camera.Pitch * Pi / 180.0), cos(Group->Camera.Angle * Pi / 180.0), 0.0));
-							OpenGLRenderLine(AxisOrigin, AxisOrigin + AxisLength * XAxis, Red);
+							v3 XAxis = V3(cos(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Angle * Pi / 180.0) * sin(Group->Camera.Pitch * Pi / 180.0), 0.0);
+							v3 XOrthogonal = normalize(V3(sin(Group->Camera.Angle * Pi / 180.0) * sin(Group->Camera.Pitch * Pi / 180.0), -cos(Group->Camera.Angle * Pi / 180.0), 0.0));
+							OpenGLRenderLine(AxisOrigin, AxisOrigin + 0.875 * AxisLength * XAxis, Red, AxisWidth);
 							OpenGLTriangle({
 								AxisOrigin + AxisLength * XAxis,
 								AxisOrigin + 0.875 * AxisLength * XAxis,
@@ -576,10 +696,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 								AxisOrigin + 0.8 * AxisLength * XAxis - (AxisLength / 15.0) * XOrthogonal,
 								}, Red);
 
-
-							v3 ZAxis = V3(-sin(Group->Camera.Angle * Pi / 180.0), -sin(Group->Camera.Pitch * Pi / 180.0) * cos(Group->Camera.Angle * Pi / 180.0), 0.0);
-							v3 ZOrthogonal = normalize(V3(-sin(Group->Camera.Pitch * Pi / 180.0) * cos(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Angle * Pi / 180.0), 0.0));
-							OpenGLRenderLine(AxisOrigin, AxisOrigin + AxisLength * ZAxis, Blue);
+							v3 ZAxis = V3(-sin(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Pitch * Pi / 180.0) * cos(Group->Camera.Angle * Pi / 180.0), 0.0);
+							v3 ZOrthogonal = normalize(V3(sin(Group->Camera.Pitch * Pi / 180.0) * cos(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Angle * Pi / 180.0), 0.0));
+							OpenGLRenderLine(AxisOrigin, AxisOrigin + 0.875 * AxisLength * ZAxis, Blue, AxisWidth);
 							OpenGLTriangle({
 								AxisOrigin + AxisLength * ZAxis,
 								AxisOrigin + 0.875 * AxisLength * ZAxis,
@@ -654,7 +773,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 			{
 				render_entry_line Entry = *(render_entry_line*)Header;
 
-				OpenGLRenderLine(Entry.Start, Entry.Finish, Entry.Color);
+				OpenGLRenderLine(Entry.Start, Entry.Finish, Entry.Color, Entry.Thickness);
 			} break;
 
 			case group_type_render_entry_rect_outline:
@@ -822,12 +941,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 			{
 				render_entry_render_target Entry = *(render_entry_render_target*)Header;
 
-				glMatrixMode(GL_PROJECTION);
-				glLoadIdentity();
-
-				glMatrixMode(GL_MODELVIEW);
-				glLoadIdentity();
-
 				shader* Shader = Entry.Shader;
 
 				if (!Shader->ProgramID) {
@@ -842,21 +955,24 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				GLint Error = 0;
 				Error = glGetError();
 
-				glBindFramebuffer(GL_FRAMEBUFFER, 0);
-				Error = glGetError();
+				render_target Source = OpenGL.Targets[Entry.SourceIndex];
 
-				glDisable(GL_DEPTH_TEST);
-				glBindTexture(GL_TEXTURE_2D, OpenGL.FrameBufferTextures[Entry.TargetIndex]);
-				Error = glGetError();
-
-				glBindVertexArray(OpenGL.QuadVAO);
-				Error = glGetError();
-
-				glDrawArrays(GL_TRIANGLES, 0, 6);
-				Error = glGetError();
+				if (Source.Multisampling) {
+					render_target Target = OpenGL.Targets[Entry.TargetIndex];
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, Source.Framebuffer);
+					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Target.Framebuffer);
+					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+				}
+				else {
+					glBindFramebuffer(GL_FRAMEBUFFER, 0);
+					glBindTexture(GL_TEXTURE_2D, Source.Texture);
+					glBindVertexArray(OpenGL.QuadVAO);
+					glDrawArrays(GL_TRIANGLES, 0, 6);
+				}
 
 				glUseProgram(0);
 				glBindVertexArray(0);
+				glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			} break;
 
 			default:

@@ -223,12 +223,16 @@ extern "C" GAME_UPDATE(GameUpdate)
         // InitializeUI();
 
         Camera->Position = V3(0, 0, -10.0);
+        Camera->Angle = 45;
+        Camera->Pitch = 45;
 
         Memory->IsInitialized = true;
     }
 
     PushClear(Group, BackgroundBlue, World);
-    PushClear(Group, {0.0, 0.0, 0.0, 0.0}, Screen);
+    PushClear(Group, { 0.0, 0.0, 0.0, 0.0 }, Screen);
+    PushClear(Group, { 0.0, 0.0, 0.0, 0.0 }, Postprocessing_World);
+    PushClear(Group, { 0.0, 0.0, 0.0, 0.0 }, Postprocessing_Screen);
     PushClear(Group, { 1.0, 1.0, 1.0, 1.0 }, None);
 
 // Controls
@@ -254,7 +258,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
         double AngularVelocity = 0.5;
 
-        Camera->Pitch -= AngularVelocity * Offset.Y;
+        Camera->Pitch += AngularVelocity * Offset.Y;
         Camera->Angle -= AngularVelocity * Offset.X;
     }
 
@@ -320,7 +324,8 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     if (Group->Debug) {
         if (Alpha < 1.0) {
-            Alpha += 0.05;
+            double x = (pGameState->dt - 1.8) / 1.1;
+            Alpha += exp(- x * x);
         }
         else {
             Alpha = 1.0;
@@ -349,5 +354,6 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     PushRenderTarget(Group, World, &Assets->FramebufferShader, 1.0);
     PushRenderTarget(Group, Screen, &Assets->FramebufferShader, Alpha);
+    PushRenderTarget(Group, Postprocessing_World, &Assets->FramebufferShader, 1.0);
+    PushRenderTarget(Group, Postprocessing_Screen, &Assets->FramebufferShader, 1.0);
 }
-

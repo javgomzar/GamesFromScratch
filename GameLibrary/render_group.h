@@ -21,6 +21,8 @@ enum render_group_target {
     None,
     Screen,
     World,
+    Postprocessing_Screen,
+    Postprocessing_World
 };
 
 enum wrap_mode {
@@ -54,6 +56,7 @@ struct render_entry_line {
     color Color;
     v3 Start;
     v3 Finish;
+    float Thickness;
 };
 
 struct render_entry_triangle {
@@ -128,6 +131,7 @@ struct render_entry_render_target {
     render_group_header Header;
     shader* Shader;
     uint32 TargetIndex;
+    uint32 SourceIndex;
     double Alpha;
 };
 
@@ -275,13 +279,14 @@ void PushClear(render_group* Group, color Color, render_group_target Target = No
     Entry->Color = Color;
 }
 
-void PushLine(render_group* Group, v3 Start, v3 Finish, color Color, render_group_target Target = None) {
+void PushLine(render_group* Group, v3 Start, v3 Finish, color Color, int Thickness, render_group_target Target = None) {
     render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
     Entry->Header.Key.Z = max(Start.Z, Finish.Z);
     Entry->Header.Target = Target;
     Entry->Color = Color;
     Entry->Start = Start;
     Entry->Finish = Finish;
+    Entry->Thickness = Thickness;
 }
 
 void PushTriangle(render_group* Group, game_triangle Triangle, color Color, basis Basis = Identity()) {
@@ -462,19 +467,34 @@ void PushDebugArena(render_group* Group, character* Characters, memory_arena Are
     PushText(Group, { Position.X + 125.0, Position.Y + 15.0, Position.Z + 0.3}, Characters, White, 8, Arena.Percentage, false);
 }
 
+uint32 GetTargetIndex(render_group_target Target) {
+    switch (Target) {
+        case Screen: { return 1; } break;
+        case World: { return 0; } break;
+        case Postprocessing_Screen: { return 3; } break;
+        case Postprocessing_World: { return 2; } break;
+        case None: { Assert(false); } break;
+        default: { Assert(false); } break;
+    }
+}
+
 void PushRenderTarget(render_group* Group, render_group_target Target, shader* Shader, double Alpha = 1.0) {
     render_entry_render_target* Entry = PushRenderElement(Group, render_entry_render_target);
     Entry->Header.Key.Z = 99999;
     Entry->Header.Target = Target;
+    
+    Entry->SourceIndex = GetTargetIndex(Target);
+
+    Entry->TargetIndex = -1;
+    if (Target == World) {
+        Entry->TargetIndex = 2;
+    }
+    else if (Target == Screen) {
+        Entry->TargetIndex = 3;
+    }
 
     Entry->Shader = Shader;
     Entry->Alpha = Alpha;
-    switch (Target) {
-        case Screen: { Entry->TargetIndex = 1; } break;
-        case World: { Entry->TargetIndex = 0; } break;
-        case None: { Assert(false); } break;
-        default: { Assert(false); } break;
-    }
 }
 
 
