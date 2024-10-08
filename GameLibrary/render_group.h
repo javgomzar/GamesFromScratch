@@ -467,6 +467,26 @@ void PushDebugArena(render_group* Group, character* Characters, memory_arena Are
     PushText(Group, { Position.X + 125.0, Position.Y + 15.0, Position.Z + 0.3}, Characters, White, 8, Arena.Percentage, false);
 }
 
+void PushDebugVector(render_group* Group, v3 Vector, v3 Position) {
+    PushLine(Group, Position, Position + Vector, White, 1.0, World);
+}
+
+void PushDebugNormals(render_group* Group, mesh Mesh, transform Transform) {
+    for (int i = 0; i < Mesh.nFaces; i++) {
+        vertex Vertex1 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i]];
+        vertex Vertex2 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i + 1]];
+        vertex Vertex3 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i + 2]];
+
+        v3 TransformedVertex1 = Transform * Vertex1.Vertex;
+        v3 TransformedVertex2 = Transform * Vertex2.Vertex;
+        v3 TransformedVertex3 = Transform * Vertex3.Vertex;
+
+        v3 Position = (TransformedVertex1 + TransformedVertex2 + TransformedVertex3) * (1 / 3.0);
+        v3 Normal = Rotate(Vertex1.Normal, Transform.Rotation);
+        PushDebugVector(Group, Normal, Position);
+    }
+}
+
 uint32 GetTargetIndex(render_group_target Target) {
     switch (Target) {
         case Screen: { return 1; } break;

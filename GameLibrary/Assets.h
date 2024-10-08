@@ -77,6 +77,12 @@ struct game_video {
 
 
 // 3D Models
+struct vertex {
+    v3 Vertex;
+    v3 Normal;
+    v2 Texture;
+};
+
 struct mesh {
     int nVertices;
     double* Vertices;

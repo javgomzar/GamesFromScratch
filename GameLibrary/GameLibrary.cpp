@@ -299,6 +299,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     Light.Color = White;
     transform Transform2 = Transform(Quaternion(Tau / 4.0, V3(0.0, 1.0, 0.0)), V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0));
+    //transform Transform2 = Transform(Quaternion(1.0), V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0));
     PushMesh(Group, &Assets->TestMesh2, Transform2, Light, &Assets->TestShader);
 
     // Software renderer as a fallback (toggle with Space)
@@ -350,6 +351,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Video Arena
         PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 240.0, 0.5));
+
+        // Debug normals
+        PushDebugNormals(Group, Assets->TestMesh2, Transform2);
     }
 
     PushRenderTarget(Group, World, &Assets->FramebufferShader, 1.0);
