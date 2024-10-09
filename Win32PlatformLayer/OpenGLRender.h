@@ -813,6 +813,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 			case group_type_render_entry_mesh:
 			{
+				//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 				render_entry_mesh Entry = *(render_entry_mesh*)Header;
 
 				mesh* Mesh = Entry.Mesh;
@@ -935,6 +936,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				glUseProgram(0);
 				glBindVertexArray(0);
+				//glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 			} break;
 
 			case group_type_render_entry_render_target:

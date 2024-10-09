@@ -343,9 +343,10 @@ inline quaternion operator-(quaternion q) {
 }
 
 inline v3 Rotate(v3 Vector, quaternion Q) {
-	double S = Q.c;
-	v3 U = V3(Q.i, Q.j, Q.k);
-	return 2.0 * ((U * Vector) * U + S * cross(U, Vector)) + (S*S - U * U) * Vector;
+	quaternion Q_ = Conjugate(Q);
+	quaternion V = Quaternion(0.0, Vector.X, Vector.Y, Vector.Z);
+	quaternion Result = Q_ * V * Q;
+	return V3(Result.i, Result.j, Result.k);
 }
 
 inline basis Rotate(basis Basis, quaternion Q) {

@@ -228,12 +228,20 @@ extern "C" GAME_UPDATE(GameUpdate)
         for (int i = 0; i < 9; i++) {
             double sub_x = D * (double)(i % 3 - 1);
             double sub_y = D * (double)(i / 3 - 1);
-            pGameState->Cube.Top[i]    = { White,  Transform(V3(sub_x, L, sub_y),  Quaternion(1.0)) };
-            pGameState->Cube.Bottom[i] = { Yellow, Transform(V3(sub_x, -L, sub_y), Quaternion(Tau / 2.0, V3(1.0, 0.0, 0.0))) };
-            pGameState->Cube.Left[i]   = { Blue,   Transform(V3(sub_x, sub_y, -L), Quaternion(Tau / 4.0, V3(1.0, 0.0, 0.0))) };
-            pGameState->Cube.Right[i]  = { Green,  Transform(V3(sub_x, sub_y, L),  Quaternion(-Tau / 4.0, V3(1.0, 0.0, 0.0))) };
-            pGameState->Cube.Front[i]  = { Orange, Transform(V3(L, sub_y, sub_x),  Quaternion(-Tau / 4.0, V3(0.0, 0.0, 1.0))) };
-            pGameState->Cube.Back[i]   = { Red,    Transform(V3(-L, sub_y, sub_x), Quaternion(Tau / 4.0, V3(0.0, 0.0, 1.0))) };
+
+            quaternion TopRotation = Quaternion(1.0);
+            quaternion BottomRotation = Quaternion(Tau / 2.0, V3(1.0, 0.0, 0.0));
+            quaternion LeftRotation = Quaternion(-Tau / 4.0, V3(1.0, 0.0, 0.0));
+            quaternion RightRotation = Quaternion(Tau / 4.0, V3(1.0, 0.0, 0.0));
+            quaternion FrontRotation = Quaternion(-Tau / 4.0, V3(0.0, 0.0, 1.0));
+            quaternion BackRotation = Quaternion(Tau / 4.0, V3(0.0, 0.0, 1.0));
+
+            pGameState->Cube.Top[i]    = { White,  Transform(V3(sub_x, L, sub_y),  TopRotation) };
+            pGameState->Cube.Bottom[i] = { Yellow, Transform(V3(sub_x, -L, sub_y), BottomRotation) };
+            pGameState->Cube.Left[i] = { Blue,   Transform(V3(sub_x, sub_y, -L), LeftRotation) };
+            pGameState->Cube.Right[i] = { Green,  Transform(V3(sub_x, sub_y, L),  RightRotation) };
+            pGameState->Cube.Front[i] = { Orange, Transform(V3(L, sub_y, sub_x),  FrontRotation) };
+            pGameState->Cube.Back[i] = { Red,    Transform(V3(-L, sub_y, sub_x), BackRotation) };
         }
 
         // User Interface
@@ -308,13 +316,13 @@ extern "C" GAME_UPDATE(GameUpdate)
     // Render
     light Light = { 0 };
     Light.Ambient = 0.2;
-    Light.Direction = normalize(V3(-1,-1,-1));
+    Light.Direction = normalize(V3(-1,-1,1));
 
     for (int i = 0; i < 9; i++) {
         face* Face = &pGameState->Cube.Top[i];
         quaternion Rotation = Quaternion(0.01, V3(0.0, 1.0, 0.0));
         Face->Transform.Translation = Rotate(Face->Transform.Translation, Rotation);
-        Face->Transform.Rotation = Face->Transform.Rotation * Rotation;
+        Face->Transform.Rotation = Conjugate(Rotation) * Face->Transform.Rotation;
     }
 
     for (int i = 0; i < 3; i++) {
@@ -324,18 +332,14 @@ extern "C" GAME_UPDATE(GameUpdate)
         face* FaceBack = &pGameState->Cube.Back[6+i];
 
         quaternion Rotation = Quaternion(0.01, V3(0.0, 1.0, 0.0));
-        quaternion LeftRotation = Quaternion(-0.01, V3(0.0, 1.0, 0.0));
-        quaternion RightRotation = Quaternion(0.01, V3(0.0, 0.0, 1.0));
-        quaternion FrontRotation = Quaternion(0.01, V3(-1.0, 0.0, 0.0));
-        quaternion BackRotation = Quaternion(0.01, V3(1.0, 0.0, 0.0));
         FaceLeft->Transform.Translation = Rotate(FaceLeft->Transform.Translation, Rotation);
-        FaceLeft->Transform.Rotation = FaceLeft->Transform.Rotation;
         FaceRight->Transform.Translation = Rotate(FaceRight->Transform.Translation, Rotation);
-        FaceRight->Transform.Rotation = FaceRight->Transform.Rotation * RightRotation;
         FaceFront->Transform.Translation = Rotate(FaceFront->Transform.Translation, Rotation);
-        FaceFront->Transform.Rotation = FaceFront->Transform.Rotation * FrontRotation;
         FaceBack->Transform.Translation = Rotate(FaceBack->Transform.Translation, Rotation);
-        FaceBack->Transform.Rotation = FaceBack->Transform.Rotation * BackRotation;
+        FaceLeft->Transform.Rotation = Conjugate(Rotation) * FaceLeft->Transform.Rotation;
+        FaceRight->Transform.Rotation = Conjugate(Rotation) * FaceRight->Transform.Rotation;
+        FaceFront->Transform.Rotation = Conjugate(Rotation) * FaceFront->Transform.Rotation;
+        FaceBack->Transform.Rotation = Conjugate(Rotation) * FaceBack->Transform.Rotation;
     }
 
     for (int i = 0; i < 54; i++) {
@@ -395,7 +399,10 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 240.0, 0.5));
 
         // Debug normals
-        PushDebugNormals(Group, Assets->TestMesh2, Transform2);
+        for (int i = 0; i < 54; i++) {
+            face Face = pGameState->Cube.Faces[i];
+            PushDebugVector(Group, Rotate(V3(0.0, 1.0, 0.0), Conjugate(Face.Transform.Rotation)), Face.Transform.Translation);
+        }
     }
 
     PushRenderTarget(Group, World, &Assets->FramebufferShader, 1.0);
