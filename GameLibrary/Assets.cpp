@@ -124,7 +124,7 @@ void LoadFTBMP(FT_Bitmap* SourceBMP, loaded_bmp* DestBMP) {
     }
 }
 
-character* InitializeFonts(memory_arena* Arena) {
+character* InitializeFont(memory_arena* Arena, const char* FontPath) {
     FT_Library FTLibrary;
     FT_Face Font;
     FT_Error error = FT_Init_FreeType(&FTLibrary);
@@ -132,7 +132,7 @@ character* InitializeFonts(memory_arena* Arena) {
         Assert(false);
     }
     else {
-        error = FT_New_Face(FTLibrary, "C:/Windows/Fonts/CascadiaMono.ttf", 0, &Font);
+        error = FT_New_Face(FTLibrary, FontPath, 0, &Font);
         if (error == FT_Err_Unknown_File_Format) {
             Assert(false);
         }
@@ -399,7 +399,7 @@ void LoadAssets(
     memory_arena* VideoArena,
     memory_arena* MeshArena
 ) {
-    Assets->Characters = InitializeFonts(FontsArena);
+    Assets->Characters = InitializeFont(FontsArena, "C:/Windows/Fonts/CascadiaMono.ttf");
 
     StringsArena->Name = PushString(StringsArena, 13, "Strings Arena");
     StringsArena->Percentage = PushString(StringsArena, 7, "0.0%");
