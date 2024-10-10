@@ -9,7 +9,6 @@ enum render_group_entry_type {
     group_type_render_entry_triangle,
     group_type_render_entry_rect,
     group_type_render_entry_textured_rect,
-    group_type_render_entry_rect_outline,
     group_type_render_entry_text,
     group_type_render_entry_button,
     group_type_render_entry_video,
@@ -230,11 +229,6 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_rect);
         } break;
 
-        case group_type_render_entry_rect_outline:
-        {
-            return sizeof(render_entry_rect_outline);
-        } break;
-
         case group_type_render_entry_text:
         {
             return sizeof(render_entry_text);
@@ -412,11 +406,25 @@ void PushTexturedRectCrop(
 }
 
 void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
-    render_entry_rect_outline* Entry = PushRenderElement(Group, render_entry_rect_outline);
-    Entry->Header.Key.Z = 300;
-    Entry->Header.Target = Screen;
-    Entry->Rect = Rect;
-    Entry->Color = Color;
+    v3 A = V3(Rect.Left, Rect.Top, 0);
+    v3 B = V3(Rect.Left + Rect.Width, Rect.Top, 0);
+    v3 C = V3(Rect.Left, Rect.Top + Rect.Height, 0);
+    v3 D = V3(Rect.Left + Rect.Width, Rect.Top + Rect.Height, 0);
+
+    PushLine(Group, A, B, Color, 2.0, Screen);
+    PushLine(Group, A, C, Color, 2.0, Screen);
+    PushLine(Group, B, D, Color, 2.0, Screen);
+    PushLine(Group, C, D, Color, 2.0, Screen);
+}
+
+void PushRectOutline(render_group* Group, rect_collider Collider, color Color) {
+    game_rect Rect = {
+        Collider.Center.X - Collider.Width / 2.0,
+        Collider.Center.Y + Collider.Height / 2.0,
+        Collider.Width,
+        Collider.Height
+    };
+    PushRectOutline(Group, Rect, Color);
 }
 
 void PushText(render_group* Group, v3 Position, character* Characters, color Color, int Points, string String, bool Wrapped) {
@@ -515,6 +523,33 @@ void PushRenderTarget(render_group* Group, render_group_target Target, shader* S
 
     Entry->Shader = Shader;
     Entry->Alpha = Alpha;
+}
+
+void PushCubeOutline(render_group* Group, v3 Position, v3 Size, color Color) {
+    v3 A = Position + V3(0.0, Size.Y, Size.Z);
+    v3 B = Position + V3(Size.X, Size.Y, Size.Z);
+    v3 C = Position + V3(0.0, 0.0, Size.Z);
+    v3 D = Position + V3(Size.X, 0.0, Size.Z);
+    v3 E = Position + V3(Size.X, 0.0, 0.0);
+    v3 F = Position + V3(Size.X, Size.Y, 0.0);
+    v3 G = Position + V3(0.0, Size.Y, 0.0);
+    v3 H = Position + V3(0.0, 0.0, 0.0);
+    PushLine(Group, A, B, Color, 1.0, World);
+    PushLine(Group, A, C, Color, 1.0, World);
+    PushLine(Group, A, G, Color, 1.0, World);
+    PushLine(Group, F, G, Color, 1.0, World);
+    PushLine(Group, B, F, Color, 1.0, World);
+    PushLine(Group, B, D, Color, 1.0, World);
+    PushLine(Group, E, F, Color, 1.0, World);
+    PushLine(Group, C, H, Color, 1.0, World);
+    PushLine(Group, C, D, Color, 1.0, World);
+    PushLine(Group, D, E, Color, 1.0, World);
+    PushLine(Group, E, H, Color, 1.0, World);
+    PushLine(Group, G, H, Color, 1.0, World);
+}
+
+void PushCubeOutline(render_group* Group, cube_collider Collider, color Color) {
+    PushCubeOutline(Group, Collider.Center - 0.5 * Collider.Size, Collider.Size, Color);
 }
 
 

@@ -222,7 +222,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // User Interface
         // InitializeUI();
 
-        Camera->Position = V3(0, 0, -10.0);
+        Camera->Position = V3(0, 0, 0.0);
         Camera->Angle = 45;
         Camera->Pitch = 45;
 
@@ -254,7 +254,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     if (Input->Mouse.Wheel > 0) Camera->Distance /= 1.2;
     else if (Input->Mouse.Wheel < 0) Camera->Distance *= 1.2;
 
-    if (Input->Mouse.LeftClick.IsDown && Input->Mouse.LeftClick.WasDown) {
+    if (Input->Mouse.MiddleClick.IsDown && Input->Mouse.MiddleClick.WasDown) {
         v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
         double AngularVelocity = 0.5;
 
@@ -264,22 +264,22 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     Camera->Velocity = V3(0, 0, 0);
     if (Input->Keyboard.D.IsDown) {
-        Camera->Velocity.X -= 1.0;
-    }
-    else if (Input->Keyboard.A.IsDown) {
         Camera->Velocity.X += 1.0;
     }
-    if (Input->Keyboard.W.IsDown) {
-        Camera->Velocity.Z -= 1.0;
+    else if (Input->Keyboard.A.IsDown) {
+        Camera->Velocity.X -= 1.0;
     }
-    else if (Input->Keyboard.S.IsDown) {
+    if (Input->Keyboard.W.IsDown) {
         Camera->Velocity.Z += 1.0;
     }
+    else if (Input->Keyboard.S.IsDown) {
+        Camera->Velocity.Z -= 1.0;
+    }
     if (Input->Keyboard.Space.IsDown) {
-        Camera->Velocity.Y -= 1.0;
+        Camera->Velocity.Y += 1.0;
     }
     else if (Input->Keyboard.Shift.IsDown) {
-        Camera->Velocity.Y += 1.0;
+        Camera->Velocity.Y -= 1.0;
     }
 
     v3 Direction = normalize(Camera->Velocity);
@@ -354,6 +354,40 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Debug normals
         PushDebugNormals(Group, Assets->TestMesh2, Transform2);
+
+        //cube_collider DebugCollider = {
+        //    10 * V3(
+        //        sin(Camera->Angle * Pi / 180.0) * cos(Camera->Pitch * Pi / 180.0), 
+        //        sin(Camera->Pitch * Pi / 180.0), 
+        //        -cos(Camera->Angle * Pi / 180.0) * cos(Camera->Pitch * Pi / 180.0)
+        //    ),
+        //    V3(1.0, 1.0, 1.0)
+        //};
+
+        cube_collider DebugCollider = {
+            V3(0,0,0),
+            V3(5.0, 5.0, 5.0)
+        };
+
+        v3 ScreenOffset = (1 / Group->Camera.MetersToPixels) * V3(Input->Mouse.Cursor.X - Group->Width / 2.0, Group->Height / 2.0 - Input->Mouse.Cursor.Y, 0);
+        static v3 Start = V3(0, 0, 0);
+        static v3 Finish = V3(0, 0, 0);
+        if (Input->Mouse.LeftClick.IsDown && !Input->Mouse.LeftClick.WasDown) {
+            Start = Camera->Position + Camera->Distance * V3(
+                sin(Camera->Angle * Pi / 180.0) * cos(Camera->Pitch * Pi / 180.0),
+                sin(Camera->Pitch * Pi / 180.0),
+                -cos(Camera->Angle * Pi / 180.0) * cos(Camera->Pitch * Pi / 180.0)
+            );
+            Finish = Camera->Position;
+        }
+        PushLine(Group, Start, Finish, Yellow, 2.0, World);
+
+        color DebugColor = White;
+        if (Collide(DebugCollider, V3(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y, 0))) {
+            DebugColor = Red;
+        }
+
+        PushCubeOutline(Group, DebugCollider, DebugColor);
     }
 
     PushRenderTarget(Group, World, &Assets->FramebufferShader, 1.0);

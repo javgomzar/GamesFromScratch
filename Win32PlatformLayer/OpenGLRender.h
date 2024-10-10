@@ -315,8 +315,7 @@ void SetCameraProjection(camera Camera, int32 Width, int32 Height) {
 	glTranslated(0, 0, Camera.Distance);
 	glRotated(Camera.Pitch, -1, 0, 0);
 	glRotated(Camera.Angle, 0, 1, 0);
-	glTranslated(0, 0, 10.0);
-	glTranslated(Camera.Position.X, Camera.Position.Y, Camera.Position.Z);
+	glTranslated(-Camera.Position.X, -Camera.Position.Y, -Camera.Position.Z);
 
 	glEnable(GL_DEPTH_TEST);
 }
@@ -774,20 +773,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				render_entry_line Entry = *(render_entry_line*)Header;
 
 				OpenGLRenderLine(Entry.Start, Entry.Finish, Entry.Color, Entry.Thickness);
-			} break;
-
-			case group_type_render_entry_rect_outline:
-			{
-				render_entry_rect_outline Entry = *(render_entry_rect_outline*)Header;
-				v3 TopLeft = V3(Entry.Rect.Left, Entry.Rect.Top, 0);
-				v3 TopRight = V3(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top, 0);
-				v3 BottomLeft = V3(Entry.Rect.Left, Entry.Rect.Top + Entry.Rect.Height, 0);
-				v3 BottomRight = V3(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0);
-
-				OpenGLRenderLine(TopLeft, BottomLeft, Entry.Color);
-				OpenGLRenderLine(BottomLeft, BottomRight, Entry.Color);
-				OpenGLRenderLine(BottomRight, TopRight, Entry.Color);
-				OpenGLRenderLine(TopRight, TopLeft, Entry.Color);
 			} break;
 
 			case group_type_render_entry_textured_rect:

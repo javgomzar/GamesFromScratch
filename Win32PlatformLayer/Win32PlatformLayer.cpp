@@ -513,6 +513,14 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
             short zDelta = GET_WHEEL_DELTA_WPARAM(msg.wParam);
             pInput->Mouse.Wheel = zDelta;
         } break;
+        case WM_MBUTTONDOWN:
+        {
+            pInput->Mouse.MiddleClick.IsDown = true;
+        } break;
+        case WM_MBUTTONUP:
+        {
+            pInput->Mouse.MiddleClick.IsDown = false;
+        } break;
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
         {
@@ -893,7 +901,7 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
             }
             else if (VKCode == VK_SHIFT) {
                 pInput->Keyboard.Shift.IsDown = false;
-                }
+            }
         } break;
         case WM_CLOSE:
         case WM_DESTROY:
@@ -1146,6 +1154,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         // Previous input
         Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;
+        Input.Mouse.MiddleClick.WasDown = Input.Mouse.MiddleClick.IsDown;
         Input.Mouse.RightClick.WasDown = Input.Mouse.RightClick.IsDown;
 
         Input.Mouse.Wheel = 0;

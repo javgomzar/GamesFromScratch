@@ -235,6 +235,7 @@ struct game_keyboard_input {
 
 struct game_mouse_input {
     game_button_state LeftClick;
+    game_button_state MiddleClick;
     game_button_state RightClick;
     v3 Cursor;
     v3 LastCursor;
@@ -267,6 +268,36 @@ struct record_and_playback {
 struct UI {
 
 };
+
+// Colliders
+struct rect_collider {
+    v3 Center;
+    double Width;
+    double Height;
+};
+
+struct cube_collider {
+    v3 Center;
+    v3 Size;
+};
+
+struct sphere_collider {
+    v3 Center;
+    double Radius;
+};
+
+bool Collide(rect_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < (double)Collider.Width / 2.0 && 
+           fabs(Position.Y - Collider.Center.Y) < (double)Collider.Height / 2.0;
+}
+
+bool Collide(cube_collider Collider, v3 Position) {
+    return false;
+}
+
+bool Collide(sphere_collider Collider, v3 Position) {
+    return false;
+}
 
 
 // Game State: Persistent (between frames) values
