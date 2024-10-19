@@ -14,6 +14,8 @@ static double Pi = 3.14159265359;
 static double Tau = 2.0 * Pi;
 static double twroot = 1.05946309436;
 
+static double Degrees = Pi / 180.0;
+
 // Arithmetics
 inline int32 CustomRound(double X) {
 	return X >= 0 ? (int32)(X + 0.5f) : (int32)(X - 0.5f);
@@ -389,6 +391,16 @@ inline void Matrix(float* Matrix, transform Transform) {
 	Matrix[13] = Transform.Translation.Y;
 	Matrix[14] = Transform.Translation.Z;
 	Matrix[15] = 1.0;
+}
+
+inline void Identity(float* Matrix, int Size) {
+	for (int i = 0; i < Size; i++) {
+		for (int j = 0; j < Size; j++) {
+			int Index = Size * i + j;
+			if (i == j) Matrix[Index] = 1.0f;
+			else Matrix[Index] = 0.0f;
+		}
+	}
 }
 
 // Geometry

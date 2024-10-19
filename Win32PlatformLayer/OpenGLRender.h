@@ -4,10 +4,9 @@
 
 /*
 	TODO:
-
-		- Fix fullscreen mode: Framebuffers change size when fullscreening? Maybe keep the biggest size as the framebuffer size?
 		- Stencil buffers
 		- Kernel operations
+		- Optimize ping pong rendering
 */
 
 struct render_target {
@@ -17,11 +16,13 @@ struct render_target {
 	int Samples;
 	bool Multisampling;
 	bool Depth;
+	bool Stencil;
 };
 
 struct openGL {
 	uint32 TargetCount;
 	render_target Targets[MAX_FRAME_BUFFER_COUNT];
+	render_target PingPongTarget;
 	uint32 QuadVAO;
 	bool Initialized;
 	bool VSync;
@@ -39,18 +40,19 @@ void CreateFramebuffer(
 	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer);
 
 	glBindTexture(GL_TEXTURE_2D, FramebufferTexture);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, Width, Height, 0, GL_BGRA_EXT, GL_FLOAT, NULL);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FramebufferTexture, 0);
 
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+	GLenum Status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (Status != GL_FRAMEBUFFER_COMPLETE) {
 		Assert(false);
 	}
 }
@@ -91,35 +93,40 @@ void CreateFramebufferMultisampling(
 	}
 }
 
+void ResizeMultisamplebuffer(int Width, int Height, uint32 Texture, int Samples, bool Depth, uint32 Renderbuffer) {
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Texture);
+	glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GL_RGBA8, Width, Height, GL_TRUE);
+
+	if (Depth) {
+		glBindRenderbuffer(GL_RENDERBUFFER, Renderbuffer);
+		glRenderbufferStorageMultisample(GL_RENDERBUFFER, Samples, GL_DEPTH24_STENCIL8, Width, Height);
+		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+	}
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+}
+
+void ResizeFramebuffer(int Width, int Height, uint32 Texture) {
+	glBindTexture(GL_TEXTURE_2D, Texture);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 void ResizeFramebuffers(openGL OpenGL, int32 Width, int32 Height) {
 	for (int i = 0; i < OpenGL.TargetCount; i++) {
 		render_target Target = OpenGL.Targets[i];
 
-		if (Target.Multisampling) {
-			glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Target.Texture);
-			glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Target.Samples, GL_RGBA8, Width, Height, GL_TRUE);
-
-			if (Target.Depth) {
-				glBindRenderbuffer(GL_RENDERBUFFER, Target.Renderbuffer);
-				glRenderbufferStorageMultisample(GL_RENDERBUFFER, Target.Samples, GL_DEPTH24_STENCIL8, Width, Height);
-				glBindRenderbuffer(GL_RENDERBUFFER, 0);
-			}
-		}
-		else {
-			glBindTexture(GL_TEXTURE_2D, Target.Texture);
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, NULL);
-
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-		}
+		if (Target.Multisampling) ResizeMultisamplebuffer(Width, Height, Target.Texture, Target.Samples, Target.Depth, Target.Renderbuffer);
+		else ResizeFramebuffer(Width, Height, Target.Texture);
 	}
 
-	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-	glBindTexture(GL_TEXTURE_2D, 0);
+	ResizeFramebuffer(Width, Height, OpenGL.PingPongTarget.Texture);
 }
 
 
@@ -167,7 +174,8 @@ openGL InitOpenGL(HWND Window) {
 			return Result;
 		}
 
-		const int nFramebuffers = 4;
+		// Generating buffer ids
+		const int nFramebuffers = 8;
 		Result.TargetCount = nFramebuffers;
 
 		uint32 Framebuffers[nFramebuffers] = { 0 };
@@ -176,61 +184,60 @@ openGL InitOpenGL(HWND Window) {
 		uint32 Textures[nFramebuffers] = { 0 };
 		glGenTextures(nFramebuffers, Textures);
 
+		for (int i = 0; i < nFramebuffers; i++) {
+			Result.Targets[i].Framebuffer = Framebuffers[i];
+			Result.Targets[i].Texture = Textures[i];
+		}
+
+		// Background
+		Result.Targets[0].Multisampling = true;
+		Result.Targets[0].Depth = true;
+		Result.Targets->Samples = 9;
+
 		// World buffer
-		render_target WorldTarget = {
-			Framebuffers[0],
-			0,
-			Textures[0],
-			9,
-			true,
-			true
-		};
-		CreateFramebufferMultisampling(
-			Width, Height, 9, 
-			WorldTarget.Framebuffer, WorldTarget.Texture,
-			true, &WorldTarget.Renderbuffer
-		);
-		Result.Targets[0] = WorldTarget;
+		Result.Targets[1].Multisampling = true;
+		Result.Targets[1].Depth = true;
+		Result.Targets[1].Samples = 9;
 
 		// Screen buffer
-		render_target ScreenTarget = {
-			Framebuffers[1],
-			0,
-			Textures[1],
-			9,
-			true,
-			false
-		};
-		CreateFramebufferMultisampling(
-			Width, Height, 9,
-			ScreenTarget.Framebuffer, ScreenTarget.Texture
-		);
-		Result.Targets[1] = ScreenTarget;
+		Result.Targets[2].Multisampling = true;
+		Result.Targets[2].Samples = 9;
+
+		// Outline
+		Result.Targets[3].Multisampling = true;
+		Result.Targets[3].Samples = 9;
+
+		// Background postprocessing
+		Result.Targets[4].Samples = 1;
 
 		// World postprocessing
-		render_target WorldPostprocessing = {
-			Framebuffers[2],
-			0,
-			Textures[2],
-			1,
-			false,
-			false
-		};
-		CreateFramebuffer(Width, Height, WorldPostprocessing.Framebuffer, WorldPostprocessing.Texture);
-		Result.Targets[2] = WorldPostprocessing;
+		Result.Targets[5].Samples = 1;
 
 		// Screen postprocessing
-		render_target ScreenPostprocessing = {
-			Framebuffers[3],
-			0,
-			Textures[3],
-			1,
-			false,
-			false
-		};
-		CreateFramebuffer(Width, Height, ScreenPostprocessing.Framebuffer, ScreenPostprocessing.Texture);
-		Result.Targets[3] = ScreenPostprocessing;
+		Result.Targets[6].Samples = 1;
 
+		// Outline postprocessing
+		Result.Targets[7].Samples = 9;
+
+		// Creating buffers
+		for (int i = 0; i < nFramebuffers; i++) {
+			render_target* Target = &Result.Targets[i];
+			if (Target->Multisampling) CreateFramebufferMultisampling(
+				Width, Height,
+				Target->Samples,
+				Target->Framebuffer,
+				Target->Texture,
+				Target->Depth,
+				&Target->Renderbuffer
+			);
+			else CreateFramebuffer(Width, Height, Target->Framebuffer, Target->Texture);
+		}
+
+		// Ping pong buffer
+		Result.PingPongTarget.Samples = 1;
+		glGenFramebuffers(1, &Result.PingPongTarget.Framebuffer);
+		glGenTextures(1, &Result.PingPongTarget.Texture);
+		CreateFramebuffer(Width, Height, Result.PingPongTarget.Framebuffer, Result.PingPongTarget.Texture);
 
 		// Quad vertices
 		double QuadVertices[24] = {
@@ -296,17 +303,17 @@ void SetScreenProjection(int32 Width, int32 Height) {
 
 // 3D Coordinates
 void SetCameraProjection(camera Camera, int32 Width, int32 Height) {
-	double sX = Camera.MetersToPixels;
-	double sY = Camera.MetersToPixels * (double)Width / (double)Height;
-	double sZ = Camera.MetersToPixels;
+	double sX = 1.0;
+	double sY = (double)Width / (double)Height;
+	double sZ = 1.0;
 
 	glMatrixMode(GL_PROJECTION);
 
 	double Proj[] = {
 		sX,  0.0, 0.0, 0.0,
 		0.0, sY,  0.0, 0.0,
-		0.0, 0.0,  sZ,  sZ,
-		0.0, 0.0, 0.0, 1.0,
+		0.0, 0.0, 0.0, sZ,
+		0.0, 0.0, -1.0, 0.0,
 	};
 	glLoadMatrixd(Proj);
 	
@@ -515,7 +522,7 @@ void OpenGLRenderText(uint32 DisplayWidth, v3 Position, character* Characters, c
 	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-
+// Shaders
 GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_file_result Fragment) {
 	GLint VertexShaderCodeLengths[] = { Header.ContentSize, Vertex.ContentSize };
 
@@ -576,13 +583,64 @@ GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_f
 	return ProgramID;
 }
 
+void OpenGLSetUniform(int ProgramID, const char* Name, int Value) {
+	GLint Location = glGetUniformLocation(ProgramID, Name);
+	if (Location >= 0) glUniform1i(Location, Value);
+	GLenum Error = glGetError();
+	if (Error) Assert(false);
+}
+
+void OpenGLSetUniform(int ProgramID, const char* Name, float Value) {
+	GLint Location = glGetUniformLocation(ProgramID, Name);
+	if (Location >= 0) glUniform1f(Location, Value);
+	GLenum Error = glGetError();
+	if (Error) Assert(false);
+}
+
+void OpenGLSetUniform(int ProgramID, const char* Name, double Value) {
+	GLint Location = glGetUniformLocation(ProgramID, Name);
+	if (Location >= 0) glUniform1d(Location, Value);
+	GLenum Error = glGetError();
+	if (Error) Assert(false);
+}
+
+void OpenGLSetUniform(int ProgramID, const char* Name, v3 Vector) {
+	GLint Location = glGetUniformLocation(ProgramID, Name);
+	if (Location >= 0) glUniform3f(Location, Vector.X, Vector.Y, Vector.Z);
+	GLenum Error = glGetError();
+	if (Error) Assert(false);
+}
+
+void OpenGLSetUniform(int ProgramID, const char* Name, v2 Vector) {
+	GLint Location = glGetUniformLocation(ProgramID, Name);
+	if (Location >= 0) glUniform2f(Location, Vector.X, Vector.Y);
+	GLenum Error = glGetError();
+	if (Error) Assert(false);
+}
+
+void OpenGLSetUniform(int ProgramID, const char* Name, color Color) {
+	GLint Location = glGetUniformLocation(ProgramID, Name);
+	if (Location >= 0) glUniform4f(Location, Color.R, Color.G, Color.B, Color.Alpha);
+	GLenum Error = glGetError();
+	if (Error) Assert(false);
+}
+
+void OpenGLSetUniform(int ProgramID, float* Projection, float* View, float* Model) {
+	GLint ProjectionLocation = glGetUniformLocation(ProgramID, "u_projection");
+	glUniformMatrix4fv(ProjectionLocation, 1, GL_FALSE, Projection);
+
+	GLint ViewLocation = glGetUniformLocation(ProgramID, "u_view");
+	glUniformMatrix4fv(ViewLocation, 1, GL_FALSE, View);
+
+	GLint ModelLocation = glGetUniformLocation(ProgramID, "u_model");
+	glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, Model);
+}
 
 // Render
 void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 {
 	int32 Width = Group->Width;
 	int32 Height = Group->Height;
-	double MetersToPixels = Group->Camera.MetersToPixels;
 
 	// Projection matrix
 	glMatrixMode(GL_TEXTURE);
@@ -597,6 +655,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 	glShadeModel(GL_FLAT);
 
 	// Initial clear
+	glBindFramebuffer(GL_FRAMEBUFFER, OpenGL.PingPongTarget.Framebuffer);
+	glClearColor(1, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT);
+
 	sort_entry* Entries = (sort_entry*)Group->SortedBufferBase;
 
 	// Render entries
@@ -606,20 +668,38 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 		uint32 TargetFramebuffer = 0;
 		switch (Header->Target) {
-			case World: {
+			case Background: {
 				TargetFramebuffer = OpenGL.Targets[0].Framebuffer;
+				SetCameraProjection(Group->Camera, Width, Height);
+				glDisable(GL_DEPTH_TEST);
+				glViewport(0, 0, Width, Height);
+			} break;
+			case World: {
+				TargetFramebuffer = OpenGL.Targets[1].Framebuffer;
 				SetCameraProjection(Group->Camera, Width, Height);
 				glEnable(GL_DEPTH_TEST);
 				glViewport(0, 0, Width, Height);
 			} break;
 
-			case Screen:
-			{
-				TargetFramebuffer = OpenGL.Targets[1].Framebuffer;
+			case Screen: {
+				TargetFramebuffer = OpenGL.Targets[2].Framebuffer;
 				SetScreenProjection(Width, Height);
 				glDisable(GL_DEPTH_TEST);
 				glViewport(0, 0, Width, Height);
 			} break;
+
+			case Outline: {
+				TargetFramebuffer = OpenGL.Targets[3].Framebuffer;
+				SetCameraProjection(Group->Camera, Width, Height);
+				glViewport(0, 0, Width, Height);
+			} break;
+
+			case Postprocessing_Outline: {
+				TargetFramebuffer = OpenGL.Targets[7].Framebuffer;
+				SetIdentityProjection();
+				glDisable(GL_DEPTH_TEST);
+				glViewport(0, 0, Width, Height);
+			}
 			
 			default: {
 				SetIdentityProjection();
@@ -636,9 +716,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				render_entry_clear Entry = *(render_entry_clear*)Header;
 
 				switch (Header->Target) {
-					case World:
-					{
-						glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0f);
+					case Background: {
+						glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 1.0);
 						glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 						if (Group->Debug) {
@@ -711,7 +790,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 						}
 					} break;
 
-					case None:
+					default:
 					{
 						glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, Entry.Color.Alpha);
 						glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -815,32 +894,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 					);
 				}
 
-				float sX = Group->Camera.MetersToPixels;
-				float sY = Group->Camera.MetersToPixels * (float)Width / (float)Height;
-				float sZ = Group->Camera.MetersToPixels;
-
-				float Projection[16] = {
-					1.0f, 0.0f, 0.0f, 0.0f,
-					0.0f, 1.0f, 0.0f, 0.0f,
-					0.0f, 0.0f, 1.0f, 0.0f,
-					0.0f, 0.0f, 0.0f, 1.0f,
-				};
+				float Projection[16];
 				glGetFloatv(GL_PROJECTION_MATRIX, Projection);
 
-				float View[16] = {
-					1.0f, 0.0f, 0.0f, 0.0f,
-					0.0f, 1.0f, 0.0f, 0.0f,
-					0.0f, 0.0f, 1.0f, 0.0f,
-					0.0f, 0.0f, 0.0f, 1.0f,
-				};
+				float View[16];
 				glGetFloatv(GL_MODELVIEW_MATRIX, View);
 
-				float Model[16] = {
-					1.0f, 0.0f, 0.0f, 0.0f,
-					0.0f, 1.0f, 0.0f, 0.0f,
-					0.0f, 0.0f, 1.0f, 0.0f,
-					0.0f, 0.0f, 0.0f, 1.0f,
-				};
+				float Model[16];
 				Matrix(Model, Transform);
 
 				glUseProgram(Shader->ProgramID);
@@ -849,34 +909,16 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				// Setting uniforms
 					// Projection and modelview matrices
-				GLint ProjectionLocation = glGetUniformLocation(Entry.Shader->ProgramID, "projection");
-				glUniformMatrix4fv(ProjectionLocation, 1, GL_FALSE, Projection);
-				Error = glGetError();
-
-				GLint ViewLocation = glGetUniformLocation(Entry.Shader->ProgramID, "view");
-				glUniformMatrix4fv(ViewLocation, 1, GL_FALSE, View);
-				Error = glGetError();
-
-				GLint ModelLocation = glGetUniformLocation(Entry.Shader->ProgramID, "model");
-				glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, Model);
-				Error = glGetError();
+				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 
 					// Light
-				GLint LightDirectionLocation = glGetUniformLocation(Entry.Shader->ProgramID, "light_direction");
-				glUniform3f(LightDirectionLocation, Light.Direction.X, Light.Direction.Y, Light.Direction.Z);
-				Error = glGetError();
+				OpenGLSetUniform(Shader->ProgramID, "light_direction", Light.Direction);
+				OpenGLSetUniform(Shader->ProgramID, "light_color", V3(Light.Color.R, Light.Color.G, Light.Color.B));
+				OpenGLSetUniform(Shader->ProgramID, "light_ambient", 0.5f);
+				OpenGLSetUniform(Shader->ProgramID, "light_diffuse", 0.5f);
 
-				GLint LightColorLocation = glGetUniformLocation(Entry.Shader->ProgramID, "light_color");
-				glUniform3f(LightColorLocation, Light.Color.R, Light.Color.G, Light.Color.B);
-				Error = glGetError();
-
-				GLint LightAmbientLocation = glGetUniformLocation(Entry.Shader->ProgramID, "light_ambient");
-				glUniform1f(LightAmbientLocation, 0.5f);
-				Error = glGetError();
-
-				GLint LightDiffuseLocation = glGetUniformLocation(Entry.Shader->ProgramID, "light_diffuse");
-				glUniform1f(LightDiffuseLocation, 0.5f);
-				Error = glGetError();
+					// Color
+				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
 
 				if (Mesh->VBO) {
 					glBindVertexArray(Mesh->VAO);
@@ -908,23 +950,22 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 					glEnableVertexAttribArray(2);
 				}
 
-				if (Mesh->Texture) {
-					OpenGLBindTexture(Mesh->Texture, Clamp);
-				}
-				else {
-					glBindTexture(GL_TEXTURE_2D, 0);
-				}
+				if (Mesh->Texture) OpenGLBindTexture(Mesh->Texture, Clamp);
+				else glBindTexture(GL_TEXTURE_2D, 0);
 
 				glDrawElements(GL_TRIANGLES, 3 * Mesh->nFaces, GL_UNSIGNED_INT, 0);
 				Error = glGetError();
 
 				glUseProgram(0);
 				glBindVertexArray(0);
+
+				glBindTexture(GL_TEXTURE_2D, 0);
 			} break;
 
-			case group_type_render_entry_render_target:
-			{
-				render_entry_render_target Entry = *(render_entry_render_target*)Header;
+			case group_type_render_entry_shader_pass: {
+				render_entry_shader_pass Entry = *(render_entry_shader_pass*)Header;
+
+				GLenum Error = 0;
 
 				shader* Shader = Entry.Shader;
 
@@ -932,10 +973,106 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 					Shader->ProgramID = OpenGLLoadShader(Shader->HeaderShaderCode, Shader->VertexShaderCode, Shader->FragmentShaderCode);
 				}
 
-				glUseProgram(Shader->ProgramID);
+				render_target Target = OpenGL.Targets[Entry.TargetIndex];
 
-				GLint AlphaLocation = glGetUniformLocation(Shader->ProgramID, "Alpha");
-				glUniform1f(AlphaLocation, Entry.Alpha);
+				glUseProgram(Shader->ProgramID);
+				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
+				OpenGLSetUniform(Shader->ProgramID, "u_width", Entry.Width);
+				OpenGLSetUniform(Shader->ProgramID, "u_time", Entry.Time);
+
+				GLint KernelLocation = glGetUniformLocation(Shader->ProgramID, "u_kernel");
+				glUniformMatrix3fv(KernelLocation, 1, GL_FALSE, Entry.Kernel);
+
+				float Projection[16];
+				Identity(Projection, 4);
+
+				float View[16];
+				Identity(View, 4);
+
+				float Model[16];
+				Identity(Model, 4);
+
+				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+
+				glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, OpenGL.PingPongTarget.Framebuffer);
+				glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+				glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+				glClearColor(0, 0, 0, 0);
+				glClear(GL_COLOR_BUFFER_BIT);
+
+				glBindTexture(GL_TEXTURE_2D, OpenGL.PingPongTarget.Texture);
+				glBindVertexArray(OpenGL.QuadVAO);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+
+				glBindTexture(GL_TEXTURE_2D, 0);
+				glBindVertexArray(0);
+				glUseProgram(0);
+			} break;
+			
+			case group_type_render_entry_mesh_outline:
+			{
+				render_entry_mesh_outline Entry = *(render_entry_mesh_outline*)Header;
+
+				shader* Shader = Entry.JumpFloodShader;
+
+				if (!Shader->ProgramID) {
+					Shader->ProgramID = OpenGLLoadShader(Shader->HeaderShaderCode, Shader->VertexShaderCode, Shader->FragmentShaderCode);
+				}
+
+				render_target Target = OpenGL.Targets[GetTargetIndex(Postprocessing_Outline)];
+
+				glUseProgram(Shader->ProgramID);
+				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+
+				float Projection[16];
+				Identity(Projection, 4);
+
+				float View[16];
+				Identity(View, 4);
+
+				float Model[16];
+				Identity(Model, 4);
+
+				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+
+				int Level = Entry.StartingLevel;
+
+				for (int i = 0; i < Entry.Passes; i++) {
+					OpenGLSetUniform(Shader->ProgramID, "level", Level);
+
+					uint32 SourceBuffer = i % 2 == 0 ? OpenGL.PingPongTarget.Framebuffer : Target.Framebuffer;
+					uint32 TargetTexture = i % 2 == 0 ? Target.Framebuffer : OpenGL.PingPongTarget.Texture;
+					glBindFramebuffer(GL_FRAMEBUFFER, SourceBuffer);
+					glClearColor(0, 0, 0, 0);
+					glClear(GL_COLOR_BUFFER_BIT);
+
+					glBindTexture(GL_TEXTURE_2D, TargetTexture);
+					glBindVertexArray(OpenGL.QuadVAO);
+					glDrawArrays(GL_TRIANGLES, 0, 6);
+
+					Level = Level >> 1;
+				}
+
+				if (Entry.Passes % 2 == 1) {
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, OpenGL.PingPongTarget.Framebuffer);
+					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Target.Framebuffer);
+					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+				}
+
+				glBindTexture(GL_TEXTURE_2D, 0);
+				glBindVertexArray(0);
+				glUseProgram(0);
+
+			} break;
+
+			case group_type_render_entry_render_target:
+			{
+				render_entry_render_target Entry = *(render_entry_render_target*)Header;
+
+				shader* Shader = Entry.Shader;
 
 				GLint Error = 0;
 				Error = glGetError();
@@ -949,6 +1086,11 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 				}
 				else {
+					if (!Shader->ProgramID) {
+						Shader->ProgramID = OpenGLLoadShader(Shader->HeaderShaderCode, Shader->VertexShaderCode, Shader->FragmentShaderCode);
+					}
+
+					glUseProgram(Shader->ProgramID);
 					glBindFramebuffer(GL_FRAMEBUFFER, 0);
 					glBindTexture(GL_TEXTURE_2D, Source.Texture);
 					glBindVertexArray(OpenGL.QuadVAO);
@@ -957,7 +1099,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				glUseProgram(0);
 				glBindVertexArray(0);
-				glBindFramebuffer(GL_FRAMEBUFFER, 0);
 			} break;
 
 			default:

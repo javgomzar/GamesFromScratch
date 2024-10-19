@@ -1,6 +1,12 @@
 #include "pch.h"
 #include "Assets.h"
 
+/*
+    TODO:
+        - Load .obj file directly.
+        - Asset hot loading.
+*/
+
 
 // Asset loading
  // BMP
@@ -282,7 +288,7 @@ mesh LoadMesh(platform_read_entire_file Read, memory_arena* MeshArena, const cha
             Pointer = Point3End + 1;
         }
 
-        OutputDebugStringA("Model loaded.");
+        OutputDebugStringA("Model loaded.\n");
     }
     return Result;
 }
@@ -515,8 +521,13 @@ void LoadAssets(
     read_file_result FragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl");
     read_file_result SphereFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SphereFragmentShader.frag.glsl");
     read_file_result FramebufferFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferFragmentShader.frag.glsl");
+    read_file_result SingleColorFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SingleColorFragmentShader.frag.glsl");
+    read_file_result OutlineInit = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/OutlineInitFragmentShader.frag.glsl");
+    read_file_result JumpFloodShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/JumpFloodFragmentShader.frag.glsl");
+    read_file_result OutlineShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/OutlineFragmentShader.frag.glsl");
+    read_file_result KernelShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/KernelFragmentShader.frag.glsl");
 
-    Assets->TestShader = {
+    Assets->TextureShader = {
         0,
         HeaderCode,
         VertexCode,
@@ -535,5 +546,40 @@ void LoadAssets(
         HeaderCode,
         FramebufferVertexCode,
         FramebufferFragmentCode
+    };
+
+    Assets->SingleColorShader = {
+        0,
+        HeaderCode,
+        VertexCode,
+        SingleColorFragmentCode
+    };
+
+    Assets->OutlineInitShader = {
+        0,
+        HeaderCode,
+        FramebufferVertexCode,
+        OutlineInit
+    };
+
+    Assets->OutlineShader = {
+        0,
+        HeaderCode,
+        FramebufferVertexCode,
+        OutlineShaderCode
+    };
+
+    Assets->JumpFloodShader = {
+        0,
+        HeaderCode,
+        FramebufferVertexCode,
+        JumpFloodShaderCode
+    };
+
+    Assets->KernelShader = {
+        0,
+        HeaderCode,
+        FramebufferVertexCode,
+        KernelShaderCode
     };
 }

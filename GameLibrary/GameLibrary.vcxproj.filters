@@ -56,6 +56,21 @@
     <None Include="Assets\Shaders\FramebufferVertexShader.vert.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
+    <None Include="Assets\Shaders\SingleColorFragmentShader.frag.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="Assets\Shaders\OutlineInitFragmentShader.frag.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="Assets\Shaders\JumpFloodFragmentShader.frag.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="Assets\Shaders\OutlineFragmentShader.frag.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="Assets\Shaders\KernelFragmentShader.frag.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">

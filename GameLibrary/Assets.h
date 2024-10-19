@@ -115,9 +115,14 @@ struct game_assets {
     game_video TestVideo;
     mesh TestMesh;
     mesh TestMesh2;
-    shader TestShader;
+    shader TextureShader;
     shader SphereShader;
     shader FramebufferShader;
+    shader SingleColorShader;
+    shader OutlineInitShader;
+    shader JumpFloodShader;
+    shader OutlineShader;
+    shader KernelShader;
 };
 
 void LoadAssets(

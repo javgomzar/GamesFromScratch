@@ -484,7 +484,7 @@ void PlaybackInput(record_and_playback* RecordPlayback, game_input* Input) {
     }
 }
 
-
+static bool Pause = false;
 // Message processing
 void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback* RecordPlayback) {
     MSG msg;
@@ -587,6 +587,8 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                 }
                 else if (VKCode == 'P') {
                     pInput->Keyboard.P.IsDown = true;
+
+                    Pause = !Pause;
                 }
                 else if (VKCode == 'A') {
                     pInput->Keyboard.A.IsDown = true;
@@ -1344,13 +1346,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             PlaybackInput(&RecordPlayback, &Input);
         }
 
-        // Clear render group
-        ClearEntries(Group);
-
         // Game function
         if (GameCode.IsValid) {
             ResizeWindow(Window, Group, OpenGL);
-            GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], Group, &Input);
+
+            if (!Pause) {
+                // Clear render group
+                ClearEntries(Group);
+
+                GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], Group, &Input);
+            }
             Render(Window, Group, OpenGL);
         }
         else {

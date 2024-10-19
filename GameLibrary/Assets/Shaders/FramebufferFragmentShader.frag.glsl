@@ -1,6 +1,5 @@
 
 uniform sampler2D binded_texture;
-uniform float Alpha;
 
 out vec4 FragColor;
 
@@ -15,7 +14,7 @@ void main() {
 	//	Black and white
 	// TextureColor.xyz = vec3(TextureColor.x + TextureColor.y + TextureColor.z) / 6.0;
 
-	FragColor = TextureColor * vec4(1.0, 1.0, 1.0, Alpha);
+	FragColor = TextureColor;
 
 	// Old computer
 	// FragColor = TextureColor * vec4(0.5, 1.0, 0.5, Alpha);
