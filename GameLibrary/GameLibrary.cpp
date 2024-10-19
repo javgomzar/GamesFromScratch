@@ -195,17 +195,189 @@ void PushVideoLoop(render_group* Group, game_video* Video, game_rect Rect, int Z
     }
 }
 
+
+/*
+Fast Ray-Box Intersection
+by Andrew Woo
+from "Graphics Gems", Academic Press, 1990
+*/
+bool HitBoundingBox(double minB[3], double maxB[3], double origin[3], double dir[3], double coord[3])
+/* double minB[NUMDIM], maxB[NUMDIM];		box */
+/* double origin[NUMDIM], dir[NUMDIM];		ray */
+/* double coord[NUMDIM];			hit point */
+{
+    bool inside = true;
+    char quadrant[3];
+    register int i;
+    int whichPlane;
+    double maxT[3];
+    double candidatePlane[3];
+    char LEFT = 1;
+    char RIGHT = 0;
+    char MIDDLE = 2;
+
+    /* Find candidate planes; this loop can be avoided if
+    rays cast all from the eye(assume perpsective view) */
+    for (i = 0; i < 3; i++)
+        if (origin[i] < minB[i]) {
+            quadrant[i] = LEFT;
+            candidatePlane[i] = minB[i];
+            inside = false;
+        }
+        else if (origin[i] > maxB[i]) {
+            quadrant[i] = RIGHT;
+            candidatePlane[i] = maxB[i];
+            inside = false;
+        }
+        else {
+            quadrant[i] = MIDDLE;
+        }
+
+    /* Ray origin inside bounding box */
+    if (inside) {
+        coord = origin;
+        return true;
+    }
+
+
+    /* Calculate T distances to candidate planes */
+    for (i = 0; i < 3; i++)
+        if (quadrant[i] != MIDDLE && dir[i] != 0.)
+            maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
+        else
+            maxT[i] = -1.;
+
+    /* Get largest of the maxT's for final choice of intersection */
+    whichPlane = 0;
+    for (i = 1; i < 3; i++)
+        if (maxT[whichPlane] < maxT[i])
+            whichPlane = i;
+
+    /* Check final candidate actually inside box */
+    if (maxT[whichPlane] < 0.) return false;
+    for (i = 0; i < 3; i++)
+        if (whichPlane != i) {
+            coord[i] = origin[i] + maxT[whichPlane] * dir[i];
+            if (coord[i] < minB[i] || coord[i] > maxB[i])
+                return false;
+        }
+        else {
+            coord[i] = candidatePlane[i];
+        }
+    return true;				/* ray hits box */
+}
+
+
+bool Raycast(v3 Origin, v3 Direction, cube_collider Collider) {
+    double minB[3] = { 0 };
+    minB[0] = Collider.Center.X - Collider.Size.X / 2.0;
+    minB[1] = Collider.Center.Y - Collider.Size.Y / 2.0;
+    minB[2] = Collider.Center.Z - Collider.Size.Z / 2.0;
+    double maxB[3] = { 0 };
+    maxB[0] = Collider.Center.X + Collider.Size.X / 2.0;
+    maxB[1] = Collider.Center.Y + Collider.Size.Y / 2.0;
+    maxB[2] = Collider.Center.Z + Collider.Size.Z / 2.0;
+    double origin[3] = { Origin.X, Origin.Y, Origin.Z };
+    double dir[3] = { Direction.X, Direction.Y, Direction.Z };
+    double coord[3] = { 0,0,0 };
+
+    return HitBoundingBox(minB, maxB, origin, dir, coord);
+}
+
+bool Raycast(camera Camera, game_input* Input, double Width, double Height, cube_collider Collider) {
+    basis B = Camera.Basis;
+
+    v3 ScreenOffset = 
+        (2.0 * (double)Input->Mouse.Cursor.X / Width - 1.0)    * B.X +
+        (Height - 2.0 * (double)Input->Mouse.Cursor.Y) / Width * B.Y
+                                                               - B.Z;
+    return Raycast(Camera.Position + Camera.Distance * B.Z, ScreenOffset, Collider);
+}
+
+
+void Update(slider* Slider, game_input* Input, v3 Position) {
+    Slider->Position = Position;
+    Slider->Collider = {
+        Slider->Position + V3(0.0, 30.0, 0.0),
+        20.0,
+        80.0
+    };
+
+    if (Collide(Slider->Collider, V3(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y, 0.0)) &&
+        Input->Mouse.LeftClick.IsDown) {
+        Slider->Value = 1 - (Input->Mouse.Cursor.Y - Slider->Position.Y) / 60.0;
+        if (Slider->Value < 0.0) Slider->Value = 0.0;
+        else if (Slider->Value > 1.0) Slider->Value = 1.0;
+    }
+};
+
+void Update(UI* UserInterface, game_input* Input, int Width, int Height) {
+    Update(&UserInterface->Slider1, Input, V3(Width - 200.0, 0.4 * Height, 0.0));
+    Update(&UserInterface->Slider2, Input, V3(Width - 180.0, 0.4 * Height, 0.0));
+    Update(&UserInterface->Slider3, Input, V3(Width - 160.0, 0.4 * Height, 0.0));
+    Update(&UserInterface->Slider4, Input, V3(Width - 140.0, 0.4 * Height, 0.0));
+    Update(&UserInterface->Slider5, Input, V3(Width - 120.0, 0.4 * Height, 0.0));
+    Update(&UserInterface->Slider6, Input, V3(Width - 100.0, 0.4 * Height, 0.0));
+}
+
+void Update(camera* Camera, game_input* Input) {
+    // Zoom
+    if (Input->Mouse.Wheel > 0) Camera->Distance /= 1.2;
+    else if (Input->Mouse.Wheel < 0) Camera->Distance *= 1.2;
+
+    // Orbit around Camera->Position
+    if (Input->Mouse.MiddleClick.IsDown && Input->Mouse.MiddleClick.WasDown) {
+        v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
+        double AngularVelocity = 0.5;
+
+        Camera->Pitch += AngularVelocity * Offset.Y;
+        Camera->Angle -= AngularVelocity * Offset.X;
+    }
+
+    // Translation
+    Camera->Velocity = V3(0, 0, 0);
+    if (Input->Keyboard.D.IsDown) {
+        Camera->Velocity.X += 1.0;
+    }
+    else if (Input->Keyboard.A.IsDown) {
+        Camera->Velocity.X -= 1.0;
+    }
+    if (Input->Keyboard.W.IsDown) {
+        Camera->Velocity.Z += 1.0;
+    }
+    else if (Input->Keyboard.S.IsDown) {
+        Camera->Velocity.Z -= 1.0;
+    }
+    if (Input->Keyboard.Space.IsDown) {
+        Camera->Velocity.Y += 1.0;
+    }
+    else if (Input->Keyboard.Shift.IsDown) {
+        Camera->Velocity.Y -= 1.0;
+    }
+
+    Camera->Basis = GetCameraBasis(Camera->Angle, Camera->Pitch);
+
+    basis HorizontalBasis = GetCameraBasis(Camera->Angle, 0);
+
+    v3 Direction = normalize(Camera->Velocity);
+    Camera->Velocity = 0.2 * (Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z);
+    Camera->Position += Camera->Velocity;
+}
+
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
 {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
-    double* Time = &pGameState->Time;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
-    camera* Camera = &Group->Camera;
-    static video_context VideoContext = { 0 };
-    bool firstFrame = false;
+    UI* UserInterface = &pGameState->UserInterface;
 
+    static video_context VideoContext = { 0 };
+    
+    double Time = pGameState->Time;
+    camera* Camera = &Group->Camera;
+
+    bool firstFrame = false;
     if (!Memory->IsInitialized) {
         firstFrame = true;
 
@@ -245,20 +417,25 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
 
         // User Interface
-        // InitializeUI();
+        InitSlider(&pGameState->UserInterface.Slider1, 0.5, Black);
+        InitSlider(&pGameState->UserInterface.Slider2, 0.5, Black);
+        InitSlider(&pGameState->UserInterface.Slider3, 0.5, Black);
+        InitSlider(&pGameState->UserInterface.Slider4, 0.5, Black);
+        InitSlider(&pGameState->UserInterface.Slider5, 0.5, Black);
+        InitSlider(&pGameState->UserInterface.Slider6, 0.5, Black);
 
-        Camera->Position = V3(0, 0, -10.0);
-        Camera->Angle = 45;
-        Camera->Pitch = 45;
+        Camera->Position = V3(0, 0, 0.0);
+        Camera->Angle = 0;
+        Camera->Pitch = 0;
 
         Memory->IsInitialized = true;
     }
 
-    PushClear(Group, BackgroundBlue, World);
-    PushClear(Group, { 0.0, 0.0, 0.0, 0.0 }, Screen);
-    PushClear(Group, { 0.0, 0.0, 0.0, 0.0 }, Postprocessing_World);
-    PushClear(Group, { 0.0, 0.0, 0.0, 0.0 }, Postprocessing_Screen);
-    PushClear(Group, { 1.0, 1.0, 1.0, 1.0 }, None);
+    PushClear(Group, BackgroundBlue, Background);
+    PushClear(Group, { 0 }, Outline);
+    PushClear(Group, { 0 }, Postprocessing_Outline);
+    PushClear(Group, Color(BackgroundBlue, 0), World);
+    PushClear(Group, { 0 }, Screen);
 
 // Controls
     // Put here your input code
@@ -276,43 +453,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     //}
 
     // Camera
-    if (Input->Mouse.Wheel > 0) Camera->Distance /= 1.2;
-    else if (Input->Mouse.Wheel < 0) Camera->Distance *= 1.2;
-
-    if (Input->Mouse.LeftClick.IsDown && Input->Mouse.LeftClick.WasDown) {
-        v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
-        double AngularVelocity = 0.5;
-
-        Camera->Pitch += AngularVelocity * Offset.Y;
-        Camera->Angle -= AngularVelocity * Offset.X;
-    }
-
-    Camera->Velocity = V3(0, 0, 0);
-    if (Input->Keyboard.D.IsDown) {
-        Camera->Velocity.X -= 1.0;
-    }
-    else if (Input->Keyboard.A.IsDown) {
-        Camera->Velocity.X += 1.0;
-    }
-    if (Input->Keyboard.W.IsDown) {
-        Camera->Velocity.Z -= 1.0;
-    }
-    else if (Input->Keyboard.S.IsDown) {
-        Camera->Velocity.Z += 1.0;
-    }
-    if (Input->Keyboard.Space.IsDown) {
-        Camera->Velocity.Y -= 1.0;
-    }
-    else if (Input->Keyboard.Shift.IsDown) {
-        Camera->Velocity.Y += 1.0;
-    }
-
-    v3 Direction = normalize(Camera->Velocity);
-    v3 X2 = V3(cos(Camera->Angle * Pi / 180.0), 0, sin(Camera->Angle * Pi / 180.0));
-    v3 Z2 = V3(-sin(Camera->Angle * Pi / 180.0), 0, cos(Camera->Angle * Pi / 180.0));
-    Camera->Velocity = 0.2 * (Direction.X * X2 + Direction.Y * V3(0.0, 1.0, 0.0) + Direction.Z * Z2);
-    Camera->Position += Camera->Velocity;
-
+    Update(Camera, Input);
+    
     // Render
     light Light = { 0 };
     Light.Ambient = 0.2;
@@ -360,6 +502,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     //    Platform.OpenGLRender(Group, &Target);
     //}
 
+    Update(&pGameState->UserInterface, Input, Group->Width, Group->Height);
+    PushUI(Group, &pGameState->UserInterface);
+
     // Debug info
     static double Alpha = 0.0;
     if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
@@ -379,24 +524,25 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
 
         game_rect DebugInfoRect = { 0, 0, 350, 270 };
-        PushRect(Group, DebugInfoRect, { 0.5, 0.0, 0.0, 0.0 }, 0);
-        PushRectOutline(Group, DebugInfoRect, Gray);
-        PushText(Group, { 0, 30, 0.5 }, Assets->Characters, White, 12, Memory->DebugInfo, false);
+
+        PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), 0);
+        PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
+        PushText(Group, { 0, 30, 0.5 }, Assets->Characters, Color(White, Alpha), 12, Memory->DebugInfo, false);
 
         // Render Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->RenderArena, V3(20.0, 120.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->RenderArena, V3(20.0, 120.0, 0.5), Alpha);
 
         // Strings Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->StringsArena, V3(20.0, 150.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->StringsArena, V3(20.0, 150.0, 0.5), Alpha);
 
         // Fonts Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->FontsArena, V3(20.0, 180.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->FontsArena, V3(20.0, 180.0, 0.5), Alpha);
 
         // Mesh Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->MeshArena, V3(20.0, 210.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->MeshArena, V3(20.0, 210.0, 0.5), Alpha);
 
         // Video Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 240.0, 0.5));
+        PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 240.0, 0.5), Alpha);
 
         // Debug normals
         for (int i = 0; i < 54; i++) {
@@ -405,8 +551,12 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
     }
 
-    PushRenderTarget(Group, World, &Assets->FramebufferShader, 1.0);
-    PushRenderTarget(Group, Screen, &Assets->FramebufferShader, Alpha);
-    PushRenderTarget(Group, Postprocessing_World, &Assets->FramebufferShader, 1.0);
-    PushRenderTarget(Group, Postprocessing_Screen, &Assets->FramebufferShader, 1.0);
+    PushRenderTarget(Group, Background, &Assets->FramebufferShader, 500);
+    PushRenderTarget(Group, World, &Assets->FramebufferShader, 500);
+    PushRenderTarget(Group, Screen, &Assets->FramebufferShader, 500);
+    PushRenderTarget(Group, Outline, &Assets->FramebufferShader, 500);
+    PushRenderTarget(Group, Postprocessing_Background, &Assets->FramebufferShader, 1020);
+    PushRenderTarget(Group, Postprocessing_Outline, &Assets->FramebufferShader, 1021);
+    PushRenderTarget(Group, Postprocessing_World, &Assets->FramebufferShader, 1022);
+    PushRenderTarget(Group, Postprocessing_Screen, &Assets->FramebufferShader, 1023);
 }

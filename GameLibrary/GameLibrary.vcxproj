@@ -158,8 +158,13 @@
     <None Include="Assets\Models\Shield.mdl" />
     <None Include="Assets\Models\Sphere.mdl" />
     <None Include="Assets\Models\Sword.mdl" />
+    <None Include="Assets\Shaders\KernelFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\FramebufferFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\FramebufferVertexShader.vert.glsl" />
+    <None Include="Assets\Shaders\JumpFloodFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\OutlineFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\OutlineInitFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\SingleColorFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\SphereFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\TextureFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\HeaderShader.h.glsl" />

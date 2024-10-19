@@ -9,20 +9,24 @@ enum render_group_entry_type {
     group_type_render_entry_triangle,
     group_type_render_entry_rect,
     group_type_render_entry_textured_rect,
-    group_type_render_entry_rect_outline,
     group_type_render_entry_text,
     group_type_render_entry_button,
     group_type_render_entry_video,
     group_type_render_entry_mesh,
+    group_type_render_entry_mesh_outline,
+    group_type_render_entry_shader_pass,
     group_type_render_entry_render_target,
 };
 
 enum render_group_target {
-    None,
+    Background,
     Screen,
     World,
+    Outline,
+    Postprocessing_Background,
     Postprocessing_Screen,
-    Postprocessing_World
+    Postprocessing_World,
+    Postprocessing_Outline
 };
 
 enum wrap_mode {
@@ -125,6 +129,26 @@ struct render_entry_mesh {
     transform Transform;
     shader* Shader;
     light Light;
+    color Color;
+};
+
+struct render_entry_mesh_outline {
+    render_group_header Header;
+    shader* JumpFloodShader;
+    int StartingLevel;
+    color Color;
+    int Width;
+    int Passes;
+};
+
+struct render_entry_shader_pass {
+    render_group_header Header;
+    shader* Shader;
+    uint32 TargetIndex;
+    color Color;
+    float Kernel[9];
+    double Width;
+    double Time;
 };
 
 struct render_entry_render_target {
@@ -132,17 +156,36 @@ struct render_entry_render_target {
     shader* Shader;
     uint32 TargetIndex;
     uint32 SourceIndex;
-    double Alpha;
 };
 
 struct camera {
-    double MetersToPixels;
+    basis Basis;
     v3 Position;
     v3 Velocity;
     double Distance;
     double Pitch;
     double Angle;
 };
+
+basis GetCameraBasis(double Angle, double Pitch) {
+    v3 X = V3(
+        cos(Angle * Degrees),
+        0.0,
+        sin(Angle * Degrees)
+    );
+    v3 Y = V3(
+        -sin(Angle * Degrees) * sin(Pitch * Degrees),
+        cos(Pitch * Degrees),
+        cos(Angle * Degrees) * sin(Pitch * Degrees)
+    );
+    v3 Z = V3(
+        sin(Angle * Degrees) * cos(Pitch * Degrees),
+        sin(Pitch * Degrees),
+        -cos(Angle * Degrees) * cos(Pitch * Degrees)
+    );
+
+    return { X, Y, Z };
+}
 
 const int MAX_FRAME_BUFFER_COUNT = 16;
 struct render_group {
@@ -176,7 +219,6 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
     Result->DefaultBasis.Y = V3(0, 1, 0);
     Result->DefaultBasis.Z = V3(0, 0, 1);
     Result->Camera = { 0 };
-    Result->Camera.MetersToPixels = 0.4;
     Result->Camera.Distance = 10.0;
     Result->Camera.Velocity = V3(0, 0, 0);
     Result->Camera.Angle = 0;
@@ -193,7 +235,7 @@ render_group_header* PushRenderElement_(render_group* Group, uint32 Size, render
     if ((Group->PushBufferSize + Size) < Group->MaxPushBufferSize) {
         Result = (render_group_header*)(Group->PushBufferBase + Group->PushBufferSize);
         Result->Key = { 0 }; // Must be set when pushed
-        Result->Target = None;
+        Result->Target = Background;
         Result->Type = Type;
         Result->PushBufferOffset = Group->PushBufferSize;
 
@@ -230,11 +272,6 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_rect);
         } break;
 
-        case group_type_render_entry_rect_outline:
-        {
-            return sizeof(render_entry_rect_outline);
-        } break;
-
         case group_type_render_entry_text:
         {
             return sizeof(render_entry_text);
@@ -265,6 +302,16 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_render_target);
         } break;
 
+        case group_type_render_entry_shader_pass:
+        {
+            return sizeof(render_entry_shader_pass);
+        } break;
+
+        case group_type_render_entry_mesh_outline:
+        {
+            return sizeof(render_entry_mesh_outline);
+        } break;
+
         default:
         {
             Assert(false);
@@ -272,14 +319,14 @@ uint32 GetSizeOf(render_group_entry_type Type) {
     }
 }
 
-void PushClear(render_group* Group, color Color, render_group_target Target = None) {
+void PushClear(render_group* Group, color Color, render_group_target Target = Background) {
     render_entry_clear* Entry = PushRenderElement(Group, render_entry_clear);
     Entry->Header.Key.Z = -1.0;
     Entry->Header.Target = Target;
     Entry->Color = Color;
 }
 
-void PushLine(render_group* Group, v3 Start, v3 Finish, color Color, int Thickness, render_group_target Target = None) {
+void PushLine(render_group* Group, v3 Start, v3 Finish, color Color, int Thickness, render_group_target Target = Background) {
     render_entry_line* Entry = PushRenderElement(Group, render_entry_line);
     Entry->Header.Key.Z = max(Start.Z, Finish.Z);
     Entry->Header.Target = Target;
@@ -412,11 +459,25 @@ void PushTexturedRectCrop(
 }
 
 void PushRectOutline(render_group* Group, game_rect Rect, color Color) {
-    render_entry_rect_outline* Entry = PushRenderElement(Group, render_entry_rect_outline);
-    Entry->Header.Key.Z = 300;
-    Entry->Header.Target = Screen;
-    Entry->Rect = Rect;
-    Entry->Color = Color;
+    v3 A = V3(Rect.Left, Rect.Top, 0);
+    v3 B = V3(Rect.Left + Rect.Width, Rect.Top, 0);
+    v3 C = V3(Rect.Left, Rect.Top + Rect.Height, 0);
+    v3 D = V3(Rect.Left + Rect.Width, Rect.Top + Rect.Height, 0);
+
+    PushLine(Group, A, B, Color, 2.0, Screen);
+    PushLine(Group, A, C, Color, 2.0, Screen);
+    PushLine(Group, B, D, Color, 2.0, Screen);
+    PushLine(Group, C, D, Color, 2.0, Screen);
+}
+
+void PushRectOutline(render_group* Group, rect_collider Collider, color Color) {
+    game_rect Rect = {
+        Collider.Center.X - Collider.Width / 2.0,
+        Collider.Center.Y - Collider.Height / 2.0,
+        Collider.Width,
+        Collider.Height
+    };
+    PushRectOutline(Group, Rect, Color);
 }
 
 void PushText(render_group* Group, v3 Position, character* Characters, color Color, int Points, string String, bool Wrapped) {
@@ -447,28 +508,37 @@ void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
     Entry->Rect = Rect;
 }
 
-void PushMesh(render_group* Group, mesh* Mesh, transform Transform, light Light, shader* Shader) {
+void PushMesh(
+    render_group* Group, 
+    mesh* Mesh, 
+    transform Transform, 
+    light Light, 
+    shader* Shader, 
+    color Color = White,
+    render_group_target Target = World
+) {
     render_entry_mesh* Entry = PushRenderElement(Group, render_entry_mesh);
     Entry->Header.Key.Z = Transform.Translation.Z;
-    Entry->Header.Target = World;
+    Entry->Header.Target = Target;
 
     Entry->Transform = Transform;
     Entry->Mesh = Mesh;
     Entry->Light = Light;
     Entry->Shader = Shader;
+    Entry->Color = Color;
 }
 
-void PushDebugArena(render_group* Group, character* Characters, memory_arena Arena, v3 Position) {
+void PushDebugArena(render_group* Group, character* Characters, memory_arena Arena, v3 Position, double Alpha = 1.0) {
     double ArenaPercentage = (double)Arena.Used / (double)Arena.Size;
-    PushRect(Group, { Position.X, Position.Y, 120.0, 20.0 }, DarkGray, Position.Z + 0.1);
-    PushRect(Group, { Position.X, Position.Y, 120.0 * ArenaPercentage, 20.0 }, Red, Position.Z + 0.2);
-    PushText(Group, { Position.X, Position.Y + 15.0, Position.Z + 0.3 }, Characters, White, 8, Arena.Name, false);
+    PushRect(Group, { Position.X, Position.Y, 120.0, 20.0 }, Color(DarkGray, Alpha), Position.Z + 0.1);
+    PushRect(Group, { Position.X, Position.Y, 120.0 * ArenaPercentage, 20.0 }, Color(Red, Alpha), Position.Z + 0.2);
+    PushText(Group, { Position.X, Position.Y + 15.0, Position.Z + 0.3 }, Characters, Color(White, Alpha), 8, Arena.Name, false);
     sprintf_s(Arena.Percentage.Content, 7, "%.02f%%", ArenaPercentage * 100.0);
-    PushText(Group, { Position.X + 125.0, Position.Y + 15.0, Position.Z + 0.3}, Characters, White, 8, Arena.Percentage, false);
+    PushText(Group, { Position.X + 125.0, Position.Y + 15.0, Position.Z + 0.3}, Characters, Color(White, Alpha), 8, Arena.Percentage, false);
 }
 
-void PushDebugVector(render_group* Group, v3 Vector, v3 Position) {
-    PushLine(Group, Position, Position + Vector, White, 1.0, World);
+void PushDebugVector(render_group* Group, v3 Vector, v3 Position, render_group_target Target = World) {
+    PushLine(Group, Position, Position + Vector, White, 1.0, Target);
 }
 
 void PushDebugNormals(render_group* Group, mesh Mesh, transform Transform) {
@@ -489,34 +559,209 @@ void PushDebugNormals(render_group* Group, mesh Mesh, transform Transform) {
 
 uint32 GetTargetIndex(render_group_target Target) {
     switch (Target) {
-        case Screen: { return 1; } break;
-        case World: { return 0; } break;
-        case Postprocessing_Screen: { return 3; } break;
-        case Postprocessing_World: { return 2; } break;
-        case None: { Assert(false); } break;
+        case Background: { return 0; } break;
+        case World: { return 1; } break;
+        case Screen: { return 2; } break;
+        case Outline: { return 3; } break;
+        case Postprocessing_Background: { return 4; } break;
+        case Postprocessing_World: { return 5; } break;
+        case Postprocessing_Screen: { return 6; } break;
+        case Postprocessing_Outline: { return 7; } break;
         default: { Assert(false); } break;
     }
 }
 
-void PushRenderTarget(render_group* Group, render_group_target Target, shader* Shader, double Alpha = 1.0) {
+void PushRenderTarget(render_group* Group, render_group_target Target, shader* Shader, double Z = 99999) {
     render_entry_render_target* Entry = PushRenderElement(Group, render_entry_render_target);
-    Entry->Header.Key.Z = 99999;
+    Entry->Header.Key.Z = Z;
     Entry->Header.Target = Target;
     
     Entry->SourceIndex = GetTargetIndex(Target);
 
     Entry->TargetIndex = -1;
-    if (Target == World) {
-        Entry->TargetIndex = 2;
+    if (Target == Background) {
+        Entry->TargetIndex = 4;
+    }
+    else if (Target == World) {
+        Entry->TargetIndex = 5;
     }
     else if (Target == Screen) {
-        Entry->TargetIndex = 3;
+        Entry->TargetIndex = 6;
+    }
+    else if (Target == Outline) {
+        Entry->TargetIndex = 7;
     }
 
     Entry->Shader = Shader;
-    Entry->Alpha = Alpha;
 }
 
+void PushCubeOutline(render_group* Group, v3 Position, v3 Size, color Color) {
+    v3 A = Position + V3(0.0, Size.Y, Size.Z);
+    v3 B = Position + V3(Size.X, Size.Y, Size.Z);
+    v3 C = Position + V3(0.0, 0.0, Size.Z);
+    v3 D = Position + V3(Size.X, 0.0, Size.Z);
+    v3 E = Position + V3(Size.X, 0.0, 0.0);
+    v3 F = Position + V3(Size.X, Size.Y, 0.0);
+    v3 G = Position + V3(0.0, Size.Y, 0.0);
+    v3 H = Position + V3(0.0, 0.0, 0.0);
+    PushLine(Group, A, B, Color, 1.0, World);
+    PushLine(Group, A, C, Color, 1.0, World);
+    PushLine(Group, A, G, Color, 1.0, World);
+    PushLine(Group, F, G, Color, 1.0, World);
+    PushLine(Group, B, F, Color, 1.0, World);
+    PushLine(Group, B, D, Color, 1.0, World);
+    PushLine(Group, E, F, Color, 1.0, World);
+    PushLine(Group, C, H, Color, 1.0, World);
+    PushLine(Group, C, D, Color, 1.0, World);
+    PushLine(Group, D, E, Color, 1.0, World);
+    PushLine(Group, E, H, Color, 1.0, World);
+    PushLine(Group, G, H, Color, 1.0, World);
+}
+
+void PushCubeOutline(render_group* Group, cube_collider Collider, color Color) {
+    PushCubeOutline(Group, Collider.Center - 0.5 * Collider.Size, Collider.Size, Color);
+}
+
+void PushCircleOutline(render_group* Group, v3 Center, double Radius, color Color, double Width = 1.0) {
+    int N = max(12 * log(Radius), 10);
+
+    double dTheta = Tau / N;
+    double Theta = 0;
+    for (int i = 0; i < N; i++) {
+        v3 Start = Center + Radius * V3(cos(Theta), sin(Theta), 0);
+        Theta += dTheta;
+        v3 Finish = Center + Radius * V3(cos(Theta), sin(Theta), 0);
+        PushLine(Group, Start, Finish, Color, Width, Screen);
+    }
+}
+
+
+void PushSlider(render_group* Group, slider Slider) {
+    double CircleCenter = Slider.Position.Y + 60.0 * (1.0 - Slider.Value);
+    double Radius = 5.0;
+    double UpperLineFinish = 0.0;
+    if (Slider.Value < 0.85) {
+        UpperLineFinish = (0.85 - Slider.Value) * 60;
+    }
+    double LowerLineStart = 60.0;
+    if (Slider.Value > 0.15) {
+        LowerLineStart = (1.15 - Slider.Value) * 60;
+    }
+    PushLine(Group, Slider.Position, Slider.Position + V3(0.0, UpperLineFinish, 0.0), Slider.Color, 2.0, Screen);
+    PushCircleOutline(Group, V3(Slider.Position.X, CircleCenter, 0), Radius, Slider.Color, 2.0);
+    PushLine(Group, Slider.Position + V3(0.0, LowerLineStart, 0.0), Slider.Position + V3(0.0, 60.0, 0.0), Slider.Color, 2.0, Screen);
+}
+
+void PushUI(render_group* Group, UI* UserInterface) {
+    PushSlider(Group, UserInterface->Slider1);
+    PushSlider(Group, UserInterface->Slider2);
+    PushSlider(Group, UserInterface->Slider3);
+    PushSlider(Group, UserInterface->Slider4);
+    PushSlider(Group, UserInterface->Slider5);
+    PushSlider(Group, UserInterface->Slider6);
+}
+
+void PushDebugFustrum(
+    render_group* Group, 
+    v3 Position, 
+    double Angle, double Pitch,
+    double l, double r, double b, double t, double n, double f
+) {
+    basis B = GetCameraBasis(Angle, Pitch);
+    
+    v3 nv = -n * B.Z;
+    v3 rv = r * B.X;
+    v3 lv = -l * B.X;
+    v3 tv = t * B.Y * ((double)Group->Height / (double)Group->Width);
+    v3 bv = -b * B.Y * ((double)Group->Height / (double)Group->Width);
+    v3 fv = -f * B.Z;
+
+    v3 l_ = f * lv;
+    v3 r_ = f * rv;
+    v3 t_ = f * tv;
+    v3 b_ = f * bv;
+
+    PushLine(Group, Position, Position + l_ + t_ + fv, White, 2.0, World);
+    PushLine(Group, Position, Position + r_ + t_ + fv, White, 2.0, World);
+    PushLine(Group, Position, Position + l_ + b_ + fv, White, 2.0, World);
+    PushLine(Group, Position, Position + r_ + b_ + fv, White, 2.0, World);
+
+    PushLine(Group, Position + r_ + b_ + fv, Position + l_ + b_ + fv, White, 2.0, World);
+    PushLine(Group, Position + r_ + t_ + fv, Position + l_ + t_ + fv, White, 2.0, World);
+    PushLine(Group, Position + r_ + b_ + fv, Position + r_ + t_ + fv, White, 2.0, World);
+    PushLine(Group, Position + l_ + b_ + fv, Position + l_ + t_ + fv, White, 2.0, World);
+
+    PushLine(Group, Position + rv + bv + nv, Position + lv + bv + nv, White, 2.0, World);
+    PushLine(Group, Position + rv + tv + nv, Position + lv + tv + nv, White, 2.0, World);
+    PushLine(Group, Position + rv + bv + nv, Position + rv + tv + nv, White, 2.0, World);
+    PushLine(Group, Position + lv + bv + nv, Position + lv + tv + nv, White, 2.0, World);
+}
+
+void PushShaderPass(
+    render_group* Group,
+    shader* Shader,
+    render_group_target Target,
+    double Z = 1000,
+    color Color = White,
+    double Width = 0.0,
+    double Time = 0.0
+) {
+    render_entry_shader_pass* Entry = PushRenderElement(Group, render_entry_shader_pass);
+    Entry->Header.Key.Z = Z;
+    Entry->Header.Target = Target;
+
+    Entry->Shader = Shader;
+    Entry->TargetIndex = GetTargetIndex(Target);
+    Entry->Color = Color;
+    Entry->Width = Width;
+    Entry->Time = Time;
+}
+
+void PushKernelShaderPass(
+    render_group* Group,
+    shader* Shader,
+    render_group_target Target,
+    matrix3 Kernel,
+    double Z = 1000
+) {
+    render_entry_shader_pass* Entry = PushRenderElement(Group, render_entry_shader_pass);
+    Entry->Header.Key.Z = Z;
+    Entry->Header.Target = Target;
+
+    Entry->Shader = Shader;
+    Entry->TargetIndex = GetTargetIndex(Target);
+    Entry->Color = White;
+    Entry->Width = 0;
+
+    for (int i = 0; i < 9; i++) {
+        Entry->Kernel[i] = Kernel[i];
+    }
+}
+
+void PushMeshOutline(
+    render_group* Group,
+    game_assets* Assets,
+    float Width,
+    color Color,
+    int Passes,
+    int StartingLevel,
+    double Time
+) {
+    PushRenderTarget(Group, Outline, &Assets->FramebufferShader, 500);
+    PushShaderPass(Group, &Assets->OutlineInitShader, Postprocessing_Outline, 510);
+
+    render_entry_mesh_outline* Entry = PushRenderElement(Group, render_entry_mesh_outline);
+    Entry->Header.Key.Z = 1000;
+    Entry->Header.Target = Postprocessing_Outline;
+
+    Entry->JumpFloodShader = &Assets->JumpFloodShader;
+
+    Entry->Passes = Passes;
+    Entry->Width = Width;
+    Entry->StartingLevel = StartingLevel;
+
+    PushShaderPass(Group, &Assets->OutlineShader, Postprocessing_Outline, 1010, Color, Width, Time);
+}
 
 // Render entries sorting
 void ClearEntries(render_group* Group) {

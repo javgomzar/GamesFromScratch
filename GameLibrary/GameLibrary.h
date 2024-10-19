@@ -62,6 +62,10 @@ color Color(double R, double G, double B, double Alpha = 1.0) {
     return { Alpha, R, G, B };
 }
 
+color Color(color Color, double Alpha) {
+    return { Alpha, Color.R, Color.G, Color.B };
+}
+
 color operator*(double Luminosity, color Color) {
     return {
         Color.Alpha,
@@ -235,6 +239,7 @@ struct game_keyboard_input {
 
 struct game_mouse_input {
     game_button_state LeftClick;
+    game_button_state MiddleClick;
     game_button_state RightClick;
     v3 Cursor;
     v3 LastCursor;
@@ -262,11 +267,63 @@ struct record_and_playback {
     uint64 TotalSize;
 };
 
+// Colliders
+struct rect_collider {
+    v3 Center;
+    double Width;
+    double Height;
+};
+
+struct cube_collider {
+    v3 Center;
+    v3 Size;
+};
+
+struct sphere_collider {
+    v3 Center;
+    double Radius;
+};
+
+bool Collide(rect_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < (double)Collider.Width / 2.0 &&
+        fabs(Position.Y - Collider.Center.Y) < (double)Collider.Height / 2.0;
+}
+
+bool Collide(cube_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < Collider.Size.X / 2.0 &&
+           fabs(Position.Y - Collider.Center.Y) < Collider.Size.Y / 2.0 &&
+           fabs(Position.Z - Collider.Center.Z) < Collider.Size.Z / 2.0;
+}
+
+bool Collide(sphere_collider Collider, v3 Position) {
+    return module(Position - Collider.Center) < Collider.Radius;
+}
 
 // User Interface
-struct UI {
-
+struct slider {
+    double Value;
+    v3 Position;
+    color Color;
+    rect_collider Collider;
 };
+
+struct UI {
+    slider Slider1;
+    slider Slider2;
+    slider Slider3;
+    slider Slider4;
+    slider Slider5;
+    slider Slider6;
+};
+
+void InitSlider(slider* Slider, double Value, color Color) {
+    *Slider = { 0 };
+    
+    if (Value > 1.0 || Value < 0.0) Assert(false);
+    else Slider->Value = Value;
+
+    Slider->Color = Color;
+}
 
 // Faces
 struct face {

@@ -117,6 +117,11 @@ struct game_assets {
     shader TextureShader;
     shader SphereShader;
     shader FramebufferShader;
+    shader SingleColorShader;
+    shader OutlineInitShader;
+    shader JumpFloodShader;
+    shader OutlineShader;
+    shader KernelShader;
 };
 
 void LoadAssets(
