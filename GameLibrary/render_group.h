@@ -189,6 +189,7 @@ basis GetCameraBasis(double Angle, double Pitch) {
 
 const int MAX_FRAME_BUFFER_COUNT = 16;
 struct render_group {
+    game_assets* Assets;
     int32 Width;
     int32 Height;
     basis DefaultBasis;
@@ -207,7 +208,7 @@ struct sort_entry {
 };
 
 
-render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBufferSize) {
+render_group* AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, memory_index MaxPushBufferSize) {
     render_group* Result = PushStruct(Arena, render_group);
     Result->PushBufferBase = (uint8*)PushSize(Arena, MaxPushBufferSize);
     Result->MaxPushBufferSize = MaxPushBufferSize;
@@ -215,11 +216,13 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
 
     Result->SortedBufferBase = (uint8*)PushSize(Arena, MaxPushBufferSize);
 
+    Result->Assets = Assets;
+
     Result->DefaultBasis.X = V3(1, 0, 0);
     Result->DefaultBasis.Y = V3(0, 1, 0);
     Result->DefaultBasis.Z = V3(0, 0, 1);
     Result->Camera = { 0 };
-    Result->Camera.Distance = 10.0;
+    Result->Camera.Distance = 15.0;
     Result->Camera.Velocity = V3(0, 0, 0);
     Result->Camera.Angle = 0;
     Result->Camera.Pitch = 0;
@@ -761,6 +764,36 @@ void PushMeshOutline(
     Entry->StartingLevel = StartingLevel;
 
     PushShaderPass(Group, &Assets->OutlineShader, Postprocessing_Outline, 1010, Color, Width, Time);
+}
+
+void PushFace(render_group* Group, face Face, transform PieceTransform, v3 CubePosition) {
+    transform Transform = Face.Transform * PieceTransform;
+    Transform.Translation += CubePosition;
+    PushMesh(Group, &Group->Assets->FaceMesh, Transform, { 0 }, &Group->Assets->HeightShader, Face.Color, World);
+    PushMesh(Group, &Group->Assets->FaceMesh, Transform, { 0 }, &Group->Assets->SingleColorShader, White, Outline);
+}
+
+void PushPiece(render_group* Group, center_piece Piece, v3 Position) {
+    PushFace(Group, Piece.Face, Piece.Transform, Position);
+}
+
+void PushPiece(render_group* Group, edge_piece Piece, v3 Position) {
+    PushFace(Group, Piece.Faces[0], Piece.Transform, Position);
+    PushFace(Group, Piece.Faces[1], Piece.Transform, Position);
+}
+
+void PushPiece(render_group* Group, corner_piece Piece, v3 Position) {
+    PushFace(Group, Piece.Faces[0], Piece.Transform, Position);
+    PushFace(Group, Piece.Faces[1], Piece.Transform, Position);
+    PushFace(Group, Piece.Faces[2], Piece.Transform, Position);
+}
+
+void PushCube(render_group* Group, rubiks_cube* Cube) {
+    for (int i = 0; i < 12; i++) {
+        if (i < 6) PushPiece(Group, Cube->Centers[i], Cube->Position);
+        PushPiece(Group, Cube->Edges[i], Cube->Position);
+        if (i < 8) PushPiece(Group, Cube->Corners[i], Cube->Position);
+    }
 }
 
 // Render entries sorting

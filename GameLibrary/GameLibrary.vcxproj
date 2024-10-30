@@ -166,7 +166,7 @@
     <None Include="Assets\Shaders\OutlineInitFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\SingleColorFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\SphereFragmentShader.frag.glsl" />
-    <None Include="Assets\Shaders\TextureFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\HeightFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\HeaderShader.h.glsl" />
     <None Include="Assets\Shaders\VertexShader.vert.glsl" />
     <None Include="cpp.hint" />

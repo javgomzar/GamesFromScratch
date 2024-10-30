@@ -114,7 +114,7 @@ struct game_assets {
     game_sound TestSound;
     game_video TestVideo;
     mesh FaceMesh;
-    shader TextureShader;
+    shader HeightShader;
     shader SphereShader;
     shader FramebufferShader;
     shader SingleColorShader;

@@ -885,8 +885,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				light Light = Entry.Light;
 				transform Transform = Entry.Transform;
 
-				v3 Position = Transform.Translation;
-
 				if (!Shader->ProgramID) {
 					Shader->ProgramID = OpenGLLoadShader(
 						Shader->HeaderShaderCode,
@@ -920,6 +918,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 					// Color
 				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
+
+					// Resolution
+				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
 
 				if (Mesh->VBO) {
 					glBindVertexArray(Mesh->VAO);

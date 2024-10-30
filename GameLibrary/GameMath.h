@@ -96,16 +96,28 @@ inline v2 perp(v2 A) {
 }
 
 // 3D
+struct iv3 {
+	int X, Y, Z;
+};
+
+inline iv3 IV3(int X, int Y, int Z) {
+	return { X, Y, Z };
+}
+
+inline iv3 operator+(iv3 a, iv3 b) {
+	return IV3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+}
+
 struct v3 {
 	double X, Y, Z;
 };
 
 inline v3 V3(double X, double Y, double Z) {
-	v3 Result;
-	Result.X = X;
-	Result.Y = Y;
-	Result.Z = Z;
-	return Result;
+	return { X, Y, Z };
+}
+
+inline v3 V3(iv3 V) {
+	return V3(V.X, V.Y, V.Z);
 }
 
 inline v3 operator+(v3 A, v3 B) {
@@ -148,8 +160,8 @@ inline v3 operator*(double C, v3 A) {
 	return Result;
 }
 
- inline double operator*(v3 A, v3 B) {
-	 return A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+ inline v3 operator*(v3 A, v3 B) {
+	 return V3(A.X * B.X, A.Y * B.Y, A.Z * B.Z);
  }
 
 inline v3& operator+=(v3& A, v3 B) {
@@ -173,6 +185,10 @@ inline v3& operator*=(v3& A, double C) {
 	return A;
 }
 
+inline double dot(v3 A, v3 B) {
+	return A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+}
+
 inline v3 cross(v3 A, v3 B) {
 	v3 Result;
 	Result.X = A.Y * B.Z - A.Z * B.Y;
@@ -182,7 +198,7 @@ inline v3 cross(v3 A, v3 B) {
 }
 
 inline double module(v3 A) {
-	return sqrt(A*A);
+	return sqrt(dot(A, A));
 }
 
 inline v3 normalize(v3 V) {
@@ -266,6 +282,10 @@ struct scale {
 inline scale Scale(double X = 1.0, double Y = 1.0, double Z = 1.0) {
 	return { X, Y, Z };
 };
+
+inline scale operator*(scale S, scale T) {
+	return Scale(S.X * T.X, S.Y * T.Y, S.Z * T.Z);
+}
 
 inline v3 operator*(scale Scale, v3 Vector) {
 	return V3(Scale.X * Vector.X, Scale.Y * Vector.Y, Scale.Z * Vector.Z);
@@ -379,17 +399,25 @@ inline v3 operator*(transform Transform, v3 Vector) {
 	return Rotate((Transform.Scale * Vector), Transform.Rotation) + Transform.Translation;
 }
 
+inline transform operator*(transform T, transform U) {
+	transform Result = { 0 };
+	Result.Scale = T.Scale * U.Scale;
+	Result.Translation = U.Translation + Rotate(T.Translation, U.Rotation);
+	Result.Rotation = T.Rotation * U.Rotation;
+	return Result;
+}
+
 inline void Matrix(float* Matrix, transform Transform) {
 	Matrix[0]  = 2.0 * Transform.Scale.X * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.i * Transform.Rotation.i) - 1.0;
-	Matrix[1]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.j + Transform.Rotation.c * Transform.Rotation.k);
-	Matrix[2]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.j);
+	Matrix[1]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.j - Transform.Rotation.c * Transform.Rotation.k);
+	Matrix[2]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.j);
 	Matrix[3]  = 0.0;
-	Matrix[4]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.j - Transform.Rotation.c * Transform.Rotation.k);
+	Matrix[4]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.j + Transform.Rotation.c * Transform.Rotation.k);
 	Matrix[5]  = 2.0 * Transform.Scale.Y * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.j * Transform.Rotation.j) - 1.0;
-	Matrix[6]  = 2.0 * (Transform.Rotation.j * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.i);
+	Matrix[6]  = 2.0 * (Transform.Rotation.j * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.i);
 	Matrix[7]  = 0.0;
-	Matrix[8]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.j);
-	Matrix[9]  = 2.0 * (Transform.Rotation.j * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.i);
+	Matrix[8]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.j);
+	Matrix[9]  = 2.0 * (Transform.Rotation.j * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.i);
 	Matrix[10] = 2.0 * Transform.Scale.Z * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.k * Transform.Rotation.k) - 1.0;
 	Matrix[11] = 0.0;
 	Matrix[12] = Transform.Translation.X;;

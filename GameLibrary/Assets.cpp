@@ -512,7 +512,7 @@ void LoadAssets(
     read_file_result FramebufferVertexCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferVertexShader.vert.glsl");
 
     // Fragment shaders files
-    read_file_result FragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl");
+    read_file_result HeightFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/HeightFragmentShader.frag.glsl");
     read_file_result SphereFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SphereFragmentShader.frag.glsl");
     read_file_result FramebufferFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferFragmentShader.frag.glsl");
     read_file_result SingleColorFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SingleColorFragmentShader.frag.glsl");
@@ -521,11 +521,11 @@ void LoadAssets(
     read_file_result OutlineShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/OutlineFragmentShader.frag.glsl");
     read_file_result KernelShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/KernelFragmentShader.frag.glsl");
 
-    Assets->TextureShader = {
+    Assets->HeightShader = {
         0,
         HeaderCode,
         VertexCode,
-        FragmentCode
+        HeightFragmentCode
     };
 
     Assets->SphereShader = {
