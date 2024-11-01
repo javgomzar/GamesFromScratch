@@ -401,7 +401,33 @@ struct movement {
     direction Direction;
 };
 
-const int MOVEMENT_BUFFER_SIZE = 10;
+const int MOVEMENT_BUFFER_SIZE = 20;
+struct movement_queue {
+    movement Queue[MOVEMENT_BUFFER_SIZE];
+    int Offset;
+    int Length;
+};
+
+void AddMovement(movement_queue* Queue, movement Movement) {
+    if (Queue->Length < MOVEMENT_BUFFER_SIZE) {
+        int Index = (Queue->Offset + Queue->Length) % MOVEMENT_BUFFER_SIZE;
+        Queue->Queue[Index] = Movement;
+        Queue->Length++;
+    }
+}
+
+movement NextMovement(movement_queue* Queue) {
+    if (Queue->Length == 0) {
+        Assert(false);
+    }
+    else {
+        movement Result = Queue->Queue[Queue->Offset];
+        Queue->Offset = (Queue->Offset + 1) % MOVEMENT_BUFFER_SIZE;
+        Queue->Length--;
+        return Result;
+    }
+}
+
 struct rubiks_cube {
     center_piece Centers[6];
     edge_piece Edges[12];
@@ -409,7 +435,7 @@ struct rubiks_cube {
     v3 Position;
     double Time;
     movement Movement;
-    movement MovementBuffer[MOVEMENT_BUFFER_SIZE];
+    movement_queue Queue;
     bool Animating;
 };
 
@@ -514,6 +540,9 @@ void InitializeCube(rubiks_cube* Cube) {
     Cube->Position = V3(0.0, 0.0, 5.0);
     Cube->Time = 0.0;
     Cube->Animating = false;
+
+    Cube->Queue.Length = 0;
+    Cube->Queue.Offset = 0;
 
     color Colors[6] = { White, Yellow, Blue, Green, Orange, Red };
     iv3 Positions[6] = {

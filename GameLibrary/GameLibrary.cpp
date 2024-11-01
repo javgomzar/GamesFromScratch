@@ -333,10 +333,84 @@ void Update(camera* Camera, game_input* Input) {
         Camera->Angle -= AngularVelocity * Offset.X;
     }
 
+    v2 Joystic = V2(Input->Controller.RightJoystick.X, Input->Controller.RightJoystick.Y);
+
+    if (module(Joystic) > 0.1) {
+        Camera->Angle -= 3.0 * Joystic.X;
+        Camera->Pitch -= 3.0 * Joystic.Y;
+    }
+
     Camera->Basis = GetCameraBasis(Camera->Angle, Camera->Pitch);
 }
 
+movement RandomMovement() {
+    movement Result;
+    Result.Turn = (turn)(rand() % 6);
+    Result.Direction = (direction)(rand() % 2);
+    return Result;
+}
+
+void RandomizeQueue(movement_queue* Queue, int n) {
+    Assert(n > 0);
+
+    if (n > MOVEMENT_BUFFER_SIZE) n = MOVEMENT_BUFFER_SIZE;
+
+    for (int i = 0; i < n; i++) Queue->Queue[i] = RandomMovement();
+
+    Queue->Length = n;
+}
+
 void Update(rubiks_cube* Cube, game_input* Input, double dt) {
+    if (Input->Keyboard.R.IsDown && !Input->Keyboard.R.WasDown) {
+        RandomizeQueue(&Cube->Queue, MOVEMENT_BUFFER_SIZE);
+    }
+
+    if (Input->Keyboard.One.IsDown && !Input->Keyboard.One.WasDown) {
+        AddMovement(&Cube->Queue, { Top, AntiClockwise });
+    }
+    if (Input->Keyboard.Two.IsDown && !Input->Keyboard.Two.WasDown) {
+        AddMovement(&Cube->Queue, { Bottom, AntiClockwise });
+    }
+    if (Input->Keyboard.Three.IsDown && !Input->Keyboard.Three.WasDown) {
+        AddMovement(&Cube->Queue, { Left, AntiClockwise });
+    }
+    if (Input->Keyboard.Four.IsDown && !Input->Keyboard.Four.WasDown) {
+        AddMovement(&Cube->Queue, { Right, AntiClockwise });
+    }
+    if (Input->Keyboard.Five.IsDown && !Input->Keyboard.Five.WasDown) {
+        AddMovement(&Cube->Queue, { Front, AntiClockwise });
+    }
+    if (Input->Keyboard.Six.IsDown && !Input->Keyboard.Six.WasDown) {
+        AddMovement(&Cube->Queue, { Back, AntiClockwise });
+    }
+
+    direction Direction = Input->Controller.LB.IsDown ? Clockwise : AntiClockwise;
+
+    if (Input->Controller.RB.IsDown && !Input->Controller.RB.WasDown) {
+        AddMovement(&Cube->Queue, { Front, Direction });        
+    }
+    if (Input->Controller.RT.IsDown && !Input->Controller.RT.WasDown) {
+        AddMovement(&Cube->Queue, { Back, Direction });
+    }
+    if (Input->Controller.XButton.IsDown && !Input->Controller.XButton.WasDown) {
+        AddMovement(&Cube->Queue, { Left, Direction });
+    }
+    if (Input->Controller.BButton.IsDown && !Input->Controller.BButton.WasDown) {
+        AddMovement(&Cube->Queue, { Right, Direction });
+    }
+    if (Input->Controller.YButton.IsDown && !Input->Controller.YButton.WasDown) {
+        AddMovement(&Cube->Queue, { Top, Direction });
+    }
+    if (Input->Controller.AButton.IsDown && !Input->Controller.AButton.WasDown) {
+        AddMovement(&Cube->Queue, { Bottom, Direction });
+    }
+
+
+    if (Cube->Queue.Length > 0) {
+        Cube->Animating = true;
+        Cube->Movement = Cube->Queue.Queue[Cube->Queue.Offset];
+    }
+
     if (Cube->Animating) {
         double Duration = 0.3;
         
@@ -371,38 +445,15 @@ void Update(rubiks_cube* Cube, game_input* Input, double dt) {
             }
         }
 
-        if (!Cube->Animating) Cube->Time = 0.0;
-    }
-    else {
-        if (Input->Keyboard.One.IsDown && !Input->Keyboard.One.WasDown) {
-            Cube->Movement.Turn = Top;
-            Cube->Movement.Direction = AntiClockwise;
-            Cube->Animating = true;
-        }
-        else if (Input->Keyboard.Two.IsDown && !Input->Keyboard.Two.WasDown) {
-            Cube->Movement.Turn = Bottom;
-            Cube->Movement.Direction = AntiClockwise;
-            Cube->Animating = true;
-        }
-        else if (Input->Keyboard.Three.IsDown && !Input->Keyboard.Three.WasDown) {
-            Cube->Movement.Turn = Left;
-            Cube->Movement.Direction = AntiClockwise;
-            Cube->Animating = true;
-        }
-        else if (Input->Keyboard.Four.IsDown && !Input->Keyboard.Four.WasDown) {
-            Cube->Movement.Turn = Right;
-            Cube->Movement.Direction = AntiClockwise;
-            Cube->Animating = true;
-        }
-        else if (Input->Keyboard.Five.IsDown && !Input->Keyboard.Five.WasDown) {
-            Cube->Movement.Turn = Front;
-            Cube->Movement.Direction = AntiClockwise;
-            Cube->Animating = true;
-        }
-        else if (Input->Keyboard.Six.IsDown && !Input->Keyboard.Six.WasDown) {
-            Cube->Movement.Turn = Back;
-            Cube->Movement.Direction = AntiClockwise;
-            Cube->Animating = true;
+        if (!Cube->Animating) {
+            Cube->Time = 0.0;
+            if (Cube->Queue.Length > 1) {
+                Cube->Movement = NextMovement(&Cube->Queue);
+            }
+            else {
+                Cube->Queue.Offset = 0;
+                Cube->Queue.Length = 0;
+            }
         }
     }
 }
