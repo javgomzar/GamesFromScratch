@@ -520,6 +520,7 @@ void LoadAssets(
     read_file_result JumpFloodShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/JumpFloodFragmentShader.frag.glsl");
     read_file_result OutlineShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/OutlineFragmentShader.frag.glsl");
     read_file_result KernelShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/KernelFragmentShader.frag.glsl");
+    read_file_result EdgeDetectionShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/EdgeDetectionFragmentShader.frag.glsl");
 
     Assets->HeightShader = {
         0,
@@ -575,5 +576,12 @@ void LoadAssets(
         HeaderCode,
         FramebufferVertexCode,
         KernelShaderCode
+    };
+
+    Assets->EdgeDetectionShader = {
+        0,
+        HeaderCode,
+        FramebufferVertexCode,
+        EdgeDetectionShaderCode
     };
 }

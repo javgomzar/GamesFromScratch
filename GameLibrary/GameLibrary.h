@@ -115,14 +115,12 @@ color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) 
     return Color;
 }
 
-color Blend(color Color, color Background) {
-    color Result;
-    double Alpha = (double)(Color.Alpha) / 255.0;
-    Result.R = Background.R + (Alpha * (Color.R - Background.R) + 0.5);
-    Result.G = Background.G + (Alpha * (Color.G - Background.G) + 0.5);
-    Result.B = Background.B + (Alpha * (Color.B - Background.B) + 0.5);
-    Result.Alpha = 255.0;
-    return Result;
+color operator+(color Color1, color Color2) {
+    return Color(
+        Color1.R + Color2.R,
+        Color1.G + Color2.G,
+        Color1.B + Color2.B
+    );
 }
 
 // Joysticks values should be floats between 0 and 1
@@ -265,6 +263,36 @@ struct record_and_playback {
     uint64 TotalSize;
 };
 
+// Camera
+struct camera {
+    basis Basis;
+    v3 Position;
+    v3 Velocity;
+    double Distance;
+    double Pitch;
+    double Angle;
+};
+
+basis GetCameraBasis(double Angle, double Pitch) {
+    v3 X = V3(
+        cos(Angle * Degrees),
+        0.0,
+        sin(Angle * Degrees)
+    );
+    v3 Y = V3(
+        -sin(Angle * Degrees) * sin(Pitch * Degrees),
+        cos(Pitch * Degrees),
+        cos(Angle * Degrees) * sin(Pitch * Degrees)
+    );
+    v3 Z = V3(
+        sin(Angle * Degrees) * cos(Pitch * Degrees),
+        sin(Pitch * Degrees),
+        -cos(Angle * Degrees) * cos(Pitch * Degrees)
+    );
+
+    return { X, Y, Z };
+}
+
 // Colliders
 struct rect_collider {
     v3 Center;
@@ -297,6 +325,101 @@ bool Collide(sphere_collider Collider, v3 Position) {
     return module(Position - Collider.Center) < Collider.Radius;
 }
 
+/*
+Fast Ray-Box Intersection
+by Andrew Woo
+from "Graphics Gems", Academic Press, 1990
+*/
+bool HitBoundingBox(double minB[3], double maxB[3], double origin[3], double dir[3], double coord[3])
+/* double minB[NUMDIM], maxB[NUMDIM];		box */
+/* double origin[NUMDIM], dir[NUMDIM];		ray */
+/* double coord[NUMDIM];			hit point */
+{
+    bool inside = true;
+    char quadrant[3];
+    register int i;
+    int whichPlane;
+    double maxT[3];
+    double candidatePlane[3];
+    char LEFT = 1;
+    char RIGHT = 0;
+    char MIDDLE = 2;
+
+    /* Find candidate planes; this loop can be avoided if
+    rays cast all from the eye(assume perpsective view) */
+    for (i = 0; i < 3; i++)
+        if (origin[i] < minB[i]) {
+            quadrant[i] = LEFT;
+            candidatePlane[i] = minB[i];
+            inside = false;
+        }
+        else if (origin[i] > maxB[i]) {
+            quadrant[i] = RIGHT;
+            candidatePlane[i] = maxB[i];
+            inside = false;
+        }
+        else {
+            quadrant[i] = MIDDLE;
+        }
+
+    /* Ray origin inside bounding box */
+    if (inside) {
+        coord = origin;
+        return true;
+    }
+
+
+    /* Calculate T distances to candidate planes */
+    for (i = 0; i < 3; i++)
+        if (quadrant[i] != MIDDLE && dir[i] != 0.)
+            maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
+        else
+            maxT[i] = -1.;
+
+    /* Get largest of the maxT's for final choice of intersection */
+    whichPlane = 0;
+    for (i = 1; i < 3; i++)
+        if (maxT[whichPlane] < maxT[i])
+            whichPlane = i;
+
+    /* Check final candidate actually inside box */
+    if (maxT[whichPlane] < 0.) return false;
+    for (i = 0; i < 3; i++)
+        if (whichPlane != i) {
+            coord[i] = origin[i] + maxT[whichPlane] * dir[i];
+            if (coord[i] < minB[i] || coord[i] > maxB[i])
+                return false;
+        }
+        else {
+            coord[i] = candidatePlane[i];
+        }
+    return true;				/* ray hits box */
+}
+
+
+bool Raycast(v3 Origin, v3 Direction, cube_collider Collider) {
+    double minB[3] = { 0 };
+    minB[0] = Collider.Center.X - Collider.Size.X / 2.0;
+    minB[1] = Collider.Center.Y - Collider.Size.Y / 2.0;
+    minB[2] = Collider.Center.Z - Collider.Size.Z / 2.0;
+    double maxB[3] = { 0 };
+    maxB[0] = Collider.Center.X + Collider.Size.X / 2.0;
+    maxB[1] = Collider.Center.Y + Collider.Size.Y / 2.0;
+    maxB[2] = Collider.Center.Z + Collider.Size.Z / 2.0;
+    double origin[3] = { Origin.X, Origin.Y, Origin.Z };
+    double dir[3] = { Direction.X, Direction.Y, Direction.Z };
+    double coord[3] = { 0,0,0 };
+
+    return HitBoundingBox(minB, maxB, origin, dir, coord);
+}
+
+bool Raycast(camera* Camera, double Width, double Height, v2 Mouse, cube_collider Collider) {
+    v3 ScreenOffset =
+        (2.0 * Mouse.X / Width - 1.0) * Camera->Basis.X +
+        (Height - 2.0 * Mouse.Y) / Width * Camera->Basis.Y - Camera->Basis.Z;
+    return Raycast(Camera->Position + Camera->Distance * Camera->Basis.Z, ScreenOffset, Collider);
+}
+
 // User Interface
 struct slider {
     double Value;
@@ -327,7 +450,9 @@ void InitSlider(slider* Slider, double Value, color Color) {
 struct face {
     color Color;
     transform Transform;
+    iv3 Offset;
     cube_collider Collider;
+    bool Selected;
 };
 
 face Face(color Color, transform Transform, cube_collider Collider) {
@@ -439,6 +564,118 @@ struct rubiks_cube {
     bool Animating;
 };
 
+void InitializeCube(rubiks_cube* Cube) {
+    // Piece half length
+    double D = 1.0;
+    // Cube half length
+    double L = 2.2;
+
+    Cube->Position = V3(0.0, 0.0, 5.0);
+    Cube->Time = 0.0;
+    Cube->Animating = false;
+
+    Cube->Queue.Length = 0;
+    Cube->Queue.Offset = 0;
+
+    color Colors[6] = { White, Yellow, Blue, Green, Orange, Red };
+    iv3 Positions[6] = {
+        IV3(0,  1,  0),
+        IV3(0, -1,  0),
+        IV3(1,  0,  0),
+        IV3(-1,  0,  0),
+        IV3(0,  0, -1),
+        IV3(0,  0,  1),
+    };
+    quaternion Rotations[6] = {
+        Quaternion(1.0),
+        Quaternion(Tau / 2.0, V3(1.0, 0.0, 0.0)),
+        Quaternion(Tau / 4.0, V3(0.0, 0.0, 1.0)),
+        Quaternion(-Tau / 4.0, V3(0.0, 0.0, 1.0)),
+        Quaternion(-Tau / 4.0, V3(1.0, 0.0, 0.0)),
+        Quaternion(Tau / 4.0, V3(1.0, 0.0, 0.0)),
+    };
+    v3 ColliderSizes[6] = {
+        V3(1.8, 0.1, 1.8),
+        V3(1.8, 0.1, 1.8),
+        V3(0.1, 1.8, 1.8),
+        V3(0.1, 1.8, 1.8),
+        V3(1.8, 1.8, 0.1),
+        V3(1.8, 1.8, 0.1),
+    };
+
+    int CurrentEdge = 0;
+    int CurrentCorner = 0;
+    for (int i = 0; i < 6; i++) {
+        // Centers
+        center_piece* CenterPiece = &Cube->Centers[i];
+        CenterPiece->Transform.Scale = Scale();
+        CenterPiece->Transform.Translation = L * V3(Positions[i].X, Positions[i].Y, -Positions[i].Z);
+        CenterPiece->Position = Positions[i];
+        CenterPiece->Transform.Rotation = Quaternion(1.0);
+        face* CenterFace = &CenterPiece->Face;
+        CenterFace->Selected = false;
+        CenterFace->Color = Colors[i];
+        CenterFace->Offset = Positions[i];
+        CenterFace->Transform = { 0 };
+        CenterFace->Transform.Scale = Scale();
+        CenterFace->Transform.Rotation = Rotations[i];
+        CenterFace->Transform.Translation = Rotate(V3(0, D, 0), Rotations[i]);
+        CenterFace->Collider = {
+            Cube->Position + CenterPiece->Transform.Translation + CenterFace->Transform.Translation,
+            ColliderSizes[i]
+        };
+
+        // Edges
+            // Skip first second color if i is even (opposite faces)
+        int first_j = i % 2 == 0 ? i + 2 : i + 1;
+        for (int j = first_j; j < 6; j++) {
+            edge_piece* EdgePiece = &Cube->Edges[CurrentEdge];
+            EdgePiece->Transform.Scale = Scale();
+            EdgePiece->Position = Positions[i] + Positions[j];
+            EdgePiece->Transform.Translation = L * V3(EdgePiece->Position.X, EdgePiece->Position.Y, -EdgePiece->Position.Z);
+            EdgePiece->Transform.Rotation = Quaternion(1.0);
+            CurrentEdge++;
+            int Index[2] = { i, j };
+            for (int n = 0; n < 2; n++) {
+                EdgePiece->Faces[n].Color = Colors[Index[n]];
+                EdgePiece->Faces[n].Selected = false;
+                EdgePiece->Faces[n].Offset = Positions[Index[n]];
+                EdgePiece->Faces[n].Transform.Scale = Scale();
+                EdgePiece->Faces[n].Transform.Rotation = Rotations[Index[n]];
+                EdgePiece->Faces[n].Transform.Translation = Rotate(V3(0, D, 0), Rotations[Index[n]]);
+                EdgePiece->Faces[n].Collider = {
+                    Cube->Position + EdgePiece->Transform.Translation + EdgePiece->Faces[n].Transform.Translation,
+                    ColliderSizes[Index[n]]
+                };
+            }
+
+            // Corners
+            int first_k = j % 2 == 0 ? j + 2 : j + 1;
+            for (int k = first_k; k < 6; k++) {
+                int CornerIndex[3] = { i, j, k };
+                corner_piece* CornerPiece = &Cube->Corners[CurrentCorner];
+                CornerPiece->Transform.Scale = Scale();
+                CornerPiece->Position = Positions[i] + Positions[j] + Positions[k];
+                CornerPiece->Transform.Translation = L * V3(CornerPiece->Position.X, CornerPiece->Position.Y, -CornerPiece->Position.Z);
+                CornerPiece->Transform.Rotation = Quaternion(1.0);
+                CurrentCorner++;
+                for (int n = 0; n < 3; n++) {
+                    CornerPiece->Faces[n].Color = Colors[CornerIndex[n]];
+                    CornerPiece->Faces[n].Selected = false;
+                    CornerPiece->Faces[n].Offset = Positions[CornerIndex[n]];
+                    CornerPiece->Faces[n].Transform.Scale = Scale();
+                    CornerPiece->Faces[n].Transform.Rotation = Rotations[CornerIndex[n]];
+                    CornerPiece->Faces[n].Transform.Translation = Rotate(V3(0, D, 0), Rotations[CornerIndex[n]]);
+                    CornerPiece->Faces[n].Collider = {
+                        Cube->Position + CornerPiece->Transform.Translation + CornerPiece->Faces[n].Transform.Translation,
+                        ColliderSizes[CornerIndex[n]]
+                    };
+                }
+            }
+        }
+    }
+}
+
 v3 GetRotationVector(turn Turn, direction Direction) {
     v3 Result = { 0 };
     switch (Turn) {
@@ -531,110 +768,51 @@ void Move(iv3* Position, turn Turn, direction Direction) {
     }
 }
 
-void InitializeCube(rubiks_cube* Cube) {
-    // Piece half length
-    double D = 1.0;
-    // Cube half length
-    double L = 2.2;
+bool ShouldCheck(double CameraAngle, double CameraPitch, iv3 PiecePosition, iv3 FacePosition) {
+    double X = sin(CameraAngle * Degrees);
+    double Y = sin(CameraPitch * Degrees);
+    double Z = cos(CameraAngle * Degrees);
 
-    Cube->Position = V3(0.0, 0.0, 5.0);
-    Cube->Time = 0.0;
-    Cube->Animating = false;
+    bool Condition = false;
+    
+    if (Y > 0) {
+        Condition = Condition || (PiecePosition.Y == 1) && (FacePosition.Y == 1);
 
-    Cube->Queue.Length = 0;
-    Cube->Queue.Offset = 0;
+        if (cos(CameraPitch * Degrees) > 0) {
+            if (X > 0) Condition = Condition || (PiecePosition.X == 1) && (FacePosition.X == 1);
+            else Condition = Condition || (PiecePosition.X == -1) && (FacePosition.X == -1);
 
-    color Colors[6] = { White, Yellow, Blue, Green, Orange, Red };
-    iv3 Positions[6] = {
-        IV3( 0,  1,  0),
-        IV3( 0, -1,  0),
-        IV3( 1,  0,  0),
-        IV3(-1,  0,  0),
-        IV3( 0,  0, -1),
-        IV3( 0,  0,  1),
-    };
-    quaternion Rotations[6] = {
-        Quaternion(1.0),
-        Quaternion(Tau / 2.0, V3(1.0, 0.0, 0.0)),
-        Quaternion(Tau / 4.0, V3(0.0, 0.0, 1.0)),
-        Quaternion(-Tau / 4.0, V3(0.0, 0.0, 1.0)),
-        Quaternion(-Tau / 4.0, V3(1.0, 0.0, 0.0)),
-        Quaternion(Tau / 4.0, V3(1.0, 0.0, 0.0)),
-    };
-    v3 ColliderSizes[6] = {
-        V3(2.0, 0.1, 2.0),
-        V3(2.0, 0.1, 2.0),
-        V3(0.1, 2.0, 2.0),
-        V3(0.1, 2.0, 2.0),
-        V3(2.0, 2.0, 0.1),
-        V3(2.0, 2.0, 0.1),
-    };
+            if (Z > 0) Condition = Condition || (PiecePosition.Z == 1) && (FacePosition.Z == 1);
+            else Condition = Condition || (PiecePosition.Z == -1) && (FacePosition.Z == -1);
+        }
+        else {
+            if (X > 0) Condition = Condition || (PiecePosition.X == -1) && (FacePosition.X == -1);
+            else Condition = Condition || (PiecePosition.X == 1) && (FacePosition.X == 1);
 
-    int CurrentEdge = 0;
-    int CurrentCorner = 0;
-    for (int i = 0; i < 6; i++) {
-        // Centers
-        center_piece* CenterPiece = &Cube->Centers[i];
-        CenterPiece->Transform.Scale = Scale();
-        CenterPiece->Transform.Translation = L * V3(Positions[i].X, Positions[i].Y, -Positions[i].Z);
-        CenterPiece->Position = Positions[i];
-        CenterPiece->Transform.Rotation = Quaternion(1.0);
-        face* CenterFace = &CenterPiece->Face;
-        CenterFace->Color = Colors[i];
-        CenterFace->Transform = { 0 };
-        CenterFace->Transform.Scale = Scale();
-        CenterFace->Transform.Rotation = Rotations[i];
-        CenterFace->Transform.Translation = Rotate(V3(0, D, 0), Rotations[i]);
-        CenterFace->Collider = {
-            Cube->Position + CenterPiece->Transform.Translation + CenterFace->Transform.Translation,
-            ColliderSizes[i]
-        };
-
-        // Edges
-            // Skip first second color if i is even (opposite faces)
-        int first_j = i % 2 == 0 ? i + 2 : i + 1;
-        for (int j = first_j; j < 6; j++) {
-            edge_piece* EdgePiece = &Cube->Edges[CurrentEdge];
-            EdgePiece->Transform.Scale = Scale();
-            EdgePiece->Position = Positions[i] + Positions[j];
-            EdgePiece->Transform.Translation = L * V3(EdgePiece->Position.X, EdgePiece->Position.Y, -EdgePiece->Position.Z);
-            EdgePiece->Transform.Rotation = Quaternion(1.0);
-            CurrentEdge++;
-            int Index[2] = { i, j };
-            for (int n = 0; n < 2; n++) {
-                EdgePiece->Faces[n].Color = Colors[Index[n]];
-                EdgePiece->Faces[n].Transform.Scale = Scale();
-                EdgePiece->Faces[n].Transform.Rotation = Rotations[Index[n]];
-                EdgePiece->Faces[n].Transform.Translation = Rotate(V3(0, D, 0), Rotations[Index[n]]);
-                EdgePiece->Faces[n].Collider = {
-                    Cube->Position + EdgePiece->Transform.Translation + EdgePiece->Faces[n].Transform.Translation,
-                    ColliderSizes[Index[n]]
-                };
-            }
-
-            // Corners
-            int first_k = j % 2 == 0 ? j + 2 : j + 1;
-            for (int k = first_k; k < 6; k++) {
-                int CornerIndex[3] = { i, j, k };
-                corner_piece* CornerPiece = &Cube->Corners[CurrentCorner];
-                CornerPiece->Transform.Scale = Scale();
-                CornerPiece->Position = Positions[i] + Positions[j] + Positions[k];
-                CornerPiece->Transform.Translation = L * V3(CornerPiece->Position.X, CornerPiece->Position.Y, -CornerPiece->Position.Z);
-                CornerPiece->Transform.Rotation = Quaternion(1.0);
-                CurrentCorner++;
-                for (int n = 0; n < 3; n++) {
-                    CornerPiece->Faces[n].Color = Colors[CornerIndex[n]];
-                    CornerPiece->Faces[n].Transform.Scale = Scale();
-                    CornerPiece->Faces[n].Transform.Rotation = Rotations[CornerIndex[n]];
-                    CornerPiece->Faces[n].Transform.Translation = Rotate(V3(0, D, 0), Rotations[CornerIndex[n]]);
-                    CornerPiece->Faces[n].Collider = {
-                        Cube->Position + CornerPiece->Transform.Translation + CornerPiece->Faces[n].Transform.Translation,
-                        ColliderSizes[CornerIndex[n]]
-                    };
-                }
-            }
-        }        
+            if (Z > 0) Condition = Condition || (PiecePosition.Z == -1) && (FacePosition.Z == -1);
+            else Condition = Condition || (PiecePosition.Z == 1) && (FacePosition.Z == 1);
+        }
     }
+    else {
+        Condition = Condition || (PiecePosition.Y == -1) && (FacePosition.Y == -1);
+
+        if (cos(CameraPitch * Degrees) > 0) {
+            if (X > 0) Condition = Condition || (PiecePosition.X == 1) && (FacePosition.X == 1);
+            else Condition = Condition || (PiecePosition.X == -1) && (FacePosition.X == -1);
+
+            if (Z > 0) Condition = Condition || (PiecePosition.Z == 1) && (FacePosition.Z == 1);
+            else Condition = Condition || (PiecePosition.Z == -1) && (FacePosition.Z == -1);
+        }
+        else {
+            if (X > 0) Condition = Condition || (PiecePosition.X == -1) && (FacePosition.X == -1);
+            else Condition = Condition || (PiecePosition.X == 1) && (FacePosition.X == 1);
+
+            if (Z > 0) Condition = Condition || (PiecePosition.Z == -1) && (FacePosition.Z == -1);
+            else Condition = Condition || (PiecePosition.Z == 1) && (FacePosition.Z == 1);
+        }
+    }
+
+    return Condition;
 }
 
 

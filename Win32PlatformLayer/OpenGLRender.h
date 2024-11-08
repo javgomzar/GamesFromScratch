@@ -583,11 +583,17 @@ GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_f
 	return ProgramID;
 }
 
+
 void OpenGLSetUniform(int ProgramID, const char* Name, int Value) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
 	if (Location >= 0) glUniform1i(Location, Value);
 	GLenum Error = glGetError();
 	if (Error) Assert(false);
+}
+
+void OpenGLSetUniform(int ProgramID, const char* Name, bool Value) {
+	if (Value) OpenGLSetUniform(ProgramID, Name, 1);
+	else OpenGLSetUniform(ProgramID, Name, 0);
 }
 
 void OpenGLSetUniform(int ProgramID, const char* Name, float Value) {
@@ -742,7 +748,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 							double AxisLength = 0.08 * Height;
 							v3 AxisOrigin = V3(Width - AxisLength - 10.0, 0.1 * Height, 0);
 
-							v3 YAxis = V3(0.0, -cos(Group->Camera.Pitch * Pi / 180.0), 0.0);
+							v3 YAxis = V3(0.0, -cos(Group->Camera.Pitch * Degrees), 0.0);
 							game_triangle YArrow = {
 								AxisOrigin + AxisLength * YAxis,
 								AxisOrigin + 0.8 * AxisLength * YAxis + (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
@@ -760,8 +766,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 								AxisOrigin + 0.8 * AxisLength * YAxis + (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
 								}, Green);
 
-							v3 XAxis = V3(cos(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Angle * Pi / 180.0) * sin(Group->Camera.Pitch * Pi / 180.0), 0.0);
-							v3 XOrthogonal = normalize(V3(sin(Group->Camera.Angle * Pi / 180.0) * sin(Group->Camera.Pitch * Pi / 180.0), -cos(Group->Camera.Angle * Pi / 180.0), 0.0));
+							v3 XAxis = V3(cos(Group->Camera.Angle * Degrees), sin(Group->Camera.Angle * Degrees) * sin(Group->Camera.Pitch * Degrees), 0.0);
+							v3 XOrthogonal = normalize(V3(sin(Group->Camera.Angle * Degrees) * sin(Group->Camera.Pitch * Degrees), -cos(Group->Camera.Angle * Degrees), 0.0));
 							OpenGLRenderLine(AxisOrigin, AxisOrigin + 0.875 * AxisLength * XAxis, Red, AxisWidth);
 							OpenGLTriangle({
 								AxisOrigin + AxisLength * XAxis,
@@ -774,8 +780,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 								AxisOrigin + 0.8 * AxisLength * XAxis - (AxisLength / 15.0) * XOrthogonal,
 								}, Red);
 
-							v3 ZAxis = V3(-sin(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Pitch * Pi / 180.0) * cos(Group->Camera.Angle * Pi / 180.0), 0.0);
-							v3 ZOrthogonal = normalize(V3(sin(Group->Camera.Pitch * Pi / 180.0) * cos(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Angle * Pi / 180.0), 0.0));
+							v3 ZAxis = V3(-sin(Group->Camera.Angle * Degrees), sin(Group->Camera.Pitch * Degrees) * cos(Group->Camera.Angle * Degrees), 0.0);
+							v3 ZOrthogonal = normalize(V3(sin(Group->Camera.Pitch * Degrees) * cos(Group->Camera.Angle * Degrees), sin(Group->Camera.Angle * Degrees), 0.0));
 							OpenGLRenderLine(AxisOrigin, AxisOrigin + 0.875 * AxisLength * ZAxis, Blue, AxisWidth);
 							OpenGLTriangle({
 								AxisOrigin + AxisLength * ZAxis,

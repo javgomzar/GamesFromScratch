@@ -155,9 +155,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <None Include="Assets\Models\Enemy.mdl" />
+    <None Include="Assets\Models\Plane.mdl" />
     <None Include="Assets\Models\Shield.mdl" />
     <None Include="Assets\Models\Sphere.mdl" />
     <None Include="Assets\Models\Sword.mdl" />
+    <None Include="Assets\Shaders\EdgeDetectionFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\KernelFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\FramebufferFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\FramebufferVertexShader.vert.glsl" />

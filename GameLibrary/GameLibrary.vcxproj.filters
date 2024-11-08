@@ -71,6 +71,12 @@
     <None Include="Assets\Shaders\KernelFragmentShader.frag.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
+    <None Include="Assets\Shaders\EdgeDetectionFragmentShader.frag.glsl">
+      <Filter>Resource Files\Shaders</Filter>
+    </None>
+    <None Include="Assets\Models\Plane.mdl">
+      <Filter>Resource Files\Models</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="framework.h">

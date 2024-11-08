@@ -196,104 +196,6 @@ void PushVideoLoop(render_group* Group, game_video* Video, game_rect Rect, int Z
 }
 
 
-/*
-Fast Ray-Box Intersection
-by Andrew Woo
-from "Graphics Gems", Academic Press, 1990
-*/
-bool HitBoundingBox(double minB[3], double maxB[3], double origin[3], double dir[3], double coord[3])
-/* double minB[NUMDIM], maxB[NUMDIM];		box */
-/* double origin[NUMDIM], dir[NUMDIM];		ray */
-/* double coord[NUMDIM];			hit point */
-{
-    bool inside = true;
-    char quadrant[3];
-    register int i;
-    int whichPlane;
-    double maxT[3];
-    double candidatePlane[3];
-    char LEFT = 1;
-    char RIGHT = 0;
-    char MIDDLE = 2;
-
-    /* Find candidate planes; this loop can be avoided if
-    rays cast all from the eye(assume perpsective view) */
-    for (i = 0; i < 3; i++)
-        if (origin[i] < minB[i]) {
-            quadrant[i] = LEFT;
-            candidatePlane[i] = minB[i];
-            inside = false;
-        }
-        else if (origin[i] > maxB[i]) {
-            quadrant[i] = RIGHT;
-            candidatePlane[i] = maxB[i];
-            inside = false;
-        }
-        else {
-            quadrant[i] = MIDDLE;
-        }
-
-    /* Ray origin inside bounding box */
-    if (inside) {
-        coord = origin;
-        return true;
-    }
-
-
-    /* Calculate T distances to candidate planes */
-    for (i = 0; i < 3; i++)
-        if (quadrant[i] != MIDDLE && dir[i] != 0.)
-            maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
-        else
-            maxT[i] = -1.;
-
-    /* Get largest of the maxT's for final choice of intersection */
-    whichPlane = 0;
-    for (i = 1; i < 3; i++)
-        if (maxT[whichPlane] < maxT[i])
-            whichPlane = i;
-
-    /* Check final candidate actually inside box */
-    if (maxT[whichPlane] < 0.) return false;
-    for (i = 0; i < 3; i++)
-        if (whichPlane != i) {
-            coord[i] = origin[i] + maxT[whichPlane] * dir[i];
-            if (coord[i] < minB[i] || coord[i] > maxB[i])
-                return false;
-        }
-        else {
-            coord[i] = candidatePlane[i];
-        }
-    return true;				/* ray hits box */
-}
-
-
-bool Raycast(v3 Origin, v3 Direction, cube_collider Collider) {
-    double minB[3] = { 0 };
-    minB[0] = Collider.Center.X - Collider.Size.X / 2.0;
-    minB[1] = Collider.Center.Y - Collider.Size.Y / 2.0;
-    minB[2] = Collider.Center.Z - Collider.Size.Z / 2.0;
-    double maxB[3] = { 0 };
-    maxB[0] = Collider.Center.X + Collider.Size.X / 2.0;
-    maxB[1] = Collider.Center.Y + Collider.Size.Y / 2.0;
-    maxB[2] = Collider.Center.Z + Collider.Size.Z / 2.0;
-    double origin[3] = { Origin.X, Origin.Y, Origin.Z };
-    double dir[3] = { Direction.X, Direction.Y, Direction.Z };
-    double coord[3] = { 0,0,0 };
-
-    return HitBoundingBox(minB, maxB, origin, dir, coord);
-}
-
-bool Raycast(render_group* Group, game_input* Input, cube_collider Collider) {
-    basis B = Group->Camera.Basis;
-
-    v3 ScreenOffset = 
-        (2.0 * (double)Input->Mouse.Cursor.X / (double)Group->Width - 1.0)    * B.X +
-        ((double)Group->Height - 2.0 * (double)Input->Mouse.Cursor.Y) / (double)Group->Width * B.Y - B.Z;
-    return Raycast(Group->Camera.Position + Group->Camera.Distance * B.Z, ScreenOffset, Collider);
-}
-
-
 void Update(slider* Slider, game_input* Input, v3 Position) {
     Slider->Position = Position;
     Slider->Collider = {
@@ -329,8 +231,13 @@ void Update(camera* Camera, game_input* Input) {
         v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
         double AngularVelocity = 0.5;
 
+        if (cos(Camera->Pitch * Degrees) > 0) {
+            Camera->Angle -= AngularVelocity * Offset.X;
+        }
+        else {
+            Camera->Angle += AngularVelocity * Offset.X;
+        }
         Camera->Pitch += AngularVelocity * Offset.Y;
-        Camera->Angle -= AngularVelocity * Offset.X;
     }
 
     v2 Joystic = V2(Input->Controller.RightJoystick.X, Input->Controller.RightJoystick.Y);
@@ -360,55 +267,72 @@ void RandomizeQueue(movement_queue* Queue, int n) {
     Queue->Length = n;
 }
 
-void Update(rubiks_cube* Cube, game_input* Input, double dt) {
+void Update(rubiks_cube* Cube, game_input* Input, camera* Camera, double Width, double Height, double dt) {
     if (Input->Keyboard.R.IsDown && !Input->Keyboard.R.WasDown) {
         RandomizeQueue(&Cube->Queue, MOVEMENT_BUFFER_SIZE);
-    }
-
-    if (Input->Keyboard.One.IsDown && !Input->Keyboard.One.WasDown) {
-        AddMovement(&Cube->Queue, { Top, AntiClockwise });
-    }
-    if (Input->Keyboard.Two.IsDown && !Input->Keyboard.Two.WasDown) {
-        AddMovement(&Cube->Queue, { Bottom, AntiClockwise });
-    }
-    if (Input->Keyboard.Three.IsDown && !Input->Keyboard.Three.WasDown) {
-        AddMovement(&Cube->Queue, { Left, AntiClockwise });
-    }
-    if (Input->Keyboard.Four.IsDown && !Input->Keyboard.Four.WasDown) {
-        AddMovement(&Cube->Queue, { Right, AntiClockwise });
-    }
-    if (Input->Keyboard.Five.IsDown && !Input->Keyboard.Five.WasDown) {
-        AddMovement(&Cube->Queue, { Front, AntiClockwise });
-    }
-    if (Input->Keyboard.Six.IsDown && !Input->Keyboard.Six.WasDown) {
-        AddMovement(&Cube->Queue, { Back, AntiClockwise });
     }
 
     direction Direction = Input->Controller.LB.IsDown ? Clockwise : AntiClockwise;
 
     if (Input->Controller.RB.IsDown && !Input->Controller.RB.WasDown) {
-        AddMovement(&Cube->Queue, { Front, Direction });        
+        AddMovement(&Cube->Queue, { Top, Direction });        
     }
     if (Input->Controller.RT.IsDown && !Input->Controller.RT.WasDown) {
-        AddMovement(&Cube->Queue, { Back, Direction });
-    }
-    if (Input->Controller.XButton.IsDown && !Input->Controller.XButton.WasDown) {
-        AddMovement(&Cube->Queue, { Left, Direction });
-    }
-    if (Input->Controller.BButton.IsDown && !Input->Controller.BButton.WasDown) {
-        AddMovement(&Cube->Queue, { Right, Direction });
-    }
-    if (Input->Controller.YButton.IsDown && !Input->Controller.YButton.WasDown) {
-        AddMovement(&Cube->Queue, { Top, Direction });
-    }
-    if (Input->Controller.AButton.IsDown && !Input->Controller.AButton.WasDown) {
         AddMovement(&Cube->Queue, { Bottom, Direction });
     }
-
+    if (Input->Controller.XButton.IsDown && !Input->Controller.XButton.WasDown) {
+        AddMovement(&Cube->Queue, { Right, Direction });
+    }
+    if (Input->Controller.BButton.IsDown && !Input->Controller.BButton.WasDown) {
+        AddMovement(&Cube->Queue, { Front, Direction });
+    }
+    if (Input->Controller.YButton.IsDown && !Input->Controller.YButton.WasDown) {
+        AddMovement(&Cube->Queue, { Back, Direction });
+    }
+    if (Input->Controller.AButton.IsDown && !Input->Controller.AButton.WasDown) {
+        AddMovement(&Cube->Queue, { Left, Direction });
+    }
 
     if (Cube->Queue.Length > 0) {
         Cube->Animating = true;
         Cube->Movement = Cube->Queue.Queue[Cube->Queue.Offset];
+    }
+
+    face* Face;
+    turn Turns[6] = {
+        Top,
+        Bottom,
+        Right,
+        Left,
+        Back,
+        Front,
+    };
+    for (int i = 0; i < 12; i++) {
+        if (i < 6) {
+            Face = &Cube->Centers[i].Face;
+            Face->Selected = ShouldCheck(Camera->Angle, Camera->Pitch, Cube->Centers[i].Position, Face->Offset) &&
+                Raycast(Camera, Width, Height, V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y), Face->Collider);
+            if (Face->Selected) {
+                if (Input->Mouse.LeftClick.IsDown && !Input->Mouse.LeftClick.WasDown) {
+                    AddMovement(&Cube->Queue, { Turns[i], AntiClockwise });
+                }
+                else if (Input->Mouse.RightClick.IsDown && !Input->Mouse.RightClick.WasDown) {
+                    AddMovement(&Cube->Queue, { Turns[i], Clockwise });
+                }
+            }
+        }
+        for (int n = 0; n < 2; n++) {
+            Face = &Cube->Edges[i].Faces[n];
+            Face->Selected = ShouldCheck(Camera->Angle, Camera->Pitch, Cube->Edges[i].Position, Face->Offset) &&
+                Raycast(Camera, Width, Height, V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y), Face->Collider);
+        }
+        if (i < 8) {
+            for (int n = 0; n < 3; n++) {
+                Face = &Cube->Corners[i].Faces[n];
+                Face->Selected = ShouldCheck(Camera->Angle, Camera->Pitch, Cube->Corners[i].Position, Face->Offset) &&
+                    Raycast(Camera, Width, Height, V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y), Face->Collider);
+            }
+        }
     }
 
     if (Cube->Animating) {
@@ -476,12 +400,12 @@ extern "C" GAME_UPDATE(GameUpdate)
         firstFrame = true;
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        LoadAssets(Assets, Platform, 
+        LoadAssets(Assets, Platform,
             &pGameState->RenderArena, 
             &pGameState->StringsArena, 
             &pGameState->FontsArena, 
-            &pGameState->MeshArena, 
-            &pGameState->VideoArena
+            &pGameState->VideoArena,
+            &pGameState->MeshArena
         );
 
         // Faces
@@ -497,8 +421,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         InitSlider(&pGameState->UserInterface.Slider6, 0.5, Black);
 
         Camera->Position = V3(0.0, 0.0, 5.0);
-        Camera->Angle = 0;
-        Camera->Pitch = 0;
+        Camera->Angle = 45;
+        Camera->Pitch = 45;
 
         Memory->IsInitialized = true;
     }
@@ -527,15 +451,15 @@ extern "C" GAME_UPDATE(GameUpdate)
     // Camera
     Update(Camera, Input);
 
-    Update(&pGameState->Cube, Input, pGameState->dt);
+    Update(&pGameState->Cube, Input, Camera, Group->Width, Group->Height, pGameState->dt);
     
     // Render
     light Light = { 0 };
     Light.Ambient = 0.2;
     Light.Direction = normalize(V3(-1,-1,1));
 
-    PushCube(Group, &pGameState->Cube);
-    PushMeshOutline(Group, Assets, 4.5, Black, 12, (1 << 11), pGameState->Time);
+    PushCube(Group, Input, &pGameState->Cube);
+    PushMeshOutline(Group, Assets, Group->Width / 100.0, Black, 12, (1 << 11), pGameState->Time);
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;
@@ -600,7 +524,12 @@ extern "C" GAME_UPDATE(GameUpdate)
                 Transform = CenterPiece.Face.Transform * CenterPiece.Transform;
                 Transform.Translation += pGameState->Cube.Position;
                 PushDebugVector(Group, Rotate(V3(0.0, 1.0, 0.0), Transform.Rotation), Transform.Translation);
-                Color = Raycast(Group, Input, CenterPiece.Face.Collider) ? Red : White;
+                Color = Raycast(
+                    Camera, 
+                    (double)Group->Width, (double)Group->Height, 
+                    V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y), 
+                    CenterPiece.Face.Collider
+                ) ? Red : White;
                 PushCubeOutline(Group, CenterPiece.Face.Collider, Color);
             }
 
@@ -609,7 +538,12 @@ extern "C" GAME_UPDATE(GameUpdate)
                 Transform = EdgePiece.Faces[j].Transform * EdgePiece.Transform;
                 Transform.Translation += pGameState->Cube.Position;
                 PushDebugVector(Group, Rotate(V3(0.0, 1.0, 0.0), Transform.Rotation), Transform.Translation);
-                Color = Raycast(Group, Input, EdgePiece.Faces[j].Collider) ? Red : White;
+                Color = Raycast(
+                    Camera, 
+                    (double)Group->Width, (double)Group->Height, 
+                    V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y), 
+                    EdgePiece.Faces[j].Collider
+                ) ? Red : White;
                 PushCubeOutline(Group, EdgePiece.Faces[j].Collider, Color);
             }
 
@@ -619,7 +553,12 @@ extern "C" GAME_UPDATE(GameUpdate)
                     Transform = CornerPiece.Faces[j].Transform * CornerPiece.Transform;
                     Transform.Translation += pGameState->Cube.Position;
                     PushDebugVector(Group, Rotate(V3(0.0, 1.0, 0.0), Transform.Rotation), Transform.Translation);
-                    Color = Raycast(Group, Input, CornerPiece.Faces[j].Collider) ? Red : White;
+                    Color = Raycast(
+                        Camera,
+                        (double)Group->Width, (double)Group->Height,
+                        V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y),
+                        CornerPiece.Faces[j].Collider
+                    ) ? Red : White;
                     PushCubeOutline(Group, CornerPiece.Faces[j].Collider, Color);
                 }
             }
@@ -628,6 +567,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     PushRenderTarget(Group, Background, &Assets->FramebufferShader, 500);
     PushRenderTarget(Group, World, &Assets->FramebufferShader, 500);
+    //PushShaderPass(Group, &Assets->EdgeDetectionShader, Postprocessing_World, 501);
     PushRenderTarget(Group, Screen, &Assets->FramebufferShader, 500);
     PushRenderTarget(Group, Outline, &Assets->FramebufferShader, 500);
     PushRenderTarget(Group, Postprocessing_Background, &Assets->FramebufferShader, 1020);

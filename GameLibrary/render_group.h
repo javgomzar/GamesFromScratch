@@ -158,35 +158,6 @@ struct render_entry_render_target {
     uint32 SourceIndex;
 };
 
-struct camera {
-    basis Basis;
-    v3 Position;
-    v3 Velocity;
-    double Distance;
-    double Pitch;
-    double Angle;
-};
-
-basis GetCameraBasis(double Angle, double Pitch) {
-    v3 X = V3(
-        cos(Angle * Degrees),
-        0.0,
-        sin(Angle * Degrees)
-    );
-    v3 Y = V3(
-        -sin(Angle * Degrees) * sin(Pitch * Degrees),
-        cos(Pitch * Degrees),
-        cos(Angle * Degrees) * sin(Pitch * Degrees)
-    );
-    v3 Z = V3(
-        sin(Angle * Degrees) * cos(Pitch * Degrees),
-        sin(Pitch * Degrees),
-        -cos(Angle * Degrees) * cos(Pitch * Degrees)
-    );
-
-    return { X, Y, Z };
-}
-
 const int MAX_FRAME_BUFFER_COUNT = 16;
 struct render_group {
     game_assets* Assets;
@@ -766,33 +737,37 @@ void PushMeshOutline(
     PushShaderPass(Group, &Assets->OutlineShader, Postprocessing_Outline, 1010, Color, Width, Time);
 }
 
-void PushFace(render_group* Group, face Face, transform PieceTransform, v3 CubePosition) {
+void PushFace(render_group* Group, game_input* Input, face Face, transform PieceTransform, iv3 PiecePosition, v3 CubePosition) {
     transform Transform = Face.Transform * PieceTransform;
     Transform.Translation += CubePosition;
-    PushMesh(Group, &Group->Assets->FaceMesh, Transform, { 0 }, &Group->Assets->HeightShader, Face.Color, World);
+    color Color = Face.Color;
+    if (Face.Selected) {
+        Color = Color + White;
+    }
+    PushMesh(Group, &Group->Assets->FaceMesh, Transform, { 0 }, &Group->Assets->HeightShader, Color, World);
     PushMesh(Group, &Group->Assets->FaceMesh, Transform, { 0 }, &Group->Assets->SingleColorShader, White, Outline);
 }
 
-void PushPiece(render_group* Group, center_piece Piece, v3 Position) {
-    PushFace(Group, Piece.Face, Piece.Transform, Position);
+void PushPiece(render_group* Group, game_input* Input, center_piece Piece, v3 Position) {
+    PushFace(Group, Input, Piece.Face, Piece.Transform, Piece.Position, Position);
 }
 
-void PushPiece(render_group* Group, edge_piece Piece, v3 Position) {
-    PushFace(Group, Piece.Faces[0], Piece.Transform, Position);
-    PushFace(Group, Piece.Faces[1], Piece.Transform, Position);
+void PushPiece(render_group* Group, game_input* Input, edge_piece Piece, v3 Position) {
+    PushFace(Group, Input, Piece.Faces[0], Piece.Transform, Piece.Position, Position);
+    PushFace(Group, Input, Piece.Faces[1], Piece.Transform, Piece.Position, Position);
 }
 
-void PushPiece(render_group* Group, corner_piece Piece, v3 Position) {
-    PushFace(Group, Piece.Faces[0], Piece.Transform, Position);
-    PushFace(Group, Piece.Faces[1], Piece.Transform, Position);
-    PushFace(Group, Piece.Faces[2], Piece.Transform, Position);
+void PushPiece(render_group* Group, game_input* Input, corner_piece Piece, v3 Position) {
+    PushFace(Group, Input, Piece.Faces[0], Piece.Transform, Piece.Position, Position);
+    PushFace(Group, Input, Piece.Faces[1], Piece.Transform, Piece.Position, Position);
+    PushFace(Group, Input, Piece.Faces[2], Piece.Transform, Piece.Position, Position);
 }
 
-void PushCube(render_group* Group, rubiks_cube* Cube) {
+void PushCube(render_group* Group, game_input* Input, rubiks_cube* Cube) {
     for (int i = 0; i < 12; i++) {
-        if (i < 6) PushPiece(Group, Cube->Centers[i], Cube->Position);
-        PushPiece(Group, Cube->Edges[i], Cube->Position);
-        if (i < 8) PushPiece(Group, Cube->Corners[i], Cube->Position);
+        if (i < 6) PushPiece(Group, Input, Cube->Centers[i], Cube->Position);
+        PushPiece(Group, Input, Cube->Edges[i], Cube->Position);
+        if (i < 8) PushPiece(Group, Input, Cube->Corners[i], Cube->Position);
     }
 }
 
@@ -1056,7 +1031,7 @@ void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, v3 Position) {
                 color BackgroundColor = GetColor(*Destination, 0x00ff0000, 0x0000ff00, 0x000000ff);
 
                 if (BMPColor.R != BackgroundColor.R || BMPColor.G != BackgroundColor.G || BMPColor.B != BackgroundColor.B) {
-                    *Destination++ = GetColorBytes(Blend(BMPColor, BackgroundColor));
+                    //*Destination++ = GetColorBytes(Mix(BMPColor, BackgroundColor));
                 }
                 else {
                     Destination++;

@@ -122,6 +122,7 @@ struct game_assets {
     shader JumpFloodShader;
     shader OutlineShader;
     shader KernelShader;
+    shader EdgeDetectionShader;
 };
 
 void LoadAssets(

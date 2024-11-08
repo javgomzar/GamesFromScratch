@@ -1120,15 +1120,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
-    InitializeArena(&pGameState->StringsArena, Kilobytes(10), ArenaStart);
+    InitializeArena(&pGameState->StringsArena, Kilobytes(1), ArenaStart);
     ArenaStart += pGameState->StringsArena.Size;
-    InitializeArena(&pGameState->FontsArena, Megabytes(1), ArenaStart);
+    InitializeArena(&pGameState->FontsArena, Kilobytes(256), ArenaStart);
     ArenaStart += pGameState->FontsArena.Size;
     InitializeArena(&pGameState->RenderArena, Megabytes(9), ArenaStart);
     ArenaStart += pGameState->RenderArena.Size;
-    InitializeArena(&pGameState->MeshArena, Megabytes(5), ArenaStart);
-    ArenaStart += pGameState->VideoArena.Size;
-    InitializeArena(&pGameState->VideoArena, Megabytes(15), ArenaStart);
+    InitializeArena(&pGameState->MeshArena, Kilobytes(5), ArenaStart);
+    ArenaStart += pGameState->MeshArena.Size;
+    InitializeArena(&pGameState->VideoArena, 1, ArenaStart);
 
     // Render group
     Group = AllocateRenderGroup(&GameMemory.Assets, &pGameState->RenderArena, Megabytes(4));
