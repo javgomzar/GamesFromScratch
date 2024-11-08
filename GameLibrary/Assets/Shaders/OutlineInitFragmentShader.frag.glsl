@@ -32,7 +32,7 @@ void main() {
 
 		vec2 offset = normalize(vec2(offset_x, offset_y));
 
-		frag_color = vec4(gl_FragCoord.xy +	texture_color.r * offset, 0., 1.);
+		frag_color = vec4(gl_FragCoord.xy -	texture_color.r * offset, 0., 1.);
 	}
 
 }
