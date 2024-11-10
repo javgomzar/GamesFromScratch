@@ -38,9 +38,6 @@
     <None Include="Assets\Models\Sword.mdl">
       <Filter>Resource Files\Models</Filter>
     </None>
-    <None Include="Assets\Shaders\HeightFragmentShader.frag.glsl">
-      <Filter>Resource Files\Shaders</Filter>
-    </None>
     <None Include="Assets\Shaders\HeaderShader.h.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
@@ -71,11 +68,8 @@
     <None Include="Assets\Shaders\KernelFragmentShader.frag.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
-    <None Include="Assets\Shaders\EdgeDetectionFragmentShader.frag.glsl">
+    <None Include="Assets\Shaders\TextureFragmentShader.frag.glsl">
       <Filter>Resource Files\Shaders</Filter>
-    </None>
-    <None Include="Assets\Models\Plane.mdl">
-      <Filter>Resource Files\Models</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

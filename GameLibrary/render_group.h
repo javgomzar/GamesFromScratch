@@ -717,40 +717,6 @@ void PushMeshOutline(
     PushShaderPass(Group, &Assets->OutlineShader, Postprocessing_Outline, 1010, Color, Width, Time);
 }
 
-void PushFace(render_group* Group, game_input* Input, face Face, transform PieceTransform, iv3 PiecePosition, v3 CubePosition) {
-    transform Transform = Face.Transform * PieceTransform;
-    Transform.Translation += CubePosition;
-    color Color = Face.Color;
-    if (Face.Selected) {
-        Color = Color + White;
-    }
-    PushMesh(Group, &Group->Assets->FaceMesh, Transform, { 0 }, &Group->Assets->HeightShader, Color, World);
-    PushMesh(Group, &Group->Assets->FaceMesh, Transform, { 0 }, &Group->Assets->SingleColorShader, White, Outline);
-}
-
-void PushPiece(render_group* Group, game_input* Input, center_piece Piece, v3 Position) {
-    PushFace(Group, Input, Piece.Face, Piece.Transform, Piece.Position, Position);
-}
-
-void PushPiece(render_group* Group, game_input* Input, edge_piece Piece, v3 Position) {
-    PushFace(Group, Input, Piece.Faces[0], Piece.Transform, Piece.Position, Position);
-    PushFace(Group, Input, Piece.Faces[1], Piece.Transform, Piece.Position, Position);
-}
-
-void PushPiece(render_group* Group, game_input* Input, corner_piece Piece, v3 Position) {
-    PushFace(Group, Input, Piece.Faces[0], Piece.Transform, Piece.Position, Position);
-    PushFace(Group, Input, Piece.Faces[1], Piece.Transform, Piece.Position, Position);
-    PushFace(Group, Input, Piece.Faces[2], Piece.Transform, Piece.Position, Position);
-}
-
-void PushCube(render_group* Group, game_input* Input, rubiks_cube* Cube) {
-    for (int i = 0; i < 12; i++) {
-        if (i < 6) PushPiece(Group, Input, Cube->Centers[i], Cube->Position);
-        PushPiece(Group, Input, Cube->Edges[i], Cube->Position);
-        if (i < 8) PushPiece(Group, Input, Cube->Corners[i], Cube->Position);
-    }
-}
-
 // Render entries sorting
 void ClearEntries(render_group* Group) {
     Group->PushBufferElementCount = 0;

@@ -211,139 +211,37 @@ void Update(camera* Camera, game_input* Input) {
     }
 
     Camera->Basis = GetCameraBasis(Camera->Angle, Camera->Pitch);
+
+    // Translation
+    Camera->Velocity = V3(0, 0, 0);
+    if (Input->Keyboard.D.IsDown) {
+        Camera->Velocity.X += 1.0;
+    }
+    else if (Input->Keyboard.A.IsDown) {
+        Camera->Velocity.X -= 1.0;
+    }
+    if (Input->Keyboard.W.IsDown) {
+        Camera->Velocity.Z += 1.0;
+    }
+    else if (Input->Keyboard.S.IsDown) {
+        Camera->Velocity.Z -= 1.0;
+    }
+    if (Input->Keyboard.Space.IsDown) {
+        Camera->Velocity.Y += 1.0;
+    }
+    else if (Input->Keyboard.Shift.IsDown) {
+        Camera->Velocity.Y -= 1.0;
+    }
+
+    Camera->Basis = GetCameraBasis(Camera->Angle, Camera->Pitch);
+
+    basis HorizontalBasis = GetCameraBasis(Camera->Angle, 0);
+
+    v3 Direction = normalize(Camera->Velocity);
+    Camera->Velocity = 0.2 * (Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z);
+    Camera->Position += Camera->Velocity;
 }
 
-movement RandomMovement() {
-    movement Result;
-    Result.Turn = (turn)(rand() % 6);
-    Result.Direction = (direction)(rand() % 2);
-    return Result;
-}
-
-void RandomizeQueue(movement_queue* Queue, int n) {
-    Assert(n > 0);
-
-    if (n > MOVEMENT_BUFFER_SIZE) n = MOVEMENT_BUFFER_SIZE;
-
-    for (int i = 0; i < n; i++) Queue->Queue[i] = RandomMovement();
-
-    Queue->Length = n;
-}
-
-void Update(rubiks_cube* Cube, game_input* Input, camera* Camera, double Width, double Height, double dt) {
-    if (Input->Keyboard.R.IsDown && !Input->Keyboard.R.WasDown) {
-        RandomizeQueue(&Cube->Queue, MOVEMENT_BUFFER_SIZE);
-    }
-
-    direction Direction = Input->Controller.LB.IsDown ? Clockwise : AntiClockwise;
-
-    if (Input->Controller.RB.IsDown && !Input->Controller.RB.WasDown) {
-        AddMovement(&Cube->Queue, { Top, Direction });        
-    }
-    if (Input->Controller.RT.IsDown && !Input->Controller.RT.WasDown) {
-        AddMovement(&Cube->Queue, { Bottom, Direction });
-    }
-    if (Input->Controller.XButton.IsDown && !Input->Controller.XButton.WasDown) {
-        AddMovement(&Cube->Queue, { Right, Direction });
-    }
-    if (Input->Controller.BButton.IsDown && !Input->Controller.BButton.WasDown) {
-        AddMovement(&Cube->Queue, { Front, Direction });
-    }
-    if (Input->Controller.YButton.IsDown && !Input->Controller.YButton.WasDown) {
-        AddMovement(&Cube->Queue, { Back, Direction });
-    }
-    if (Input->Controller.AButton.IsDown && !Input->Controller.AButton.WasDown) {
-        AddMovement(&Cube->Queue, { Left, Direction });
-    }
-
-    if (Cube->Queue.Length > 0) {
-        Cube->Animating = true;
-        Cube->Movement = Cube->Queue.Queue[Cube->Queue.Offset];
-    }
-
-    face* Face;
-    turn Turns[6] = {
-        Top,
-        Bottom,
-        Right,
-        Left,
-        Back,
-        Front,
-    };
-    for (int i = 0; i < 12; i++) {
-        if (i < 6) {
-            Face = &Cube->Centers[i].Face;
-            Face->Selected = ShouldCheck(Camera->Angle, Camera->Pitch, Cube->Centers[i].Position, Face->Offset) &&
-                Raycast(Camera, Width, Height, V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y), Face->Collider);
-            if (Face->Selected) {
-                if (Input->Mouse.LeftClick.IsDown && !Input->Mouse.LeftClick.WasDown) {
-                    AddMovement(&Cube->Queue, { Turns[i], AntiClockwise });
-                }
-                else if (Input->Mouse.RightClick.IsDown && !Input->Mouse.RightClick.WasDown) {
-                    AddMovement(&Cube->Queue, { Turns[i], Clockwise });
-                }
-            }
-        }
-        for (int n = 0; n < 2; n++) {
-            Face = &Cube->Edges[i].Faces[n];
-            Face->Selected = ShouldCheck(Camera->Angle, Camera->Pitch, Cube->Edges[i].Position, Face->Offset) &&
-                Raycast(Camera, Width, Height, V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y), Face->Collider);
-        }
-        if (i < 8) {
-            for (int n = 0; n < 3; n++) {
-                Face = &Cube->Corners[i].Faces[n];
-                Face->Selected = ShouldCheck(Camera->Angle, Camera->Pitch, Cube->Corners[i].Position, Face->Offset) &&
-                    Raycast(Camera, Width, Height, V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y), Face->Collider);
-            }
-        }
-    }
-
-    if (Cube->Animating) {
-        double Duration = 0.3;
-        
-        if (Cube->Time + dt > Duration) {
-            Cube->Animating = false;
-            dt = Duration - Cube->Time;
-        }
-        else Cube->Time += dt;
-
-        // Rotate pieces
-        quaternion Rotation = Quaternion(Tau / 4.0 * dt / Duration, GetRotationVector(Cube->Movement.Turn, Cube->Movement.Direction));
-
-        for (int i = 0; i < 12; i++) {
-            if (i < 6) {
-                center_piece* CenterPiece = &Cube->Centers[i];
-                if (ShouldMove(CenterPiece->Position, Cube->Movement.Turn)) {
-                    CenterPiece->Transform = CenterPiece->Transform * Transform(V3(0.0, 0.0, 0.0), Rotation);
-                    if (!Cube->Animating) Move(&CenterPiece->Position, Cube->Movement.Turn, Cube->Movement.Direction);
-                }
-            }
-            edge_piece* EdgePiece = &Cube->Edges[i];
-            if (ShouldMove(EdgePiece->Position, Cube->Movement.Turn)) {
-                EdgePiece->Transform = EdgePiece->Transform * Transform(V3(0.0, 0.0, 0.0), Rotation);
-                if (!Cube->Animating) Move(&EdgePiece->Position, Cube->Movement.Turn, Cube->Movement.Direction);
-            }
-            if (i < 8) {
-                corner_piece* CornerPiece = &Cube->Corners[i];
-                if (ShouldMove(CornerPiece->Position, Cube->Movement.Turn)) {
-                    CornerPiece->Transform = CornerPiece->Transform * Transform(V3(0.0, 0.0, 0.0), Rotation);
-                    if (!Cube->Animating) Move(&CornerPiece->Position, Cube->Movement.Turn, Cube->Movement.Direction);
-                }
-            }
-        }
-
-        if (!Cube->Animating) {
-            Cube->Time = 0.0;
-            if (Cube->Queue.Length > 1) {
-                Cube->Movement = NextMovement(&Cube->Queue);
-            }
-            else {
-                Cube->Queue.Offset = 0;
-                Cube->Queue.Length = 0;
-            }
-        }
-    }
-}
 
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
@@ -368,10 +266,6 @@ extern "C" GAME_UPDATE(GameUpdate)
             &pGameState->VideoArena,
             &pGameState->MeshArena
         );
-
-        // Faces
-        pGameState->Cube = { 0 };
-        InitializeCube(&pGameState->Cube);
 
         // User Interface
         InitSlider(&pGameState->UserInterface.Slider1, 0.5, Black);
@@ -411,16 +305,31 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // Camera
     Update(Camera, Input);
-
-    Update(&pGameState->Cube, Input, Camera, Group->Width, Group->Height, pGameState->dt);
     
     // Render
     light Light = { 0 };
     Light.Ambient = 0.2;
-    Light.Direction = normalize(V3(-1,-1,1));
+    Light.Direction = normalize(V3(-0.5, -1, 1));
 
-    PushCube(Group, Input, &pGameState->Cube);
-    PushMeshOutline(Group, Assets, Group->Width / 100.0, Black, 12, (1 << 11), pGameState->Time);
+    Light.Color = Red;
+    transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(5.0, 0.0, 0.0));
+    PushMesh(Group, &Assets->TestMesh, Transform1, Light, &Assets->SphereShader);
+
+    Light.Color = White;
+    v3 EnemyPosition = V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0);
+    transform Transform2 = Transform(Quaternion(Tau / 4.0, V3(0.0, 1.0, 0.0)), EnemyPosition);
+    //transform Transform2 = Transform(Quaternion(1.0), V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0));
+    //PushMesh(Group, &Assets->TestMesh2, Transform2, Light, &Assets->SingleColorShader, White, Outline);
+    PushMesh(Group, &Assets->TestMesh2, Transform2, Light, &Assets->TextureShader, White, World);
+
+    // Enemy collider
+    cube_collider EnemyCollider = { 0 };
+    EnemyCollider.Center = EnemyPosition;
+    EnemyCollider.Size = V3(2.0, 2.0, 2.0);
+
+    color ColliderColor = White;
+
+    //PushMeshOutline(Group, Assets, Group->Width / 100.0, Black, 12, (1 << 11), pGameState->Time);
 
     // Software renderer as a fallback (toggle with Space)
     //static bool SoftwareRenderer = false;
@@ -475,55 +384,6 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Video Arena
         PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 240.0, 0.5), Alpha);
-
-        // Debug normals and colliders
-        transform Transform = { 0 };
-        color Color = White;
-        for (int i = 0; i < 12; i++) {
-            if (i < 6) {
-                center_piece CenterPiece = pGameState->Cube.Centers[i];
-                Transform = CenterPiece.Face.Transform * CenterPiece.Transform;
-                Transform.Translation += pGameState->Cube.Position;
-                PushDebugVector(Group, Rotate(V3(0.0, 1.0, 0.0), Transform.Rotation), Transform.Translation);
-                Color = Raycast(
-                    Camera, 
-                    (double)Group->Width, (double)Group->Height, 
-                    V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y), 
-                    CenterPiece.Face.Collider
-                ) ? Red : White;
-                PushCubeOutline(Group, CenterPiece.Face.Collider, Color);
-            }
-
-            edge_piece EdgePiece = pGameState->Cube.Edges[i];
-            for (int j = 0; j < 2; j++) {
-                Transform = EdgePiece.Faces[j].Transform * EdgePiece.Transform;
-                Transform.Translation += pGameState->Cube.Position;
-                PushDebugVector(Group, Rotate(V3(0.0, 1.0, 0.0), Transform.Rotation), Transform.Translation);
-                Color = Raycast(
-                    Camera, 
-                    (double)Group->Width, (double)Group->Height, 
-                    V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y), 
-                    EdgePiece.Faces[j].Collider
-                ) ? Red : White;
-                PushCubeOutline(Group, EdgePiece.Faces[j].Collider, Color);
-            }
-
-            if (i < 8) {
-                corner_piece CornerPiece = pGameState->Cube.Corners[i];
-                for (int j = 0; j < 3; j++) {
-                    Transform = CornerPiece.Faces[j].Transform * CornerPiece.Transform;
-                    Transform.Translation += pGameState->Cube.Position;
-                    PushDebugVector(Group, Rotate(V3(0.0, 1.0, 0.0), Transform.Rotation), Transform.Translation);
-                    Color = Raycast(
-                        Camera,
-                        (double)Group->Width, (double)Group->Height,
-                        V2(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y),
-                        CornerPiece.Faces[j].Collider
-                    ) ? Red : White;
-                    PushCubeOutline(Group, CornerPiece.Faces[j].Collider, Color);
-                }
-            }
-        }
     }
 
     PushRenderTarget(Group, Background, &Assets->FramebufferShader, 500);

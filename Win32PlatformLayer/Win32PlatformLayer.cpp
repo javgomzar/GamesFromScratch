@@ -1126,7 +1126,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     ArenaStart += pGameState->FontsArena.Size;
     InitializeArena(&pGameState->RenderArena, Megabytes(9), ArenaStart);
     ArenaStart += pGameState->RenderArena.Size;
-    InitializeArena(&pGameState->MeshArena, Kilobytes(5), ArenaStart);
+    InitializeArena(&pGameState->MeshArena, Megabytes(5), ArenaStart);
     ArenaStart += pGameState->MeshArena.Size;
     InitializeArena(&pGameState->VideoArena, 1, ArenaStart);
 

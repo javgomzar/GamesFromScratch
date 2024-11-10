@@ -53,9 +53,6 @@ struct character {
     loaded_bmp* Bitmap;
 };
 
-character* InitializeFonts(memory_arena* Arena);
-
-
 // Buttons
 struct button {
     bool Clicked;
@@ -103,8 +100,9 @@ struct game_assets {
     loaded_bmp TestImage2;
     loaded_bmp EmptyTexture;
     game_sound TestSound;
-    mesh FaceMesh;
-    shader HeightShader;
+    mesh TestMesh;
+    mesh TestMesh2;
+    shader TextureShader;
     shader SphereShader;
     shader FramebufferShader;
     shader SingleColorShader;
@@ -112,7 +110,6 @@ struct game_assets {
     shader JumpFloodShader;
     shader OutlineShader;
     shader KernelShader;
-    shader EdgeDetectionShader;
 };
 
 void LoadAssets(
