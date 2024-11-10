@@ -1,33 +1,28 @@
 // TestProject.cpp : Defines the entry point for the application.
 //
 
-#include "framework.h"
-#include "stdio.h"
-#include "XInput.h"
-#include "xaudio2.h"
-#include "..\GameLibrary\GameLibrary.h"
-#include "Win32PlatformLayer.h"
-#include "GL\GL.h"
-#include "OpenGLRender.h"
 
+#include "Win32PlatformLayer.h"
+
+#include "gl/GL.h"
 #pragma comment (lib, "opengl32.lib")
 
-
+#include "OpenGLRender.h"
 
 /* TODO:
     - Saved game locations
     - Getting a handle to our own executable file
-    - Asset loading path
+    - Asset loading (separate compilation process probably?) Asset hot loading?
     - Threading
-    - Raw Input (multiple keyboards?)
+    - Multiple keyboards?
     - Sleep/timeBeginPeriod
     - ClipCursor() multimonitor support
     - WM_SETCURSOR
     - QueryCancelAutoplay
     - WM_ACTIVEAPP (when we are not the active application)
     - Blit speed improvements (BitBlt)
-    - Hardware acceleration (OpenGL)
     - GetKeyboardLayout (international wasd support)
+    - Restore software renderer as fallback
 */
 
 #define MAX_LOADSTRING 100
@@ -82,6 +77,72 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 WNDDIMENSION    GetWindowDimension(HWND Window);
 
+const log_mode LOG_MODE = Terminal;
+
+void Log(log_level Level, const char* Content) {
+
+    // Level
+    char LevelString[9];
+    int LevelStringLength = 0;
+    switch (Level) {
+        case Info:
+        {
+            strcpy_s(LevelString, "[INFO] ");
+            LevelStringLength = 7;
+        } break;
+        case Warn:
+        {
+            strcpy_s(LevelString, "[WARN] ");
+            LevelStringLength = 7;
+        } break;
+        case Error:
+        {
+            strcpy_s(LevelString, "[ERROR] ");
+            LevelStringLength = 8;
+        } break;
+    }
+    LevelString[LevelStringLength] = 0;
+
+    // Timestamp
+    time_t t = time(NULL);
+    struct tm tm;
+    localtime_s(&tm, &t);
+    char Date[21];
+    sprintf_s(Date, "%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    // Logging
+    switch (LOG_MODE) {
+        case File:
+        {
+            HANDLE FileHandle = CreateFileA("log.log", FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
+            if (FileHandle != INVALID_HANDLE_VALUE) {
+                DWORD BytesWritten = 0;
+                WriteFile(FileHandle, Date, 20, &BytesWritten, 0);
+                WriteFile(FileHandle, LevelString, LevelStringLength, &BytesWritten, 0);
+                int i = 0;
+                while (*(Content + i) != 0) {
+                    i++;
+                }
+                WriteFile(FileHandle, Content, i, &BytesWritten, 0);
+            }
+            else {
+                Assert(false);
+            }
+
+            CloseHandle(FileHandle);
+        } break;
+        case Terminal:
+        {
+            OutputDebugStringA(Date);
+            OutputDebugStringA(LevelString);
+            OutputDebugStringA(Content);
+        } break;
+    }
+}
+
+
+// Platform
+platform_api Platform;
 
 // Graphics
 struct OFFSCREENBUFFER {
@@ -96,106 +157,6 @@ struct OFFSCREENBUFFER {
 OFFSCREENBUFFER BackBuffer;
 WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
 
-Character* InitializeFonts(memory_arena* Arena) {
-    FT_Library FTLibrary;
-    FT_Face Font;
-    FT_Error error = FT_Init_FreeType(&FTLibrary);
-    if (error) {
-        Assert(false);
-    }
-    else {
-        error = FT_New_Face(FTLibrary, "C:/Windows/Fonts/CascadiaMono.ttf", 0, &Font);
-        if (error == FT_Err_Unknown_File_Format) {
-            Assert(false);
-        }
-        else if (error) {
-            Assert(false);
-        }
-        else {
-            // Initializing char bitmaps
-            int Points = 20;
-            error = FT_Set_Char_Size(Font, 0, Points * 64, 128, 128);
-            if (error) {
-                Assert(false);
-            }
-            
-            Character* Result = PushArray(Arena, 95, Character);
-            loaded_bmp* CharacterBMP = PushArray(Arena, 95, loaded_bmp);
-            Character* pCharacter = Result;
-            for (unsigned char c = ' '; c <= '~'; c++) {
-                error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
-                if (error) {
-                    Assert(false);
-                }
-                else {
-                    FT_GlyphSlot Slot = Font->glyph;
-                    FT_Bitmap FTBMP = Slot->bitmap;
-                    *CharacterBMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
-                    LoadFTBMP(&FTBMP, CharacterBMP);
-
-                    Character LoadCharacter = { 0 };
-                    LoadCharacter.Letter = c;
-                    LoadCharacter.Advance = Slot->advance.x;
-                    LoadCharacter.Left = Slot->bitmap_left;
-                    LoadCharacter.Top = Slot->bitmap_top;
-                    LoadCharacter.Height = Slot->metrics.height;
-                    LoadCharacter.Width = Slot->metrics.width;
-                    LoadCharacter.Bitmap = CharacterBMP++;
-
-                    GLuint Handle;
-                    glGenTextures(1, &Handle);
-                    LoadCharacter.Bitmap->Handle = Handle;
-
-                    *(pCharacter++) = LoadCharacter;
-
-                    glBindTexture(GL_TEXTURE_2D, Handle);
-                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, LoadCharacter.Bitmap->Header.Width, LoadCharacter.Bitmap->Header.Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, LoadCharacter.Bitmap->Content);
-
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-                    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-                }
-            }
-            FT_Done_Face(Font);
-            FT_Done_FreeType(FTLibrary);
-            return Result;
-        }
-    }
-}
-
-void InitOpenGL(HWND Window) {
-    HDC WindowDC = GetDC(Window);
-    
-    PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
-    DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
-    DesiredPixelFormat.nVersion = 1;
-    DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
-    DesiredPixelFormat.cColorBits = 32;
-    DesiredPixelFormat.cAlphaBits = 8;
-    DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
-
-    int SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
-    PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
-    DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex, sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
-    SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
-
-    HGLRC OpenGLRC = wglCreateContext(WindowDC);
-    if (wglMakeCurrent(WindowDC, OpenGLRC)) {
-        OutputDebugStringA("OpenGL successfully initialized.\n");
-
-        typedef BOOL WINAPI wgl_swap_interval_ext(int interval);
-        wgl_swap_interval_ext *wglSwapInterval = (wgl_swap_interval_ext*)wglGetProcAddress("wglSwapIntervalEXT");
-        if (wglSwapInterval) {
-            wglSwapInterval(1);
-            OutputDebugStringA("VSync activated.\n");
-        }
-    }
-    else {
-        Assert(false);
-    }
-}
 
 WNDDIMENSION GetWindowDimension(HWND Window) {
     WNDDIMENSION Result;
@@ -209,7 +170,7 @@ WNDDIMENSION GetWindowDimension(HWND Window) {
     return Result;
 };
 
-
+// Software render
 VOID ResizeDIBSection(OFFSCREENBUFFER* Buffer, int Width, int Height) {
 
     //if (Buffer->Memory) {
@@ -249,6 +210,42 @@ VOID DisplayBufferToWindow(
     SwapBuffers(DeviceContext);
 }
 
+// OpenGL render
+void Render(HWND Window, render_group* Group, openGL OpenGL) {
+    // Sorting render entries
+    SortEntries(Group);
+
+    if (OpenGL.Initialized) {
+        OpenGLRenderGroupToOutput(Group, OpenGL);
+    }
+    else {
+        // TODO: Call software renderer (fix it first)
+    }
+
+    HDC hdc = GetDC(Window);
+    SwapBuffers(hdc);
+
+    ReleaseDC(Window, hdc);
+}
+
+void ResizeWindow(HWND Window, render_group* Group, openGL OpenGL) {
+    RECT Rect = { 0 };
+    GetClientRect(Window, &Rect);
+
+    int32 NewWidth = Rect.right - Rect.left;
+    int32 NewHeight = Rect.bottom - Rect.top;
+
+    if (NewWidth != Group->Width || NewHeight != Group->Height) {
+        Group->Width = NewWidth;
+        Group->Height = NewHeight;
+        ResizeFramebuffers(OpenGL, NewWidth, NewHeight);
+    }
+}
+
+render_group* Group;
+openGL OpenGL;
+
+// Full screen
 VOID ToggleFullScreen(HWND Window) {
     DWORD Style = GetWindowLong(Window, GWL_STYLE);
 
@@ -309,14 +306,14 @@ static void InitXAudio2(int nBuffers,
     hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     if (FAILED(hr = XAudio2Create(&pXAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
-        OutputDebugStringA("ERROR creating XAudio2");
+        Log(Error, "ERROR creating XAudio2");
     }
     else if (FAILED(hr = pXAudio2->CreateMasteringVoice(&pMasterVoice))) {
-        OutputDebugStringA("ERROR creating mastering voice");
+        Log(Error, "ERROR creating mastering voice");
     }
     else {
         if (FAILED(hr = pXAudio2->CreateSourceVoice(&pSourceVoice, pWaveFormat, 0, XAUDIO2_DEFAULT_FREQ_RATIO, &VoiceCallback))) {
-            OutputDebugStringA("ERROR creating source voice");
+            Log(Error, "ERROR creating source voice");
         }
         else {
             uint32 AudioBytes = BufferSize * pWaveFormat->nChannels * (pWaveFormat->wBitsPerSample / 8);
@@ -410,9 +407,10 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
         CloseHandle(FileHandle);
     }
     else {
-        DWORD Error = GetLastError();
-        OutputDebugStringA(Filename);
-        OutputDebugStringA("ERROR WHILE OPENING FILE.\n");
+        DWORD LastError = GetLastError();
+        char ErrorText[256];
+        sprintf_s(ErrorText, "Error while opening file %s. Error code %d.\n", Filename, LastError);
+        Log(Error, ErrorText);
     }
     return Result;
 };
@@ -466,7 +464,7 @@ void BeginInputPlayback(record_and_playback* RecordPlayback, int PlaybackIndex) 
 
     }
     else {
-        OutputDebugStringA("Reading game state failed.");
+        Log(Error, "Reading game state failed.");
     }
 }
 
@@ -486,9 +484,9 @@ void PlaybackInput(record_and_playback* RecordPlayback, game_input* Input) {
     }
 }
 
-
+static bool Pause = false;
 // Message processing
-void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayback) {
+void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback* RecordPlayback) {
     MSG msg;
     while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
     {
@@ -509,6 +507,19 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
         case WM_RBUTTONUP:
         {
             pInput->Mouse.RightClick.IsDown = false;
+        } break;
+        case WM_MOUSEWHEEL:
+        {
+            short zDelta = GET_WHEEL_DELTA_WPARAM(msg.wParam);
+            pInput->Mouse.Wheel = zDelta;
+        } break;
+        case WM_MBUTTONDOWN:
+        {
+            pInput->Mouse.MiddleClick.IsDown = true;
+        } break;
+        case WM_MBUTTONUP:
+        {
+            pInput->Mouse.MiddleClick.IsDown = false;
         } break;
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
@@ -547,8 +558,37 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 else if (VKCode == '0') {
                     pInput->Keyboard.Zero.IsDown = true;
                 }
+                else if (VKCode == 'Q') {
+                    pInput->Keyboard.Q.IsDown = true;
+                }
                 else if (VKCode == 'W') {
                     pInput->Keyboard.W.IsDown = true;
+                }
+                else if (VKCode == 'E') {
+                    pInput->Keyboard.E.IsDown = true;
+                }
+                else if (VKCode == 'R') {
+                    pInput->Keyboard.R.IsDown = true;
+                }
+                else if (VKCode == 'T') {
+                    pInput->Keyboard.T.IsDown = true;
+                }
+                else if (VKCode == 'Y') {
+                    pInput->Keyboard.Y.IsDown = true;
+                }
+                else if (VKCode == 'U') {
+                    pInput->Keyboard.U.IsDown = true;
+                }
+                else if (VKCode == 'I') {
+                    pInput->Keyboard.I.IsDown = true;
+                }
+                else if (VKCode == 'O') {
+                    pInput->Keyboard.O.IsDown = true;
+                }
+                else if (VKCode == 'P') {
+                    pInput->Keyboard.P.IsDown = true;
+
+                    Pause = !Pause;
                 }
                 else if (VKCode == 'A') {
                     pInput->Keyboard.A.IsDown = true;
@@ -559,15 +599,44 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 else if (VKCode == 'D') {
                     pInput->Keyboard.D.IsDown = true;
                 }
-                else if (VKCode == 'E') {
-                    pInput->Keyboard.E.IsDown = true;
-                }
-                else if (VKCode == 'Q') {
-                    pInput->Keyboard.Q.IsDown = true;
-                }
                 else if (VKCode == 'F') {
                     pInput->Keyboard.F.IsDown = true;
-                    ToggleFullScreen(msg.hwnd);
+                }
+                else if (VKCode == 'G') {
+                    pInput->Keyboard.G.IsDown = true;
+                }
+                else if (VKCode == 'H') {
+                    pInput->Keyboard.H.IsDown = true;
+                }
+                else if (VKCode == 'J') {
+                    pInput->Keyboard.J.IsDown = true;
+                }
+                else if (VKCode == 'K') {
+                    pInput->Keyboard.K.IsDown = true;
+                }
+                else if (VKCode == 'L') {
+                    pInput->Keyboard.L.IsDown = true;
+                }
+                else if (VKCode == 'Z') {
+                    pInput->Keyboard.Z.IsDown = true;
+                }
+                else if (VKCode == 'X') {
+                    pInput->Keyboard.X.IsDown = true;
+                }
+                else if (VKCode == 'C') {
+                    pInput->Keyboard.C.IsDown = true;
+                }
+                else if (VKCode == 'V') {
+                    pInput->Keyboard.V.IsDown = true;
+                }
+                else if (VKCode == 'B') {
+                    pInput->Keyboard.B.IsDown = true;
+                }
+                else if (VKCode == 'N') {
+                    pInput->Keyboard.N.IsDown = true;
+                }
+                else if (VKCode == 'M') {
+                    pInput->Keyboard.M.IsDown = true;
                 }
                 else if (VKCode == VK_UP) {
                     pInput->Keyboard.Up.IsDown = true;
@@ -583,6 +652,8 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 }
                 else if (VKCode == VK_ESCAPE) {
                     pInput->Keyboard.Escape.IsDown = true;
+                    Running = false;
+                    PostQuitMessage(0);
                 }
                 else if (VKCode == VK_SPACE) {
                     pInput->Keyboard.Space.IsDown = true;
@@ -592,6 +663,49 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
                 }
                 else if (VKCode == VK_F1) {
                     pInput->Keyboard.F1.IsDown = true;
+                }
+                else if (VKCode == VK_F2) {
+                    pInput->Keyboard.F2.IsDown = true;
+                }
+                else if (VKCode == VK_F3) {
+                    pInput->Keyboard.F3.IsDown = true;
+                }
+                else if (VKCode == VK_F4) {
+                    pInput->Keyboard.F4.IsDown = true;
+                }
+                else if (VKCode == VK_F5) {
+                    pInput->Keyboard.F5.IsDown = true;
+                }
+                else if (VKCode == VK_F6) {
+                    pInput->Keyboard.F6.IsDown = true;
+                }
+                else if (VKCode == VK_F7) {
+                    pInput->Keyboard.F7.IsDown = true;
+                }
+                else if (VKCode == VK_F8) {
+                    pInput->Keyboard.F8.IsDown = true;
+                }
+                else if (VKCode == VK_F9) {
+                    pInput->Keyboard.F9.IsDown = true;
+                }
+                else if (VKCode == VK_F10) {
+                    pInput->Keyboard.F10.IsDown = true;
+                }
+                else if (VKCode == VK_F11) {
+                    pInput->Keyboard.F11.IsDown = true;
+                    ToggleFullScreen(Window);
+                }
+                else if (VKCode == VK_F12) {
+                    pInput->Keyboard.F12.IsDown = true;
+                }
+                else if (VKCode == VK_PRIOR) {
+                    pInput->Keyboard.PageUp.IsDown = true;
+                }
+                else if (VKCode == VK_NEXT) {
+                    pInput->Keyboard.PageDown.IsDown = true;
+                }
+                else if (VKCode == VK_SHIFT) {
+                    pInput->Keyboard.Shift.IsDown = true;
                 }
                 else if (VKCode == 'L') {
                     if (RecordPlayback->RecordIndex == 0) {
@@ -646,8 +760,35 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             else if (VKCode == '0') {
                 pInput->Keyboard.Zero.IsDown = false;
             }
+            else if (VKCode == 'Q') {
+                pInput->Keyboard.Q.IsDown = false;
+            }
             else if (VKCode == 'W') {
                 pInput->Keyboard.W.IsDown = false;
+            }
+            else if (VKCode == 'E') {
+                pInput->Keyboard.E.IsDown = false;
+            }
+            else if (VKCode == 'R') {
+                pInput->Keyboard.R.IsDown = false;
+            }
+            else if (VKCode == 'T') {
+                pInput->Keyboard.T.IsDown = false;
+            }
+            else if (VKCode == 'Y') {
+                pInput->Keyboard.Y.IsDown = false;
+            }
+            else if (VKCode == 'U') {
+                pInput->Keyboard.U.IsDown = false;
+            }
+            else if (VKCode == 'I') {
+                pInput->Keyboard.I.IsDown = false;
+            }
+            else if (VKCode == 'O') {
+                pInput->Keyboard.O.IsDown = false;
+            }
+            else if (VKCode == 'P') {
+                pInput->Keyboard.P.IsDown = false;
             }
             else if (VKCode == 'A') {
                 pInput->Keyboard.A.IsDown = false;
@@ -658,14 +799,44 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             else if (VKCode == 'D') {
                 pInput->Keyboard.D.IsDown = false;
             }
-            else if (VKCode == 'E') {
-                pInput->Keyboard.E.IsDown = false;
-            }
-            else if (VKCode == 'Q') {
-                pInput->Keyboard.Q.IsDown = false;
-            }
             else if (VKCode == 'F') {
                 pInput->Keyboard.F.IsDown = false;
+            }
+            else if (VKCode == 'G') {
+                pInput->Keyboard.G.IsDown = false;
+            }
+            else if (VKCode == 'H') {
+                pInput->Keyboard.H.IsDown = false;
+            }
+            else if (VKCode == 'J') {
+                pInput->Keyboard.J.IsDown = false;
+            }
+            else if (VKCode == 'K') {
+                pInput->Keyboard.K.IsDown = false;
+            }
+            else if (VKCode == 'L') {
+                pInput->Keyboard.L.IsDown = false;
+            }
+            else if (VKCode == 'Z') {
+                pInput->Keyboard.Z.IsDown = false;
+            }
+            else if (VKCode == 'X') {
+                pInput->Keyboard.X.IsDown = false;
+            }
+            else if (VKCode == 'C') {
+                pInput->Keyboard.C.IsDown = false;
+            }
+            else if (VKCode == 'V') {
+                pInput->Keyboard.V.IsDown = false;
+            }
+            else if (VKCode == 'B') {
+                pInput->Keyboard.B.IsDown = false;
+            }
+            else if (VKCode == 'N') {
+                pInput->Keyboard.N.IsDown = false;
+            }
+            else if (VKCode == 'M') {
+                pInput->Keyboard.M.IsDown = false;
             }
             else if (VKCode == VK_UP) {
                 pInput->Keyboard.Up.IsDown = false;
@@ -691,6 +862,48 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
             else if (VKCode == VK_F1) {
                 pInput->Keyboard.F1.IsDown = false;
             }
+            else if (VKCode == VK_F2) {
+                pInput->Keyboard.F2.IsDown = false;
+            }
+            else if (VKCode == VK_F3) {
+                pInput->Keyboard.F3.IsDown = false;
+            }
+            else if (VKCode == VK_F4) {
+                pInput->Keyboard.F4.IsDown = false;
+            }
+            else if (VKCode == VK_F5) {
+                pInput->Keyboard.F5.IsDown = false;
+            }
+            else if (VKCode == VK_F6) {
+                pInput->Keyboard.F6.IsDown = false;
+            }
+            else if (VKCode == VK_F7) {
+                pInput->Keyboard.F7.IsDown = false;
+            }
+            else if (VKCode == VK_F8) {
+                pInput->Keyboard.F8.IsDown = false;
+            }
+            else if (VKCode == VK_F9) {
+                pInput->Keyboard.F9.IsDown = false;
+            }
+            else if (VKCode == VK_F10) {
+                pInput->Keyboard.F10.IsDown = false;
+            }
+            else if (VKCode == VK_F11) {
+                pInput->Keyboard.F11.IsDown = false;
+            }
+            else if (VKCode == VK_F12) {
+                pInput->Keyboard.F12.IsDown = false;
+            }
+            else if (VKCode == VK_PRIOR) {
+                pInput->Keyboard.PageUp.IsDown = false;
+            }
+            else if (VKCode == VK_NEXT) {
+                pInput->Keyboard.PageDown.IsDown = false;
+            }
+            else if (VKCode == VK_SHIFT) {
+                pInput->Keyboard.Shift.IsDown = false;
+            }
         } break;
         case WM_CLOSE:
         case WM_DESTROY:
@@ -707,13 +920,13 @@ void ProcessPendingMessages(game_input* pInput, record_and_playback* RecordPlayb
 }
 
 // Dynamic library loading
-void GameUpdateAndRenderStub(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, game_offscreen_buffer* ScreenBuffer, game_input* Input) {}
+void GameUpdateStub(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, render_group* Group, game_input* Input) {}
 
 struct game_code {
     bool IsValid;
     FILETIME DLLLastWriteTime;
     HMODULE GameCodeDLL;
-    game_update_and_render* UpdateAndRender;
+    game_update* Update;
 };
 
 FILETIME GetLastWriteTime(LPCSTR FilePath) {
@@ -729,46 +942,58 @@ FILETIME GetLastWriteTime(LPCSTR FilePath) {
     return Result;
 }
 
-game_code LoadGameCode(LPCSTR FilePath) {
-    game_code Result = {};
-    Result.UpdateAndRender = GameUpdateAndRenderStub;
+void LoadGameCode(game_code *Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
+    Result->Update = GameUpdateStub;
 
-    /*LPCSTR TempDLLName = "GameLibraryTemp.dll";
-    if (CopyFileA(FilePath, TempDLLName, FALSE)) {
-        Result.GameCodeDLL = LoadLibraryA(TempDLLName);
-        if (Result.GameCodeDLL) {
-            Result.UpdateAndRender = (game_update_and_render*)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-            Result.IsValid = (Result.UpdateAndRender);
+    bool CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
+
+    if (!CopyResult) {
+        DWORD LastError = GetLastError();
+        if (LastError == ERROR_SHARING_VIOLATION) {
+            int Retries = 0;
+            do {
+                Log(Warn, "Retrying game code loading after sharing violation.\n");
+                Sleep(100);
+                CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
+                Retries++;
+                if (Retries > 100) {
+                    Log(Error, "Max number of retries reached.\n");
+                    break;
+                }
+            } while (!CopyResult);
+        }
+        else {
+            char ErrorText[256];
+            sprintf_s(ErrorText, "Error copying .dll file. Code %d.\n", LastError);
+            Log(Error, ErrorText);
+            return;
         }
     }
-    else {
-        DWORD Error = GetLastError();
-        OutputDebugStringA("Error copying .dll file.\n");
-    }*/
-    Result.GameCodeDLL = LoadLibraryA(FilePath);
-    if (Result.GameCodeDLL) {
-        Result.UpdateAndRender = (game_update_and_render*)GetProcAddress(Result.GameCodeDLL, "GameUpdateAndRender");
-        Result.IsValid = (Result.UpdateAndRender);
+
+    Result->GameCodeDLL = LoadLibraryA(TempDLLName);
+    if (Result->GameCodeDLL) {
+        Result->Update = (game_update*)GetProcAddress(Result->GameCodeDLL, "GameUpdate");
+        Result->IsValid = (Result->Update);
     }
 
-    if (!Result.IsValid) {
-        Result.UpdateAndRender = GameUpdateAndRenderStub;
-        OutputDebugStringA("Loading game code failed.\n");
+    if (!Result->IsValid) {
+        Result->Update = GameUpdateStub;
+        Log(Error, "Loading game code failed.\n");
     }
     else {
-        Result.DLLLastWriteTime = GetLastWriteTime(FilePath);
+        FILETIME LastWriteTime = GetLastWriteTime(SourceDLLName);
+        Result->DLLLastWriteTime = LastWriteTime;
     }
 
-    return(Result);
 }
 
 void UnloadGameCode(game_code* GameCode) {
     if (GameCode->GameCodeDLL) {
-        FreeLibrary(GameCode->GameCodeDLL);
+        bool UnloadResult = FreeLibrary(GameCode->GameCodeDLL);
     }
 
     GameCode->IsValid = false;
-    GameCode->UpdateAndRender = GameUpdateAndRenderStub;
+    GameCode->Update = GameUpdateStub;
 }
 
 // Performance
@@ -809,12 +1034,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Loading XInputLibrary
     LoadXInput();
 
-    // Starting resolution
-    //ResizeDIBSection(&BackBuffer, 860, 140);
-
     // Audio initialization
     int SamplesPerSecond = 48000;
-    const int nBuffers = 3;                         // Number of audio buffers to rotate
+    const int nBuffers = 5;                         // Number of audio buffers to rotate
     int BufferSize = SamplesPerSecond / 60;         // Buffer size in samples
     WAVEFORMATEX WaveFormat;
     SetWaveFormat(SamplesPerSecond, &WaveFormat);
@@ -853,19 +1075,20 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_WIN32PLATFORMLAYER));
 
     // Set up for main loop
-    LPCSTR SourceDLLPath = "..\\x64\\Debug\\GameLibrary.dll";
-    game_code GameCode = LoadGameCode(SourceDLLPath);
+    const LPCSTR SourceDLLName = "GameLibrary.dll";
+    const LPCSTR TempDLLName = "GameLibraryTemp.dll";
+
+    game_code GameCode = { 0 };
+    LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
     game_memory GameMemory = {};
     LPVOID BaseAddress = 0;
     GameMemory.PermanentStorageSize = Megabytes(64);
     void* GameMemoryBlock = VirtualAlloc(BaseAddress, GameMemory.PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     GameMemory.PermanentStorage = GameMemoryBlock;
 
-    platform_api Platform = {};
     Platform.FreeFileMemory = PlatformFreeFileMemory;
     Platform.ReadEntireFile = PlatformReadEntireFile;
     Platform.WriteEntireFile = PlatformWriteEntireFile;
-    Platform.OpenGLRender = OpenGLRenderGroupToOutput;
     GameMemory.Platform = Platform;
 
     game_state* pGameState = (game_state*)GameMemory.PermanentStorage;
@@ -878,7 +1101,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     RecordPlayback.TotalSize = GameMemory.PermanentStorageSize;
 
     // Input
-    game_input Input = { 0 };
+    game_input Input = {};
+    Input.Mode = Keyboard;
 
     // Sound
     int currentBuffer = 1;
@@ -892,27 +1116,50 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     uint64 LastCycleCount = __rdtsc();
 
     // OpenGl
-    InitOpenGL(Window);
+    OpenGL = InitOpenGL(Window);
 
-    // Fonts
-    InitializeArena(&pGameState->TextArena, Megabytes(1), (uint8*)GameMemory.PermanentStorage + sizeof(game_state));
-    GameMemory.Assets.Characters = InitializeFonts(&pGameState->TextArena);
+    // Memory arenas
+    uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
+    InitializeArena(&pGameState->StringsArena, Kilobytes(10), ArenaStart);
+    ArenaStart += pGameState->StringsArena.Size;
+    InitializeArena(&pGameState->FontsArena, Megabytes(1), ArenaStart);
+    ArenaStart += pGameState->FontsArena.Size;
+    InitializeArena(&pGameState->RenderArena, Megabytes(9), ArenaStart);
+    ArenaStart += pGameState->RenderArena.Size;
+    InitializeArena(&pGameState->MeshArena, Megabytes(5), ArenaStart);
+    ArenaStart += pGameState->VideoArena.Size;
+    InitializeArena(&pGameState->VideoArena, Megabytes(15), ArenaStart);
+
+    // Render group
+    Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
+
+    // Starting resolution
+    //ResizeWindow(Window, Group);
+
+    // DebugInfo
+    GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
 
     bool FirstFrame = true;
     // Main message loop:
     while (Running) {
         // Loading game code
-        /*FILETIME NewDLLWriteTime = GetLastWriteTime(SourceDLLPath);
+        FILETIME NewDLLWriteTime = GetLastWriteTime(SourceDLLName);
         LONG DebugFiletime = CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime);
+
         if (CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime) != 0) {
             UnloadGameCode(&GameCode);
-            GameCode = LoadGameCode(SourceDLLPath);
-        }*/
-
+            LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
+            if (GameCode.IsValid) {
+                Log(Info, "New game code loaded.\n");
+            }
+        }
 
         // Previous input
         Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;
+        Input.Mouse.MiddleClick.WasDown = Input.Mouse.MiddleClick.IsDown;
         Input.Mouse.RightClick.WasDown = Input.Mouse.RightClick.IsDown;
+
+        Input.Mouse.Wheel = 0;
 
         Input.Keyboard.One.WasDown = Input.Keyboard.One.IsDown;
         Input.Keyboard.Two.WasDown = Input.Keyboard.Two.IsDown;
@@ -924,12 +1171,32 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Keyboard.Eight.WasDown = Input.Keyboard.Eight.IsDown;
         Input.Keyboard.Nine.WasDown = Input.Keyboard.Nine.IsDown;
         Input.Keyboard.Zero.WasDown = Input.Keyboard.Zero.IsDown;
+        Input.Keyboard.Q.WasDown = Input.Keyboard.Q.IsDown;
         Input.Keyboard.W.WasDown = Input.Keyboard.W.IsDown;
+        Input.Keyboard.E.WasDown = Input.Keyboard.E.IsDown;
+        Input.Keyboard.R.WasDown = Input.Keyboard.R.IsDown;
+        Input.Keyboard.T.WasDown = Input.Keyboard.T.IsDown;
+        Input.Keyboard.Y.WasDown = Input.Keyboard.Y.IsDown;
+        Input.Keyboard.U.WasDown = Input.Keyboard.U.IsDown;
+        Input.Keyboard.I.WasDown = Input.Keyboard.I.IsDown;
+        Input.Keyboard.O.WasDown = Input.Keyboard.O.IsDown;
+        Input.Keyboard.P.WasDown = Input.Keyboard.P.IsDown;
         Input.Keyboard.A.WasDown = Input.Keyboard.A.IsDown;
         Input.Keyboard.S.WasDown = Input.Keyboard.S.IsDown;
         Input.Keyboard.D.WasDown = Input.Keyboard.D.IsDown;
-        Input.Keyboard.E.WasDown = Input.Keyboard.E.IsDown;
-        Input.Keyboard.Q.WasDown = Input.Keyboard.Q.IsDown;
+        Input.Keyboard.F.WasDown = Input.Keyboard.F.IsDown;
+        Input.Keyboard.G.WasDown = Input.Keyboard.G.IsDown;
+        Input.Keyboard.H.WasDown = Input.Keyboard.H.IsDown;
+        Input.Keyboard.J.WasDown = Input.Keyboard.J.IsDown;
+        Input.Keyboard.K.WasDown = Input.Keyboard.K.IsDown;
+        Input.Keyboard.L.WasDown = Input.Keyboard.L.IsDown;
+        Input.Keyboard.Z.WasDown = Input.Keyboard.Z.IsDown;
+        Input.Keyboard.X.WasDown = Input.Keyboard.X.IsDown;
+        Input.Keyboard.C.WasDown = Input.Keyboard.C.IsDown;
+        Input.Keyboard.V.WasDown = Input.Keyboard.V.IsDown;
+        Input.Keyboard.B.WasDown = Input.Keyboard.B.IsDown;
+        Input.Keyboard.N.WasDown = Input.Keyboard.N.IsDown;
+        Input.Keyboard.M.WasDown = Input.Keyboard.M.IsDown;
         Input.Keyboard.Up.WasDown = Input.Keyboard.Up.IsDown;
         Input.Keyboard.Down.WasDown = Input.Keyboard.Down.IsDown;
         Input.Keyboard.Left.WasDown = Input.Keyboard.Left.IsDown;
@@ -938,9 +1205,35 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Keyboard.Space.WasDown = Input.Keyboard.Space.IsDown;
         Input.Keyboard.Enter.WasDown = Input.Keyboard.Enter.IsDown;
         Input.Keyboard.F1.WasDown = Input.Keyboard.F1.IsDown;
+        Input.Keyboard.F2.WasDown = Input.Keyboard.F2.IsDown;
+        Input.Keyboard.F3.WasDown = Input.Keyboard.F3.IsDown;
+        Input.Keyboard.F4.WasDown = Input.Keyboard.F4.IsDown;
+        Input.Keyboard.F5.WasDown = Input.Keyboard.F5.IsDown;
+        Input.Keyboard.F6.WasDown = Input.Keyboard.F6.IsDown;
+        Input.Keyboard.F7.WasDown = Input.Keyboard.F7.IsDown;
+        Input.Keyboard.F8.WasDown = Input.Keyboard.F8.IsDown;
+        Input.Keyboard.F9.WasDown = Input.Keyboard.F9.IsDown;
+        Input.Keyboard.F10.WasDown = Input.Keyboard.F10.IsDown;
+        Input.Keyboard.F11.WasDown = Input.Keyboard.F11.IsDown;
+        Input.Keyboard.F12.WasDown = Input.Keyboard.F12.IsDown;
+        Input.Keyboard.PageUp.WasDown = Input.Keyboard.PageUp.IsDown;
+        Input.Keyboard.PageDown.WasDown = Input.Keyboard.PageDown.IsDown;
+        Input.Keyboard.Shift.WasDown = Input.Keyboard.Shift.IsDown;
 
         // Peek and dispatch messages
-        ProcessPendingMessages(&Input, &RecordPlayback);
+        ProcessPendingMessages(Window, &Input, &RecordPlayback);
+
+        Input.Keyboard.Any = false;
+        for (int i = 0; i < NUMBER_OF_KEYS; i++) {
+            if (Input.Keyboard.Keys[i].IsDown) {
+                Input.Keyboard.Any = true;
+                break;
+            }
+        }
+
+        if ((Input.Mode != Keyboard) && Input.Keyboard.Any) {
+            Input.Mode = Keyboard;
+        }
 
         // XInput Controller
         for (DWORD ControllerIndex = 0; ControllerIndex < XUSER_MAX_COUNT; ++ControllerIndex) {
@@ -984,6 +1277,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 Input.Controller.LT.IsDown = (Pad->bLeftTrigger > 0);
                 Input.Controller.RT.IsDown = (Pad->bRightTrigger > 0);
 
+                Input.Controller.Any = false;
+                for (int i = 0; i < 16; i++) {
+                    if (Input.Controller.Buttons[i].IsDown) {
+                        Input.Controller.Any = true;
+                        break;
+                    }
+                }
+
+                if (Input.Mode != Controller && Input.Controller.Any) {
+                    Input.Mode = Controller;
+                }
+
                 SHORT LeftStickX = (float)Pad->sThumbLX;
                 SHORT LeftStickY = (float)Pad->sThumbLY;
                 SHORT RightStickX = (float)Pad->sThumbRX;
@@ -1014,6 +1319,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         int ScreenX = rect.left;
         int ScreenY = rect.bottom;
 
+        Input.Mouse.LastCursor.X = Input.Mouse.Cursor.X;
+        Input.Mouse.LastCursor.Y = Input.Mouse.Cursor.Y;
+        Input.Mouse.LastCursor.Z = 0;
+        
         Input.Mouse.Cursor.X = MouseP.x;
         Input.Mouse.Cursor.Y = MouseP.y;
         Input.Mouse.Cursor.Z = 0;
@@ -1038,22 +1347,32 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         // Game function
-        GameCode.UpdateAndRender(&GameMemory, &GameSoundBuffers[(currentBuffer + 2) % nBuffers], &GameSoundBuffers[currentBuffer], &Buffer, &Input);
+        if (GameCode.IsValid) {
+            ResizeWindow(Window, Group, OpenGL);
 
-        WNDDIMENSION Dimension = GetWindowDimension(Window);
-        HDC DeviceContext = GetDC(Window);
+            if (!Pause) {
+                // Clear render group
+                ClearEntries(Group);
+
+                GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], Group, &Input);
+            }
+            Render(Window, Group, OpenGL);
+        }
+        else {
+            Log(Error, "Could not update state due to invalid game code.\n");
+        }
 
         //DebugSyncDisplay(&Buffer, &GameSoundBuffers[currentBuffer]);
         // DisplayBufferToWindow(&BackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
-        SwapBuffers(DeviceContext);
+
+        XAUDIO2_VOICE_STATE VoiceState;
+        pSourceVoice->GetState(&VoiceState);
         if (FAILED(SubmitBuffer(&XAudio2Buffers[currentBuffer], pSourceVoice))) {
-            OutputDebugStringA("Buffer playing went wrong.\n");
+            Log(Error, "Buffer playing went wrong.\n");
         }
         else {
             currentBuffer = (currentBuffer + 1) % nBuffers;
         }
-
-        ReleaseDC(Window, DeviceContext);
 
         // Performance computations
         uint64 EndCycleCount = __rdtsc();
@@ -1072,18 +1391,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
         else {
             // Missed a frame!
-            OutputDebugStringA("Missed a frame!\n");
+            Log(Warn, "Missed a frame!\n");
         }
 
-        double ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
-        double msPerFrame = 1000.0f * ActualSecsElapsed;
-        double FPS = 1.0f / ActualSecsElapsed;
-        double MegaCyclesPerFrame = CyclesElapsed / 1000000.0f;
-        //TCHAR TextBuffer[256];
-        //wsprintf(TextBuffer, L"%d ms/frame, %d fps, %d Mcycles/frame\n", (int)msPerFrame, (int)FPS, (int)MegaCyclesPerFrame);
-        char TextBuffer[256];
-        sprintf_s(TextBuffer, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame", msPerFrame, FPS, MegaCyclesPerFrame);
-        GameMemory.DebugInfo = TextBuffer;
+        double ActualSecsElapsed = SecsElapsedPerFrame + 0.0005;
+        double msPerFrame = 1000.0 * ActualSecsElapsed;
+        double FPS = 1.0 / ActualSecsElapsed;
+        double MegaCyclesPerFrame = CyclesElapsed / 1000000.0;
+
+        sprintf_s(GameMemory.DebugInfo.Content, GameMemory.DebugInfo.Length, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
+        
+        pGameState->Time += ActualSecsElapsed;
 
         if (FirstFrame) {
             pSourceVoice->Start(0, 0);
@@ -1117,7 +1435,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 
     wcex.cbSize = sizeof(WNDCLASSEX);
 
-    wcex.style = CS_HREDRAW | CS_VREDRAW;
+    wcex.style = 0;
     wcex.lpfnWndProc = WndProc;
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
@@ -1211,17 +1529,14 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
     {
         PAINTSTRUCT ps;
         HDC hdc = BeginPaint(Window, &ps);
-        // TODO: Add any drawing code that uses hdc here...
-        int X = ps.rcPaint.top;
-        int Y = ps.rcPaint.left;
-        int Width = ps.rcPaint.right - ps.rcPaint.left;
-        int Height = ps.rcPaint.bottom - ps.rcPaint.top;
 
-        WNDDIMENSION Dimension = GetWindowDimension(Window);
-        ResizeDIBSection(&BackBuffer, Width, Height);
-        //DisplayBufferToWindow(&BackBuffer, hdc, Dimension.Width, Dimension.Height);
-        SwapBuffers(hdc);
+        if (Group) {
+            ResizeWindow(Window, Group, OpenGL);
+            Render(Window, Group, OpenGL);
+        }
+
         EndPaint(Window, &ps);
+        ReleaseDC(Window, hdc);
     }
     break;
     case WM_CLOSE:

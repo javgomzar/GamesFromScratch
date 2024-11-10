@@ -22,20 +22,14 @@ extern GAMELIBRARY_API int nGameLibrary;
 #pragma once
 #include "GamePlatform.h"
 #include "GameMath.h"
+#include "FFMpeg.h"
 
-// Freetype
-#include "ft2build.h"
-#include FT_FREETYPE_H
+#include "Assets.h"
+
+character* InitializeFonts(memory_arena* Arena);
 
 
 // Platform independent structs and types
-struct game_rect {
-    int Left;
-    int Top;
-    int Width;
-    int Height;
-};
-
 struct game_offscreen_buffer {
     void* Memory;
     uint32 Height;
@@ -55,58 +49,51 @@ struct game_button_state {
     bool WasDown;
 };
 
-struct game_screen_position {
-    int32 X;
-    int32 Y;
-    int32 Z;
-};
-
-game_screen_position ToScreenPosition(v3 V) {
-    game_screen_position Result;
-    Result.X = CustomRound(V.X);
-    Result.Y = CustomRound(V.Y);
-    Result.Z = CustomRound(V.Z);
-    return Result;
-}
-
-v3 ToV3(game_screen_position Position) {
-    v3 Result;
-    double X = Position.X;
-    double Y = Position.Y;
-    double Z = Position.Z;
-    Result.X = X;
-    Result.Y = Y;
-    Result.Z = Z;
-    return Result;
-}
-
 
 // Color
 struct color {
-    float Alpha;
-    float R;
-    float G;
-    float B;
+    double Alpha;
+    double R;
+    double G;
+    double B;
 };
 
+color Color(double R, double G, double B, double Alpha = 1.0) {
+    return { Alpha, R, G, B };
+}
+
+color Color(color Color, double Alpha) {
+    return { Alpha, Color.R, Color.G, Color.B };
+}
+
+color operator*(double Luminosity, color Color) {
+    return {
+        Color.Alpha,
+        min(Luminosity * Color.R, 1.0),
+        min(Luminosity * Color.G, 1.0),
+        min(Luminosity * Color.B, 1.0),
+    };
+}
+
 static int Attenuation = 100;
-static color Black = { 1.0f, 0.0f, 0.0f, 0.0f };
-static color White = { 1.0f, 1.0f, 1.0f, 1.0f };
-static color Gray = { 1.0f, 0.5f, 0.5f, 0.5f };
-static color Red = { 1.0f, 1.0f, 0.0f, 0.0f };
-static color Green = { 1.0f, 0.0f, 1.0f, 0.0f };
-static color Blue = { 1.0f, 0.0f, 0.0f, 1.0f };
-static color Magenta = { 1.0f, 1.0f, 0.0f, 1.0f };
-static color Yellow = { 1.0f, 1.0f, 1.0f, 0.0f };
-static color Cyan = { 1.0f, 0.0f, 1.0f, 1.0f };
-static color Orange = { 1.0f, 1.0f, 0.63f, 0.0f };
-static color BackgroundBlue = { 1.0f, 0.4f, 0.4f, 0.8f };
+static color Black = { 1.0, 0.0, 0.0, 0.0 };
+static color White = { 1.0, 1.0, 1.0, 1.0 };
+static color Gray = { 1.0, 0.5, 0.5, 0.5 };
+static color DarkGray = { 1.0, 0.1, 0.1, 0.1 };
+static color Red = { 1.0, 1.0, 0.0, 0.0 };
+static color Green = { 1.0, 0.0, 1.0, 0.0 };
+static color Blue = { 1.0, 0.0, 0.0, 1.0 };
+static color Magenta = { 1.0, 1.0, 0.0, 1.0 };
+static color Yellow = { 1.0, 1.0, 1.0, 0.0 };
+static color Cyan = { 1.0, 0.0, 1.0, 1.0 };
+static color Orange = { 1.0, 1.0, 0.63, 0.0 };
+static color BackgroundBlue = { 1.0, 0.4, 0.4, 0.8 };
 
 uint32 GetColorBytes(color Color) {
-    uint8 Alpha = Color.Alpha * 255.0f;
-    uint8 R = Color.R * 255.0f;
-    uint8 G = Color.G * 255.0f;
-    uint8 B = Color.B * 255.0f;
+    uint8 Alpha = Color.Alpha * 255.0;
+    uint8 R = Color.R * 255.0;
+    uint8 G = Color.G * 255.0;
+    uint8 B = Color.B * 255.0;
     return (Alpha << 24) | (R << 16) | (G << 8) | B;
 }
 
@@ -123,20 +110,20 @@ color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) 
     _BitScanForward((DWORD*)&AlphaShift, AlphaMask);
 
     color Color;
-    Color.R = (float)((RedMask & Bytes) >> RedShift) / 255.0f;
-    Color.G = (float)((GreenMask & Bytes) >> GreenShift) / 255.0f;
-    Color.B = (float)((BlueMask & Bytes) >> BlueShift) / 255.0f;
-    Color.Alpha = (float)((AlphaMask & Bytes) >> AlphaShift) / 255.0f;
+    Color.R = (double)((RedMask & Bytes) >> RedShift) / 255.0;
+    Color.G = (double)((GreenMask & Bytes) >> GreenShift) / 255.0;
+    Color.B = (double)((BlueMask & Bytes) >> BlueShift) / 255.0;
+    Color.Alpha = (double)((AlphaMask & Bytes) >> AlphaShift) / 255.0;
     return Color;
 }
 
 color Blend(color Color, color Background) {
     color Result;
-    float Alpha = (float)(Color.Alpha) / 255.0f;
-    Result.R = Background.R + (Alpha * (Color.R - Background.R) + 0.5f);
-    Result.G = Background.G + (Alpha * (Color.G - Background.G) + 0.5f);
-    Result.B = Background.B + (Alpha * (Color.B - Background.B) + 0.5f);
-    Result.Alpha = 255;
+    double Alpha = (double)(Color.Alpha) / 255.0;
+    Result.R = Background.R + (Alpha * (Color.R - Background.R) + 0.5);
+    Result.G = Background.G + (Alpha * (Color.G - Background.G) + 0.5);
+    Result.B = Background.B + (Alpha * (Color.B - Background.B) + 0.5);
+    Result.Alpha = 255.0;
     return Result;
 }
 
@@ -148,83 +135,124 @@ color Blend(color Color, color Background) {
     float End;
 };*/
 
-// Fonts
-struct text {
-    int Length;
-    color Color;
-    int Points;
-    bool Wrapped;
-    char* Content;
-};
-
-struct text_options {
-    int Length;
-    color Color;
-    int Points;
-    bool Wrapped;
-};
-
 struct game_joystick_state {
     float X;
     float Y;
 };
 
 struct game_controller_input {
+    bool Any;
     game_joystick_state LeftJoystick;
     game_joystick_state RightJoystick;
-    game_button_state AButton;
-    game_button_state BButton;
-    game_button_state XButton;
-    game_button_state YButton;
-    game_button_state PadUp;
-    game_button_state PadDown;
-    game_button_state PadLeft;
-    game_button_state PadRight;
-    game_button_state RB;
-    game_button_state LB;
-    game_button_state RS;
-    game_button_state LS;
-    game_button_state RT;
-    game_button_state LT;
-    game_button_state Start;
-    game_button_state Back;
+    union {
+        game_button_state Buttons[16];
+        struct {
+            game_button_state AButton;
+            game_button_state BButton;
+            game_button_state XButton;
+            game_button_state YButton;
+            game_button_state PadUp;
+            game_button_state PadDown;
+            game_button_state PadLeft;
+            game_button_state PadRight;
+            game_button_state RB;
+            game_button_state LB;
+            game_button_state RS;
+            game_button_state LS;
+            game_button_state RT;
+            game_button_state LT;
+            game_button_state Start;
+            game_button_state Back;
+        };
+    };
 };
 
+const int NUMBER_OF_KEYS = 57;
+
 struct game_keyboard_input {
-    game_button_state One;
-    game_button_state Two;
-    game_button_state Three;
-    game_button_state Four;
-    game_button_state Five;
-    game_button_state Six;
-    game_button_state Seven;
-    game_button_state Eight;
-    game_button_state Nine;
-    game_button_state Zero;
-    game_button_state W;
-    game_button_state A;
-    game_button_state S;
-    game_button_state D;
-    game_button_state Q;
-    game_button_state E;
-    game_button_state F;
-    game_button_state Up;
-    game_button_state Down;
-    game_button_state Left;
-    game_button_state Right;
-    game_button_state Escape;
-    game_button_state Space;
-    game_button_state Enter;
-    game_button_state F1;
+    bool Any;
+    union
+    {
+        game_button_state Keys[NUMBER_OF_KEYS];
+        struct {
+            game_button_state One;
+            game_button_state Two;
+            game_button_state Three;
+            game_button_state Four;
+            game_button_state Five;
+            game_button_state Six;
+            game_button_state Seven;
+            game_button_state Eight;
+            game_button_state Nine;
+            game_button_state Zero;
+            game_button_state Q;
+            game_button_state W;
+            game_button_state E;
+            game_button_state R;
+            game_button_state T;
+            game_button_state Y;
+            game_button_state U;
+            game_button_state I;
+            game_button_state O;
+            game_button_state P;
+            game_button_state A;
+            game_button_state S;
+            game_button_state D;
+            game_button_state F;
+            game_button_state G;
+            game_button_state H;
+            game_button_state J;
+            game_button_state K;
+            game_button_state L;
+            game_button_state Z;
+            game_button_state X;
+            game_button_state C;
+            game_button_state V;
+            game_button_state B;
+            game_button_state N;
+            game_button_state M;
+            game_button_state Up;
+            game_button_state Down;
+            game_button_state Left;
+            game_button_state Right;
+            game_button_state Escape;
+            game_button_state Space;
+            game_button_state Enter;
+            game_button_state Shift;
+            game_button_state F1;
+            game_button_state F2;
+            game_button_state F3;
+            game_button_state F4;
+            game_button_state F5;
+            game_button_state F6;
+            game_button_state F7;
+            game_button_state F8;
+            game_button_state F9;
+            game_button_state F10;
+            game_button_state F11;
+            game_button_state F12;
+            game_button_state PageUp;
+            game_button_state PageDown;
+        };
+    };
 };
 
 struct game_mouse_input {
     game_button_state LeftClick;
+    game_button_state MiddleClick;
     game_button_state RightClick;
-    game_screen_position Cursor;
+    v3 Cursor;
+    v3 LastCursor;
+    short Wheel;
+};
+
+enum game_input_mode {
+    Keyboard,
+    Controller
 };
 
 struct game_input {
+    game_input_mode Mode;
     game_controller_input Controller;
     game_keyboard_input Keyboard;
     game_mouse_input Mouse;
@@ -239,39 +267,77 @@ struct record_and_playback {
     uint64 TotalSize;
 };
 
+// Colliders
+struct rect_collider {
+    v3 Center;
+    double Width;
+    double Height;
+};
 
+struct cube_collider {
+    v3 Center;
+    v3 Size;
+};
+
+struct sphere_collider {
+    v3 Center;
+    double Radius;
+};
+
+bool Collide(rect_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < (double)Collider.Width / 2.0 &&
+        fabs(Position.Y - Collider.Center.Y) < (double)Collider.Height / 2.0;
+}
+
+bool Collide(cube_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < Collider.Size.X / 2.0 &&
+           fabs(Position.Y - Collider.Center.Y) < Collider.Size.Y / 2.0 &&
+           fabs(Position.Z - Collider.Center.Z) < Collider.Size.Z / 2.0;
+}
+
+bool Collide(sphere_collider Collider, v3 Position) {
+    return module(Position - Collider.Center) < Collider.Radius;
+}
 
 // User Interface
-struct button {
-    bool Clicked;
-    bool Active;
-    game_rect Collider;
-    loaded_bmp Image;
-    loaded_bmp ClickedImage;
-    text Text;
-    FT_Face* Face;
+struct slider {
+    double Value;
+    v3 Position;
+    color Color;
+    rect_collider Collider;
 };
 
 struct UI {
-
+    slider Slider1;
+    slider Slider2;
+    slider Slider3;
+    slider Slider4;
+    slider Slider5;
+    slider Slider6;
 };
 
+void InitSlider(slider* Slider, double Value, color Color) {
+    *Slider = { 0 };
+    
+    if (Value > 1.0 || Value < 0.0) Assert(false);
+    else Slider->Value = Value;
 
-// Game Assets
-struct game_assets {
-    Character* Characters;
-    loaded_bmp Image1;
-    loaded_bmp Image2;
-};
+    Slider->Color = Color;
+}
+
 
 // Game State: Persistent (between frames) values
 struct game_state {
-    memory_arena TextArena;
     memory_arena RenderArena;
+    memory_arena StringsArena;
+    memory_arena FontsArena;
+    memory_arena VideoArena;
+    memory_arena MeshArena;
     UI UserInterface;
-    float AngleH;
-    float AngleV;
+    double dt;
+    double Time;
 };
+
 
 // Game Memory
 struct game_memory {
@@ -280,10 +346,9 @@ struct game_memory {
     void* PermanentStorage;
     platform_api Platform;
     game_assets Assets;
-    FT_Library FTLibrary;
     render_group* Group;
-    char* DebugInfo;
+    string DebugInfo;
 };
 
-#define GAME_UPDATE_AND_RENDER(name) void GAMELIBRARY_API name(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, game_offscreen_buffer* ScreenBuffer, game_input* Input)
-typedef GAME_UPDATE_AND_RENDER(game_update_and_render);
+#define GAME_UPDATE(name) void GAMELIBRARY_API name(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, render_group* Group, game_input* Input)
+typedef GAME_UPDATE(game_update);
