@@ -71,10 +71,10 @@ void CreateFramebufferMultisampling(
 	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, FramebufferTexture);
 
 	glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GL_RGBA8, Width, Height, GL_TRUE);
-
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, FramebufferTexture, 0);
 
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+	GLenum Status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (Status != GL_FRAMEBUFFER_COMPLETE) {
 		Assert(false);
 	}
 
@@ -192,20 +192,20 @@ openGL InitOpenGL(HWND Window) {
 		// Background
 		Result.Targets[0].Multisampling = true;
 		Result.Targets[0].Depth = true;
-		Result.Targets->Samples = 9;
+		Result.Targets->Samples = 4;
 
 		// World buffer
 		Result.Targets[1].Multisampling = true;
 		Result.Targets[1].Depth = true;
-		Result.Targets[1].Samples = 9;
+		Result.Targets[1].Samples = 4;
 
 		// Screen buffer
 		Result.Targets[2].Multisampling = true;
-		Result.Targets[2].Samples = 9;
+		Result.Targets[2].Samples = 4;
 
 		// Outline
 		Result.Targets[3].Multisampling = true;
-		Result.Targets[3].Samples = 9;
+		Result.Targets[3].Samples = 4;
 
 		// Background postprocessing
 		Result.Targets[4].Samples = 1;
@@ -217,7 +217,7 @@ openGL InitOpenGL(HWND Window) {
 		Result.Targets[6].Samples = 1;
 
 		// Outline postprocessing
-		Result.Targets[7].Samples = 9;
+		Result.Targets[7].Samples = 1;
 
 		// Creating buffers
 		for (int i = 0; i < nFramebuffers; i++) {
@@ -274,6 +274,8 @@ openGL InitOpenGL(HWND Window) {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		Result.QuadVAO = QuadVAO;
+
+		Error = glGetError();
 	}
 	
 	ReleaseDC(Window, WindowDC);
@@ -583,46 +585,40 @@ GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_f
 	return ProgramID;
 }
 
+
 void OpenGLSetUniform(int ProgramID, const char* Name, int Value) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
 	if (Location >= 0) glUniform1i(Location, Value);
-	GLenum Error = glGetError();
-	if (Error) Assert(false);
+}
+
+void OpenGLSetUniform(int ProgramID, const char* Name, bool Value) {
+	if (Value) OpenGLSetUniform(ProgramID, Name, 1);
+	else OpenGLSetUniform(ProgramID, Name, 0);
 }
 
 void OpenGLSetUniform(int ProgramID, const char* Name, float Value) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
 	if (Location >= 0) glUniform1f(Location, Value);
-	GLenum Error = glGetError();
-	if (Error) Assert(false);
 }
 
 void OpenGLSetUniform(int ProgramID, const char* Name, double Value) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
 	if (Location >= 0) glUniform1d(Location, Value);
-	GLenum Error = glGetError();
-	if (Error) Assert(false);
 }
 
 void OpenGLSetUniform(int ProgramID, const char* Name, v3 Vector) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
 	if (Location >= 0) glUniform3f(Location, Vector.X, Vector.Y, Vector.Z);
-	GLenum Error = glGetError();
-	if (Error) Assert(false);
 }
 
 void OpenGLSetUniform(int ProgramID, const char* Name, v2 Vector) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
 	if (Location >= 0) glUniform2f(Location, Vector.X, Vector.Y);
-	GLenum Error = glGetError();
-	if (Error) Assert(false);
 }
 
 void OpenGLSetUniform(int ProgramID, const char* Name, color Color) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
 	if (Location >= 0) glUniform4f(Location, Color.R, Color.G, Color.B, Color.Alpha);
-	GLenum Error = glGetError();
-	if (Error) Assert(false);
 }
 
 void OpenGLSetUniform(int ProgramID, float* Projection, float* View, float* Model) {
@@ -742,7 +738,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 							double AxisLength = 0.08 * Height;
 							v3 AxisOrigin = V3(Width - AxisLength - 10.0, 0.1 * Height, 0);
 
-							v3 YAxis = V3(0.0, -cos(Group->Camera.Pitch * Pi / 180.0), 0.0);
+							v3 YAxis = V3(0.0, -cos(Group->Camera.Pitch * Degrees), 0.0);
 							game_triangle YArrow = {
 								AxisOrigin + AxisLength * YAxis,
 								AxisOrigin + 0.8 * AxisLength * YAxis + (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
@@ -760,8 +756,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 								AxisOrigin + 0.8 * AxisLength * YAxis + (AxisLength / 15.0) * V3(1.0, 0.0, 0.0),
 								}, Green);
 
-							v3 XAxis = V3(cos(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Angle * Pi / 180.0) * sin(Group->Camera.Pitch * Pi / 180.0), 0.0);
-							v3 XOrthogonal = normalize(V3(sin(Group->Camera.Angle * Pi / 180.0) * sin(Group->Camera.Pitch * Pi / 180.0), -cos(Group->Camera.Angle * Pi / 180.0), 0.0));
+							v3 XAxis = V3(cos(Group->Camera.Angle * Degrees), sin(Group->Camera.Angle * Degrees) * sin(Group->Camera.Pitch * Degrees), 0.0);
+							v3 XOrthogonal = normalize(V3(sin(Group->Camera.Angle * Degrees) * sin(Group->Camera.Pitch * Degrees), -cos(Group->Camera.Angle * Degrees), 0.0));
 							OpenGLRenderLine(AxisOrigin, AxisOrigin + 0.875 * AxisLength * XAxis, Red, AxisWidth);
 							OpenGLTriangle({
 								AxisOrigin + AxisLength * XAxis,
@@ -774,8 +770,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 								AxisOrigin + 0.8 * AxisLength * XAxis - (AxisLength / 15.0) * XOrthogonal,
 								}, Red);
 
-							v3 ZAxis = V3(-sin(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Pitch * Pi / 180.0) * cos(Group->Camera.Angle * Pi / 180.0), 0.0);
-							v3 ZOrthogonal = normalize(V3(sin(Group->Camera.Pitch * Pi / 180.0) * cos(Group->Camera.Angle * Pi / 180.0), sin(Group->Camera.Angle * Pi / 180.0), 0.0));
+							v3 ZAxis = V3(-sin(Group->Camera.Angle * Degrees), sin(Group->Camera.Pitch * Degrees) * cos(Group->Camera.Angle * Degrees), 0.0);
+							v3 ZOrthogonal = normalize(V3(sin(Group->Camera.Pitch * Degrees) * cos(Group->Camera.Angle * Degrees), sin(Group->Camera.Angle * Degrees), 0.0));
 							OpenGLRenderLine(AxisOrigin, AxisOrigin + 0.875 * AxisLength * ZAxis, Blue, AxisWidth);
 							OpenGLTriangle({
 								AxisOrigin + AxisLength * ZAxis,
@@ -862,29 +858,15 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				OpenGLTexturedRect(Entry.Rect, Entry.Color, Entry.Header.Key.Z, Entry.Basis, Entry.MinTexX, Entry.MaxTexX, Entry.MinTexY, Entry.MaxTexY);
 			} break;
 
-			case group_type_render_entry_video:
-			{
-				render_entry_video Entry = *(render_entry_video*)Header;
-
-				game_video* Video = Entry.Video;
-				int Width = Video->VideoContext->Width;
-				int Height = Video->VideoContext->Height;
-
-				OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext->VideoOut, Clamp, true);
-				OpenGLTexturedRect(Entry.Rect);
-
-			} break;
-
 			case group_type_render_entry_mesh:
 			{
+				//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 				render_entry_mesh Entry = *(render_entry_mesh*)Header;
 
 				mesh* Mesh = Entry.Mesh;
 				shader* Shader = Entry.Shader;
 				light Light = Entry.Light;
 				transform Transform = Entry.Transform;
-
-				v3 Position = Transform.Translation;
 
 				if (!Shader->ProgramID) {
 					Shader->ProgramID = OpenGLLoadShader(
@@ -905,7 +887,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				glUseProgram(Shader->ProgramID);
 
-				GLint Error = 0;
+				GLint Error = glGetError();
 
 				// Setting uniforms
 					// Projection and modelview matrices
@@ -919,6 +901,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 					// Color
 				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
+
+					// Resolution
+				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
 
 				if (Mesh->VBO) {
 					glBindVertexArray(Mesh->VAO);
@@ -1108,5 +1093,11 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				return;
 			};
 		}
+	}
+
+	GLenum GLError = glGetError();
+	if (GLError) {
+		Log(Error, "OpenGL error.\n");
+		Assert(false);
 	}
 }

@@ -188,20 +188,6 @@ character* InitializeFont(memory_arena* Arena, const char* FontPath) {
 }
 
 
-// Video
-game_video LoadVideo(memory_arena* Arena, const char* Filename) {
-    game_video Result = { 0 };
-    Result.VideoContext = PushStruct(Arena, video_context);
-
-    InitializeVideo(Filename, Result.VideoContext);
-    int Width = Result.VideoContext->Frame->width;
-    int Height = Result.VideoContext->Frame->height;
-    Result.VideoContext->VideoOut = PushSize(Arena, Width * Height * 4);
-
-    return Result;
-}
-
-
 // 3D Models
 mesh LoadMesh(platform_read_entire_file Read, memory_arena* MeshArena, const char* Path) {
     mesh Result = { 0 };
@@ -497,17 +483,11 @@ void LoadAssets(
     MeshArena->Name = PushString(StringsArena, 11, "Mesh Arena");
     MeshArena->Percentage = PushString(StringsArena, 7, "0.0%");
 
-    // Bitmaps
-    //Assets->TestImage = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Media/Bitmaps/Player.bmp");
-    Assets->TestImage = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Assets/Bitmaps/Enemy.bmp");
     Assets->EmptyTexture = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Assets/Bitmaps/Empty.bmp");
 
-    // Meshes
-    Assets->TestMesh = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Assets/Models/sphere.mdl");
-    Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Assets/Models/enemy.mdl");
+    Assets->FaceMesh = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Assets/Models/Plane.mdl");
 
-    Assets->TestMesh.Texture = &Assets->EmptyTexture;
-    Assets->TestMesh2.Texture = &Assets->TestImage;
+    Assets->FaceMesh.Texture = &Assets->EmptyTexture;
 
 // Shaders
     // Header file
@@ -518,7 +498,7 @@ void LoadAssets(
     read_file_result FramebufferVertexCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferVertexShader.vert.glsl");
 
     // Fragment shaders files
-    read_file_result FragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl");
+    read_file_result HeightFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/HeightFragmentShader.frag.glsl");
     read_file_result SphereFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SphereFragmentShader.frag.glsl");
     read_file_result FramebufferFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferFragmentShader.frag.glsl");
     read_file_result SingleColorFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SingleColorFragmentShader.frag.glsl");
@@ -526,12 +506,13 @@ void LoadAssets(
     read_file_result JumpFloodShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/JumpFloodFragmentShader.frag.glsl");
     read_file_result OutlineShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/OutlineFragmentShader.frag.glsl");
     read_file_result KernelShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/KernelFragmentShader.frag.glsl");
+    read_file_result EdgeDetectionShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/EdgeDetectionFragmentShader.frag.glsl");
 
-    Assets->TextureShader = {
+    Assets->HeightShader = {
         0,
         HeaderCode,
         VertexCode,
-        FragmentCode
+        HeightFragmentCode
     };
 
     Assets->SphereShader = {
@@ -581,5 +562,12 @@ void LoadAssets(
         HeaderCode,
         FramebufferVertexCode,
         KernelShaderCode
+    };
+
+    Assets->EdgeDetectionShader = {
+        0,
+        HeaderCode,
+        FramebufferVertexCode,
+        EdgeDetectionShaderCode
     };
 }

@@ -11,7 +11,6 @@ enum render_group_entry_type {
     group_type_render_entry_textured_rect,
     group_type_render_entry_text,
     group_type_render_entry_button,
-    group_type_render_entry_video,
     group_type_render_entry_mesh,
     group_type_render_entry_mesh_outline,
     group_type_render_entry_shader_pass,
@@ -111,12 +110,6 @@ struct render_entry_button {
     button* Button;
 };
 
-struct render_entry_video {
-    render_group_header Header;
-    game_video* Video;
-    game_rect Rect;
-};
-
 struct light {
     double Ambient;
     v3 Direction;
@@ -158,37 +151,9 @@ struct render_entry_render_target {
     uint32 SourceIndex;
 };
 
-struct camera {
-    basis Basis;
-    v3 Position;
-    v3 Velocity;
-    double Distance;
-    double Pitch;
-    double Angle;
-};
-
-basis GetCameraBasis(double Angle, double Pitch) {
-    v3 X = V3(
-        cos(Angle * Degrees),
-        0.0,
-        sin(Angle * Degrees)
-    );
-    v3 Y = V3(
-        -sin(Angle * Degrees) * sin(Pitch * Degrees),
-        cos(Pitch * Degrees),
-        cos(Angle * Degrees) * sin(Pitch * Degrees)
-    );
-    v3 Z = V3(
-        sin(Angle * Degrees) * cos(Pitch * Degrees),
-        sin(Pitch * Degrees),
-        -cos(Angle * Degrees) * cos(Pitch * Degrees)
-    );
-
-    return { X, Y, Z };
-}
-
 const int MAX_FRAME_BUFFER_COUNT = 16;
 struct render_group {
+    game_assets* Assets;
     int32 Width;
     int32 Height;
     basis DefaultBasis;
@@ -207,7 +172,7 @@ struct sort_entry {
 };
 
 
-render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBufferSize) {
+render_group* AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, memory_index MaxPushBufferSize) {
     render_group* Result = PushStruct(Arena, render_group);
     Result->PushBufferBase = (uint8*)PushSize(Arena, MaxPushBufferSize);
     Result->MaxPushBufferSize = MaxPushBufferSize;
@@ -215,11 +180,13 @@ render_group* AllocateRenderGroup(memory_arena* Arena, memory_index MaxPushBuffe
 
     Result->SortedBufferBase = (uint8*)PushSize(Arena, MaxPushBufferSize);
 
+    Result->Assets = Assets;
+
     Result->DefaultBasis.X = V3(1, 0, 0);
     Result->DefaultBasis.Y = V3(0, 1, 0);
     Result->DefaultBasis.Z = V3(0, 0, 1);
     Result->Camera = { 0 };
-    Result->Camera.Distance = 10.0;
+    Result->Camera.Distance = 15.0;
     Result->Camera.Velocity = V3(0, 0, 0);
     Result->Camera.Angle = 0;
     Result->Camera.Pitch = 0;
@@ -285,11 +252,6 @@ uint32 GetSizeOf(render_group_entry_type Type) {
         case group_type_render_entry_textured_rect:
         {
             return sizeof(render_entry_textured_rect);
-        } break;
-
-        case group_type_render_entry_video:
-        {
-            return sizeof(render_entry_video);
         } break;
 
         case group_type_render_entry_mesh:
@@ -498,14 +460,6 @@ void PushButton(render_group* Group, character* Characters, button* Button) {
     Entry->Header.Target = Screen;
     Entry->Button = Button;
     Entry->Characters = Characters;
-}
-
-void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
-    render_entry_video* Entry = PushRenderElement(Group, render_entry_video);
-    Entry->Header.Key.Z = Z;
-    Entry->Header.Target = Screen;
-    Entry->Video = Video;
-    Entry->Rect = Rect;
 }
 
 void PushMesh(
@@ -761,6 +715,40 @@ void PushMeshOutline(
     Entry->StartingLevel = StartingLevel;
 
     PushShaderPass(Group, &Assets->OutlineShader, Postprocessing_Outline, 1010, Color, Width, Time);
+}
+
+void PushFace(render_group* Group, game_input* Input, face Face, transform PieceTransform, iv3 PiecePosition, v3 CubePosition) {
+    transform Transform = Face.Transform * PieceTransform;
+    Transform.Translation += CubePosition;
+    color Color = Face.Color;
+    if (Face.Selected) {
+        Color = Color + White;
+    }
+    PushMesh(Group, &Group->Assets->FaceMesh, Transform, { 0 }, &Group->Assets->HeightShader, Color, World);
+    PushMesh(Group, &Group->Assets->FaceMesh, Transform, { 0 }, &Group->Assets->SingleColorShader, White, Outline);
+}
+
+void PushPiece(render_group* Group, game_input* Input, center_piece Piece, v3 Position) {
+    PushFace(Group, Input, Piece.Face, Piece.Transform, Piece.Position, Position);
+}
+
+void PushPiece(render_group* Group, game_input* Input, edge_piece Piece, v3 Position) {
+    PushFace(Group, Input, Piece.Faces[0], Piece.Transform, Piece.Position, Position);
+    PushFace(Group, Input, Piece.Faces[1], Piece.Transform, Piece.Position, Position);
+}
+
+void PushPiece(render_group* Group, game_input* Input, corner_piece Piece, v3 Position) {
+    PushFace(Group, Input, Piece.Faces[0], Piece.Transform, Piece.Position, Position);
+    PushFace(Group, Input, Piece.Faces[1], Piece.Transform, Piece.Position, Position);
+    PushFace(Group, Input, Piece.Faces[2], Piece.Transform, Piece.Position, Position);
+}
+
+void PushCube(render_group* Group, game_input* Input, rubiks_cube* Cube) {
+    for (int i = 0; i < 12; i++) {
+        if (i < 6) PushPiece(Group, Input, Cube->Centers[i], Cube->Position);
+        PushPiece(Group, Input, Cube->Edges[i], Cube->Position);
+        if (i < 8) PushPiece(Group, Input, Cube->Corners[i], Cube->Position);
+    }
 }
 
 // Render entries sorting
@@ -1023,7 +1011,7 @@ void RenderBMP(loaded_bmp* OutputTarget, loaded_bmp* BMP, v3 Position) {
                 color BackgroundColor = GetColor(*Destination, 0x00ff0000, 0x0000ff00, 0x000000ff);
 
                 if (BMPColor.R != BackgroundColor.R || BMPColor.G != BackgroundColor.G || BMPColor.B != BackgroundColor.B) {
-                    *Destination++ = GetColorBytes(Blend(BMPColor, BackgroundColor));
+                    //*Destination++ = GetColorBytes(Mix(BMPColor, BackgroundColor));
                 }
                 else {
                     Destination++;
