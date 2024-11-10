@@ -158,43 +158,6 @@ void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_
     //WriteSineWave(pSoundBuffer, 480, 0);
 }
 
-// Video
-void PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z, double SecondsElapsed) {
-    
-    if (!Video->VideoContext->Ended) {
-        Video->TimeElapsed += SecondsElapsed;
-        char Text[256];
-        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext->PTS * Video->VideoContext->TimeBase);
-        OutputDebugStringA(Text);
-
-        if (Video->TimeElapsed > Video->VideoContext->PTS * Video->VideoContext->TimeBase) {
-            LoadFrame(Video->VideoContext);
-            Video->VideoContext->Width = Rect.Width;
-            Video->VideoContext->Height = Rect.Height;
-            WriteFrame(Video->VideoContext);
-        }
-    }
-    else {
-    }
-    _PushVideo(Group, Video, Rect, Z);
-}
-
-void PushVideoLoop(render_group* Group, game_video* Video, game_rect Rect, int Z, double SecondsElapsed, int64_t StartOffset, int64_t EndOffset) {
-
-    PushVideo(Group, Video, Rect, Z, SecondsElapsed);
-    auto& VideoContext = Video->VideoContext;
-    auto& FormatContext = VideoContext->FormatContext;
-    auto& CodecContext = VideoContext->CodecContext;
-    auto& StreamIndex = VideoContext->VideoStreamIndex;
-    auto& PTS = VideoContext->PTS; // Presentation time-stamp (in time-base units)
-
-    if (PTS >= EndOffset) {
-        av_seek_frame(FormatContext, StreamIndex, StartOffset, AVSEEK_FLAG_BACKWARD);
-        do { LoadFrame(Video->VideoContext); } while (Video->VideoContext->PTS < StartOffset - 1000);
-        Video->TimeElapsed = Video->VideoContext->PTS * Video->VideoContext->TimeBase;
-    }
-}
-
 
 void Update(slider* Slider, game_input* Input, v3 Position) {
     Slider->Position = Position;
@@ -389,8 +352,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
     UI* UserInterface = &pGameState->UserInterface;
-
-    static video_context VideoContext = { 0 };
     
     double Time = pGameState->Time;
     camera* Camera = &Group->Camera;

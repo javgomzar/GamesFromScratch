@@ -11,7 +11,6 @@ enum render_group_entry_type {
     group_type_render_entry_textured_rect,
     group_type_render_entry_text,
     group_type_render_entry_button,
-    group_type_render_entry_video,
     group_type_render_entry_mesh,
     group_type_render_entry_mesh_outline,
     group_type_render_entry_shader_pass,
@@ -109,12 +108,6 @@ struct render_entry_button {
     render_group_header Header;
     character* Characters;
     button* Button;
-};
-
-struct render_entry_video {
-    render_group_header Header;
-    game_video* Video;
-    game_rect Rect;
 };
 
 struct light {
@@ -259,11 +252,6 @@ uint32 GetSizeOf(render_group_entry_type Type) {
         case group_type_render_entry_textured_rect:
         {
             return sizeof(render_entry_textured_rect);
-        } break;
-
-        case group_type_render_entry_video:
-        {
-            return sizeof(render_entry_video);
         } break;
 
         case group_type_render_entry_mesh:
@@ -472,14 +460,6 @@ void PushButton(render_group* Group, character* Characters, button* Button) {
     Entry->Header.Target = Screen;
     Entry->Button = Button;
     Entry->Characters = Characters;
-}
-
-void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, int Z) {
-    render_entry_video* Entry = PushRenderElement(Group, render_entry_video);
-    Entry->Header.Key.Z = Z;
-    Entry->Header.Target = Screen;
-    Entry->Video = Video;
-    Entry->Rect = Rect;
 }
 
 void PushMesh(

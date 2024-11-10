@@ -1,6 +1,5 @@
 #include "GamePlatform.h"
 #include "GameMath.h"
-#include "FFMpeg.h"
 
 // Freetype
 #include "ft2build.h"
@@ -67,14 +66,6 @@ struct button {
     string Text;
 };
 
-// Video
-struct game_video {
-    video_context* VideoContext;
-    int Handle;
-    bool Loop;
-    double TimeElapsed;
-};
-
 
 // 3D Models
 struct vertex {
@@ -112,7 +103,6 @@ struct game_assets {
     loaded_bmp TestImage2;
     loaded_bmp EmptyTexture;
     game_sound TestSound;
-    game_video TestVideo;
     mesh FaceMesh;
     shader HeightShader;
     shader SphereShader;

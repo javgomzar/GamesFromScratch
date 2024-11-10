@@ -188,20 +188,6 @@ character* InitializeFont(memory_arena* Arena, const char* FontPath) {
 }
 
 
-// Video
-game_video LoadVideo(memory_arena* Arena, const char* Filename) {
-    game_video Result = { 0 };
-    Result.VideoContext = PushStruct(Arena, video_context);
-
-    InitializeVideo(Filename, Result.VideoContext);
-    int Width = Result.VideoContext->Frame->width;
-    int Height = Result.VideoContext->Frame->height;
-    Result.VideoContext->VideoOut = PushSize(Arena, Width * Height * 4);
-
-    return Result;
-}
-
-
 // 3D Models
 mesh LoadMesh(platform_read_entire_file Read, memory_arena* MeshArena, const char* Path) {
     mesh Result = { 0 };
