@@ -173,7 +173,7 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Assets.h" />
+    <ClInclude Include="GameAssets.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GameLibrary.h" />
     <ClInclude Include="GameMath.h" />
@@ -185,10 +185,12 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="pch.h" />
-    <ClInclude Include="render_group.h" />
+    <ClInclude Include="RenderGroup.h" />
+    <ClInclude Include="SoftwareRender.h" />
+    <ClInclude Include="GameSound.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Assets.cpp" />
+    <ClCompile Include="GameAssets.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="GameLibrary.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>

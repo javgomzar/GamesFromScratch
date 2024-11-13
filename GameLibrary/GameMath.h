@@ -74,12 +74,16 @@ inline v2 operator*(double C, v2 A) {
 	return Result;
 }
 
-inline double operator*(v2 A, v2 B) {
+inline v2 operator*(v2 A, v2 B) {
+	return { A.X * B.X , A.Y * B.Y };
+}
+
+inline double dot(v2 A, v2 B) {
 	return A.X * B.X + A.Y * B.Y;
 }
 
 inline double module(v2 A) {
-	return sqrt(A * A);
+	return sqrt(dot(A, A));
 }
 
 inline v2 normalize(v2 V) {
@@ -202,7 +206,7 @@ inline double module(v3 A) {
 }
 
 inline v3 normalize(v3 V) {
-	return (module(V) < 0.00001f) ? V : (1 / module(V)) * V;
+	return (module(V) < 0.00001) ? V : (1 / module(V)) * V;
 }
 
 inline v3 project(v3 A, v3 B) {
@@ -408,17 +412,17 @@ inline transform operator*(transform T, transform U) {
 }
 
 inline void Matrix(float* Matrix, transform Transform) {
-	Matrix[0]  = 2.0 * Transform.Scale.X * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.i * Transform.Rotation.i) - 1.0;
+	Matrix[0]  = Transform.Scale.X * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.i * Transform.Rotation.i) - 1.0);
 	Matrix[1]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.j - Transform.Rotation.c * Transform.Rotation.k);
 	Matrix[2]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.j);
 	Matrix[3]  = 0.0;
 	Matrix[4]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.j + Transform.Rotation.c * Transform.Rotation.k);
-	Matrix[5]  = 2.0 * Transform.Scale.Y * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.j * Transform.Rotation.j) - 1.0;
+	Matrix[5]  = Transform.Scale.Y * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.j * Transform.Rotation.j) - 1.0);
 	Matrix[6]  = 2.0 * (Transform.Rotation.j * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.i);
 	Matrix[7]  = 0.0;
 	Matrix[8]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.j);
 	Matrix[9]  = 2.0 * (Transform.Rotation.j * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.i);
-	Matrix[10] = 2.0 * Transform.Scale.Z * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.k * Transform.Rotation.k) - 1.0;
+	Matrix[10] = Transform.Scale.Z * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.k * Transform.Rotation.k) - 1.0);
 	Matrix[11] = 0.0;
 	Matrix[12] = Transform.Translation.X;;
 	Matrix[13] = Transform.Translation.Y;
@@ -447,5 +451,27 @@ struct game_rect {
 	double Width;
 	double Height;
 };
+
+struct vector_plane {
+	v3 Base[2];
+};
+
+struct affine_plane {
+	v3 Position;
+	union {
+		vector_plane VectorPlane;
+		v3 Base[2];
+	};
+};
+
+//void Orthogonalize(vector_plane* Plane) {
+//	Plane->Base[0] = normalize(Plane->Base[0]);
+//	Plane->Base[1] -= dot(Plane->Base[0], Plane->Base[1]) * Plane->Base[0];
+//}
+
+//v3 Project(v3 Vector, vector_plane Plane) {
+//	Orthogonalize(&Plane);
+//	return dot(Vector, Plane.Base[0]) * Plane.Base[0] + dot(Vector, Plane.Base[1]) * Plane.Base[1];
+//}
 
 #endif

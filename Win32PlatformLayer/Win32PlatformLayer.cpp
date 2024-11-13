@@ -368,16 +368,6 @@ static HRESULT SubmitBuffer(XAUDIO2_BUFFER* pBuffer, IXAudio2SourceVoice* pSourc
     }
 }
 
-static void Silence(game_sound_buffer* pSoundBuffer) {
-    uint32 SampleCount = pSoundBuffer->BufferSize;
-
-    int16* SampleOut = pSoundBuffer->SampleOut;
-    for (uint32 SampleIndex = 0; SampleIndex < SampleCount; SampleIndex++) {
-        *SampleOut++ = 0; // LEFT
-        *SampleOut++ = 0; // RIGHT
-    }
-}
-
 // Platform services for the game
 PLATFORM_FREE_FILE_MEMORY(PlatformFreeFileMemory) {
     if (Memory) {
@@ -1051,9 +1041,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         GameSoundBuffers[i].BufferSize = BufferSize;
         GameSoundBuffers[i].SampleOut = (int16*)XAudio2Buffers[i].pAudioData;
     }
-
-    Silence(&GameSoundBuffers[0]);
-    SubmitBuffer(&XAudio2Buffers[0], pSourceVoice);
 
     // Performance counting initialization
     LARGE_INTEGER PerfCountFrequencyResult;

@@ -23,7 +23,9 @@ extern GAMELIBRARY_API int nGameLibrary;
 #include "GamePlatform.h"
 #include "GameMath.h"
 
-#include "Assets.h"
+#include "GameAssets.h"
+
+#include "GameSound.h"
 
 
 // Platform independent structs and types
@@ -33,12 +35,6 @@ struct game_offscreen_buffer {
     uint32 Width;
     uint32 Pitch;
     uint8 BytesPerPixel;
-};
-
-struct game_sound_buffer {
-    uint32 SamplesPerSecond;
-    uint16 BufferSize;
-    int16* SampleOut;
 };
 
 struct game_button_state {
@@ -265,6 +261,7 @@ struct record_and_playback {
 // Camera
 struct camera {
     basis Basis;
+    vector_plane Plane;
     v3 Position;
     v3 Velocity;
     double Distance;

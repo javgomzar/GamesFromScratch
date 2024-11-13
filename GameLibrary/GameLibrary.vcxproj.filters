@@ -88,13 +88,19 @@
     <ClInclude Include="GamePlatform.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="render_group.h">
+    <ClInclude Include="RenderGroup.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Linking\include\ft2build.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Assets.h">
+    <ClInclude Include="GameAssets.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SoftwareRender.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GameSound.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -108,7 +114,7 @@
     <ClCompile Include="pch.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Assets.cpp">
+    <ClCompile Include="GameAssets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

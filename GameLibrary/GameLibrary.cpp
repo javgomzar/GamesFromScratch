@@ -4,7 +4,7 @@
 #include "pch.h"
 #include "framework.h"
 #include "GameLibrary.h"
-#include "render_group.h"
+#include "RenderGroup.h"
 
 
 //// This is an example of an exported variable
@@ -59,101 +59,10 @@ void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, p
     // Initialize your UI elements here
 }
 
-
 // Sound
-int16 Amplitude = 4000;
-float WriteSineWave(game_sound_buffer* pSoundBuffer, float Hz, float InitialPhase) {
-    uint32 SampleCount = pSoundBuffer->BufferSize;
-    float SineWavePeriod = (float)(pSoundBuffer->SamplesPerSecond) / Hz;
-    float PhaseIncrement = (2.0f * Pi) / (float)SineWavePeriod;
-
-    float Phase = InitialPhase;
-    int16* SampleOut = pSoundBuffer->SampleOut;
-    for (uint32 SampleIndex = 0; SampleIndex < SampleCount; SampleIndex++) {
-        float SineValue = sinf(Phase);
-        Phase += PhaseIncrement;
-        while (Phase > Tau) {
-            Phase -= Tau;
-        }
-        uint16 SampleValue = (uint16)(SineValue * Amplitude);
-        *SampleOut++ = SampleValue; // LEFT
-        *SampleOut++ = SampleValue; // RIGHT
-    }
-    return Phase;
-}
-
-void FadeIn(game_sound_buffer* pSoundBuffer, uint8 TransitionCount) {
-    uint32 SampleCount = pSoundBuffer->BufferSize;
-    uint16 HalfLife = (uint16)(SampleCount / 2);
-    int16* SampleOut = pSoundBuffer->SampleOut;
-    for (uint32 SampleIndex = 0; SampleIndex < SampleCount; SampleIndex++) {
-        float Exp = (1 - expf(-(float)((SampleIndex + TransitionCount * SampleCount) / (float)HalfLife)));
-        float LeftValue = (float)*SampleOut * Exp;
-        *SampleOut = (uint16)(LeftValue); // LEFT
-        SampleOut++;
-        float RightValue = (float)*SampleOut * Exp;
-        *SampleOut = (uint16)(RightValue); // RIGHT
-        SampleOut++;
-    }
-}
-
-void FadeOut(game_sound_buffer* pSoundBuffer, uint8 TransitionCount) {
-    uint32 SampleCount = pSoundBuffer->BufferSize;
-    uint16 HalfLife = (uint16)(SampleCount / 2);
-    int16* SampleOut = pSoundBuffer->SampleOut;
-    for (uint32 SampleIndex = 0; SampleIndex < SampleCount; SampleIndex++) {
-        float Exp = expf(-(float)((SampleIndex + TransitionCount * SampleCount) / (float)HalfLife));
-        float LeftValue = (float)*SampleOut * Exp;
-        *SampleOut = (uint16)(LeftValue); // LEFT
-        SampleOut++;
-        float RightValue = (float)*SampleOut * Exp;
-        *SampleOut = (uint16)(RightValue); // RIGHT
-        SampleOut++;
-    }
-}
-
-void Silence(game_sound_buffer* pSoundBuffer) {
-    uint32 SampleCount = pSoundBuffer->BufferSize;
-
-    int16* SampleOut = pSoundBuffer->SampleOut;
-    for (uint32 SampleIndex = 0; SampleIndex < SampleCount; SampleIndex++) {
-        *SampleOut++ = 0; // LEFT
-        *SampleOut++ = 0; // RIGHT
-    }
-}
-
-void DebugPlotSoundBuffer(game_offscreen_buffer* pScreenBuffer, game_sound_buffer* pSoundBuffer, v3 PlotOrigin) {
-    uint32 SampleCount = pSoundBuffer->BufferSize;
-    uint16 PlotHeight = 200;
-    uint16 PlotWidth = 400;
-    uint16 Amplitude = 4000;
-
-    int16* SampleOut = pSoundBuffer->SampleOut;
-    for (int i = 0; i < SampleCount; i++) {
-        v3 Position = { PlotOrigin.X + (i * PlotWidth / SampleCount), (uint32)((*SampleOut * PlotHeight / Amplitude) + PlotOrigin.Y), 0 };
-        Plot(pScreenBuffer, Position, White);
-        SampleOut++;
-        SampleOut++;
-    }
-}
-
-void PlaySound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
-    if (Sound->Played + pSoundBuffer->BufferSize > Sound->SampleCount) {
-        Sound->Played = 0;
-    }
-
-    uint32 SampleCount = pSoundBuffer->BufferSize;
-    int16* SampleOut = pSoundBuffer->SampleOut;
-    int16* SampleIn = Sound->SampleOut + Sound->Played;
-    for (uint32 SampleIndex = 0; SampleIndex < SampleCount; SampleIndex++) {
-        *SampleOut++ = *SampleIn++; // LEFT
-        *SampleOut++ = *SampleIn++; // RIGHT
-    }
-
-    Sound->Played += 2*pSoundBuffer->BufferSize;
-}
-
 void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
+    
+    Silence(pSoundBuffer);
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
     //WriteSineWave(pSoundBuffer, 480, 0);
 }
@@ -211,6 +120,8 @@ void Update(camera* Camera, game_input* Input) {
     }
 
     Camera->Basis = GetCameraBasis(Camera->Angle, Camera->Pitch);
+    Camera->Plane.Base[0] = Camera->Basis.X;
+    Camera->Plane.Base[1] = Camera->Basis.Y;
 
     // Translation
     Camera->Velocity = V3(0, 0, 0);
@@ -282,11 +193,10 @@ extern "C" GAME_UPDATE(GameUpdate)
         Memory->IsInitialized = true;
     }
 
-    PushClear(Group, BackgroundBlue, Background);
+    PushClear(Group, BackgroundBlue, World);
     PushClear(Group, { 0 }, Outline);
-    PushClear(Group, { 0 }, Postprocessing_Outline);
-    PushClear(Group, Color(BackgroundBlue, 0), World);
-    PushClear(Group, { 0 }, Screen);
+    PushClear(Group, Magenta, Postprocessing_Outline);
+    PushClear(Group, White, Output);
 
 // Controls
     // Put here your input code
@@ -313,11 +223,11 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     Light.Color = Red;
     transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(5.0, 0.0, 0.0));
-    PushMesh(Group, &Assets->TestMesh, Transform1, Light, &Assets->SphereShader);
+    PushMesh(Group, &Assets->TestMesh, Transform1, Light, &Assets->SphereShader, White, World);
 
     Light.Color = White;
     v3 EnemyPosition = V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0);
-    transform Transform2 = Transform(Quaternion(Tau / 4.0, V3(0.0, 1.0, 0.0)), EnemyPosition);
+    transform Transform2 = Transform(Quaternion(Tau / 4.0, V3(0.0, 1.0, 0.0)), EnemyPosition, Scale(1.0, 1.0, -1.0));
     //transform Transform2 = Transform(Quaternion(1.0), V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0));
     //PushMesh(Group, &Assets->TestMesh2, Transform2, Light, &Assets->SingleColorShader, White, Outline);
     PushMesh(Group, &Assets->TestMesh2, Transform2, Light, &Assets->TextureShader, White, World);
@@ -329,9 +239,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     color ColliderColor = White;
 
-    //PushMeshOutline(Group, Assets, Group->Width / 100.0, Black, 12, (1 << 11), pGameState->Time);
+    //PushMeshOutline(Group, Group->Width / 100.0, Black, 12, (1 << 11), pGameState->Time);
 
-    // Software renderer as a fallback (toggle with Space)
+    // Software renderer as a fallback
     //static bool SoftwareRenderer = false;
     //if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
     //    SoftwareRenderer = !SoftwareRenderer;
@@ -384,15 +294,17 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Video Arena
         PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 240.0, 0.5), Alpha);
+
+        // Axes
+        v3 XAxis = V3(cos(Group->Camera.Angle * Degrees), sin(Group->Camera.Angle * Degrees) * sin(Group->Camera.Pitch * Degrees), 0.0);
+        v3 YAxis = V3(0.0, -cos(Group->Camera.Pitch * Degrees), 0.0);
+        v3 ZAxis = V3(-sin(Group->Camera.Angle * Degrees), sin(Group->Camera.Pitch * Degrees) * cos(Group->Camera.Angle * Degrees), 0.0);
+        v3 AxisOrigin = V3(Group->Width - 0.08 * (double)Group->Height - 10.0, 0.1 * (double)Group->Height, 0);
+        PushDebugVector(Group, XAxis, AxisOrigin, Screen_Coordinates, Red);
+        PushDebugVector(Group, YAxis, AxisOrigin, Screen_Coordinates, Green);
+        PushDebugVector(Group, ZAxis, AxisOrigin, Screen_Coordinates, Blue);
     }
 
-    PushRenderTarget(Group, Background, &Assets->FramebufferShader, 500);
-    PushRenderTarget(Group, World, &Assets->FramebufferShader, 500);
-    //PushShaderPass(Group, &Assets->EdgeDetectionShader, Postprocessing_World, 501);
-    PushRenderTarget(Group, Screen, &Assets->FramebufferShader, 500);
-    PushRenderTarget(Group, Outline, &Assets->FramebufferShader, 500);
-    PushRenderTarget(Group, Postprocessing_Background, &Assets->FramebufferShader, 1020);
-    PushRenderTarget(Group, Postprocessing_Outline, &Assets->FramebufferShader, 1021);
-    PushRenderTarget(Group, Postprocessing_World, &Assets->FramebufferShader, 1022);
-    PushRenderTarget(Group, Postprocessing_Screen, &Assets->FramebufferShader, 1023);
+    PushRenderTarget(Group, World, &Assets->FramebufferShader, 100);
+    PushRenderTarget(Group, Output, &Assets->FramebufferShader, 1022);
 }
