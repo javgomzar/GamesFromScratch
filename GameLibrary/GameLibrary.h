@@ -83,7 +83,7 @@ static color Blue = { 1.0, 0.0, 0.0, 1.0 };
 static color Magenta = { 1.0, 1.0, 0.0, 1.0 };
 static color Yellow = { 1.0, 1.0, 1.0, 0.0 };
 static color Cyan = { 1.0, 0.0, 1.0, 1.0 };
-static color Orange = { 1.0, 1.0, 0.63, 0.0 };
+static color Orange = { 1.0, 1.0, 0.5, 0.0 };
 static color BackgroundBlue = { 1.0, 0.4, 0.4, 0.8 };
 
 uint32 GetColorBytes(color Color) {
