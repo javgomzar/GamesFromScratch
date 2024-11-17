@@ -443,7 +443,7 @@ void OpenGLRectangle(game_rect Rect, color Color)
 // Render a textured rectangle in OpenGL given a rectangle, scaling the texture as needed to fit the rectangle.
 // It is assumed that the texture has alredy been loaded.
 void OpenGLTexturedRect(
-	game_rect Rect, color Color = White, double Z = 0.0,
+	game_rect Rect, color Color = White,
 	double MinTexX = 0.0, double MaxTexX = 1.0,
 	double MinTexY = 0.0, double MaxTexY = 1.0
 ) {
@@ -458,68 +458,29 @@ void OpenGLTexturedRect(
 
 	// Lower triangle
 	glTexCoord2d(MinTexX, MinTexY);
-	glVertex3d(C.X, C.Y, Z);
+	glVertex2d(C.X, C.Y);
 
 	glTexCoord2d(MaxTexX, MinTexY);
-	glVertex3d(D.X, D.Y, Z);
+	glVertex2d(D.X, D.Y);
 
 	glTexCoord2d(MaxTexX, MaxTexY);
-	glVertex3d(B.X, B.Y, Z);
+	glVertex2d(B.X, B.Y);
 
 	// Upper triangle
 	glTexCoord2d(MinTexX, MinTexY);
-	glVertex3d(C.X, C.Y, Z);
+	glVertex2d(C.X, C.Y);
 
 	glTexCoord2d(MaxTexX, MaxTexY);
-	glVertex3d(B.X, B.Y, Z);
+	glVertex2d(B.X, B.Y);
 
 	glTexCoord2d(MinTexX, MaxTexY);
-	glVertex3d(A.X, A.Y, Z);
+	glVertex2d(A.X, A.Y);
 
 	glEnd();
 	glDisable(GL_TEXTURE_2D);
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 
 	return;
-}
-
-void OpenGLRenderText(uint32 DisplayWidth, v3 Position, character* Characters, color Color, int Points, string String, basis Basis, bool Wrapped = false)
-{
-	double PenX = Position.X;
-	double PenY = Position.Y;
-
-	double Scale = (double)Points / 20.0;
-
-	double LineJump = 0.023 * (double)Characters[1].Height * Scale; // 0.023 because height is in 64ths of pixel
-
-	for (int i = 0; i < String.Length; i++) {
-		char c = String.Content[i];
-		// Carriage returns
-		if (c == '\n') {
-			PenY += LineJump;
-			PenX = Position.X;
-		}
-		else if (' ' <= c && c <= '~') {
-			character* pCharacter = Characters + (c - ' ');
-			double HorizontalAdvance = pCharacter->Advance * Scale;
-			if (Wrapped && (PenX + HorizontalAdvance > DisplayWidth)) {
-				PenX = Position.X;
-				PenY += LineJump;
-			}
-			if (c != ' ') {
-				OpenGLBindTexture(pCharacter->Bitmap, Clamp);
-				game_rect Rect;
-				Rect.Left = PenX + pCharacter->Left * Scale;
-				Rect.Top = floor(PenY - pCharacter->Top * Scale);
-				Rect.Width = (double)pCharacter->Bitmap->Header.Width * Scale;
-				Rect.Height = (double)pCharacter->Bitmap->Header.Height * Scale;
-				OpenGLTexturedRect(Rect, Color, Position.Z);
-			}
-
-			PenX += pCharacter->Advance * Scale;
-		}
-	}
-	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 // Shaders
@@ -642,22 +603,24 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	glEnable(GL_BLEND);
-	//glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
-	//glEnable(GL_SAMPLE_ALPHA_TO_ONE);
-	glEnable(GL_MULTISAMPLE);
+	glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+	glEnable(GL_SAMPLE_ALPHA_TO_ONE);
+	//glEnable(GL_MULTISAMPLE);
 
-	glShadeModel(GL_FLAT);
+	//glShadeModel(GL_FLAT);
 
-	// Initial clear
+	// Initial clears
 	glBindFramebuffer(GL_FRAMEBUFFER, OpenGL.PingPongTarget.Framebuffer);
 	glClearColor(1, 0, 0, 1);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glClearColor(1, 1, 1, 1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	sort_entry* Entries = (sort_entry*)Group->SortedBufferBase;
 
-	glBindBuffer(GL_FRAMEBUFFER, 0);
-	glClearColor(1.0, 1.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	render_group_entry_type DebugTypes[MAX_RENDER_ENTRIES] = {};
 
 	// Render entries
 	uint32 EntryCount = Group->PushBufferElementCount;
@@ -668,6 +631,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 		uint32 TargetFramebufferIndex = GetTargetIndex(Header->Target);
 		glBindFramebuffer(GL_FRAMEBUFFER, OpenGL.Targets[TargetFramebufferIndex].Framebuffer);
 
+		DebugTypes[EntryIndex] = Header->Type;
+
 		switch (Header->Type) {
 			case group_type_render_entry_clear:
 			{
@@ -675,17 +640,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, Entry.Color.Alpha);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-				if (Group->Debug) {
-					if (Header->Target == World) {
-						// Debug lattice
-						color LatticeColor = Color(1.0, 1.0, 1.0, 0.2);
-						for (int i = 0; i < 100; i++) {
-							OpenGLRenderLine(V3(50 - i, 0, -50), V3(50 - i, 0, 50), LatticeColor);
-							OpenGLRenderLine(V3(-50, 0, 50 - i), V3(50, 0, 50 - i), LatticeColor);
-						}
-					}
-				}
 			} break;
 
 			case group_type_render_entry_triangle:
@@ -695,53 +649,19 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				SetCoordinates(Entry.Coordinates, Group->Camera, Width, Height);
 
 				OpenGLTriangle(Entry.Triangle, Entry.Color);
+
+				SetIdentityProjection();
 			} break;
 
 			case group_type_render_entry_rect:
 			{
 				render_entry_rect Entry = *(render_entry_rect*)Header;
 
-				SetCoordinates(Entry.Coordinates, Group->Camera, Width, Height);
-
-				OpenGLRectangle(Entry.Rect, Entry.Color);
-			} break;
-
-			case group_type_render_entry_text:
-			{
-				render_entry_text Entry = *(render_entry_text*)Header;
-				
 				SetCoordinates(Screen_Coordinates, Group->Camera, Width, Height);
 
-				OpenGLRenderText(Width, Entry.Position, Entry.Characters, Entry.Color, Entry.Points, Entry.String, Group->DefaultBasis, Entry.Wrapped);
-			} break;
+				OpenGLRectangle(Entry.Rect, Entry.Color);
 
-			case group_type_render_entry_button:
-			{
-				render_entry_button Entry = *(render_entry_button*)Header;
-				button* Button = Entry.Button;
-				character* Characters = Entry.Characters;
-
-				loaded_bmp* Texture = Button->Clicked ? &Button->ClickedImage : &Button->Image;
-				game_rect Rect;
-				Rect.Left = Button->Collider.Left;
-				Rect.Top = Button->Collider.Top;
-				Rect.Width = Texture->Header.Width;
-				Rect.Height = Texture->Header.Height;
-				OpenGLBindTexture(Texture);
-				OpenGLTexturedRect(Rect);
-				int TextWidth = 0;
-				int TextHeight = (int)(0.023f * Characters[1].Height);
-				for (int i = 0; i < Button->Text.Length; i++) {
-					char c = Button->Text.Content[i];
-					character* pCharacter = Entry.Characters + (c - ' ');
-					TextWidth += pCharacter->Advance >> 6;
-				}
-				OpenGLRenderText(Width,
-					{
-						Button->Collider.Left + (Button->Image.Header.Width - TextWidth) / 2,
-						Button->Collider.Top + Button->Image.Header.Height / 2 + TextHeight / 4,
-						0
-					}, Entry.Characters, White, 10, Entry.Button->Text, Group->DefaultBasis);
+				SetIdentityProjection();
 			} break;
 
 			case group_type_render_entry_line:
@@ -751,16 +671,20 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				SetCoordinates(Entry.Coordinates, Group->Camera, Width, Height);
 
 				OpenGLRenderLine(Entry.Start, Entry.Finish, Entry.Color, Entry.Thickness);
+
+				SetIdentityProjection();
 			} break;
 
 			case group_type_render_entry_textured_rect:
 			{
 				render_entry_textured_rect Entry = *(render_entry_textured_rect*)Header;
 
-				SetCoordinates(Entry.Coordinates, Group->Camera, Width, Height);
+				SetCoordinates(Screen_Coordinates, Group->Camera, Width, Height);
 
 				OpenGLBindTexture(Entry.Texture, Entry.Mode);
-				OpenGLTexturedRect(Entry.Rect, Entry.Color, Entry.Header.Key.Z, Entry.MinTexX, Entry.MaxTexX, Entry.MinTexY, Entry.MaxTexY);
+				OpenGLTexturedRect(Entry.Rect, Entry.Color, Entry.MinTexX, Entry.MaxTexX, Entry.MinTexY, Entry.MaxTexY);
+
+				SetIdentityProjection();
 			} break;
 
 			case group_type_render_entry_mesh:
@@ -852,6 +776,23 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				glBindVertexArray(0);
 
 				glBindTexture(GL_TEXTURE_2D, 0);
+
+				SetIdentityProjection();
+			} break;
+
+			case group_type_render_entry_debug_grid:
+			{
+				render_entry_debug_grid Entry = *(render_entry_debug_grid*)Header;
+
+				if (Group->Debug) {
+					SetCoordinates(World_Coordinates, Group->Camera, Width, Height);
+					// Debug lattice
+					color LatticeColor = Color(0.52, 0.52, 0.84, Entry.Alpha);
+					for (int i = 0; i < 100; i++) {
+						OpenGLRenderLine(V3(50 - i, 0, -50), V3(50 - i, 0, 50), LatticeColor);
+						OpenGLRenderLine(V3(-50, 0, 50 - i), V3(50, 0, 50 - i), LatticeColor);
+					}
+				}
 			} break;
 
 			case group_type_render_entry_shader_pass: {
@@ -975,8 +916,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				GLint Error = 0;
 				Error = glGetError();
 
-				render_target Source = OpenGL.Targets[Entry.SourceIndex];
-				uint32 TargetFramebuffer = Entry.TargetIndex >= 0 ? OpenGL.Targets[Entry.TargetIndex].Framebuffer : 0;
+				render_target Source = OpenGL.Targets[GetTargetIndex(Entry.Header.Target)];
+				uint32 TargetFramebuffer = Entry.Header.Target == Output ? 0 : OpenGL.Targets[GetTargetIndex(Entry.Target)].Framebuffer;
 				if (Source.Multisampling) {
 					glBindFramebuffer(GL_READ_FRAMEBUFFER, Source.Framebuffer);
 					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, TargetFramebuffer);
@@ -1014,7 +955,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 	}
 
 	SetIdentityProjection();
-	glBindBuffer(GL_FRAMEBUFFER, 0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 }

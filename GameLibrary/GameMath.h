@@ -287,6 +287,10 @@ inline scale Scale(double X = 1.0, double Y = 1.0, double Z = 1.0) {
 	return { X, Y, Z };
 };
 
+inline scale operator*(double C, scale S) {
+	return { C * S.X, C * S.Y, C * S.Z };
+}
+
 inline scale operator*(scale S, scale T) {
 	return Scale(S.X * T.X, S.Y * T.Y, S.Z * T.Z);
 }

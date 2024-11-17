@@ -103,12 +103,7 @@ void Update(camera* Camera, game_input* Input) {
         v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
         double AngularVelocity = 0.5;
 
-        if (cos(Camera->Pitch * Degrees) > 0) {
-            Camera->Angle -= AngularVelocity * Offset.X;
-        }
-        else {
-            Camera->Angle += AngularVelocity * Offset.X;
-        }
+        Camera->Angle -= AngularVelocity * Offset.X;
         Camera->Pitch += AngularVelocity * Offset.Y;
     }
 
@@ -213,8 +208,10 @@ extern "C" GAME_UPDATE(GameUpdate)
     //    DrawRectangle(ScreenBuffer, Rect, White);
     //}
 
-    // Camera
+    // Updates
     Update(Camera, Input);
+
+    Update(&pGameState->UserInterface, Input, Group->Width, Group->Height);
     
     // Render
     light Light = { 0 };
@@ -235,7 +232,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     // Enemy collider
     cube_collider EnemyCollider = { 0 };
     EnemyCollider.Center = EnemyPosition;
-    EnemyCollider.Size = V3(2.0, 2.0, 2.0);
+    EnemyCollider.Size = Scale(2.0, 2.0, 2.0);
 
     color ColliderColor = White;
 
@@ -253,8 +250,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     //    Platform.OpenGLRender(Group, &Target);
     //}
 
-    Update(&pGameState->UserInterface, Input, Group->Width, Group->Height);
     // PushUI(Group, &pGameState->UserInterface);
+
+    PushTexturedRect(Group, &Assets->TestImage2, { 100, 100, 1000, 1000 }, Clamp, White, SORT_ORDER_DEBUG_OVERLAY);
 
     // Debug info
     static double Alpha = 0.0;
@@ -274,26 +272,28 @@ extern "C" GAME_UPDATE(GameUpdate)
             Alpha = 1.0;
         }
 
+        PushDebugGrid(Group, Alpha);
+
         game_rect DebugInfoRect = { 0, 0, 350, 270 };
 
-        PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), 0);
+        PushRect(Group, DebugInfoRect, Color(DarkGray, 0.6*Alpha), SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
-        PushText(Group, { 0, 30, 0.5 }, Assets->Characters, Color(White, Alpha), 12, Memory->DebugInfo, false);
+        PushText(Group, V2(0, 30.0), Assets->Characters, Memory->DebugInfo, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
 
         // Render Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->RenderArena, V3(20.0, 120.0, 0.5), Alpha);
+        PushDebugArena(Group, pGameState->RenderArena, V2(20.0, 120.0), Alpha);
 
         // Strings Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->StringsArena, V3(20.0, 150.0, 0.5), Alpha);
+        PushDebugArena(Group, pGameState->StringsArena, V2(20.0, 150.0), Alpha);
 
         // Fonts Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->FontsArena, V3(20.0, 180.0, 0.5), Alpha);
+        PushDebugArena(Group, pGameState->FontsArena, V2(20.0, 180.0), Alpha);
 
         // Mesh Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->MeshArena, V3(20.0, 210.0, 0.5), Alpha);
+        PushDebugArena(Group, pGameState->MeshArena, V2(20.0, 210.0), Alpha);
 
         // Video Arena
-        PushDebugArena(Group, Assets->Characters, pGameState->VideoArena, V3(20.0, 240.0, 0.5), Alpha);
+        PushDebugArena(Group, pGameState->VideoArena, V2(20.0, 240.0), Alpha);
 
         // Axes
         v3 XAxis = V3(cos(Group->Camera.Angle * Degrees), sin(Group->Camera.Angle * Degrees) * sin(Group->Camera.Pitch * Degrees), 0.0);
@@ -305,6 +305,6 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugVector(Group, ZAxis, AxisOrigin, Screen_Coordinates, Blue);
     }
 
-    PushRenderTarget(Group, World, &Assets->FramebufferShader, 100);
-    PushRenderTarget(Group, Output, &Assets->FramebufferShader, 1022);
+    PushRenderTarget(Group, World, &Assets->FramebufferShader, SORT_ORDER_PUSH_RENDER_TARGETS);
+    PushRenderTarget(Group, Output, &Assets->FramebufferShader, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
 }

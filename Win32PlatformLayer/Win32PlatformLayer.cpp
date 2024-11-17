@@ -77,69 +77,6 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 WNDDIMENSION    GetWindowDimension(HWND Window);
 
-const log_mode LOG_MODE = Terminal;
-
-void Log(log_level Level, const char* Content) {
-
-    // Level
-    char LevelString[9];
-    int LevelStringLength = 0;
-    switch (Level) {
-        case Info:
-        {
-            strcpy_s(LevelString, "[INFO] ");
-            LevelStringLength = 7;
-        } break;
-        case Warn:
-        {
-            strcpy_s(LevelString, "[WARN] ");
-            LevelStringLength = 7;
-        } break;
-        case Error:
-        {
-            strcpy_s(LevelString, "[ERROR] ");
-            LevelStringLength = 8;
-        } break;
-    }
-    LevelString[LevelStringLength] = 0;
-
-    // Timestamp
-    time_t t = time(NULL);
-    struct tm tm;
-    localtime_s(&tm, &t);
-    char Date[21];
-    sprintf_s(Date, "%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-
-    // Logging
-    switch (LOG_MODE) {
-        case File:
-        {
-            HANDLE FileHandle = CreateFileA("log.log", FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
-            if (FileHandle != INVALID_HANDLE_VALUE) {
-                DWORD BytesWritten = 0;
-                WriteFile(FileHandle, Date, 20, &BytesWritten, 0);
-                WriteFile(FileHandle, LevelString, LevelStringLength, &BytesWritten, 0);
-                int i = 0;
-                while (*(Content + i) != 0) {
-                    i++;
-                }
-                WriteFile(FileHandle, Content, i, &BytesWritten, 0);
-            }
-            else {
-                Assert(false);
-            }
-
-            CloseHandle(FileHandle);
-        } break;
-        case Terminal:
-        {
-            OutputDebugStringA(Date);
-            OutputDebugStringA(LevelString);
-            OutputDebugStringA(Content);
-        } break;
-    }
-}
-
 
 // Platform
 platform_api Platform;
