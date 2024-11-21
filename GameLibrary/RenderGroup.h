@@ -243,6 +243,7 @@ struct render_group {
     uint8* SortedBufferBase;
     camera Camera;
     bool Debug;
+    bool PushOutline;
 };
 
 render_group* AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, memory_index MaxPushBufferSize) {
@@ -497,44 +498,6 @@ void PushButton(render_group* Group, character* Characters, button* Button, doub
     // TODO: Push bitmap and text
 }
 
-void PushMesh(
-    render_group* Group,
-    mesh* Mesh,
-    transform Transform,
-    light Light,
-    shader* Shader,
-    color Color = White,
-    double Order = SORT_ORDER_MESHES,
-    bool Outlined = false
-) {
-    render_entry_mesh* Entry = PushRenderElement(Group, render_entry_mesh);
-
-    if (Outlined) {
-        Order = SORT_ORDER_OUTLINED_MESHES;
-
-        render_entry_mesh* OutlineEntry = PushRenderElement(Group, render_entry_mesh);
-        OutlineEntry->Header.Key.Order = Order;
-        OutlineEntry->Header.Target = Outline;
-
-        OutlineEntry->Transform = Transform;
-        OutlineEntry->Mesh = Mesh;
-        OutlineEntry->Light = Light;
-        OutlineEntry->Shader = &Group->Assets->SingleColorShader;
-        OutlineEntry->Color = White;
-    }
-
-    Entry->Header.Key.Order = Order;
-    Entry->Header.Target = World;
-
-    Entry->Transform = Transform;
-    Entry->Mesh = Mesh;
-    Entry->Light = Light;
-    Entry->Shader = Shader;
-    Entry->Color = Color;
-
-
-}
-
 void PushRectOutline(
     render_group* Group, 
     game_rect Rect, 
@@ -737,10 +700,9 @@ void PushMeshOutline(
     float Width,
     color Color,
     int Passes,
-    int StartingLevel,
-    double Time
+    int StartingLevel
 ) {
-    PushRenderTarget(Group, Outline, &Group->Assets->FramebufferShader, SORT_ORDER_SHADER_PASSES - 10);
+    PushRenderTarget(Group, Outline, &Group->Assets->AntialiasingShader, SORT_ORDER_SHADER_PASSES - 10);
     PushShaderPass(Group, &Group->Assets->OutlineInitShader, Postprocessing_Outline, White, SORT_ORDER_SHADER_PASSES);
 
     render_entry_mesh_outline* Entry = PushRenderElement(Group, render_entry_mesh_outline);
@@ -753,10 +715,53 @@ void PushMeshOutline(
     Entry->Width = Width;
     Entry->StartingLevel = StartingLevel;
 
-    PushShaderPass(Group, &Group->Assets->OutlineShader, Postprocessing_Outline, Color, Width, Time, SORT_ORDER_SHADER_PASSES + 20.0);
+    PushShaderPass(Group, &Group->Assets->OutlineShader, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
 
     PushRenderTarget(Group, Postprocessing_Outline, &Group->Assets->FramebufferShader, SORT_ORDER_PUSH_RENDER_TARGETS - 10.0);
 }
+
+void PushMesh(
+    render_group* Group,
+    mesh* Mesh,
+    transform Transform,
+    light Light,
+    shader* Shader,
+    color Color = White,
+    double Order = SORT_ORDER_MESHES,
+    bool Outlined = false
+) {
+    render_entry_mesh* Entry = PushRenderElement(Group, render_entry_mesh);
+
+    if (Outlined) {
+        Order = SORT_ORDER_OUTLINED_MESHES;
+
+        render_entry_mesh* OutlineEntry = PushRenderElement(Group, render_entry_mesh);
+        OutlineEntry->Header.Key.Order = Order;
+        OutlineEntry->Header.Target = Outline;
+
+        OutlineEntry->Transform = Transform;
+        OutlineEntry->Mesh = Mesh;
+        OutlineEntry->Light = Light;
+        OutlineEntry->Shader = &Group->Assets->SingleColorShader;
+        OutlineEntry->Color = White;
+
+        if (!Group->PushOutline) {
+            int Passes = 11;
+            PushMeshOutline(Group, 5.0, Color, Passes + 1, (1 << Passes));
+            Group->PushOutline = true;
+        }
+    }
+
+    Entry->Header.Key.Order = Order;
+    Entry->Header.Target = World;
+
+    Entry->Transform = Transform;
+    Entry->Mesh = Mesh;
+    Entry->Light = Light;
+    Entry->Shader = Shader;
+    Entry->Color = Color;
+}
+
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Debug                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -776,25 +781,44 @@ void PushDebugVector(render_group* Group, v3 Vector, v3 Position, coordinate_sys
     double Width = Group->Width;
     double Height = Group->Height;
 
-    // Debug axis
-    PushLine(Group, Position, Position + Vector, Color, 0.0025 * Height, Coordinates, SORT_ORDER_DEBUG_OVERLAY);
-
     double Length = module(Vector);
-    v2 CameraCoordinates = perp(V2(dot(Vector, Group->Camera.Basis.X), dot(Vector, Group->Camera.Basis.Y)));
-    v3 Orthogonal = normalize(CameraCoordinates.X * Group->Camera.Basis.X + CameraCoordinates.Y * Group->Camera.Basis.Y);
+    double Order = 0.0;
+    v3 Orthogonal = V3(0, 0, 0);
+    double OrthogonalLength = 0.0;
+
+    switch (Coordinates) {
+        case World_Coordinates: {
+            Order = SORT_ORDER_MESHES;
+            v2 CameraCoordinates = perp(V2(dot(Vector, Group->Camera.Basis.X), dot(Vector, Group->Camera.Basis.Y)));
+            Orthogonal = normalize(CameraCoordinates.X * Group->Camera.Basis.X + CameraCoordinates.Y * Group->Camera.Basis.Y);
+            OrthogonalLength = (Length / 15.0);
+        } break;
+
+        case Screen_Coordinates: {
+            Order = SORT_ORDER_DEBUG_OVERLAY;
+            v2 OrthogonalPlane = perp(normalize(V2(Vector.X, Vector.Y)));
+            Orthogonal = V3(OrthogonalPlane.X, OrthogonalPlane.Y, 0);
+            OrthogonalLength = (0.005333 * Height);
+        } break;
+
+        default: {
+            Assert(false);
+        }
+    }
+
+    PushLine(Group, Position, Position + 0.875 * Vector, Color, 0.0025 * Height, Coordinates, Order);
     game_triangle Triangle = {
-        Position + Vector,
-        Position + 0.875 * Vector,
-        Position + 0.8 * Vector - (Length / 15.0) * Orthogonal,
+    Position + Vector,
+    Position + 0.875 * Vector,
+    Position + 0.8 * Vector - OrthogonalLength * Orthogonal,
     };
-    PushTriangle(Group, Triangle, Color, Coordinates, SORT_ORDER_DEBUG_OVERLAY);
+    PushTriangle(Group, Triangle, Color, Coordinates, Order);
     Triangle = {
         Position + Vector,
         Position + 0.875 * Vector,
-        Position + 0.8 * Vector + (Length / 15.0) * Orthogonal, 
+        Position + 0.8 * Vector + OrthogonalLength * Orthogonal,
     };
-    PushTriangle(Group, Triangle, Color, Coordinates, SORT_ORDER_DEBUG_OVERLAY);
-    //PushLine(Group, Position, Position + Vector, White, 1.0, Coordinates);
+    PushTriangle(Group, Triangle, Color, Coordinates, Order);
 }
 
 void PushDebugNormals(render_group* Group, mesh Mesh, transform Transform) {

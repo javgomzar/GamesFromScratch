@@ -614,7 +614,7 @@ void OpenGLSetUniform(int ProgramID, const char* Name, v2 Vector) {
 
 void OpenGLSetUniform(int ProgramID, const char* Name, color Color) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
-	if (Location >= 0) glUniform4d(Location, Color.R, Color.G, Color.B, 4.0 * Color.Alpha);
+	if (Location >= 0) glUniform4f(Location, Color.R, Color.G, Color.B, Color.Alpha);
 }
 
 void OpenGLSetUniform(int ProgramID, float* Projection, float* View, float* Model) {
@@ -981,10 +981,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				if (Source.Multisampling) {
 					render_target Target = OpenGL.Targets[GetTargetIndex(Entry.Target)];
 
-					glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Source.Texture);
-					glActiveTexture(GL_TEXTURE1);
-					glBindTexture(GL_TEXTURE_2D, Target.Texture);
 					OpenGLSetUniform(Shader->ProgramID, "u_samples", Source.Samples);
 				}
 				else {
@@ -998,7 +995,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				glBindVertexArray(0);
 				glBindTexture(GL_TEXTURE_2D, 0);
 				glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-				glActiveTexture(GL_TEXTURE0);
 			} break;
 
 			default:
@@ -1020,4 +1016,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+
+	Group->PushOutline = false;
 }

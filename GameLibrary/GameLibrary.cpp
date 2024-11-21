@@ -190,7 +190,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     PushClear(Group, { 0 }, World);
     PushClear(Group, { 0 }, Outline);
-    PushClear(Group, Magenta, Postprocessing_Outline);
+    PushClear(Group, { 0 }, Postprocessing_Outline);
     PushClear(Group, Color(BackgroundBlue, 1.0), Output);
 
 // Controls
@@ -222,11 +222,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     LightSource.Color = White;
     v3 EnemyPosition = V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0);
     transform Transform2 = Transform(Quaternion(pGameState->Time, V3(0.0, 1.0, 0.0)), EnemyPosition, Scale(1.0, 1.0, 1.0));
-    //transform Transform2 = Transform(Quaternion(1.0), V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0));
-    PushMesh(Group, &Assets->TestMesh2, Transform2, LightSource, &Assets->TextureShader, Black, SORT_ORDER_MESHES, true);
-    //PushMeshOutline(Group, Group->Width / 100.0, Black, 12, (1 << 11), pGameState->Time);
-    //PushMeshOutline(Group, 100 * pGameState->UserInterface.Slider1.Value, Black, 12, (1 << 11), pGameState->Time);
-
+    PushMesh(Group, &Assets->TestMesh2, Transform2, LightSource, &Assets->TextureShader, Color(White, pGameState->UserInterface.Slider1.Value), SORT_ORDER_MESHES, true);
+    
     // Enemy collider
     cube_collider EnemyCollider = { 0 };
     EnemyCollider.Center = EnemyPosition;
@@ -297,6 +294,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Screen_Coordinates, Red);
         PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Screen_Coordinates, Green);
         PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Screen_Coordinates, Blue);
+
+        PushDebugNormals(Group, Assets->TestMesh2, Transform2);
     }
 
     PushRenderTarget(Group, World, &Assets->AntialiasingShader, SORT_ORDER_PUSH_RENDER_TARGETS);
