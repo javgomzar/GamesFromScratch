@@ -63,14 +63,14 @@ void CreateFramebufferMultisampling(
 	uint32 Framebuffer,
 	uint32 FramebufferTexture,
 	bool DepthAttachment = false,
-	uint32* Renderbuffer = 0
+	uint32* DepthRenderbuffer = 0
 ) {
 	GLenum Error = 0;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer);
 	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, FramebufferTexture);
 
-	glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GL_RGBA8, Width, Height, GL_TRUE);
+	glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GL_RGBA32F, Width, Height, GL_TRUE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, FramebufferTexture, 0);
 
 	GLenum Status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
@@ -79,13 +79,13 @@ void CreateFramebufferMultisampling(
 	}
 
 	if (DepthAttachment) {
-		glGenRenderbuffers(1, Renderbuffer);
-		glBindRenderbuffer(GL_RENDERBUFFER, *Renderbuffer);
+		glGenRenderbuffers(1, DepthRenderbuffer);
+		glBindRenderbuffer(GL_RENDERBUFFER, *DepthRenderbuffer);
 		glRenderbufferStorageMultisample(GL_RENDERBUFFER, Samples, GL_DEPTH24_STENCIL8, Width, Height);
 
 		glBindRenderbuffer(GL_RENDERBUFFER, 0);
 
-		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, *Renderbuffer);
+		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, *DepthRenderbuffer);
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
 			Assert(false);
@@ -449,7 +449,7 @@ void OpenGLTexturedRect(
 ) {
 	v3 A = V3(Rect.Left, Rect.Top, 0);
 	v3 B = A + Rect.Width * V3(1.0, 0.0, 0.0);
-	v3 C = A + Rect.Height * V3(1.0, 0.0, 0.0);
+	v3 C = A + Rect.Height * V3(0, 1.0, 0.0);
 	v3 D = A + V3(Rect.Width, Rect.Height, 0.0);
 
 	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
@@ -481,6 +481,43 @@ void OpenGLTexturedRect(
 	glColor4d(1.0, 1.0, 1.0, 1.0);
 
 	return;
+}
+
+void OpenGLRenderText(character* Characters, int DisplayWidth, v2 Position, string String, color Color, int Points, bool Wrapped) {
+	double PenX = Position.X;
+	double PenY = Position.Y;
+
+	double Scale = (double)Points / 20.0;
+
+	double LineJump = 0.023 * (double)Characters[1].Height * Scale; // 0.023 because height is in 64ths of pixel
+
+	for (int i = 0; i < String.Length; i++) {
+		char c = String.Content[i];
+		// Carriage returns
+		if (c == '\n') {
+			PenY += LineJump;
+			PenX = Position.X;
+		}
+		else if (' ' <= c && c <= '~') {
+			character* pCharacter = Characters + (c - ' ');
+			double HorizontalAdvance = pCharacter->Advance * Scale;
+			if (Wrapped && (PenX + HorizontalAdvance > DisplayWidth)) {
+				PenX = Position.X;
+				PenY += LineJump;
+			}
+			if (c != ' ') {
+				game_rect Rect;
+				Rect.Left = PenX + pCharacter->Left * Scale;
+				Rect.Top = floor(PenY - pCharacter->Top * Scale);
+				Rect.Width = (double)pCharacter->Bitmap->Header.Width * Scale;
+				Rect.Height = (double)pCharacter->Bitmap->Header.Height * Scale;
+				OpenGLBindTexture(pCharacter->Bitmap, Clamp);
+				OpenGLTexturedRect(Rect, Color);
+			}
+
+			PenX += pCharacter->Advance * Scale;
+		}
+	}
 }
 
 // Shaders
@@ -577,7 +614,7 @@ void OpenGLSetUniform(int ProgramID, const char* Name, v2 Vector) {
 
 void OpenGLSetUniform(int ProgramID, const char* Name, color Color) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
-	if (Location >= 0) glUniform4f(Location, Color.R, Color.G, Color.B, Color.Alpha);
+	if (Location >= 0) glUniform4d(Location, Color.R, Color.G, Color.B, 4.0 * Color.Alpha);
 }
 
 void OpenGLSetUniform(int ProgramID, float* Projection, float* View, float* Model) {
@@ -601,21 +638,21 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 	glMatrixMode(GL_TEXTURE);
 	glLoadIdentity();
 
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 	glEnable(GL_BLEND);
-	glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
-	glEnable(GL_SAMPLE_ALPHA_TO_ONE);
-	//glEnable(GL_MULTISAMPLE);
+	//glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+	//glEnable(GL_SAMPLE_ALPHA_TO_ONE);
+	glEnable(GL_MULTISAMPLE);
 
 	//glShadeModel(GL_FLAT);
 
 	// Initial clears
 	glBindFramebuffer(GL_FRAMEBUFFER, OpenGL.PingPongTarget.Framebuffer);
-	glClearColor(1, 0, 0, 1);
+	glClearColor(1.0, 1.0, 1.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glClearColor(1, 1, 1, 1);
+	glClearColor(1.0, 1.0, 1.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	sort_entry* Entries = (sort_entry*)Group->SortedBufferBase;
@@ -638,8 +675,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 			{
 				render_entry_clear Entry = *(render_entry_clear*)Header;
 
-				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, Entry.Color.Alpha);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 4.0 * Entry.Color.Alpha);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			} break;
 
 			case group_type_render_entry_triangle:
@@ -687,6 +724,19 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				SetIdentityProjection();
 			} break;
 
+			case group_type_render_entry_text:
+			{
+				render_entry_text Entry = *(render_entry_text*)Header;
+
+				SetCoordinates(Screen_Coordinates, Group->Camera, Width, Height);
+
+				OpenGLRenderText(Entry.Characters, Group->Width, Entry.Position, Entry.String, Entry.Color, Entry.Points, Entry.Wrapped);
+
+				SetIdentityProjection();
+
+				glBindTexture(GL_TEXTURE_2D, 0);
+			} break;
+
 			case group_type_render_entry_mesh:
 			{
 				//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -727,8 +777,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 					// Light
 				OpenGLSetUniform(Shader->ProgramID, "light_direction", Light.Direction);
 				OpenGLSetUniform(Shader->ProgramID, "light_color", V3(Light.Color.R, Light.Color.G, Light.Color.B));
-				OpenGLSetUniform(Shader->ProgramID, "light_ambient", 0.5f);
-				OpenGLSetUniform(Shader->ProgramID, "light_diffuse", 0.5f);
+				OpenGLSetUniform(Shader->ProgramID, "light_ambient", (float)Light.Ambient);
+				OpenGLSetUniform(Shader->ProgramID, "light_diffuse", (float)Light.Diffuse);
 
 					// Color
 				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
@@ -784,14 +834,16 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 			{
 				render_entry_debug_grid Entry = *(render_entry_debug_grid*)Header;
 
-				if (Group->Debug) {
+				if (Group->Debug) { 
 					SetCoordinates(World_Coordinates, Group->Camera, Width, Height);
+					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 					// Debug lattice
-					color LatticeColor = Color(0.52, 0.52, 0.84, Entry.Alpha);
+					color LatticeColor = Color(White, 0.6);
 					for (int i = 0; i < 100; i++) {
 						OpenGLRenderLine(V3(50 - i, 0, -50), V3(50 - i, 0, 50), LatticeColor);
 						OpenGLRenderLine(V3(-50, 0, 50 - i), V3(50, 0, 50 - i), LatticeColor);
 					}
+					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 				}
 			} break;
 
@@ -913,30 +965,40 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				shader* Shader = Entry.Shader;
 
+				if (!Shader->ProgramID) {
+					Shader->ProgramID = OpenGLLoadShader(Shader->HeaderShaderCode, Shader->VertexShaderCode, Shader->FragmentShaderCode);
+				}
+
 				GLint Error = 0;
 				Error = glGetError();
 
 				render_target Source = OpenGL.Targets[GetTargetIndex(Entry.Header.Target)];
 				uint32 TargetFramebuffer = Entry.Header.Target == Output ? 0 : OpenGL.Targets[GetTargetIndex(Entry.Target)].Framebuffer;
+
+				glUseProgram(Shader->ProgramID);
+				glBindFramebuffer(GL_FRAMEBUFFER, TargetFramebuffer);
+
 				if (Source.Multisampling) {
-					glBindFramebuffer(GL_READ_FRAMEBUFFER, Source.Framebuffer);
-					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, TargetFramebuffer);
-					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+					render_target Target = OpenGL.Targets[GetTargetIndex(Entry.Target)];
+
+					glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Source.Texture);
+					glActiveTexture(GL_TEXTURE1);
+					glBindTexture(GL_TEXTURE_2D, Target.Texture);
+					OpenGLSetUniform(Shader->ProgramID, "u_samples", Source.Samples);
 				}
 				else {
-					if (!Shader->ProgramID) {
-						Shader->ProgramID = OpenGLLoadShader(Shader->HeaderShaderCode, Shader->VertexShaderCode, Shader->FragmentShaderCode);
-					}
-
-					glUseProgram(Shader->ProgramID);
-					glBindFramebuffer(GL_FRAMEBUFFER, TargetFramebuffer);
 					glBindTexture(GL_TEXTURE_2D, Source.Texture);
-					glBindVertexArray(OpenGL.QuadVAO);
-					glDrawArrays(GL_TRIANGLES, 0, 6);
 				}
+
+				glBindVertexArray(OpenGL.QuadVAO);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
 
 				glUseProgram(0);
 				glBindVertexArray(0);
+				glBindTexture(GL_TEXTURE_2D, 0);
+				glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+				glActiveTexture(GL_TEXTURE0);
 			} break;
 
 			default:

@@ -110,6 +110,7 @@ struct game_assets {
     shader JumpFloodShader;
     shader OutlineShader;
     shader KernelShader;
+    shader AntialiasingShader;
 };
 
 void LoadAssets(

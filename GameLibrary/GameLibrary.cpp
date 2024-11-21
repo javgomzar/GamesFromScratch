@@ -188,10 +188,10 @@ extern "C" GAME_UPDATE(GameUpdate)
         Memory->IsInitialized = true;
     }
 
-    PushClear(Group, BackgroundBlue, World);
+    PushClear(Group, { 0 }, World);
     PushClear(Group, { 0 }, Outline);
     PushClear(Group, Magenta, Postprocessing_Outline);
-    PushClear(Group, White, Output);
+    PushClear(Group, Color(BackgroundBlue, 1.0), Output);
 
 // Controls
     // Put here your input code
@@ -214,20 +214,18 @@ extern "C" GAME_UPDATE(GameUpdate)
     Update(&pGameState->UserInterface, Input, Group->Width, Group->Height);
     
     // Render
-    light Light = { 0 };
-    Light.Ambient = 0.2;
-    Light.Direction = normalize(V3(-0.5, -1, 1));
+    light LightSource = Light(V3(-0.5, -1, 1), Red);
 
-    Light.Color = Red;
     transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(5.0, 0.0, 0.0));
-    PushMesh(Group, &Assets->TestMesh, Transform1, Light, &Assets->SphereShader, White, World);
+    PushMesh(Group, &Assets->TestMesh, Transform1, LightSource, &Assets->SphereShader, White, World);
 
-    Light.Color = White;
+    LightSource.Color = White;
     v3 EnemyPosition = V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0);
-    transform Transform2 = Transform(Quaternion(Tau / 4.0, V3(0.0, 1.0, 0.0)), EnemyPosition, Scale(1.0, 1.0, -1.0));
+    transform Transform2 = Transform(Quaternion(pGameState->Time, V3(0.0, 1.0, 0.0)), EnemyPosition, Scale(1.0, 1.0, 1.0));
     //transform Transform2 = Transform(Quaternion(1.0), V3(0.0, 2.0 + 0.4 * cos(3.6 * pGameState->Time), 0.0));
-    //PushMesh(Group, &Assets->TestMesh2, Transform2, Light, &Assets->SingleColorShader, White, Outline);
-    PushMesh(Group, &Assets->TestMesh2, Transform2, Light, &Assets->TextureShader, White, World);
+    PushMesh(Group, &Assets->TestMesh2, Transform2, LightSource, &Assets->TextureShader, Black, SORT_ORDER_MESHES, true);
+    //PushMeshOutline(Group, Group->Width / 100.0, Black, 12, (1 << 11), pGameState->Time);
+    //PushMeshOutline(Group, 100 * pGameState->UserInterface.Slider1.Value, Black, 12, (1 << 11), pGameState->Time);
 
     // Enemy collider
     cube_collider EnemyCollider = { 0 };
@@ -236,7 +234,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     color ColliderColor = White;
 
-    //PushMeshOutline(Group, Group->Width / 100.0, Black, 12, (1 << 11), pGameState->Time);
+    PushUI(Group, &pGameState->UserInterface);
 
     // Software renderer as a fallback
     //static bool SoftwareRenderer = false;
@@ -249,10 +247,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     //else {
     //    Platform.OpenGLRender(Group, &Target);
     //}
-
-    // PushUI(Group, &pGameState->UserInterface);
-
-    PushTexturedRect(Group, &Assets->TestImage2, { 100, 100, 1000, 1000 }, Clamp, White, SORT_ORDER_DEBUG_OVERLAY);
 
     // Debug info
     static double Alpha = 0.0;
@@ -276,7 +270,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         game_rect DebugInfoRect = { 0, 0, 350, 270 };
 
-        PushRect(Group, DebugInfoRect, Color(DarkGray, 0.6*Alpha), SORT_ORDER_DEBUG_OVERLAY);
+        PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
         PushText(Group, V2(0, 30.0), Assets->Characters, Memory->DebugInfo, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
 
@@ -300,11 +294,11 @@ extern "C" GAME_UPDATE(GameUpdate)
         v3 YAxis = V3(0.0, -cos(Group->Camera.Pitch * Degrees), 0.0);
         v3 ZAxis = V3(-sin(Group->Camera.Angle * Degrees), sin(Group->Camera.Pitch * Degrees) * cos(Group->Camera.Angle * Degrees), 0.0);
         v3 AxisOrigin = V3(Group->Width - 0.08 * (double)Group->Height - 10.0, 0.1 * (double)Group->Height, 0);
-        PushDebugVector(Group, XAxis, AxisOrigin, Screen_Coordinates, Red);
-        PushDebugVector(Group, YAxis, AxisOrigin, Screen_Coordinates, Green);
-        PushDebugVector(Group, ZAxis, AxisOrigin, Screen_Coordinates, Blue);
+        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Screen_Coordinates, Red);
+        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Screen_Coordinates, Green);
+        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Screen_Coordinates, Blue);
     }
 
-    PushRenderTarget(Group, World, &Assets->FramebufferShader, SORT_ORDER_PUSH_RENDER_TARGETS);
+    PushRenderTarget(Group, World, &Assets->AntialiasingShader, SORT_ORDER_PUSH_RENDER_TARGETS);
     PushRenderTarget(Group, Output, &Assets->FramebufferShader, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
 }

@@ -302,7 +302,7 @@ void LoadAssets(
 
 // Bitmaps
     Assets->TestImage = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Assets/Bitmaps/Enemy.bmp");
-    Assets->TestImage2 = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Assets/Bitmaps/Player.bmp");
+    Assets->TestImage2 = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Assets/Bitmaps/Background.bmp");
     Assets->EmptyTexture = LoadBMP(Platform->ReadEntireFile, "../../GameLibrary/Assets/Bitmaps/Empty.bmp");
 
 // Meshes
@@ -330,6 +330,7 @@ void LoadAssets(
     read_file_result JumpFloodShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/JumpFloodFragmentShader.frag.glsl");
     read_file_result OutlineShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/OutlineFragmentShader.frag.glsl");
     read_file_result KernelShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/KernelFragmentShader.frag.glsl");
+    read_file_result AntialiasingShaderCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/AntialiasingFragmentShader.frag.glsl");
 
     Assets->TextureShader = {
         0,
@@ -385,5 +386,12 @@ void LoadAssets(
         HeaderCode,
         FramebufferVertexCode,
         KernelShaderCode
+    };
+
+    Assets->AntialiasingShader = {
+        0,
+        HeaderCode,
+        FramebufferVertexCode,
+        AntialiasingShaderCode
     };
 }

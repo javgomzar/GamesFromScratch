@@ -158,6 +158,7 @@
     <None Include="Assets\Models\Shield.mdl" />
     <None Include="Assets\Models\Sphere.mdl" />
     <None Include="Assets\Models\Sword.mdl" />
+    <None Include="Assets\Shaders\AntialiasingFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\KernelFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\FramebufferFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\FramebufferVertexShader.vert.glsl" />
