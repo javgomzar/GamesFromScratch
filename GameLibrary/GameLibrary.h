@@ -22,11 +22,89 @@ extern GAMELIBRARY_API int nGameLibrary;
 #pragma once
 #include "GamePlatform.h"
 #include "GameMath.h"
-#include "FFMpeg.h"
 
-#include "Assets.h"
+#include "GameAssets.h"
 
-character* InitializeFonts(memory_arena* Arena);
+#include "GameSound.h"
+
+// Logging
+enum log_mode {
+    File,
+    Terminal
+};
+
+enum log_level {
+    Info,
+    Warn,
+    Error
+};
+
+struct logger {
+    log_mode Mode;
+};
+
+const log_mode LOG_MODE = Terminal;
+
+void Log(log_level Level, const char* Content) {
+
+    // Level
+    char LevelString[9];
+    int LevelStringLength = 0;
+    switch (Level) {
+        case Info:
+        {
+            strcpy_s(LevelString, "[INFO] ");
+            LevelStringLength = 7;
+        } break;
+        case Warn:
+        {
+            strcpy_s(LevelString, "[WARN] ");
+            LevelStringLength = 7;
+        } break;
+        case Error:
+        {
+            strcpy_s(LevelString, "[ERROR] ");
+            LevelStringLength = 8;
+        } break;
+    }
+    LevelString[LevelStringLength] = 0;
+
+    // Timestamp
+    time_t t = time(NULL);
+    struct tm tm;
+    localtime_s(&tm, &t);
+    char Date[21];
+    sprintf_s(Date, "%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    // Logging
+    switch (LOG_MODE) {
+        case File:
+        {
+            HANDLE FileHandle = CreateFileA("log.log", FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
+            if (FileHandle != INVALID_HANDLE_VALUE) {
+                DWORD BytesWritten = 0;
+                WriteFile(FileHandle, Date, 20, &BytesWritten, 0);
+                WriteFile(FileHandle, LevelString, LevelStringLength, &BytesWritten, 0);
+                int i = 0;
+                while (*(Content + i) != 0) {
+                    i++;
+                }
+                WriteFile(FileHandle, Content, i, &BytesWritten, 0);
+            }
+            else {
+                Assert(false);
+            }
+
+            CloseHandle(FileHandle);
+        } break;
+        case Terminal:
+        {
+            OutputDebugStringA(Date);
+            OutputDebugStringA(LevelString);
+            OutputDebugStringA(Content);
+        } break;
+    }
+}
 
 
 // Platform independent structs and types
@@ -36,12 +114,6 @@ struct game_offscreen_buffer {
     uint32 Width;
     uint32 Pitch;
     uint8 BytesPerPixel;
-};
-
-struct game_sound_buffer {
-    uint32 SamplesPerSecond;
-    uint16 BufferSize;
-    int16* SampleOut;
 };
 
 struct game_button_state {
@@ -60,6 +132,10 @@ struct color {
 
 color Color(double R, double G, double B, double Alpha = 1.0) {
     return { Alpha, R, G, B };
+}
+
+color Color(color Color, double Alpha) {
+    return { Alpha, Color.R, Color.G, Color.B };
 }
 
 color operator*(double Luminosity, color Color) {
@@ -113,14 +189,12 @@ color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) 
     return Color;
 }
 
-color Blend(color Color, color Background) {
-    color Result;
-    double Alpha = (double)(Color.Alpha) / 255.0;
-    Result.R = Background.R + (Alpha * (Color.R - Background.R) + 0.5);
-    Result.G = Background.G + (Alpha * (Color.G - Background.G) + 0.5);
-    Result.B = Background.B + (Alpha * (Color.B - Background.B) + 0.5);
-    Result.Alpha = 255.0;
-    return Result;
+color operator+(color Color1, color Color2) {
+    return Color(
+        Color1.R + Color2.R,
+        Color1.G + Color2.G,
+        Color1.B + Color2.B
+    );
 }
 
 // Joysticks values should be floats between 0 and 1
@@ -214,6 +288,7 @@ struct game_keyboard_input {
             game_button_state Escape;
             game_button_state Space;
             game_button_state Enter;
+            game_button_state Shift;
             game_button_state F1;
             game_button_state F2;
             game_button_state F3;
@@ -234,6 +309,7 @@ struct game_keyboard_input {
 
 struct game_mouse_input {
     game_button_state LeftClick;
+    game_button_state MiddleClick;
     game_button_state RightClick;
     v3 Cursor;
     v3 LastCursor;
@@ -261,11 +337,189 @@ struct record_and_playback {
     uint64 TotalSize;
 };
 
+// Camera
+struct camera {
+    basis Basis;
+    vector_plane Plane;
+    v3 Position;
+    v3 Velocity;
+    double Distance;
+    double Pitch;
+    double Angle;
+};
+
+basis GetCameraBasis(double Angle, double Pitch) {
+    v3 X = V3(
+        cos(Angle * Degrees),
+        0.0,
+        sin(Angle * Degrees)
+    );
+    v3 Y = V3(
+        -sin(Angle * Degrees) * sin(Pitch * Degrees),
+        cos(Pitch * Degrees),
+        cos(Angle * Degrees) * sin(Pitch * Degrees)
+    );
+    v3 Z = V3(
+        sin(Angle * Degrees) * cos(Pitch * Degrees),
+        sin(Pitch * Degrees),
+        -cos(Angle * Degrees) * cos(Pitch * Degrees)
+    );
+
+    return { X, Y, Z };
+}
+
+// Colliders
+struct rect_collider {
+    v3 Center;
+    double Width;
+    double Height;
+};
+
+struct cube_collider {
+    v3 Center;
+    scale Size;
+};
+
+struct sphere_collider {
+    v3 Center;
+    double Radius;
+};
+
+bool Collide(rect_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < (double)Collider.Width / 2.0 &&
+        fabs(Position.Y - Collider.Center.Y) < (double)Collider.Height / 2.0;
+}
+
+bool Collide(cube_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < Collider.Size.X / 2.0 &&
+           fabs(Position.Y - Collider.Center.Y) < Collider.Size.Y / 2.0 &&
+           fabs(Position.Z - Collider.Center.Z) < Collider.Size.Z / 2.0;
+}
+
+bool Collide(sphere_collider Collider, v3 Position) {
+    return module(Position - Collider.Center) < Collider.Radius;
+}
+
+/*
+Fast Ray-Box Intersection
+by Andrew Woo
+from "Graphics Gems", Academic Press, 1990
+*/
+bool HitBoundingBox(double minB[3], double maxB[3], double origin[3], double dir[3], double coord[3])
+/* double minB[NUMDIM], maxB[NUMDIM];		box */
+/* double origin[NUMDIM], dir[NUMDIM];		ray */
+/* double coord[NUMDIM];			hit point */
+{
+    bool inside = true;
+    char quadrant[3];
+    register int i;
+    int whichPlane;
+    double maxT[3];
+    double candidatePlane[3];
+    char LEFT = 1;
+    char RIGHT = 0;
+    char MIDDLE = 2;
+
+    /* Find candidate planes; this loop can be avoided if
+    rays cast all from the eye(assume perpsective view) */
+    for (i = 0; i < 3; i++)
+        if (origin[i] < minB[i]) {
+            quadrant[i] = LEFT;
+            candidatePlane[i] = minB[i];
+            inside = false;
+        }
+        else if (origin[i] > maxB[i]) {
+            quadrant[i] = RIGHT;
+            candidatePlane[i] = maxB[i];
+            inside = false;
+        }
+        else {
+            quadrant[i] = MIDDLE;
+        }
+
+    /* Ray origin inside bounding box */
+    if (inside) {
+        coord = origin;
+        return true;
+    }
+
+
+    /* Calculate T distances to candidate planes */
+    for (i = 0; i < 3; i++)
+        if (quadrant[i] != MIDDLE && dir[i] != 0.)
+            maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
+        else
+            maxT[i] = -1.;
+
+    /* Get largest of the maxT's for final choice of intersection */
+    whichPlane = 0;
+    for (i = 1; i < 3; i++)
+        if (maxT[whichPlane] < maxT[i])
+            whichPlane = i;
+
+    /* Check final candidate actually inside box */
+    if (maxT[whichPlane] < 0.) return false;
+    for (i = 0; i < 3; i++)
+        if (whichPlane != i) {
+            coord[i] = origin[i] + maxT[whichPlane] * dir[i];
+            if (coord[i] < minB[i] || coord[i] > maxB[i])
+                return false;
+        }
+        else {
+            coord[i] = candidatePlane[i];
+        }
+    return true;				/* ray hits box */
+}
+
+
+bool Raycast(v3 Origin, v3 Direction, cube_collider Collider) {
+    double minB[3] = { 0 };
+    minB[0] = Collider.Center.X - Collider.Size.X / 2.0;
+    minB[1] = Collider.Center.Y - Collider.Size.Y / 2.0;
+    minB[2] = Collider.Center.Z - Collider.Size.Z / 2.0;
+    double maxB[3] = { 0 };
+    maxB[0] = Collider.Center.X + Collider.Size.X / 2.0;
+    maxB[1] = Collider.Center.Y + Collider.Size.Y / 2.0;
+    maxB[2] = Collider.Center.Z + Collider.Size.Z / 2.0;
+    double origin[3] = { Origin.X, Origin.Y, Origin.Z };
+    double dir[3] = { Direction.X, Direction.Y, Direction.Z };
+    double coord[3] = { 0,0,0 };
+
+    return HitBoundingBox(minB, maxB, origin, dir, coord);
+}
+
+bool Raycast(camera* Camera, double Width, double Height, v2 Mouse, cube_collider Collider) {
+    v3 ScreenOffset =
+        (2.0 * Mouse.X / Width - 1.0) * Camera->Basis.X +
+        (Height - 2.0 * Mouse.Y) / Width * Camera->Basis.Y - Camera->Basis.Z;
+    return Raycast(Camera->Position + Camera->Distance * Camera->Basis.Z, ScreenOffset, Collider);
+}
 
 // User Interface
-struct UI {
-
+struct slider {
+    double Value;
+    v3 Position;
+    color Color;
+    rect_collider Collider;
 };
+
+struct UI {
+    slider Slider1;
+    slider Slider2;
+    slider Slider3;
+    slider Slider4;
+    slider Slider5;
+    slider Slider6;
+};
+
+void InitSlider(slider* Slider, double Value, color Color) {
+    *Slider = { 0 };
+    
+    if (Value > 1.0 || Value < 0.0) Assert(false);
+    else Slider->Value = Value;
+
+    Slider->Color = Color;
+}
 
 
 // Game State: Persistent (between frames) values
@@ -276,7 +530,6 @@ struct game_state {
     memory_arena VideoArena;
     memory_arena MeshArena;
     UI UserInterface;
-    bool ShowDebugInfo;
     double dt;
     double Time;
 };

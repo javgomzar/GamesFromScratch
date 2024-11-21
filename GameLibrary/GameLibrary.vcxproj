@@ -130,7 +130,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
-      <AdditionalDependencies>$(CoreLibraryDependencies);freetype.lib;avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;postproc.lib;swresample.lib;swscale.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(CoreLibraryDependencies);freetype.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(ProjectDir)\Linking\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -154,12 +154,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="Assets\Models\Enemy.mdl" />
+    <None Include="Assets\Models\Shield.mdl" />
+    <None Include="Assets\Models\Sphere.mdl" />
+    <None Include="Assets\Models\Sword.mdl" />
+    <None Include="Assets\Shaders\AntialiasingFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\KernelFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\FramebufferFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\FramebufferVertexShader.vert.glsl" />
+    <None Include="Assets\Shaders\JumpFloodFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\OutlineFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\OutlineInitFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\SingleColorFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\SphereFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\HeaderShader.h.glsl" />
+    <None Include="Assets\Shaders\TextureFragmentShader.frag.glsl" />
+    <None Include="Assets\Shaders\VertexShader.vert.glsl" />
     <None Include="cpp.hint" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Assets.h" />
-    <ClInclude Include="FFMpeg.h" />
+    <ClInclude Include="GameAssets.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GameLibrary.h" />
     <ClInclude Include="GameMath.h" />
@@ -171,12 +186,13 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClInclude>
     <ClInclude Include="pch.h" />
-    <ClInclude Include="render_group.h" />
+    <ClInclude Include="RenderGroup.h" />
+    <ClInclude Include="SoftwareRender.h" />
+    <ClInclude Include="GameSound.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Assets.cpp" />
+    <ClCompile Include="GameAssets.cpp" />
     <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="FFMpeg.cpp" />
     <ClCompile Include="GameLibrary.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
     </ClCompile>
@@ -186,6 +202,13 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\Bitmaps\Background.bmp" />
+    <Image Include="Assets\Bitmaps\Button.bmp" />
+    <Image Include="Assets\Bitmaps\ButtonClicked.bmp" />
+    <Image Include="Assets\Bitmaps\Enemy.bmp" />
+    <Image Include="Assets\Bitmaps\Player.bmp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

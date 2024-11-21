@@ -14,6 +14,8 @@ static double Pi = 3.14159265359;
 static double Tau = 2.0 * Pi;
 static double twroot = 1.05946309436;
 
+static double Degrees = Pi / 180.0;
+
 // Arithmetics
 inline int32 CustomRound(double X) {
 	return X >= 0 ? (int32)(X + 0.5f) : (int32)(X - 0.5f);
@@ -72,12 +74,16 @@ inline v2 operator*(double C, v2 A) {
 	return Result;
 }
 
-inline double operator*(v2 A, v2 B) {
+inline v2 operator*(v2 A, v2 B) {
+	return { A.X * B.X , A.Y * B.Y };
+}
+
+inline double dot(v2 A, v2 B) {
 	return A.X * B.X + A.Y * B.Y;
 }
 
 inline double module(v2 A) {
-	return sqrt(A * A);
+	return sqrt(dot(A, A));
 }
 
 inline v2 normalize(v2 V) {
@@ -94,16 +100,28 @@ inline v2 perp(v2 A) {
 }
 
 // 3D
+struct iv3 {
+	int X, Y, Z;
+};
+
+inline iv3 IV3(int X, int Y, int Z) {
+	return { X, Y, Z };
+}
+
+inline iv3 operator+(iv3 a, iv3 b) {
+	return IV3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+}
+
 struct v3 {
 	double X, Y, Z;
 };
 
 inline v3 V3(double X, double Y, double Z) {
-	v3 Result;
-	Result.X = X;
-	Result.Y = Y;
-	Result.Z = Z;
-	return Result;
+	return { X, Y, Z };
+}
+
+inline v3 V3(iv3 V) {
+	return V3(V.X, V.Y, V.Z);
 }
 
 inline v3 operator+(v3 A, v3 B) {
@@ -146,8 +164,8 @@ inline v3 operator*(double C, v3 A) {
 	return Result;
 }
 
- inline double operator*(v3 A, v3 B) {
-	 return A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+ inline v3 operator*(v3 A, v3 B) {
+	 return V3(A.X * B.X, A.Y * B.Y, A.Z * B.Z);
  }
 
 inline v3& operator+=(v3& A, v3 B) {
@@ -171,6 +189,10 @@ inline v3& operator*=(v3& A, double C) {
 	return A;
 }
 
+inline double dot(v3 A, v3 B) {
+	return A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+}
+
 inline v3 cross(v3 A, v3 B) {
 	v3 Result;
 	Result.X = A.Y * B.Z - A.Z * B.Y;
@@ -180,11 +202,11 @@ inline v3 cross(v3 A, v3 B) {
 }
 
 inline double module(v3 A) {
-	return sqrt(A*A);
+	return sqrt(dot(A, A));
 }
 
 inline v3 normalize(v3 V) {
-	return (module(V) < 0.00001f) ? V : (1 / module(V)) * V;
+	return (module(V) < 0.00001) ? V : (1 / module(V)) * V;
 }
 
 inline v3 project(v3 A, v3 B) {
@@ -265,6 +287,14 @@ inline scale Scale(double X = 1.0, double Y = 1.0, double Z = 1.0) {
 	return { X, Y, Z };
 };
 
+inline scale operator*(double C, scale S) {
+	return { C * S.X, C * S.Y, C * S.Z };
+}
+
+inline scale operator*(scale S, scale T) {
+	return Scale(S.X * T.X, S.Y * T.Y, S.Z * T.Z);
+}
+
 inline v3 operator*(scale Scale, v3 Vector) {
 	return V3(Scale.X * Vector.X, Scale.Y * Vector.Y, Scale.Z * Vector.Z);
 }
@@ -306,6 +336,7 @@ inline quaternion Quaternion(double c, double i = 0.0, double j = 0.0, double k 
 
 inline quaternion Quaternion(double Angle, v3 Vector) {
 	double sin_angle = sin(Angle / 2);
+	Vector = normalize(Vector);
 	return { cos(Angle / 2.0), sin_angle * Vector.X, sin_angle * Vector.Y, sin_angle * Vector.Z};
 }
 
@@ -343,9 +374,10 @@ inline quaternion operator-(quaternion q) {
 }
 
 inline v3 Rotate(v3 Vector, quaternion Q) {
-	double S = Q.c;
-	v3 U = V3(Q.i, Q.j, Q.k);
-	return 2.0 * ((U * Vector) * U + S * cross(U, Vector)) + (S*S - U * U) * Vector;
+	quaternion Q_ = Conjugate(Q);
+	quaternion V = Quaternion(0.0, Vector.X, Vector.Y, Vector.Z);
+	quaternion Result = Q_ * V * Q;
+	return V3(Result.i, Result.j, Result.k);
 }
 
 inline basis Rotate(basis Basis, quaternion Q) {
@@ -368,27 +400,49 @@ inline transform Transform(quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
 	return { Translation, Scaling, Rotation };
 }
 
+inline transform Transform(v3 Translation = V3(0.0, 0.0, 0.0), quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = Scale()) {
+	return { Translation, Scaling, Rotation };
+}
+
 inline v3 operator*(transform Transform, v3 Vector) {
 	return Rotate((Transform.Scale * Vector), Transform.Rotation) + Transform.Translation;
 }
 
-inline void Matrix(matrix4 Matrix, transform Transform) {
-	Matrix[0]  = 2.0 * Transform.Scale.X * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.i * Transform.Rotation.i) - 1.0;
-	Matrix[1]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.j + Transform.Rotation.c * Transform.Rotation.k);
-	Matrix[2]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.j);
-	Matrix[3]  = Transform.Translation.X;
-	Matrix[4]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.j - Transform.Rotation.c * Transform.Rotation.k);
-	Matrix[5]  = 2.0 * Transform.Scale.Y * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.j * Transform.Rotation.j) - 1.0;
-	Matrix[6]  = 2.0 * (Transform.Rotation.j * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.i);
-	Matrix[7]  = Transform.Translation.Y;
-	Matrix[8]  = 2.0 * (Transform.Rotation.i * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.j);
-	Matrix[9]  = 2.0 * (Transform.Rotation.j * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.i);
-	Matrix[10] = 2.0 * Transform.Scale.Z * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.k * Transform.Rotation.k) - 1.0;
-	Matrix[11] = Transform.Translation.Z;
-	Matrix[12] = 0.0;
-	Matrix[13] = 0.0;
-	Matrix[14] = 0.0;
+inline transform operator*(transform T, transform U) {
+	transform Result = { 0 };
+	Result.Scale = T.Scale * U.Scale;
+	Result.Translation = U.Translation + Rotate(T.Translation, U.Rotation);
+	Result.Rotation = T.Rotation * U.Rotation;
+	return Result;
+}
+
+inline void Matrix(float* Matrix, transform Transform) {
+	Matrix[0]  = Transform.Scale.X * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.i * Transform.Rotation.i) - 1.0);
+	Matrix[1]  = Transform.Scale.X * 2.0 * (Transform.Rotation.i * Transform.Rotation.j - Transform.Rotation.c * Transform.Rotation.k);
+	Matrix[2]  = Transform.Scale.X * 2.0 * (Transform.Rotation.i * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.j);
+	Matrix[3]  = 0.0;
+	Matrix[4]  = Transform.Scale.Y * 2.0 * (Transform.Rotation.i * Transform.Rotation.j + Transform.Rotation.c * Transform.Rotation.k);
+	Matrix[5]  = Transform.Scale.Y * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.j * Transform.Rotation.j) - 1.0);
+	Matrix[6]  = Transform.Scale.Y * 2.0 * (Transform.Rotation.j * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.i);
+	Matrix[7]  = 0.0;
+	Matrix[8]  = Transform.Scale.Z * 2.0 * (Transform.Rotation.i * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.j);
+	Matrix[9]  = Transform.Scale.Z * 2.0 * (Transform.Rotation.j * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.i);
+	Matrix[10] = Transform.Scale.Z * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.k * Transform.Rotation.k) - 1.0);
+	Matrix[11] = 0.0;
+	Matrix[12] = Transform.Translation.X;;
+	Matrix[13] = Transform.Translation.Y;
+	Matrix[14] = Transform.Translation.Z;
 	Matrix[15] = 1.0;
+}
+
+inline void Identity(float* Matrix, int Size) {
+	for (int i = 0; i < Size; i++) {
+		for (int j = 0; j < Size; j++) {
+			int Index = Size * i + j;
+			if (i == j) Matrix[Index] = 1.0f;
+			else Matrix[Index] = 0.0f;
+		}
+	}
 }
 
 // Geometry
@@ -402,5 +456,27 @@ struct game_rect {
 	double Width;
 	double Height;
 };
+
+struct vector_plane {
+	v3 Base[2];
+};
+
+struct affine_plane {
+	v3 Position;
+	union {
+		vector_plane VectorPlane;
+		v3 Base[2];
+	};
+};
+
+//void Orthogonalize(vector_plane* Plane) {
+//	Plane->Base[0] = normalize(Plane->Base[0]);
+//	Plane->Base[1] -= dot(Plane->Base[0], Plane->Base[1]) * Plane->Base[0];
+//}
+
+//v3 Project(v3 Vector, vector_plane Plane) {
+//	Orthogonalize(&Plane);
+//	return dot(Vector, Plane.Base[0]) * Plane.Base[0] + dot(Vector, Plane.Base[1]) * Plane.Base[1];
+//}
 
 #endif

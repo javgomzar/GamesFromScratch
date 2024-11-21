@@ -14,17 +14,15 @@
     - Getting a handle to our own executable file
     - Asset loading (separate compilation process probably?) Asset hot loading?
     - Threading
-    - Multiple keyboards?)
+    - Multiple keyboards?
     - Sleep/timeBeginPeriod
     - ClipCursor() multimonitor support
     - WM_SETCURSOR
     - QueryCancelAutoplay
     - WM_ACTIVEAPP (when we are not the active application)
     - Blit speed improvements (BitBlt)
-    - Shaders
     - GetKeyboardLayout (international wasd support)
     - Restore software renderer as fallback
-    - Make Render function not use so much space
 */
 
 #define MAX_LOADSTRING 100
@@ -79,69 +77,6 @@ LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 WNDDIMENSION    GetWindowDimension(HWND Window);
 
-const log_mode LOG_MODE = Terminal;
-
-void Log(log_level Level, const char* Content) {
-
-    // Level
-    char LevelString[9];
-    int LevelStringLength = 0;
-    switch (Level) {
-        case Info:
-        {
-            strcpy_s(LevelString, "[INFO] ");
-            LevelStringLength = 7;
-        } break;
-        case Warn:
-        {
-            strcpy_s(LevelString, "[WARN] ");
-            LevelStringLength = 7;
-        } break;
-        case Error:
-        {
-            strcpy_s(LevelString, "[ERROR] ");
-            LevelStringLength = 8;
-        } break;
-    }
-    LevelString[LevelStringLength] = 0;
-
-    // Timestamp
-    time_t t = time(NULL);
-    struct tm tm;
-    localtime_s(&tm, &t);
-    char Date[21];
-    sprintf_s(Date, "%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-
-    // Logging
-    switch (LOG_MODE) {
-        case File:
-        {
-            HANDLE FileHandle = CreateFileA("log.log", FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
-            if (FileHandle != INVALID_HANDLE_VALUE) {
-                DWORD BytesWritten = 0;
-                WriteFile(FileHandle, Date, 20, &BytesWritten, 0);
-                WriteFile(FileHandle, LevelString, LevelStringLength, &BytesWritten, 0);
-                int i = 0;
-                while (*(Content + i) != 0) {
-                    i++;
-                }
-                WriteFile(FileHandle, Content, i, &BytesWritten, 0);
-            }
-            else {
-                Assert(false);
-            }
-
-            CloseHandle(FileHandle);
-        } break;
-        case Terminal:
-        {
-            OutputDebugStringA(Date);
-            OutputDebugStringA(LevelString);
-            OutputDebugStringA(Content);
-        } break;
-    }
-}
-
 
 // Platform
 platform_api Platform;
@@ -172,7 +107,7 @@ WNDDIMENSION GetWindowDimension(HWND Window) {
     return Result;
 };
 
-
+// Software render
 VOID ResizeDIBSection(OFFSCREENBUFFER* Buffer, int Width, int Height) {
 
     //if (Buffer->Memory) {
@@ -212,6 +147,42 @@ VOID DisplayBufferToWindow(
     SwapBuffers(DeviceContext);
 }
 
+// OpenGL render
+void Render(HWND Window, render_group* Group, openGL OpenGL) {
+    // Sorting render entries
+    SortEntries(Group);
+
+    if (OpenGL.Initialized) {
+        OpenGLRenderGroupToOutput(Group, OpenGL);
+    }
+    else {
+        // TODO: Call software renderer (fix it first)
+    }
+
+    HDC hdc = GetDC(Window);
+    SwapBuffers(hdc);
+
+    ReleaseDC(Window, hdc);
+}
+
+void ResizeWindow(HWND Window, render_group* Group, openGL OpenGL) {
+    RECT Rect = { 0 };
+    GetClientRect(Window, &Rect);
+
+    int32 NewWidth = Rect.right - Rect.left;
+    int32 NewHeight = Rect.bottom - Rect.top;
+
+    if (NewWidth != Group->Width || NewHeight != Group->Height) {
+        Group->Width = NewWidth;
+        Group->Height = NewHeight;
+        ResizeFramebuffers(OpenGL, NewWidth, NewHeight);
+    }
+}
+
+render_group* Group;
+openGL OpenGL;
+
+// Full screen
 VOID ToggleFullScreen(HWND Window) {
     DWORD Style = GetWindowLong(Window, GWL_STYLE);
 
@@ -334,16 +305,6 @@ static HRESULT SubmitBuffer(XAUDIO2_BUFFER* pBuffer, IXAudio2SourceVoice* pSourc
     }
 }
 
-static void Silence(game_sound_buffer* pSoundBuffer) {
-    uint32 SampleCount = pSoundBuffer->BufferSize;
-
-    int16* SampleOut = pSoundBuffer->SampleOut;
-    for (uint32 SampleIndex = 0; SampleIndex < SampleCount; SampleIndex++) {
-        *SampleOut++ = 0; // LEFT
-        *SampleOut++ = 0; // RIGHT
-    }
-}
-
 // Platform services for the game
 PLATFORM_FREE_FILE_MEMORY(PlatformFreeFileMemory) {
     if (Memory) {
@@ -450,7 +411,7 @@ void PlaybackInput(record_and_playback* RecordPlayback, game_input* Input) {
     }
 }
 
-
+static bool Pause = false;
 // Message processing
 void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback* RecordPlayback) {
     MSG msg;
@@ -478,6 +439,14 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
         {
             short zDelta = GET_WHEEL_DELTA_WPARAM(msg.wParam);
             pInput->Mouse.Wheel = zDelta;
+        } break;
+        case WM_MBUTTONDOWN:
+        {
+            pInput->Mouse.MiddleClick.IsDown = true;
+        } break;
+        case WM_MBUTTONUP:
+        {
+            pInput->Mouse.MiddleClick.IsDown = false;
         } break;
         case WM_KEYDOWN:
         case WM_SYSKEYDOWN:
@@ -545,6 +514,8 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                 }
                 else if (VKCode == 'P') {
                     pInput->Keyboard.P.IsDown = true;
+
+                    Pause = !Pause;
                 }
                 else if (VKCode == 'A') {
                     pInput->Keyboard.A.IsDown = true;
@@ -659,6 +630,9 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                 }
                 else if (VKCode == VK_NEXT) {
                     pInput->Keyboard.PageDown.IsDown = true;
+                }
+                else if (VKCode == VK_SHIFT) {
+                    pInput->Keyboard.Shift.IsDown = true;
                 }
                 else if (VKCode == 'L') {
                     if (RecordPlayback->RecordIndex == 0) {
@@ -854,6 +828,9 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
             else if (VKCode == VK_NEXT) {
                 pInput->Keyboard.PageDown.IsDown = false;
             }
+            else if (VKCode == VK_SHIFT) {
+                pInput->Keyboard.Shift.IsDown = false;
+            }
         } break;
         case WM_CLOSE:
         case WM_DESTROY:
@@ -969,34 +946,6 @@ void DebugDrawVertical(game_offscreen_buffer* Buffer, int X, int Top, int Bottom
     }
 }
 
-// Render
-void Render(HWND Window, render_group* Group) {
-
-    RECT Rect = { 0 };
-    GetClientRect(Window, &Rect);
-
-    Group->Width = Rect.right - Rect.left;
-    Group->Height = Rect.bottom - Rect.top;
-
-    // Sorting render entries
-    sort_entry Entries[MAX_ENTRIES] = { 0 };
-    SortEntries(Group, Entries);
-
-    if (Group->OpenGLActive) {
-        OpenGLRenderGroupToOutput(Group, Entries);
-    }
-    else {
-        // TODO: Call software renderer (fix it first)
-    }
-
-    HDC hdc = GetDC(Window);
-    SwapBuffers(hdc);
-
-    ReleaseDC(Window, hdc);
-}
-
-render_group* Group;
-
 // Main window callback
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -1011,9 +960,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Loading XInputLibrary
     LoadXInput();
-
-    // Starting resolution
-    //ResizeDIBSection(&BackBuffer, 860, 140);
 
     // Audio initialization
     int SamplesPerSecond = 48000;
@@ -1032,9 +978,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         GameSoundBuffers[i].BufferSize = BufferSize;
         GameSoundBuffers[i].SampleOut = (int16*)XAudio2Buffers[i].pAudioData;
     }
-
-    Silence(&GameSoundBuffers[0]);
-    SubmitBuffer(&XAudio2Buffers[0], pSourceVoice);
 
     // Performance counting initialization
     LARGE_INTEGER PerfCountFrequencyResult;
@@ -1097,23 +1040,25 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     uint64 LastCycleCount = __rdtsc();
 
     // OpenGl
-    int OpenGLResponse = InitOpenGL(Window);
+    OpenGL = InitOpenGL(Window);
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
-    InitializeArena(&pGameState->StringsArena, Kilobytes(10), ArenaStart);
+    InitializeArena(&pGameState->StringsArena, Kilobytes(1), ArenaStart);
     ArenaStart += pGameState->StringsArena.Size;
-    InitializeArena(&pGameState->FontsArena, Megabytes(1), ArenaStart);
+    InitializeArena(&pGameState->FontsArena, Kilobytes(256), ArenaStart);
     ArenaStart += pGameState->FontsArena.Size;
-    InitializeArena(&pGameState->RenderArena, Megabytes(5), ArenaStart);
+    InitializeArena(&pGameState->RenderArena, Megabytes(9), ArenaStart);
     ArenaStart += pGameState->RenderArena.Size;
     InitializeArena(&pGameState->MeshArena, Megabytes(5), ArenaStart);
-    ArenaStart += pGameState->VideoArena.Size;
-    InitializeArena(&pGameState->VideoArena, Megabytes(15), ArenaStart);
+    ArenaStart += pGameState->MeshArena.Size;
+    InitializeArena(&pGameState->VideoArena, 1, ArenaStart);
 
     // Render group
-    Group = AllocateRenderGroup(&pGameState->RenderArena, Megabytes(4));
-    Group->OpenGLActive = OpenGLResponse == 0;
+    Group = AllocateRenderGroup(&GameMemory.Assets, &pGameState->RenderArena, Megabytes(4));
+
+    // Starting resolution
+    //ResizeWindow(Window, Group);
 
     // DebugInfo
     GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
@@ -1135,6 +1080,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         // Previous input
         Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;
+        Input.Mouse.MiddleClick.WasDown = Input.Mouse.MiddleClick.IsDown;
         Input.Mouse.RightClick.WasDown = Input.Mouse.RightClick.IsDown;
 
         Input.Mouse.Wheel = 0;
@@ -1196,6 +1142,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Keyboard.F12.WasDown = Input.Keyboard.F12.IsDown;
         Input.Keyboard.PageUp.WasDown = Input.Keyboard.PageUp.IsDown;
         Input.Keyboard.PageDown.WasDown = Input.Keyboard.PageDown.IsDown;
+        Input.Keyboard.Shift.WasDown = Input.Keyboard.Shift.IsDown;
 
         // Peek and dispatch messages
         ProcessPendingMessages(Window, &Input, &RecordPlayback);
@@ -1323,13 +1270,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             PlaybackInput(&RecordPlayback, &Input);
         }
 
-        // Clear render group
-        ClearEntries(Group);
-
         // Game function
         if (GameCode.IsValid) {
-            GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], Group, &Input);
-            Render(Window, Group);
+            ResizeWindow(Window, Group, OpenGL);
+
+            if (!Pause) {
+                // Clear render group
+                ClearEntries(Group);
+
+                GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], Group, &Input);
+            }
+            Render(Window, Group, OpenGL);
         }
         else {
             Log(Error, "Could not update state due to invalid game code.\n");
@@ -1374,7 +1325,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         sprintf_s(GameMemory.DebugInfo.Content, GameMemory.DebugInfo.Length, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
         
+        pGameState->dt = ActualSecsElapsed;
         pGameState->Time += ActualSecsElapsed;
+
 
         if (FirstFrame) {
             pSourceVoice->Start(0, 0);
@@ -1504,7 +1457,8 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
         HDC hdc = BeginPaint(Window, &ps);
 
         if (Group) {
-            Render(Window, Group);
+            ResizeWindow(Window, Group, OpenGL);
+            Render(Window, Group, OpenGL);
         }
 
         EndPaint(Window, &ps);

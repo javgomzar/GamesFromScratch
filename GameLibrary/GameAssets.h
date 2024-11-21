@@ -1,6 +1,5 @@
 #include "GamePlatform.h"
 #include "GameMath.h"
-#include "FFMpeg.h"
 
 // Freetype
 #include "ft2build.h"
@@ -54,9 +53,6 @@ struct character {
     loaded_bmp* Bitmap;
 };
 
-character* InitializeFonts(memory_arena* Arena);
-
-
 // Buttons
 struct button {
     bool Clicked;
@@ -67,34 +63,26 @@ struct button {
     string Text;
 };
 
-// Video
-struct game_video {
-    video_context* VideoContext;
-    int Handle;
-    bool Loop;
-    double TimeElapsed;
-};
-
 
 // 3D Models
+struct vertex {
+    v3 Vertex;
+    v3 Normal;
+    v2 Texture;
+};
+
 struct mesh {
-    string Name;
     int nVertices;
-    v3* Vertices;
-    int nTextureVertices;
-    v2* TextureVertices;
-    int nNormals;
-    v3* Normals;
+    double* Vertices;
     int nFaces;
-    uint32* FaceVertices;
-    uint32* FaceTextures;
-    uint32* FaceNormals;
+    uint32* Faces;
     uint32 VBO;
     uint32 VAO;
     uint32 EBO;
+    loaded_bmp* Texture;
 };
 
-mesh LoadMesh(platform_read_entire_file Read, memory_arena* StringsArena, memory_arena* MeshArena, const char* Path);
+mesh LoadMesh(platform_read_entire_file Read, memory_arena* MeshArena, const char* Path);
 
 
 // Shaders
@@ -110,11 +98,19 @@ struct game_assets {
     character* Characters;
     loaded_bmp TestImage;
     loaded_bmp TestImage2;
+    loaded_bmp EmptyTexture;
     game_sound TestSound;
-    game_video TestVideo;
     mesh TestMesh;
     mesh TestMesh2;
-    shader TestShader;
+    shader TextureShader;
+    shader SphereShader;
+    shader FramebufferShader;
+    shader SingleColorShader;
+    shader OutlineInitShader;
+    shader JumpFloodShader;
+    shader OutlineShader;
+    shader KernelShader;
+    shader AntialiasingShader;
 };
 
 void LoadAssets(
