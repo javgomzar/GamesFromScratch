@@ -67,7 +67,42 @@ void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_
     //WriteSineWave(pSoundBuffer, 480, 0);
 }
 
+// Video
+void PushVideo(render_group* Group, game_video* Video, game_rect Rect, double SecondsElapsed, double Order = SORT_ORDER_DEBUG_OVERLAY) {
+    if (!Video->VideoContext->Ended) {
+        Video->TimeElapsed += SecondsElapsed;
+        char Text[256];
+        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext->PTS * Video->VideoContext->TimeBase);
+        OutputDebugStringA(Text);
 
+        if (Video->TimeElapsed > Video->VideoContext->PTS * Video->VideoContext->TimeBase) {
+            LoadFrame(Video->VideoContext);
+            Video->VideoContext->Width = Rect.Width;
+            Video->VideoContext->Height = Rect.Height;
+            WriteFrame(Video->VideoContext);
+        }
+    }
+
+    _PushVideo(Group, Video, Rect, Order);
+}
+
+void PushVideoLoop(render_group* Group, game_video* Video, game_rect Rect, int Z, double SecondsElapsed, int64_t StartOffset, int64_t EndOffset) {
+
+    PushVideo(Group, Video, Rect, Z, SecondsElapsed);
+    auto& VideoContext = Video->VideoContext;
+    auto& FormatContext = VideoContext->FormatContext;
+    auto& CodecContext = VideoContext->CodecContext;
+    auto& StreamIndex = VideoContext->VideoStreamIndex;
+    auto& PTS = VideoContext->PTS; // Presentation time-stamp (in time-base units)
+
+    if (PTS >= EndOffset) {
+        av_seek_frame(FormatContext, StreamIndex, StartOffset, AVSEEK_FLAG_BACKWARD);
+        do { LoadFrame(Video->VideoContext); } while (Video->VideoContext->PTS < StartOffset - 1000);
+        Video->TimeElapsed = Video->VideoContext->PTS * Video->VideoContext->TimeBase;
+    }
+}
+
+// Updates
 void Update(slider* Slider, game_input* Input, v3 Position) {
     Slider->Position = Position;
     Slider->Collider = {
@@ -174,13 +209,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         );
 
         // User Interface
-        InitSlider(&pGameState->UserInterface.Slider1, 0.5, Black);
-        InitSlider(&pGameState->UserInterface.Slider2, 0.5, Black);
-        InitSlider(&pGameState->UserInterface.Slider3, 0.5, Black);
-        InitSlider(&pGameState->UserInterface.Slider4, 0.5, Black);
-        InitSlider(&pGameState->UserInterface.Slider5, 0.5, Black);
-        InitSlider(&pGameState->UserInterface.Slider6, 0.5, Black);
 
+        // Camera
         Camera->Position = V3(0.0, 0.0, 5.0);
         Camera->Angle = 45;
         Camera->Pitch = 45;
@@ -217,13 +247,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     light LightSource = Light(V3(-0.5, -1, 1), Red);
 
     transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(5.0, 0.0, 0.0));
-    PushMesh(Group, &Assets->TestMesh, Transform1, LightSource, &Assets->SphereShader, White, World);
+    PushMesh(Group, &Assets->TestMesh, Transform1, LightSource, &Assets->SphereShader, White, SORT_ORDER_MESHES, true);
 
-    v3 Direction = normalize(Camera->Velocity);
-    v3 X2 = V3(cos(Camera->Angle * Pi / 180.0), 0, sin(Camera->Angle * Pi / 180.0));
-    v3 Z2 = V3(-sin(Camera->Angle * Pi / 180.0), 0, cos(Camera->Angle * Pi / 180.0));
-    Camera->Velocity = 0.2 * (Direction.X * X2 + Direction.Z * Z2);
-    Camera->Position += Camera->Velocity;
+    // PushVideo(Group, &Assets->TestVideo, {0, 0, (double)Group->Width, (double)Group->Height}, pGameState->dt);
 
     // Render
 
@@ -288,8 +314,6 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Screen_Coordinates, Red);
         PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Screen_Coordinates, Green);
         PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Screen_Coordinates, Blue);
-
-        PushDebugNormals(Group, Assets->TestMesh2, Transform2);
     }
 
     PushRenderTarget(Group, World, &Assets->AntialiasingShader, SORT_ORDER_PUSH_RENDER_TARGETS);

@@ -5,6 +5,9 @@
 #include "ft2build.h"
 #include FT_FREETYPE_H
 
+// FFMPEG
+#include "FFMpeg.h"
+
 #ifndef GAME_ASSETS
 #define GAME_ASSETS
 
@@ -63,6 +66,13 @@ struct button {
     string Text;
 };
 
+// Video
+struct game_video {
+    video_context* VideoContext;
+    int Handle;
+    bool Loop;
+    double TimeElapsed;
+};
 
 // 3D Models
 struct vertex {
@@ -111,6 +121,7 @@ struct game_assets {
     shader OutlineShader;
     shader KernelShader;
     shader AntialiasingShader;
+    game_video TestVideo;
 };
 
 void LoadAssets(

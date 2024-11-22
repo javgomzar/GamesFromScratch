@@ -737,6 +737,20 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				glBindTexture(GL_TEXTURE_2D, 0);
 			} break;
 
+			case group_type_render_entry_video:
+			{
+				render_entry_video Entry = *(render_entry_video*)Header;
+
+				SetCoordinates(Screen_Coordinates, Group->Camera, Group->Width, Group->Height);
+
+				game_video* Video = Entry.Video;
+				int Width = Video->VideoContext->Width;
+				int Height = Video->VideoContext->Height;
+
+				OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext->VideoOut, Clamp, true);
+				OpenGLTexturedRect(Entry.Rect, White, 0.0, 1.0, 1.0, 0.0);
+			} break;
+
 			case group_type_render_entry_mesh:
 			{
 				//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);

@@ -126,6 +126,9 @@ typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
 #define PLATFORM_WRITE_ENTIRE_FILE(name) bool name(const char* Filename, uint64 MemorySize, void* Memory)
 typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
 
+#define PLATFORM_APPEND_TO_FILE(name) bool name(const char* Filename, uint64 MemorySize, void* Memory)
+typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
+
 #define PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)
 typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 
@@ -135,6 +138,7 @@ struct platform_api {
     platform_read_entire_file* ReadEntireFile;
     platform_free_file_memory* FreeFileMemory;
     platform_write_entire_file* WriteEntireFile;
+    platform_append_to_file* AppendToFile;
 };
 
 #endif

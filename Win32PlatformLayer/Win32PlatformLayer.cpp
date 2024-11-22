@@ -316,7 +316,7 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
     read_file_result Result = {};
     HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
-        LARGE_INTEGER  FileSize;
+        LARGE_INTEGER FileSize;
         if (GetFileSizeEx(FileHandle, &FileSize)) {
             Result.Content = VirtualAlloc(0, FileSize.QuadPart, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
             if (Result.Content) {
@@ -350,12 +350,34 @@ PLATFORM_WRITE_ENTIRE_FILE(PlatformWriteEntireFile) {
         if (WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0)) {
             Result = true;
         }
-        else {
-        }
         CloseHandle(FileHandle);
     }
     else {
-        // debug
+        // Debug
+        Assert(false);
+    }
+    return Result;
+}
+
+PLATFORM_APPEND_TO_FILE(PlatformAppendToFile) {
+    bool Result = false;
+    HANDLE FileHandle = CreateFileA(Filename, FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
+    if (FileHandle != INVALID_HANDLE_VALUE) {
+        if (SetFilePointerEx(FileHandle, { 0 }, NULL, FILE_END)) {
+            DWORD BytesWritten;
+            if (WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0)) {
+                Result = true;
+            }
+        }
+        else {
+            Assert(false);
+        }
+
+        CloseHandle(FileHandle);
+    }
+    else {
+        // Debug
+        Assert(false);
     }
     return Result;
 }
@@ -1013,6 +1035,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     Platform.FreeFileMemory = PlatformFreeFileMemory;
     Platform.ReadEntireFile = PlatformReadEntireFile;
     Platform.WriteEntireFile = PlatformWriteEntireFile;
+    Platform.AppendToFile = PlatformAppendToFile;
     GameMemory.Platform = Platform;
 
     game_state* pGameState = (game_state*)GameMemory.PermanentStorage;
@@ -1052,7 +1075,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     ArenaStart += pGameState->RenderArena.Size;
     InitializeArena(&pGameState->MeshArena, Megabytes(5), ArenaStart);
     ArenaStart += pGameState->MeshArena.Size;
-    InitializeArena(&pGameState->VideoArena, 1, ArenaStart);
+    InitializeArena(&pGameState->VideoArena, Megabytes(200), ArenaStart);
 
     // Render group
     Group = AllocateRenderGroup(&GameMemory.Assets, &pGameState->RenderArena, Megabytes(4));

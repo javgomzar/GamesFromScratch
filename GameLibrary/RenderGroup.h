@@ -10,6 +10,7 @@ enum render_group_entry_type {
     group_type_render_entry_rect,
     group_type_render_entry_textured_rect,
     group_type_render_entry_text,
+    group_type_render_entry_video,
     group_type_render_entry_mesh,
     group_type_render_entry_mesh_outline,
     group_type_render_entry_shader_pass,
@@ -112,6 +113,12 @@ struct render_entry_button {
     button* Button;
 };
 
+struct render_entry_video {
+    render_group_header Header;
+    game_video* Video;
+    game_rect Rect;
+};
+
 struct light {
     double Ambient;
     double Diffuse;
@@ -164,63 +171,55 @@ struct render_entry_debug_grid {
 
 uint32 GetSizeOf(render_group_entry_type Type) {
     switch (Type) {
-        case group_type_render_entry_clear:
-        {
+        case group_type_render_entry_clear: {
             return sizeof(render_entry_clear);
         } break;
 
-        case group_type_render_entry_line:
-        {
+        case group_type_render_entry_line: {
             return sizeof(render_entry_line);
         } break;
 
-        case group_type_render_entry_triangle:
-        {
+        case group_type_render_entry_triangle: {
             return sizeof(render_entry_triangle);
         } break;
 
-        case group_type_render_entry_rect:
-        {
+        case group_type_render_entry_rect: {
             return sizeof(render_entry_rect);
         } break;
 
-        case group_type_render_entry_textured_rect:
-        {
+        case group_type_render_entry_textured_rect: {
             return sizeof(render_entry_textured_rect);
         } break;
 
-        case group_type_render_entry_text:
-        {
+        case group_type_render_entry_text: {
             return sizeof(render_entry_text);
         } break;
 
-        case group_type_render_entry_mesh:
-        {
+        case group_type_render_entry_video: {
+            return sizeof(render_entry_video);
+        } break;
+
+        case group_type_render_entry_mesh: {
             return sizeof(render_entry_mesh);
         } break;
 
-        case group_type_render_entry_render_target:
-        {
+        case group_type_render_entry_render_target: {
             return sizeof(render_entry_render_target);
         } break;
 
-        case group_type_render_entry_shader_pass:
-        {
+        case group_type_render_entry_shader_pass: {
             return sizeof(render_entry_shader_pass);
         } break;
 
-        case group_type_render_entry_mesh_outline:
-        {
+        case group_type_render_entry_mesh_outline: {
             return sizeof(render_entry_mesh_outline);
         } break;
 
-        case group_type_render_entry_debug_grid:
-        {
+        case group_type_render_entry_debug_grid: {
             return sizeof(render_entry_debug_grid);
         } break;
 
-        default:
-        {
+        default: {
             Assert(false);
         } break;
     }
@@ -596,6 +595,18 @@ void PushDebugGrid(render_group* Group, double Alpha) {
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+// | Video                                                                                                                                                            |
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, double Order = SORT_ORDER_DEBUG_OVERLAY) {
+    render_entry_video* Entry = PushRenderElement(Group, render_entry_video);
+    Entry->Header.Target = World;
+
+    Entry->Header.Key.Order = Order;
+    Entry->Video = Video;
+    Entry->Rect = Rect;
+}
+
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | UI                                                                                                                                                               |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 void PushSlider(render_group* Group, slider Slider, double Order = SORT_ORDER_DEBUG_OVERLAY) {
@@ -746,7 +757,7 @@ void PushMesh(
         OutlineEntry->Color = White;
 
         if (!Group->PushOutline) {
-            int Passes = 11;
+            int Passes = 15;
             PushMeshOutline(Group, 5.0, Color, Passes + 1, (1 << Passes));
             Group->PushOutline = true;
         }

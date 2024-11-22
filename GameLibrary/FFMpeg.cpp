@@ -4,7 +4,6 @@
 
 
 void LoadFrame(video_context* VideoContext) {
-
     auto& FormatContext = VideoContext->FormatContext;
     auto& CodecContext = VideoContext->CodecContext;
     auto& StreamIndex = VideoContext->VideoStreamIndex;
@@ -44,7 +43,6 @@ void LoadFrame(video_context* VideoContext) {
 }
 
 void InitializeVideo(const char* Filename, video_context* VideoContext) {
-
     // Opening file
     auto& FormatContext = VideoContext->FormatContext;
 
@@ -132,4 +130,3 @@ void WriteFrame(video_context* VideoContext) {
 
     av_frame_unref(Frame);
 }
-

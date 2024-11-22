@@ -76,6 +76,16 @@ loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char
     return Result;
 }
 
+void SaveBMP(platform_api* Platform, const char* Path, loaded_bmp* BMP) {
+    Platform->WriteEntireFile(Path, sizeof(BMP->Header), &BMP->Header);
+    uint32 Offset = BMP->Header.BitmapOffset - sizeof(BMP->Header);
+    char Zero = 0;
+    for (uint32 i = 0; i < Offset; i++) {
+        Platform->AppendToFile(Path, 1, &Zero);
+    }
+    Platform->AppendToFile(Path, BMP->Header.Width * BMP->Header.Height * BMP->BytesPerPixel, BMP->Content);
+}
+
 // WAV
 game_sound LoadWAV(platform_read_entire_file* PlatformReadEntireFile, const char* FileName) {
     read_file_result File = PlatformReadEntireFile(FileName);
@@ -187,6 +197,18 @@ character* InitializeFont(memory_arena* Arena, const char* FontPath) {
     }
 }
 
+// Video
+game_video LoadVideo(memory_arena* Arena, const char* Filename) {
+    game_video Result = { 0 };
+    Result.VideoContext = PushStruct(Arena, video_context);
+
+    InitializeVideo(Filename, Result.VideoContext);
+    int Width = Result.VideoContext->Frame->width;
+    int Height = Result.VideoContext->Frame->height;
+    Result.VideoContext->VideoOut = PushSize(Arena, Width * Height * 4);
+
+    return Result;
+}
 
 // 3D Models
 mesh LoadMesh(platform_read_entire_file Read, memory_arena* MeshArena, const char* Path) {
@@ -288,7 +310,7 @@ void LoadAssets(
 ) {
     Assets->Characters = InitializeFont(FontsArena, "C:/Windows/Fonts/CascadiaMono.ttf");
 
-    // Strings
+// Strings
     StringsArena->Name = PushString(StringsArena, 13, "Strings Arena");
     StringsArena->Percentage = PushString(StringsArena, 7, "0.0%");
     FontsArena->Name = PushString(StringsArena, 12, "Fonts Arena");
@@ -312,6 +334,8 @@ void LoadAssets(
     Assets->TestMesh2 = LoadMesh(Platform->ReadEntireFile, MeshArena, "../../GameLibrary/Assets/Models/enemy.mdl");
     Assets->TestMesh2.Texture = &Assets->TestImage;
 
+// Video
+    // Assets->TestVideo = LoadVideo(VideoArena, "../../GameLibrary/Assets/Video/Video.mp4");
 
 // Shaders
     // Header file
@@ -322,7 +346,7 @@ void LoadAssets(
     read_file_result FramebufferVertexCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferVertexShader.vert.glsl");
 
     // Fragment shaders files
-    read_file_result FragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl");
+    read_file_result TextureCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl");
     read_file_result SphereFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SphereFragmentShader.frag.glsl");
     read_file_result FramebufferFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferFragmentShader.frag.glsl");
     read_file_result SingleColorFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SingleColorFragmentShader.frag.glsl");
@@ -336,7 +360,7 @@ void LoadAssets(
         0,
         HeaderCode,
         VertexCode,
-        FragmentCode
+        TextureCode
     };
 
     Assets->SphereShader = {
