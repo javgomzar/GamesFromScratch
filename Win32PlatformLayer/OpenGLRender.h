@@ -24,6 +24,8 @@ struct openGL {
 	render_target Targets[MAX_FRAME_BUFFER_COUNT];
 	render_target PingPongTarget;
 	uint32 QuadVAO;
+	uint32 VideoPBO;
+	uint32 ReadPBO;
 	bool Initialized;
 	bool VSync;
 };
@@ -259,6 +261,10 @@ openGL InitOpenGL(HWND Window) {
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 		Result.QuadVAO = QuadVAO;
+
+		// Pixel buffer objects for fast pixel transfers
+		glGenBuffers(1, &Result.VideoPBO); // Use GL_PIXEL_PACK_BUFFER to upload pixels to OpenGL
+		glGenBuffers(1, &Result.ReadPBO); // Use GL_PIXEL_UNPACK_BUFFER to get pixels from OpenGL
 
 		Error = glGetError();
 	}
@@ -581,7 +587,7 @@ GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_f
 	return ProgramID;
 }
 
-
+// Shader uniforms
 void OpenGLSetUniform(int ProgramID, const char* Name, int Value) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
 	if (Location >= 0) glUniform1i(Location, Value);
@@ -746,6 +752,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				game_video* Video = Entry.Video;
 				int Width = Video->VideoContext->Width;
 				int Height = Video->VideoContext->Height;
+				int BytesToWrite = Width * Height * 4;
 
 				OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext->VideoOut, Clamp, true);
 				OpenGLTexturedRect(Entry.Rect, White, 0.0, 1.0, 1.0, 0.0);

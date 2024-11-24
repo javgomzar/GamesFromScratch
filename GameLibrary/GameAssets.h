@@ -44,7 +44,6 @@ struct loaded_bmp {
 
 loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char* Path);
 
-
 // Fonts
 struct character {
     unsigned char Letter;

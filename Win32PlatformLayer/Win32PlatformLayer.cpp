@@ -13,7 +13,7 @@
     - Saved game locations
     - Getting a handle to our own executable file
     - Asset loading (separate compilation process probably?) Asset hot loading?
-    - Threading
+    - Multithreading
     - Multiple keyboards?
     - Sleep/timeBeginPeriod
     - ClipCursor() multimonitor support
@@ -354,6 +354,7 @@ PLATFORM_WRITE_ENTIRE_FILE(PlatformWriteEntireFile) {
     }
     else {
         // Debug
+        DWORD WinError = GetLastError();
         Assert(false);
     }
     return Result;
@@ -431,6 +432,58 @@ void PlaybackInput(record_and_playback* RecordPlayback, game_input* Input) {
             BeginInputPlayback(RecordPlayback, Index);
         }
     }
+}
+
+// Capture screen
+void SaveBMP(const char* Path, loaded_bmp* BMP) {
+    PlatformWriteEntireFile(Path, sizeof(BMP->Header), &BMP->Header);
+    uint32 Offset = BMP->Header.BitmapOffset - sizeof(BMP->Header);
+    char Zero = 0;
+    for (uint32 i = 0; i < Offset; i++) {
+        PlatformAppendToFile(Path, 1, &Zero);
+    }
+    PlatformAppendToFile(Path, BMP->Header.Width * BMP->Header.Height * BMP->BytesPerPixel, BMP->Content);
+}
+
+void ScreenCapture(openGL OpenGL, int Width, int Height) {
+    loaded_bmp BMP = { 0 };
+
+    // Bitmap header
+    BMP.Header.FileType = 19778;
+    BMP.Header.Width = Width;
+    BMP.Header.Height = Height;
+    BMP.Header.BitmapOffset = 138;
+    BMP.Header.Size = 124;
+    BMP.Header.Planes = 1;
+    BMP.Header.BitsPerPixel = 32;
+    BMP.BytesPerPixel = 4;
+    BMP.Header.Compression = 3;
+    BMP.Header.SizeOfBitmap = Width * Height * 4 + BMP.Header.BitmapOffset;
+    BMP.Header.HorzResolution = 3777;
+    BMP.Header.VertResolution = 3777;
+    BMP.Header.RedMask = 0x00ff0000;
+    BMP.Header.GreenMask = 0x0000ff00;
+    BMP.Header.BlueMask = 0x000000ff;
+
+    // File name
+    time_t t = time(NULL);
+    struct tm tm;
+    localtime_s(&tm, &t);
+    char Filename[100];
+    sprintf_s(Filename, "../../Captures/Screenshot %d-%02d-%02d %02d.%02d.%02d.bmp",
+        tm.tm_year + 1900, 
+        tm.tm_mon + 1, 
+        tm.tm_mday, 
+        tm.tm_hour, 
+        tm.tm_min, 
+        tm.tm_sec
+    );
+
+    // Read pixels
+    BMP.Content = (uint32*)VirtualAlloc(0, Width * Height * BMP.BytesPerPixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    glReadPixels(0, 0, Width, Height, GL_BGRA, GL_UNSIGNED_BYTE, (void*)BMP.Content);
+
+    SaveBMP(Filename, &BMP);
 }
 
 static bool Pause = false;
@@ -1303,7 +1356,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
                 GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], Group, &Input);
             }
+
+            if (Input.Keyboard.F10.IsDown && !Input.Keyboard.F11.WasDown) {
+                ScreenCapture(OpenGL, Group->Width, Group->Height);
+            }
+
             Render(Window, Group, OpenGL);
+
         }
         else {
             Log(Error, "Could not update state due to invalid game code.\n");

@@ -287,7 +287,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         game_rect DebugInfoRect = { 0, 0, 350, 270 };
 
-        PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), SORT_ORDER_DEBUG_OVERLAY);
+        PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), World, SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
         PushText(Group, V2(0, 30.0), Assets->Characters, Memory->DebugInfo, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
 
@@ -317,5 +317,23 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     PushRenderTarget(Group, World, &Assets->AntialiasingShader, SORT_ORDER_PUSH_RENDER_TARGETS);
+
+    static bool Screenshot = false;
+    if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F10.WasDown) {
+        Screenshot = true;
+    }
+
+    static double ScreenRectAlpha = 1.0;
+    if (Screenshot) {
+        ScreenRectAlpha -= 0.05;
+        if (ScreenRectAlpha < 0.0) {
+            Screenshot = false;
+            ScreenRectAlpha = 1.0;
+        }
+        else {
+            game_rect ScreenRect = { 0, 0, Group->Width, Group->Height };
+            PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), Output, SORT_ORDER_PUSH_RENDER_TARGETS + 50.0);
+        }
+    }
     PushRenderTarget(Group, Output, &Assets->FramebufferShader, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
 }

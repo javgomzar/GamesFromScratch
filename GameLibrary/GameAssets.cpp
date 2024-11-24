@@ -76,16 +76,6 @@ loaded_bmp LoadBMP(platform_read_entire_file* PlatformReadEntireFile, const char
     return Result;
 }
 
-void SaveBMP(platform_api* Platform, const char* Path, loaded_bmp* BMP) {
-    Platform->WriteEntireFile(Path, sizeof(BMP->Header), &BMP->Header);
-    uint32 Offset = BMP->Header.BitmapOffset - sizeof(BMP->Header);
-    char Zero = 0;
-    for (uint32 i = 0; i < Offset; i++) {
-        Platform->AppendToFile(Path, 1, &Zero);
-    }
-    Platform->AppendToFile(Path, BMP->Header.Width * BMP->Header.Height * BMP->BytesPerPixel, BMP->Content);
-}
-
 // WAV
 game_sound LoadWAV(platform_read_entire_file* PlatformReadEntireFile, const char* FileName) {
     read_file_result File = PlatformReadEntireFile(FileName);
@@ -346,7 +336,8 @@ void LoadAssets(
     read_file_result FramebufferVertexCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferVertexShader.vert.glsl");
 
     // Fragment shaders files
-    read_file_result TextureCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl");
+    char Text[256] = "../../GameLibrary/Assets/Shaders/TextureFragmentShader.frag.glsl";
+    read_file_result TextureCode = Platform->ReadEntireFile(Text);
     read_file_result SphereFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SphereFragmentShader.frag.glsl");
     read_file_result FramebufferFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/FramebufferFragmentShader.frag.glsl");
     read_file_result SingleColorFragmentCode = Platform->ReadEntireFile("../../GameLibrary/Assets/Shaders/SingleColorFragmentShader.frag.glsl");

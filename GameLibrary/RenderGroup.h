@@ -345,9 +345,9 @@ render_group_header* PushRenderElement_(render_group* Group, uint32 Size, render
     return Result;
 }
 
-void PushClear(render_group* Group, color Color, render_group_target Target = Output) {
+void PushClear(render_group* Group, color Color, render_group_target Target = Output, double Order = SORT_ORDER_CLEAR) {
     render_entry_clear* Entry = PushRenderElement(Group, render_entry_clear);
-    Entry->Header.Key.Order = SORT_ORDER_CLEAR;
+    Entry->Header.Key.Order = Order;
     Entry->Header.Target = Target;
     Entry->Color = Color;
 }
@@ -410,10 +410,12 @@ void PushRect(
     render_group* Group, 
     game_rect Rect, 
     color Color,
+    render_group_target Target,
     double Order = 0.0
 ) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
     Entry->Header.Key.Order = Order;
+    Entry->Header.Target = Target;
     Entry->Rect = Rect;
     Entry->Color = Color;
 }
@@ -780,9 +782,9 @@ void PushMesh(
 void PushDebugArena(render_group* Group, memory_arena Arena, v2 Position, double Alpha = 1.0, double Order = SORT_ORDER_DEBUG_OVERLAY) {
     double ArenaPercentage = (double)Arena.Used / (double)Arena.Size;
     game_rect Rect = { Position.X, Position.Y, 120.0, 20.0 };
-    PushRect(Group, Rect, Color(DarkGray, Alpha), Order + 0.1);
+    PushRect(Group, Rect, Color(DarkGray, Alpha), World, Order + 0.1);
     Rect.Width *= ArenaPercentage;
-    PushRect(Group, Rect, Color(Red, Alpha), Order + 0.2);
+    PushRect(Group, Rect, Color(Red, Alpha), World, Order + 0.2);
     PushText(Group, Position + V2(0, 15.0), Group->Assets->Characters, Arena.Name, Color(White, Alpha), 8, false, Order + 0.3);
     sprintf_s(Arena.Percentage.Content, 7, "%.02f%%", ArenaPercentage * 100.0);
     PushText(Group, Position + V2(125.0, 15.0), Group->Assets->Characters, Arena.Percentage, Color(White, Alpha), 8, false, Order + 0.3);
