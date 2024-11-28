@@ -124,14 +124,14 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
-      <AdditionalIncludeDirectories>$(ProjectDir)\Linking\include</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Linking\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalDependencies>$(CoreLibraryDependencies);freetype.lib;avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;postproc.lib;swresample.lib;swscale.lib</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(ProjectDir)\Linking\lib</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\Linking\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -174,25 +174,19 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FFMpeg.h" />
+    <ClInclude Include="..\Linking\include\FFMpeg.h" />
     <ClInclude Include="GameAssets.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GameLibrary.h" />
     <ClInclude Include="GameMath.h" />
     <ClInclude Include="GamePlatform.h" />
-    <ClInclude Include="Linking\include\ft2build.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">false</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="pch.h" />
     <ClInclude Include="RenderGroup.h" />
     <ClInclude Include="SoftwareRender.h" />
     <ClInclude Include="GameSound.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="FFMpeg.cpp" />
+    <ClCompile Include="..\Linking\include\FFMpeg.cpp" />
     <ClCompile Include="GameAssets.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="GameLibrary.cpp">

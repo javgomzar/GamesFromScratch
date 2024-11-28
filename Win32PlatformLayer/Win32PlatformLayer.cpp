@@ -8,6 +8,8 @@
 #pragma comment (lib, "opengl32.lib")
 
 #include "OpenGLRender.h"
+#include <thread>
+#include <mutex>
 
 /* TODO:
     - Saved game locations
@@ -1021,6 +1023,70 @@ void DebugDrawVertical(game_offscreen_buffer* Buffer, int X, int Top, int Bottom
     }
 }
 
+// Multithreading
+struct work_queue_entry {
+    const char* String;
+};
+
+int EntryCount = 0;
+int NextEntryToDo = 0;
+work_queue_entry Entries[1000];
+
+std::mutex Mutex;
+
+void PushWorkEntry(const char* String) {
+    Assert(EntryCount < 1000);
+
+    std::lock_guard<std::mutex> guard(Mutex);
+    work_queue_entry* Entry = &Entries[EntryCount++];
+    Entry->String = String;
+}
+
+void ThreadProc(thread_info* ThreadInfo) {
+    char Buffer[256];
+    sprintf_s(Buffer, "Thread %u started.\n", ThreadInfo->ID);
+    OutputDebugStringA(Buffer);
+
+    while(ThreadInfo->Running) {
+        Mutex.lock();
+
+        int CurrentEntryCount = EntryCount;
+        if (CurrentEntryCount > 0) {
+            int EntryIndex = NextEntryToDo++;
+            EntryCount--;
+            Mutex.unlock();
+
+            work_queue_entry* Entry = &Entries[EntryIndex];
+
+            sprintf_s(Buffer, "Thread %u: %s; EntryCount=%u, EntryIndex=%u\n", ThreadInfo->ID, Entry->String, CurrentEntryCount, EntryIndex);
+            OutputDebugStringA(Buffer);
+        }
+        else {
+            Mutex.unlock();
+            ThreadInfo->Running = false;
+        }
+    }
+
+    sprintf_s(Buffer, "Thread %u was shut down.\n", ThreadInfo->ID);
+    OutputDebugStringA(Buffer);
+}
+
+void TestThreads() {
+    std::thread Threads[5];
+    thread_info ThreadInfos[5];
+
+    for (int i = 0; i < 5; i++) {
+        thread_info* ThreadInfo = &ThreadInfos[i];
+        ThreadInfo->ID = i;
+        ThreadInfo->Running = true;
+        Threads[i] = std::thread(ThreadProc, ThreadInfo);
+    }
+
+    for (int i = 0; i < 5; i++) {
+        Threads[i].join();
+    }
+}
+
 // Main window callback
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -1030,8 +1096,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // TODO: Place code here.
-    Running = true;
+    TestThreads();
 
     // Loading XInputLibrary
     LoadXInput();
@@ -1139,6 +1204,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // DebugInfo
     GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
 
+    Running = true;
     bool FirstFrame = true;
     // Main message loop:
     while (Running) {

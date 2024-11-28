@@ -104,12 +104,12 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>..\GameLibrary\Linking\include;..\Win32PlatformLayer\Linking</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)\Linking\include</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>..\GameLibrary\Linking\lib;..\Win32PlatformLayer\Linking</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>$(SolutionDir)\Linking\lib</AdditionalLibraryDirectories>
       <AdditionalDependencies>$(CoreLibraryDependencies);freetype.lib;glew32.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>

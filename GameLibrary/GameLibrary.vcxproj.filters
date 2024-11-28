@@ -94,9 +94,6 @@
     <ClInclude Include="RenderGroup.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Linking\include\ft2build.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="GameAssets.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -106,7 +103,7 @@
     <ClInclude Include="GameSound.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="FFMpeg.h">
+    <ClInclude Include="..\Linking\include\FFMpeg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
@@ -123,7 +120,7 @@
     <ClCompile Include="GameAssets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="FFMpeg.cpp">
+    <ClCompile Include="..\Linking\include\FFMpeg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
