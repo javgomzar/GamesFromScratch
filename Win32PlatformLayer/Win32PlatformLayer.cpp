@@ -1,7 +1,3 @@
-// TestProject.cpp : Defines the entry point for the application.
-//
-
-
 #include "Win32PlatformLayer.h"
 
 #include "gl/GL.h"
@@ -305,84 +301,6 @@ static HRESULT SubmitBuffer(XAUDIO2_BUFFER* pBuffer, IXAudio2SourceVoice* pSourc
         OutputDebugString(L"No source voice\n");
         return(1);
     }
-}
-
-// Platform services for the game
-PLATFORM_FREE_FILE_MEMORY(PlatformFreeFileMemory) {
-    if (Memory) {
-        VirtualFree(Memory, 0, MEM_RELEASE);
-    }
-}
-
-PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
-    read_file_result Result = {};
-    HANDLE FileHandle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
-    if (FileHandle != INVALID_HANDLE_VALUE) {
-        LARGE_INTEGER FileSize;
-        if (GetFileSizeEx(FileHandle, &FileSize)) {
-            Result.Content = VirtualAlloc(0, FileSize.QuadPart, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-            if (Result.Content) {
-                DWORD BytesRead;
-                if (ReadFile(FileHandle, Result.Content, FileSize.QuadPart, &BytesRead, 0)) {
-                    Result.ContentSize = FileSize.QuadPart;
-                }
-                else {
-                    PlatformFreeFileMemory(Result.Content);
-                    Result.Content = 0;
-                }
-            }
-        }
-
-        CloseHandle(FileHandle);
-    }
-    else {
-        DWORD LastError = GetLastError();
-        char ErrorText[256];
-        sprintf_s(ErrorText, "Error while opening file %s. Error code %d.\n", Filename, LastError);
-        Log(Error, ErrorText);
-    }
-    return Result;
-};
-
-PLATFORM_WRITE_ENTIRE_FILE(PlatformWriteEntireFile) {
-    bool Result = false;
-    HANDLE FileHandle = CreateFileA(Filename, GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
-    if (FileHandle != INVALID_HANDLE_VALUE) {
-        DWORD BytesWritten;
-        if (WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0)) {
-            Result = true;
-        }
-        CloseHandle(FileHandle);
-    }
-    else {
-        // Debug
-        DWORD WinError = GetLastError();
-        Assert(false);
-    }
-    return Result;
-}
-
-PLATFORM_APPEND_TO_FILE(PlatformAppendToFile) {
-    bool Result = false;
-    HANDLE FileHandle = CreateFileA(Filename, FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
-    if (FileHandle != INVALID_HANDLE_VALUE) {
-        if (SetFilePointerEx(FileHandle, { 0 }, NULL, FILE_END)) {
-            DWORD BytesWritten;
-            if (WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0)) {
-                Result = true;
-            }
-        }
-        else {
-            Assert(false);
-        }
-
-        CloseHandle(FileHandle);
-    }
-    else {
-        // Debug
-        Assert(false);
-    }
-    return Result;
 }
 
 // Recording and playback
@@ -1024,68 +942,68 @@ void DebugDrawVertical(game_offscreen_buffer* Buffer, int X, int Top, int Bottom
 }
 
 // Multithreading
-struct work_queue_entry {
-    const char* String;
-};
-
-int EntryCount = 0;
-int NextEntryToDo = 0;
-work_queue_entry Entries[1000];
-
-std::mutex Mutex;
-
-void PushWorkEntry(const char* String) {
-    Assert(EntryCount < 1000);
-
-    std::lock_guard<std::mutex> guard(Mutex);
-    work_queue_entry* Entry = &Entries[EntryCount++];
-    Entry->String = String;
-}
-
-void ThreadProc(thread_info* ThreadInfo) {
-    char Buffer[256];
-    sprintf_s(Buffer, "Thread %u started.\n", ThreadInfo->ID);
-    OutputDebugStringA(Buffer);
-
-    while(ThreadInfo->Running) {
-        Mutex.lock();
-
-        int CurrentEntryCount = EntryCount;
-        if (CurrentEntryCount > 0) {
-            int EntryIndex = NextEntryToDo++;
-            EntryCount--;
-            Mutex.unlock();
-
-            work_queue_entry* Entry = &Entries[EntryIndex];
-
-            sprintf_s(Buffer, "Thread %u: %s; EntryCount=%u, EntryIndex=%u\n", ThreadInfo->ID, Entry->String, CurrentEntryCount, EntryIndex);
-            OutputDebugStringA(Buffer);
-        }
-        else {
-            Mutex.unlock();
-            ThreadInfo->Running = false;
-        }
-    }
-
-    sprintf_s(Buffer, "Thread %u was shut down.\n", ThreadInfo->ID);
-    OutputDebugStringA(Buffer);
-}
-
-void TestThreads() {
-    std::thread Threads[5];
-    thread_info ThreadInfos[5];
-
-    for (int i = 0; i < 5; i++) {
-        thread_info* ThreadInfo = &ThreadInfos[i];
-        ThreadInfo->ID = i;
-        ThreadInfo->Running = true;
-        Threads[i] = std::thread(ThreadProc, ThreadInfo);
-    }
-
-    for (int i = 0; i < 5; i++) {
-        Threads[i].join();
-    }
-}
+//struct work_queue_entry {
+//    const char* String;
+//};
+//
+//int EntryCount = 0;
+//int NextEntryToDo = 0;
+//work_queue_entry Entries[1000];
+//
+//std::mutex Mutex;
+//
+//void PushWorkEntry(const char* String) {
+//    Assert(EntryCount < 1000);
+//
+//    std::lock_guard<std::mutex> guard(Mutex);
+//    work_queue_entry* Entry = &Entries[EntryCount++];
+//    Entry->String = String;
+//}
+//
+//void ThreadProc(thread_info* ThreadInfo) {
+//    char Buffer[256];
+//    sprintf_s(Buffer, "Thread %u started.\n", ThreadInfo->ID);
+//    OutputDebugStringA(Buffer);
+//
+//    while(ThreadInfo->Running) {
+//        Mutex.lock();
+//
+//        int CurrentEntryCount = EntryCount;
+//        if (CurrentEntryCount > 0) {
+//            int EntryIndex = NextEntryToDo++;
+//            EntryCount--;
+//            Mutex.unlock();
+//
+//            work_queue_entry* Entry = &Entries[EntryIndex];
+//
+//            sprintf_s(Buffer, "Thread %u: %s; EntryCount=%u, EntryIndex=%u\n", ThreadInfo->ID, Entry->String, CurrentEntryCount, EntryIndex);
+//            OutputDebugStringA(Buffer);
+//        }
+//        else {
+//            Mutex.unlock();
+//            ThreadInfo->Running = false;
+//        }
+//    }
+//
+//    sprintf_s(Buffer, "Thread %u was shut down.\n", ThreadInfo->ID);
+//    OutputDebugStringA(Buffer);
+//}
+//
+//void TestThreads() {
+//    std::thread Threads[5];
+//    thread_info ThreadInfos[5];
+//
+//    for (int i = 0; i < 5; i++) {
+//        thread_info* ThreadInfo = &ThreadInfos[i];
+//        ThreadInfo->ID = i;
+//        ThreadInfo->Running = true;
+//        Threads[i] = std::thread(ThreadProc, ThreadInfo);
+//    }
+//
+//    for (int i = 0; i < 5; i++) {
+//        Threads[i].join();
+//    }
+//}
 
 // Main window callback
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -1096,7 +1014,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    TestThreads();
+    //TestThreads();
 
     // Loading XInputLibrary
     LoadXInput();

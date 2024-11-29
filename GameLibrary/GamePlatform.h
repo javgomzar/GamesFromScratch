@@ -31,7 +31,6 @@ struct string {
     char* Content;
 };
 
-
 // Memory Arenas
 struct memory_arena {
     memory_index Size;
@@ -90,6 +89,7 @@ inline string PushString(memory_arena* Arena, int Length, const char* Content) {
 
 // Services that the platform layer provides for the game
 struct read_file_result {
+    char* Path;
     uint32 ContentSize;
     void* Content;
 };
@@ -118,6 +118,13 @@ struct bitmap_header {
     uint32 GreenMask;
     uint32 BlueMask;
 };
+
+// Multithreading
+struct thread_info {
+    int ID;
+    bool Running;
+};
+
 #pragma pack(pop)
 
 #define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Filename)

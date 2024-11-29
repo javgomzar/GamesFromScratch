@@ -1,12 +1,12 @@
-#include "GamePlatform.h"
-#include "GameMath.h"
+#include "..\GameLibrary\GamePlatform.h"
+#include "..\GameLibrary\GameMath.h"
 
 // Freetype
 #include "ft2build.h"
 #include FT_FREETYPE_H
 
 // FFMPEG
-#include "../Linking/include/FFMpeg.h"
+#include "..\Linking\include\FFMpeg.h"
 
 #ifndef GAME_ASSETS
 #define GAME_ASSETS
@@ -103,25 +103,52 @@ struct shader {
 };
 
 // Game Assets
-struct game_assets {
-    character* Characters;
-    loaded_bmp TestImage;
-    loaded_bmp TestImage2;
-    loaded_bmp EmptyTexture;
-    game_sound TestSound;
-    mesh TestMesh;
-    mesh TestMesh2;
-    shader TextureShader;
-    shader SphereShader;
-    shader FramebufferShader;
-    shader SingleColorShader;
-    shader OutlineInitShader;
-    shader JumpFloodShader;
-    shader OutlineShader;
-    shader KernelShader;
-    shader AntialiasingShader;
-    game_video TestVideo;
+enum game_asset_type {
+    Text,
+    Bitmap,
+    Font,
+    Sound,
+    Video,
+    Mesh,
+    Shader,
+
+    game_asset_type_count
 };
+
+struct game_asset {
+    int ID;
+    game_asset_type Type;
+    uint64 Size;
+    read_file_result File;
+};
+
+const int MAX_ASSETS_COUNT = 100;
+struct game_assets {
+    game_asset Asset[MAX_ASSETS_COUNT];
+    int nAssets;
+    int n[game_asset_type_count-1];
+    uint64 TotalSize;
+    uint64 Size[game_asset_type_count - 1];
+    void* Memory;
+};
+
+//character* Characters;
+//loaded_bmp TestImage;
+//loaded_bmp TestImage2;
+//loaded_bmp EmptyTexture;
+//game_sound TestSound;
+//mesh TestMesh;
+//mesh TestMesh2;
+//shader TextureShader;
+//shader SphereShader;
+//shader FramebufferShader;
+//shader SingleColorShader;
+//shader OutlineInitShader;
+//shader JumpFloodShader;
+//shader OutlineShader;
+//shader KernelShader;
+//shader AntialiasingShader;
+//game_video TestVideo;
 
 void LoadAssets(
     game_assets* Assets,
