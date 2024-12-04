@@ -25,7 +25,10 @@
     <Filter Include="Resource Files\Video">
       <UniqueIdentifier>{3b85251c-c89d-40bb-b134-6c6ffc90cc7c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Resource Files\Sound">
+    <Filter Include="Resource Files\Fonts">
+      <UniqueIdentifier>{ef4a34ff-ff55-46b0-84db-6f407fbd0b48}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Resource Files\Sounds">
       <UniqueIdentifier>{5cf5992f-6fdc-4c6c-9303-bf629c9df921}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
@@ -41,18 +44,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
-    <None Include="Assets\Models\Enemy.mdl">
-      <Filter>Resource Files\Models</Filter>
-    </None>
-    <None Include="Assets\Models\Shield.mdl">
-      <Filter>Resource Files\Models</Filter>
-    </None>
-    <None Include="Assets\Models\Sphere.mdl">
-      <Filter>Resource Files\Models</Filter>
-    </None>
-    <None Include="Assets\Models\Sword.mdl">
-      <Filter>Resource Files\Models</Filter>
-    </None>
     <None Include="Assets\Shaders\AntialiasingFragmentShader.frag.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
@@ -89,6 +80,9 @@
     <None Include="Assets\Shaders\VertexShader.vert.glsl">
       <Filter>Resource Files\Shaders</Filter>
     </None>
+    <None Include="Assets\Models\Enemy.mdl">
+      <Filter>Resource Files\Models</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\Bitmaps\Background.bmp">
@@ -109,5 +103,10 @@
     <Image Include="Assets\Bitmaps\Player.bmp">
       <Filter>Resource Files\Bitmaps</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <Media Include="Assets\Sounds\16agosto.wav">
+      <Filter>Resource Files\Sounds</Filter>
+    </Media>
   </ItemGroup>
 </Project>

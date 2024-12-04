@@ -140,9 +140,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Models\Enemy.mdl" />
-    <None Include="Assets\Models\Shield.mdl" />
-    <None Include="Assets\Models\Sphere.mdl" />
-    <None Include="Assets\Models\Sword.mdl" />
     <None Include="Assets\Shaders\AntialiasingFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\FramebufferFragmentShader.frag.glsl" />
     <None Include="Assets\Shaders\FramebufferVertexShader.vert.glsl" />
@@ -164,6 +161,9 @@
     <Image Include="Assets\Bitmaps\Empty.bmp" />
     <Image Include="Assets\Bitmaps\Enemy.bmp" />
     <Image Include="Assets\Bitmaps\Player.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Media Include="Assets\Sounds\16agosto.wav" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
