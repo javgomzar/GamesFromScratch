@@ -159,7 +159,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Linking\include\FFMpeg.h" />
-    <ClInclude Include="GameAssets.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="GameLibrary.h" />
     <ClInclude Include="GameMath.h" />
@@ -171,7 +170,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Linking\include\FFMpeg.cpp" />
-    <ClCompile Include="GameAssets.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="GameLibrary.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>

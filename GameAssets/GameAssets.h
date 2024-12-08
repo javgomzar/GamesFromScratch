@@ -6,7 +6,7 @@
 #include "..\Linking\include\FFMpeg.h"
 
 #include "..\GameLibrary\GameMath.h"
-#include "../Win32PlatformLayer/Win32PlatformLayer.h"
+#include "..\Win32PlatformLayer\Win32PlatformLayer.h"
 
 #include <set>
 #include <vector>
@@ -41,16 +41,29 @@ enum game_asset_id {
     Sound_Test_ID,
 
     Mesh_Enemy_ID,
+    Mesh_Sphere_ID,
     //Mesh_Shield_ID,
-    //Mesh_Sphere_ID,
     //Mesh_Sword_ID,
 
     //Video_Test_ID,
 
+    Header_Shader_ID,
+    Vertex_Shader_ID,
+    Vertex_Shader_Framebuffer_ID,
+    Fragment_Shader_Framebuffer_ID,
+    Fragment_Shader_Antialiasing_ID,
+    Fragment_Shader_Outline_Init_ID,
+    Fragment_Shader_JFA_ID,
+    Fragment_Shader_Outline_ID,
+    Fragment_Shader_Single_Color_ID,
+    Fragment_Shader_Sphere_ID,
+    Fragment_Shader_Texture_ID,
+    Fragment_Shader_Kernel_ID,
+
     game_asset_id_count
 };
 
-const int COUNT_TEXT_ASSETS = 1;
+const int COUNT_TEXT_ASSETS = 13;
 const int COUNT_BITMAP_ASSETS = 5;
 const int COUNT_FONT_ASSETS = 1;
 const int COUNT_SOUND_ASSETS = 1;
@@ -81,6 +94,7 @@ struct waveformat {
 };
 
 struct game_sound {
+    game_asset_id AssetID;
     waveformat WaveFormat;
     uint32 SampleCount;
     uint32 Played;
@@ -146,8 +160,8 @@ game_sound AssetLoadSound(memory_arena* Arena, game_asset* Asset) {
     }
     ChunkSize = *Pointer++;
 
-    Asset->Offset = Arena->Used;
-    game_sound Result = { 0 };
+    game_sound Result = {};
+    Result.AssetID = Asset->ID;
     Result.SampleOut = (int16*)PushSize(Arena, Asset->MemoryNeeded);
     Result.SampleCount = ChunkSize / 2;
     Result.WaveFormat = WaveFMT;
@@ -187,6 +201,7 @@ struct bitmap_header {
 #pragma pack(pop)
 
 struct game_bitmap {
+    game_asset_id AssetID;
     bitmap_header Header;
     uint32 Handle;
     uint32 BytesPerPixel;
@@ -196,7 +211,8 @@ struct game_bitmap {
 };
 
 game_bitmap AssetLoadBitmap(memory_arena* Arena, game_asset* Asset) {
-    game_bitmap Result = { 0 };
+    game_bitmap Result = {};
+    Result.AssetID = Asset->ID;
     Result.Handle = 0;
 
     bitmap_header* Header = (bitmap_header*)Asset->File.Content;
@@ -228,7 +244,6 @@ game_bitmap AssetLoadBitmap(memory_arena* Arena, game_asset* Asset) {
     }
 
     uint64 Size = BytesPerPixel * Header->Width * Header->Height;
-    Asset->Offset = Arena->Used;
     void* Destination = PushSize(Arena, Size);
 
     memcpy(Destination, Result.Content, Size);
@@ -245,7 +260,7 @@ void ClearBitmap(game_bitmap* Bitmap) {
 }
 
 game_bitmap MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool ClearToZero = true) {
-    game_bitmap Result = { 0 };
+    game_bitmap Result = {};
     Result.Header = { 0 };
     Result.Header.Width = Width;
     Result.Header.Height = Height;
@@ -284,6 +299,8 @@ struct game_font_character {
 };
 
 struct game_font {
+    game_asset_id AssetID;
+    signed long SpaceAdvance;
     game_font_character Characters[FONT_CHARACTERS_COUNT];
 };
 
@@ -350,6 +367,7 @@ uint64 ComputeNeededMemoryForFont(const char* Path) {
 
 game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
     game_font Result = {};
+    Result.AssetID = Asset->ID;
 
     FT_Library FTLibrary;
     FT_Face Font;
@@ -373,15 +391,16 @@ game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
                 Assert(false);
             }
 
-            Asset->Offset = Arena->Used;
+            error = FT_Load_Char(Font, ' ', FT_LOAD_RENDER);
+            if (error) Assert(false);
+            Result.SpaceAdvance = Font->glyph->advance.x >> 6;
+
             unsigned char c = '!';
             for (int i = 0; i < FONT_CHARACTERS_COUNT; i++) {
                 game_font_character* pCharacter = &Result.Characters[i];
                 game_bitmap* CharacterBMP = &pCharacter->Bitmap;
                 error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
-                if (error) {
-                    Assert(false);
-                }
+                if (error) Assert(false);
                 else {
                     FT_GlyphSlot Slot = Font->glyph;
                     FT_Bitmap FTBMP = Slot->bitmap;
@@ -412,11 +431,147 @@ game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct game_video {
-    video_context* VideoContext;
+    game_asset_id AssetID;
+    video_context VideoContext;
     int Handle;
     bool Loop;
     double TimeElapsed;
 };
+
+game_video AssetLoadVideo(memory_arena* Arena, game_asset* Asset) {
+    game_video Result = { Asset->ID, 0 };
+    void* Dest = PushSize(Arena, Asset->MemoryNeeded);
+    memcpy(Dest, Asset->File.Content, Asset->File.ContentSize);
+    return Result;
+}
+
+static int ReadPacket(void* Opaque, unsigned char* Buffer, int BufferSize) {
+    video_buffer* VideoBuffer = (video_buffer*)Opaque;
+    int Size = VideoBuffer->Size < BufferSize ? VideoBuffer->Size : BufferSize;
+    memcpy(Buffer, VideoBuffer->Pointer, Size);
+    VideoBuffer->Pointer += Size;
+    VideoBuffer->Size -= Size;
+    if (VideoBuffer->Size <= 0) return AVERROR_EOF;
+    else return Size;
+}
+
+int64 SeekPacket(void* Opaque, int64 Where, int Whence) {
+    video_buffer* VideoBuffer = (video_buffer*)Opaque;
+    switch (Whence) {
+        case AVSEEK_SIZE: {
+            return VideoBuffer->FullSize;
+        } break;
+
+        case SEEK_SET: {
+            if (VideoBuffer->FullSize > Where) {
+                VideoBuffer->Pointer = VideoBuffer->Start + Where;
+                VideoBuffer->Size = VideoBuffer->FullSize - Where;
+            }
+            else return EOF;
+        } break;
+
+        case SEEK_CUR: {
+            if (VideoBuffer->Size > Where) {
+                VideoBuffer->Pointer += Where;
+                VideoBuffer->Size -= Where;
+            }
+            else return EOF;
+        } break;
+
+        case SEEK_END: {
+            if (VideoBuffer->FullSize > Where) {
+                VideoBuffer->Pointer = (VideoBuffer->Start + VideoBuffer->FullSize) - Where;
+                int curPos = VideoBuffer->Pointer - VideoBuffer->Start;
+                VideoBuffer->Size = VideoBuffer->FullSize - curPos;
+            }
+            else return EOF;
+        } break;
+    }
+    return VideoBuffer->Pointer - VideoBuffer->Start;
+}
+
+void InitializeVideoBuffer(video_buffer* Buffer, void* Content, int64 FileSize) {
+    Buffer->Start = (unsigned char*)Content;
+    Buffer->Pointer = Buffer->Start;
+    Buffer->FullSize = FileSize;
+    Buffer->Size = Buffer->FullSize;
+}
+
+void InitializeVideo(video_context* VideoContext) {
+    auto& FormatContext = VideoContext->FormatContext;
+
+    FormatContext = avformat_alloc_context();
+    if (!FormatContext) {
+        throw("Format context not allocated.");
+    }
+    else {
+
+        int BufferSize = 0x8000;
+        unsigned char* pBuffer = (unsigned char*)av_malloc(BufferSize);
+        AVIOContext* IOContext = avio_alloc_context(
+            (unsigned char*)pBuffer,
+            BufferSize,
+            0,
+            &VideoContext->Buffer,
+            &ReadPacket,
+            NULL,
+            &SeekPacket
+        );
+
+        //avformat_open_input(&FormatContext, "..\\..\\GameAssets\\Assets\\Videos\\Video.mp4", NULL, NULL);
+        
+        FormatContext->pb = VideoContext->IOContext;
+        FormatContext->flags = AVFMT_FLAG_CUSTOM_IO;
+        FormatContext->iformat = av_find_input_format("mp4");
+
+        int AVError = avformat_open_input(&FormatContext, "", NULL, NULL);
+        if (AVError) {
+            char StrError[256];
+            av_strerror(AVError, StrError, 256);
+            throw("File could not be opened.");
+        }
+
+        // Finding video stream (not audio stream or others)
+        AVStream* VideoStream = 0;
+        for (unsigned int i = 0; i < FormatContext->nb_streams; i++) {
+            AVStream* Stream = FormatContext->streams[i];
+            if (Stream->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+                VideoStream = Stream;
+                break;
+            }
+        }
+
+        if (VideoStream == 0) throw("VideoStream not found.");
+
+        VideoContext->VideoStreamIndex = VideoStream->index;
+        VideoContext->TimeBase = (double)VideoStream->time_base.num / (double)VideoStream->time_base.den;
+
+        // Allocating resources
+            // Codec context & params
+        AVCodecParameters* CodecParams = VideoStream->codecpar;
+        const AVCodec* Codec = avcodec_find_decoder(CodecParams->codec_id);
+        if (!Codec) throw("Decoder not found.");
+
+        VideoContext->CodecContext = avcodec_alloc_context3(Codec);
+        if (!VideoContext->CodecContext) throw("Codec context could not be allocated.");
+
+        if (avcodec_parameters_to_context(VideoContext->CodecContext, CodecParams) < 0) throw("Codec params could not be loaded to context.");
+        if (avcodec_open2(VideoContext->CodecContext, Codec, NULL) < 0) throw("Codec could not be opened.");
+
+        // Packet & Frame
+        VideoContext->Packet = av_packet_alloc();
+        if (!VideoContext->Packet) throw("Packet could not be allocated.");
+
+        VideoContext->Frame = av_frame_alloc();
+        if (!VideoContext->Frame) throw("Frame could not be allocated.");
+
+        int Width = VideoContext->Frame->width;
+        int Height = VideoContext->Frame->height;
+        VideoContext->VideoOut = VirtualAlloc(0, Width * Height * 4, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+
+        return;
+    }
+}
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Meshes                                                                                                                                                           |
@@ -429,6 +584,7 @@ struct vertex {
 };
 
 struct game_mesh {
+    game_asset_id AssetID;
     int nVertices;
     double* Vertices;
     int nFaces;
@@ -436,7 +592,6 @@ struct game_mesh {
     uint32 VBO;
     uint32 VAO;
     uint32 EBO;
-    game_bitmap* Texture;
 };
 
 v2 ParseV2(char* Pointer) {
@@ -485,14 +640,14 @@ uint64 ComputeNeededMemoryForMesh(read_file_result File) {
         ReadChar = *Pointer++; ReadSize++;
 
         // Parse faces
-        std::set<iv3> Faces = {};
+        std::set<iv3> Vertices = {};
         int nFaces = 0;
 
         while (ReadSize < File.ContentSize) {
             int nFaceVertices = 0;
             while (*Pointer != '\n') {
                 iv3 V = ParseIV3(Pointer);
-                Faces.insert(V);
+                Vertices.insert(V);
                 nFaceVertices++;
                 while (*Pointer++ != ' ' && *Pointer != '\n') { ReadSize++; };
                 ReadSize++;
@@ -504,13 +659,14 @@ uint64 ComputeNeededMemoryForMesh(read_file_result File) {
 
         // We need eight doubles for each combination of vertex, normal, texture (v3, v3, v2) and
         // 3 integers for each triangle.
-        Result = Faces.size() * 8 * sizeof(double) + nFaces * 3 * sizeof(int);
+        Result = Vertices.size() * 8 * sizeof(double) + nFaces * 3 * sizeof(uint32);
     }
     return Result;
 }
 
 game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
-    game_mesh Result = { 0 };
+    game_mesh Result = {};
+    Result.AssetID = Asset->ID;
     
     read_file_result File = Asset->File;
 
@@ -616,14 +772,19 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
             }
         }
 
-        // Push mesh
+        // Set properties and reserve memory
         Result.nVertices = FaceVertices.size();
-        Asset->Offset = Arena->Used;
-        Result.Vertices = PushArray(Arena, 5 * Result.nVertices, double);
+        Result.nFaces = Triangles.size() / 3;
+
+        Result.Vertices = PushArray(Arena, 8 * Result.nVertices, double);
+        Result.Faces = PushArray(Arena, Triangles.size(), uint32);
+
+        // Write result
         std::set<iv3>::iterator itr;
-        std::map<iv3, int> dict = {};
+        std::map<iv3, uint32> dict = {};
         double* pOutputVertex = Result.Vertices;
         int n = 0;
+        int WrittenBytes = 0;
         for (itr = FaceVertices.begin(); itr != FaceVertices.end(); itr++) {
             iv3 FaceVertex = *itr;
             dict[FaceVertex] = n++;
@@ -638,14 +799,14 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
             *pOutputVertex++ = Normal.Z;
             *pOutputVertex++ = Texture.X;
             *pOutputVertex++ = Texture.Y;
+            WrittenBytes += 8 * sizeof(double);
         }
 
+        uint32* pOutputFace = Result.Faces;
         for (const iv3& v : Triangles) {
-            *pOutputVertex++ = dict[v];
+            *pOutputFace++ = dict[v];
+            WrittenBytes += sizeof(uint32);
         }
-
-        Result.nFaces = Triangles.size();
-        Result.Faces = PushArray(Arena, 3 * Result.nFaces, uint32);
     }
 
     return Result;
@@ -655,11 +816,26 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
 // | Shaders                                                                                                                                                          |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+enum game_shader_id {
+    Shader_Texture_ID,
+    Shader_Sphere_ID,
+    Shader_Framebuffer_ID,
+    Shader_Single_Color_ID,
+    Shader_Outline_Init_ID,
+    Shader_JFA_ID,
+    Shader_Outline_ID,
+    Shader_Kernel_ID,
+    Shader_Antialiasing_ID,
+
+    game_shader_id_count
+};
+
 struct game_shader {
+    game_shader_id ID;
+    game_asset_id HeaderShaderID;
+    game_asset_id VertexShaderID;
+    game_asset_id FragmentShaderID;
     uint32 ProgramID;
-    read_file_result HeaderShaderCode;
-    read_file_result VertexShaderCode;
-    read_file_result FragmentShaderCode;
 };
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -668,6 +844,7 @@ struct game_shader {
 
 struct game_assets {
     game_asset Asset[game_asset_id_count];
+    game_shader Shaders[game_shader_id_count];
     int n[game_asset_type_count];
     char* Texts[COUNT_TEXT_ASSETS];
     game_bitmap Bitmaps[COUNT_BITMAP_ASSETS];
@@ -702,16 +879,18 @@ void* _GetAsset(game_assets* Assets, game_asset_id ID) {
     game_asset* Asset = &Assets->Asset[ID];
 
     switch (Asset->Type) {
+        case Text:   return (void*)&Assets->Texts[Asset->Index];   break;
+        case Font:   return (void*)&Assets->Fonts[Asset->Index];   break;
         case Bitmap: return (void*)&Assets->Bitmaps[Asset->Index]; break;
-        case Sound: return (void*)&Assets->Sounds[Asset->Index]; break;
-        case Mesh: return (void*)&Assets->Meshes[Asset->Index]; break;
-        case Video: return (void*)&Assets->Videos[Asset->Index]; break;
+        case Sound:  return (void*)&Assets->Sounds[Asset->Index];  break;
+        case Mesh:   return (void*)&Assets->Meshes[Asset->Index];  break;
+        case Video:  return (void*)&Assets->Videos[Asset->Index];  break;
         default: Assert(false); return 0;
     }
 }
 
-void LoadAssetsFromFile(game_assets* Assets, const char* Path) {
-    read_file_result AssetsFile = PlatformReadEntireFile(Path);
+void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, const char* Path) {
+    read_file_result AssetsFile = Read(Path);
 
     *Assets = *(game_assets*)AssetsFile.Content;
     Assets->Memory = (uint8*)AssetsFile.Content + sizeof(game_assets);
@@ -732,7 +911,7 @@ void LoadAssetsFromFile(game_assets* Assets, const char* Path) {
             case Mesh: {
                 game_mesh* Mesh = &Assets->Meshes[Asset.Index];
                 Mesh->Vertices = (double*)(Assets->Memory + Asset.Offset);
-                Mesh->Faces = (uint32*)(Mesh->Vertices + 5 * Mesh->nVertices);
+                Mesh->Faces = (uint32*)(Mesh->Vertices + 8 * Mesh->nVertices);
             } break;
 
             case Sound: {
@@ -741,7 +920,9 @@ void LoadAssetsFromFile(game_assets* Assets, const char* Path) {
             } break;
             
             //case Video: {
-
+            //    game_video* Video = &Assets->Videos[Asset.Index];
+            //    InitializeVideoBuffer(&Video->VideoContext.Buffer, (void*)(Assets->Memory + Asset.Offset), Asset.MemoryNeeded - 1);
+            //    InitializeVideo(&Video->VideoContext);
             //} break;
 
             case Font: {
@@ -761,7 +942,7 @@ void LoadAssetsFromFile(game_assets* Assets, const char* Path) {
         }
     }
 
-    Log(Info, "Assets loaded.");
+    Log(Info, "Assets loaded.\n");
 }
 
 #endif

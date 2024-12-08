@@ -1,5 +1,10 @@
 #pragma once
-#include "GameAssets.h"
+#include "../../GameAssets/GameAssets.h"
+
+/*
+    TODO:
+        - Put circles in its own group_type (too many lines)
+*/
 
 const int MAX_RENDER_ENTRIES = 10000;
 
@@ -81,7 +86,7 @@ struct render_entry_rect {
 struct render_entry_textured_rect {
     render_group_header Header;
     game_rect Rect;
-    loaded_bmp* Texture;
+    game_bitmap* Texture;
     color Color;
     wrap_mode Mode;
     double MinTexX;
@@ -99,7 +104,7 @@ struct render_entry_rect_outline {
 
 struct render_entry_text {
     render_group_header Header;
-    character* Characters;
+    game_font* Font;
     string String;
     color Color;
     v2 Position;
@@ -109,8 +114,8 @@ struct render_entry_text {
 
 struct render_entry_button {
     render_group_header Header;
-    character* Characters;
-    button* Button;
+    game_font* Characters;
+    //button* Button;
 };
 
 struct render_entry_video {
@@ -132,16 +137,16 @@ light Light(v3 Direction, color Color = White, double Ambient = 0.5, double Diff
 
 struct render_entry_mesh {
     render_group_header Header;
-    mesh* Mesh;
+    game_mesh* Mesh;
+    game_bitmap* Texture;
     transform Transform;
-    shader* Shader;
+    game_shader_id ShaderID;
     light Light;
     color Color;
 };
 
 struct render_entry_mesh_outline {
     render_group_header Header;
-    shader* JumpFloodShader;
     int StartingLevel;
     color Color;
     int Width;
@@ -150,7 +155,7 @@ struct render_entry_mesh_outline {
 
 struct render_entry_shader_pass {
     render_group_header Header;
-    shader* Shader;
+    game_shader_id ShaderID;
     uint32 TargetIndex;
     color Color;
     float Kernel[9];
@@ -160,7 +165,7 @@ struct render_entry_shader_pass {
 
 struct render_entry_render_target {
     render_group_header Header;
-    shader* Shader;
+    game_shader_id ShaderID;
     render_group_target Target;
 };
 
@@ -422,7 +427,7 @@ void PushRect(
 
 void PushTexturedRect(
     render_group* Group,
-    loaded_bmp* Texture,
+    game_bitmap* Texture,
     game_rect Rect,
     wrap_mode Mode,
     color Color = White,
@@ -476,7 +481,7 @@ void PushTexturedRect(
 void PushText(
     render_group* Group, 
     v2 Position, 
-    character* Characters, 
+    game_font* Font, 
     string String, 
     color Color = White, 
     int Points = 20, 
@@ -487,7 +492,7 @@ void PushText(
     Entry->Header.Target = World;
     Entry->Header.Key.Order = Order;
 
-    Entry->Characters = Characters;
+    Entry->Font = Font;
     Entry->Color = Color;
     Entry->Wrapped = Wrapped;
     Entry->Points = Points;
@@ -495,9 +500,9 @@ void PushText(
     Entry->Position = Position;
 }
 
-void PushButton(render_group* Group, character* Characters, button* Button, double Order = 0.0) {
-    // TODO: Push bitmap and text
-}
+//void PushButton(render_group* Group, character* Characters, button* Button, double Order = 0.0) {
+//    // TODO: Push bitmap and text
+//}
 
 void PushRectOutline(
     render_group* Group, 
@@ -653,7 +658,7 @@ uint32 GetTargetIndex(render_group_target Target) {
 void PushRenderTarget(
     render_group* Group, 
     render_group_target Target, 
-    shader* Shader, 
+    game_shader_id ShaderID, 
     double Order = SORT_ORDER_PUSH_RENDER_TARGETS
 ) {
     render_entry_render_target* Entry = PushRenderElement(Group, render_entry_render_target);
@@ -664,12 +669,12 @@ void PushRenderTarget(
     else if (Target == Outline) Entry->Target = Postprocessing_Outline;
     else if (Target == Postprocessing_Outline) Entry->Target = Output;
 
-    Entry->Shader = Shader;
+    Entry->ShaderID = ShaderID;
 }
 
 void PushShaderPass(
     render_group* Group,
-    shader* Shader,
+    game_shader_id ShaderID,
     render_group_target Target,
     color Color = White,
     double Width = 0.0,
@@ -680,7 +685,7 @@ void PushShaderPass(
     Entry->Header.Key.Order = Order;
     Entry->Header.Target = Target;
 
-    Entry->Shader = Shader;
+    Entry->ShaderID = ShaderID;
     Entry->TargetIndex = GetTargetIndex(Target);
     Entry->Color = Color;
     Entry->Width = Width;
@@ -689,7 +694,6 @@ void PushShaderPass(
 
 void PushKernelShaderPass(
     render_group* Group,
-    shader* Shader,
     render_group_target Target,
     matrix3 Kernel,
     double Order = SORT_ORDER_SHADER_PASSES
@@ -698,7 +702,7 @@ void PushKernelShaderPass(
     Entry->Header.Key.Order = Order;
     Entry->Header.Target = Target;
 
-    Entry->Shader = Shader;
+    Entry->ShaderID = Shader_Kernel_ID;
     Entry->TargetIndex = GetTargetIndex(Target);
     Entry->Color = White;
     Entry->Width = 0;
@@ -715,35 +719,37 @@ void PushMeshOutline(
     int Passes,
     int StartingLevel
 ) {
-    PushRenderTarget(Group, Outline, &Group->Assets->AntialiasingShader, SORT_ORDER_SHADER_PASSES - 10);
-    PushShaderPass(Group, &Group->Assets->OutlineInitShader, Postprocessing_Outline, White, SORT_ORDER_SHADER_PASSES);
+    PushRenderTarget(Group, Outline, Shader_Antialiasing_ID, SORT_ORDER_SHADER_PASSES - 10);
+    PushShaderPass(Group, Shader_Outline_Init_ID, Postprocessing_Outline, White, SORT_ORDER_SHADER_PASSES);
 
     render_entry_mesh_outline* Entry = PushRenderElement(Group, render_entry_mesh_outline);
     Entry->Header.Key.Order = SORT_ORDER_SHADER_PASSES + 10.0;
     Entry->Header.Target = Postprocessing_Outline;
 
-    Entry->JumpFloodShader = &Group->Assets->JumpFloodShader;
-
     Entry->Passes = Passes;
     Entry->Width = Width;
     Entry->StartingLevel = StartingLevel;
 
-    PushShaderPass(Group, &Group->Assets->OutlineShader, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
+    PushShaderPass(Group, Shader_Outline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
 
-    PushRenderTarget(Group, Postprocessing_Outline, &Group->Assets->FramebufferShader, SORT_ORDER_PUSH_RENDER_TARGETS - 10.0);
+    PushRenderTarget(Group, Postprocessing_Outline, Shader_Framebuffer_ID, SORT_ORDER_PUSH_RENDER_TARGETS - 10.0);
 }
 
 void PushMesh(
     render_group* Group,
-    mesh* Mesh,
+    game_asset_id MeshID,
     transform Transform,
     light Light,
-    shader* Shader,
+    game_shader_id ShaderID,
+    game_asset_id TextureID = Bitmap_Empty_ID,
     color Color = White,
     double Order = SORT_ORDER_MESHES,
     bool Outlined = false
 ) {
     render_entry_mesh* Entry = PushRenderElement(Group, render_entry_mesh);
+
+    game_mesh* pMesh = GetAsset(Group->Assets, MeshID, game_mesh);
+    game_bitmap* pTexture = GetAsset(Group->Assets, TextureID, game_bitmap);
 
     if (Outlined) {
         Order = SORT_ORDER_OUTLINED_MESHES;
@@ -753,10 +759,11 @@ void PushMesh(
         OutlineEntry->Header.Target = Outline;
 
         OutlineEntry->Transform = Transform;
-        OutlineEntry->Mesh = Mesh;
+        OutlineEntry->Mesh = pMesh;
         OutlineEntry->Light = Light;
-        OutlineEntry->Shader = &Group->Assets->SingleColorShader;
+        OutlineEntry->ShaderID = Shader_Single_Color_ID;
         OutlineEntry->Color = White;
+        OutlineEntry->Texture = GetAsset(Group->Assets, Bitmap_Empty_ID, game_bitmap);
 
         if (!Group->PushOutline) {
             int Passes = 15;
@@ -769,9 +776,10 @@ void PushMesh(
     Entry->Header.Target = World;
 
     Entry->Transform = Transform;
-    Entry->Mesh = Mesh;
+    Entry->Mesh = pMesh;
+    Entry->Texture = pTexture;
     Entry->Light = Light;
-    Entry->Shader = Shader;
+    Entry->ShaderID = ShaderID;
     Entry->Color = Color;
 }
 
@@ -779,15 +787,22 @@ void PushMesh(
 // | Debug                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void PushDebugArena(render_group* Group, memory_arena Arena, v2 Position, double Alpha = 1.0, double Order = SORT_ORDER_DEBUG_OVERLAY) {
+void PushDebugArena(
+    render_group* Group, 
+    memory_arena Arena,
+    v2 Position,
+    double Alpha = 1.0, 
+    double Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID, game_font);
     double ArenaPercentage = (double)Arena.Used / (double)Arena.Size;
     game_rect Rect = { Position.X, Position.Y, 120.0, 20.0 };
     PushRect(Group, Rect, Color(DarkGray, Alpha), World, Order + 0.1);
     Rect.Width *= ArenaPercentage;
     PushRect(Group, Rect, Color(Red, Alpha), World, Order + 0.2);
-    PushText(Group, Position + V2(0, 15.0), Group->Assets->Characters, Arena.Name, Color(White, Alpha), 8, false, Order + 0.3);
+    PushText(Group, Position + V2(0, 15.0), Font, Arena.Name, Color(White, Alpha), 8, false, Order + 0.3);
     sprintf_s(Arena.Percentage.Content, 7, "%.02f%%", ArenaPercentage * 100.0);
-    PushText(Group, Position + V2(125.0, 15.0), Group->Assets->Characters, Arena.Percentage, Color(White, Alpha), 8, false, Order + 0.3);
+    PushText(Group, Position + V2(125.0, 15.0), Font, Arena.Percentage, Color(White, Alpha), 8, false, Order + 0.3);
 }
 
 void PushDebugVector(render_group* Group, v3 Vector, v3 Position, coordinate_system Coordinates, color Color = White) {
@@ -834,7 +849,7 @@ void PushDebugVector(render_group* Group, v3 Vector, v3 Position, coordinate_sys
     PushTriangle(Group, Triangle, Color, Coordinates, Order);
 }
 
-void PushDebugNormals(render_group* Group, mesh Mesh, transform Transform) {
+void PushDebugNormals(render_group* Group, game_mesh Mesh, transform Transform) {
     for (int i = 0; i < Mesh.nFaces; i++) {
         vertex Vertex1 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i]];
         vertex Vertex2 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i + 1]];

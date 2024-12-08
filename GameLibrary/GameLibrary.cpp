@@ -40,19 +40,19 @@ color Lighten(color RGB) {
     return Result;
 }
 
-void Plot(game_offscreen_buffer* Buffer, v3 Position, color Color) {
-    game_rect ScreenRect;
-    ScreenRect.Left = 0;
-    ScreenRect.Top = 0;
-    ScreenRect.Width = Buffer->Width;
-    ScreenRect.Height = Buffer->Height;
-
-    if (Collision(ScreenRect, Position)) {
-        uint8* PixelMemory = (uint8*)Buffer->Memory + (int)Position.X * Buffer->BytesPerPixel + (int)Position.Y * Buffer->Pitch;
-        uint32* Pixel = (uint32*)PixelMemory;
-        *Pixel = GetColorBytes(Color);
-    }
-}
+//void Plot(game_offscreen_buffer* Buffer, v3 Position, color Color) {
+//    game_rect ScreenRect;
+//    ScreenRect.Left = 0;
+//    ScreenRect.Top = 0;
+//    ScreenRect.Width = Buffer->Width;
+//    ScreenRect.Height = Buffer->Height;
+//
+//    if (Collision(ScreenRect, Position)) {
+//        uint8* PixelMemory = (uint8*)Buffer->Memory + (int)Position.X * Buffer->BytesPerPixel + (int)Position.Y * Buffer->Pitch;
+//        uint32* Pixel = (uint32*)PixelMemory;
+//        *Pixel = GetColorBytes(Color);
+//    }
+//}
 
 // UI
 void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, platform_read_entire_file* Read) {
@@ -63,42 +63,45 @@ void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, p
 void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
     
     Silence(pSoundBuffer);
+
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
     //WriteSineWave(pSoundBuffer, 480, 0);
 }
 
 // Video
-void PushVideo(render_group* Group, game_video* Video, game_rect Rect, double SecondsElapsed, double Order = SORT_ORDER_DEBUG_OVERLAY) {
-    if (!Video->VideoContext->Ended) {
+void PushVideo(render_group* Group, game_asset_id VideoID, game_rect Rect, double SecondsElapsed, double Order = SORT_ORDER_DEBUG_OVERLAY) {
+    game_video* Video = GetAsset(Group->Assets, VideoID, game_video);
+    if (!Video->VideoContext.Ended) {
         Video->TimeElapsed += SecondsElapsed;
         char Text[256];
-        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext->PTS * Video->VideoContext->TimeBase);
+        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext.PTS * Video->VideoContext.TimeBase);
         OutputDebugStringA(Text);
 
-        if (Video->TimeElapsed > Video->VideoContext->PTS * Video->VideoContext->TimeBase) {
-            LoadFrame(Video->VideoContext);
-            Video->VideoContext->Width = Rect.Width;
-            Video->VideoContext->Height = Rect.Height;
-            WriteFrame(Video->VideoContext);
+        if (Video->TimeElapsed > Video->VideoContext.PTS * Video->VideoContext.TimeBase) {
+            LoadFrame(&Video->VideoContext);
+            Video->VideoContext.Width = Rect.Width;
+            Video->VideoContext.Height = Rect.Height;
+            WriteFrame(&Video->VideoContext);
         }
     }
 
     _PushVideo(Group, Video, Rect, Order);
 }
 
-void PushVideoLoop(render_group* Group, game_video* Video, game_rect Rect, int Z, double SecondsElapsed, int64_t StartOffset, int64_t EndOffset) {
+void PushVideoLoop(render_group* Group, game_asset_id VideoID, game_rect Rect, int Z, double SecondsElapsed, int64_t StartOffset, int64_t EndOffset) {
 
-    PushVideo(Group, Video, Rect, Z, SecondsElapsed);
+    PushVideo(Group, VideoID, Rect, Z, SecondsElapsed);
+    game_video* Video = GetAsset(Group->Assets, VideoID, game_video);
     auto& VideoContext = Video->VideoContext;
-    auto& FormatContext = VideoContext->FormatContext;
-    auto& CodecContext = VideoContext->CodecContext;
-    auto& StreamIndex = VideoContext->VideoStreamIndex;
-    auto& PTS = VideoContext->PTS; // Presentation time-stamp (in time-base units)
+    auto& FormatContext = VideoContext.FormatContext;
+    auto& CodecContext = VideoContext.CodecContext;
+    auto& StreamIndex = VideoContext.VideoStreamIndex;
+    auto& PTS = VideoContext.PTS; // Presentation time-stamp (in time-base units)
 
     if (PTS >= EndOffset) {
         av_seek_frame(FormatContext, StreamIndex, StartOffset, AVSEEK_FLAG_BACKWARD);
-        do { LoadFrame(Video->VideoContext); } while (Video->VideoContext->PTS < StartOffset - 1000);
-        Video->TimeElapsed = Video->VideoContext->PTS * Video->VideoContext->TimeBase;
+        do { LoadFrame(&Video->VideoContext); } while (Video->VideoContext.PTS < StartOffset - 1000);
+        Video->TimeElapsed = Video->VideoContext.PTS * Video->VideoContext.TimeBase;
     }
 }
 
@@ -200,13 +203,15 @@ extern "C" GAME_UPDATE(GameUpdate)
         firstFrame = true;
 
         // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        LoadAssets(Assets, Platform,
-            &pGameState->RenderArena, 
-            &pGameState->StringsArena, 
-            &pGameState->FontsArena, 
-            &pGameState->VideoArena,
-            &pGameState->MeshArena
-        );
+        LoadAssetsFromFile(Platform->ReadEntireFile, Assets, "..\\..\\GameAssets\\game_assets");
+
+        memory_arena* StringsArena = &pGameState->StringsArena;
+        pGameState->StringsArena.Name = PushString(StringsArena, 13, "Strings Arena");
+        pGameState->StringsArena.Percentage = PushString(StringsArena, 7, "0.0%");
+        pGameState->RenderArena.Name = PushString(StringsArena, 13, "Render Arena");
+        pGameState->RenderArena.Percentage = PushString(StringsArena, 7, "0.0%");
+        pGameState->VideoArena.Name = PushString(StringsArena, 13, "Video Arena");
+        pGameState->VideoArena.Percentage = PushString(StringsArena, 7, "0.0%");
 
         // User Interface
 
@@ -244,10 +249,10 @@ extern "C" GAME_UPDATE(GameUpdate)
     Update(&pGameState->UserInterface, Input, Group->Width, Group->Height);
     
     // Render
-    light LightSource = Light(V3(-0.5, -1, 1), Red);
+    light LightSource = Light(V3(-0.5, -1, 1), White);
 
     transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(5.0, 0.0, 0.0));
-    PushMesh(Group, &Assets->TestMesh, Transform1, LightSource, &Assets->SphereShader, White, SORT_ORDER_MESHES, true);
+    PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
 
     // PushVideo(Group, &Assets->TestVideo, {0, 0, (double)Group->Width, (double)Group->Height}, pGameState->dt);
 
@@ -285,11 +290,11 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         PushDebugGrid(Group, Alpha);
 
-        game_rect DebugInfoRect = { 0, 0, 350, 270 };
+        game_rect DebugInfoRect = { 0, 0, 350, 230 };
 
         PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), World, SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
-        PushText(Group, V2(0, 30.0), Assets->Characters, Memory->DebugInfo, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
+        PushText(Group, V2(0, 30.0), GetAsset(Assets, Font_Cascadia_Mono_ID, game_font), Memory->DebugInfo, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
 
         // Render Arena
         PushDebugArena(Group, pGameState->RenderArena, V2(20.0, 120.0), Alpha);
@@ -297,14 +302,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         // Strings Arena
         PushDebugArena(Group, pGameState->StringsArena, V2(20.0, 150.0), Alpha);
 
-        // Fonts Arena
-        PushDebugArena(Group, pGameState->FontsArena, V2(20.0, 180.0), Alpha);
-
-        // Mesh Arena
-        PushDebugArena(Group, pGameState->MeshArena, V2(20.0, 210.0), Alpha);
-
         // Video Arena
-        PushDebugArena(Group, pGameState->VideoArena, V2(20.0, 240.0), Alpha);
+        PushDebugArena(Group, pGameState->VideoArena, V2(20.0, 180.0), Alpha);
 
         // Axes
         v3 XAxis = V3(cos(Group->Camera.Angle * Degrees), sin(Group->Camera.Angle * Degrees) * sin(Group->Camera.Pitch * Degrees), 0.0);
@@ -316,7 +315,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Screen_Coordinates, Blue);
     }
 
-    PushRenderTarget(Group, World, &Assets->AntialiasingShader, SORT_ORDER_PUSH_RENDER_TARGETS);
+    PushRenderTarget(Group, World, Shader_Antialiasing_ID, SORT_ORDER_PUSH_RENDER_TARGETS);
 
     static bool Screenshot = false;
     if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F10.WasDown) {
@@ -335,5 +334,5 @@ extern "C" GAME_UPDATE(GameUpdate)
             PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), Output, SORT_ORDER_PUSH_RENDER_TARGETS + 50.0);
         }
     }
-    PushRenderTarget(Group, Output, &Assets->FramebufferShader, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
+    PushRenderTarget(Group, Output, Shader_Framebuffer_ID, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
 }

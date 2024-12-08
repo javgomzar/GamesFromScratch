@@ -9,6 +9,14 @@
 #define Megabytes(Value) (Kilobytes(Value)*1024)
 #define Gigabytes(Value) ((uint64)Megabytes(Value)*1024)
 
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
+#endif
+
 // Platform independent constants
 static double Pi = 3.14159265359;
 static double Tau = 2.0 * Pi;
@@ -110,6 +118,22 @@ inline iv3 IV3(int X, int Y, int Z) {
 
 inline iv3 operator+(iv3 a, iv3 b) {
 	return IV3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+}
+
+inline bool operator==(const iv3& lhs, const iv3& rhs) {
+	return lhs.X == rhs.X && lhs.Y == rhs.Y && lhs.Z == rhs.Z;
+}
+
+inline bool operator<(const iv3& lhs, const iv3& rhs) {
+	bool Result = 0;
+	if (lhs.X == rhs.X) {
+		if (lhs.Y == rhs.Y) {
+			if (lhs.Z == rhs.Z) return false;
+			else return lhs.Z < rhs.Z;
+		}
+		else return lhs.Y < rhs.Y;
+	}
+	else return lhs.X < rhs.X;
 }
 
 struct v3 {

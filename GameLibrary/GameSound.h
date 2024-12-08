@@ -2,7 +2,7 @@
 
 #include "GamePlatform.h"
 #include "GameMath.h"
-#include "GameAssets.h"
+#include "../../GameAssets/GameAssets.h"
 
 struct game_sound_buffer {
     uint32 SamplesPerSecond;

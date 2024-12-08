@@ -89,34 +89,8 @@ inline string PushString(memory_arena* Arena, int Length, const char* Content) {
 
 // Services that the platform layer provides for the game
 struct read_file_result {
-    char* Path;
     uint32 ContentSize;
     void* Content;
-};
-
-// File loading
-// BMP
-#pragma pack(push, 1)
-struct bitmap_header {
-    uint16 FileType;
-    uint32 FileSize;
-    uint16 Reserved1;
-    uint16 Reserved2;
-    uint32 BitmapOffset;
-    uint32 Size;
-    int32 Width;
-    int32 Height;
-    uint16 Planes;
-    uint16 BitsPerPixel;
-    uint32 Compression;
-    uint32 SizeOfBitmap;
-    int32 HorzResolution;
-    int32 VertResolution;
-    uint32 ColorUser;
-    uint32 ColorsImportant;
-    uint32 RedMask;
-    uint32 GreenMask;
-    uint32 BlueMask;
 };
 
 // Multithreading
@@ -125,15 +99,13 @@ struct thread_info {
     bool Running;
 };
 
-#pragma pack(pop)
-
-#define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Filename)
+#define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Path)
 typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
 
-#define PLATFORM_WRITE_ENTIRE_FILE(name) bool name(const char* Filename, uint64 MemorySize, void* Memory)
+#define PLATFORM_WRITE_ENTIRE_FILE(name) bool name(const char* Path, uint64 MemorySize, void* Memory)
 typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
 
-#define PLATFORM_APPEND_TO_FILE(name) bool name(const char* Filename, uint64 MemorySize, void* Memory)
+#define PLATFORM_APPEND_TO_FILE(name) bool name(const char* Path, uint64 MemorySize, void* Memory)
 typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
 
 #define PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)

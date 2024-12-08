@@ -1,9 +1,20 @@
+
+#include "..\GameLibrary\GameLibrary.h"
 #include "Win32PlatformLayer.h"
 
+#include "resource.h"
+#include "framework.h"
+#include "stdio.h"
+#include "XInput.h"
+#include "xaudio2.h"
+
+#include "glew.h"
 #include "gl/GL.h"
+
 #pragma comment (lib, "opengl32.lib")
 
 #include "OpenGLRender.h"
+
 #include <thread>
 #include <mutex>
 
@@ -355,7 +366,7 @@ void PlaybackInput(record_and_playback* RecordPlayback, game_input* Input) {
 }
 
 // Capture screen
-void SaveBMP(const char* Path, loaded_bmp* BMP) {
+void SaveBMP(const char* Path, game_bitmap* BMP) {
     PlatformWriteEntireFile(Path, sizeof(BMP->Header), &BMP->Header);
     uint32 Offset = BMP->Header.BitmapOffset - sizeof(BMP->Header);
     char Zero = 0;
@@ -366,7 +377,7 @@ void SaveBMP(const char* Path, loaded_bmp* BMP) {
 }
 
 void ScreenCapture(openGL OpenGL, int Width, int Height) {
-    loaded_bmp BMP = { 0 };
+    game_bitmap BMP = {};
 
     // Bitmap header
     BMP.Header.FileType = 19778;
@@ -1105,13 +1116,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
     InitializeArena(&pGameState->StringsArena, Kilobytes(1), ArenaStart);
     ArenaStart += pGameState->StringsArena.Size;
-    InitializeArena(&pGameState->FontsArena, Kilobytes(256), ArenaStart);
-    ArenaStart += pGameState->FontsArena.Size;
     InitializeArena(&pGameState->RenderArena, Megabytes(9), ArenaStart);
     ArenaStart += pGameState->RenderArena.Size;
-    InitializeArena(&pGameState->MeshArena, Megabytes(5), ArenaStart);
-    ArenaStart += pGameState->MeshArena.Size;
-    InitializeArena(&pGameState->VideoArena, Megabytes(200), ArenaStart);
 
     // Render group
     Group = AllocateRenderGroup(&GameMemory.Assets, &pGameState->RenderArena, Megabytes(4));

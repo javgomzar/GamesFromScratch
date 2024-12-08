@@ -42,7 +42,7 @@ void LoadFrame(video_context* VideoContext) {
     return;
 }
 
-void InitializeVideo(const char* Filename, video_context* VideoContext) {
+void InitializeVideoFromFile(const char* Filename, video_context* VideoContext) {
     // Opening file
     auto& FormatContext = VideoContext->FormatContext;
 

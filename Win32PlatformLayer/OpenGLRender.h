@@ -6,7 +6,9 @@
 	TODO:
 		- Stencil buffers
 		- Kernel operations
-		- Optimize ping pong rendering
+		- Optimize ping pong rendering (multithreading might be a good idea)
+		- Fix text rendering (currently it's not completely aligned)
+		- Pixel buffer objects for video rendering
 */
 
 struct render_target {
@@ -384,7 +386,7 @@ void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_m
 	}
 }
 
-void OpenGLBindTexture(loaded_bmp* Bitmap, wrap_mode Mode = Clamp) {
+void OpenGLBindTexture(game_bitmap* Bitmap, wrap_mode Mode = Clamp) {
 	OpenGLBindTexture(Bitmap->Header.Width, Bitmap->Header.Height, &Bitmap->Handle, Bitmap->Content, Mode);
 }
 
@@ -489,13 +491,21 @@ void OpenGLTexturedRect(
 	return;
 }
 
-void OpenGLRenderText(character* Characters, int DisplayWidth, v2 Position, string String, color Color, int Points, bool Wrapped) {
+void OpenGLRenderText(
+	game_font* Font, 
+	int DisplayWidth, 
+	v2 Position, 
+	string String, 
+	color Color, 
+	int Points, 
+	bool Wrapped
+) {
 	double PenX = Position.X;
 	double PenY = Position.Y;
 
 	double Scale = (double)Points / 20.0;
 
-	double LineJump = 0.023 * (double)Characters[1].Height * Scale; // 0.023 because height is in 64ths of pixel
+	double LineJump = 0.023 * (double)Font->Characters[0].Height * Scale; // 0.023 because height is in 64ths of pixel
 
 	for (int i = 0; i < String.Length; i++) {
 		char c = String.Content[i];
@@ -504,22 +514,24 @@ void OpenGLRenderText(character* Characters, int DisplayWidth, v2 Position, stri
 			PenY += LineJump;
 			PenX = Position.X;
 		}
-		else if (' ' <= c && c <= '~') {
-			character* pCharacter = Characters + (c - ' ');
+		else if (c == ' ') {
+			PenX += Font->SpaceAdvance * Scale;
+		}
+		else if ('!' <= c && c <= '~') {
+			game_font_character* pCharacter = Font->Characters + (c - '!');
 			double HorizontalAdvance = pCharacter->Advance * Scale;
 			if (Wrapped && (PenX + HorizontalAdvance > DisplayWidth)) {
 				PenX = Position.X;
 				PenY += LineJump;
 			}
-			if (c != ' ') {
-				game_rect Rect;
-				Rect.Left = PenX + pCharacter->Left * Scale;
-				Rect.Top = floor(PenY - pCharacter->Top * Scale);
-				Rect.Width = (double)pCharacter->Bitmap->Header.Width * Scale;
-				Rect.Height = (double)pCharacter->Bitmap->Header.Height * Scale;
-				OpenGLBindTexture(pCharacter->Bitmap, Clamp);
-				OpenGLTexturedRect(Rect, Color);
-			}
+			game_bitmap* CharacterBMP = &pCharacter->Bitmap;
+			game_rect Rect;
+			Rect.Left = PenX + pCharacter->Left * Scale;
+			Rect.Top = floor(PenY - pCharacter->Top * Scale);
+			Rect.Width = (double)CharacterBMP->Header.Width * Scale;
+			Rect.Height = (double)CharacterBMP->Header.Height * Scale;
+			OpenGLBindTexture(CharacterBMP, Clamp);
+			OpenGLTexturedRect(Rect, Color);
 
 			PenX += pCharacter->Advance * Scale;
 		}
@@ -527,43 +539,53 @@ void OpenGLRenderText(character* Characters, int DisplayWidth, v2 Position, stri
 }
 
 // Shaders
-GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_file_result Fragment) {
-	GLint VertexShaderCodeLengths[] = { Header.ContentSize, Vertex.ContentSize };
+GLuint OpenGLLoadShader(game_assets* Assets, game_shader* Shader) {
+	game_asset* HeaderAsset = &Assets->Asset[Shader->HeaderShaderID];
+	game_asset* VertexAsset = &Assets->Asset[Shader->VertexShaderID];
+	game_asset* FragmentAsset = &Assets->Asset[Shader->FragmentShaderID];
+
+	uint64 HeaderSize = HeaderAsset->MemoryNeeded - 1;
+	uint64 VertexSize = VertexAsset->MemoryNeeded - 1;
+	uint64 FragmentSize = FragmentAsset->MemoryNeeded - 1;
+
+	char* HeaderCode = Assets->Texts[HeaderAsset->Index];
+	char* VertexCode = Assets->Texts[VertexAsset->Index];
+	char* FragmentCode = Assets->Texts[FragmentAsset->Index];
+
+	GLint VertexShaderCodeLengths[] = { HeaderSize, VertexSize };
 
 	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
 	GLchar* VertexShaderCode[] = {
-		(char*)Header.Content,
-		(char*)Vertex.Content
+		HeaderCode,
+		VertexCode
 	};
 	glShaderSource(VertexShaderID, 2, VertexShaderCode, VertexShaderCodeLengths);
 
-	char VertexCode[4096] = { 0 };
-	for (int i = 0; i < Vertex.ContentSize; i++) {
-		VertexCode[i] = ((char*)Vertex.Content)[i];
-	}
-
-	GLint FragmentShaderCodeLengths[] = { Header.ContentSize, Fragment.ContentSize };
+	GLint FragmentShaderCodeLengths[] = { HeaderSize, FragmentSize };
 
 	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
 	GLchar* FragmentShaderCode[] = {
-		(char*)Header.Content,
-		(char*)Fragment.Content
+		HeaderCode,
+		FragmentCode
 	};
 	glShaderSource(FragmentShaderID, 2, FragmentShaderCode, FragmentShaderCodeLengths);
 
-	char FragmentCode[4096] = { 0 };
-	for (int i = 0; i < Fragment.ContentSize; i++) {
-		FragmentCode[i] = ((char*)Fragment.Content)[i];
-	}
-
 	glCompileShader(VertexShaderID);
 	glCompileShader(FragmentShaderID);
+	GLint VertexCompileStatus = 0;
+	GLint FragmentCompileStatus = 0;
+	glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &VertexCompileStatus);
+	glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &FragmentCompileStatus);
+	if (VertexCompileStatus == GL_FALSE || FragmentCompileStatus == GL_FALSE) Assert(false);
 
 	GLuint ProgramID = glCreateProgram();
 	glAttachShader(ProgramID, VertexShaderID);
 	glAttachShader(ProgramID, FragmentShaderID);
 
 	glLinkProgram(ProgramID);
+	GLint LinkStatus = 0;
+	glGetProgramiv(ProgramID, GL_LINK_STATUS, &LinkStatus);
+	if (LinkStatus == GL_FALSE) Assert(false);
 
 	glValidateProgram(ProgramID);
 	GLint Validation = 0;
@@ -581,6 +603,7 @@ GLuint OpenGLLoadShader(read_file_result Header, read_file_result Vertex, read_f
 		glGetShaderInfoLog(FragmentShaderID, 4096, &Length, FragmentErrors);
 		glGetProgramInfoLog(ProgramID, 4096, &Length, ProgramErrors);
 		Log(Error, "Error loading shader.\n");
+		GLenum GLError = glGetError();
 		Assert(false);
 	}
 
@@ -736,7 +759,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				SetCoordinates(Screen_Coordinates, Group->Camera, Width, Height);
 
-				OpenGLRenderText(Entry.Characters, Group->Width, Entry.Position, Entry.String, Entry.Color, Entry.Points, Entry.Wrapped);
+				OpenGLRenderText(Entry.Font, Group->Width, Entry.Position, Entry.String, Entry.Color, Entry.Points, Entry.Wrapped);
 
 				SetIdentityProjection();
 
@@ -750,11 +773,11 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				SetCoordinates(Screen_Coordinates, Group->Camera, Group->Width, Group->Height);
 
 				game_video* Video = Entry.Video;
-				int Width = Video->VideoContext->Width;
-				int Height = Video->VideoContext->Height;
+				int Width = Video->VideoContext.Width;
+				int Height = Video->VideoContext.Height;
 				int BytesToWrite = Width * Height * 4;
 
-				OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext->VideoOut, Clamp, true);
+				OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext.VideoOut, Clamp, true);
 				OpenGLTexturedRect(Entry.Rect, White, 0.0, 1.0, 1.0, 0.0);
 			} break;
 
@@ -765,17 +788,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				SetCoordinates(World_Coordinates, Group->Camera, Width, Height);
 
-				mesh* Mesh = Entry.Mesh;
-				shader* Shader = Entry.Shader;
+				game_mesh* Mesh = Entry.Mesh;
+				game_shader* Shader = &Group->Assets->Shaders[Entry.ShaderID];
 				light Light = Entry.Light;
 				transform Transform = Entry.Transform;
 
 				if (!Shader->ProgramID) {
-					Shader->ProgramID = OpenGLLoadShader(
-						Shader->HeaderShaderCode,
-						Shader->VertexShaderCode,
-						Shader->FragmentShaderCode
-					);
+					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
 				}
 
 				float Projection[16];
@@ -837,7 +856,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 					glEnableVertexAttribArray(2);
 				}
 
-				if (Mesh->Texture) OpenGLBindTexture(Mesh->Texture, Clamp);
+				game_bitmap* Texture = Entry.Texture;
+
+				if (Texture) OpenGLBindTexture(Texture, Clamp);
 				else glBindTexture(GL_TEXTURE_2D, 0);
 
 				glDrawElements(GL_TRIANGLES, 3 * Mesh->nFaces, GL_UNSIGNED_INT, 0);
@@ -875,10 +896,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				GLenum Error = 0;
 
-				shader* Shader = Entry.Shader;
+				game_shader* Shader = &Group->Assets->Shaders[Entry.ShaderID];
 
 				if (!Shader->ProgramID) {
-					Shader->ProgramID = OpenGLLoadShader(Shader->HeaderShaderCode, Shader->VertexShaderCode, Shader->FragmentShaderCode);
+					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
 				}
 
 				render_target Target = OpenGL.Targets[Entry.TargetIndex];
@@ -926,10 +947,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				SetIdentityProjection();
 
-				shader* Shader = Entry.JumpFloodShader;
+				game_shader* Shader = &Group->Assets->Shaders[Shader_JFA_ID];
 
 				if (!Shader->ProgramID) {
-					Shader->ProgramID = OpenGLLoadShader(Shader->HeaderShaderCode, Shader->VertexShaderCode, Shader->FragmentShaderCode);
+					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
 				}
 
 				render_target Target = OpenGL.Targets[GetTargetIndex(Postprocessing_Outline)];
@@ -984,10 +1005,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
  				SetIdentityProjection();
 
-				shader* Shader = Entry.Shader;
+				game_shader* Shader = &Group->Assets->Shaders[Entry.ShaderID];
 
 				if (!Shader->ProgramID) {
-					Shader->ProgramID = OpenGLLoadShader(Shader->HeaderShaderCode, Shader->VertexShaderCode, Shader->FragmentShaderCode);
+					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
 				}
 
 				GLint Error = 0;

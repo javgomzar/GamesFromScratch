@@ -23,88 +23,9 @@ extern GAMELIBRARY_API int nGameLibrary;
 #include "GamePlatform.h"
 #include "GameMath.h"
 
-#include "GameAssets.h"
+#include "../../GameAssets/GameAssets.h"
 
 #include "GameSound.h"
-
-// Logging
-enum log_mode {
-    File,
-    Terminal
-};
-
-enum log_level {
-    Info,
-    Warn,
-    Error
-};
-
-struct logger {
-    log_mode Mode;
-};
-
-const log_mode LOG_MODE = Terminal;
-
-void Log(log_level Level, const char* Content) {
-
-    // Level
-    char LevelString[9];
-    int LevelStringLength = 0;
-    switch (Level) {
-        case Info:
-        {
-            strcpy_s(LevelString, "[INFO] ");
-            LevelStringLength = 7;
-        } break;
-        case Warn:
-        {
-            strcpy_s(LevelString, "[WARN] ");
-            LevelStringLength = 7;
-        } break;
-        case Error:
-        {
-            strcpy_s(LevelString, "[ERROR] ");
-            LevelStringLength = 8;
-        } break;
-    }
-    LevelString[LevelStringLength] = 0;
-
-    // Timestamp
-    time_t t = time(NULL);
-    struct tm tm;
-    localtime_s(&tm, &t);
-    char Date[21];
-    sprintf_s(Date, "%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
-
-    // Logging
-    switch (LOG_MODE) {
-        case File:
-        {
-            HANDLE FileHandle = CreateFileA("log.log", FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
-            if (FileHandle != INVALID_HANDLE_VALUE) {
-                DWORD BytesWritten = 0;
-                WriteFile(FileHandle, Date, 20, &BytesWritten, 0);
-                WriteFile(FileHandle, LevelString, LevelStringLength, &BytesWritten, 0);
-                int i = 0;
-                while (*(Content + i) != 0) {
-                    i++;
-                }
-                WriteFile(FileHandle, Content, i, &BytesWritten, 0);
-            }
-            else {
-                Assert(false);
-            }
-
-            CloseHandle(FileHandle);
-        } break;
-        case Terminal:
-        {
-            OutputDebugStringA(Date);
-            OutputDebugStringA(LevelString);
-            OutputDebugStringA(Content);
-        } break;
-    }
-}
 
 
 // Platform independent structs and types
@@ -169,25 +90,25 @@ uint32 GetColorBytes(color Color) {
     return (Alpha << 24) | (R << 16) | (G << 8) | B;
 }
 
-color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) {
-    uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
-    
-    uint32 RedShift;
-    uint32 GreenShift;
-    uint32 BlueShift;
-    uint32 AlphaShift;
-    _BitScanForward((DWORD*)&RedShift, RedMask);
-    _BitScanForward((DWORD*)&GreenShift, GreenMask);
-    _BitScanForward((DWORD*)&BlueShift, BlueMask);
-    _BitScanForward((DWORD*)&AlphaShift, AlphaMask);
-
-    color Color;
-    Color.R = (double)((RedMask & Bytes) >> RedShift) / 255.0;
-    Color.G = (double)((GreenMask & Bytes) >> GreenShift) / 255.0;
-    Color.B = (double)((BlueMask & Bytes) >> BlueShift) / 255.0;
-    Color.Alpha = (double)((AlphaMask & Bytes) >> AlphaShift) / 255.0;
-    return Color;
-}
+//color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) {
+//    uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
+//    
+//    uint32 RedShift;
+//    uint32 GreenShift;
+//    uint32 BlueShift;
+//    uint32 AlphaShift;
+//    _BitScanForward((DWORD*)&RedShift, RedMask);
+//    _BitScanForward((DWORD*)&GreenShift, GreenMask);
+//    _BitScanForward((DWORD*)&BlueShift, BlueMask);
+//    _BitScanForward((DWORD*)&AlphaShift, AlphaMask);
+//
+//    color Color;
+//    Color.R = (double)((RedMask & Bytes) >> RedShift) / 255.0;
+//    Color.G = (double)((GreenMask & Bytes) >> GreenShift) / 255.0;
+//    Color.B = (double)((BlueMask & Bytes) >> BlueShift) / 255.0;
+//    Color.Alpha = (double)((AlphaMask & Bytes) >> AlphaShift) / 255.0;
+//    return Color;
+//}
 
 color operator+(color Color1, color Color2) {
     return Color(
@@ -326,15 +247,6 @@ struct game_input {
     game_controller_input Controller;
     game_keyboard_input Keyboard;
     game_mouse_input Mouse;
-};
-
-struct record_and_playback {
-    HANDLE RecordFile;
-    int RecordIndex;
-    HANDLE PlaybackFile;
-    int PlaybackIndex;
-    void* GameMemoryBlock;
-    uint64 TotalSize;
 };
 
 // Camera
@@ -526,9 +438,7 @@ void InitSlider(slider* Slider, double Value, color Color) {
 struct game_state {
     memory_arena RenderArena;
     memory_arena StringsArena;
-    memory_arena FontsArena;
     memory_arena VideoArena;
-    memory_arena MeshArena;
     UI UserInterface;
     double dt;
     double Time;

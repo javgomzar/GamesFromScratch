@@ -37,9 +37,6 @@
     <ClInclude Include="RenderGroup.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="GameAssets.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="SoftwareRender.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -58,9 +55,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GameAssets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\Linking\include\FFMpeg.cpp">
