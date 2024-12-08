@@ -9,15 +9,23 @@ in vec2 v_texture;
 void main() {
 	vec4 texture_color = texture(binded_texture, v_texture);
 
-	if (texture_color.r == 1.) {
+	if (texture_color.r > 0.99) {
 		frag_color = vec4(gl_FragCoord.xy, 0.0, 1.0);
 	}
-	else if (texture_color.r == 0.) {
+	if (texture_color.r < 0.01) {
 		frag_color = vec4(-1., 0., 1., 1.);
 	}
 	else {
-		mat3 sobel_x = mat3(vec3(-1., -2., -1.),vec3(0.),vec3(1., 2., 1.));
-		mat3 sobel_y = mat3(vec3(-1., 0., 1.), vec3(-2.,0.,2.),vec3(-1., 0., 1.));
+		mat3 sobel_x = mat3(
+			vec3(-1., 0., 1.), 
+			vec3(-2., 0., 2.),
+			vec3(-1., 0., 1.)
+		);
+		mat3 sobel_y = mat3(
+			vec3(-1.,-2.,-1.),
+			vec3( 0., 0., 0.),
+			vec3( 1., 2., 1.)
+		);
 
 		float offset_x = 0;
 		float offset_y = 0;
@@ -30,9 +38,12 @@ void main() {
 			offset_y += sobel_y[y][x] * value;
 		}}
 
-		vec2 offset = normalize(vec2(offset_x, offset_y));
-
-		frag_color = vec4(gl_FragCoord.xy -	texture_color.r * offset, 0., 1.);
+		if (abs(offset_x) <= 0.005 && abs(offset_y) < 0.005) {
+			frag_color = vec4(gl_FragCoord.xy, 0.0, 1.0);
+		}
+		else {
+			vec2 offset = (1. - texture_color.r) * normalize(vec2(offset_x, offset_y));
+			frag_color = vec4(gl_FragCoord.xy + offset, 0., 1.);
+		}
 	}
-
 }
