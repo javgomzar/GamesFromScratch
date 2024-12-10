@@ -210,8 +210,6 @@ extern "C" GAME_UPDATE(GameUpdate)
         pGameState->StringsArena.Percentage = PushString(StringsArena, 7, "0.0%");
         pGameState->RenderArena.Name = PushString(StringsArena, 13, "Render Arena");
         pGameState->RenderArena.Percentage = PushString(StringsArena, 7, "0.0%");
-        pGameState->VideoArena.Name = PushString(StringsArena, 13, "Video Arena");
-        pGameState->VideoArena.Percentage = PushString(StringsArena, 7, "0.0%");
 
         // User Interface
 
@@ -251,8 +249,10 @@ extern "C" GAME_UPDATE(GameUpdate)
     // Render
     light LightSource = Light(V3(-0.5, -1, 1), White);
 
-    transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(5.0, 0.0, 0.0));
-    PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
+    transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(0.0, 0.0, 5.0));
+    //PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
+
+    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Shader_Sphere_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, true);
 
     // PushVideo(Group, &Assets->TestVideo, {0, 0, (double)Group->Width, (double)Group->Height}, pGameState->dt);
 
@@ -290,7 +290,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         PushDebugGrid(Group, Alpha);
 
-        game_rect DebugInfoRect = { 0, 0, 350, 230 };
+        game_rect DebugInfoRect = { 0, 0, 350, 200 };
 
         PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), World, SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
@@ -301,9 +301,6 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Strings Arena
         PushDebugArena(Group, pGameState->StringsArena, V2(20.0, 150.0), Alpha);
-
-        // Video Arena
-        PushDebugArena(Group, pGameState->VideoArena, V2(20.0, 180.0), Alpha);
 
         // Axes
         v3 XAxis = V3(cos(Group->Camera.Angle * Degrees), sin(Group->Camera.Angle * Degrees) * sin(Group->Camera.Pitch * Degrees), 0.0);

@@ -186,6 +186,7 @@ int main() {
     // Meshes
     PushAsset(&Assets, "..\\..\\Assets\\Models\\Enemy.mdl", Mesh_Enemy_ID);
     PushAsset(&Assets, "..\\..\\Assets\\Models\\Sphere.mdl", Mesh_Sphere_ID);
+    PushAsset(&Assets, "..\\..\\Assets\\Models\\Body.mdl", Mesh_Body_ID);
 
     // Video
     //PushAsset(&Assets, "..\\..\\Assets\\Videos\\The Witness.mp4", Video_Test_ID);

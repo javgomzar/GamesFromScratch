@@ -42,6 +42,7 @@ enum game_asset_id {
 
     Mesh_Enemy_ID,
     Mesh_Sphere_ID,
+    Mesh_Body_ID,
     //Mesh_Shield_ID,
     //Mesh_Sword_ID,
 

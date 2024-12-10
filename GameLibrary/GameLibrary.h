@@ -438,7 +438,6 @@ void InitSlider(slider* Slider, double Value, color Color) {
 struct game_state {
     memory_arena RenderArena;
     memory_arena StringsArena;
-    memory_arena VideoArena;
     UI UserInterface;
     double dt;
     double Time;
