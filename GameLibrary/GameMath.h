@@ -229,6 +229,10 @@ inline double module(v3 A) {
 	return sqrt(dot(A, A));
 }
 
+inline double distance(v3 A, v3 B) {
+	return module(B - A);
+}
+
 inline v3 normalize(v3 V) {
 	return (module(V) < 0.00001) ? V : (1 / module(V)) * V;
 }

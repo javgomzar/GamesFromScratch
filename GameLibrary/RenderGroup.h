@@ -11,6 +11,7 @@ const int MAX_RENDER_ENTRIES = 10000;
 enum render_group_entry_type {
     group_type_render_entry_clear,
     group_type_render_entry_line,
+    group_type_render_entry_circle,
     group_type_render_entry_triangle,
     group_type_render_entry_rect,
     group_type_render_entry_textured_rect,
@@ -67,7 +68,18 @@ struct render_entry_line {
     color Color;
     v3 Start;
     v3 Finish;
-    float Thickness;
+    double Thickness;
+};
+
+struct render_entry_circle {
+    render_group_header Header;
+    coordinate_system Coordinates;
+    v3 Center;
+    v3 Normal;
+    double Radius;
+    color Color;
+    double Thickness;
+    bool Fill;
 };
 
 struct render_entry_triangle {
@@ -182,6 +194,10 @@ uint32 GetSizeOf(render_group_entry_type Type) {
 
         case group_type_render_entry_line: {
             return sizeof(render_entry_line);
+        } break;
+
+        case group_type_render_entry_circle: {
+            return sizeof(render_entry_circle);
         } break;
 
         case group_type_render_entry_triangle: {
@@ -390,25 +406,77 @@ void PushTriangle(
 }
 
 void PushCircle(
-    render_group* Group, 
-    v3 Center, 
-    double Radius, 
-    color Color, 
-    coordinate_system Coordinates = Screen_Coordinates,
+    render_group* Group,
+    v2 Center,
+    double Radius,
+    color Color,
     double Order = 0.0
 ) {
-    int N = max(12*log(Radius), 10);
+    render_entry_circle* Entry = PushRenderElement(Group, render_entry_circle);
+    Entry->Header.Target = World;
+    Entry->Coordinates = Screen_Coordinates;
+    Entry->Header.Key.Order = Order;
+    Entry->Fill = true;
+    Entry->Center = V3(Center.X, Center.Y, 0.0);
+    Entry->Normal = V3(0.0, 0.0, -1.0);
+    Entry->Radius = Radius;
+    Entry->Color = Color;
+}
 
-    double dTheta = Tau / N;
-    double Theta = 0;
-    for (int i = 0; i < N; i++) {
-        game_triangle Triangle;
-        Triangle.Points[0] = Center;
-        Triangle.Points[1] = Center + Radius * V3(cos(Theta), sin(Theta), 0);
-        Theta += dTheta;
-        Triangle.Points[2] = Center + Radius * V3(cos(Theta), sin(Theta), 0);
-        PushTriangle(Group, Triangle, Color, Coordinates, Order);
-    }
+void PushCircle(
+    render_group* Group, 
+    v3 Center,
+    v3 Normal,
+    double Radius, 
+    color Color,
+    double Order = 0.0
+) {
+    render_entry_circle* Entry = PushRenderElement(Group, render_entry_circle);
+    Entry->Header.Target = World;
+    Entry->Coordinates = World_Coordinates;
+    Entry->Header.Key.Order = Order;
+    Entry->Fill = true;
+    Entry->Center = Center;
+    Entry->Normal = normalize(Normal);
+    Entry->Radius = Radius;
+    Entry->Color = Color;
+}
+
+void PushCircunference(
+    render_group* Group,
+    v2 Center,
+    double Radius,
+    color Color,
+    double Order = 0.0
+) {
+    render_entry_circle* Entry = PushRenderElement(Group, render_entry_circle);
+    Entry->Header.Target = World;
+    Entry->Coordinates = Screen_Coordinates;
+    Entry->Header.Key.Order = Order;
+    Entry->Fill = false;
+    Entry->Center = V3(Center.X, Center.Y, 0.0);
+    Entry->Normal = V3(0.0,0.0,-1.0);
+    Entry->Radius = Radius;
+    Entry->Color = Color;
+}
+
+void PushCircunference(
+    render_group* Group,
+    v3 Center,
+    v3 Normal,
+    double Radius,
+    color Color,
+    double Order = 0.0
+) {
+    render_entry_circle* Entry = PushRenderElement(Group, render_entry_circle);
+    Entry->Header.Target = World;
+    Entry->Coordinates = World_Coordinates;
+    Entry->Header.Key.Order = Order;
+    Entry->Fill = false;
+    Entry->Center = Center;
+    Entry->Normal = normalize(Normal);
+    Entry->Radius = Radius;
+    Entry->Color = Color;
 }
 
 void PushRect(

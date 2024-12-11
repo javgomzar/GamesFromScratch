@@ -741,6 +741,49 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				SetIdentityProjection();
 			} break;
 
+			case group_type_render_entry_circle:
+			{
+				render_entry_circle Entry = *(render_entry_circle*)Header;
+
+				SetCoordinates(Entry.Coordinates, Group->Camera, Width, Height);
+
+				int N = 50;
+
+				double dTheta = Tau / N;
+				double Theta = 0;
+				v3 Center = Entry.Center;
+				double Radius = Entry.Radius;
+				v3 X, Y;
+				if (Entry.Normal.Y != 0.0 || Entry.Normal.Z != 0.0) {
+					X = normalize(cross(Entry.Normal, V3(1.0, 0.0, 0.0)));
+					Y = cross(Entry.Normal, X);
+				}
+				else {
+					X = normalize(cross(Entry.Normal, V3(0.0, 1.0, 0.0)));
+					Y = cross(Entry.Normal, X);
+				}
+				if (Entry.Fill) {
+					game_triangle Triangle;
+					for (int i = 0; i < N; i++) {
+						Triangle.Points[0] = Center;
+						Triangle.Points[1] = Center + Radius * cos(Theta) * X + Radius * sin(Theta) * Y;
+						Theta += dTheta;
+						Triangle.Points[2] = Center + Radius * cos(Theta) * X + Radius * sin(Theta) * Y;
+						OpenGLTriangle(Triangle, Entry.Color);
+					}
+				}
+				else {
+					for (int i = 0; i < N; i++) {
+						v3 Origin = Center + Radius * cos(Theta) * X + Radius * sin(Theta) * Y;
+						Theta += dTheta;
+						v3 Destination = Center + Radius * cos(Theta) * X + Radius * sin(Theta) * Y;
+						OpenGLRenderLine(Origin, Destination, Entry.Color, Entry.Thickness);
+					}
+				}
+
+				SetIdentityProjection();
+			} break;
+
 			case group_type_render_entry_textured_rect:
 			{
 				render_entry_textured_rect Entry = *(render_entry_textured_rect*)Header;

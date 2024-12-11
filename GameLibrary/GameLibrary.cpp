@@ -214,7 +214,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // User Interface
 
         // Camera
-        Camera->Position = V3(0.0, 0.0, 5.0);
+        Camera->Position = V3(0.0, 2.2, 5.0);
         Camera->Angle = 45;
         Camera->Pitch = 45;
 
