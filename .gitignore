@@ -365,3 +365,6 @@ FodyWeavers.xsd
 # Game assets
 GameAssets/Assets/
 GameAssets/game_assets
+
+# Screen captures
+Captures/

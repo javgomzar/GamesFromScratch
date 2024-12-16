@@ -507,4 +507,21 @@ struct affine_plane {
 //	return dot(Vector, Plane.Base[0]) * Plane.Base[0] + dot(Vector, Plane.Base[1]) * Plane.Base[1];
 //}
 
+// Bones and skeletons
+
+struct bone {
+	double Rotation;
+	union {
+		v3 Points[2];
+		struct {
+			v3 Origin;
+			v3 Destination;
+		};
+	};
+};
+
+double Length(bone Bone) {
+	return distance(Bone.Origin, Bone.Destination);
+}
+
 #endif

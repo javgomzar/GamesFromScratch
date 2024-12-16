@@ -412,6 +412,7 @@ void ScreenCapture(openGL OpenGL, int Width, int Height) {
 
     // Read pixels
     BMP.Content = (uint32*)VirtualAlloc(0, Width * Height * BMP.BytesPerPixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glReadPixels(0, 0, Width, Height, GL_BGRA, GL_UNSIGNED_BYTE, (void*)BMP.Content);
 
     SaveBMP(Filename, &BMP);
@@ -1110,7 +1111,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     uint64 LastCycleCount = __rdtsc();
 
     // OpenGl
-    OpenGL = InitOpenGL(Window);
+    RECT Rect = { 0 };
+    GetClientRect(Window, &Rect);
+
+    int32 Width = Rect.right - Rect.left;
+    int32 Height = Rect.bottom - Rect.top;
+
+    OpenGL = InitOpenGL(Window, Width, Height);
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
@@ -1121,9 +1128,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Render group
     Group = AllocateRenderGroup(&GameMemory.Assets, &pGameState->RenderArena, Megabytes(4));
-
-    // Starting resolution
-    //ResizeWindow(Window, Group);
+    Group->Width = Width;
+    Group->Height = Height;
 
     // DebugInfo
     GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");

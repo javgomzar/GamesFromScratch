@@ -252,7 +252,10 @@ extern "C" GAME_UPDATE(GameUpdate)
     transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(0.0, 0.0, 5.0));
     //PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
 
-    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Shader_Sphere_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, true);
+    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, false);
+    //PushMesh(Group, Mesh_Sphere_ID, Transform1, LightSource, Shader_Sphere_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, false);
+
+    PushTexturedRect(Group, Bitmap_Enemy_ID, { 0, 0, 300, 300 }, Clamp, White, SORT_ORDER_MESHES);
 
     // PushVideo(Group, &Assets->TestVideo, {0, 0, (double)Group->Width, (double)Group->Height}, pGameState->dt);
 

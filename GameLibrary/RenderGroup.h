@@ -495,7 +495,7 @@ void PushRect(
 
 void PushTexturedRect(
     render_group* Group,
-    game_bitmap* Texture,
+    game_asset_id BitmapID,
     game_rect Rect,
     wrap_mode Mode,
     color Color = White,
@@ -508,6 +508,7 @@ void PushTexturedRect(
     Entry->Header.Target = World;
 
     Entry->Rect = Rect;
+    game_bitmap* Texture = GetAsset(Group->Assets, BitmapID, game_bitmap);
     Entry->Texture = Texture;
     Entry->Color = Color;
     Entry->Mode = Mode;
