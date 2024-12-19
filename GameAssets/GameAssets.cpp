@@ -113,6 +113,7 @@ void PushShader(
     game_asset_id Fragment
 ) {
     game_shader* Shader = &Assets->Shaders[ShaderID];
+    Shader->ID = ShaderID;
     Shader->HeaderShaderID = Header;
     Shader->VertexShaderID = Vertex;
     Shader->FragmentShaderID = Fragment;

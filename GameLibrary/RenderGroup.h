@@ -25,9 +25,12 @@ enum render_group_entry_type {
 
 enum render_group_target {
     World,
-    Output,
     Outline,
     Postprocessing_Outline,
+    PingPong,
+    Output,
+
+    render_group_target_count
 };
 
 enum coordinate_system {
@@ -156,7 +159,7 @@ struct render_entry_mesh_outline {
 struct render_entry_shader_pass {
     render_group_header Header;
     game_shader_id ShaderID;
-    uint32 TargetIndex;
+    render_group_target Target;
     color Color;
     float Kernel[9];
     double Width;
@@ -645,16 +648,6 @@ void PushUI(render_group* Group, UI* UserInterface) {
 // | Targets & Shaders                                                                                                                                                |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-uint32 GetTargetIndex(render_group_target Target) {
-    switch (Target) {
-        case World: { return 0; } break;
-        case Outline: { return 1; } break;
-        case Postprocessing_Outline: { return 2; } break;
-        case Output: { return 3; } break;
-        default: { Assert(false); } break;
-    }
-}
-
 void PushRenderTarget(
     render_group* Group, 
     render_group_target Target, 
@@ -686,7 +679,7 @@ void PushShaderPass(
     Entry->Header.Target = Target;
 
     Entry->ShaderID = ShaderID;
-    Entry->TargetIndex = GetTargetIndex(Target);
+    Entry->Target = Target;
     Entry->Color = Color;
     Entry->Width = Width;
     Entry->Time = Time;
@@ -703,7 +696,7 @@ void PushKernelShaderPass(
     Entry->Header.Target = Target;
 
     Entry->ShaderID = Shader_Kernel_ID;
-    Entry->TargetIndex = GetTargetIndex(Target);
+    Entry->Target = Target;
     Entry->Color = White;
     Entry->Width = 0;
 
@@ -731,7 +724,7 @@ void PushMeshOutline(
     Entry->StartingLevel = StartingLevel;
 
     PushShaderPass(Group, Shader_Outline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
-
+    
     PushRenderTarget(Group, Postprocessing_Outline, Shader_Framebuffer_ID, SORT_ORDER_PUSH_RENDER_TARGETS - 10.0);
 }
 

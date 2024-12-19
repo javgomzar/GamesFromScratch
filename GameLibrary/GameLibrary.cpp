@@ -235,7 +235,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     //if (Input->Mouse.LeftClick.IsDown) {
     //    game_rect Rect;
     //    Rect.Top = Input->Mouse.Cursor.Y;
-    //    Rect.Left = Input->Mouse.Cursor.X;
+    //    Rect.Left = Input->Mouse.Cursor.X;  
     //    Rect.Height = 20;
     //    Rect.Width = 20;
     //    DrawRectangle(ScreenBuffer, Rect, White);
@@ -250,9 +250,11 @@ extern "C" GAME_UPDATE(GameUpdate)
     light LightSource = Light(V3(-0.5, -1, 1), White);
 
     transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(0.0, 0.0, 5.0));
+    transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(4.0, 0.0, 5.0));
     //PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
 
-    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Shader_Sphere_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, true);
+    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, true);
+    PushMesh(Group, Mesh_Sphere_ID, Transform2, LightSource, Shader_Sphere_ID, Bitmap_Empty_ID, Red, SORT_ORDER_MESHES, true);
 
     // PushVideo(Group, &Assets->TestVideo, {0, 0, (double)Group->Width, (double)Group->Height}, pGameState->dt);
 
