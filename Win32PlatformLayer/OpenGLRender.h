@@ -4,7 +4,7 @@
 
 /*
 	TODO:
-		- Stencil buffers
+		- Framebuffer attachments
 		- Kernel operations
 		- Optimize ping pong rendering (multithreading might be a good idea)
 		- Fix text rendering (currently it's not completely aligned)
@@ -12,19 +12,18 @@
 */
 
 struct render_target {
-	render_group_target Target;
+	render_group_target Label;
 	uint32 Framebuffer;
 	uint32 Texture;
-	int Samples;
-	bool Multisampling;
 	GLenum Attachment;
 	uint32 AttachmentTexture;
+	int Samples;
+	bool Multisampling;
 };
 
 struct openGL {
 	uint32 TargetCount;
-	render_target Targets[MAX_FRAME_BUFFER_COUNT];
-	render_target PingPongTarget;
+	render_target Targets[render_group_target_count];
 	uint32 QuadVAO;
 	uint32 VideoPBO;
 	uint32 ReadPBO;
@@ -36,73 +35,135 @@ struct openGL {
 // | Textures                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void ResizeTexture(
-	GLuint Texture,
-	int Width, int Height,
-	GLenum Target,
-	GLenum Type,
-	GLenum InternalFormat,
-	GLenum Format,
-	GLint Filter,
-	GLint Wrapping,
-	void* Data = NULL
-) {
-	GLenum Error = 0;
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+// | Textures                                                                                                                                                         |
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-	glBindTexture(Target, Texture);
+GLenum GetInternalFormat(GLenum Attachment) {
+	switch (Attachment) {
+		case GL_DEPTH_ATTACHMENT: { return GL_DEPTH_COMPONENT32F; } break;
+		case GL_STENCIL_ATTACHMENT: { return GL_STENCIL_INDEX8; } break;
+		case GL_DEPTH_STENCIL_ATTACHMENT: { return GL_DEPTH32F_STENCIL8; } break;
+		default: { Assert(false); }
+	}
 
-	glTexImage2D(Target, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
-	Error = glGetError();
-
-	// Filter in {GL_NEAREST, GL_LINEAR}
-	glTexParameteri(Target, GL_TEXTURE_MIN_FILTER, Filter); // Change to GL_LINEAR for color interpolation
-	glTexParameteri(Target, GL_TEXTURE_MAG_FILTER, Filter);
-	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	Error = glGetError();
-
-	// Wrapping in {GL_CLAMP_TO_EDGE, GL_REPEAT}
-	glTexParameteri(Target, GL_TEXTURE_WRAP_S, Wrapping);
-	glTexParameteri(Target, GL_TEXTURE_WRAP_T, Wrapping);
-	Error = glGetError();
-
-	glBindTexture(Target, 0);
+	return 0;
 }
 
-// Filter in {GL_NEAREST, GL_LINEAR}, Wrapping in {GL_CLAMP_TO_EDGE, GL_REPEAT}, Type in {GL_FLOAT, GL_UNSIGNED_BYTE}
-void CreateTexture(
-	GLuint* Texture,
-	int Width, int Height,
-	GLenum Target,
-	GLenum Type,
-	GLenum InternalFormat, 
-	GLenum Format,
-	GLint Filter,
-	GLint Wrapping,
+GLenum GetFormat(GLenum InternalFormat) {
+	switch (InternalFormat) {
+		case GL_RGBA8:
+		case GL_RGBA32F:
+		{ return GL_BGRA_EXT; } break;
+		case GL_STENCIL_INDEX8: { return GL_STENCIL_INDEX; } break;
+		case GL_DEPTH_COMPONENT32F: { return GL_DEPTH_COMPONENT; } break;
+		case GL_DEPTH32F_STENCIL8: { return GL_DEPTH_STENCIL; } break;
+		default: { Assert(false); }
+	}
+
+	return 0;
+}
+
+GLenum GetType(GLenum InternalFormat) {
+	switch (InternalFormat) {
+		case GL_RGBA8: 
+		case GL_STENCIL_INDEX8: { return GL_UNSIGNED_BYTE; } break;
+		case GL_RGBA32F:
+		case GL_DEPTH_COMPONENT32F:
+		case GL_DEPTH32F_STENCIL8: { return GL_FLOAT; } break;
+		default: { Assert(false); }
+	}
+
+	return 0;
+}
+
+/* Changes the size of a previously generated texture. 
+- Internal format should be one of `GL_RGBA8`, `GL_RGBA32F`, `GL_DEPTH_COMPONENT32F`, `GL_STENCIL_INDEX8`, `GL_DEPTH32F_STENCIL8`. 
+- Filter should be one of `GL_LINEAR`, `GL_NEAREST`. 
+- WrapMode should be one of `GL_CLAMP_TO_EDGE`, `GL_REPEAT`. */ 
+void ResizeTexture(
+	int Width, int Height, 
+	GLuint Handle, 
+	GLenum InternalFormat,
+	GLenum Filter,
+	GLenum WrapMode,
 	void* Data = NULL
 ) {
-	glGenTextures(1, Texture);
-	ResizeTexture(*Texture, Width, Height, Target, Type, InternalFormat, Format, Filter, Wrapping, Data);
+	GLenum Format = GetFormat(InternalFormat);
+	GLenum Type = GetType(InternalFormat);
+	
+	glBindTexture(GL_TEXTURE_2D, Handle);
+	glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, Filter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, Filter);
+	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, WrapMode);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, WrapMode);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void CreateTexture(
+	int Width, int Height,
+	GLuint* Handle,
+	GLenum InternalFormat,
+	GLenum Filter,
+	GLenum WrapMode,
+	void* Data = NULL
+) {
+	glGenTextures(1, Handle);
+	ResizeTexture(Width, Height, *Handle, InternalFormat, Filter, WrapMode, Data);
+}
+
+void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_mode Mode, bool ForceUpdate = false) {
+	if (*Handle) {
+		glBindTexture(GL_TEXTURE_2D, *Handle);
+		if (ForceUpdate) {
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Data);
+		}
+	}
+	else {
+		glGenTextures(1, Handle);
+
+		glBindTexture(GL_TEXTURE_2D, *Handle);
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Data);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	}
+
+	switch (Mode) {
+		case Clamp:
+		case Crop:
+		{
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		} break;
+
+		case Repeat:
+		{
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+		} break;
+
+		default: {
+			OutputDebugStringA("Texture bind mode unknown. Falling back to GL_CLAMP as default.\n");
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		}
+	}
+}
+
+void OpenGLBindTexture(game_bitmap* Bitmap, wrap_mode Mode = Clamp) {
+	OpenGLBindTexture(Bitmap->Header.Width, Bitmap->Header.Height, &Bitmap->Handle, Bitmap->Content, Mode);
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Framebuffers                                                                                                                                                     |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-GLenum GetFormat(GLenum Attachment) {
-	if (Attachment == GL_DEPTH_ATTACHMENT) return GL_DEPTH_COMPONENT;
-	else if (Attachment == GL_STENCIL_ATTACHMENT) return GL_STENCIL_INDEX;
-	else if (Attachment == GL_DEPTH_STENCIL_ATTACHMENT) return GL_DEPTH24_STENCIL8;
-	else return 0;
-}
-
-GLenum GetInternalFormat(GLenum Attachment) {
-	if (Attachment == GL_DEPTH_ATTACHMENT) return GL_DEPTH_COMPONENT32F;
-	else if (Attachment == GL_STENCIL_ATTACHMENT) return GL_STENCIL_INDEX8;
-	else if (Attachment == GL_DEPTH_STENCIL_ATTACHMENT) return GL_DEPTH32F_STENCIL8;
-	else return 0;
-}
-
-// Creates a Framebuffer. Texture is asumed to be generated before calling this function.
 void CreateFramebuffer(
 	int Width, int Height, 
 	uint32 Framebuffer, 
@@ -113,20 +174,14 @@ void CreateFramebuffer(
 	GLenum Error = 0;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer);
-
-	ResizeTexture(FramebufferTexture, Width, Height, GL_TEXTURE_2D, GL_FLOAT, GL_RGBA32F, GL_BGRA_EXT, GL_LINEAR, GL_CLAMP_TO_EDGE);
-	glBindTexture(GL_TEXTURE_2D, FramebufferTexture);
+	ResizeTexture(Width, Height, FramebufferTexture, GL_RGBA32F, GL_LINEAR, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FramebufferTexture, 0);
 
 	if (Attachment) {
 		GLenum InternalFormat = GetInternalFormat(Attachment);
-		GLenum Format = GetFormat(Attachment);
-		CreateTexture(AttachmentTexture, Width, Height, GL_TEXTURE_2D, GL_UNSIGNED_BYTE, InternalFormat, Format, GL_NEAREST, GL_CLAMP_TO_EDGE);
-		glBindTexture(GL_TEXTURE_2D, *AttachmentTexture);
+		CreateTexture(Width, Height, AttachmentTexture, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, Attachment, GL_TEXTURE_2D, *AttachmentTexture, 0);
-		Error = glGetError();
 	}
-	glBindTexture(GL_TEXTURE_2D, 0);
 
 	GLenum Status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (Status != GL_FRAMEBUFFER_COMPLETE) {
@@ -165,15 +220,13 @@ void CreateFramebufferMultisampling(
 		glGenTextures(1, AttachmentTexture);
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, *AttachmentTexture);
 
-		GLenum InternalFormat = GetFormat(Attachment);
+		GLenum InternalFormat = GetInternalFormat(Attachment);
 		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, InternalFormat, Width, Height, GL_TRUE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, Attachment, GL_TEXTURE_2D_MULTISAMPLE, *AttachmentTexture, 0);
-		Error = glGetError();
-	}
 
-	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-		Assert(false);
+		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+			Assert(false);
+		}
 	}
 }
 
@@ -182,10 +235,21 @@ void ResizeMultisamplebuffer(int Width, int Height, uint32 Texture, int Samples,
 	glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GL_RGBA8, Width, Height, GL_TRUE);
 
 	if (Attachment) {
-		GLenum InternalFormat = GetFormat(Attachment);
-		ResizeTexture(AttachmentTexture, Width, Height, GL_TEXTURE_2D_MULTISAMPLE, GL_UNSIGNED_BYTE, InternalFormat, InternalFormat, GL_NEAREST, GL_CLAMP_TO_EDGE);
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, AttachmentTexture);
+		GLenum InternalFormat = GetInternalFormat(Attachment);
+		glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, InternalFormat, Width, Height, GL_TRUE);
 	}
 	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+}
+
+void ResizeFramebuffer(int Width, int Height, uint32 Texture, GLenum Attachment, uint32 AttachmentTexture) {
+	ResizeTexture(Width, Height, Texture, GL_RGBA32F, GL_LINEAR, GL_CLAMP_TO_EDGE);
+
+	if (Attachment) {
+		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, AttachmentTexture);
+		GLenum InternalFormat = GetInternalFormat(Attachment);
+		ResizeTexture(Width, Height, AttachmentTexture, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE);
+	}
 }
 
 void ResizeFramebuffers(openGL OpenGL, int32 Width, int32 Height) {
@@ -195,8 +259,6 @@ void ResizeFramebuffers(openGL OpenGL, int32 Width, int32 Height) {
 		if (Target.Multisampling) ResizeMultisamplebuffer(Width, Height, Target.Texture, Target.Samples, Target.Attachment, Target.AttachmentTexture);
 		else ResizeFramebuffer(Width, Height, Target.Texture, Target.Attachment, Target.AttachmentTexture);
 	}
-
-	ResizeFramebuffer(Width, Height, OpenGL.PingPongTarget.Texture, OpenGL.PingPongTarget.Attachment, OpenGL.PingPongTarget.AttachmentTexture);
 }
 
 
@@ -239,7 +301,7 @@ openGL InitOpenGL(HWND Window, int Width, int Height) {
 		}
 
 		// Generating buffer ids
-		const int nFramebuffers = 4;
+		const int nFramebuffers = render_group_target_count;
 		Result.TargetCount = nFramebuffers;
 
 		uint32 Framebuffers[nFramebuffers] = { 0 };
@@ -253,31 +315,37 @@ openGL InitOpenGL(HWND Window, int Width, int Height) {
 			Result.Targets[i].Texture = Textures[i];
 		}
 
-		// World buffer
-		render_target* WorldTarget = &Result.Targets[0];
-		WorldTarget->Target = World;
+		// World
+		render_target* WorldTarget = &Result.Targets[World];
+		WorldTarget->Label = World;
 		WorldTarget->Multisampling = true;
 		WorldTarget->Attachment = GL_DEPTH_ATTACHMENT;
 		WorldTarget->Samples = 9;
 
 		// Outline
-		render_target* OutlineTarget = &Result.Targets[1];
-		OutlineTarget->Target = Outline;
+		render_target* OutlineTarget = &Result.Targets[Outline];
+		OutlineTarget->Label = Outline;
 		OutlineTarget->Multisampling = true;
 		OutlineTarget->Attachment = GL_DEPTH_ATTACHMENT;
 		OutlineTarget->Samples = 9;
 
 		// Outline postprocessing
-		render_target* OutlinePostprocessingTarget = &Result.Targets[2];
-		OutlinePostprocessingTarget->Target = Postprocessing_Outline;
-		OutlinePostprocessingTarget->Samples = 1;
+		render_target* OutlinePostprocessingTarget = &Result.Targets[Postprocessing_Outline];
+		OutlinePostprocessingTarget->Label = Postprocessing_Outline;
 		OutlinePostprocessingTarget->Attachment = GL_DEPTH_ATTACHMENT;
+		OutlinePostprocessingTarget->Samples = 1;
 
 		// Output
-		render_target* OutputTarget = &Result.Targets[3];
-		OutputTarget->Target = Output;
-		OutputTarget->Samples = 1;
+		render_target* OutputTarget = &Result.Targets[Output];
+		OutputTarget->Label = Output;
 		OutputTarget->Attachment = GL_DEPTH_ATTACHMENT;
+		OutputTarget->Samples = 1;
+
+		// PingPong
+		render_target* PingPongTarget = &Result.Targets[PingPong];
+		PingPongTarget->Label = PingPong;
+		PingPongTarget->Attachment = GL_DEPTH_ATTACHMENT;
+		PingPongTarget->Samples = 1;
 
 		// Creating buffers
 		for (int i = 0; i < nFramebuffers; i++) {
@@ -293,26 +361,11 @@ openGL InitOpenGL(HWND Window, int Width, int Height) {
 			else CreateFramebuffer(
 				Width, Height, 
 				Target->Framebuffer, 
-				Target->Texture, 
-				Target->Attachment, 
+				Target->Texture,
+				Target->Attachment,
 				&Target->AttachmentTexture
 			);
 		}
-
-		// Ping pong buffer
-		render_target* PingPongTarget = &Result.PingPongTarget;
-		PingPongTarget->Samples = 1;
-		PingPongTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		glGenFramebuffers(1, &PingPongTarget->Framebuffer);
-		glGenTextures(1, &PingPongTarget->Texture);
-
-		CreateFramebuffer(
-			Width, Height, 
-			Result.PingPongTarget.Framebuffer, 
-			PingPongTarget->Texture, 
-			PingPongTarget->Attachment, 
-			&PingPongTarget->AttachmentTexture
-		);
 
 		// Quad vertices
 		double QuadVertices[24] = {
@@ -365,6 +418,7 @@ openGL InitOpenGL(HWND Window, int Width, int Height) {
 // | Coordinates                                                                                                                                                      |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+// Screen coordinates
 void SetScreenProjection(int32 Width, int32 Height) {
 	double a = 2.0 / Width;
 	double b = 2.0 / Height;
@@ -382,7 +436,8 @@ void SetScreenProjection(int32 Width, int32 Height) {
 	};
 	glLoadMatrixd(Proj);
 
-	glDisable(GL_DEPTH_TEST);
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_ALWAYS);
 }
 
 // 3D Coordinates
@@ -409,6 +464,7 @@ void SetCameraProjection(camera Camera, int32 Width, int32 Height) {
 	glTranslated(-Camera.Position.X, -Camera.Position.Y, -Camera.Position.Z);
 
 	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
 }
 
 // Normalized coordinates
@@ -417,6 +473,9 @@ void SetIdentityProjection() {
 	glLoadIdentity();
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
+
+	glEnable(GL_DEPTH_TEST);
+	glDepthFunc(GL_LESS);
 }
 
 void SetCoordinates(coordinate_system Coordinates, camera Camera, int Width, int Height) {
@@ -433,52 +492,8 @@ void SetCoordinates(coordinate_system Coordinates, camera Camera, int Width, int
 	}
 }
 
-// Texture binding
-void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_mode Mode, bool ForceUpdate = false) {
-	if (*Handle) {
-		glBindTexture(GL_TEXTURE_2D, *Handle);
-		if (ForceUpdate) {
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Data);
-		}
-	}
-	else {
-		glGenTextures(1, Handle);
-
-		glBindTexture(GL_TEXTURE_2D, *Handle);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Data);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	}
-
-	switch (Mode) {
-		case Clamp:
-		case Crop:
-		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		} break;
-
-		case Repeat: {
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		} break;
-
-		default: {
-			OutputDebugStringA("Texture bind mode unknown. Falling back to GL_CLAMP_TO_EDGE as default.\n");
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-		}
-	}
-}
-
-void OpenGLBindTexture(game_bitmap* Bitmap, wrap_mode Mode = Clamp) {
-	OpenGLBindTexture(Bitmap->Header.Width, Bitmap->Header.Height, &Bitmap->Handle, Bitmap->Content, Mode);
-}
-
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-// | Render primitives                                                                                                                                                |
+// | Primitives                                                                                                                                                       |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 void OpenGLRenderLine(v3 Start, v3 Finish, color Color, float Thickness = 1.0)
@@ -520,6 +535,7 @@ void OpenGLTriangle(game_triangle Triangle, color Color, v3 Normal) {
 
 void OpenGLRectangle(game_rect Rect, color Color)
 {
+	glDepthFunc(GL_ALWAYS);
 	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
 	glBegin(GL_TRIANGLES);
 
@@ -535,6 +551,7 @@ void OpenGLRectangle(game_rect Rect, color Color)
 
 	glEnd();
 	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
+	glDepthFunc(GL_LESS);
 }
 
 // Render a textured rectangle in OpenGL given a rectangle, scaling the texture as needed to fit the rectangle.
@@ -771,12 +788,12 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 	//glShadeModel(GL_FLAT);
 
 	// Initial clears
-	glBindFramebuffer(GL_FRAMEBUFFER, OpenGL.PingPongTarget.Framebuffer);
-	glClearColor(1.0, 1.0, 1.0, 1.0);
+	glBindFramebuffer(GL_FRAMEBUFFER, OpenGL.Targets[PingPong].Framebuffer);
+	glClearColor(1.0, 0.0, 1.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glClearColor(1.0, 1.0, 1.0, 1.0);
+	glClearColor(0.0, 1.0, 1.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 	sort_entry* Entries = (sort_entry*)Group->SortedBufferBase;
@@ -791,8 +808,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 		render_group_header* Header = (render_group_header*)(Group->PushBufferBase + Entries[EntryIndex].PushBufferOffset);
 
 		glViewport(0, 0, Width, Height);
-		uint32 TargetFramebufferIndex = GetTargetIndex(Header->Target);
-		glBindFramebuffer(GL_FRAMEBUFFER, OpenGL.Targets[TargetFramebufferIndex].Framebuffer);
+		glBindFramebuffer(GL_FRAMEBUFFER, OpenGL.Targets[Header->Target].Framebuffer);
 
 		DebugTypes[EntryIndex] = Header->Type;
 
@@ -1042,7 +1058,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
 				}
 
-				render_target Target = OpenGL.Targets[Entry.TargetIndex];
+				render_target Target = OpenGL.Targets[Entry.Target];
 
 				glUseProgram(Shader->ProgramID);
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
@@ -1064,18 +1080,29 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 
+				render_target PingPongTarget = OpenGL.Targets[PingPong];
+
+				glEnable(GL_DEPTH_TEST);
 				glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
-				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, OpenGL.PingPongTarget.Framebuffer);
-				glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, PingPongTarget.Framebuffer);
+				glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
 
 				glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
 				glClearColor(0, 0, 0, 0);
-				glClear(GL_COLOR_BUFFER_BIT);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-				glBindTexture(GL_TEXTURE_2D, OpenGL.PingPongTarget.Texture);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, PingPongTarget.Texture);
+
+				if (Target.Attachment) {
+					glActiveTexture(GL_TEXTURE1);
+					glBindTexture(GL_TEXTURE_2D, PingPongTarget.AttachmentTexture);
+				}
+
 				glBindVertexArray(OpenGL.QuadVAO);
 				glDrawArrays(GL_TRIANGLES, 0, 6);
 
+				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, 0);
 				glBindVertexArray(0);
 				glUseProgram(0);
@@ -1093,8 +1120,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
 				}
 
-				render_target Target = OpenGL.Targets[GetTargetIndex(Postprocessing_Outline)];
-
 				glUseProgram(Shader->ProgramID);
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
 
@@ -1111,16 +1136,24 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				int Level = Entry.StartingLevel;
 
+				render_target OutlineTarget = OpenGL.Targets[Postprocessing_Outline];
+				render_target PingPongTarget = OpenGL.Targets[PingPong];
 				for (int i = 0; i < Entry.Passes; i++) {
 					OpenGLSetUniform(Shader->ProgramID, "level", Level);
 
-					uint32 SourceBuffer = i % 2 == 0 ? OpenGL.PingPongTarget.Framebuffer : Target.Framebuffer;
-					uint32 TargetTexture = i % 2 == 0 ? Target.Framebuffer : OpenGL.PingPongTarget.Texture;
-					glBindFramebuffer(GL_FRAMEBUFFER, SourceBuffer);
-					glClearColor(0, 0, 0, 0);
-					glClear(GL_COLOR_BUFFER_BIT);
+					render_target Source = i % 2 == 0 ? OutlineTarget : PingPongTarget;
+					render_target Target = i % 2 == 0 ? PingPongTarget : OutlineTarget;
 
-					glBindTexture(GL_TEXTURE_2D, TargetTexture);
+					glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+					glClearColor(0, 0, 0, 0);
+					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+					glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, Source.Texture);
+
+					glActiveTexture(GL_TEXTURE1);
+					glBindTexture(GL_TEXTURE_2D, Source.AttachmentTexture);
+
 					glBindVertexArray(OpenGL.QuadVAO);
 					glDrawArrays(GL_TRIANGLES, 0, 6);
 
@@ -1128,15 +1161,19 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				}
 
 				if (Entry.Passes % 2 == 1) {
-					glBindFramebuffer(GL_READ_FRAMEBUFFER, OpenGL.PingPongTarget.Framebuffer);
-					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, Target.Framebuffer);
-					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, PingPongTarget.Framebuffer);
+					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, OutlineTarget.Framebuffer);
+					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
 				}
 
+				glActiveTexture(GL_TEXTURE1);
 				glBindTexture(GL_TEXTURE_2D, 0);
+				
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, 0);
+
 				glBindVertexArray(0);
 				glUseProgram(0);
-
 			} break;
 
 			case group_type_render_entry_render_target:
@@ -1151,24 +1188,58 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				if (!Shader->ProgramID) {
 					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
 				}
+				
+				render_target Source = OpenGL.Targets[Entry.Header.Target];
+				if (Source.Attachment) {
+					if (Source.Attachment == GL_DEPTH_ATTACHMENT || Source.Attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
+						glEnable(GL_DEPTH_TEST);
+						glDepthMask(GL_TRUE);
+						//if (Source.Label == Postprocessing_Outline) {
+						//	glDepthFunc(GL_ALWAYS);
+						//}
+					}
+
+					if (Source.Attachment == GL_STENCIL_ATTACHMENT || Source.Attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
+						glEnable(GL_STENCIL_TEST);
+						glStencilMask(GL_TRUE);
+					}
+				}
+
+				if (Source.Label == Output) {
+					glDepthFunc(GL_ALWAYS);
+				}
 
 				GLint Error = 0;
 				Error = glGetError();
 
-				render_target Source = OpenGL.Targets[GetTargetIndex(Entry.Header.Target)];
-				uint32 TargetFramebuffer = Entry.Header.Target == Output ? 0 : OpenGL.Targets[GetTargetIndex(Entry.Target)].Framebuffer;
+				uint32 TargetFramebuffer = Entry.Header.Target == Output ? 0 : OpenGL.Targets[Entry.Target].Framebuffer;
 
 				glUseProgram(Shader->ProgramID);
+				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+
 				glBindFramebuffer(GL_FRAMEBUFFER, TargetFramebuffer);
 
 				if (Source.Multisampling) {
-					render_target Target = OpenGL.Targets[GetTargetIndex(Entry.Target)];
+					render_target Target = OpenGL.Targets[Entry.Target];
 
+					glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Source.Texture);
+
+					if (Source.Attachment) {
+						glActiveTexture(GL_TEXTURE1);
+						glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Source.AttachmentTexture);
+					}
+
 					OpenGLSetUniform(Shader->ProgramID, "u_samples", Source.Samples);
 				}
 				else {
+					glActiveTexture(GL_TEXTURE0);
 					glBindTexture(GL_TEXTURE_2D, Source.Texture);
+
+					if (Source.Attachment) {
+						glActiveTexture(GL_TEXTURE1);
+						glBindTexture(GL_TEXTURE_2D, Source.AttachmentTexture);
+					}
 				}
 
 				glBindVertexArray(OpenGL.QuadVAO);
@@ -1176,8 +1247,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				glUseProgram(0);
 				glBindVertexArray(0);
+				glActiveTexture(GL_TEXTURE1);
 				glBindTexture(GL_TEXTURE_2D, 0);
 				glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, 0);
+				glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+				glDepthFunc(GL_LESS);
 			} break;
 
 			default:
@@ -1189,6 +1265,21 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 		}
 	}
 
+	// Debug depth buffers
+	//SetIdentityProjection();
+	//glDepthFunc(GL_ALWAYS);
+	//game_shader* Shader = &Group->Assets->Shaders[Shader_Antialiasing_ID];
+
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	//glUseProgram(Shader->ProgramID);
+
+	//glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, OpenGL.Targets[World].Texture);
+
+	//glBindVertexArray(OpenGL.QuadVAO);
+	//glDrawArrays(GL_TRIANGLES, 0, 6);
+
 	GLenum GLError = glGetError();
 	if (GLError) {
 		Log(Error, "OpenGL error.\n");
@@ -1199,6 +1290,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
+	glDepthFunc(GL_LESS);
 
 	Group->PushOutline = false;
 }

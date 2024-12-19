@@ -363,8 +363,13 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # Game assets
-GameAssets/Assets/
+GameAssets/Assets/Bitmaps/
+GameAssets/Assets/Models/
+GameAssets/Assets/Videos/
+GameAssets/Assets/Fonts/
+GameAssets/Assets/Sounds/
+GameAssets/Assets/Texts/
 GameAssets/game_assets
 
-# Screen captures
+# Captures
 Captures/
