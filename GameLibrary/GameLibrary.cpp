@@ -256,6 +256,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, true);
     PushMesh(Group, Mesh_Sphere_ID, Transform2, LightSource, Shader_Sphere_ID, Bitmap_Empty_ID, Red, SORT_ORDER_MESHES, true);
 
+    //PushCircle(Group, V3(0.0, 0.0, 0.0), V3(1.0, 1.0, 0.0), 1.0, Magenta, SORT_ORDER_MESHES);
+
     // PushVideo(Group, &Assets->TestVideo, {0, 0, (double)Group->Width, (double)Group->Height}, pGameState->dt);
 
     // Render

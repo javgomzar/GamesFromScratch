@@ -71,7 +71,7 @@ struct render_entry_line {
     color Color;
     v3 Start;
     v3 Finish;
-    double Thickness;
+    float Thickness;
 };
 
 struct render_entry_circle {
@@ -377,11 +377,11 @@ void PushClear(render_group* Group, color Color, render_group_target Target = Ou
 }
 
 void PushLine(
-    render_group* Group, 
-    v3 Start, 
-    v3 Finish, 
-    color Color, 
-    int Thickness, 
+    render_group* Group,
+    v3 Start,
+    v3 Finish,
+    color Color,
+    int Thickness,
     coordinate_system Coordinates = Screen_Coordinates,
     double Order = 0.0
 ) {
@@ -395,9 +395,9 @@ void PushLine(
 }
 
 void PushTriangle(
-    render_group* Group, 
-    game_triangle Triangle, 
-    color Color, 
+    render_group* Group,
+    game_triangle Triangle,
+    color Color,
     coordinate_system Coordinates = Screen_Coordinates,
     double Order = 0.0
 ) {
@@ -483,8 +483,8 @@ void PushCircunference(
 }
 
 void PushRect(
-    render_group* Group, 
-    game_rect Rect, 
+    render_group* Group,
+    game_rect Rect,
     color Color,
     render_group_target Target,
     double Order = 0.0
@@ -551,12 +551,12 @@ void PushTexturedRect(
 }
 
 void PushText(
-    render_group* Group, 
-    v2 Position, 
-    game_font* Font, 
-    string String, 
-    color Color = White, 
-    int Points = 20, 
+    render_group* Group,
+    v2 Position,
+    game_font* Font,
+    string String,
+    color Color = White,
+    int Points = 20,
     bool Wrapped = false,
     double Order = 0.0
 ) {
@@ -577,8 +577,8 @@ void PushText(
 //}
 
 void PushRectOutline(
-    render_group* Group, 
-    game_rect Rect, 
+    render_group* Group,
+    game_rect Rect,
     color Color = White,
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -594,8 +594,8 @@ void PushRectOutline(
 }
 
 void PushRectOutline(
-    render_group* Group, 
-    rect_collider Collider, 
+    render_group* Group,
+    rect_collider Collider,
     color Color = White,
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -609,8 +609,8 @@ void PushRectOutline(
 }
 
 void PushCubeOutline(
-    render_group* Group, 
-    v3 Position, 
+    render_group* Group,
+    v3 Position,
     scale Size = Scale(),
     color Color = White,
     double Order = SORT_ORDER_DEBUG_OVERLAY
@@ -639,7 +639,7 @@ void PushCubeOutline(
 
 void PushCubeOutline(
     render_group* Group,
-    cube_collider Collider, 
+    cube_collider Collider,
     color Color,
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -647,11 +647,11 @@ void PushCubeOutline(
 }
 
 void PushCircleOutline(
-    render_group* Group, 
-    v3 Center, 
-    double Radius, 
-    color Color, 
-    double Width = 1.0, 
+    render_group* Group,
+    v3 Center,
+    double Radius,
+    color Color,
+    double Width = 1.0,
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     int N = max(12 * log(Radius), 10);
@@ -718,9 +718,9 @@ void PushUI(render_group* Group, UI* UserInterface) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 void PushRenderTarget(
-    render_group* Group, 
-    render_group_target Target, 
-    game_shader_id ShaderID, 
+    render_group* Group,
+    render_group_target Target,
+    game_shader_id ShaderID,
     double Order = SORT_ORDER_PUSH_RENDER_TARGETS
 ) {
     render_entry_render_target* Entry = PushRenderElement(Group, render_entry_render_target);
@@ -793,7 +793,7 @@ void PushMeshOutline(
     Entry->StartingLevel = StartingLevel;
 
     PushShaderPass(Group, Shader_Outline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
-    
+
     PushRenderTarget(Group, Postprocessing_Outline, Shader_Framebuffer_ID, SORT_ORDER_PUSH_RENDER_TARGETS - 10.0);
 }
 
@@ -850,10 +850,10 @@ void PushMesh(
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 void PushDebugArena(
-    render_group* Group, 
+    render_group* Group,
     memory_arena Arena,
     v2 Position,
-    double Alpha = 1.0, 
+    double Alpha = 1.0,
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID, game_font);

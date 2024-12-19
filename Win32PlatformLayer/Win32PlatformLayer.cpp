@@ -214,7 +214,7 @@ VOID ToggleFullScreen(HWND Window) {
         SetWindowPos(Window, NULL, 0, 0, 0, 0,
             SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
     }
-    
+
 }
 
 // Sound
@@ -233,12 +233,12 @@ public:
     void OnStreamEnd() { SetEvent(hBufferEndEvent); }
 
     //Unused methods are stubs
-    void OnVoiceProcessingPassEnd() { }
-    void OnVoiceProcessingPassStart(uint32 SamplesRequired) {    }
-    void OnBufferEnd(void* pBufferContext) {  }
-    void OnBufferStart(void* pBufferContext) {    }
-    void OnLoopEnd(void* pBufferContext) { }
-    void OnVoiceError(void* pBufferContext, HRESULT Error) { }
+    void OnVoiceProcessingPassEnd() {}
+    void OnVoiceProcessingPassStart(uint32 SamplesRequired) {}
+    void OnBufferEnd(void* pBufferContext) {}
+    void OnBufferStart(void* pBufferContext) {}
+    void OnLoopEnd(void* pBufferContext) {}
+    void OnVoiceError(void* pBufferContext, HRESULT Error) {}
 };
 
 voice_callback VoiceCallback;
@@ -328,7 +328,7 @@ void EndRecordingInput(record_and_playback* RecordPlayback) {
     RecordPlayback->RecordIndex = 0;
     CloseHandle(RecordPlayback->RecordFile);
 }
- 
+
 void RecordInput(record_and_playback* RecordPlayback, game_input* Input) {
     DWORD BytesWritten;
     WriteFile(RecordPlayback->RecordFile, Input, sizeof(*Input), &BytesWritten, 0);
@@ -402,11 +402,11 @@ void ScreenCapture(openGL OpenGL, int Width, int Height) {
     localtime_s(&tm, &t);
     char Filename[100];
     sprintf_s(Filename, "../../Captures/Screenshot %d-%02d-%02d %02d.%02d.%02d.bmp",
-        tm.tm_year + 1900, 
-        tm.tm_mon + 1, 
-        tm.tm_mday, 
-        tm.tm_hour, 
-        tm.tm_min, 
+        tm.tm_year + 1900,
+        tm.tm_mon + 1,
+        tm.tm_mday,
+        tm.tm_hour,
+        tm.tm_min,
         tm.tm_sec
     );
 
@@ -426,429 +426,429 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
     {
         switch (msg.message)
         {
-        case WM_LBUTTONDOWN:
-        {
-            pInput->Mouse.LeftClick.IsDown = true;
-        } break;
-        case WM_LBUTTONUP:
-        {
-            pInput->Mouse.LeftClick.IsDown = false;
-        } break;
-        case WM_RBUTTONDOWN:
-        {
-            pInput->Mouse.RightClick.IsDown = true;
-        } break;
-        case WM_RBUTTONUP:
-        {
-            pInput->Mouse.RightClick.IsDown = false;
-        } break;
-        case WM_MOUSEWHEEL:
-        {
-            short zDelta = GET_WHEEL_DELTA_WPARAM(msg.wParam);
-            pInput->Mouse.Wheel = zDelta;
-        } break;
-        case WM_MBUTTONDOWN:
-        {
-            pInput->Mouse.MiddleClick.IsDown = true;
-        } break;
-        case WM_MBUTTONUP:
-        {
-            pInput->Mouse.MiddleClick.IsDown = false;
-        } break;
-        case WM_KEYDOWN:
-        case WM_SYSKEYDOWN:
-        {
-            uint32 VKCode = msg.wParam;
-            bool WasDown = (msg.lParam & (1 << 30)) != 0;
+            case WM_LBUTTONDOWN:
+            {
+                pInput->Mouse.LeftClick.IsDown = true;
+            } break;
+            case WM_LBUTTONUP:
+            {
+                pInput->Mouse.LeftClick.IsDown = false;
+            } break;
+            case WM_RBUTTONDOWN:
+            {
+                pInput->Mouse.RightClick.IsDown = true;
+            } break;
+            case WM_RBUTTONUP:
+            {
+                pInput->Mouse.RightClick.IsDown = false;
+            } break;
+            case WM_MOUSEWHEEL:
+            {
+                short zDelta = GET_WHEEL_DELTA_WPARAM(msg.wParam);
+                pInput->Mouse.Wheel = zDelta;
+            } break;
+            case WM_MBUTTONDOWN:
+            {
+                pInput->Mouse.MiddleClick.IsDown = true;
+            } break;
+            case WM_MBUTTONUP:
+            {
+                pInput->Mouse.MiddleClick.IsDown = false;
+            } break;
+            case WM_KEYDOWN:
+            case WM_SYSKEYDOWN:
+            {
+                uint32 VKCode = msg.wParam;
+                bool WasDown = (msg.lParam & (1 << 30)) != 0;
 
-            if (!WasDown) {
-                if (VKCode == '1') {
-                    pInput->Keyboard.One.IsDown = true;
-                }
-                else if (VKCode == '2') {
-                    pInput->Keyboard.Two.IsDown = true;
-                }
-                else if (VKCode == '3') {
-                    pInput->Keyboard.Three.IsDown = true;
-                }
-                else if (VKCode == '4') {
-                    pInput->Keyboard.Four.IsDown = true;
-                }
-                else if (VKCode == '5') {
-                    pInput->Keyboard.Five.IsDown = true;
-                }
-                else if (VKCode == '6') {
-                    pInput->Keyboard.Six.IsDown = true;
-                }
-                else if (VKCode == '7') {
-                    pInput->Keyboard.Seven.IsDown = true;
-                }
-                else if (VKCode == '8') {
-                    pInput->Keyboard.Eight.IsDown = true;
-                }
-                else if (VKCode == '9') {
-                    pInput->Keyboard.Nine.IsDown = true;
-                }
-                else if (VKCode == '0') {
-                    pInput->Keyboard.Zero.IsDown = true;
-                }
-                else if (VKCode == 'Q') {
-                    pInput->Keyboard.Q.IsDown = true;
-                }
-                else if (VKCode == 'W') {
-                    pInput->Keyboard.W.IsDown = true;
-                }
-                else if (VKCode == 'E') {
-                    pInput->Keyboard.E.IsDown = true;
-                }
-                else if (VKCode == 'R') {
-                    pInput->Keyboard.R.IsDown = true;
-                }
-                else if (VKCode == 'T') {
-                    pInput->Keyboard.T.IsDown = true;
-                }
-                else if (VKCode == 'Y') {
-                    pInput->Keyboard.Y.IsDown = true;
-                }
-                else if (VKCode == 'U') {
-                    pInput->Keyboard.U.IsDown = true;
-                }
-                else if (VKCode == 'I') {
-                    pInput->Keyboard.I.IsDown = true;
-                }
-                else if (VKCode == 'O') {
-                    pInput->Keyboard.O.IsDown = true;
-                }
-                else if (VKCode == 'P') {
-                    pInput->Keyboard.P.IsDown = true;
+                if (!WasDown) {
+                    if (VKCode == '1') {
+                        pInput->Keyboard.One.IsDown = true;
+                    }
+                    else if (VKCode == '2') {
+                        pInput->Keyboard.Two.IsDown = true;
+                    }
+                    else if (VKCode == '3') {
+                        pInput->Keyboard.Three.IsDown = true;
+                    }
+                    else if (VKCode == '4') {
+                        pInput->Keyboard.Four.IsDown = true;
+                    }
+                    else if (VKCode == '5') {
+                        pInput->Keyboard.Five.IsDown = true;
+                    }
+                    else if (VKCode == '6') {
+                        pInput->Keyboard.Six.IsDown = true;
+                    }
+                    else if (VKCode == '7') {
+                        pInput->Keyboard.Seven.IsDown = true;
+                    }
+                    else if (VKCode == '8') {
+                        pInput->Keyboard.Eight.IsDown = true;
+                    }
+                    else if (VKCode == '9') {
+                        pInput->Keyboard.Nine.IsDown = true;
+                    }
+                    else if (VKCode == '0') {
+                        pInput->Keyboard.Zero.IsDown = true;
+                    }
+                    else if (VKCode == 'Q') {
+                        pInput->Keyboard.Q.IsDown = true;
+                    }
+                    else if (VKCode == 'W') {
+                        pInput->Keyboard.W.IsDown = true;
+                    }
+                    else if (VKCode == 'E') {
+                        pInput->Keyboard.E.IsDown = true;
+                    }
+                    else if (VKCode == 'R') {
+                        pInput->Keyboard.R.IsDown = true;
+                    }
+                    else if (VKCode == 'T') {
+                        pInput->Keyboard.T.IsDown = true;
+                    }
+                    else if (VKCode == 'Y') {
+                        pInput->Keyboard.Y.IsDown = true;
+                    }
+                    else if (VKCode == 'U') {
+                        pInput->Keyboard.U.IsDown = true;
+                    }
+                    else if (VKCode == 'I') {
+                        pInput->Keyboard.I.IsDown = true;
+                    }
+                    else if (VKCode == 'O') {
+                        pInput->Keyboard.O.IsDown = true;
+                    }
+                    else if (VKCode == 'P') {
+                        pInput->Keyboard.P.IsDown = true;
 
-                    Pause = !Pause;
+                        Pause = !Pause;
+                    }
+                    else if (VKCode == 'A') {
+                        pInput->Keyboard.A.IsDown = true;
+                    }
+                    else if (VKCode == 'S') {
+                        pInput->Keyboard.S.IsDown = true;
+                    }
+                    else if (VKCode == 'D') {
+                        pInput->Keyboard.D.IsDown = true;
+                    }
+                    else if (VKCode == 'F') {
+                        pInput->Keyboard.F.IsDown = true;
+                    }
+                    else if (VKCode == 'G') {
+                        pInput->Keyboard.G.IsDown = true;
+                    }
+                    else if (VKCode == 'H') {
+                        pInput->Keyboard.H.IsDown = true;
+                    }
+                    else if (VKCode == 'J') {
+                        pInput->Keyboard.J.IsDown = true;
+                    }
+                    else if (VKCode == 'K') {
+                        pInput->Keyboard.K.IsDown = true;
+                    }
+                    else if (VKCode == 'L') {
+                        pInput->Keyboard.L.IsDown = true;
+                    }
+                    else if (VKCode == 'Z') {
+                        pInput->Keyboard.Z.IsDown = true;
+                    }
+                    else if (VKCode == 'X') {
+                        pInput->Keyboard.X.IsDown = true;
+                    }
+                    else if (VKCode == 'C') {
+                        pInput->Keyboard.C.IsDown = true;
+                    }
+                    else if (VKCode == 'V') {
+                        pInput->Keyboard.V.IsDown = true;
+                    }
+                    else if (VKCode == 'B') {
+                        pInput->Keyboard.B.IsDown = true;
+                    }
+                    else if (VKCode == 'N') {
+                        pInput->Keyboard.N.IsDown = true;
+                    }
+                    else if (VKCode == 'M') {
+                        pInput->Keyboard.M.IsDown = true;
+                    }
+                    else if (VKCode == VK_UP) {
+                        pInput->Keyboard.Up.IsDown = true;
+                    }
+                    else if (VKCode == VK_DOWN) {
+                        pInput->Keyboard.Down.IsDown = true;
+                    }
+                    else if (VKCode == VK_LEFT) {
+                        pInput->Keyboard.Left.IsDown = true;
+                    }
+                    else if (VKCode == VK_RIGHT) {
+                        pInput->Keyboard.Right.IsDown = true;
+                    }
+                    else if (VKCode == VK_ESCAPE) {
+                        pInput->Keyboard.Escape.IsDown = true;
+                        Running = false;
+                        PostQuitMessage(0);
+                    }
+                    else if (VKCode == VK_SPACE) {
+                        pInput->Keyboard.Space.IsDown = true;
+                    }
+                    else if (VKCode == VK_RETURN) {
+                        pInput->Keyboard.Enter.IsDown = true;
+                    }
+                    else if (VKCode == VK_F1) {
+                        pInput->Keyboard.F1.IsDown = true;
+                    }
+                    else if (VKCode == VK_F2) {
+                        pInput->Keyboard.F2.IsDown = true;
+                    }
+                    else if (VKCode == VK_F3) {
+                        pInput->Keyboard.F3.IsDown = true;
+                    }
+                    else if (VKCode == VK_F4) {
+                        pInput->Keyboard.F4.IsDown = true;
+                    }
+                    else if (VKCode == VK_F5) {
+                        pInput->Keyboard.F5.IsDown = true;
+                    }
+                    else if (VKCode == VK_F6) {
+                        pInput->Keyboard.F6.IsDown = true;
+                    }
+                    else if (VKCode == VK_F7) {
+                        pInput->Keyboard.F7.IsDown = true;
+                    }
+                    else if (VKCode == VK_F8) {
+                        pInput->Keyboard.F8.IsDown = true;
+                    }
+                    else if (VKCode == VK_F9) {
+                        pInput->Keyboard.F9.IsDown = true;
+                    }
+                    else if (VKCode == VK_F10) {
+                        pInput->Keyboard.F10.IsDown = true;
+                    }
+                    else if (VKCode == VK_F11) {
+                        pInput->Keyboard.F11.IsDown = true;
+                        ToggleFullScreen(Window);
+                    }
+                    else if (VKCode == VK_F12) {
+                        pInput->Keyboard.F12.IsDown = true;
+                    }
+                    else if (VKCode == VK_PRIOR) {
+                        pInput->Keyboard.PageUp.IsDown = true;
+                    }
+                    else if (VKCode == VK_NEXT) {
+                        pInput->Keyboard.PageDown.IsDown = true;
+                    }
+                    else if (VKCode == VK_SHIFT) {
+                        pInput->Keyboard.Shift.IsDown = true;
+                    }
+                    else if (VKCode == 'L') {
+                        if (RecordPlayback->RecordIndex == 0) {
+                            BeginRecordingInput(RecordPlayback, 1);
+                        }
+                        else {
+                            EndRecordingInput(RecordPlayback);
+                            BeginInputPlayback(RecordPlayback, 1);
+                        }
+                    }
                 }
-                else if (VKCode == 'A') {
-                    pInput->Keyboard.A.IsDown = true;
-                }
-                else if (VKCode == 'S') {
-                    pInput->Keyboard.S.IsDown = true;
-                }
-                else if (VKCode == 'D') {
-                    pInput->Keyboard.D.IsDown = true;
-                }
-                else if (VKCode == 'F') {
-                    pInput->Keyboard.F.IsDown = true;
-                }
-                else if (VKCode == 'G') {
-                    pInput->Keyboard.G.IsDown = true;
-                }
-                else if (VKCode == 'H') {
-                    pInput->Keyboard.H.IsDown = true;
-                }
-                else if (VKCode == 'J') {
-                    pInput->Keyboard.J.IsDown = true;
-                }
-                else if (VKCode == 'K') {
-                    pInput->Keyboard.K.IsDown = true;
-                }
-                else if (VKCode == 'L') {
-                    pInput->Keyboard.L.IsDown = true;
-                }
-                else if (VKCode == 'Z') {
-                    pInput->Keyboard.Z.IsDown = true;
-                }
-                else if (VKCode == 'X') {
-                    pInput->Keyboard.X.IsDown = true;
-                }
-                else if (VKCode == 'C') {
-                    pInput->Keyboard.C.IsDown = true;
-                }
-                else if (VKCode == 'V') {
-                    pInput->Keyboard.V.IsDown = true;
-                }
-                else if (VKCode == 'B') {
-                    pInput->Keyboard.B.IsDown = true;
-                }
-                else if (VKCode == 'N') {
-                    pInput->Keyboard.N.IsDown = true;
-                }
-                else if (VKCode == 'M') {
-                    pInput->Keyboard.M.IsDown = true;
-                }
-                else if (VKCode == VK_UP) {
-                    pInput->Keyboard.Up.IsDown = true;
-                }
-                else if (VKCode == VK_DOWN) {
-                    pInput->Keyboard.Down.IsDown = true;
-                }
-                else if (VKCode == VK_LEFT) {
-                    pInput->Keyboard.Left.IsDown = true;
-                }
-                else if (VKCode == VK_RIGHT) {
-                    pInput->Keyboard.Right.IsDown = true;
-                }
-                else if (VKCode == VK_ESCAPE) {
-                    pInput->Keyboard.Escape.IsDown = true;
+
+                // Shortcut for closing Alt+F4
+                bool AltKeyWasDown = (msg.lParam & ((uint32)1 << 29)) != 0;
+                if ((VKCode == VK_F4) && AltKeyWasDown) {
                     Running = false;
                     PostQuitMessage(0);
                 }
-                else if (VKCode == VK_SPACE) {
-                    pInput->Keyboard.Space.IsDown = true;
+            } break;
+            case WM_KEYUP:
+            case WM_SYSKEYUP:
+            {
+                uint32 VKCode = msg.wParam;
+
+                if (VKCode == '1') {
+                    pInput->Keyboard.One.IsDown = false;
                 }
-                else if (VKCode == VK_RETURN) {
-                    pInput->Keyboard.Enter.IsDown = true;
+                else if (VKCode == '2') {
+                    pInput->Keyboard.Two.IsDown = false;
                 }
-                else if (VKCode == VK_F1) {
-                    pInput->Keyboard.F1.IsDown = true;
+                else if (VKCode == '3') {
+                    pInput->Keyboard.Three.IsDown = false;
                 }
-                else if (VKCode == VK_F2) {
-                    pInput->Keyboard.F2.IsDown = true;
+                else if (VKCode == '4') {
+                    pInput->Keyboard.Four.IsDown = false;
                 }
-                else if (VKCode == VK_F3) {
-                    pInput->Keyboard.F3.IsDown = true;
+                else if (VKCode == '5') {
+                    pInput->Keyboard.Five.IsDown = false;
                 }
-                else if (VKCode == VK_F4) {
-                    pInput->Keyboard.F4.IsDown = true;
+                else if (VKCode == '6') {
+                    pInput->Keyboard.Six.IsDown = false;
                 }
-                else if (VKCode == VK_F5) {
-                    pInput->Keyboard.F5.IsDown = true;
+                else if (VKCode == '7') {
+                    pInput->Keyboard.Seven.IsDown = false;
                 }
-                else if (VKCode == VK_F6) {
-                    pInput->Keyboard.F6.IsDown = true;
+                else if (VKCode == '8') {
+                    pInput->Keyboard.Eight.IsDown = false;
                 }
-                else if (VKCode == VK_F7) {
-                    pInput->Keyboard.F7.IsDown = true;
+                else if (VKCode == '9') {
+                    pInput->Keyboard.Nine.IsDown = false;
                 }
-                else if (VKCode == VK_F8) {
-                    pInput->Keyboard.F8.IsDown = true;
+                else if (VKCode == '0') {
+                    pInput->Keyboard.Zero.IsDown = false;
                 }
-                else if (VKCode == VK_F9) {
-                    pInput->Keyboard.F9.IsDown = true;
+                else if (VKCode == 'Q') {
+                    pInput->Keyboard.Q.IsDown = false;
                 }
-                else if (VKCode == VK_F10) {
-                    pInput->Keyboard.F10.IsDown = true;
+                else if (VKCode == 'W') {
+                    pInput->Keyboard.W.IsDown = false;
                 }
-                else if (VKCode == VK_F11) {
-                    pInput->Keyboard.F11.IsDown = true;
-                    ToggleFullScreen(Window);
+                else if (VKCode == 'E') {
+                    pInput->Keyboard.E.IsDown = false;
                 }
-                else if (VKCode == VK_F12) {
-                    pInput->Keyboard.F12.IsDown = true;
+                else if (VKCode == 'R') {
+                    pInput->Keyboard.R.IsDown = false;
                 }
-                else if (VKCode == VK_PRIOR) {
-                    pInput->Keyboard.PageUp.IsDown = true;
+                else if (VKCode == 'T') {
+                    pInput->Keyboard.T.IsDown = false;
                 }
-                else if (VKCode == VK_NEXT) {
-                    pInput->Keyboard.PageDown.IsDown = true;
+                else if (VKCode == 'Y') {
+                    pInput->Keyboard.Y.IsDown = false;
                 }
-                else if (VKCode == VK_SHIFT) {
-                    pInput->Keyboard.Shift.IsDown = true;
+                else if (VKCode == 'U') {
+                    pInput->Keyboard.U.IsDown = false;
+                }
+                else if (VKCode == 'I') {
+                    pInput->Keyboard.I.IsDown = false;
+                }
+                else if (VKCode == 'O') {
+                    pInput->Keyboard.O.IsDown = false;
+                }
+                else if (VKCode == 'P') {
+                    pInput->Keyboard.P.IsDown = false;
+                }
+                else if (VKCode == 'A') {
+                    pInput->Keyboard.A.IsDown = false;
+                }
+                else if (VKCode == 'S') {
+                    pInput->Keyboard.S.IsDown = false;
+                }
+                else if (VKCode == 'D') {
+                    pInput->Keyboard.D.IsDown = false;
+                }
+                else if (VKCode == 'F') {
+                    pInput->Keyboard.F.IsDown = false;
+                }
+                else if (VKCode == 'G') {
+                    pInput->Keyboard.G.IsDown = false;
+                }
+                else if (VKCode == 'H') {
+                    pInput->Keyboard.H.IsDown = false;
+                }
+                else if (VKCode == 'J') {
+                    pInput->Keyboard.J.IsDown = false;
+                }
+                else if (VKCode == 'K') {
+                    pInput->Keyboard.K.IsDown = false;
                 }
                 else if (VKCode == 'L') {
-                    if (RecordPlayback->RecordIndex == 0) {
-                        BeginRecordingInput(RecordPlayback, 1);
-                    }
-                    else {
-                        EndRecordingInput(RecordPlayback);
-                        BeginInputPlayback(RecordPlayback, 1);
-                    }
+                    pInput->Keyboard.L.IsDown = false;
                 }
-            }
-
-            // Shortcut for closing Alt+F4
-            bool AltKeyWasDown = (msg.lParam & ((uint32)1 << 29)) != 0;
-            if ((VKCode == VK_F4) && AltKeyWasDown) {
+                else if (VKCode == 'Z') {
+                    pInput->Keyboard.Z.IsDown = false;
+                }
+                else if (VKCode == 'X') {
+                    pInput->Keyboard.X.IsDown = false;
+                }
+                else if (VKCode == 'C') {
+                    pInput->Keyboard.C.IsDown = false;
+                }
+                else if (VKCode == 'V') {
+                    pInput->Keyboard.V.IsDown = false;
+                }
+                else if (VKCode == 'B') {
+                    pInput->Keyboard.B.IsDown = false;
+                }
+                else if (VKCode == 'N') {
+                    pInput->Keyboard.N.IsDown = false;
+                }
+                else if (VKCode == 'M') {
+                    pInput->Keyboard.M.IsDown = false;
+                }
+                else if (VKCode == VK_UP) {
+                    pInput->Keyboard.Up.IsDown = false;
+                }
+                else if (VKCode == VK_DOWN) {
+                    pInput->Keyboard.Down.IsDown = false;
+                }
+                else if (VKCode == VK_LEFT) {
+                    pInput->Keyboard.Left.IsDown = false;
+                }
+                else if (VKCode == VK_RIGHT) {
+                    pInput->Keyboard.Right.IsDown = false;
+                }
+                else if (VKCode == VK_ESCAPE) {
+                    pInput->Keyboard.Escape.IsDown = false;
+                }
+                else if (VKCode == VK_SPACE) {
+                    pInput->Keyboard.Space.IsDown = false;
+                }
+                else if (VKCode == VK_RETURN) {
+                    pInput->Keyboard.Enter.IsDown = false;
+                }
+                else if (VKCode == VK_F1) {
+                    pInput->Keyboard.F1.IsDown = false;
+                }
+                else if (VKCode == VK_F2) {
+                    pInput->Keyboard.F2.IsDown = false;
+                }
+                else if (VKCode == VK_F3) {
+                    pInput->Keyboard.F3.IsDown = false;
+                }
+                else if (VKCode == VK_F4) {
+                    pInput->Keyboard.F4.IsDown = false;
+                }
+                else if (VKCode == VK_F5) {
+                    pInput->Keyboard.F5.IsDown = false;
+                }
+                else if (VKCode == VK_F6) {
+                    pInput->Keyboard.F6.IsDown = false;
+                }
+                else if (VKCode == VK_F7) {
+                    pInput->Keyboard.F7.IsDown = false;
+                }
+                else if (VKCode == VK_F8) {
+                    pInput->Keyboard.F8.IsDown = false;
+                }
+                else if (VKCode == VK_F9) {
+                    pInput->Keyboard.F9.IsDown = false;
+                }
+                else if (VKCode == VK_F10) {
+                    pInput->Keyboard.F10.IsDown = false;
+                }
+                else if (VKCode == VK_F11) {
+                    pInput->Keyboard.F11.IsDown = false;
+                }
+                else if (VKCode == VK_F12) {
+                    pInput->Keyboard.F12.IsDown = false;
+                }
+                else if (VKCode == VK_PRIOR) {
+                    pInput->Keyboard.PageUp.IsDown = false;
+                }
+                else if (VKCode == VK_NEXT) {
+                    pInput->Keyboard.PageDown.IsDown = false;
+                }
+                else if (VKCode == VK_SHIFT) {
+                    pInput->Keyboard.Shift.IsDown = false;
+                }
+            } break;
+            case WM_CLOSE:
+            case WM_DESTROY:
+            {
                 Running = false;
                 PostQuitMessage(0);
-            }
-        } break;
-        case WM_KEYUP:
-        case WM_SYSKEYUP:
-        {
-            uint32 VKCode = msg.wParam;
-
-            if (VKCode == '1') {
-                pInput->Keyboard.One.IsDown = false;
-            }
-            else if (VKCode == '2') {
-                pInput->Keyboard.Two.IsDown = false;
-            }
-            else if (VKCode == '3') {
-                pInput->Keyboard.Three.IsDown = false;
-            }
-            else if (VKCode == '4') {
-                pInput->Keyboard.Four.IsDown = false;
-            }
-            else if (VKCode == '5') {
-                pInput->Keyboard.Five.IsDown = false;
-            }
-            else if (VKCode == '6') {
-                pInput->Keyboard.Six.IsDown = false;
-            }
-            else if (VKCode == '7') {
-                pInput->Keyboard.Seven.IsDown = false;
-            }
-            else if (VKCode == '8') {
-                pInput->Keyboard.Eight.IsDown = false;
-            }
-            else if (VKCode == '9') {
-                pInput->Keyboard.Nine.IsDown = false;
-            }
-            else if (VKCode == '0') {
-                pInput->Keyboard.Zero.IsDown = false;
-            }
-            else if (VKCode == 'Q') {
-                pInput->Keyboard.Q.IsDown = false;
-            }
-            else if (VKCode == 'W') {
-                pInput->Keyboard.W.IsDown = false;
-            }
-            else if (VKCode == 'E') {
-                pInput->Keyboard.E.IsDown = false;
-            }
-            else if (VKCode == 'R') {
-                pInput->Keyboard.R.IsDown = false;
-            }
-            else if (VKCode == 'T') {
-                pInput->Keyboard.T.IsDown = false;
-            }
-            else if (VKCode == 'Y') {
-                pInput->Keyboard.Y.IsDown = false;
-            }
-            else if (VKCode == 'U') {
-                pInput->Keyboard.U.IsDown = false;
-            }
-            else if (VKCode == 'I') {
-                pInput->Keyboard.I.IsDown = false;
-            }
-            else if (VKCode == 'O') {
-                pInput->Keyboard.O.IsDown = false;
-            }
-            else if (VKCode == 'P') {
-                pInput->Keyboard.P.IsDown = false;
-            }
-            else if (VKCode == 'A') {
-                pInput->Keyboard.A.IsDown = false;
-            }
-            else if (VKCode == 'S') {
-                pInput->Keyboard.S.IsDown = false;
-            }
-            else if (VKCode == 'D') {
-                pInput->Keyboard.D.IsDown = false;
-            }
-            else if (VKCode == 'F') {
-                pInput->Keyboard.F.IsDown = false;
-            }
-            else if (VKCode == 'G') {
-                pInput->Keyboard.G.IsDown = false;
-            }
-            else if (VKCode == 'H') {
-                pInput->Keyboard.H.IsDown = false;
-            }
-            else if (VKCode == 'J') {
-                pInput->Keyboard.J.IsDown = false;
-            }
-            else if (VKCode == 'K') {
-                pInput->Keyboard.K.IsDown = false;
-            }
-            else if (VKCode == 'L') {
-                pInput->Keyboard.L.IsDown = false;
-            }
-            else if (VKCode == 'Z') {
-                pInput->Keyboard.Z.IsDown = false;
-            }
-            else if (VKCode == 'X') {
-                pInput->Keyboard.X.IsDown = false;
-            }
-            else if (VKCode == 'C') {
-                pInput->Keyboard.C.IsDown = false;
-            }
-            else if (VKCode == 'V') {
-                pInput->Keyboard.V.IsDown = false;
-            }
-            else if (VKCode == 'B') {
-                pInput->Keyboard.B.IsDown = false;
-            }
-            else if (VKCode == 'N') {
-                pInput->Keyboard.N.IsDown = false;
-            }
-            else if (VKCode == 'M') {
-                pInput->Keyboard.M.IsDown = false;
-            }
-            else if (VKCode == VK_UP) {
-                pInput->Keyboard.Up.IsDown = false;
-            }
-            else if (VKCode == VK_DOWN) {
-                pInput->Keyboard.Down.IsDown = false;
-            }
-            else if (VKCode == VK_LEFT) {
-                pInput->Keyboard.Left.IsDown = false;
-            }
-            else if (VKCode == VK_RIGHT) {
-                pInput->Keyboard.Right.IsDown = false;
-            }
-            else if (VKCode == VK_ESCAPE) {
-                pInput->Keyboard.Escape.IsDown = false;
-            }
-            else if (VKCode == VK_SPACE) {
-                pInput->Keyboard.Space.IsDown = false;
-            }
-            else if (VKCode == VK_RETURN) {
-                pInput->Keyboard.Enter.IsDown = false;
-            }
-            else if (VKCode == VK_F1) {
-                pInput->Keyboard.F1.IsDown = false;
-            }
-            else if (VKCode == VK_F2) {
-                pInput->Keyboard.F2.IsDown = false;
-            }
-            else if (VKCode == VK_F3) {
-                pInput->Keyboard.F3.IsDown = false;
-            }
-            else if (VKCode == VK_F4) {
-                pInput->Keyboard.F4.IsDown = false;
-            }
-            else if (VKCode == VK_F5) {
-                pInput->Keyboard.F5.IsDown = false;
-            }
-            else if (VKCode == VK_F6) {
-                pInput->Keyboard.F6.IsDown = false;
-            }
-            else if (VKCode == VK_F7) {
-                pInput->Keyboard.F7.IsDown = false;
-            }
-            else if (VKCode == VK_F8) {
-                pInput->Keyboard.F8.IsDown = false;
-            }
-            else if (VKCode == VK_F9) {
-                pInput->Keyboard.F9.IsDown = false;
-            }
-            else if (VKCode == VK_F10) {
-                pInput->Keyboard.F10.IsDown = false;
-            }
-            else if (VKCode == VK_F11) {
-                pInput->Keyboard.F11.IsDown = false;
-            }
-            else if (VKCode == VK_F12) {
-                pInput->Keyboard.F12.IsDown = false;
-            }
-            else if (VKCode == VK_PRIOR) {
-                pInput->Keyboard.PageUp.IsDown = false;
-            }
-            else if (VKCode == VK_NEXT) {
-                pInput->Keyboard.PageDown.IsDown = false;
-            }
-            else if (VKCode == VK_SHIFT) {
-                pInput->Keyboard.Shift.IsDown = false;
-            }
-        } break;
-        case WM_CLOSE:
-        case WM_DESTROY:
-        {
-            Running = false;
-            PostQuitMessage(0);
-        } break;
-        default: {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        } break;
+            } break;
+            default: {
+                TranslateMessage(&msg);
+                DispatchMessage(&msg);
+            } break;
         }
     }
 }
@@ -876,7 +876,7 @@ FILETIME GetLastWriteTime(LPCSTR FilePath) {
     return Result;
 }
 
-void LoadGameCode(game_code *Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
+void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
     Result->Update = GameUpdateStub;
 
     bool CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
@@ -1111,13 +1111,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     uint64 LastCycleCount = __rdtsc();
 
     // OpenGl
-    RECT Rect = { 0 };
-    GetClientRect(Window, &Rect);
-
-    int32 Width = Rect.right - Rect.left;
-    int32 Height = Rect.bottom - Rect.top;
-
-    OpenGL = InitOpenGL(Window, Width, Height);
+    OpenGL = InitOpenGL(Window);
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
@@ -1128,8 +1122,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Render group
     Group = AllocateRenderGroup(&GameMemory.Assets, &pGameState->RenderArena, Megabytes(4));
-    Group->Width = Width;
-    Group->Height = Height;
+
+    // Starting resolution
+    ResizeWindow(Window, Group, OpenGL);
 
     // DebugInfo
     GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
@@ -1318,7 +1313,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Mouse.LastCursor.X = Input.Mouse.Cursor.X;
         Input.Mouse.LastCursor.Y = Input.Mouse.Cursor.Y;
         Input.Mouse.LastCursor.Z = 0;
-        
+
         Input.Mouse.Cursor.X = MouseP.x;
         Input.Mouse.Cursor.Y = MouseP.y;
         Input.Mouse.Cursor.Z = 0;
@@ -1402,7 +1397,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         double MegaCyclesPerFrame = CyclesElapsed / 1000000.0;
 
         sprintf_s(GameMemory.DebugInfo.Content, GameMemory.DebugInfo.Length, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
-        
+
         pGameState->dt = ActualSecsElapsed;
         pGameState->Time += ActualSecsElapsed;
 
@@ -1512,44 +1507,44 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
 {
     switch (message)
     {
-    case WM_COMMAND:
-    {
-        int wmId = LOWORD(wParam);
-        // Parse the menu selections:
-        switch (wmId)
+        case WM_COMMAND:
         {
-        case IDM_ABOUT:
-            DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), Window, About);
-            break;
-        case IDM_EXIT:
-            DestroyWindow(Window);
+            int wmId = LOWORD(wParam);
+            // Parse the menu selections:
+            switch (wmId)
+            {
+                case IDM_ABOUT:
+                    DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), Window, About);
+                    break;
+                case IDM_EXIT:
+                    DestroyWindow(Window);
+                    break;
+                default:
+                    return DefWindowProc(Window, message, wParam, lParam);
+            }
+        }
+        break;
+        case WM_PAINT:
+        {
+            PAINTSTRUCT ps;
+            HDC hdc = BeginPaint(Window, &ps);
+
+            if (Group) {
+                ResizeWindow(Window, Group, OpenGL);
+                Render(Window, Group, OpenGL);
+            }
+
+            EndPaint(Window, &ps);
+            ReleaseDC(Window, hdc);
+        }
+        break;
+        case WM_CLOSE:
+        case WM_DESTROY:
+            Running = false;
+            PostQuitMessage(0);
             break;
         default:
             return DefWindowProc(Window, message, wParam, lParam);
-        }
-    }
-    break;
-    case WM_PAINT:
-    {
-        PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(Window, &ps);
-
-        if (Group) {
-            ResizeWindow(Window, Group, OpenGL);
-            Render(Window, Group, OpenGL);
-        }
-
-        EndPaint(Window, &ps);
-        ReleaseDC(Window, hdc);
-    }
-    break;
-    case WM_CLOSE:
-    case WM_DESTROY:
-        Running = false;
-        PostQuitMessage(0);
-        break;
-    default:
-        return DefWindowProc(Window, message, wParam, lParam);
     }
     return 0;
 }
@@ -1560,16 +1555,16 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     UNREFERENCED_PARAMETER(lParam);
     switch (message)
     {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
-
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
+        case WM_INITDIALOG:
             return (INT_PTR)TRUE;
-        }
-        break;
+
+        case WM_COMMAND:
+            if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+            {
+                EndDialog(hDlg, LOWORD(wParam));
+                return (INT_PTR)TRUE;
+            }
+            break;
     }
     return (INT_PTR)FALSE;
 }

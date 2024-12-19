@@ -31,9 +31,6 @@ struct openGL {
 	bool VSync;
 };
 
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-// | Textures                                                                                                                                                         |
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Textures                                                                                                                                                         |
@@ -66,7 +63,7 @@ GLenum GetFormat(GLenum InternalFormat) {
 
 GLenum GetType(GLenum InternalFormat) {
 	switch (InternalFormat) {
-		case GL_RGBA8: 
+		case GL_RGBA8:
 		case GL_STENCIL_INDEX8: { return GL_UNSIGNED_BYTE; } break;
 		case GL_RGBA32F:
 		case GL_DEPTH_COMPONENT32F:
@@ -77,13 +74,13 @@ GLenum GetType(GLenum InternalFormat) {
 	return 0;
 }
 
-/* Changes the size of a previously generated texture. 
-- Internal format should be one of `GL_RGBA8`, `GL_RGBA32F`, `GL_DEPTH_COMPONENT32F`, `GL_STENCIL_INDEX8`, `GL_DEPTH32F_STENCIL8`. 
-- Filter should be one of `GL_LINEAR`, `GL_NEAREST`. 
-- WrapMode should be one of `GL_CLAMP_TO_EDGE`, `GL_REPEAT`. */ 
+/* Changes the size of a previously generated texture.
+- Internal format should be one of `GL_RGBA8`, `GL_RGBA32F`, `GL_DEPTH_COMPONENT32F`, `GL_STENCIL_INDEX8`, `GL_DEPTH32F_STENCIL8`.
+- Filter should be one of `GL_LINEAR`, `GL_NEAREST`.
+- WrapMode should be one of `GL_CLAMP_TO_EDGE`, `GL_REPEAT`. */
 void ResizeTexture(
-	int Width, int Height, 
-	GLuint Handle, 
+	int Width, int Height,
+	GLuint Handle,
 	GLenum InternalFormat,
 	GLenum Filter,
 	GLenum WrapMode,
@@ -91,7 +88,7 @@ void ResizeTexture(
 ) {
 	GLenum Format = GetFormat(InternalFormat);
 	GLenum Type = GetType(InternalFormat);
-	
+
 	glBindTexture(GL_TEXTURE_2D, Handle);
 	glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, Type, Data);
 
@@ -165,8 +162,8 @@ void OpenGLBindTexture(game_bitmap* Bitmap, wrap_mode Mode = Clamp) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 void CreateFramebuffer(
-	int Width, int Height, 
-	uint32 Framebuffer, 
+	int Width, int Height,
+	uint32 Framebuffer,
 	uint32 FramebufferTexture,
 	GLenum Attachment,
 	uint32* AttachmentTexture
@@ -187,12 +184,6 @@ void CreateFramebuffer(
 	if (Status != GL_FRAMEBUFFER_COMPLETE) {
 		Assert(false);
 	}
-}
-
-void ResizeFramebuffer(int Width, int Height, uint32 Texture, GLenum Attachment, uint32 AttachmentTexture) {
-	ResizeTexture(Texture, Width, Height, GL_TEXTURE_2D, GL_FLOAT, GL_RGBA32F, GL_BGRA_EXT, GL_LINEAR, GL_CLAMP_TO_EDGE);
-	GLenum InternalFormat = GetFormat(Attachment);
-	ResizeTexture(AttachmentTexture, Width, Height, GL_TEXTURE_2D, GL_UNSIGNED_BYTE, InternalFormat, InternalFormat, GL_NEAREST, GL_CLAMP_TO_EDGE);
 }
 
 void CreateFramebufferMultisampling(
@@ -263,10 +254,16 @@ void ResizeFramebuffers(openGL OpenGL, int32 Width, int32 Height) {
 
 
 // Initialization
-openGL InitOpenGL(HWND Window, int Width, int Height) {
+openGL InitOpenGL(HWND Window) {
 	openGL Result = { 0 };
 
 	HDC WindowDC = GetDC(Window);
+
+	RECT Rect = { 0 };
+	GetClientRect(Window, &Rect);
+
+	int32 Width = Rect.right - Rect.left;
+	int32 Height = Rect.bottom - Rect.top;
 
 	PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
 	DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
@@ -359,8 +356,8 @@ openGL InitOpenGL(HWND Window, int Width, int Height) {
 				&Target->AttachmentTexture
 			);
 			else CreateFramebuffer(
-				Width, Height, 
-				Target->Framebuffer, 
+				Width, Height,
+				Target->Framebuffer,
 				Target->Texture,
 				Target->Attachment,
 				&Target->AttachmentTexture
@@ -409,7 +406,7 @@ openGL InitOpenGL(HWND Window, int Width, int Height) {
 
 		Error = glGetError();
 	}
-	
+
 	ReleaseDC(Window, WindowDC);
 	return Result;
 }
@@ -455,7 +452,7 @@ void SetCameraProjection(camera Camera, int32 Width, int32 Height) {
 		0.0, 0.0, -1.0, 0.0,
 	};
 	glLoadMatrixd(Proj);
-	
+
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
 	glTranslated(0, 0, Camera.Distance);
@@ -598,12 +595,12 @@ void OpenGLTexturedRect(
 }
 
 void OpenGLRenderText(
-	game_font* Font, 
-	int DisplayWidth, 
-	v2 Position, 
-	string String, 
-	color Color, 
-	int Points, 
+	game_font* Font,
+	int DisplayWidth,
+	v2 Position,
+	string String,
+	color Color,
+	int Points,
 	bool Wrapped
 ) {
 	double PenX = Position.X;
@@ -800,8 +797,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 	render_group_entry_type DebugTypes[MAX_RENDER_ENTRIES] = {};
 
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
 	// Render entries
 	uint32 EntryCount = Group->PushBufferElementCount;
 	for (uint32 EntryIndex = 0; EntryIndex < EntryCount; EntryIndex++) {
@@ -970,16 +965,16 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 					// Projection and modelview matrices
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 
-					// Light
+				// Light
 				OpenGLSetUniform(Shader->ProgramID, "light_direction", Light.Direction);
 				OpenGLSetUniform(Shader->ProgramID, "light_color", V3(Light.Color.R, Light.Color.G, Light.Color.B));
 				OpenGLSetUniform(Shader->ProgramID, "light_ambient", (float)Light.Ambient);
 				OpenGLSetUniform(Shader->ProgramID, "light_diffuse", (float)Light.Diffuse);
 
-					// Color
+				// Color
 				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
 
-					// Resolution
+				// Resolution
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
 
 				if (Mesh->VBO) {
@@ -1003,7 +998,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Mesh->EBO);
 
 					glBufferData(GL_ELEMENT_ARRAY_BUFFER, 3 * Mesh->nFaces * sizeof(uint32), Mesh->Faces, GL_STATIC_DRAW);
-					
+
 					glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 8 * sizeof(double), (void*)0);
 					glVertexAttribPointer(1, 3, GL_DOUBLE, GL_FALSE, 8 * sizeof(double), (void*)(3 * sizeof(double)));
 					glVertexAttribPointer(2, 2, GL_DOUBLE, GL_FALSE, 8 * sizeof(double), (void*)(6 * sizeof(double)));
@@ -1032,7 +1027,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 			{
 				render_entry_debug_grid Entry = *(render_entry_debug_grid*)Header;
 
-				if (Group->Debug) { 
+				if (Group->Debug) {
 					SetCoordinates(World_Coordinates, Group->Camera, Width, Height);
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 					// Debug lattice
@@ -1107,7 +1102,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				glBindVertexArray(0);
 				glUseProgram(0);
 			} break;
-			
+
 			case group_type_render_entry_mesh_outline:
 			{
 				render_entry_mesh_outline Entry = *(render_entry_mesh_outline*)Header;
@@ -1168,7 +1163,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				glActiveTexture(GL_TEXTURE1);
 				glBindTexture(GL_TEXTURE_2D, 0);
-				
+
 				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, 0);
 
@@ -1178,17 +1173,16 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 			case group_type_render_entry_render_target:
 			{
-				//glDisable(GL_DEPTH_TEST);
 				render_entry_render_target Entry = *(render_entry_render_target*)Header;
 
- 				SetIdentityProjection();
+				SetIdentityProjection();
 
 				game_shader* Shader = &Group->Assets->Shaders[Entry.ShaderID];
 
 				if (!Shader->ProgramID) {
 					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
 				}
-				
+
 				render_target Source = OpenGL.Targets[Entry.Header.Target];
 				if (Source.Attachment) {
 					if (Source.Attachment == GL_DEPTH_ATTACHMENT || Source.Attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
