@@ -646,17 +646,17 @@ void OpenGLRenderText(
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 GLuint OpenGLLoadShader(game_assets* Assets, game_shader* Shader) {
-	game_asset* HeaderAsset = &Assets->Asset[Shader->HeaderShaderID];
-	game_asset* VertexAsset = &Assets->Asset[Shader->VertexShaderID];
-	game_asset* FragmentAsset = &Assets->Asset[Shader->FragmentShaderID];
+	game_text* HeaderAsset = &Assets->Texts[Shader->HeaderShaderID];
+	game_text* VertexAsset = &Assets->Texts[Shader->VertexShaderID];
+	game_text* FragmentAsset = &Assets->Texts[Shader->FragmentShaderID];
 
-	uint64 HeaderSize = HeaderAsset->MemoryNeeded - 1;
-	uint64 VertexSize = VertexAsset->MemoryNeeded - 1;
-	uint64 FragmentSize = FragmentAsset->MemoryNeeded - 1;
+	uint64 HeaderSize = HeaderAsset->Size - 1;
+	uint64 VertexSize = VertexAsset->Size - 1;
+	uint64 FragmentSize = FragmentAsset->Size - 1;
 
-	char* HeaderCode = Assets->Texts[HeaderAsset->Index];
-	char* VertexCode = Assets->Texts[VertexAsset->Index];
-	char* FragmentCode = Assets->Texts[FragmentAsset->Index];
+	char* HeaderCode = HeaderAsset->Content;
+	char* VertexCode = VertexAsset->Content;
+	char* FragmentCode = FragmentAsset->Content;
 
 	GLint VertexShaderCodeLengths[] = { HeaderSize, VertexSize };
 

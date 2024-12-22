@@ -366,35 +366,15 @@ void PlaybackInput(record_and_playback* RecordPlayback, game_input* Input) {
 }
 
 // Capture screen
-void SaveBMP(const char* Path, game_bitmap* BMP) {
-    PlatformWriteEntireFile(Path, sizeof(BMP->Header), &BMP->Header);
-    uint32 Offset = BMP->Header.BitmapOffset - sizeof(BMP->Header);
-    char Zero = 0;
-    for (uint32 i = 0; i < Offset; i++) {
-        PlatformAppendToFile(Path, 1, &Zero);
-    }
-    PlatformAppendToFile(Path, BMP->Header.Width * BMP->Header.Height * BMP->BytesPerPixel, BMP->Content);
-}
-
 void ScreenCapture(openGL OpenGL, int Width, int Height) {
     game_bitmap BMP = {};
 
     // Bitmap header
-    BMP.Header.FileType = 19778;
-    BMP.Header.Width = Width;
-    BMP.Header.Height = Height;
-    BMP.Header.BitmapOffset = 138;
-    BMP.Header.Size = 124;
-    BMP.Header.Planes = 1;
-    BMP.Header.BitsPerPixel = 32;
+    MakeBitmapHeader(&BMP.Header, Width, Height);
+
     BMP.BytesPerPixel = 4;
-    BMP.Header.Compression = 3;
-    BMP.Header.SizeOfBitmap = Width * Height * 4 + BMP.Header.BitmapOffset;
-    BMP.Header.HorzResolution = 3777;
-    BMP.Header.VertResolution = 3777;
-    BMP.Header.RedMask = 0x00ff0000;
-    BMP.Header.GreenMask = 0x0000ff00;
-    BMP.Header.BlueMask = 0x000000ff;
+    BMP.Pitch = 4 * Width;
+    BMP.AlphaMask = 0xff000000;
 
     // File name
     time_t t = time(NULL);
@@ -416,6 +396,9 @@ void ScreenCapture(openGL OpenGL, int Width, int Height) {
     glReadPixels(0, 0, Width, Height, GL_BGRA, GL_UNSIGNED_BYTE, (void*)BMP.Content);
 
     SaveBMP(Filename, &BMP);
+    if (BMP.Content) {
+        VirtualFree(BMP.Content, 0, MEM_RELEASE);
+    }
 }
 
 static bool Pause = false;
@@ -1129,6 +1112,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // DebugInfo
     GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
 
+    WriteAssetFile();
+
     Running = true;
     bool FirstFrame = true;
     // Main message loop:
@@ -1137,7 +1122,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         FILETIME NewDLLWriteTime = GetLastWriteTime(SourceDLLName);
         LONG DebugFiletime = CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime);
 
-        if (CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime) != 0) {
+        if (DebugFiletime != 0) {
             UnloadGameCode(&GameCode);
             LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
             if (GameCode.IsValid) {

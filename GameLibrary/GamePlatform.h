@@ -89,6 +89,8 @@ inline string PushString(memory_arena* Arena, int Length, const char* Content) {
 
 // Services that the platform layer provides for the game
 struct read_file_result {
+    char Path[512];
+    int64 Timestamp;
     uint32 ContentSize;
     void* Content;
 };

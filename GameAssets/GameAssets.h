@@ -19,6 +19,7 @@
 enum game_asset_type {
     Text,
     Bitmap,
+    Heightmap,
     Font,
     Sound,
     Video,
@@ -27,26 +28,8 @@ enum game_asset_type {
     game_asset_type_count
 };
 
-enum game_asset_id {
+enum game_text_id {
     Text_Test_ID,
-
-    Bitmap_Background_ID,
-    Bitmap_Button_ID,
-    Bitmap_Empty_ID,
-    Bitmap_Enemy_ID,
-    Bitmap_Player_ID,
-
-    Font_Cascadia_Mono_ID,
-
-    Sound_Test_ID,
-
-    Mesh_Enemy_ID,
-    Mesh_Sphere_ID,
-    Mesh_Body_ID,
-    //Mesh_Shield_ID,
-    //Mesh_Sword_ID,
-
-    //Video_Test_ID,
 
     Header_Shader_ID,
     Vertex_Shader_ID,
@@ -61,29 +44,85 @@ enum game_asset_id {
     Fragment_Shader_Texture_ID,
     Fragment_Shader_Kernel_ID,
 
-    game_asset_id_count
+    game_text_id_count
 };
 
-const int COUNT_TEXT_ASSETS = 13;
-const int COUNT_BITMAP_ASSETS = 5;
-const int COUNT_FONT_ASSETS = 1;
-const int COUNT_SOUND_ASSETS = 1;
-const int COUNT_MESH_ASSETS = 4;
-const int COUNT_VIDEO_ASSETS = 1;
+enum game_sound_id {
+    Sound_Test_ID,
+
+    game_sound_id_count
+};
+
+enum game_bitmap_id {
+    Bitmap_Background_ID,
+    Bitmap_Button_ID,
+    Bitmap_Empty_ID,
+    Bitmap_Enemy_ID,
+    Bitmap_Player_ID,
+
+    game_bitmap_id_count
+};
+
+enum game_heightmap_id {
+    Heightmap_Spain_ID,
+
+    game_heightmap_id_count
+};
+
+enum game_font_id {
+    Font_Cascadia_Mono_ID,
+
+    game_font_id_count
+};
+
+enum game_mesh_id {
+    Mesh_Enemy_ID,
+    Mesh_Sphere_ID,
+    Mesh_Body_ID,
+    //Mesh_Shield_ID,
+    //Mesh_Sword_ID,
+    
+    game_mesh_id_count
+};
+
+enum game_video_id {
+    //Video_Test_ID,
+
+    game_video_id_count
+};
+
+union game_asset_id {
+    game_text_id Text;
+    game_sound_id Sound;
+    game_bitmap_id Bitmap;
+    game_heightmap_id Heightmap;
+    game_font_id Font;
+    game_mesh_id Mesh;
+    game_video_id Video;
+};
 
 struct game_asset {
     game_asset_id ID;
-    int Index;
     game_asset_type Type;
     read_file_result File;
-    const char* Path;
     uint64 MemoryNeeded;
     uint64 Offset;
 };
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+// | Text                                                                                                                                                             |
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct game_text {
+    game_text_id ID;
+    uint32 Size;
+    char* Content;
+};
+
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Sound                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
 struct waveformat {
     unsigned short    wFormatTag;        /* format type */
     unsigned short    nChannels;         /* number of channels (i.e. mono, stereo...) */
@@ -95,7 +134,7 @@ struct waveformat {
 };
 
 struct game_sound {
-    game_asset_id AssetID;
+    game_sound_id ID;
     waveformat WaveFormat;
     uint32 SampleCount;
     uint32 Played;
@@ -162,7 +201,7 @@ game_sound AssetLoadSound(memory_arena* Arena, game_asset* Asset) {
     ChunkSize = *Pointer++;
 
     game_sound Result = {};
-    Result.AssetID = Asset->ID;
+    Result.ID = Asset->ID.Sound;
     Result.SampleOut = (int16*)PushSize(Arena, Asset->MemoryNeeded);
     Result.SampleCount = ChunkSize / 2;
     Result.WaveFormat = WaveFMT;
@@ -202,7 +241,7 @@ struct bitmap_header {
 #pragma pack(pop)
 
 struct game_bitmap {
-    game_asset_id AssetID;
+    game_bitmap_id ID;
     bitmap_header Header;
     uint32 Handle;
     uint32 BytesPerPixel;
@@ -211,17 +250,19 @@ struct game_bitmap {
     uint32* Content;
 };
 
-game_bitmap AssetLoadBitmap(memory_arena* Arena, game_asset* Asset) {
-    game_bitmap Result = {};
-    Result.AssetID = Asset->ID;
-    Result.Handle = 0;
+uint64 ComputeNeededMemoryForBitmap(read_file_result File) {
+    bitmap_header Header = *(bitmap_header*)File.Content;
+    return File.ContentSize - Header.BitmapOffset;
+}
 
-    bitmap_header* Header = (bitmap_header*)Asset->File.Content;
+game_bitmap LoadBitmapFile(memory_arena* Arena, read_file_result File) {
+    game_bitmap Result = {};
+    bitmap_header* Header = (bitmap_header*)File.Content;
     Result.Header = *Header;
     uint32 BytesPerPixel = Header->BitsPerPixel >> 3;
     Result.BytesPerPixel = BytesPerPixel;
     Result.Pitch = Header->Width * BytesPerPixel;
-    Result.Content = (uint32*)((uint8*)Asset->File.Content + Header->BitmapOffset);
+    Result.Content = (uint32*)((uint8*)File.Content + Header->BitmapOffset);
 
     bool HasAlpha = false;
     if (Result.Header.BitsPerPixel == 32 && Result.Header.Compression == 3) {
@@ -248,7 +289,14 @@ game_bitmap AssetLoadBitmap(memory_arena* Arena, game_asset* Asset) {
     void* Destination = PushSize(Arena, Size);
 
     memcpy(Destination, Result.Content, Size);
-    Result.Content = 0;
+}
+
+game_bitmap AssetLoadBitmap(memory_arena* Arena, game_asset* Asset) {
+    game_bitmap Result = {};
+    Result.ID = Asset->ID.Bitmap;
+    Result.Handle = 0;
+
+    Result = LoadBitmapFile(Arena, Asset->File);
 
     return Result;
 }
@@ -260,28 +308,111 @@ void ClearBitmap(game_bitmap* Bitmap) {
     }
 }
 
+void MakeBitmapHeader(bitmap_header* Header, int Width, int Height) {
+    Header->FileType = 19778;
+    Header->Width = Width;
+    Header->Height = Height;
+    Header->BitmapOffset = 138;
+    Header->Size = 124;
+    Header->Planes = 1;
+    Header->BitsPerPixel = 32;
+    Header->FileSize = Width * Height * Header->BitsPerPixel;
+    Header->Compression = 3;
+    Header->SizeOfBitmap = Width * Height * 4 + Header->BitmapOffset;
+    Header->HorzResolution = 3777;
+    Header->VertResolution = 3777;
+    Header->RedMask = 0x00ff0000;
+    Header->GreenMask = 0x0000ff00;
+    Header->BlueMask = 0x000000ff;
+}
+
 game_bitmap MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool ClearToZero = true) {
     game_bitmap Result = {};
-    Result.Header = { 0 };
-    Result.Header.Width = Width;
-    Result.Header.Height = Height;
-    Result.Header.BitsPerPixel = 32;
+
+    MakeBitmapHeader(&Result.Header, Width, Height);
+
     Result.BytesPerPixel = 4;
     Result.Pitch = 4 * Width;
-    int32 TotalBitmapSize = Width * Height * 32;
-    Result.Header.FileSize = TotalBitmapSize;
-
-    Result.Header.RedMask = 0x00ff0000;
-    Result.Header.GreenMask = 0x0000ff00;
-    Result.Header.BlueMask = 0x000000ff;
     Result.AlphaMask = 0xff000000;
 
-    Result.Content = (uint32*)PushSize(Arena, TotalBitmapSize / 8);
+    Result.Content = (uint32*)PushSize(Arena, Width * Height * Result.BytesPerPixel);
     if (ClearToZero) {
         ClearBitmap(&Result);
     }
     return Result;
 }
+
+void SaveBMP(const char* Path, game_bitmap* BMP) {
+    PlatformWriteEntireFile(Path, sizeof(BMP->Header), &BMP->Header);
+    uint32 Offset = BMP->Header.BitmapOffset - sizeof(BMP->Header);
+    char Zero = 0;
+    for (uint32 i = 0; i < Offset; i++) {
+        PlatformAppendToFile(Path, 1, &Zero);
+    }
+    PlatformAppendToFile(Path, BMP->Header.Width * BMP->Header.Height * BMP->BytesPerPixel, BMP->Content);
+}
+
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+// | Heightmaps                                                                                                                                                       |
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct game_heightmap {
+    game_bitmap Bitmap;
+    uint32 VBO;
+    double* Vertices;
+};
+
+const int HEIGHTMAP_RESOLUTION = 20;
+
+uint64 ComputeNeededMemoryForHeightmap(read_file_result File) {
+    uint64 BitmapSize = ComputeNeededMemoryForBitmap(File);
+    uint64 VerticesSize = HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 20 * sizeof(double);
+    return BitmapSize + VerticesSize;
+}
+
+game_heightmap AssetLoadHeightmap(memory_arena* Arena, game_asset* Asset) {
+    game_heightmap Result = {};
+
+    Result.Bitmap = LoadBitmapFile(Arena, Asset->File);
+    double Width = Result.Bitmap.Header.Width;
+    double Height = Result.Bitmap.Header.Height;
+
+    Result.Vertices = (double*)PushSize(Arena, HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 20 * sizeof(double));
+    double* Pointer = Result.Vertices;
+    for (int i = 0; i < HEIGHTMAP_RESOLUTION; i++) {
+        for (int j = 0; j < HEIGHTMAP_RESOLUTION; j++) {
+            *Pointer++ = -Width / 2.0 + Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = 0.0; // v.y
+            *Pointer++ = -Height / 2.0 + Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = (double)i / (double)HEIGHTMAP_RESOLUTION; // vt.x
+            *Pointer++ = (double)j / (double)HEIGHTMAP_RESOLUTION; // vt.y
+
+            *Pointer++ = -Width / 2.0 + Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = 0.0; // v.y
+            *Pointer++ = -Height / 2.0 + Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.x
+            *Pointer++ = (double)j / (double)HEIGHTMAP_RESOLUTION; // vt.y
+
+            *Pointer++ = -Width / 2.0 + Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = 0.0; // v.y
+            *Pointer++ = -Height / 2.0 + Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = (double)i / (double)HEIGHTMAP_RESOLUTION; // vt.x
+            *Pointer++ = (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.y
+
+            *Pointer++ = -Width / 2.0 + Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = 0.0; // v.y
+            *Pointer++ = -Height / 2.0 + Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.x
+            *Pointer++ = (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.y
+        }
+    }
+
+    // TODO: LOAD HEIGHTMAP
+    Assert(false);
+
+    return Result;
+}
+
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Fonts                                                                                                                                                            |
@@ -300,7 +431,7 @@ struct game_font_character {
 };
 
 struct game_font {
-    game_asset_id AssetID;
+    game_font_id ID;
     signed long SpaceAdvance;
     game_font_character Characters[FONT_CHARACTERS_COUNT];
 };
@@ -368,7 +499,7 @@ uint64 ComputeNeededMemoryForFont(const char* Path) {
 
 game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
     game_font Result = {};
-    Result.AssetID = Asset->ID;
+    Result.ID = Asset->ID.Font;
 
     FT_Library FTLibrary;
     FT_Face Font;
@@ -377,7 +508,7 @@ game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
         Assert(false);
     }
     else {
-        error = FT_New_Face(FTLibrary, Asset->Path, 0, &Font);
+        error = FT_New_Face(FTLibrary, Asset->File.Path, 0, &Font);
         if (error == FT_Err_Unknown_File_Format) {
             Assert(false);
         }
@@ -432,7 +563,7 @@ game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct game_video {
-    game_asset_id AssetID;
+    game_video_id ID;
     video_context VideoContext;
     int Handle;
     bool Loop;
@@ -440,7 +571,7 @@ struct game_video {
 };
 
 game_video AssetLoadVideo(memory_arena* Arena, game_asset* Asset) {
-    game_video Result = { Asset->ID, 0 };
+    game_video Result = { Asset->ID.Video, 0 };
     void* Dest = PushSize(Arena, Asset->MemoryNeeded);
     memcpy(Dest, Asset->File.Content, Asset->File.ContentSize);
     return Result;
@@ -585,7 +716,7 @@ struct vertex {
 };
 
 struct game_mesh {
-    game_asset_id AssetID;
+    game_mesh_id ID;
     int nVertices;
     double* Vertices;
     int nFaces;
@@ -667,7 +798,7 @@ uint64 ComputeNeededMemoryForMesh(read_file_result File) {
 
 game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
     game_mesh Result = {};
-    Result.AssetID = Asset->ID;
+    Result.ID = Asset->ID.Mesh;
     
     read_file_result File = Asset->File;
 
@@ -745,9 +876,6 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
             iv3 Triangle[3] = {};
             while (ReadChar != '\n' && ReadSize < File.ContentSize) {
                 iv3 V = ParseIV3(Pointer);
-                if (V == IV3(26, 85, 30)) {
-                    OutputDebugStringA("ERROR");
-                }
                 FaceVertices.insert(V);
                 if (nFaceVertices <= 2) {
                     Triangle[nFaceVertices] = V;
@@ -833,9 +961,9 @@ enum game_shader_id {
 
 struct game_shader {
     game_shader_id ID;
-    game_asset_id HeaderShaderID;
-    game_asset_id VertexShaderID;
-    game_asset_id FragmentShaderID;
+    game_text_id HeaderShaderID;
+    game_text_id VertexShaderID;
+    game_text_id FragmentShaderID;
     uint32 ProgramID;
 };
 
@@ -843,52 +971,39 @@ struct game_shader {
 // | Game assets                                                                                                                                                      |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+const int ASSET_COUNT =
+    game_text_id_count +
+    game_sound_id_count +
+    game_bitmap_id_count +
+    game_heightmap_id_count +
+    game_font_id_count +
+    game_mesh_id_count +
+    game_video_id_count;
+
 struct game_assets {
-    game_asset Asset[game_asset_id_count];
+    game_asset Asset[ASSET_COUNT];
     game_shader Shaders[game_shader_id_count];
-    int n[game_asset_type_count];
-    char* Texts[COUNT_TEXT_ASSETS];
-    game_bitmap Bitmaps[COUNT_BITMAP_ASSETS];
-    game_font Fonts[COUNT_FONT_ASSETS];
-    game_sound Sounds[COUNT_SOUND_ASSETS];
-    game_mesh Meshes[COUNT_MESH_ASSETS];
-    game_video Videos[COUNT_VIDEO_ASSETS];
+    int nAssets;
+    game_text Texts[game_text_id_count];
+    game_bitmap Bitmaps[game_bitmap_id_count];
+    game_heightmap Heightmaps[game_heightmap_id_count];
+    game_font Fonts[game_font_id_count];
+    game_sound Sounds[game_sound_id_count];
+    game_mesh Meshes[game_mesh_id_count];
+    game_video Videos[1];
     uint64 TotalSize;
     uint8* Memory;
 };
 
-//character* Characters;
-//loaded_bmp TestImage;
-//loaded_bmp TestImage2;
-//loaded_bmp EmptyTexture;
-//game_sound TestSound;
-//mesh TestMesh;
-//mesh TestMesh2;
-//shader TextureShader;
-//shader SphereShader;
-//shader FramebufferShader;
-//shader SingleColorShader;
-//shader OutlineInitShader;
-//shader JumpFloodShader;
-//shader OutlineShader;
-//shader KernelShader;
-//shader AntialiasingShader;
-//game_video TestVideo;
 
-#define GetAsset(Assets, id, type) (type*)_GetAsset(Assets, id)
-void* _GetAsset(game_assets* Assets, game_asset_id ID) {
-    game_asset* Asset = &Assets->Asset[ID];
+game_text* GetAsset(game_assets* Assets, game_text_id ID) { return &Assets->Texts[ID]; }
+game_sound* GetAsset(game_assets* Assets, game_sound_id ID) { return &Assets->Sounds[ID]; }
+game_bitmap* GetAsset(game_assets* Assets, game_bitmap_id ID) { return &Assets->Bitmaps[ID]; }
+game_heightmap* GetAsset(game_assets* Assets, game_heightmap_id ID) { return &Assets->Heightmaps[ID]; }
+game_font* GetAsset(game_assets* Assets, game_font_id ID) { return &Assets->Fonts[ID]; }
+game_mesh* GetAsset(game_assets* Assets, game_mesh_id ID) { return &Assets->Meshes[ID]; }
+game_video* GetAsset(game_assets* Assets, game_video_id ID) { return &Assets->Videos[ID]; }
 
-    switch (Asset->Type) {
-        case Text:   return (void*)&Assets->Texts[Asset->Index];   break;
-        case Font:   return (void*)&Assets->Fonts[Asset->Index];   break;
-        case Bitmap: return (void*)&Assets->Bitmaps[Asset->Index]; break;
-        case Sound:  return (void*)&Assets->Sounds[Asset->Index];  break;
-        case Mesh:   return (void*)&Assets->Meshes[Asset->Index];  break;
-        case Video:  return (void*)&Assets->Videos[Asset->Index];  break;
-        default: Assert(false); return 0;
-    }
-}
 
 void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, const char* Path) {
     read_file_result AssetsFile = Read(Path);
@@ -896,38 +1011,26 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
     *Assets = *(game_assets*)AssetsFile.Content;
     Assets->Memory = (uint8*)AssetsFile.Content + sizeof(game_assets);
 
-    for (int i = 0; i < game_asset_id_count; i++) {
+    for (int i = 0; i < ASSET_COUNT; i++) {
         game_asset Asset = Assets->Asset[i];
 
         switch (Asset.Type) {
             case Text: {
-                Assets->Texts[Asset.Index] = (char*)(Assets->Memory + Asset.Offset);
-            } break;
-
-            case Bitmap: {
-                game_bitmap* Bitmap = &Assets->Bitmaps[Asset.Index];
-                Bitmap->Content = (uint32*)(Assets->Memory + Asset.Offset);
-            } break;
-
-            case Mesh: {
-                game_mesh* Mesh = &Assets->Meshes[Asset.Index];
-                Mesh->Vertices = (double*)(Assets->Memory + Asset.Offset);
-                Mesh->Faces = (uint32*)(Mesh->Vertices + 8 * Mesh->nVertices);
+                Assets->Texts[Asset.ID.Text].Content = (char*)(Assets->Memory + Asset.Offset);
             } break;
 
             case Sound: {
-                game_sound* Sound = &Assets->Sounds[Asset.Index];
+                game_sound* Sound = &Assets->Sounds[Asset.ID.Sound];
                 Sound->SampleOut = (int16*)(Assets->Memory + Asset.Offset);
             } break;
-            
-            //case Video: {
-            //    game_video* Video = &Assets->Videos[Asset.Index];
-            //    InitializeVideoBuffer(&Video->VideoContext.Buffer, (void*)(Assets->Memory + Asset.Offset), Asset.MemoryNeeded - 1);
-            //    InitializeVideo(&Video->VideoContext);
-            //} break;
+
+            case Bitmap: {
+                game_bitmap* Bitmap = &Assets->Bitmaps[Asset.ID.Bitmap];
+                Bitmap->Content = (uint32*)(Assets->Memory + Asset.Offset);
+            } break;
 
             case Font: {
-                game_font* Font = &Assets->Fonts[Asset.Index];
+                game_font* Font = &Assets->Fonts[Asset.ID.Font];
                 uint8* Pointer = (uint8*)(Assets->Memory + Asset.Offset);
                 for (int i = 0; i < FONT_CHARACTERS_COUNT; i++) {
                     game_bitmap* Character = &Font->Characters[i].Bitmap;
@@ -935,6 +1038,18 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
                     Pointer += Character->Header.Width * Character->Header.Height * Character->BytesPerPixel;
                 }
             } break;
+
+            case Mesh: {
+                game_mesh* Mesh = &Assets->Meshes[Asset.ID.Mesh];
+                Mesh->Vertices = (double*)(Assets->Memory + Asset.Offset);
+                Mesh->Faces = (uint32*)(Mesh->Vertices + 8 * Mesh->nVertices);
+            } break;
+            
+            //case Video: {
+            //    game_video* Video = &Assets->Videos[Asset.Index];
+            //    InitializeVideoBuffer(&Video->VideoContext.Buffer, (void*)(Assets->Memory + Asset.Offset), Asset.MemoryNeeded - 1);
+            //    InitializeVideo(&Video->VideoContext);
+            //} break;
 
             default: {
                 Log(Error, "ERROR: Asset type not implemented.\n");
@@ -944,6 +1059,222 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
     }
 
     Log(Info, "Assets loaded.\n");
+}
+
+void PushAsset(game_assets* Assets, const char* Path, game_text_id ID) {
+    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
+    Asset->Type = Text;
+    Asset->ID.Text = ID;
+    Asset->File = PlatformReadEntireFile(Path);
+    Asset->MemoryNeeded = Asset->File.ContentSize + 1;
+    Assets->TotalSize += Asset->MemoryNeeded;
+};
+
+void PushAsset(game_assets* Assets, const char* Path, game_sound_id ID) {
+    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
+    Asset->Type = Sound;
+    Asset->ID.Sound = ID;
+    Asset->File = PlatformReadEntireFile(Path);
+    Asset->MemoryNeeded = ComputeNeededMemoryForSound(Asset->File);
+    Assets->TotalSize += Asset->MemoryNeeded;
+};
+
+void PushAsset(game_assets* Assets, const char* Path, game_bitmap_id ID) {
+    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
+    Asset->Type = Bitmap;
+    Asset->ID.Bitmap = ID;
+    Asset->File = PlatformReadEntireFile(Path);
+    Asset->MemoryNeeded = ComputeNeededMemoryForBitmap(Asset->File);
+    Assets->TotalSize += Asset->MemoryNeeded;
+};
+
+void PushAsset(game_assets* Assets, const char* Path, game_heightmap_id ID) {
+    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
+    Asset->Type = Heightmap;
+    Asset->ID.Heightmap = ID;
+    Asset->File = PlatformReadEntireFile(Path);
+    Asset->MemoryNeeded = ComputeNeededMemoryForHeightmap(Asset->File);
+    Assets->TotalSize += Asset->MemoryNeeded;
+};
+
+void PushAsset(game_assets* Assets, const char* Path, game_font_id ID) {
+    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
+    Asset->Type = Font;
+    Asset->ID.Font = ID;
+    Asset->File = PlatformReadEntireFile(Path);
+    Asset->MemoryNeeded = ComputeNeededMemoryForFont(Asset->File.Path);
+    Assets->TotalSize += Asset->MemoryNeeded;
+};
+
+void PushAsset(game_assets* Assets, const char* Path, game_mesh_id ID) {
+    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
+    Asset->Type = Mesh;
+    Asset->ID.Mesh = ID;
+    Asset->File = PlatformReadEntireFile(Path);
+    Asset->MemoryNeeded = ComputeNeededMemoryForMesh(Asset->File);
+    Assets->TotalSize += Asset->MemoryNeeded;
+};
+
+void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
+    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
+    Asset->Type = Video;
+    Asset->ID.Video = ID;
+    Asset->File = PlatformReadEntireFile(Path);
+    //Asset.MemoryNeeded = ComputeNeededMemoryForVideo(Asset.File);
+    Asset->MemoryNeeded = 0;
+    Assets->TotalSize += Asset->MemoryNeeded;
+};
+
+void PushShader(
+    game_assets* Assets,
+    game_shader_id ShaderID,
+    game_text_id HeaderID,
+    game_text_id VertexID,
+    game_text_id FragmentID
+) {
+    game_shader* Shader = &Assets->Shaders[ShaderID];
+    Shader->ID = ShaderID;
+    Shader->HeaderShaderID = HeaderID;
+    Shader->VertexShaderID = VertexID;
+    Shader->FragmentShaderID = FragmentID;
+}
+
+void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
+    Asset->Offset = Arena->Used;
+    game_asset_id ID = Asset->ID;
+    char LogBuffer[512];
+    switch (Asset->Type) {
+        case Text: {
+            char* TextContent = (char*)PushSize(Arena, Asset->MemoryNeeded);
+            Assets->Texts[ID.Text].ID = ID.Text;
+            Assets->Texts[ID.Text].Size = Asset->MemoryNeeded;
+            Assets->Texts[ID.Text].Content = TextContent;
+            memcpy(TextContent, Asset->File.Content, Asset->MemoryNeeded);
+            sprintf_s(LogBuffer, "Loaded text %s\n", Asset->File.Path);
+            Log(Info, LogBuffer);
+        } break;
+
+        //case Video: {
+        //    Assets->Videos[Asset->Index] = AssetLoadVideo(Arena, Asset);
+        //    std::cout << "Loaded video " << Asset->Path << "\n";
+        //} break;
+
+        case Bitmap: {
+            Assets->Bitmaps[ID.Bitmap] = AssetLoadBitmap(Arena, Asset);
+            sprintf_s(LogBuffer, "Loaded bitmap %s\n", Asset->File.Path);
+            Log(Info, LogBuffer);
+        } break;
+
+        case Heightmap: {
+            Assets->Heightmaps[ID.Heightmap] = AssetLoadHeightmap(Arena, Asset);
+            sprintf_s(LogBuffer, "Loaded heightmap %s\n", Asset->File.Path);
+            Log(Info, LogBuffer);
+        } break;
+
+        case Font: {
+            Assets->Fonts[ID.Font] = AssetLoadFont(Arena, Asset);
+            sprintf_s(LogBuffer, "Loaded font %s\n", Asset->File.Path);
+            Log(Info, LogBuffer);
+        } break;
+
+        case Sound: {
+            Assets->Sounds[ID.Sound] = AssetLoadSound(Arena, Asset);
+            sprintf_s(LogBuffer, "Loaded sound %s\n", Asset->File.Path);
+            Log(Info, LogBuffer);
+        } break;
+
+        case Mesh: {
+            Assets->Meshes[ID.Mesh] = AssetLoadMesh(Arena, Asset);
+            sprintf_s(LogBuffer, "Loaded mesh %s\n", Asset->File.Path);
+            Log(Info, LogBuffer);
+        } break;
+
+        default: {
+            sprintf_s(LogBuffer, "Asset ignored %s\n", Asset->File.Path);
+            Log(Info, LogBuffer);
+        }
+    }
+    Assert(Asset->MemoryNeeded == Arena->Used - Asset->Offset);
+    Asset->File = { 0 };
+}
+
+void WriteAssetFile() {
+    game_assets Assets = {};
+
+    // Assets
+        // Fonts
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Fonts\\CascadiaMono.ttf", Font_Cascadia_Mono_ID);
+
+    // Text
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Texts\\Test.txt", Text_Test_ID);
+
+    // Bitmaps
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\Background.bmp", Bitmap_Background_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\Button.bmp", Bitmap_Button_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\Empty.bmp", Bitmap_Empty_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\Enemy.bmp", Bitmap_Enemy_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\Player.bmp", Bitmap_Player_ID);
+
+    // Heightmaps
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\spain.bmp", Heightmap_Spain_ID);
+
+    // Sound
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Sounds\\16agosto.wav", Sound_Test_ID);
+
+    // Meshes
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Models\\Enemy.mdl", Mesh_Enemy_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Models\\Sphere.mdl", Mesh_Sphere_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Models\\Body.mdl", Mesh_Body_ID);
+
+    // Video
+    //PushAsset(&Assets, "..\\..\\Assets\\Videos\\The Witness.mp4", Video_Test_ID);
+
+// Shaders
+    // Header
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\HeaderShader.h.glsl", Header_Shader_ID);
+
+    // Vertex
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\VertexShader.vert.glsl", Vertex_Shader_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\FramebufferVertexShader.vert.glsl", Vertex_Shader_Framebuffer_ID);
+
+    // Fragment
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\FramebufferFragmentShader.frag.glsl", Fragment_Shader_Framebuffer_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\AntialiasingFragmentShader.frag.glsl", Fragment_Shader_Antialiasing_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\OutlineInitFragmentShader.frag.glsl", Fragment_Shader_Outline_Init_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\JumpFloodFragmentShader.frag.glsl", Fragment_Shader_JFA_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\OutlineFragmentShader.frag.glsl", Fragment_Shader_Outline_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\SingleColorFragmentShader.frag.glsl", Fragment_Shader_Single_Color_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\KernelFragmentShader.frag.glsl", Fragment_Shader_Kernel_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\SphereFragmentShader.frag.glsl", Fragment_Shader_Sphere_ID);
+    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\TextureFragmentShader.frag.glsl", Fragment_Shader_Texture_ID);
+
+    PushShader(&Assets, Shader_Framebuffer_ID, Header_Shader_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Framebuffer_ID);
+    PushShader(&Assets, Shader_Texture_ID, Header_Shader_ID, Vertex_Shader_ID, Fragment_Shader_Texture_ID);
+    PushShader(&Assets, Shader_Sphere_ID, Header_Shader_ID, Vertex_Shader_ID, Fragment_Shader_Sphere_ID);
+    PushShader(&Assets, Shader_Single_Color_ID, Header_Shader_ID, Vertex_Shader_ID, Fragment_Shader_Single_Color_ID);
+    PushShader(&Assets, Shader_Outline_Init_ID, Header_Shader_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Outline_Init_ID);
+    PushShader(&Assets, Shader_JFA_ID, Header_Shader_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_JFA_ID);
+    PushShader(&Assets, Shader_Outline_ID, Header_Shader_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Outline_ID);
+    PushShader(&Assets, Shader_Kernel_ID, Header_Shader_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
+    PushShader(&Assets, Shader_Antialiasing_ID, Header_Shader_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Antialiasing_ID);
+
+    Assert(Assets.nAssets == ASSET_COUNT);
+
+    // Output file
+    void* FileMemory = VirtualAlloc(0, sizeof(game_assets) + Assets.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    Assets.Memory = (uint8*)FileMemory + sizeof(game_assets);
+    memory_arena AssetArena;
+    InitializeArena(&AssetArena, Assets.TotalSize, (uint8*)Assets.Memory);
+
+    for (int i = 0; i < Assets.nAssets; i++) {
+        LoadAsset(&AssetArena, &Assets, &Assets.Asset[i]);
+    }
+
+    game_assets* OutputAssets = (game_assets*)FileMemory;
+    if (OutputAssets) *OutputAssets = Assets;
+    PlatformWriteEntireFile("..\\..\\GameAssets\\game_assets", sizeof(game_assets) + Assets.TotalSize, FileMemory);
+
+    Log(Info, "Finished writing assets file.\n");
 }
 
 #endif

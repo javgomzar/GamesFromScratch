@@ -498,7 +498,7 @@ void PushRect(
 
 void PushTexturedRect(
     render_group* Group,
-    game_asset_id BitmapID,
+    game_bitmap_id BitmapID,
     game_rect Rect,
     wrap_mode Mode,
     color Color = White,
@@ -511,7 +511,7 @@ void PushTexturedRect(
     Entry->Header.Target = World;
 
     Entry->Rect = Rect;
-    game_bitmap* Texture = GetAsset(Group->Assets, BitmapID, game_bitmap);
+    game_bitmap* Texture = GetAsset(Group->Assets, BitmapID);
     Entry->Texture = Texture;
     Entry->Color = Color;
     Entry->Mode = Mode;
@@ -799,19 +799,19 @@ void PushMeshOutline(
 
 void PushMesh(
     render_group* Group,
-    game_asset_id MeshID,
+    game_mesh_id MeshID,
     transform Transform,
     light Light,
     game_shader_id ShaderID,
-    game_asset_id TextureID = Bitmap_Empty_ID,
+    game_bitmap_id TextureID = Bitmap_Empty_ID,
     color Color = White,
     double Order = SORT_ORDER_MESHES,
     bool Outlined = false
 ) {
     render_entry_mesh* Entry = PushRenderElement(Group, render_entry_mesh);
 
-    game_mesh* pMesh = GetAsset(Group->Assets, MeshID, game_mesh);
-    game_bitmap* pTexture = GetAsset(Group->Assets, TextureID, game_bitmap);
+    game_mesh* pMesh = GetAsset(Group->Assets, MeshID);
+    game_bitmap* pTexture = GetAsset(Group->Assets, TextureID);
 
     if (Outlined) {
         Order = SORT_ORDER_OUTLINED_MESHES;
@@ -825,7 +825,7 @@ void PushMesh(
         OutlineEntry->Light = Light;
         OutlineEntry->ShaderID = Shader_Single_Color_ID;
         OutlineEntry->Color = White;
-        OutlineEntry->Texture = GetAsset(Group->Assets, Bitmap_Empty_ID, game_bitmap);
+        OutlineEntry->Texture = GetAsset(Group->Assets, Bitmap_Empty_ID);
 
         if (!Group->PushOutline) {
             int Passes = 15;
@@ -856,7 +856,7 @@ void PushDebugArena(
     double Alpha = 1.0,
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
-    game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID, game_font);
+    game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
     double ArenaPercentage = (double)Arena.Used / (double)Arena.Size;
     game_rect Rect = { Position.X, Position.Y, 120.0, 20.0 };
     PushRect(Group, Rect, Color(DarkGray, Alpha), World, Order + 0.1);

@@ -94,6 +94,8 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
     read_file_result Result = {};
     HANDLE FileHandle = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
+        strcpy_s(Result.Path, Path);
+
         LARGE_INTEGER FileSize;
         if (GetFileSizeEx(FileHandle, &FileSize)) {
             Result.Content = VirtualAlloc(0, FileSize.QuadPart, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -108,6 +110,10 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
                 }
             }
         }
+
+        WIN32_FIND_DATAA Data;
+        HANDLE hFind = FindFirstFileA(Path, &Data);
+        *(FILETIME*)&Result.Timestamp = Data.ftLastWriteTime;
 
         CloseHandle(FileHandle);
     }
@@ -133,6 +139,9 @@ PLATFORM_WRITE_ENTIRE_FILE(PlatformWriteEntireFile) {
     else {
         // Debug
         DWORD WinError = GetLastError();
+        if (WinError == ERROR_PATH_NOT_FOUND) {
+            Log(Error, "Path not found\n");
+        }
         Assert(false);
     }
     return Result;

@@ -69,8 +69,8 @@ void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_
 }
 
 // Video
-void PushVideo(render_group* Group, game_asset_id VideoID, game_rect Rect, double SecondsElapsed, double Order = SORT_ORDER_DEBUG_OVERLAY) {
-    game_video* Video = GetAsset(Group->Assets, VideoID, game_video);
+void PushVideo(render_group* Group, game_video_id VideoID, game_rect Rect, double SecondsElapsed, double Order = SORT_ORDER_DEBUG_OVERLAY) {
+    game_video* Video = GetAsset(Group->Assets, VideoID);
     if (!Video->VideoContext.Ended) {
         Video->TimeElapsed += SecondsElapsed;
         char Text[256];
@@ -88,10 +88,10 @@ void PushVideo(render_group* Group, game_asset_id VideoID, game_rect Rect, doubl
     _PushVideo(Group, Video, Rect, Order);
 }
 
-void PushVideoLoop(render_group* Group, game_asset_id VideoID, game_rect Rect, int Z, double SecondsElapsed, int64_t StartOffset, int64_t EndOffset) {
+void PushVideoLoop(render_group* Group, game_video_id VideoID, game_rect Rect, int Z, double SecondsElapsed, int64_t StartOffset, int64_t EndOffset) {
 
     PushVideo(Group, VideoID, Rect, Z, SecondsElapsed);
-    game_video* Video = GetAsset(Group->Assets, VideoID, game_video);
+    game_video* Video = GetAsset(Group->Assets, VideoID);
     auto& VideoContext = Video->VideoContext;
     auto& FormatContext = VideoContext.FormatContext;
     auto& CodecContext = VideoContext.CodecContext;
@@ -298,7 +298,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), World, SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
-        PushText(Group, V2(0, 30.0), GetAsset(Assets, Font_Cascadia_Mono_ID, game_font), Memory->DebugInfo, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
+        PushText(Group, V2(0, 30.0), GetAsset(Assets, Font_Cascadia_Mono_ID), Memory->DebugInfo, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
 
         // Render Arena
         PushDebugArena(Group, pGameState->RenderArena, V2(20.0, 120.0), Alpha);
