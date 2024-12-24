@@ -289,6 +289,7 @@ game_bitmap LoadBitmapFile(memory_arena* Arena, read_file_result File) {
     void* Destination = PushSize(Arena, Size);
 
     memcpy(Destination, Result.Content, Size);
+    return Result;
 }
 
 game_bitmap AssetLoadBitmap(memory_arena* Arena, game_asset* Asset) {

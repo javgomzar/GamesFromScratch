@@ -312,19 +312,32 @@ openGL InitOpenGL(HWND Window) {
 			Result.Targets[i].Texture = Textures[i];
 		}
 
+		int maxSamples = 0;
+		glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+
+		// Sample number should be a square
+		int Square = 0;
+		int n = 1;
+		while (Square + n < maxSamples) {
+			Square += n;
+			n += 2;
+		}
+
+		int MSAASamples = min(Square, 9);
+
 		// World
 		render_target* WorldTarget = &Result.Targets[World];
 		WorldTarget->Label = World;
 		WorldTarget->Multisampling = true;
 		WorldTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		WorldTarget->Samples = 9;
+		WorldTarget->Samples = MSAASamples;
 
 		// Outline
 		render_target* OutlineTarget = &Result.Targets[Outline];
 		OutlineTarget->Label = Outline;
 		OutlineTarget->Multisampling = true;
 		OutlineTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		OutlineTarget->Samples = 9;
+		OutlineTarget->Samples = MSAASamples;
 
 		// Outline postprocessing
 		render_target* OutlinePostprocessingTarget = &Result.Targets[Postprocessing_Outline];
