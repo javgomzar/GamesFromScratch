@@ -1,6 +1,10 @@
 #version 420
 precision highp float;
 
+uniform double u_time;
+uniform vec2 u_resolution;
+
+
 double Distance(vec2 p, vec2 q) {
     double p_x = p.x;
     double p_y = p.y;

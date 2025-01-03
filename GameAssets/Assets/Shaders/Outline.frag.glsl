@@ -1,9 +1,7 @@
 out vec4 frag_color;
 
 uniform vec4 u_color;
-uniform vec2 u_resolution;
 uniform double u_width;
-uniform double u_time;
 
 layout(binding = 0) uniform sampler2D binded_texture;
 layout(binding = 1) uniform sampler2D attachment_texture;

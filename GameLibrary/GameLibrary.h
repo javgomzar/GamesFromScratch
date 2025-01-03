@@ -320,7 +320,7 @@ from "Graphics Gems", Academic Press, 1990
 bool HitBoundingBox(double minB[3], double maxB[3], double origin[3], double dir[3], double coord[3])
 /* double minB[NUMDIM], maxB[NUMDIM];		box */
 /* double origin[NUMDIM], dir[NUMDIM];		ray */
-/* double coord[NUMDIM];			hit point */
+/* double coord[NUMDIM];			hit point   */
 {
     bool inside = true;
     char quadrant[3];

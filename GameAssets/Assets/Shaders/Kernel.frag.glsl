@@ -1,7 +1,6 @@
 
 uniform sampler2D binded_texture;
 uniform mat3 u_kernel;
-uniform vec2 u_resolution;
 
 out vec4 frag_color;
 

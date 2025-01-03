@@ -43,9 +43,6 @@
     <ClInclude Include="GameSound.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\Linking\include\FFMpeg.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="GameLibrary.cpp">
@@ -55,9 +52,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\Linking\include\FFMpeg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

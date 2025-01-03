@@ -1,9 +1,8 @@
-#include "..\..\GameLibrary\GamePlatform.h"
-
 #ifndef FFMPEG
 #define FFMPEG
 
 #pragma once
+
     extern "C" {
         #include "libavcodec/avcodec.h"
         #include "libavformat/avformat.h"

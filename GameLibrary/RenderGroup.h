@@ -3,7 +3,7 @@
 
 /*
     TODO:
-        - Put circles in its own group_type (too many lines)
+        - Merge rect and textured rect types
 */
 
 const int MAX_RENDER_ENTRIES = 10000;
@@ -18,6 +18,7 @@ enum render_group_entry_type {
     group_type_render_entry_text,
     group_type_render_entry_video,
     group_type_render_entry_mesh,
+    group_type_render_entry_heightmap,
     group_type_render_entry_mesh_outline,
     group_type_render_entry_shader_pass,
     group_type_render_entry_render_target,
@@ -135,7 +136,7 @@ struct render_entry_button {
 
 struct render_entry_video {
     render_group_header Header;
-    game_video* Video;
+    //game_video* Video;
     game_rect Rect;
 };
 
@@ -155,9 +156,14 @@ struct render_entry_mesh {
     game_mesh* Mesh;
     game_bitmap* Texture;
     transform Transform;
-    game_shader_id ShaderID;
+    game_shader_pipeline_id ShaderID;
     light Light;
     color Color;
+};
+
+struct render_entry_heightmap {
+    render_group_header Header;
+    game_heightmap* Heightmap;
 };
 
 struct render_entry_mesh_outline {
@@ -170,17 +176,15 @@ struct render_entry_mesh_outline {
 
 struct render_entry_shader_pass {
     render_group_header Header;
-    game_shader_id ShaderID;
+    game_shader_pipeline_id ShaderID;
     render_group_target Target;
     color Color;
     float Kernel[9];
     double Width;
-    double Time;
 };
 
 struct render_entry_render_target {
     render_group_header Header;
-    game_shader_id ShaderID;
     render_group_target Target;
 };
 
@@ -227,16 +231,20 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_mesh);
         } break;
 
+        case group_type_render_entry_heightmap: {
+            return sizeof(render_entry_heightmap);
+        } break;
+
+        case group_type_render_entry_mesh_outline: {
+            return sizeof(render_entry_mesh_outline);
+        } break;
+
         case group_type_render_entry_render_target: {
             return sizeof(render_entry_render_target);
         } break;
 
         case group_type_render_entry_shader_pass: {
             return sizeof(render_entry_shader_pass);
-        } break;
-
-        case group_type_render_entry_mesh_outline: {
-            return sizeof(render_entry_mesh_outline);
         } break;
 
         case group_type_render_entry_debug_grid: {
@@ -498,7 +506,7 @@ void PushRect(
 
 void PushTexturedRect(
     render_group* Group,
-    game_bitmap_id BitmapID,
+    game_bitmap* Bitmap,
     game_rect Rect,
     wrap_mode Mode,
     color Color = White,
@@ -511,43 +519,56 @@ void PushTexturedRect(
     Entry->Header.Target = World;
 
     Entry->Rect = Rect;
-    game_bitmap* Texture = GetAsset(Group->Assets, BitmapID);
-    Entry->Texture = Texture;
+    Entry->Texture = Bitmap;
     Entry->Color = Color;
     Entry->Mode = Mode;
 
     switch (Entry->Mode) {
-        case Clamp: {
-            Entry->MinTexX = Size.X < 0 ? 1.0 : 0.0;
-            Entry->MaxTexX = Size.X < 0 ? 0.0 : 1.0;
-            Entry->MinTexY = Size.Y < 0 ? 1.0 : 0.0;
-            Entry->MaxTexY = Size.Y < 0 ? 0.0 : 1.0;
-        } break;
+    case Clamp: {
+        Entry->MinTexX = Size.X < 0 ? 1.0 : 0.0;
+        Entry->MaxTexX = Size.X < 0 ? 0.0 : 1.0;
+        Entry->MinTexY = Size.Y < 0 ? 1.0 : 0.0;
+        Entry->MaxTexY = Size.Y < 0 ? 0.0 : 1.0;
+    } break;
 
-        case Crop: {
-            double MinX = Offset.X / Size.X / (double)Texture->Header.Width;
-            double MinY = 1.0 - (Rect.Height + Offset.Y) / Size.Y / (double)Texture->Header.Height;
-            double MaxX = (Rect.Width + Offset.X) / Size.X / (double)Texture->Header.Width;
-            double MaxY = 1.0 - Offset.Y / Size.Y / (double)Texture->Header.Height;
-            Entry->MinTexX = Size.X < 0 ? MaxX : MinX;
-            Entry->MaxTexX = Size.X < 0 ? MinX : MaxX;
-            Entry->MinTexY = Size.Y < 0 ? MaxY : MinY;
-            Entry->MaxTexY = Size.Y < 0 ? MinY : MaxY;
-        } break;
+    case Crop: {
+        double MinX = Offset.X / Size.X / (double)Bitmap->Header.Width;
+        double MinY = 1.0 - (Rect.Height + Offset.Y) / Size.Y / (double)Bitmap->Header.Height;
+        double MaxX = (Rect.Width + Offset.X) / Size.X / (double)Bitmap->Header.Width;
+        double MaxY = 1.0 - Offset.Y / Size.Y / (double)Bitmap->Header.Height;
+        Entry->MinTexX = Size.X < 0 ? MaxX : MinX;
+        Entry->MaxTexX = Size.X < 0 ? MinX : MaxX;
+        Entry->MinTexY = Size.Y < 0 ? MaxY : MinY;
+        Entry->MaxTexY = Size.Y < 0 ? MinY : MaxY;
+    } break;
 
-        case Repeat: {
-            double MinX = 0.0;
-            double MinY = -Rect.Height / (Size.Y * (double)Texture->Header.Height);
-            double MaxX = Rect.Width / (Size.X * (double)Texture->Header.Width);
-            double MaxY = 1.0;
-            Entry->MinTexX = Size.X < 0 ? MaxX : MinX;
-            Entry->MaxTexX = Size.X < 0 ? MinX : MaxX;
-            Entry->MinTexY = Size.Y ? MaxY : MinY;
-            Entry->MaxTexY = Size.Y ? MinY : MaxY;
-        } break;
+    case Repeat: {
+        double MinX = 0.0;
+        double MinY = -Rect.Height / (Size.Y * (double)Bitmap->Header.Height);
+        double MaxX = Rect.Width / (Size.X * (double)Bitmap->Header.Width);
+        double MaxY = 1.0;
+        Entry->MinTexX = Size.X < 0 ? MaxX : MinX;
+        Entry->MaxTexX = Size.X < 0 ? MinX : MaxX;
+        Entry->MinTexY = Size.Y ? MaxY : MinY;
+        Entry->MaxTexY = Size.Y ? MinY : MaxY;
+    } break;
 
-        default: { Assert(false); }
+    default: { Assert(false); }
     }
+}
+
+void PushTexturedRect(
+    render_group* Group,
+    game_bitmap_id BitmapID,
+    game_rect Rect,
+    wrap_mode Mode,
+    color Color = White,
+    double Order = 0.0,
+    scale Size = Scale(),
+    v2 Offset = V2(0, 0)
+) {
+    game_bitmap* Bitmap = GetAsset(Group->Assets, BitmapID);
+    PushTexturedRect(Group, Bitmap, Rect, Mode, Color, Order, Size, Offset);
 }
 
 void PushText(
@@ -676,14 +697,14 @@ void PushDebugGrid(render_group* Group, double Alpha) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Video                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, double Order = SORT_ORDER_DEBUG_OVERLAY) {
-    render_entry_video* Entry = PushRenderElement(Group, render_entry_video);
-    Entry->Header.Target = World;
-
-    Entry->Header.Key.Order = Order;
-    Entry->Video = Video;
-    Entry->Rect = Rect;
-}
+//void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, double Order = SORT_ORDER_DEBUG_OVERLAY) {
+//    render_entry_video* Entry = PushRenderElement(Group, render_entry_video);
+//    Entry->Header.Target = World;
+//
+//    Entry->Header.Key.Order = Order;
+//    Entry->Video = Video;
+//    Entry->Rect = Rect;
+//}
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | UI                                                                                                                                                               |
@@ -720,7 +741,6 @@ void PushUI(render_group* Group, UI* UserInterface) {
 void PushRenderTarget(
     render_group* Group,
     render_group_target Target,
-    game_shader_id ShaderID,
     double Order = SORT_ORDER_PUSH_RENDER_TARGETS
 ) {
     render_entry_render_target* Entry = PushRenderElement(Group, render_entry_render_target);
@@ -730,13 +750,11 @@ void PushRenderTarget(
     if (Target == World) Entry->Target = Output;
     else if (Target == Outline) Entry->Target = Postprocessing_Outline;
     else if (Target == Postprocessing_Outline) Entry->Target = Output;
-
-    Entry->ShaderID = ShaderID;
 }
 
 void PushShaderPass(
     render_group* Group,
-    game_shader_id ShaderID,
+    game_shader_pipeline_id ShaderID,
     render_group_target Target,
     color Color = White,
     double Width = 0.0,
@@ -751,28 +769,27 @@ void PushShaderPass(
     Entry->Target = Target;
     Entry->Color = Color;
     Entry->Width = Width;
-    Entry->Time = Time;
 }
 
-void PushKernelShaderPass(
-    render_group* Group,
-    render_group_target Target,
-    matrix3 Kernel,
-    double Order = SORT_ORDER_SHADER_PASSES
-) {
-    render_entry_shader_pass* Entry = PushRenderElement(Group, render_entry_shader_pass);
-    Entry->Header.Key.Order = Order;
-    Entry->Header.Target = Target;
-
-    Entry->ShaderID = Shader_Kernel_ID;
-    Entry->Target = Target;
-    Entry->Color = White;
-    Entry->Width = 0;
-
-    for (int i = 0; i < 9; i++) {
-        Entry->Kernel[i] = Kernel[i];
-    }
-}
+//void PushKernelShaderPass(
+//    render_group* Group,
+//    render_group_target Target,
+//    matrix3 Kernel,
+//    double Order = SORT_ORDER_SHADER_PASSES
+//) {
+//    render_entry_shader_pass* Entry = PushRenderElement(Group, render_entry_shader_pass);
+//    Entry->Header.Key.Order = Order;
+//    Entry->Header.Target = Target;
+//
+//    Entry->ShaderID = Shader_Kernel_ID;
+//    Entry->Target = Target;
+//    Entry->Color = White;
+//    Entry->Width = 0;
+//
+//    for (int i = 0; i < 9; i++) {
+//        Entry->Kernel[i] = Kernel[i];
+//    }
+//}
 
 void PushMeshOutline(
     render_group* Group,
@@ -781,8 +798,8 @@ void PushMeshOutline(
     int Passes,
     int StartingLevel
 ) {
-    PushRenderTarget(Group, Outline, Shader_Antialiasing_ID, SORT_ORDER_SHADER_PASSES - 10);
-    PushShaderPass(Group, Shader_Outline_Init_ID, Postprocessing_Outline, White, SORT_ORDER_SHADER_PASSES);
+    PushRenderTarget(Group, Outline, SORT_ORDER_SHADER_PASSES - 10);
+    //PushShaderPass(Group, Shader_Outline_Init_ID, Postprocessing_Outline, White, SORT_ORDER_SHADER_PASSES);
 
     render_entry_mesh_outline* Entry = PushRenderElement(Group, render_entry_mesh_outline);
     Entry->Header.Key.Order = SORT_ORDER_SHADER_PASSES + 10.0;
@@ -792,9 +809,9 @@ void PushMeshOutline(
     Entry->Width = Width;
     Entry->StartingLevel = StartingLevel;
 
-    PushShaderPass(Group, Shader_Outline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
+    //PushShaderPass(Group, Shader_Outline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
 
-    PushRenderTarget(Group, Postprocessing_Outline, Shader_Framebuffer_ID, SORT_ORDER_PUSH_RENDER_TARGETS - 10.0);
+    PushRenderTarget(Group, Postprocessing_Outline, SORT_ORDER_PUSH_RENDER_TARGETS - 10.0);
 }
 
 void PushMesh(
@@ -802,7 +819,7 @@ void PushMesh(
     game_mesh_id MeshID,
     transform Transform,
     light Light,
-    game_shader_id ShaderID,
+    game_shader_pipeline_id ShaderID,
     game_bitmap_id TextureID = Bitmap_Empty_ID,
     color Color = White,
     double Order = SORT_ORDER_MESHES,
@@ -823,7 +840,7 @@ void PushMesh(
         OutlineEntry->Transform = Transform;
         OutlineEntry->Mesh = pMesh;
         OutlineEntry->Light = Light;
-        OutlineEntry->ShaderID = Shader_Single_Color_ID;
+        OutlineEntry->ShaderID = Single_Color_Shader_Pipeline_ID;
         OutlineEntry->Color = White;
         OutlineEntry->Texture = GetAsset(Group->Assets, Bitmap_Empty_ID);
 
@@ -843,6 +860,14 @@ void PushMesh(
     Entry->Light = Light;
     Entry->ShaderID = ShaderID;
     Entry->Color = Color;
+}
+
+void PushHeightmap(render_group* Group, game_heightmap_id ID, double Order = SORT_ORDER_MESHES) {
+    render_entry_heightmap* Entry = PushRenderElement(Group, render_entry_heightmap);
+    Entry->Header.Key.Order = Order;
+    Entry->Header.Target = World;
+
+    Entry->Heightmap = GetAsset(Group->Assets, ID);
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+

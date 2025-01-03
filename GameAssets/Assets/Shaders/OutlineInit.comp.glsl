@@ -2,8 +2,6 @@
 layout(binding = 0) uniform sampler2D binded_texture;
 layout(binding = 1) uniform sampler2D attachment_texture;
 
-uniform vec2 u_resolution;
-
 out vec4 frag_color;
 
 in vec2 v_texture;

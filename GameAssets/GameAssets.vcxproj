@@ -112,7 +112,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>$(CoreLibraryDependencies);freetype.lib;avcodec.lib;avdevice.lib;avfilter.lib;avformat.lib;avutil.lib;postproc.lib;swresample.lib;swscale.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(CoreLibraryDependencies);freetype.lib</AdditionalDependencies>
       <AdditionalLibraryDirectories>$(SolutionDir)\Linking\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
@@ -133,25 +133,29 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="FFMpeg.cpp" />
     <ClCompile Include="GameAssets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="FFMpeg.h" />
     <ClInclude Include="GameAssets.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Models\Enemy.mdl" />
-    <None Include="Assets\Shaders\AntialiasingFragmentShader.frag.glsl" />
-    <None Include="Assets\Shaders\FramebufferFragmentShader.frag.glsl" />
-    <None Include="Assets\Shaders\FramebufferVertexShader.vert.glsl" />
-    <None Include="Assets\Shaders\HeaderShader.h.glsl" />
-    <None Include="Assets\Shaders\JumpFloodFragmentShader.frag.glsl" />
-    <None Include="Assets\Shaders\KernelFragmentShader.frag.glsl" />
-    <None Include="Assets\Shaders\OutlineFragmentShader.frag.glsl" />
-    <None Include="Assets\Shaders\OutlineInitFragmentShader.frag.glsl" />
-    <None Include="Assets\Shaders\SingleColorFragmentShader.frag.glsl" />
-    <None Include="Assets\Shaders\SphereFragmentShader.frag.glsl" />
-    <None Include="Assets\Shaders\TextureFragmentShader.frag.glsl" />
-    <None Include="Assets\Shaders\VertexShader.vert.glsl" />
+    <None Include="Assets\Shaders\Antialiasing.frag.glsl" />
+    <None Include="Assets\Shaders\Texture.frag.glsl" />
+    <None Include="Assets\Shaders\Passthrough.vert.glsl" />
+    <None Include="Assets\Shaders\Header.h.glsl" />
+    <None Include="Assets\Shaders\JumpFlood.comp.glsl" />
+    <None Include="Assets\Shaders\Kernel.frag.glsl" />
+    <None Include="Assets\Shaders\Outline.frag.glsl" />
+    <None Include="Assets\Shaders\OutlineInit.comp.glsl" />
+    <None Include="Assets\Shaders\SingleColor.frag.glsl" />
+    <None Include="Assets\Shaders\Sphere.frag.glsl" />
+    <None Include="Assets\Shaders\Test.geom.glsl" />
+    <None Include="Assets\Shaders\Tessellation.vert.glsl" />
+    <None Include="Assets\Shaders\Mesh.frag.glsl" />
+    <None Include="Assets\Shaders\Perspective.vert.glsl" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -164,6 +168,9 @@
   </ItemGroup>
   <ItemGroup>
     <Media Include="Assets\Sounds\16agosto.wav" />
+  </ItemGroup>
+  <ItemGroup>
+    <Font Include="Assets\Fonts\CascadiaMono.ttf" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

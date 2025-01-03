@@ -4,6 +4,8 @@
 #pragma once
 #include "math.h"
 
+#include "../GameLibrary/GamePlatform.h"
+
 // Utility macros
 #define Kilobytes(Value) ((Value)*1024)
 #define Megabytes(Value) (Kilobytes(Value)*1024)

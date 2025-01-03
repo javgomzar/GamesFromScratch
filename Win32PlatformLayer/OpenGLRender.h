@@ -6,7 +6,7 @@
 	TODO:
 		- Framebuffer attachments
 		- Kernel operations
-		- Optimize ping pong rendering (multithreading might be a good idea)
+		- Optimize ping pong rendering (multithreading might be a good idea) (actually look up compute shaders)
 		- Fix text rendering (currently it's not completely aligned)
 		- Pixel buffer objects for video rendering
 */
@@ -49,6 +49,8 @@ GLenum GetInternalFormat(GLenum Attachment) {
 
 GLenum GetFormat(GLenum InternalFormat) {
 	switch (InternalFormat) {
+		case GL_RGB8: 
+		{ return GL_BGR_EXT; } break;
 		case GL_RGBA8:
 		case GL_RGBA32F:
 		{ return GL_BGRA_EXT; } break;
@@ -113,18 +115,24 @@ void CreateTexture(
 	ResizeTexture(Width, Height, *Handle, InternalFormat, Filter, WrapMode, Data);
 }
 
-void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_mode Mode, bool ForceUpdate = false) {
+void OpenGLBindTexture(int Width, int Height, int BytesPerPixel, GLuint* Handle, void* Data, wrap_mode Mode, bool ForceUpdate = false) {
+	GLenum InternalFormat = GL_RGBA8;
+	if (BytesPerPixel == 3) InternalFormat = GL_RGB8;
+	else if (BytesPerPixel != 4) Assert(false);
+
+	GLenum Format = GetFormat(InternalFormat);
+	
 	if (*Handle) {
 		glBindTexture(GL_TEXTURE_2D, *Handle);
 		if (ForceUpdate) {
-			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Data);
+			glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Data);
 		}
 	}
 	else {
 		glGenTextures(1, Handle);
 
 		glBindTexture(GL_TEXTURE_2D, *Handle);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Width, Height, 0, GL_BGRA_EXT, GL_UNSIGNED_BYTE, Data);
+		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Data);
 
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -154,7 +162,7 @@ void OpenGLBindTexture(int Width, int Height, GLuint* Handle, void* Data, wrap_m
 }
 
 void OpenGLBindTexture(game_bitmap* Bitmap, wrap_mode Mode = Clamp) {
-	OpenGLBindTexture(Bitmap->Header.Width, Bitmap->Header.Height, &Bitmap->Handle, Bitmap->Content, Mode);
+	OpenGLBindTexture(Bitmap->Header.Width, Bitmap->Header.Height, Bitmap->BytesPerPixel, &Bitmap->Handle, Bitmap->Content, Mode);
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -378,13 +386,13 @@ openGL InitOpenGL(HWND Window) {
 		}
 
 		// Quad vertices
-		double QuadVertices[24] = {
-			-1.0, -1.0, 0.0, 0.0,
-			 1.0, -1.0, 1.0, 0.0,
-			 1.0,  1.0, 1.0, 1.0,
-			-1.0, -1.0, 0.0, 0.0,
-			 1.0,  1.0, 1.0, 1.0,
-			-1.0,  1.0, 0.0, 1.0,
+		double QuadVertices[30] = {
+			-1.0, -1.0, 0.0, 0.0, 0.0,
+			 1.0, -1.0, 0.0, 1.0, 0.0,
+			 1.0,  1.0, 0.0, 1.0, 1.0,
+			-1.0, -1.0, 0.0, 0.0, 0.0,
+			 1.0,  1.0, 0.0, 1.0, 1.0,
+			-1.0,  1.0, 0.0, 0.0, 1.0,
 		};
 
 		uint32 QuadVBO = 0;
@@ -397,11 +405,11 @@ openGL InitOpenGL(HWND Window) {
 		// GL_STATIC_DRAW  : Data is set only once and used many times
 		// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
 		// GL_STREAM_DRAW  : Set only once, used a few times
-		glBufferData(GL_ARRAY_BUFFER, 24 * sizeof(double), QuadVertices, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, 30 * sizeof(double), QuadVertices, GL_STATIC_DRAW);
 		Error = glGetError();
 
-		glVertexAttribPointer(0, 2, GL_DOUBLE, GL_FALSE, 4 * sizeof(double), (void*)0);
-		glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, 4 * sizeof(double), (void*)(2 * sizeof(double)));
+		glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)0);
+		glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)(3 * sizeof(double)));
 		Error = glGetError();
 
 		glEnableVertexAttribArray(0);
@@ -658,75 +666,72 @@ void OpenGLRenderText(
 // | Shaders                                                                                                                                                          |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-GLuint OpenGLLoadShader(game_assets* Assets, game_shader* Shader) {
-	game_text* HeaderAsset = &Assets->Texts[Shader->HeaderShaderID];
-	game_text* VertexAsset = &Assets->Texts[Shader->VertexShaderID];
-	game_text* FragmentAsset = &Assets->Texts[Shader->FragmentShaderID];
+GLenum GetShaderType(game_shader_type Type) {
+	switch (Type) {
+		case Compute_Shader: { return GL_COMPUTE_SHADER; } break;
+		case Vertex_Shader: { return GL_VERTEX_SHADER; } break;
+		case Geometry_Shader: { return GL_GEOMETRY_SHADER; } break;
+		case Fragment_Shader: { return GL_FRAGMENT_SHADER; } break;
+		case Tessellation_Control_Shader: { return GL_TESS_CONTROL_SHADER; } break;
+		case Tessellation_Evaluation_Shader: { return GL_TESS_EVALUATION_SHADER; } break;
+		default: Assert(false);
+	}
+	return 0;
+}
 
-	uint64 HeaderSize = HeaderAsset->Size - 1;
-	uint64 VertexSize = VertexAsset->Size - 1;
-	uint64 FragmentSize = FragmentAsset->Size - 1;
+void OpenGLCompileShader(game_shader* HeaderShader, game_shader* Shader) {
+	uint32 ShaderID = glCreateShader(GetShaderType(Shader->Type));
 
-	char* HeaderCode = HeaderAsset->Content;
-	char* VertexCode = VertexAsset->Content;
-	char* FragmentCode = FragmentAsset->Content;
+	GLint ShaderCodeLengths[] = { HeaderShader->Size, Shader->Size };
+	GLchar* ShaderCode[] = { HeaderShader->Code, Shader->Code };
 
-	GLint VertexShaderCodeLengths[] = { HeaderSize, VertexSize };
+	glShaderSource(ShaderID, 2, ShaderCode, ShaderCodeLengths);
+	glCompileShader(ShaderID);
 
-	GLuint VertexShaderID = glCreateShader(GL_VERTEX_SHADER);
-	GLchar* VertexShaderCode[] = {
-		HeaderCode,
-		VertexCode
-	};
-	glShaderSource(VertexShaderID, 2, VertexShaderCode, VertexShaderCodeLengths);
+	GLint CompileStatus = GL_FALSE;
+	glGetShaderiv(ShaderID, GL_COMPILE_STATUS, &CompileStatus);
 
-	GLint FragmentShaderCodeLengths[] = { HeaderSize, FragmentSize };
+	if (CompileStatus == GL_FALSE) {
+		char Errors[1024];
+		GLsizei Length;
+		glGetShaderInfoLog(ShaderID, 1024, &Length, Errors);
+		Assert(false);
+	}
 
-	GLuint FragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
-	GLchar* FragmentShaderCode[] = {
-		HeaderCode,
-		FragmentCode
-	};
-	glShaderSource(FragmentShaderID, 2, FragmentShaderCode, FragmentShaderCodeLengths);
+	Shader->ShaderID = ShaderID;
+}
 
-	glCompileShader(VertexShaderID);
-	glCompileShader(FragmentShaderID);
-	GLint VertexCompileStatus = 0;
-	GLint FragmentCompileStatus = 0;
-	glGetShaderiv(VertexShaderID, GL_COMPILE_STATUS, &VertexCompileStatus);
-	glGetShaderiv(FragmentShaderID, GL_COMPILE_STATUS, &FragmentCompileStatus);
-	if (VertexCompileStatus == GL_FALSE || FragmentCompileStatus == GL_FALSE) Assert(false);
+void OpenGLLoadShaderPipeline(game_assets* Assets, game_shader_pipeline* Pipeline) {
+	uint32 ProgramID = glCreateProgram();
 
-	GLuint ProgramID = glCreateProgram();
-	glAttachShader(ProgramID, VertexShaderID);
-	glAttachShader(ProgramID, FragmentShaderID);
+	game_shader* Header = GetShader(Assets, Pipeline->Pipeline[Header_Shader]);
+	for (int i = 1; i < game_shader_type_count; i++) {
+		if (Pipeline->IsProvided[i]) {
+			game_shader* Shader = GetShader(Assets, Pipeline->Pipeline[i]);
+			if (!Shader->ShaderID) {
+				OpenGLCompileShader(Header, Shader);
+			}
+			glAttachShader(ProgramID, Shader->ShaderID);
+		}
+	}
 
 	glLinkProgram(ProgramID);
 	GLint LinkStatus = 0;
 	glGetProgramiv(ProgramID, GL_LINK_STATUS, &LinkStatus);
-	if (LinkStatus == GL_FALSE) Assert(false);
 
 	glValidateProgram(ProgramID);
 	GLint Validation = 0;
 	glGetProgramiv(ProgramID, GL_VALIDATE_STATUS, &Validation);
-	if (Validation) {
-		glDeleteShader(VertexShaderID);
-		glDeleteShader(FragmentShaderID);
+
+	if (Validation != GL_FALSE && LinkStatus != GL_FALSE) {
+		Pipeline->ProgramID = ProgramID;
 	}
 	else {
+		char Errors[1024];
 		GLsizei Length;
-		char VertexErrors[4096];
-		char FragmentErrors[4096];
-		char ProgramErrors[4096];
-		glGetShaderInfoLog(VertexShaderID, 4096, &Length, VertexErrors);
-		glGetShaderInfoLog(FragmentShaderID, 4096, &Length, FragmentErrors);
-		glGetProgramInfoLog(ProgramID, 4096, &Length, ProgramErrors);
-		Log(Error, "Error loading shader.\n");
-		GLenum GLError = glGetError();
+		glGetProgramInfoLog(ProgramID, 1024, &Length, Errors);
 		Assert(false);
 	}
-
-	return ProgramID;
 }
 
 // Shader uniforms
@@ -780,7 +785,7 @@ void OpenGLSetUniform(int ProgramID, float* Projection, float* View, float* Mode
 // | Renderer                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
+void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 {
 	int32 Width = Group->Width;
 	int32 Height = Group->Height;
@@ -930,20 +935,20 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				glBindTexture(GL_TEXTURE_2D, 0);
 			} break;
 
-			case group_type_render_entry_video:
-			{
-				render_entry_video Entry = *(render_entry_video*)Header;
+			//case group_type_render_entry_video:
+			//{
+			//	render_entry_video Entry = *(render_entry_video*)Header;
 
-				SetCoordinates(Screen_Coordinates, Group->Camera, Group->Width, Group->Height);
+			//	SetCoordinates(Screen_Coordinates, Group->Camera, Group->Width, Group->Height);
 
-				game_video* Video = Entry.Video;
-				int Width = Video->VideoContext.Width;
-				int Height = Video->VideoContext.Height;
-				int BytesToWrite = Width * Height * 4;
+			//	game_video* Video = Entry.Video;
+			//	int Width = Video->VideoContext.Width;
+			//	int Height = Video->VideoContext.Height;
+			//	int BytesToWrite = Width * Height * 4;
 
-				OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext.VideoOut, Clamp, true);
-				OpenGLTexturedRect(Entry.Rect, White, 0.0, 1.0, 1.0, 0.0);
-			} break;
+			//	OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext.VideoOut, Clamp, true);
+			//	OpenGLTexturedRect(Entry.Rect, White, 0.0, 1.0, 1.0, 0.0);
+			//} break;
 
 			case group_type_render_entry_mesh:
 			{
@@ -953,12 +958,12 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				SetCoordinates(World_Coordinates, Group->Camera, Width, Height);
 
 				game_mesh* Mesh = Entry.Mesh;
-				game_shader* Shader = &Group->Assets->Shaders[Entry.ShaderID];
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Entry.ShaderID);
 				light Light = Entry.Light;
 				transform Transform = Entry.Transform;
 
 				if (!Shader->ProgramID) {
-					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
+					OpenGLLoadShaderPipeline(Group->Assets, Shader);
 				}
 
 				float Projection[16];
@@ -1036,6 +1041,53 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				SetIdentityProjection();
 			} break;
 
+			//case group_type_render_entry_heightmap: {
+			//	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			//	render_entry_heightmap Entry = *(render_entry_heightmap*)Header;
+
+			//	game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Tessellation_Shader_Pipeline_ID);
+			//	if (!Shader->ProgramID) {
+			//		Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
+			//	}
+
+			//	glUseProgram(Shader->ProgramID);
+
+			//	OpenGLSetUniform(Shader->ProgramID, "light_direction", V3(0.0, -1.0, 0.0));
+			//	OpenGLSetUniform(Shader->ProgramID, "light_color", V3(1.0, 1.0, 1.0));
+			//	OpenGLSetUniform(Shader->ProgramID, "light_ambient", (float)0.3);
+			//	OpenGLSetUniform(Shader->ProgramID, "light_diffuse", (float)0.3);
+
+			//	game_heightmap* Heightmap = Entry.Heightmap;
+			//	if (Heightmap->VBO) {
+			//		glBindVertexArray(Heightmap->VAO);
+			//	}
+			//	else {
+			//		glGenBuffers(1, &Heightmap->VBO);
+			//		glGenVertexArrays(1, &Heightmap->VAO);
+
+			//		glBindVertexArray(Heightmap->VAO);
+			//		glBindBuffer(GL_ARRAY_BUFFER, Heightmap->VBO);
+			//		// GL_STATIC_DRAW  : Data is set only once and used many times
+			//		// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
+			//		// GL_STREAM_DRAW  : Set only once, used a few times
+			//		glBufferData(GL_ARRAY_BUFFER, Heightmap->nVertices * 5 * sizeof(double), Heightmap->Vertices, GL_STATIC_DRAW);
+
+			//		glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)0);
+			//		glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)(3 * sizeof(double)));
+			//		glEnableVertexAttribArray(0);
+			//		glEnableVertexAttribArray(1);
+			//	}
+
+			//	OpenGLBindTexture(&Heightmap->Bitmap, Clamp);
+
+			//	glDrawArrays(GL_PATCHES, 0, Heightmap->nVertices);
+			//	glBindTexture(GL_TEXTURE_2D, 0);
+			//	glUseProgram(0);
+			//	glBindVertexArray(0);
+
+			//	SetIdentityProjection();
+			//} break;
+
 			case group_type_render_entry_debug_grid:
 			{
 				render_entry_debug_grid Entry = *(render_entry_debug_grid*)Header;
@@ -1060,19 +1112,16 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				GLenum Error = 0;
 
-				game_shader* Shader = &Group->Assets->Shaders[Entry.ShaderID];
-
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Entry.ShaderID);
 				if (!Shader->ProgramID) {
-					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
+					OpenGLLoadShaderPipeline(Group->Assets, Shader);
 				}
-
-				render_target Target = OpenGL.Targets[Entry.Target];
 
 				glUseProgram(Shader->ProgramID);
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
 				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
 				OpenGLSetUniform(Shader->ProgramID, "u_width", Entry.Width);
-				OpenGLSetUniform(Shader->ProgramID, "u_time", Entry.Time);
+				OpenGLSetUniform(Shader->ProgramID, "u_time", Time);
 
 				GLint KernelLocation = glGetUniformLocation(Shader->ProgramID, "u_kernel");
 				glUniformMatrix3fv(KernelLocation, 1, GL_FALSE, Entry.Kernel);
@@ -1088,6 +1137,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 
+				render_target Target = OpenGL.Targets[Entry.Target];
 				render_target PingPongTarget = OpenGL.Targets[PingPong];
 
 				glEnable(GL_DEPTH_TEST);
@@ -1116,13 +1166,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				glUseProgram(0);
 			} break;
 
-			case group_type_render_entry_mesh_outline:
+			/*case group_type_render_entry_mesh_outline:
 			{
 				render_entry_mesh_outline Entry = *(render_entry_mesh_outline*)Header;
 
 				SetIdentityProjection();
 
-				game_shader* Shader = &Group->Assets->Shaders[Shader_JFA_ID];
+				game_shader* Shader = GetShaderPipeline();
 
 				if (!Shader->ProgramID) {
 					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
@@ -1182,19 +1232,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 
 				glBindVertexArray(0);
 				glUseProgram(0);
-			} break;
+			} break;*/
 
 			case group_type_render_entry_render_target:
 			{
 				render_entry_render_target Entry = *(render_entry_render_target*)Header;
 
 				SetIdentityProjection();
-
-				game_shader* Shader = &Group->Assets->Shaders[Entry.ShaderID];
-
-				if (!Shader->ProgramID) {
-					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
-				}
 
 				render_target Source = OpenGL.Targets[Entry.Header.Target];
 				if (Source.Attachment) {
@@ -1220,6 +1264,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 				Error = glGetError();
 
 				uint32 TargetFramebuffer = Entry.Header.Target == Output ? 0 : OpenGL.Targets[Entry.Target].Framebuffer;
+
+				game_shader_pipeline_id ShaderID = Source.Multisampling ? Antialiasing_Shader_Pipeline_ID : Framebuffer_Shader_Pipeline_ID;
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, ShaderID);
+
+				if (!Shader->ProgramID) {
+					OpenGLLoadShaderPipeline(Group->Assets, Shader);
+				}
 
 				glUseProgram(Shader->ProgramID);
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
@@ -1272,6 +1323,11 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 		}
 	}
 
+	GLenum GLError = glGetError();
+
+
+
+
 	// Debug depth buffers
 	//SetIdentityProjection();
 	//glDepthFunc(GL_ALWAYS);
@@ -1287,7 +1343,64 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL)
 	//glBindVertexArray(OpenGL.QuadVAO);
 	//glDrawArrays(GL_TRIANGLES, 0, 6);
 
-	GLenum GLError = glGetError();
+
+
+
+
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//glDisable(GL_DEPTH_TEST);
+
+	//double points[] = {
+	//	-0.5,  0.5, 5.0, // top-left
+	//	 0.5,  0.5, 5.0, // top-right
+	//	 0.5, -0.5, 5.0, // bottom-right
+	//	-0.5, -0.5, 5.0  // bottom-left
+	//};
+
+	//game_shader* Shader = &Group->Assets->Shaders[Shader_Tessellation_ID];
+
+	//if (!Shader->ProgramID) Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
+	//glUseProgram(Shader->ProgramID);
+	//GLError = glGetError();
+
+	//static uint32 VBO = 0;
+	//static uint32 VAO = 0;
+	//if (VBO) {
+	//	glBindVertexArray(VAO);
+	//}
+	//else {
+	//	glGenBuffers(1, &VBO);
+	//	glGenVertexArrays(1, &VAO);
+
+	//	glBindVertexArray(VAO);
+	//	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	//	// GL_STATIC_DRAW  : Data is set only once and used many times
+	//	// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
+	//	// GL_STREAM_DRAW  : Set only once, used a few times
+	//	glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(double), points, GL_STATIC_DRAW);
+	//	GLError = glGetError();
+
+	//	glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 3 * sizeof(double), (void*)0);
+	//	glEnableVertexAttribArray(0);
+	//}
+	//SetCameraProjection(Group->Camera, Width, Height);
+
+	//float Projection[16];
+	//glGetFloatv(GL_PROJECTION_MATRIX, Projection);
+
+	//float View[16];
+	//glGetFloatv(GL_MODELVIEW_MATRIX, View);
+
+	//float Model[16];
+	//Identity(Model, 4);
+
+	//OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+	//OpenGLSetUniform(Shader->ProgramID, "u_color", Red);
+	//OpenGLSetUniform(Shader->ProgramID, "u_time", (float)Time);
+
+	//glDrawArrays(GL_POINTS, 0, 4);
+
+	GLError = glGetError();
 	if (GLError) {
 		Log(Error, "OpenGL error.\n");
 		Assert(false);

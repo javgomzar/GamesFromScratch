@@ -4,7 +4,6 @@ layout(binding = 1) uniform sampler2D attachment_texture;
 
 const int maxSteps = 12;
 
-uniform vec2 u_resolution;
 uniform int level;
 
 out vec4 frag_color;

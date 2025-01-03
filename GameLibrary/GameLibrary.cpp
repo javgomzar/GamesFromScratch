@@ -69,41 +69,41 @@ void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_
 }
 
 // Video
-void PushVideo(render_group* Group, game_video_id VideoID, game_rect Rect, double SecondsElapsed, double Order = SORT_ORDER_DEBUG_OVERLAY) {
-    game_video* Video = GetAsset(Group->Assets, VideoID);
-    if (!Video->VideoContext.Ended) {
-        Video->TimeElapsed += SecondsElapsed;
-        char Text[256];
-        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext.PTS * Video->VideoContext.TimeBase);
-        OutputDebugStringA(Text);
+//void PushVideo(render_group* Group, game_video_id VideoID, game_rect Rect, double SecondsElapsed, double Order = SORT_ORDER_DEBUG_OVERLAY) {
+//    game_video* Video = GetAsset(Group->Assets, VideoID);
+//    if (!Video->VideoContext.Ended) {
+//        Video->TimeElapsed += SecondsElapsed;
+//        char Text[256];
+//        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext.PTS * Video->VideoContext.TimeBase);
+//        OutputDebugStringA(Text);
+//
+//        if (Video->TimeElapsed > Video->VideoContext.PTS * Video->VideoContext.TimeBase) {
+//            LoadFrame(&Video->VideoContext);
+//            Video->VideoContext.Width = Rect.Width;
+//            Video->VideoContext.Height = Rect.Height;
+//            WriteFrame(&Video->VideoContext);
+//        }
+//    }
+//
+//    _PushVideo(Group, Video, Rect, Order);
+//}
 
-        if (Video->TimeElapsed > Video->VideoContext.PTS * Video->VideoContext.TimeBase) {
-            LoadFrame(&Video->VideoContext);
-            Video->VideoContext.Width = Rect.Width;
-            Video->VideoContext.Height = Rect.Height;
-            WriteFrame(&Video->VideoContext);
-        }
-    }
-
-    _PushVideo(Group, Video, Rect, Order);
-}
-
-void PushVideoLoop(render_group* Group, game_video_id VideoID, game_rect Rect, int Z, double SecondsElapsed, int64_t StartOffset, int64_t EndOffset) {
-
-    PushVideo(Group, VideoID, Rect, Z, SecondsElapsed);
-    game_video* Video = GetAsset(Group->Assets, VideoID);
-    auto& VideoContext = Video->VideoContext;
-    auto& FormatContext = VideoContext.FormatContext;
-    auto& CodecContext = VideoContext.CodecContext;
-    auto& StreamIndex = VideoContext.VideoStreamIndex;
-    auto& PTS = VideoContext.PTS; // Presentation time-stamp (in time-base units)
-
-    if (PTS >= EndOffset) {
-        av_seek_frame(FormatContext, StreamIndex, StartOffset, AVSEEK_FLAG_BACKWARD);
-        do { LoadFrame(&Video->VideoContext); } while (Video->VideoContext.PTS < StartOffset - 1000);
-        Video->TimeElapsed = Video->VideoContext.PTS * Video->VideoContext.TimeBase;
-    }
-}
+//void PushVideoLoop(render_group* Group, game_video_id VideoID, game_rect Rect, int Z, double SecondsElapsed, int64_t StartOffset, int64_t EndOffset) {
+//
+//    PushVideo(Group, VideoID, Rect, Z, SecondsElapsed);
+//    game_video* Video = GetAsset(Group->Assets, VideoID);
+//    auto& VideoContext = Video->VideoContext;
+//    auto& FormatContext = VideoContext.FormatContext;
+//    auto& CodecContext = VideoContext.CodecContext;
+//    auto& StreamIndex = VideoContext.VideoStreamIndex;
+//    auto& PTS = VideoContext.PTS; // Presentation time-stamp (in time-base units)
+//
+//    if (PTS >= EndOffset) {
+//        av_seek_frame(FormatContext, StreamIndex, StartOffset, AVSEEK_FLAG_BACKWARD);
+//        do { LoadFrame(&Video->VideoContext); } while (Video->VideoContext.PTS < StartOffset - 1000);
+//        Video->TimeElapsed = Video->VideoContext.PTS * Video->VideoContext.TimeBase;
+//    }
+//}
 
 // Updates
 void Update(slider* Slider, game_input* Input, v3 Position) {
@@ -249,12 +249,12 @@ extern "C" GAME_UPDATE(GameUpdate)
     // Render
     light LightSource = Light(V3(-0.5, -1, 1), White);
 
-    transform Transform1 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(0.0, 0.0, 5.0));
+    transform Transform1 = Transform(Quaternion(Pi / 2, V3(0.0, -1.0, 0.0)), V3(0.0, 0.0, 5.0));
     transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(4.0, 0.0, 5.0));
     //PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
 
-    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, true);
-    PushMesh(Group, Mesh_Sphere_ID, Transform2, LightSource, Shader_Sphere_ID, Bitmap_Empty_ID, Red, SORT_ORDER_MESHES, true);
+    PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, false);
+    PushMesh(Group, Mesh_Sphere_ID, Transform2, LightSource, Sphere_Shader_Pipeline_ID, Bitmap_Empty_ID, Red, SORT_ORDER_MESHES, false);
 
     //PushCircle(Group, V3(0.0, 0.0, 0.0), V3(1.0, 1.0, 0.0), 1.0, Magenta, SORT_ORDER_MESHES);
 
@@ -273,6 +273,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     //else {
     //    Platform.OpenGLRender(Group, &Target);
     //}
+
+    // PushHeightmap(Group, Heightmap_Spain_ID);
 
     // Debug info
     static double Alpha = 0.0;
@@ -316,7 +318,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Screen_Coordinates, Blue);
     }
 
-    PushRenderTarget(Group, World, Shader_Antialiasing_ID, SORT_ORDER_PUSH_RENDER_TARGETS);
+    PushRenderTarget(Group, World);
 
     static bool Screenshot = false;
     if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F10.WasDown) {
@@ -335,5 +337,5 @@ extern "C" GAME_UPDATE(GameUpdate)
             PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), Output, SORT_ORDER_PUSH_RENDER_TARGETS + 50.0);
         }
     }
-    PushRenderTarget(Group, Output, Shader_Framebuffer_ID, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
+    PushRenderTarget(Group, Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
 }

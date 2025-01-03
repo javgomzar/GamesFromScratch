@@ -157,12 +157,12 @@ VOID DisplayBufferToWindow(
 }
 
 // OpenGL render
-void Render(HWND Window, render_group* Group, openGL OpenGL) {
+void Render(HWND Window, render_group* Group, openGL OpenGL, double Time) {
     // Sorting render entries
     SortEntries(Group);
 
     if (OpenGL.Initialized) {
-        OpenGLRenderGroupToOutput(Group, OpenGL);
+        OpenGLRenderGroupToOutput(Group, OpenGL, Time);
     }
     else {
         // TODO: Call software renderer (fix it first)
@@ -862,10 +862,12 @@ FILETIME GetLastWriteTime(LPCSTR FilePath) {
 void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
     Result->Update = GameUpdateStub;
 
-    bool CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
+    char ErrorText[256];
+    DWORD LastError = 0;
 
+    bool CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
     if (!CopyResult) {
-        DWORD LastError = GetLastError();
+        LastError = GetLastError();
         if (LastError == ERROR_SHARING_VIOLATION) {
             int Retries = 0;
             do {
@@ -880,8 +882,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
             } while (!CopyResult);
         }
         else {
-            char ErrorText[256];
-            sprintf_s(ErrorText, "Error copying .dll file. Code %d.\n", LastError);
+            sprintf_s(ErrorText, "Error copying .dll file. Error code %d.\n", LastError);
             Log(Error, ErrorText);
             return;
         }
@@ -891,17 +892,15 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
     if (Result->GameCodeDLL) {
         Result->Update = (game_update*)GetProcAddress(Result->GameCodeDLL, "GameUpdate");
         Result->IsValid = (Result->Update);
-    }
 
-    if (!Result->IsValid) {
-        Result->Update = GameUpdateStub;
-        Log(Error, "Loading game code failed.\n");
-    }
-    else {
         FILETIME LastWriteTime = GetLastWriteTime(SourceDLLName);
         Result->DLLLastWriteTime = LastWriteTime;
     }
-
+    else {
+        LastError = GetLastError();
+        sprintf_s(ErrorText, "Error loading game code. Error code %d.\n", LastError);
+        Log(Error, ErrorText); // If error is 126 (dependency error while loading DLL) try using Process Monitor.
+    }
 }
 
 void UnloadGameCode(game_code* GameCode) {
@@ -1337,7 +1336,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ScreenCapture(OpenGL, Group->Width, Group->Height);
             }
 
-            Render(Window, Group, OpenGL);
+            Render(Window, Group, OpenGL, pGameState->Time);
 
         }
         else {
@@ -1516,7 +1515,7 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
 
             if (Group) {
                 ResizeWindow(Window, Group, OpenGL);
-                Render(Window, Group, OpenGL);
+                Render(Window, Group, OpenGL, 0.0);
             }
 
             EndPaint(Window, &ps);

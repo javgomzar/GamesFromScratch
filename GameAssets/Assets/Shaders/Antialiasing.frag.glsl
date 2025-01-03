@@ -2,7 +2,6 @@ layout(binding = 0) uniform sampler2DMS color_sampler;
 layout(binding = 1) uniform sampler2DMS attachment_sampler;
 
 uniform int u_samples;
-uniform vec2 u_resolution;
 
 in vec2 v_texture;
 
