@@ -27,6 +27,7 @@ struct openGL {
 	uint32 QuadVAO;
 	uint32 VideoPBO;
 	uint32 ReadPBO;
+	uint32 TestImage;
 	bool Initialized;
 	bool VSync;
 };
@@ -49,7 +50,8 @@ GLenum GetInternalFormat(GLenum Attachment) {
 
 GLenum GetFormat(GLenum InternalFormat) {
 	switch (InternalFormat) {
-		case GL_RGB8: 
+		case GL_RGB8:
+		case GL_RGB32F:
 		{ return GL_BGR_EXT; } break;
 		case GL_RGBA8:
 		case GL_RGBA32F:
@@ -68,6 +70,7 @@ GLenum GetType(GLenum InternalFormat) {
 		case GL_RGBA8:
 		case GL_STENCIL_INDEX8: { return GL_UNSIGNED_BYTE; } break;
 		case GL_RGBA32F:
+		case GL_RGB32F:
 		case GL_DEPTH_COMPONENT32F:
 		case GL_DEPTH32F_STENCIL8: { return GL_FLOAT; } break;
 		default: { Assert(false); }
@@ -258,178 +261,6 @@ void ResizeFramebuffers(openGL OpenGL, int32 Width, int32 Height) {
 		if (Target.Multisampling) ResizeMultisamplebuffer(Width, Height, Target.Texture, Target.Samples, Target.Attachment, Target.AttachmentTexture);
 		else ResizeFramebuffer(Width, Height, Target.Texture, Target.Attachment, Target.AttachmentTexture);
 	}
-}
-
-
-// Initialization
-openGL InitOpenGL(HWND Window) {
-	openGL Result = { 0 };
-
-	HDC WindowDC = GetDC(Window);
-
-	RECT Rect = { 0 };
-	GetClientRect(Window, &Rect);
-
-	int32 Width = Rect.right - Rect.left;
-	int32 Height = Rect.bottom - Rect.top;
-
-	PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
-	DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
-	DesiredPixelFormat.nVersion = 1;
-	DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
-	DesiredPixelFormat.cColorBits = 32;
-	DesiredPixelFormat.cAlphaBits = 8;
-	DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
-
-	int SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
-	PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
-	DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex, sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
-	SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
-
-	HGLRC OpenGLRC = wglCreateContext(WindowDC);
-	if (wglMakeCurrent(WindowDC, OpenGLRC)) {
-		Result.Initialized = true;
-		Log(Info, "OpenGL successfully initialized.\n");
-
-		typedef BOOL WINAPI wgl_swap_interval_ext(int interval);
-		wgl_swap_interval_ext* wglSwapInterval = (wgl_swap_interval_ext*)wglGetProcAddress("wglSwapIntervalEXT");
-		if (wglSwapInterval) {
-			wglSwapInterval(1);
-			Result.VSync = true;
-			Log(Info, "VSync activated.\n");
-		}
-
-		GLenum Error = glewInit();
-		if (Error != GLEW_OK) {
-			OutputDebugStringA("GLEW initialization failed.");
-			return Result;
-		}
-
-		// Generating buffer ids
-		const int nFramebuffers = render_group_target_count;
-		Result.TargetCount = nFramebuffers;
-
-		uint32 Framebuffers[nFramebuffers] = { 0 };
-		glGenFramebuffers(nFramebuffers, Framebuffers);
-
-		uint32 Textures[nFramebuffers] = { 0 };
-		glGenTextures(nFramebuffers, Textures);
-
-		for (int i = 0; i < nFramebuffers; i++) {
-			Result.Targets[i].Framebuffer = Framebuffers[i];
-			Result.Targets[i].Texture = Textures[i];
-		}
-
-		int maxSamples = 0;
-		glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
-
-		// Sample number should be a square
-		int Square = 0;
-		int n = 1;
-		while (Square + n < maxSamples) {
-			Square += n;
-			n += 2;
-		}
-
-		int MSAASamples = min(Square, 9);
-
-		// World
-		render_target* WorldTarget = &Result.Targets[World];
-		WorldTarget->Label = World;
-		WorldTarget->Multisampling = true;
-		WorldTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		WorldTarget->Samples = MSAASamples;
-
-		// Outline
-		render_target* OutlineTarget = &Result.Targets[Outline];
-		OutlineTarget->Label = Outline;
-		OutlineTarget->Multisampling = true;
-		OutlineTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		OutlineTarget->Samples = MSAASamples;
-
-		// Outline postprocessing
-		render_target* OutlinePostprocessingTarget = &Result.Targets[Postprocessing_Outline];
-		OutlinePostprocessingTarget->Label = Postprocessing_Outline;
-		OutlinePostprocessingTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		OutlinePostprocessingTarget->Samples = 1;
-
-		// Output
-		render_target* OutputTarget = &Result.Targets[Output];
-		OutputTarget->Label = Output;
-		OutputTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		OutputTarget->Samples = 1;
-
-		// PingPong
-		render_target* PingPongTarget = &Result.Targets[PingPong];
-		PingPongTarget->Label = PingPong;
-		PingPongTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		PingPongTarget->Samples = 1;
-
-		// Creating buffers
-		for (int i = 0; i < nFramebuffers; i++) {
-			render_target* Target = &Result.Targets[i];
-			if (Target->Multisampling) CreateFramebufferMultisampling(
-				Width, Height,
-				Target->Samples,
-				Target->Framebuffer,
-				Target->Texture,
-				Target->Attachment,
-				&Target->AttachmentTexture
-			);
-			else CreateFramebuffer(
-				Width, Height,
-				Target->Framebuffer,
-				Target->Texture,
-				Target->Attachment,
-				&Target->AttachmentTexture
-			);
-		}
-
-		// Quad vertices
-		double QuadVertices[30] = {
-			-1.0, -1.0, 0.0, 0.0, 0.0,
-			 1.0, -1.0, 0.0, 1.0, 0.0,
-			 1.0,  1.0, 0.0, 1.0, 1.0,
-			-1.0, -1.0, 0.0, 0.0, 0.0,
-			 1.0,  1.0, 0.0, 1.0, 1.0,
-			-1.0,  1.0, 0.0, 0.0, 1.0,
-		};
-
-		uint32 QuadVBO = 0;
-		uint32 QuadVAO = 0;
-		glGenBuffers(1, &QuadVBO);
-		glGenVertexArrays(1, &QuadVAO);
-
-		glBindVertexArray(QuadVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
-		// GL_STATIC_DRAW  : Data is set only once and used many times
-		// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
-		// GL_STREAM_DRAW  : Set only once, used a few times
-		glBufferData(GL_ARRAY_BUFFER, 30 * sizeof(double), QuadVertices, GL_STATIC_DRAW);
-		Error = glGetError();
-
-		glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)0);
-		glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)(3 * sizeof(double)));
-		Error = glGetError();
-
-		glEnableVertexAttribArray(0);
-		glEnableVertexAttribArray(1);
-		Error = glGetError();
-
-		glBindVertexArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		Result.QuadVAO = QuadVAO;
-
-		// Pixel buffer objects for fast pixel transfers
-		glGenBuffers(1, &Result.VideoPBO); // Use GL_PIXEL_PACK_BUFFER to upload pixels to OpenGL
-		glGenBuffers(1, &Result.ReadPBO); // Use GL_PIXEL_UNPACK_BUFFER to get pixels from OpenGL
-
-		Error = glGetError();
-	}
-
-	ReleaseDC(Window, WindowDC);
-	return Result;
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -698,6 +529,9 @@ void OpenGLCompileShader(game_shader* HeaderShader, game_shader* Shader) {
 		Assert(false);
 	}
 
+	GLenum Error = glGetError();
+	if (Error) Assert(false);
+
 	Shader->ShaderID = ShaderID;
 }
 
@@ -708,9 +542,7 @@ void OpenGLLoadShaderPipeline(game_assets* Assets, game_shader_pipeline* Pipelin
 	for (int i = 1; i < game_shader_type_count; i++) {
 		if (Pipeline->IsProvided[i]) {
 			game_shader* Shader = GetShader(Assets, Pipeline->Pipeline[i]);
-			if (!Shader->ShaderID) {
-				OpenGLCompileShader(Header, Shader);
-			}
+			if (Shader->ShaderID == 0) Assert(false);
 			glAttachShader(ProgramID, Shader->ShaderID);
 		}
 	}
@@ -732,6 +564,9 @@ void OpenGLLoadShaderPipeline(game_assets* Assets, game_shader_pipeline* Pipelin
 		glGetProgramInfoLog(ProgramID, 1024, &Length, Errors);
 		Assert(false);
 	}
+
+	GLenum Error = glGetError();
+	if (Error) Assert(false);
 }
 
 // Shader uniforms
@@ -779,6 +614,208 @@ void OpenGLSetUniform(int ProgramID, float* Projection, float* View, float* Mode
 
 	GLint ModelLocation = glGetUniformLocation(ProgramID, "u_model");
 	glUniformMatrix4fv(ModelLocation, 1, GL_FALSE, Model);
+}
+
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+// | Initialization                                                                                                                                                   |
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+openGL InitOpenGL(HWND Window, game_assets* Assets) {
+	openGL Result = { 0 };
+
+	HDC WindowDC = GetDC(Window);
+
+	RECT Rect = { 0 };
+	GetClientRect(Window, &Rect);
+
+	int32 Width = Rect.right - Rect.left;
+	int32 Height = Rect.bottom - Rect.top;
+
+	PIXELFORMATDESCRIPTOR DesiredPixelFormat = {};
+	DesiredPixelFormat.nSize = sizeof(DesiredPixelFormat);
+	DesiredPixelFormat.nVersion = 1;
+	DesiredPixelFormat.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW | PFD_DOUBLEBUFFER;
+	DesiredPixelFormat.cColorBits = 32;
+	DesiredPixelFormat.cAlphaBits = 8;
+	DesiredPixelFormat.iLayerType = PFD_MAIN_PLANE;
+
+	int SuggestedPixelFormatIndex = ChoosePixelFormat(WindowDC, &DesiredPixelFormat);
+	PIXELFORMATDESCRIPTOR SuggestedPixelFormat;
+	DescribePixelFormat(WindowDC, SuggestedPixelFormatIndex, sizeof(SuggestedPixelFormat), &SuggestedPixelFormat);
+	SetPixelFormat(WindowDC, SuggestedPixelFormatIndex, &SuggestedPixelFormat);
+
+	HGLRC OpenGLRC = wglCreateContext(WindowDC);
+	if (wglMakeCurrent(WindowDC, OpenGLRC)) {
+		Result.Initialized = true;
+		Log(Info, "OpenGL successfully initialized.\n");
+
+		typedef BOOL WINAPI wgl_swap_interval_ext(int interval);
+		wgl_swap_interval_ext* wglSwapInterval = (wgl_swap_interval_ext*)wglGetProcAddress("wglSwapIntervalEXT");
+		if (wglSwapInterval) {
+			wglSwapInterval(1);
+			Result.VSync = true;
+			Log(Info, "VSync activated.\n");
+		}
+
+		GLenum Error = glewInit();
+		if (Error != GLEW_OK) {
+			OutputDebugStringA("GLEW initialization failed.");
+			return Result;
+		}
+
+		// Generating buffer ids
+		const int nFramebuffers = render_group_target_count;
+		Result.TargetCount = nFramebuffers;
+
+		uint32 Framebuffers[nFramebuffers] = { 0 };
+		glGenFramebuffers(nFramebuffers, Framebuffers);
+
+		uint32 Textures[nFramebuffers] = { 0 };
+		glGenTextures(nFramebuffers, Textures);
+
+		for (int i = 0; i < nFramebuffers; i++) {
+			Result.Targets[i].Framebuffer = Framebuffers[i];
+			Result.Targets[i].Texture = Textures[i];
+		}
+
+		int maxSamples = 0;
+		glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+
+		// Sample number should be a square
+		int Square = 0;
+		int n = 1;
+		while (Square + n < maxSamples) {
+			Square += n;
+			n += 2;
+		}
+
+		int MSAASamples = min(Square, 9);
+
+		// World
+		render_target* WorldTarget = &Result.Targets[World];
+		WorldTarget->Label = World;
+		WorldTarget->Multisampling = true;
+		WorldTarget->Attachment = GL_DEPTH_ATTACHMENT;
+		WorldTarget->Samples = MSAASamples;
+
+		// Outline
+		render_target* OutlineTarget = &Result.Targets[Outline];
+		OutlineTarget->Label = Outline;
+		OutlineTarget->Multisampling = true;
+		OutlineTarget->Attachment = GL_DEPTH_ATTACHMENT;
+		OutlineTarget->Samples = MSAASamples;
+
+		// Outline postprocessing
+		render_target* OutlinePostprocessingTarget = &Result.Targets[Postprocessing_Outline];
+		OutlinePostprocessingTarget->Label = Postprocessing_Outline;
+		OutlinePostprocessingTarget->Attachment = GL_DEPTH_ATTACHMENT;
+		OutlinePostprocessingTarget->Samples = 1;
+
+		// Output
+		render_target* OutputTarget = &Result.Targets[Output];
+		OutputTarget->Label = Output;
+		OutputTarget->Attachment = GL_DEPTH_ATTACHMENT;
+		OutputTarget->Samples = 1;
+
+		// PingPong
+		render_target* PingPongTarget = &Result.Targets[PingPong];
+		PingPongTarget->Label = PingPong;
+		PingPongTarget->Attachment = GL_DEPTH_ATTACHMENT;
+		PingPongTarget->Samples = 1;
+
+		// Creating buffers
+		for (int i = 0; i < nFramebuffers; i++) {
+			render_target* Target = &Result.Targets[i];
+			if (Target->Multisampling) CreateFramebufferMultisampling(
+				Width, Height,
+				Target->Samples,
+				Target->Framebuffer,
+				Target->Texture,
+				Target->Attachment,
+				&Target->AttachmentTexture
+			);
+			else CreateFramebuffer(
+				Width, Height,
+				Target->Framebuffer,
+				Target->Texture,
+				Target->Attachment,
+				&Target->AttachmentTexture
+			);
+		}
+
+		// Quad vertices
+		double QuadVertices[30] = {
+			-1.0, -1.0, 0.0, 0.0, 0.0,
+			 1.0, -1.0, 0.0, 1.0, 0.0,
+			 1.0,  1.0, 0.0, 1.0, 1.0,
+			-1.0, -1.0, 0.0, 0.0, 0.0,
+			 1.0,  1.0, 0.0, 1.0, 1.0,
+			-1.0,  1.0, 0.0, 0.0, 1.0,
+		};
+
+		uint32 QuadVBO = 0;
+		uint32 QuadVAO = 0;
+		glGenBuffers(1, &QuadVBO);
+		glGenVertexArrays(1, &QuadVAO);
+
+		glBindVertexArray(QuadVAO);
+		glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
+		// GL_STATIC_DRAW  : Data is set only once and used many times
+		// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
+		// GL_STREAM_DRAW  : Set only once, used a few times
+		glBufferData(GL_ARRAY_BUFFER, 30 * sizeof(double), QuadVertices, GL_STATIC_DRAW);
+		Error = glGetError();
+
+		glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)0);
+		glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)(3 * sizeof(double)));
+		Error = glGetError();
+
+		glEnableVertexAttribArray(0);
+		glEnableVertexAttribArray(1);
+		Error = glGetError();
+
+		glBindVertexArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+		Result.QuadVAO = QuadVAO;
+
+		// Pixel buffer objects for fast pixel transfers
+		glGenBuffers(1, &Result.VideoPBO); // Use GL_PIXEL_PACK_BUFFER to upload pixels to OpenGL
+		glGenBuffers(1, &Result.ReadPBO); // Use GL_PIXEL_UNPACK_BUFFER to get pixels from OpenGL
+
+		Error = glGetError();
+
+		// Loading shaders
+		game_shader* HeaderShader = GetShader(Assets, Header_Shader_ID);
+		for (int i = 1; i < Assets->nShaders; i++) {
+			game_shader* Shader = &Assets->Shader[i];
+			OpenGLCompileShader(HeaderShader, Shader);
+		}
+
+		for (int i = 0; i < Assets->nShaderPipelines; i++) {
+			game_shader_pipeline* Pipeline = &Assets->ShaderPipeline[i];
+			OpenGLLoadShaderPipeline(Assets, Pipeline);
+		}
+
+		for (int i = 1; i < Assets->nShaders; i++) {
+			game_shader* Shader = &Assets->Shader[i];
+			glDeleteShader(Shader->ShaderID);
+		}
+
+		for (int i = 0; i < Assets->nShaderPipelines; i++) {
+			game_shader_pipeline* Pipeline = &Assets->ShaderPipeline[i];
+			glDeleteProgram(Pipeline->ID);
+		}
+
+		Error = glGetError();
+		CreateTexture(512, 512, &Result.TestImage, GL_RGB32F, GL_LINEAR, GL_CLAMP_TO_EDGE);
+		glBindImageTexture(0, Result.TestImage, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGB32F);
+
+		if (Error) Assert(false);
+	}
+
+	ReleaseDC(Window, WindowDC);
+	return Result;
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1344,8 +1381,22 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 	//glDrawArrays(GL_TRIANGLES, 0, 6);
 
 
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	
+	
+	SetIdentityProjection();
 
+	game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Test_Shader_Pipeline_ID);
 
+	glUseProgram(Shader->ProgramID);
+
+	glDispatchCompute(512, 512, 1);
+
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	glBindVertexArray(OpenGL.QuadVAO);
+
+	glDrawArrays(GL_POINTS, 0, 4);
 
 	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	//glDisable(GL_DEPTH_TEST);

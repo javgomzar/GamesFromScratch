@@ -1092,8 +1092,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LARGE_INTEGER LastCounter = GetWallClock();
     uint64 LastCycleCount = __rdtsc();
 
+    // Assets
+    WriteAssetFile();
+    LoadAssetsFromFile(Platform.ReadEntireFile, &GameMemory.Assets, "..\\..\\GameAssets\\game_assets");
+
     // OpenGl
-    OpenGL = InitOpenGL(Window);
+    OpenGL = InitOpenGL(Window, &GameMemory.Assets);
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
@@ -1110,8 +1114,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // DebugInfo
     GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
-
-    WriteAssetFile();
 
     Running = true;
     bool FirstFrame = true;

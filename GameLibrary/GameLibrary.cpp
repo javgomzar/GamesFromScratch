@@ -202,9 +202,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     if (!Memory->IsInitialized) {
         firstFrame = true;
 
-        // Assets ----------------------------------------------------------------------------------------------------------------------------------------
-        LoadAssetsFromFile(Platform->ReadEntireFile, Assets, "..\\..\\GameAssets\\game_assets");
-
         memory_arena* StringsArena = &pGameState->StringsArena;
         pGameState->StringsArena.Name = PushString(StringsArena, 13, "Strings Arena");
         pGameState->StringsArena.Percentage = PushString(StringsArena, 7, "0.0%");

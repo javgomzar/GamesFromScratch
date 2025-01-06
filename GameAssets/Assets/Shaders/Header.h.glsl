@@ -1,7 +1,7 @@
-#version 420
+#version 430
 precision highp float;
 
-uniform double u_time;
+uniform float u_time;
 uniform vec2 u_resolution;
 
 
