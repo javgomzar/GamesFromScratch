@@ -68,6 +68,7 @@ GLenum GetFormat(GLenum InternalFormat) {
 GLenum GetType(GLenum InternalFormat) {
 	switch (InternalFormat) {
 		case GL_RGBA8:
+		case GL_RGB8:
 		case GL_STENCIL_INDEX8: { return GL_UNSIGNED_BYTE; } break;
 		case GL_RGBA32F:
 		case GL_RGB32F:
@@ -118,54 +119,21 @@ void CreateTexture(
 	ResizeTexture(Width, Height, *Handle, InternalFormat, Filter, WrapMode, Data);
 }
 
-void OpenGLBindTexture(int Width, int Height, int BytesPerPixel, GLuint* Handle, void* Data, wrap_mode Mode, bool ForceUpdate = false) {
-	GLenum InternalFormat = GL_RGBA8;
-	if (BytesPerPixel == 3) InternalFormat = GL_RGB8;
-	else if (BytesPerPixel != 4) Assert(false);
+void CreateTexture(game_bitmap* Bitmap) {
+	GLenum InternalFormat = 0;
+	if (Bitmap->BytesPerPixel == 4) InternalFormat = GL_RGBA8;
+	else if (Bitmap->BytesPerPixel == 3) InternalFormat = GL_RGB8;
+	else Assert(false);
 
-	GLenum Format = GetFormat(InternalFormat);
-	
-	if (*Handle) {
-		glBindTexture(GL_TEXTURE_2D, *Handle);
-		if (ForceUpdate) {
-			glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Data);
-		}
-	}
-	else {
-		glGenTextures(1, Handle);
-
-		glBindTexture(GL_TEXTURE_2D, *Handle);
-		glTexImage2D(GL_TEXTURE_2D, 0, InternalFormat, Width, Height, 0, Format, GL_UNSIGNED_BYTE, Data);
-
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR); // Change to GL_LINEAR for color interpolation
-		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-	}
-
-	switch (Mode) {
-		case Clamp:
-		case Crop:
-		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-		} break;
-
-		case Repeat:
-		{
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-		} break;
-
-		default: {
-			OutputDebugStringA("Texture bind mode unknown. Falling back to GL_CLAMP as default.\n");
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-		}
-	}
+	CreateTexture(Bitmap->Header.Width, Bitmap->Header.Height, &Bitmap->Handle, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE, Bitmap->Content);
 }
 
-void OpenGLBindTexture(game_bitmap* Bitmap, wrap_mode Mode = Clamp) {
-	OpenGLBindTexture(Bitmap->Header.Width, Bitmap->Header.Height, Bitmap->BytesPerPixel, &Bitmap->Handle, Bitmap->Content, Mode);
+void OpenGLBindTexture(game_bitmap* Bitmap) {
+	if (Bitmap->Handle == 0) {
+		CreateTexture(Bitmap);
+	}
+
+	glBindTexture(GL_TEXTURE_2D, Bitmap->Handle);
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -174,6 +142,7 @@ void OpenGLBindTexture(game_bitmap* Bitmap, wrap_mode Mode = Clamp) {
 
 void CreateFramebuffer(
 	int Width, int Height,
+	GLenum InternalFormat,
 	uint32 Framebuffer,
 	uint32 FramebufferTexture,
 	GLenum Attachment,
@@ -182,7 +151,7 @@ void CreateFramebuffer(
 	GLenum Error = 0;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer);
-	ResizeTexture(Width, Height, FramebufferTexture, GL_RGBA32F, GL_LINEAR, GL_CLAMP_TO_EDGE);
+	ResizeTexture(Width, Height, FramebufferTexture, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, FramebufferTexture, 0);
 
 	if (Attachment) {
@@ -244,13 +213,13 @@ void ResizeMultisamplebuffer(int Width, int Height, uint32 Texture, int Samples,
 	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 }
 
-void ResizeFramebuffer(int Width, int Height, uint32 Texture, GLenum Attachment, uint32 AttachmentTexture) {
-	ResizeTexture(Width, Height, Texture, GL_RGBA32F, GL_LINEAR, GL_CLAMP_TO_EDGE);
+void ResizeFramebuffer(int Width, int Height, uint32 Texture, GLenum InternalFormat, GLenum Attachment, uint32 AttachmentTexture) {
+	ResizeTexture(Width, Height, Texture, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE);
 
 	if (Attachment) {
 		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, AttachmentTexture);
-		GLenum InternalFormat = GetInternalFormat(Attachment);
-		ResizeTexture(Width, Height, AttachmentTexture, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE);
+		GLenum AttachmentInternalFormat = GetInternalFormat(Attachment);
+		ResizeTexture(Width, Height, AttachmentTexture, AttachmentInternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE);
 	}
 }
 
@@ -259,7 +228,10 @@ void ResizeFramebuffers(openGL OpenGL, int32 Width, int32 Height) {
 		render_target Target = OpenGL.Targets[i];
 
 		if (Target.Multisampling) ResizeMultisamplebuffer(Width, Height, Target.Texture, Target.Samples, Target.Attachment, Target.AttachmentTexture);
-		else ResizeFramebuffer(Width, Height, Target.Texture, Target.Attachment, Target.AttachmentTexture);
+		else {
+			GLenum InternalFormat = Target.Label == Output ? GL_RGB8 : GL_RGBA32F;
+			ResizeFramebuffer(Width, Height, InternalFormat, Target.Texture, Target.Attachment, Target.AttachmentTexture);
+		}
 	}
 }
 
@@ -485,7 +457,7 @@ void OpenGLRenderText(
 			Rect.Top = floor(PenY - pCharacter->Top * Scale);
 			Rect.Width = (double)CharacterBMP->Header.Width * Scale;
 			Rect.Height = (double)CharacterBMP->Header.Height * Scale;
-			OpenGLBindTexture(CharacterBMP, Clamp);
+			OpenGLBindTexture(CharacterBMP);
 			OpenGLTexturedRect(Rect, Color);
 
 			PenX += pCharacter->Advance * Scale;
@@ -529,9 +501,6 @@ void OpenGLCompileShader(game_shader* HeaderShader, game_shader* Shader) {
 		Assert(false);
 	}
 
-	GLenum Error = glGetError();
-	if (Error) Assert(false);
-
 	Shader->ShaderID = ShaderID;
 }
 
@@ -564,9 +533,6 @@ void OpenGLLoadShaderPipeline(game_assets* Assets, game_shader_pipeline* Pipelin
 		glGetProgramInfoLog(ProgramID, 1024, &Length, Errors);
 		Assert(false);
 	}
-
-	GLenum Error = glGetError();
-	if (Error) Assert(false);
 }
 
 // Shader uniforms
@@ -620,6 +586,53 @@ void OpenGLSetUniform(int ProgramID, float* Projection, float* View, float* Mode
 // | Initialization                                                                                                                                                   |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+void GLAPIENTRY OpenGLDebugMessageCallback(
+	GLenum source,
+	GLenum type,
+	GLuint id,
+	GLenum severity,
+	GLsizei length,
+	const GLchar* message,
+	const void* userParam
+) {
+	char DebugMessage[512];
+	sprintf_s(DebugMessage, "OpenGL ");
+
+	log_level Level = Warn;
+	switch (type) {
+		case GL_DEBUG_TYPE_ERROR:               { Level = Error; strcat_s(DebugMessage, "Error - "); } break;
+		case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR: { Level = Warn; strcat_s(DebugMessage, "Deprecated Behaviour - "); } break;
+		case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:  { Level = Warn; strcat_s(DebugMessage, "Undefined Behaviour - "); } break;
+		case GL_DEBUG_TYPE_PORTABILITY:         { Level = Warn; strcat_s(DebugMessage, "Portability - "); } break;
+		case GL_DEBUG_TYPE_PERFORMANCE:         { Level = Warn; strcat_s(DebugMessage, "Performance - "); } break;
+		case GL_DEBUG_TYPE_MARKER:              { Level = Info; strcat_s(DebugMessage, "Marker - "); } break;
+		case GL_DEBUG_TYPE_PUSH_GROUP:          { Level = Info; strcat_s(DebugMessage, "Push Group - "); } break;
+		case GL_DEBUG_TYPE_POP_GROUP:           { Level = Info; strcat_s(DebugMessage, "Pop Group - "); } break;
+		case GL_DEBUG_TYPE_OTHER:               { Level = Info; strcat_s(DebugMessage, "Other - "); } break;
+	}
+
+	switch (source) {
+		case GL_DEBUG_SOURCE_API:             strcat_s(DebugMessage, "SOURCE: API - "); break;
+		case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   strcat_s(DebugMessage, "SOURCE: Window System - "); break;
+		case GL_DEBUG_SOURCE_SHADER_COMPILER: strcat_s(DebugMessage, "SOURCE: Shader Compiler - "); break;
+		case GL_DEBUG_SOURCE_THIRD_PARTY:     strcat_s(DebugMessage, "SOURCE: Third Party - "); break;
+		case GL_DEBUG_SOURCE_APPLICATION:     strcat_s(DebugMessage, "SOURCE: Application - "); break;
+		case GL_DEBUG_SOURCE_OTHER:           strcat_s(DebugMessage, "SOURCE: Other - "); break;
+	}
+
+	switch (severity) {
+		case GL_DEBUG_SEVERITY_HIGH:         strcat_s(DebugMessage, "SEVERITY: High - MESSAGE: "); break;
+		case GL_DEBUG_SEVERITY_MEDIUM:       strcat_s(DebugMessage, "SEVERITY: Medium - MESSAGE: "); break;
+		case GL_DEBUG_SEVERITY_LOW:          strcat_s(DebugMessage, "SEVERITY: Low - MESSAGE: "); break;
+		case GL_DEBUG_SEVERITY_NOTIFICATION: strcat_s(DebugMessage, "SEVERITY: Notification - MESSAGE: "); return; break;
+	}
+
+	strcat_s(DebugMessage, message);
+	strcat_s(DebugMessage, "\n");
+
+	Log(Level, DebugMessage);
+}
+
 openGL InitOpenGL(HWND Window, game_assets* Assets) {
 	openGL Result = { 0 };
 
@@ -662,6 +675,10 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 			OutputDebugStringA("GLEW initialization failed.");
 			return Result;
 		}
+
+		glEnable(GL_DEBUG_OUTPUT);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+		glDebugMessageCallback(OpenGLDebugMessageCallback, 0);
 
 		// Generating buffer ids
 		const int nFramebuffers = render_group_target_count;
@@ -734,13 +751,17 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 				Target->Attachment,
 				&Target->AttachmentTexture
 			);
-			else CreateFramebuffer(
-				Width, Height,
-				Target->Framebuffer,
-				Target->Texture,
-				Target->Attachment,
-				&Target->AttachmentTexture
-			);
+			else {
+				GLenum InternalFormat = Target->Label == Output ? GL_RGB8 : GL_RGBA32F;
+				CreateFramebuffer(
+					Width, Height,
+					InternalFormat,
+					Target->Framebuffer,
+					Target->Texture,
+					Target->Attachment,
+					&Target->AttachmentTexture
+				);
+			}
 		}
 
 		// Quad vertices
@@ -764,15 +785,12 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 		// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
 		// GL_STREAM_DRAW  : Set only once, used a few times
 		glBufferData(GL_ARRAY_BUFFER, 30 * sizeof(double), QuadVertices, GL_STATIC_DRAW);
-		Error = glGetError();
 
 		glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)0);
 		glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)(3 * sizeof(double)));
-		Error = glGetError();
 
 		glEnableVertexAttribArray(0);
 		glEnableVertexAttribArray(1);
-		Error = glGetError();
 
 		glBindVertexArray(0);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -782,8 +800,6 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 		// Pixel buffer objects for fast pixel transfers
 		glGenBuffers(1, &Result.VideoPBO); // Use GL_PIXEL_PACK_BUFFER to upload pixels to OpenGL
 		glGenBuffers(1, &Result.ReadPBO); // Use GL_PIXEL_UNPACK_BUFFER to get pixels from OpenGL
-
-		Error = glGetError();
 
 		// Loading shaders
 		game_shader* HeaderShader = GetShader(Assets, Header_Shader_ID);
@@ -797,21 +813,8 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 			OpenGLLoadShaderPipeline(Assets, Pipeline);
 		}
 
-		for (int i = 1; i < Assets->nShaders; i++) {
-			game_shader* Shader = &Assets->Shader[i];
-			glDeleteShader(Shader->ShaderID);
-		}
-
-		for (int i = 0; i < Assets->nShaderPipelines; i++) {
-			game_shader_pipeline* Pipeline = &Assets->ShaderPipeline[i];
-			glDeleteProgram(Pipeline->ID);
-		}
-
-		Error = glGetError();
 		CreateTexture(512, 512, &Result.TestImage, GL_RGB32F, GL_LINEAR, GL_CLAMP_TO_EDGE);
-		glBindImageTexture(0, Result.TestImage, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGB32F);
-
-		if (Error) Assert(false);
+		//glBindImageTexture(0, Result.TestImage, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGB32F);
 	}
 
 	ReleaseDC(Window, WindowDC);
@@ -953,7 +956,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 				SetCoordinates(Screen_Coordinates, Group->Camera, Width, Height);
 
-				OpenGLBindTexture(Entry.Texture, Entry.Mode);
+				OpenGLBindTexture(Entry.Texture);
 				OpenGLTexturedRect(Entry.Rect, Entry.Color, Entry.MinTexX, Entry.MaxTexX, Entry.MinTexY, Entry.MaxTexY);
 
 				SetIdentityProjection();
@@ -999,10 +1002,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				light Light = Entry.Light;
 				transform Transform = Entry.Transform;
 
-				if (!Shader->ProgramID) {
-					OpenGLLoadShaderPipeline(Group->Assets, Shader);
-				}
-
 				float Projection[16];
 				glGetFloatv(GL_PROJECTION_MATRIX, Projection);
 
@@ -1013,8 +1012,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				Matrix(Model, Transform);
 
 				glUseProgram(Shader->ProgramID);
-
-				GLint Error = glGetError();
 
 				// Setting uniforms
 					// Projection and modelview matrices
@@ -1036,8 +1033,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					glBindVertexArray(Mesh->VAO);
 				}
 				else {
-					Error = glGetError();
-
 					glGenBuffers(1, &Mesh->VBO);
 					glGenVertexArrays(1, &Mesh->VAO);
 
@@ -1047,7 +1042,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
 					// GL_STREAM_DRAW  : Set only once, used a few times
 					glBufferData(GL_ARRAY_BUFFER, 8 * Mesh->nVertices * sizeof(double), Mesh->Vertices, GL_STATIC_DRAW);
-					Error = glGetError();
 
 					glGenBuffers(1, &Mesh->EBO);
 					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, Mesh->EBO);
@@ -1064,11 +1058,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 				game_bitmap* Texture = Entry.Texture;
 
-				if (Texture) OpenGLBindTexture(Texture, Clamp);
+				if (Texture) OpenGLBindTexture(Texture);
 				else glBindTexture(GL_TEXTURE_2D, 0);
 
 				glDrawElements(GL_TRIANGLES, 3 * Mesh->nFaces, GL_UNSIGNED_INT, 0);
-				Error = glGetError();
 
 				glUseProgram(0);
 				glBindVertexArray(0);
@@ -1150,9 +1143,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				GLenum Error = 0;
 
 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Entry.ShaderID);
-				if (!Shader->ProgramID) {
-					OpenGLLoadShaderPipeline(Group->Assets, Shader);
-				}
 
 				glUseProgram(Shader->ProgramID);
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
@@ -1297,17 +1287,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					glDepthFunc(GL_ALWAYS);
 				}
 
-				GLint Error = 0;
-				Error = glGetError();
-
 				uint32 TargetFramebuffer = Entry.Header.Target == Output ? 0 : OpenGL.Targets[Entry.Target].Framebuffer;
 
 				game_shader_pipeline_id ShaderID = Source.Multisampling ? Antialiasing_Shader_Pipeline_ID : Framebuffer_Shader_Pipeline_ID;
 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, ShaderID);
-
-				if (!Shader->ProgramID) {
-					OpenGLLoadShaderPipeline(Group->Assets, Shader);
-				}
 
 				glUseProgram(Shader->ProgramID);
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
@@ -1360,11 +1343,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 		}
 	}
 
-	GLenum GLError = glGetError();
-
-
-
-
 	// Debug depth buffers
 	//SetIdentityProjection();
 	//glDepthFunc(GL_ALWAYS);
@@ -1381,22 +1359,22 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 	//glDrawArrays(GL_TRIANGLES, 0, 6);
 
 
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	
-	
-	SetIdentityProjection();
+	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	//
+	//
+	//SetIdentityProjection();
 
-	game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Test_Shader_Pipeline_ID);
+	//game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Test_Shader_Pipeline_ID);
 
-	glUseProgram(Shader->ProgramID);
+	//glUseProgram(Shader->ProgramID);
 
-	glDispatchCompute(512, 512, 1);
+	//glDispatchCompute(512, 512, 1);
 
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	glBindVertexArray(OpenGL.QuadVAO);
+	//glBindVertexArray(OpenGL.QuadVAO);
 
-	glDrawArrays(GL_POINTS, 0, 4);
+	//glDrawArrays(GL_POINTS, 0, 4);
 
 	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	//glDisable(GL_DEPTH_TEST);
@@ -1412,7 +1390,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 	//if (!Shader->ProgramID) Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
 	//glUseProgram(Shader->ProgramID);
-	//GLError = glGetError();
 
 	//static uint32 VBO = 0;
 	//static uint32 VAO = 0;
@@ -1429,7 +1406,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 	//	// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
 	//	// GL_STREAM_DRAW  : Set only once, used a few times
 	//	glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(double), points, GL_STATIC_DRAW);
-	//	GLError = glGetError();
 
 	//	glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 3 * sizeof(double), (void*)0);
 	//	glEnableVertexAttribArray(0);
@@ -1450,12 +1426,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 	//OpenGLSetUniform(Shader->ProgramID, "u_time", (float)Time);
 
 	//glDrawArrays(GL_POINTS, 0, 4);
-
-	GLError = glGetError();
-	if (GLError) {
-		Log(Error, "OpenGL error.\n");
-		Assert(false);
-	}
 
 	SetIdentityProjection();
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

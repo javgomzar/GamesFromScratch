@@ -1109,9 +1109,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Render group
     Group = AllocateRenderGroup(&GameMemory.Assets, &pGameState->RenderArena, Megabytes(4));
 
-    // Starting resolution
-    ResizeWindow(Window, Group, OpenGL);
-
     // DebugInfo
     GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
 
@@ -1198,7 +1195,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Input.Keyboard.Shift.WasDown = Input.Keyboard.Shift.IsDown;
 
         // Peek and dispatch messages
-        ProcessPendingMessages(Window, &Input, &RecordPlayback);
+        if (!FirstFrame) {
+            ProcessPendingMessages(Window, &Input, &RecordPlayback);
+        }
 
         Input.Keyboard.Any = false;
         for (int i = 0; i < NUMBER_OF_KEYS; i++) {
@@ -1325,7 +1324,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         // Game function
         if (GameCode.IsValid) {
-            ResizeWindow(Window, Group, OpenGL);
+            if (FirstFrame) {
+                RECT Rect = { 0 };
+                GetClientRect(Window, &Rect);
+
+                Group->Width = Rect.right - Rect.left;
+                Group->Height = Rect.bottom - Rect.top;
+            }
+            else {
+                ResizeWindow(Window, Group, OpenGL);
+            }
 
             if (!Pause) {
                 // Clear render group
