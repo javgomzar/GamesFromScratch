@@ -143,6 +143,7 @@
   <ItemGroup>
     <None Include="Assets\Models\Enemy.mdl" />
     <None Include="Assets\Shaders\Antialiasing.frag.glsl" />
+    <None Include="Assets\Shaders\Test.comp.glsl" />
     <None Include="Assets\Shaders\Texture.frag.glsl" />
     <None Include="Assets\Shaders\Passthrough.vert.glsl" />
     <None Include="Assets\Shaders\Header.h.glsl" />

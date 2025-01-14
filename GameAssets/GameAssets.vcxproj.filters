@@ -110,6 +110,9 @@
     <None Include="Assets\Shaders\Header.h.glsl">
       <Filter>Resource Files\Shaders\Header</Filter>
     </None>
+    <None Include="Assets\Shaders\Test.comp.glsl">
+      <Filter>Resource Files\Shaders\Compute</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\Bitmaps\Background.bmp">

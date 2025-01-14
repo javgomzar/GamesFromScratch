@@ -27,7 +27,6 @@ struct openGL {
 	uint32 QuadVAO;
 	uint32 VideoPBO;
 	uint32 ReadPBO;
-	uint32 TestImage;
 	bool Initialized;
 	bool VSync;
 };
@@ -230,7 +229,7 @@ void ResizeFramebuffers(openGL OpenGL, int32 Width, int32 Height) {
 		if (Target.Multisampling) ResizeMultisamplebuffer(Width, Height, Target.Texture, Target.Samples, Target.Attachment, Target.AttachmentTexture);
 		else {
 			GLenum InternalFormat = Target.Label == Output ? GL_RGB8 : GL_RGBA32F;
-			ResizeFramebuffer(Width, Height, InternalFormat, Target.Texture, Target.Attachment, Target.AttachmentTexture);
+			ResizeFramebuffer(Width, Height, Target.Texture, InternalFormat, Target.Attachment, Target.AttachmentTexture);
 		}
 	}
 }
@@ -812,9 +811,6 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 			game_shader_pipeline* Pipeline = &Assets->ShaderPipeline[i];
 			OpenGLLoadShaderPipeline(Assets, Pipeline);
 		}
-
-		CreateTexture(512, 512, &Result.TestImage, GL_RGB32F, GL_LINEAR, GL_CLAMP_TO_EDGE);
-		//glBindImageTexture(0, Result.TestImage, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGB32F);
 	}
 
 	ReleaseDC(Window, WindowDC);
@@ -1145,47 +1141,59 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Entry.ShaderID);
 
 				glUseProgram(Shader->ProgramID);
-				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
-				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
-				OpenGLSetUniform(Shader->ProgramID, "u_width", Entry.Width);
-				OpenGLSetUniform(Shader->ProgramID, "u_time", Time);
+				if (Shader->IsProvided[Compute_Shader]) {
+					render_target PingPongTarget = OpenGL.Targets[PingPong];
 
-				GLint KernelLocation = glGetUniformLocation(Shader->ProgramID, "u_kernel");
-				glUniformMatrix3fv(KernelLocation, 1, GL_FALSE, Entry.Kernel);
+					glBindTexture(GL_TEXTURE_2D, PingPongTarget.Texture);
+					glBindImageTexture(0, PingPongTarget.Texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
 
-				float Projection[16];
-				Identity(Projection, 4);
+					glDispatchCompute(Width, Height, 1);
 
-				float View[16];
-				Identity(View, 4);
-
-				float Model[16];
-				Identity(Model, 4);
-
-				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
-
-				render_target Target = OpenGL.Targets[Entry.Target];
-				render_target PingPongTarget = OpenGL.Targets[PingPong];
-
-				glEnable(GL_DEPTH_TEST);
-				glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
-				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, PingPongTarget.Framebuffer);
-				glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
-
-				glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
-				glClearColor(0, 0, 0, 0);
-				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, PingPongTarget.Texture);
-
-				if (Target.Attachment) {
-					glActiveTexture(GL_TEXTURE1);
-					glBindTexture(GL_TEXTURE_2D, PingPongTarget.AttachmentTexture);
+					glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 				}
+				else {
+					OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+					OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
+					OpenGLSetUniform(Shader->ProgramID, "u_width", Entry.Width);
+					OpenGLSetUniform(Shader->ProgramID, "u_time", Time);
 
-				glBindVertexArray(OpenGL.QuadVAO);
-				glDrawArrays(GL_TRIANGLES, 0, 6);
+					GLint KernelLocation = glGetUniformLocation(Shader->ProgramID, "u_kernel");
+					glUniformMatrix3fv(KernelLocation, 1, GL_FALSE, Entry.Kernel);
+
+					float Projection[16];
+					Identity(Projection, 4);
+
+					float View[16];
+					Identity(View, 4);
+
+					float Model[16];
+					Identity(Model, 4);
+
+					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+
+					render_target Target = OpenGL.Targets[Entry.Target];
+					render_target PingPongTarget = OpenGL.Targets[PingPong];
+
+					glEnable(GL_DEPTH_TEST);
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
+					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, PingPongTarget.Framebuffer);
+					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+
+					glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+					glClearColor(0, 0, 0, 0);
+					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+					glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, PingPongTarget.Texture);
+
+					if (Target.Attachment) {
+						glActiveTexture(GL_TEXTURE1);
+						glBindTexture(GL_TEXTURE_2D, PingPongTarget.AttachmentTexture);
+					}
+
+					glBindVertexArray(OpenGL.QuadVAO);
+					glDrawArrays(GL_TRIANGLES, 0, 6);
+				}
 
 				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, 0);
@@ -1359,32 +1367,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 	//glDrawArrays(GL_TRIANGLES, 0, 6);
 
 
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//
-	//
-	//SetIdentityProjection();
 
-	//game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Test_Shader_Pipeline_ID);
-
-	//glUseProgram(Shader->ProgramID);
-
-	//glDispatchCompute(512, 512, 1);
-
-	//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-	//glBindVertexArray(OpenGL.QuadVAO);
-
-	//glDrawArrays(GL_POINTS, 0, 4);
-
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	//glDisable(GL_DEPTH_TEST);
-
-	//double points[] = {
-	//	-0.5,  0.5, 5.0, // top-left
-	//	 0.5,  0.5, 5.0, // top-right
-	//	 0.5, -0.5, 5.0, // bottom-right
-	//	-0.5, -0.5, 5.0  // bottom-left
-	//};
 
 	//game_shader* Shader = &Group->Assets->Shaders[Shader_Tessellation_ID];
 
