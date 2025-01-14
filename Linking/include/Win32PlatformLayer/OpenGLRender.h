@@ -435,8 +435,10 @@ void OpenGLRenderText(
 
 	for (int i = 0; i < String.Length; i++) {
 		char c = String.Content[i];
+		
+		if (c == '\0') return;
 		// Carriage returns
-		if (c == '\n') {
+		else if (c == '\n') {
 			PenY += LineJump;
 			PenX = Position.X;
 		}

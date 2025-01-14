@@ -1394,7 +1394,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         double FPS = 1.0 / ActualSecsElapsed;
         double MegaCyclesPerFrame = CyclesElapsed / 1000000.0;
 
-        sprintf_s(GameMemory.DebugInfo.Content, GameMemory.DebugInfo.Length, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
+        sprintf_s(GameMemory.DebugInfo.Content, GameMemory.DebugInfo.Length, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)\0", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
 
         pGameState->dt = ActualSecsElapsed;
         pGameState->Time += ActualSecsElapsed;
