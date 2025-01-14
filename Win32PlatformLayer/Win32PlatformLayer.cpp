@@ -1,5 +1,5 @@
 
-#include "..\GameLibrary\GameLibrary.h"
+#include "GameLibrary.h"
 #include "Win32PlatformLayer.h"
 
 #include "resource.h"
@@ -230,15 +230,15 @@ public:
     ~voice_callback() { CloseHandle(hBufferEndEvent); }
 
     //Called when the voice has just finished playing a contiguous audio stream.
-    void OnStreamEnd() { SetEvent(hBufferEndEvent); }
+    void __stdcall OnStreamEnd() { SetEvent(hBufferEndEvent); }
 
     //Unused methods are stubs
-    void OnVoiceProcessingPassEnd() {}
-    void OnVoiceProcessingPassStart(uint32 SamplesRequired) {}
-    void OnBufferEnd(void* pBufferContext) {}
-    void OnBufferStart(void* pBufferContext) {}
-    void OnLoopEnd(void* pBufferContext) {}
-    void OnVoiceError(void* pBufferContext, HRESULT Error) {}
+    void __stdcall OnVoiceProcessingPassEnd() {}
+    void __stdcall OnVoiceProcessingPassStart(uint32 SamplesRequired) {}
+    void __stdcall OnBufferEnd(void* pBufferContext) {}
+    void __stdcall OnBufferStart(void* pBufferContext) {}
+    void __stdcall OnLoopEnd(void* pBufferContext) {}
+    void __stdcall OnVoiceError(void* pBufferContext, HRESULT Error) {}
 };
 
 voice_callback VoiceCallback;
@@ -301,7 +301,7 @@ static HRESULT SubmitBuffer(XAUDIO2_BUFFER* pBuffer, IXAudio2SourceVoice* pSourc
         //}
         hr = pSourceVoice->SubmitSourceBuffer(pBuffer);
         if (FAILED(hr)) {
-            OutputDebugString(L"Sound buffer submit went wrong\n");
+            OutputDebugStringA("Sound buffer submit went wrong\n");
             return hr;
         }
         else {
@@ -309,7 +309,7 @@ static HRESULT SubmitBuffer(XAUDIO2_BUFFER* pBuffer, IXAudio2SourceVoice* pSourc
         }
     }
     else {
-        OutputDebugString(L"No source voice\n");
+        OutputDebugStringA("No source voice\n");
         return(1);
     }
 }
@@ -381,7 +381,7 @@ void ScreenCapture(openGL OpenGL, int Width, int Height) {
     struct tm tm;
     localtime_s(&tm, &t);
     char Filename[100];
-    sprintf_s(Filename, "../../Captures/Screenshot %d-%02d-%02d %02d.%02d.%02d.bmp",
+    sprintf_s(Filename, "../Captures/Screenshot %d-%02d-%02d %02d.%02d.%02d.bmp",
         tm.tm_year + 1900,
         tm.tm_mon + 1,
         tm.tm_mday,
@@ -1038,7 +1038,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+    DWORD WinError = GetLastError();
+
     LoadStringW(hInstance, IDC_WIN32PLATFORMLAYER, szWindowClass, MAX_LOADSTRING);
+    WinError = GetLastError();
+
     MyRegisterClass(hInstance);
 
     // Perform application initialization:
@@ -1094,7 +1098,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Assets
     WriteAssetFile();
-    LoadAssetsFromFile(Platform.ReadEntireFile, &GameMemory.Assets, "..\\..\\GameAssets\\game_assets");
+    LoadAssetsFromFile(Platform.ReadEntireFile, &GameMemory.Assets, "..\\GameAssets\\game_assets");
 
     // OpenGl
     OpenGL = InitOpenGL(Window, &GameMemory.Assets);
@@ -1416,7 +1420,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 }
 
 
-
 //
 //  FUNCTION: MyRegisterClass()
 //
@@ -1433,7 +1436,8 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
     wcex.hInstance = hInstance;
-    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_WIN32PLATFORMLAYER));
+    //wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_WIN32PLATFORMLAYER));
+    wcex.hIcon = 0;
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wcex.lpszMenuName = 0; // MAKEINTRESOURCEW(IDC_TESTPROJECT);
@@ -1459,6 +1463,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
 
     HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+
+    DWORD Error = GetLastError();
 
     if (!hWnd)
     {
