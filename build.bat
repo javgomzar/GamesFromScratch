@@ -6,9 +6,9 @@ D:\Program Files\Visual Studio Community 2020\VC\Tools\MSVC\14.42.34433\include;
 C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt;^
 C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\um;^
 C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\shared;^
-%project_dir%\Linking\include\GameAssets;^
-%project_dir%\Linking\include\GameLibrary;^
-%project_dir%\Linking\include\Win32PlatformLayer
+%project_dir%\GameAssets;^
+%project_dir%\GameLibrary;^
+%project_dir%\Win32PlatformLayer
 
 set LIB=^
 %project_dir%\Linking\lib;^
