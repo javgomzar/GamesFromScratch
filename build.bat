@@ -18,10 +18,19 @@ C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\ucrt\x64
 
 @REM Compile GameLibrary
 "D:\Program Files\Visual Studio Community 2020\VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\cl.exe"^
+ /DEBUG^
+ /Zi^
  /Fo%project_dir%\bin\GameLibrary.obj^
+ /Fd%project_dir%\bin\vc140.pdb^
  /D GAMELIBRARY_EXPORTS=1^
  /LD freetype.lib %project_dir%\GameLibrary\GameLibrary.cpp^
- /link /DLL /IMPLIB:"%project_dir%\bin\GameLibrary.lib" /OUT:"%project_dir%\bin\GameLibrary.dll"
+ /link^
+ /DEBUG^
+ /DLL^
+ /IMPLIB:"%project_dir%\bin\GameLibrary.lib"^
+ /PDB:"bin/GameLibraryTemp.pdb"^
+ /ILK:"bin/GameLibraryTemp.ilk"^
+ /OUT:"%project_dir%\bin\GameLibrary.dll"
 
 cd Win32PlatformLayer
 rc Win32PlatformLayer.rc

@@ -21,4 +21,4 @@ C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\ucrt\x64
  /Fo%project_dir%\bin\GameLibrary.obj^
  /D GAMELIBRARY_EXPORTS=1^
  /LD freetype.lib %project_dir%\GameLibrary\GameLibrary.cpp^
- /link /DLL /IMPLIB:"%project_dir%\bin\GameLibrary.lib" /OUT:"%project_dir%\bin\GameLibrary.dll"
+ /link /DLL /DEBUG /IMPLIB:"%project_dir%\bin\GameLibrary.lib" /PDB:"%project_dir%/bin/GameLibraryTemp.pdb" /OUT:"%project_dir%\bin\GameLibrary.dll"

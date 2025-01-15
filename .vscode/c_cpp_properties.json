@@ -4,9 +4,9 @@
             "name": "Win32",
             "includePath": [
                 "${workspaceFolder}/Linking/include",
-                "${workspaceFolder}/Linking/include/GameAssets",
-                "${workspaceFolder}/Linking/include/GameLibrary",
-                "${workspaceFolder}/Linking/include/Win32PlatformLayer"
+                "${workspaceFolder}/GameAssets",
+                "${workspaceFolder}/GameLibrary",
+                "${workspaceFolder}/Win32PlatformLayer"
             ],
             "defines": [
                 "_DEBUG",
@@ -21,7 +21,7 @@
             "intelliSenseMode": "windows-msvc-x64",
             "browse": {
                 "path": [
-                    "${workspaceFolder}" 
+                    "${workspaceFolder}/GameAssets" 
                 ]
             }
                 

@@ -216,7 +216,7 @@ void ResizeFramebuffer(int Width, int Height, uint32 Texture, GLenum InternalFor
 	ResizeTexture(Width, Height, Texture, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE);
 
 	if (Attachment) {
-		glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, AttachmentTexture);
+		glBindTexture(GL_TEXTURE_2D, AttachmentTexture);
 		GLenum AttachmentInternalFormat = GetInternalFormat(Attachment);
 		ResizeTexture(Width, Height, AttachmentTexture, AttachmentInternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE);
 	}
@@ -228,7 +228,7 @@ void ResizeFramebuffers(openGL OpenGL, int32 Width, int32 Height) {
 
 		if (Target.Multisampling) ResizeMultisamplebuffer(Width, Height, Target.Texture, Target.Samples, Target.Attachment, Target.AttachmentTexture);
 		else {
-			GLenum InternalFormat = Target.Label == Output ? GL_RGB8 : GL_RGBA32F;
+			GLenum InternalFormat = Target.Label == Output ? GL_RGB32F : GL_RGBA32F;
 			ResizeFramebuffer(Width, Height, Target.Texture, InternalFormat, Target.Attachment, Target.AttachmentTexture);
 		}
 	}
