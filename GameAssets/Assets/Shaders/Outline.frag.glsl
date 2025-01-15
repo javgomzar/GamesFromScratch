@@ -1,10 +1,13 @@
+#version 430
+precision highp float;
+
+layout(binding = 0) uniform sampler2D binded_texture;
+layout(binding = 1) uniform sampler2D attachment_texture;
+
 out vec4 frag_color;
 
 uniform vec4 u_color;
 uniform double u_width;
-
-layout(binding = 0) uniform sampler2D binded_texture;
-layout(binding = 1) uniform sampler2D attachment_texture;
 
 in vec2 v_texture;
 

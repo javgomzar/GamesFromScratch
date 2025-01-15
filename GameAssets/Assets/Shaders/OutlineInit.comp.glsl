@@ -1,20 +1,18 @@
+#version 430
+precision highp float;
 
-layout(binding = 0) uniform sampler2D binded_texture;
-layout(binding = 1) uniform sampler2D attachment_texture;
-
-out vec4 frag_color;
-
-in vec2 v_texture;
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(rgba32f, binding = 0) uniform image2D image;
 
 void main() {
-	vec4 texture_color = texture(binded_texture, v_texture);
+	vec4 imageColor = imageLoad(image, ivec2(gl_GlobalInvocationID.xy));
 
 	float depth = texture(attachment_texture, v_texture).r + 0.005;
 
-	if (texture_color.r > 0.99) {
-		frag_color = vec4(gl_FragCoord.xy, depth, 1.0);
+	if (imageColor.r > 0.99) {
+		frag_color = vec4(gl_GlobalInvocationID.xy, depth, 1.0);
 	}
-	if (texture_color.r < 0.01) {
+	if (imageColor.r < 0.01) {
 		frag_color = vec4(-1., 0., 0., 1.);
 	}
 	else {

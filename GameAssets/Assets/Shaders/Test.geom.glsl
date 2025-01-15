@@ -1,3 +1,8 @@
+#version 430
+precision highp float;
+
+uniform float u_time;
+
 layout (points) in;
 layout (triangle_strip, max_vertices = 6) out;
 

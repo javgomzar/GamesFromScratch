@@ -483,13 +483,13 @@ GLenum GetShaderType(game_shader_type Type) {
 	return 0;
 }
 
-void OpenGLCompileShader(game_shader* HeaderShader, game_shader* Shader) {
+void OpenGLCompileShader(game_shader* Shader) {
 	uint32 ShaderID = glCreateShader(GetShaderType(Shader->Type));
 
-	GLint ShaderCodeLengths[] = { (GLint)HeaderShader->Size, (GLint)Shader->Size };
-	GLchar* ShaderCode[] = { HeaderShader->Code, Shader->Code };
+	GLint ShaderCodeLengths[] = { (GLint)Shader->Size };
+	GLchar* ShaderCode[] = { Shader->Code };
 
-	glShaderSource(ShaderID, 2, ShaderCode, ShaderCodeLengths);
+	glShaderSource(ShaderID, 1, ShaderCode, ShaderCodeLengths);
 	glCompileShader(ShaderID);
 
 	GLint CompileStatus = GL_FALSE;
@@ -508,8 +508,7 @@ void OpenGLCompileShader(game_shader* HeaderShader, game_shader* Shader) {
 void OpenGLLoadShaderPipeline(game_assets* Assets, game_shader_pipeline* Pipeline) {
 	uint32 ProgramID = glCreateProgram();
 
-	game_shader* Header = GetShader(Assets, Pipeline->Pipeline[Header_Shader]);
-	for (int i = 1; i < game_shader_type_count; i++) {
+	for (int i = 0; i < game_shader_type_count; i++) {
 		if (Pipeline->IsProvided[i]) {
 			game_shader* Shader = GetShader(Assets, Pipeline->Pipeline[i]);
 			if (Shader->ShaderID == 0) Assert(false);
@@ -803,10 +802,9 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 		glGenBuffers(1, &Result.ReadPBO); // Use GL_PIXEL_UNPACK_BUFFER to get pixels from OpenGL
 
 		// Loading shaders
-		game_shader* HeaderShader = GetShader(Assets, Header_Shader_ID);
-		for (int i = 1; i < Assets->nShaders; i++) {
+		for (int i = 0; i < Assets->nShaders; i++) {
 			game_shader* Shader = &Assets->Shader[i];
-			OpenGLCompileShader(HeaderShader, Shader);
+			OpenGLCompileShader(Shader);
 		}
 
 		for (int i = 0; i < Assets->nShaderPipelines; i++) {
@@ -819,9 +817,9 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 	return Result;
 }
 
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-// | Renderer                                                                                                                                                         |
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+// +----------------------------------------------------------------------------------------------------------------------------------------+
+// | Renderer                                                                                                                               |
+// +----------------------------------------------------------------------------------------------------------------------------------------+
 
 void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 {

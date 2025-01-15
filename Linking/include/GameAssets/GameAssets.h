@@ -1000,9 +1000,6 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 enum game_shader_id {
-    // Header shaders
-    Header_Shader_ID,
-
     // Compute shaders
     //Outline_Init_Compute_Shader_ID,
     //Jumping_Flood_Compute_Shader_ID,
@@ -1051,7 +1048,6 @@ enum game_shader_pipeline_id {
 };
 
 enum game_shader_type {
-    Header_Shader,
     Compute_Shader,
     Vertex_Shader,
     Tessellation_Control_Shader,
@@ -1269,7 +1265,6 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ShaderID) 
         else if (strcmp(Extension, "geom.glsl") == 0) { Shader->Type = Geometry_Shader; }
         else if (strcmp(Extension, "tcs.glsl") == 0) { Shader->Type = Tessellation_Control_Shader; }
         else if (strcmp(Extension, "tes.glsl") == 0) { Shader->Type = Tessellation_Evaluation_Shader; }
-        else if (strcmp(Extension, "h.glsl") == 0) { Shader->Type = Header_Shader; }
         else Assert(false);
     }
     else Assert(false);
@@ -1289,7 +1284,6 @@ void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nSh
 
     game_shader_pipeline* ShaderPipeline = GetShaderPipeline(Assets, ID);
     ShaderPipeline->ID = ID;
-    ShaderPipeline->IsProvided[Header_Shader] = true; // Header is the same for all shaders
     
     va_list Shaders;
     va_start(Shaders, nShaders);
@@ -1427,9 +1421,6 @@ void WriteAssetFile() {
     Assert(Assets.nAssets == ASSET_COUNT);
 
 // Shaders
-    // Header
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Header.h.glsl", Header_Shader_ID);
-
     // Compute
     //PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\OutlineInit.comp.glsl", Outline_Init_Compute_Shader_ID);
     //PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\JumpFlood.comp.glsl", Jumping_Flood_Compute_Shader_ID);

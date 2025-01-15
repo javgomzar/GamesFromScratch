@@ -1,7 +1,7 @@
-out vec4 frag_color;
+precision highp float;
 
 uniform vec4 u_color;
 
 void main() {
-	frag_color = vec4(u_color);
+	gl_FragColor = vec4(u_color);
 }

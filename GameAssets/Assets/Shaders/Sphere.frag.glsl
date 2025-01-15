@@ -1,3 +1,6 @@
+#version 430
+precision highp float;
+
 uniform vec3 light_direction;
 uniform vec3 light_color;
 uniform float light_ambient;

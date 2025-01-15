@@ -1,3 +1,6 @@
+#version 430
+precision highp float;
+
 layout(binding = 0) uniform sampler2DMS color_sampler;
 layout(binding = 1) uniform sampler2DMS attachment_sampler;
 

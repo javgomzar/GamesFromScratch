@@ -1,3 +1,5 @@
+#version 430
+precision highp float;
 
 uniform sampler2D binded_texture;
 

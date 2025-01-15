@@ -1,8 +1,7 @@
+#version 430
+precision highp float;
 
 layout(binding = 0) uniform sampler2D binded_texture;
-layout(binding = 1) uniform sampler2D attachment_texture;
-
-const int maxSteps = 12;
 
 uniform int level;
 

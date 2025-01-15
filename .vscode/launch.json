@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/bin/Win32PlatformLayer.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/bin",
             "environment": [],
             "console": "newExternalWindow"
         },
