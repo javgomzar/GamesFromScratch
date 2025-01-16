@@ -318,7 +318,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushRenderTarget(Group, World);
 
     static bool Screenshot = false;
-    if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F10.WasDown) {
+    if (Input->Keyboard.F10.WasDown && !Input->Keyboard.F10.IsDown) {
         Screenshot = true;
     }
 
@@ -331,7 +331,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
         else {
             game_rect ScreenRect = { 0, 0, Group->Width, Group->Height };
-            PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS + 50.0);
+            PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
     PushRenderTarget(Group, Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
