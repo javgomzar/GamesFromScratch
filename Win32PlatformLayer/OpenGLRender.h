@@ -1,6 +1,9 @@
 #pragma once
-#include "..\GameLibrary\RenderGroup.h"
 
+#include "glew.h"
+#include "gl/GL.h"
+
+#include "..\GameLibrary\RenderGroup.h"
 
 /*
 	TODO:
@@ -355,7 +358,6 @@ void OpenGLTriangle(game_triangle Triangle, color Color, v3 Normal) {
 
 void OpenGLRectangle(game_rect Rect, color Color)
 {
-	glDepthFunc(GL_ALWAYS);
 	glColor4d(Color.R, Color.G, Color.B, Color.Alpha);
 	glBegin(GL_TRIANGLES);
 
@@ -371,7 +373,6 @@ void OpenGLRectangle(game_rect Rect, color Color)
 
 	glEnd();
 	glColor4d(1.0f, 1.0f, 1.0f, 1.0f);
-	glDepthFunc(GL_LESS);
 }
 
 // Render a textured rectangle in OpenGL given a rectangle, scaling the texture as needed to fit the rectangle.
@@ -887,7 +888,35 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 				SetCoordinates(Screen_Coordinates, Group->Camera, Width, Height);
 
-				OpenGLRectangle(Entry.Rect, Entry.Color);
+				if (Entry.Outline) {
+					// Rect outline
+					v3 Points[4] = {
+						V3(Entry.Rect.Left                   , Entry.Rect.Top                    , 0),
+						V3(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top                    , 0),
+						V3(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top + Entry.Rect.Height, 0),
+						V3(Entry.Rect.Left                   , Entry.Rect.Top + Entry.Rect.Height, 0)
+					};
+
+					for (int i = 0; i < 4; i++) {
+						v3 Start = Points[i];
+						v3 Finish = Points[(i + 1) % 4];
+						OpenGLRenderLine(Start, Finish, Entry.Color, 2.0);
+					}
+
+				}
+				else if (Entry.Texture) {
+					// Bitmap
+					OpenGLTexturedRect(
+						Entry.Rect,
+						Entry.Color,
+						Entry.MinTexX, Entry.MaxTexX,
+						Entry.MinTexY, Entry.MaxTexY
+					);
+				}
+				else {
+					// Solid color rect
+					OpenGLRectangle(Entry.Rect, Entry.Color);
+				}
 
 				SetIdentityProjection();
 			} break;
@@ -942,18 +971,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 						OpenGLRenderLine(Origin, Destination, Entry.Color, Entry.Thickness);
 					}
 				}
-
-				SetIdentityProjection();
-			} break;
-
-			case group_type_render_entry_textured_rect:
-			{
-				render_entry_textured_rect Entry = *(render_entry_textured_rect*)Header;
-
-				SetCoordinates(Screen_Coordinates, Group->Camera, Width, Height);
-
-				OpenGLBindTexture(Entry.Texture);
-				OpenGLTexturedRect(Entry.Rect, Entry.Color, Entry.MinTexX, Entry.MaxTexX, Entry.MinTexY, Entry.MaxTexY);
 
 				SetIdentityProjection();
 			} break;

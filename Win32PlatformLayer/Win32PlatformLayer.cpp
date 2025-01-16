@@ -8,9 +8,6 @@
 #include "XInput.h"
 #include "xaudio2.h"
 
-#include "glew.h"
-#include "gl/GL.h"
-
 #pragma comment (lib, "opengl32.lib")
 
 #include "OpenGLRender.h"
