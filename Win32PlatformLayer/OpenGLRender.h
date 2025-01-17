@@ -906,6 +906,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				}
 				else if (Entry.Texture) {
 					// Bitmap
+					OpenGLBindTexture(Entry.Texture);
 					OpenGLTexturedRect(
 						Entry.Rect,
 						Entry.Color,
