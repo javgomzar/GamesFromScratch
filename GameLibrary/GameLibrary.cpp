@@ -225,7 +225,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
 // Controls
     // Put here your input code
-        
+
     GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
     // Debug mouse position

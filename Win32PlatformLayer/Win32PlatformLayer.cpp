@@ -41,8 +41,8 @@ struct WNDDIMENSION {
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
-WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+char szTitle[MAX_LOADSTRING];                  // The title bar text
+char szWindowClass[MAX_LOADSTRING];            // the main window class name
 
 
 bool Running;
@@ -1034,10 +1034,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     PerfCountFrequency = PerfCountFrequencyResult.QuadPart;
 
     // Initialize global strings
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+    LoadStringA(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     DWORD WinError = GetLastError();
 
-    LoadStringW(hInstance, IDC_WIN32PLATFORMLAYER, szWindowClass, MAX_LOADSTRING);
+    LoadStringA(hInstance, IDC_WIN32PLATFORMLAYER, szWindowClass, MAX_LOADSTRING);
     WinError = GetLastError();
 
     MyRegisterClass(hInstance);
@@ -1424,24 +1424,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 //
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
-    WNDCLASSEXW wcex;
+    WNDCLASSEXA wcex;
 
     wcex.cbSize = sizeof(WNDCLASSEX);
-
-    wcex.style = 0;
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
     wcex.lpfnWndProc = WndProc;
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
     wcex.hInstance = hInstance;
-    //wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_WIN32PLATFORMLAYER));
-    wcex.hIcon = 0;
+    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_WIN32PLATFORMLAYER));
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wcex.lpszMenuName = 0; // MAKEINTRESOURCEW(IDC_TESTPROJECT);
     wcex.lpszClassName = szWindowClass;
     wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
-    return RegisterClassExW(&wcex);
+    return RegisterClassExA(&wcex);
 }
 
 //
@@ -1458,8 +1456,9 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
 {
     hInst = hInstance; // Store instance handle in our global variable
 
-    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+    // This code starts the window centered
+    HWND hWnd = CreateWindowA(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, 0, 0,
+        100, 100, nullptr, nullptr, hInstance, nullptr);
 
     DWORD Error = GetLastError();
 
