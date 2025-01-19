@@ -1,10 +1,251 @@
 #pragma once
 #include "GameAssets.h"
 
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Color                                                                                                                                        |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct color {
+    double Alpha;
+    double R;
+    double G;
+    double B;
+};
+
+color Color(double R, double G, double B, double Alpha = 1.0) {
+    return { Alpha, R, G, B };
+}
+
+color Color(color Color, double Alpha) {
+    return { Alpha, Color.R, Color.G, Color.B };
+}
+
+color operator*(double Luminosity, color Color) {
+    return {
+        Color.Alpha,
+        min(Luminosity * Color.R, 1.0),
+        min(Luminosity * Color.G, 1.0),
+        min(Luminosity * Color.B, 1.0),
+    };
+}
+
+static int Attenuation = 100;
+static color Black = { 1.0, 0.0, 0.0, 0.0 };
+static color White = { 1.0, 1.0, 1.0, 1.0 };
+static color Gray = { 1.0, 0.5, 0.5, 0.5 };
+static color DarkGray = { 1.0, 0.1, 0.1, 0.1 };
+static color Red = { 1.0, 1.0, 0.0, 0.0 };
+static color Green = { 1.0, 0.0, 1.0, 0.0 };
+static color Blue = { 1.0, 0.0, 0.0, 1.0 };
+static color Magenta = { 1.0, 1.0, 0.0, 1.0 };
+static color Yellow = { 1.0, 1.0, 1.0, 0.0 };
+static color Cyan = { 1.0, 0.0, 1.0, 1.0 };
+static color Orange = { 1.0, 1.0, 0.63, 0.0 };
+static color BackgroundBlue = { 1.0, 0.4, 0.4, 0.8 };
+
+uint32 GetColorBytes(color Color) {
+    uint8 Alpha = Color.Alpha * 255.0;
+    uint8 R = Color.R * 255.0;
+    uint8 G = Color.G * 255.0;
+    uint8 B = Color.B * 255.0;
+    return (Alpha << 24) | (R << 16) | (G << 8) | B;
+}
+
+//color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) {
+//    uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
+//    
+//    uint32 RedShift;
+//    uint32 GreenShift;
+//    uint32 BlueShift;
+//    uint32 AlphaShift;
+//    _BitScanForward((DWORD*)&RedShift, RedMask);
+//    _BitScanForward((DWORD*)&GreenShift, GreenMask);
+//    _BitScanForward((DWORD*)&BlueShift, BlueMask);
+//    _BitScanForward((DWORD*)&AlphaShift, AlphaMask);
+//
+//    color Color;
+//    Color.R = (double)((RedMask & Bytes) >> RedShift) / 255.0;
+//    Color.G = (double)((GreenMask & Bytes) >> GreenShift) / 255.0;
+//    Color.B = (double)((BlueMask & Bytes) >> BlueShift) / 255.0;
+//    Color.Alpha = (double)((AlphaMask & Bytes) >> AlphaShift) / 255.0;
+//    return Color;
+//}
+
+color operator+(color Color1, color Color2) {
+    return Color(
+        Color1.R + Color2.R,
+        Color1.G + Color2.G,
+        Color1.B + Color2.B
+    );
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Camera                                                                                                                                       |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct camera {
+    basis Basis;
+    vector_plane Plane;
+    v3 Position;
+    v3 Velocity;
+    double Distance;
+    double Pitch;
+    double Angle;
+};
+
+basis GetCameraBasis(double Angle, double Pitch) {
+    v3 X = V3(
+        cos(Angle * Degrees),
+        0.0,
+        sin(Angle * Degrees)
+    );
+    v3 Y = V3(
+        -sin(Angle * Degrees) * sin(Pitch * Degrees),
+        cos(Pitch * Degrees),
+        cos(Angle * Degrees) * sin(Pitch * Degrees)
+    );
+    v3 Z = V3(
+        sin(Angle * Degrees) * cos(Pitch * Degrees),
+        sin(Pitch * Degrees),
+        -cos(Angle * Degrees) * cos(Pitch * Degrees)
+    );
+
+    return { X, Y, Z };
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Colliders                                                                                                                                    |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct rect_collider {
+    v3 Center;
+    double Width;
+    double Height;
+};
+
+struct cube_collider {
+    v3 Center;
+    scale Size;
+};
+
+struct sphere_collider {
+    v3 Center;
+    double Radius;
+};
+
+bool Collide(rect_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < (double)Collider.Width / 2.0 &&
+        fabs(Position.Y - Collider.Center.Y) < (double)Collider.Height / 2.0;
+}
+
+bool Collide(cube_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < Collider.Size.X / 2.0 &&
+           fabs(Position.Y - Collider.Center.Y) < Collider.Size.Y / 2.0 &&
+           fabs(Position.Z - Collider.Center.Z) < Collider.Size.Z / 2.0;
+}
+
+bool Collide(sphere_collider Collider, v3 Position) {
+    return module(Position - Collider.Center) < Collider.Radius;
+}
+
 /*
-    TODO:
-        - Merge rect and textured rect types
+Fast Ray-Box Intersection
+by Andrew Woo
+from "Graphics Gems", Academic Press, 1990
 */
+bool HitBoundingBox(double minB[3], double maxB[3], double origin[3], double dir[3], double coord[3])
+/* double minB[NUMDIM], maxB[NUMDIM];		box */
+/* double origin[NUMDIM], dir[NUMDIM];		ray */
+/* double coord[NUMDIM];			hit point   */
+{
+    bool inside = true;
+    char quadrant[3];
+    register int i;
+    int whichPlane;
+    double maxT[3];
+    double candidatePlane[3];
+    char LEFT = 1;
+    char RIGHT = 0;
+    char MIDDLE = 2;
+
+    /* Find candidate planes; this loop can be avoided if
+    rays cast all from the eye(assume perpsective view) */
+    for (i = 0; i < 3; i++)
+        if (origin[i] < minB[i]) {
+            quadrant[i] = LEFT;
+            candidatePlane[i] = minB[i];
+            inside = false;
+        }
+        else if (origin[i] > maxB[i]) {
+            quadrant[i] = RIGHT;
+            candidatePlane[i] = maxB[i];
+            inside = false;
+        }
+        else {
+            quadrant[i] = MIDDLE;
+        }
+
+    /* Ray origin inside bounding box */
+    if (inside) {
+        coord = origin;
+        return true;
+    }
+
+
+    /* Calculate T distances to candidate planes */
+    for (i = 0; i < 3; i++)
+        if (quadrant[i] != MIDDLE && dir[i] != 0.)
+            maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
+        else
+            maxT[i] = -1.;
+
+    /* Get largest of the maxT's for final choice of intersection */
+    whichPlane = 0;
+    for (i = 1; i < 3; i++)
+        if (maxT[whichPlane] < maxT[i])
+            whichPlane = i;
+
+    /* Check final candidate actually inside box */
+    if (maxT[whichPlane] < 0.) return false;
+    for (i = 0; i < 3; i++)
+        if (whichPlane != i) {
+            coord[i] = origin[i] + maxT[whichPlane] * dir[i];
+            if (coord[i] < minB[i] || coord[i] > maxB[i])
+                return false;
+        }
+        else {
+            coord[i] = candidatePlane[i];
+        }
+    return true;				/* ray hits box */
+}
+
+bool Raycast(v3 Origin, v3 Direction, cube_collider Collider) {
+    double minB[3] = { 0 };
+    minB[0] = Collider.Center.X - Collider.Size.X / 2.0;
+    minB[1] = Collider.Center.Y - Collider.Size.Y / 2.0;
+    minB[2] = Collider.Center.Z - Collider.Size.Z / 2.0;
+    double maxB[3] = { 0 };
+    maxB[0] = Collider.Center.X + Collider.Size.X / 2.0;
+    maxB[1] = Collider.Center.Y + Collider.Size.Y / 2.0;
+    maxB[2] = Collider.Center.Z + Collider.Size.Z / 2.0;
+    double origin[3] = { Origin.X, Origin.Y, Origin.Z };
+    double dir[3] = { Direction.X, Direction.Y, Direction.Z };
+    double coord[3] = { 0,0,0 };
+
+    return HitBoundingBox(minB, maxB, origin, dir, coord);
+}
+
+bool Raycast(camera* Camera, double Width, double Height, v2 Mouse, cube_collider Collider) {
+    v3 ScreenOffset =
+        (2.0 * Mouse.X / Width - 1.0) * Camera->Basis.X +
+        (Height - 2.0 * Mouse.Y) / Width * Camera->Basis.Y - Camera->Basis.Z;
+    return Raycast(Camera->Position + Camera->Distance * Camera->Basis.Z, ScreenOffset, Collider);
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Render entries                                                                                                                               |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int MAX_RENDER_ENTRIES = 10000;
 
@@ -670,6 +911,32 @@ void PushDebugGrid(render_group* Group, double Alpha) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | UI                                                                                                                                                               |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct slider {
+    double Value;
+    v3 Position;
+    color Color;
+    rect_collider Collider;
+};
+
+struct UI {
+    slider Slider1;
+    slider Slider2;
+    slider Slider3;
+    slider Slider4;
+    slider Slider5;
+    slider Slider6;
+};
+
+void InitSlider(slider* Slider, double Value, color Color) {
+    *Slider = { 0 };
+    
+    if (Value > 1.0 || Value < 0.0) Assert(false);
+    else Slider->Value = Value;
+
+    Slider->Color = Color;
+}
+
 void PushSlider(render_group* Group, slider Slider, double Order = SORT_ORDER_DEBUG_OVERLAY) {
     double CircleCenter = Slider.Position.Y + 60.0 * (1.0 - Slider.Value);
     double Radius = 5.0;
