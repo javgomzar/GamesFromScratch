@@ -250,7 +250,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(4.0, 0.0, 5.0));
     //PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
 
-    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, false);
+    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, true);
     PushMesh(Group, Mesh_Sphere_ID, Transform2, LightSource, Sphere_Shader_Pipeline_ID, Bitmap_Empty_ID, Red, SORT_ORDER_MESHES, false);
 
     //PushCircle(Group, V3(0.0, 0.0, 0.0), V3(1.0, 1.0, 0.0), 1.0, Magenta, SORT_ORDER_MESHES);
@@ -313,7 +313,23 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Screen_Coordinates, Red);
         PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Screen_Coordinates, Green);
         PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Screen_Coordinates, Blue);
+
+        // Debug Framebuffer
+        PushDebugFramebuffer(Group, Postprocessing_Outline);
+        int RectX = 0.75 * Group->Width;
+        int RectY = 0.75 * Group->Height;
+        int Width = 0.25 * Group->Width;
+        int Height = 0.25 * Group->Height;
+        game_rect DebugFramebufferRect = { 
+            RectX, 
+            RectY, 
+            Width, 
+            Height, 
+        };
+        PushRectOutline(Group, DebugFramebufferRect, White, SORT_ORDER_PUSH_RENDER_TARGETS - 0.11, Output);
     }
+
+    PushShaderPass(Group, Test_Compute_Shader_ID);
 
     PushRenderTarget(Group, World);
 

@@ -7,6 +7,15 @@
             "command": "bat\\build.bat",
             "group": "build",
             "presentation": {
+                "close": false
+            }
+        },
+        {
+            "label": "hot_reload",
+            "type": "shell",
+            "command": "bat\\hot.bat",
+            "group": "build",
+            "presentation": {
                 "close": true
             }
         }

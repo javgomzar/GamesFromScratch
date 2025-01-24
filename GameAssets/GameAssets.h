@@ -999,12 +999,17 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
 // | Shaders                                                                                                                                                          |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-enum game_shader_id {
-    // Compute shaders
-    //Outline_Init_Compute_Shader_ID,
-    //Jumping_Flood_Compute_Shader_ID,
-    Test_Compute_Shader_ID,
+enum game_shader_type {
+    Vertex_Shader,
+    Tessellation_Control_Shader,
+    Tessellation_Evaluation_Shader,
+    Geometry_Shader,
+    Fragment_Shader,
 
+    game_shader_type_count
+};
+
+enum game_shader_id {
     // Vertex shaders
     Passthrough_Vertex_Shader_ID,
     Perspective_Vertex_Shader_ID,
@@ -1031,33 +1036,6 @@ enum game_shader_id {
     game_shader_id_count
 };
 
-enum game_shader_pipeline_id {
-    Antialiasing_Shader_Pipeline_ID,
-    Framebuffer_Shader_Pipeline_ID,
-    Single_Color_Shader_Pipeline_ID,
-    Mesh_Shader_Pipeline_ID,
-    Sphere_Shader_Pipeline_ID,
-    Test_Shader_Pipeline_ID,
-    //Shader_Pipeline_Outline_Init_ID,
-    //Shader_Pipeline_JFA_ID,
-    //Shader_Pipeline_Outline_ID,
-    //Shader_Pipeline_Kernel_ID,
-    //Shader_Pipeline_Tessellation_ID,
-
-    game_shader_pipeline_id_count
-};
-
-enum game_shader_type {
-    Compute_Shader,
-    Vertex_Shader,
-    Tessellation_Control_Shader,
-    Tessellation_Evaluation_Shader,
-    Geometry_Shader,
-    Fragment_Shader,
-
-    game_shader_type_count
-};
-
 struct game_shader {
     game_shader_id ID;
     game_shader_type Type;
@@ -1066,12 +1044,44 @@ struct game_shader {
     char* Code;
 };
 
+enum game_shader_pipeline_id {
+    Antialiasing_Shader_Pipeline_ID,
+    Framebuffer_Shader_Pipeline_ID,
+    Single_Color_Shader_Pipeline_ID,
+    Mesh_Shader_Pipeline_ID,
+    Sphere_Shader_Pipeline_ID,
+    //Shader_Pipeline_Outline_ID,
+    //Shader_Pipeline_Kernel_ID,
+    //Shader_Pipeline_Tessellation_ID,
+
+    game_shader_pipeline_id_count
+};
+
 struct game_shader_pipeline {
     game_shader_pipeline_id ID;
     uint32 ProgramID;
     game_shader_id Pipeline[game_shader_type_count];
     bool IsProvided[game_shader_type_count];
 };
+
+enum game_compute_shader_id {
+    Outline_Init_Compute_Shader_ID,
+    Jump_Flood_Compute_Shader_ID,
+    Test_Compute_Shader_ID,
+
+    game_compute_shader_id_count
+};
+
+struct game_compute_shader {
+    game_compute_shader_id ID;
+    uint32 ShaderID;
+    uint32 ProgramID;
+    uint32 Image;
+    uint32 Size;
+    char* Code;
+};
+
+
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Game assets                                                                                                                                                      |
@@ -1101,18 +1111,21 @@ struct game_assets {
     game_shader Shader[game_shader_id_count];
     int nShaderPipelines;
     game_shader_pipeline ShaderPipeline[game_shader_pipeline_id_count];
+    int nComputeShaders;
+    game_compute_shader ComputeShader[game_compute_shader_id_count];
     uint64 ShadersSize;
+    uint64 ComputeShadersSize;
     uint64 TotalSize;
     uint8* Memory;
 };
 
 
-game_text* GetAsset(game_assets* Assets, game_text_id ID) { return &Assets->Text[ID]; }
-game_sound* GetAsset(game_assets* Assets, game_sound_id ID) { return &Assets->Sound[ID]; }
-game_bitmap* GetAsset(game_assets* Assets, game_bitmap_id ID) { return &Assets->Bitmap[ID]; }
+game_text*      GetAsset(game_assets* Assets, game_text_id ID)      { return &Assets->Text[ID]; }
+game_sound*     GetAsset(game_assets* Assets, game_sound_id ID)     { return &Assets->Sound[ID]; }
+game_bitmap*    GetAsset(game_assets* Assets, game_bitmap_id ID)    { return &Assets->Bitmap[ID]; }
 game_heightmap* GetAsset(game_assets* Assets, game_heightmap_id ID) { return &Assets->Heightmap[ID]; }
-game_font* GetAsset(game_assets* Assets, game_font_id ID) { return &Assets->Font[ID]; }
-game_mesh* GetAsset(game_assets* Assets, game_mesh_id ID) { return &Assets->Mesh[ID]; }
+game_font*      GetAsset(game_assets* Assets, game_font_id ID)      { return &Assets->Font[ID]; }
+game_mesh*      GetAsset(game_assets* Assets, game_mesh_id ID)      { return &Assets->Mesh[ID]; }
 //game_video* GetAsset(game_assets* Assets, game_video_id ID) { return &Assets->Videos[ID]; }
 
 void PushAsset(game_assets* Assets, const char* Path, game_text_id ID) {
@@ -1241,12 +1254,13 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
     Asset->File = { 0 };
 }
 
-game_shader* GetShader(game_assets* Assets, game_shader_id ID) { return &Assets->Shader[ID]; }
+game_shader*          GetShader        (game_assets* Assets, game_shader_id ID)          { return &Assets->Shader[ID]; }
 game_shader_pipeline* GetShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID) { return &Assets->ShaderPipeline[ID]; }
+game_compute_shader*  GetComputeShader (game_assets* Assets, game_compute_shader_id ID)  { return &Assets->ComputeShader[ID]; }
 
-void PushShader(game_assets* Assets, const char* Path, game_shader_id ShaderID) {
-    game_shader* Shader = GetShader(Assets, ShaderID);
-    Shader->ID = ShaderID;
+void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
+    game_shader* Shader = GetShader(Assets, ID);
+    Shader->ID = ID;
 
     WIN32_FIND_DATAA Data;
     HANDLE hFind = FindFirstFileA(Path, &Data);
@@ -1259,12 +1273,11 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ShaderID) 
     char* _ = strtok_s(Buffer, ".", &Extension);
 
     if (Extension != 0) {
-        if (strcmp(Extension, "frag.glsl") == 0) { Shader->Type = Fragment_Shader; }
+        if      (strcmp(Extension, "frag.glsl") == 0) { Shader->Type = Fragment_Shader; }
         else if (strcmp(Extension, "vert.glsl") == 0) { Shader->Type = Vertex_Shader; }
-        else if (strcmp(Extension, "comp.glsl") == 0) { Shader->Type = Compute_Shader; }
         else if (strcmp(Extension, "geom.glsl") == 0) { Shader->Type = Geometry_Shader; }
-        else if (strcmp(Extension, "tcs.glsl") == 0) { Shader->Type = Tessellation_Control_Shader; }
-        else if (strcmp(Extension, "tes.glsl") == 0) { Shader->Type = Tessellation_Evaluation_Shader; }
+        else if (strcmp(Extension, "tcs.glsl")  == 0) { Shader->Type = Tessellation_Control_Shader; }
+        else if (strcmp(Extension, "tes.glsl")  == 0) { Shader->Type = Tessellation_Evaluation_Shader; }
         else Assert(false);
     }
     else Assert(false);
@@ -1293,8 +1306,7 @@ void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nSh
 
         game_shader* Shader = &Assets->Shader[ShaderID];
 
-        if (ShaderPipeline->IsProvided[Compute_Shader]) throw("Compute shaders can't have other shaders attached.");
-        else if (ShaderPipeline->IsProvided[Shader->Type]) throw("Shader of this type has alredy been attached to pipeline.");
+        if (ShaderPipeline->IsProvided[Shader->Type]) throw("Shader of this type has alredy been attached to pipeline.");
         else {
             ShaderPipeline->IsProvided[Shader->Type] = true;
             ShaderPipeline->Pipeline[Shader->Type] = Shader->ID;
@@ -1304,7 +1316,42 @@ void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nSh
     Assets->nShaderPipelines++;
 }
 
+void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID) {
+    game_compute_shader* Shader = GetComputeShader(Assets, ID);
+    Shader->ID = ID;
+
+    WIN32_FIND_DATAA Data;
+    HANDLE hFind = FindFirstFileA(Path, &Data);
+
+    if (hFind == INVALID_HANDLE_VALUE) Assert(false);
+
+    char* Extension = 0;
+    char* Buffer = new char[strlen(Data.cFileName) + 1];
+    strcpy_s(Buffer, strlen(Data.cFileName) + 1, Data.cFileName);
+    char* _ = strtok_s(Buffer, ".", &Extension);
+
+    if (strcmp(Extension, "comp.glsl") != 0) {
+        throw("Extension of compute shader file should be 'comp.glsl'.");
+    }
+    else {
+        read_file_result ShaderFile = PlatformReadEntireFile(Path);
+        Shader->Size = ShaderFile.ContentSize;
+        Shader->Code = (char*)ShaderFile.Content;
+
+        // Extra char with value 0 to separate shaders
+        Assets->TotalSize += Shader->Size + 1;
+        Assets->ComputeShadersSize += Shader->Size + 1;
+        Assets->nComputeShaders++;
+    }
+}
+
 void LoadShader(memory_arena* Arena, game_shader* Shader) {
+    char* Destination = (char*)PushSize(Arena, Shader->Size + 1);
+    memcpy(Destination, Shader->Code, Shader->Size);
+    PlatformFreeFileMemory(Shader->Code);
+}
+
+void LoadComputeShader(memory_arena* Arena, game_compute_shader* Shader) {
     char* Destination = (char*)PushSize(Arena, Shader->Size + 1);
     memcpy(Destination, Shader->Code, Shader->Size);
     PlatformFreeFileMemory(Shader->Code);
@@ -1384,6 +1431,13 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
         Pointer += Shader->Size + 1;
     }
 
+    for (int i = 0; i < Assets->nComputeShaders; i++) {
+        game_compute_shader* Shader = &Assets->ComputeShader[i];
+
+        Shader->Code = Pointer;
+        Pointer += Shader->Size + 1;
+    }
+
     Log(Info, "Shaders loaded.\n");
 }
 
@@ -1421,11 +1475,6 @@ void WriteAssetFile() {
     Assert(Assets.nAssets == ASSET_COUNT);
 
 // Shaders
-    // Compute
-    //PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\OutlineInit.comp.glsl", Outline_Init_Compute_Shader_ID);
-    //PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\JumpFlood.comp.glsl", Jumping_Flood_Compute_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Test.comp.glsl", Test_Compute_Shader_ID);
-
     // Vertex
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Passthrough.vert.glsl", Passthrough_Vertex_Shader_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Perspective.vert.glsl", Perspective_Vertex_Shader_ID);
@@ -1451,12 +1500,16 @@ void WriteAssetFile() {
     PushShaderPipeline(&Assets, Mesh_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Mesh_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Sphere_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Sphere_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Single_Color_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Single_Color_Fragment_Shader_ID);
-    PushShaderPipeline(&Assets, Test_Shader_Pipeline_ID, 1, Test_Compute_Shader_ID);
     //PushShaderPipeline(&Assets, Shader_Pipeline_Outline_Init_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Outline_Init_ID);
     //PushShaderPipeline(&Assets, Shader_Pipeline_JFA_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_JFA_ID);
     //PushShaderPipeline(&Assets, Shader_Pipeline_Outline_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Outline_ID);
     //PushShaderPipeline(&Assets, Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
     //PushShaderPipeline(&Assets, Shader_Pipeline_Tessellation_ID, Vertex_Shader_Tessellation_ID, Fragment_Shader_Single_Color_ID, Geometry_Shader_Tessellation_ID);
+    
+    // Compute
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\OutlineInit.comp.glsl", Outline_Init_Compute_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\JumpFlood.comp.glsl", Jump_Flood_Compute_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Test.comp.glsl", Test_Compute_Shader_ID);
 
     Assert(Assets.nShaderPipelines == game_shader_pipeline_id_count);
 
@@ -1475,6 +1528,11 @@ void WriteAssetFile() {
     // Shaders
     for (int i = 0; i < game_shader_id_count; i++) {
         LoadShader(&AssetArena, &Assets.Shader[i]);
+    }
+
+    // Compute shaders
+    for (int i = 0; i < game_compute_shader_id_count; i++) {
+        LoadComputeShader(&AssetArena, &Assets.ComputeShader[i]);
     }
 
     game_assets* OutputAssets = (game_assets*)FileMemory;

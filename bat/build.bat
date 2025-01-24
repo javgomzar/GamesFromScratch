@@ -28,8 +28,8 @@ C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\ucrt\x64
  /DEBUG^
  /DLL^
  /IMPLIB:"%project_dir%\bin\GameLibrary.lib"^
- /PDB:"bin/GameLibraryTemp.pdb"^
- /ILK:"bin/GameLibraryTemp.ilk"^
+ /PDB:"bin/GameLibrary.pdb"^
+ /ILK:"bin/GameLibrary.ilk"^
  /OUT:"%project_dir%\bin\GameLibrary.dll"
 
 cd Win32PlatformLayer
@@ -57,3 +57,4 @@ cd ..
  glew32.lib^
  %project_dir%\Win32PlatformLayer\Win32PlatformLayer.cpp^
  /link Win32PlatformLayer/Win32PlatformLayer.res /MACHINE:X64
+ 

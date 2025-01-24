@@ -28,6 +28,7 @@ struct openGL {
 	uint32 TargetCount;
 	render_target Targets[render_group_target_count];
 	uint32 QuadVAO;
+	uint32 DebugVAO;
 	uint32 VideoPBO;
 	uint32 ReadPBO;
 	bool Initialized;
@@ -468,12 +469,71 @@ void OpenGLRenderText(
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+// | Vertices                                                                                                                                                         |
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+/*
+	Creates a Vertex Array Object (VAO) and a Vertex Buffer Object (VBO) to attach it to. 
+	`Usage` should be one of 
+		- `GL_STATIC_DRAW` for static vertices.
+		- `GL_DYNAMIC_DRAW` for changeable vertices.
+		- `GL_STREAM_DRAW` for static vertices that are only used a few times.
+*/
+uint32 OpenGLCreateVertexBuffer(
+	double* Vertices, 
+	GLenum Usage, 
+	int nVertices, 
+	int VertexSize,
+	int nAttributes
+	...
+) {
+	va_list Args;
+    va_start(Args, nAttributes);
+
+	std::vector<int> AttributeSizes = {};
+	int TotalSize = 0;
+	for (int i = 0; i < nAttributes; i++) {
+		int AttributeSize = va_arg(Args, int);
+		AttributeSizes.push_back(AttributeSize);
+		TotalSize += AttributeSize;
+	}
+
+	if (AttributeSizes.size() != nAttributes) {
+		throw("nAttributes should be equal to number of attributes submitted.");
+	}
+
+	uint32 VBO = 0;
+	uint32 VAO = 0;
+	glGenBuffers(1, &VBO);
+	glGenVertexArrays(1, &VAO);
+
+	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, nVertices * VertexSize * sizeof(double), Vertices, Usage);
+
+	uint64 Offset = 0;
+	for (int i = 0; i < nAttributes; i++) {
+		int Size = AttributeSizes[i];
+		glVertexAttribPointer(i, Size, GL_DOUBLE, GL_FALSE, VertexSize * sizeof(double), (void*)Offset);
+		Offset += Size * sizeof(double);
+	}
+
+	for (int i = 0; i < nAttributes; i++) {
+		glEnableVertexAttribArray(i);
+	}
+
+	glBindVertexArray(0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	return VAO;
+}
+
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Shaders                                                                                                                                                          |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 GLenum GetShaderType(game_shader_type Type) {
 	switch (Type) {
-		case Compute_Shader: { return GL_COMPUTE_SHADER; } break;
 		case Vertex_Shader: { return GL_VERTEX_SHADER; } break;
 		case Geometry_Shader: { return GL_GEOMETRY_SHADER; } break;
 		case Fragment_Shader: { return GL_FRAGMENT_SHADER; } break;
@@ -484,11 +544,11 @@ GLenum GetShaderType(game_shader_type Type) {
 	return 0;
 }
 
-void OpenGLCompileShader(game_shader* Shader) {
-	uint32 ShaderID = glCreateShader(GetShaderType(Shader->Type));
+uint32 OpenGLCompileShader(GLenum ShaderType, char* Code, GLint Size) {
+	uint32 ShaderID = glCreateShader(ShaderType);
 
-	GLint ShaderCodeLengths[] = { (GLint)Shader->Size };
-	GLchar* ShaderCode[] = { Shader->Code };
+	GLint ShaderCodeLengths[] = { Size };
+	GLchar* ShaderCode[] = { Code };
 
 	glShaderSource(ShaderID, 1, ShaderCode, ShaderCodeLengths);
 	glCompileShader(ShaderID);
@@ -503,10 +563,10 @@ void OpenGLCompileShader(game_shader* Shader) {
 		Assert(false);
 	}
 
-	Shader->ShaderID = ShaderID;
+	return ShaderID;
 }
 
-void OpenGLLoadShaderPipeline(game_assets* Assets, game_shader_pipeline* Pipeline) {
+void OpenGLLinkProgram(game_assets* Assets, game_shader_pipeline* Pipeline) {
 	uint32 ProgramID = glCreateProgram();
 
 	for (int i = 0; i < game_shader_type_count; i++) {
@@ -534,6 +594,32 @@ void OpenGLLoadShaderPipeline(game_assets* Assets, game_shader_pipeline* Pipelin
 		glGetProgramInfoLog(ProgramID, 1024, &Length, Errors);
 		Assert(false);
 	}
+}
+
+uint32 OpenGLLinkProgram(game_compute_shader* ComputeShader) {
+	uint32 ProgramID = glCreateProgram();
+
+	glAttachShader(ProgramID, ComputeShader->ShaderID);
+
+	glLinkProgram(ProgramID);
+	GLint LinkStatus = 0;
+	glGetProgramiv(ProgramID, GL_LINK_STATUS, &LinkStatus);
+
+	glValidateProgram(ProgramID);
+	GLint Validation = 0;
+	glGetProgramiv(ProgramID, GL_VALIDATE_STATUS, &Validation);
+
+	if (Validation != GL_FALSE && LinkStatus != GL_FALSE) {
+		ComputeShader->ProgramID = ProgramID;
+	}
+	else {
+		char Errors[1024];
+		GLsizei Length;
+		glGetProgramInfoLog(ProgramID, 1024, &Length, Errors);
+		Assert(false);
+	}
+
+	return ProgramID;
 }
 
 // Shader uniforms
@@ -775,42 +861,39 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 			-1.0,  1.0, 0.0, 0.0, 1.0,
 		};
 
-		uint32 QuadVBO = 0;
-		uint32 QuadVAO = 0;
-		glGenBuffers(1, &QuadVBO);
-		glGenVertexArrays(1, &QuadVAO);
+		double DebugVertices[30] = {
+			 0.5, -1.0, 0.0, 0.0, 0.0,
+			 1.0, -1.0, 0.0, 1.0, 0.0,
+			 1.0, -0.5, 0.0, 1.0, 1.0,
+			 0.5, -1.0, 0.0, 0.0, 0.0,
+			 1.0, -0.5, 0.0, 1.0, 1.0,
+			 0.5, -0.5, 0.0, 0.0, 1.0,
+		};
 
-		glBindVertexArray(QuadVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, QuadVBO);
-		// GL_STATIC_DRAW  : Data is set only once and used many times
-		// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
-		// GL_STREAM_DRAW  : Set only once, used a few times
-		glBufferData(GL_ARRAY_BUFFER, 30 * sizeof(double), QuadVertices, GL_STATIC_DRAW);
-
-		glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)0);
-		glVertexAttribPointer(1, 2, GL_DOUBLE, GL_FALSE, 5 * sizeof(double), (void*)(3 * sizeof(double)));
-
-		glEnableVertexAttribArray(0);
-		glEnableVertexAttribArray(1);
-
-		glBindVertexArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-		Result.QuadVAO = QuadVAO;
+		Result.QuadVAO = OpenGLCreateVertexBuffer(QuadVertices, GL_STATIC_DRAW, 6, 5, 2, 3, 2);
+		Result.DebugVAO = OpenGLCreateVertexBuffer(DebugVertices, GL_STATIC_DRAW, 6, 5, 2, 3, 2);
 
 		// Pixel buffer objects for fast pixel transfers
 		glGenBuffers(1, &Result.VideoPBO); // Use GL_PIXEL_PACK_BUFFER to upload pixels to OpenGL
 		glGenBuffers(1, &Result.ReadPBO); // Use GL_PIXEL_UNPACK_BUFFER to get pixels from OpenGL
 
-		// Loading shaders
+		// Compiling & attaching shaders
 		for (int i = 0; i < Assets->nShaders; i++) {
 			game_shader* Shader = &Assets->Shader[i];
-			OpenGLCompileShader(Shader);
+			Shader->ShaderID = OpenGLCompileShader(GetShaderType(Shader->Type), Shader->Code, Shader->Size);
 		}
 
 		for (int i = 0; i < Assets->nShaderPipelines; i++) {
 			game_shader_pipeline* Pipeline = &Assets->ShaderPipeline[i];
-			OpenGLLoadShaderPipeline(Assets, Pipeline);
+			OpenGLLinkProgram(Assets, Pipeline);
+		}
+
+		for (int i = 0; i < Assets->nComputeShaders; i++) {
+			game_compute_shader* Shader = &Assets->ComputeShader[i];
+			Shader->ShaderID = OpenGLCompileShader(GL_COMPUTE_SHADER, Shader->Code, Shader->Size);
+			OpenGLLinkProgram(Shader);
+
+			CreateTexture(Width, Height, &Shader->Image, GL_RGBA32F, GL_LINEAR, GL_CLAMP_TO_EDGE);
 		}
 	}
 
@@ -900,7 +983,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					for (int i = 0; i < 4; i++) {
 						v3 Start = Points[i];
 						v3 Finish = Points[(i + 1) % 4];
-						OpenGLRenderLine(Start, Finish, Entry.Color, 2.0);
+						OpenGLRenderLine(Start, Finish, Entry.Color, 1.0);
 					}
 
 				}
@@ -1132,107 +1215,21 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 			//	SetIdentityProjection();
 			//} break;
 
-			case group_type_render_entry_debug_grid:
-			{
-				render_entry_debug_grid Entry = *(render_entry_debug_grid*)Header;
-
-				if (Group->Debug) {
-					SetCoordinates(World_Coordinates, Group->Camera, Width, Height);
-					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
-					// Debug lattice
-					color LatticeColor = Color(White, 0.6);
-					for (int i = 0; i < 100; i++) {
-						OpenGLRenderLine(V3(50 - i, 0, -50), V3(50 - i, 0, 50), LatticeColor);
-						OpenGLRenderLine(V3(-50, 0, 50 - i), V3(50, 0, 50 - i), LatticeColor);
-					}
-					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
-				}
-			} break;
-
 			case group_type_render_entry_shader_pass: {
 				render_entry_shader_pass Entry = *(render_entry_shader_pass*)Header;
 
 				SetIdentityProjection();
 
-				GLenum Error = 0;
-
 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Entry.ShaderID);
 
 				glUseProgram(Shader->ProgramID);
-				if (Shader->IsProvided[Compute_Shader]) {
-					render_target PingPongTarget = OpenGL.Targets[PingPong];
-
-					glBindTexture(GL_TEXTURE_2D, PingPongTarget.Texture);
-					glBindImageTexture(0, PingPongTarget.Texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
-
-					glDispatchCompute(Width, Height, 1);
-
-					glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-				}
-				else {
-					OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
-					OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
-					OpenGLSetUniform(Shader->ProgramID, "u_width", Entry.Width);
-					OpenGLSetUniform(Shader->ProgramID, "u_time", Time);
-
-					GLint KernelLocation = glGetUniformLocation(Shader->ProgramID, "u_kernel");
-					glUniformMatrix3fv(KernelLocation, 1, GL_FALSE, Entry.Kernel);
-
-					float Projection[16];
-					Identity(Projection, 4);
-
-					float View[16];
-					Identity(View, 4);
-
-					float Model[16];
-					Identity(Model, 4);
-
-					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
-
-					render_target Target = OpenGL.Targets[Entry.Target];
-					render_target PingPongTarget = OpenGL.Targets[PingPong];
-
-					glEnable(GL_DEPTH_TEST);
-					glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
-					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, PingPongTarget.Framebuffer);
-					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
-
-					glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
-					glClearColor(0, 0, 0, 0);
-					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-					glActiveTexture(GL_TEXTURE0);
-					glBindTexture(GL_TEXTURE_2D, PingPongTarget.Texture);
-
-					if (Target.Attachment) {
-						glActiveTexture(GL_TEXTURE1);
-						glBindTexture(GL_TEXTURE_2D, PingPongTarget.AttachmentTexture);
-					}
-
-					glBindVertexArray(OpenGL.QuadVAO);
-					glDrawArrays(GL_TRIANGLES, 0, 6);
-				}
-
-				glActiveTexture(GL_TEXTURE0);
-				glBindTexture(GL_TEXTURE_2D, 0);
-				glBindVertexArray(0);
-				glUseProgram(0);
-			} break;
-
-			/*case group_type_render_entry_mesh_outline:
-			{
-				render_entry_mesh_outline Entry = *(render_entry_mesh_outline*)Header;
-
-				SetIdentityProjection();
-
-				game_shader* Shader = GetShaderPipeline();
-
-				if (!Shader->ProgramID) {
-					Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
-				}
-
-				glUseProgram(Shader->ProgramID);
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
+				OpenGLSetUniform(Shader->ProgramID, "u_width", Entry.Width);
+				OpenGLSetUniform(Shader->ProgramID, "u_time", Time);
+
+				GLint KernelLocation = glGetUniformLocation(Shader->ProgramID, "u_kernel");
+				glUniformMatrix3fv(KernelLocation, 1, GL_FALSE, Entry.Kernel);
 
 				float Projection[16];
 				Identity(Projection, 4);
@@ -1245,47 +1242,131 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 
-				int Level = Entry.StartingLevel;
-
-				render_target OutlineTarget = OpenGL.Targets[Postprocessing_Outline];
+				render_target Target = OpenGL.Targets[Entry.Target];
 				render_target PingPongTarget = OpenGL.Targets[PingPong];
-				for (int i = 0; i < Entry.Passes; i++) {
-					OpenGLSetUniform(Shader->ProgramID, "level", Level);
 
-					render_target Source = i % 2 == 0 ? OutlineTarget : PingPongTarget;
-					render_target Target = i % 2 == 0 ? PingPongTarget : OutlineTarget;
+				glEnable(GL_DEPTH_TEST);
+				glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, PingPongTarget.Framebuffer);
+				glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
 
-					glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
-					glClearColor(0, 0, 0, 0);
-					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+				glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+				glClearColor(0, 0, 0, 0);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-					glActiveTexture(GL_TEXTURE0);
-					glBindTexture(GL_TEXTURE_2D, Source.Texture);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, PingPongTarget.Texture);
 
+				if (Target.Attachment) {
 					glActiveTexture(GL_TEXTURE1);
-					glBindTexture(GL_TEXTURE_2D, Source.AttachmentTexture);
-
-					glBindVertexArray(OpenGL.QuadVAO);
-					glDrawArrays(GL_TRIANGLES, 0, 6);
-
-					Level = Level >> 1;
+					glBindTexture(GL_TEXTURE_2D, PingPongTarget.AttachmentTexture);
 				}
 
-				if (Entry.Passes % 2 == 1) {
-					glBindFramebuffer(GL_READ_FRAMEBUFFER, PingPongTarget.Framebuffer);
-					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, OutlineTarget.Framebuffer);
-					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
-				}
-
-				glActiveTexture(GL_TEXTURE1);
-				glBindTexture(GL_TEXTURE_2D, 0);
+				glBindVertexArray(OpenGL.QuadVAO);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
 
 				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(GL_TEXTURE_2D, 0);
-
 				glBindVertexArray(0);
 				glUseProgram(0);
-			} break;*/
+			} break;
+
+			case group_type_render_entry_compute_shader_pass: {
+				render_entry_compute_shader_pass Entry = *(render_entry_compute_shader_pass*)Header;
+
+				SetIdentityProjection();
+
+				game_compute_shader* Shader = GetComputeShader(Group->Assets, Entry.ShaderID);
+				glUseProgram(Shader->ProgramID);
+
+				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+				
+				render_target Source = OpenGL.Targets[Entry.Source];
+				uint32 SourceTexture = Entry.Load ? Source.Texture                              : Shader->Image;
+				uint32 TargetTexture = Entry.Save ? OpenGL.Targets[Entry.Header.Target].Texture : Shader->Image;
+				
+				GLenum SourceAccess = SourceTexture == TargetTexture ? GL_READ_WRITE : GL_READ_ONLY;
+				GLenum TargetAccess = SourceTexture == TargetTexture ? GL_READ_WRITE : GL_WRITE_ONLY;
+
+				// glActiveTexture(GL_TEXTURE0);
+				// glBindImageTexture(0, SourceTexture, 0, GL_FALSE, 0, SourceAccess, GL_RGBA32F);
+
+				glActiveTexture(GL_TEXTURE0);
+				glBindImageTexture(0, TargetTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+
+				// if (Entry.Load && Source.Attachment) {
+				// 	glActiveTexture(GL_TEXTURE2);
+				// 	glBindTexture(GL_TEXTURE_2D, Source.AttachmentTexture);
+				// }
+
+				glDispatchCompute(Width, Height, 1);
+
+				glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+			} break;
+
+			case group_type_render_entry_mesh_outline:
+			{
+				// render_entry_mesh_outline Entry = *(render_entry_mesh_outline*)Header;
+
+				// SetIdentityProjection();
+
+				// game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, );
+
+				// glUseProgram(Shader->ProgramID);
+				// OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+
+				// float Projection[16];
+				// Identity(Projection, 4);
+
+				// float View[16];
+				// Identity(View, 4);
+
+				// float Model[16];
+				// Identity(Model, 4);
+
+				// OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+
+				// int Level = Entry.StartingLevel;
+
+				// render_target OutlineTarget = OpenGL.Targets[Postprocessing_Outline];
+				// render_target PingPongTarget = OpenGL.Targets[PingPong];
+				// for (int i = 0; i < Entry.Passes; i++) {
+				// 	OpenGLSetUniform(Shader->ProgramID, "level", Level);
+
+				// 	render_target Source = i % 2 == 0 ? OutlineTarget : PingPongTarget;
+				// 	render_target Target = i % 2 == 0 ? PingPongTarget : OutlineTarget;
+
+				// 	glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+				// 	glClearColor(0, 0, 0, 0);
+				// 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+				// 	glActiveTexture(GL_TEXTURE0);
+				// 	glBindTexture(GL_TEXTURE_2D, Source.Texture);
+
+				// 	glActiveTexture(GL_TEXTURE1);
+				// 	glBindTexture(GL_TEXTURE_2D, Source.AttachmentTexture);
+
+				// 	glBindVertexArray(OpenGL.QuadVAO);
+				// 	glDrawArrays(GL_TRIANGLES, 0, 6);
+
+				// 	Level = Level >> 1;
+				// }
+
+				// if (Entry.Passes % 2 == 1) {
+				// 	glBindFramebuffer(GL_READ_FRAMEBUFFER, PingPongTarget.Framebuffer);
+				// 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, OutlineTarget.Framebuffer);
+				// 	glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+				// }
+
+				// glActiveTexture(GL_TEXTURE1);
+				// glBindTexture(GL_TEXTURE_2D, 0);
+
+				// glActiveTexture(GL_TEXTURE0);
+				// glBindTexture(GL_TEXTURE_2D, 0);
+
+				// glBindVertexArray(0);
+				// glUseProgram(0);
+			} break;
 
 			case group_type_render_entry_render_target:
 			{
@@ -1358,6 +1439,51 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				glBindTexture(GL_TEXTURE_2D, 0);
 				glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
 				glDepthFunc(GL_LESS);
+			} break;
+
+			case group_type_render_entry_debug_grid:
+			{
+				render_entry_debug_grid Entry = *(render_entry_debug_grid*)Header;
+
+				SetCoordinates(World_Coordinates, Group->Camera, Width, Height);
+				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+				// Debug lattice
+				color LatticeColor = Color(White, 0.6);
+				for (int i = 0; i < 100; i++) {
+					OpenGLRenderLine(V3(50 - i, 0, -50), V3(50 - i, 0, 50), LatticeColor);
+					OpenGLRenderLine(V3(-50, 0, 50 - i), V3(50, 0, 50 - i), LatticeColor);
+				}
+				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+			} break;
+
+			case group_type_render_entry_debug_framebuffer:
+			{
+				render_entry_debug_framebuffer Entry = *(render_entry_debug_framebuffer*)Header;
+				
+				SetIdentityProjection();
+
+				render_target Target = OpenGL.Targets[Header->Target];
+				glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+
+				render_target Framebuffer = OpenGL.Targets[Entry.Framebuffer];
+
+				game_shader_pipeline_id ShaderID = Framebuffer.Multisampling ? Antialiasing_Shader_Pipeline_ID : Framebuffer_Shader_Pipeline_ID;
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, ShaderID);
+				glUseProgram(Shader->ProgramID);
+
+				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+				
+				GLenum TextureTarget = Framebuffer.Multisampling ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
+				
+				game_compute_shader* CShader = GetComputeShader(Group->Assets, Test_Compute_Shader_ID);
+				glBindTexture(GL_TEXTURE_2D, CShader->Image);
+
+				glBindVertexArray(OpenGL.DebugVAO);
+				glDrawArrays(GL_TRIANGLES, 0, 6);
+
+				glBindTexture(TextureTarget, 0);
+				glUseProgram(0);
+				glBindVertexArray(0);
 			} break;
 
 			default:

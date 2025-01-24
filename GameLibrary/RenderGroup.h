@@ -1,7 +1,6 @@
 #pragma once
 #include "GameAssets.h"
 
-
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Color                                                                                                                                        |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -261,8 +260,10 @@ enum render_group_entry_type {
     group_type_render_entry_heightmap,
     group_type_render_entry_mesh_outline,
     group_type_render_entry_shader_pass,
+    group_type_render_entry_compute_shader_pass,
     group_type_render_entry_render_target,
-    group_type_render_entry_debug_grid
+    group_type_render_entry_debug_grid,
+    group_type_render_entry_debug_framebuffer,
 };
 
 enum render_group_target {
@@ -412,6 +413,18 @@ struct render_entry_shader_pass {
     double Width;
 };
 
+struct render_entry_compute_shader_pass {
+    render_group_header Header;
+    game_compute_shader_id ShaderID;
+    render_group_target Source;
+    color Color;
+    float Kernel[9];
+    double Width;
+    int Passes;
+    bool Load;
+    bool Save;
+};
+
 struct render_entry_render_target {
     render_group_header Header;
     render_group_target Target;
@@ -420,6 +433,11 @@ struct render_entry_render_target {
 struct render_entry_debug_grid {
     render_group_header Header;
     double Alpha;
+};
+
+struct render_entry_debug_framebuffer {
+    render_group_header Header;
+    render_group_target Framebuffer;
 };
 
 uint32 GetSizeOf(render_group_entry_type Type) {
@@ -472,8 +490,16 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_shader_pass);
         } break;
 
+        case group_type_render_entry_compute_shader_pass: {
+            return sizeof(render_entry_compute_shader_pass);
+        } break;
+
         case group_type_render_entry_debug_grid: {
             return sizeof(render_entry_debug_grid);
+        } break;
+
+        case group_type_render_entry_debug_framebuffer: {
+            return sizeof(render_entry_debug_framebuffer);
         } break;
 
         default: {
@@ -727,17 +753,19 @@ void PushRect(
     Entry->Header.Target = World;
     Entry->Rect = Rect;
     Entry->Color = Color;
+    Entry->Texture = 0;
 }
 
 void PushRectOutline(
     render_group* Group,
     game_rect Rect,
     color Color,
-    double Order = SORT_ORDER_DEBUG_OVERLAY
+    double Order = SORT_ORDER_DEBUG_OVERLAY,
+    render_group_target Target = World
 ) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
     Entry->Header.Key.Order = Order;
-    Entry->Header.Target = World;
+    Entry->Header.Target = Target;
     Entry->Rect = Rect;
     Entry->Color = Color;
     Entry->Outline = true;
@@ -889,13 +917,6 @@ void PushCubeOutline(
     PushCubeOutline(Group, Collider.Center - 0.5 * Collider.Size * V3(1.0, 1.0, 1.0), Collider.Size, Color, Order);
 }
 
-void PushDebugGrid(render_group* Group, double Alpha) {
-    render_entry_debug_grid* Entry = PushRenderElement(Group, render_entry_debug_grid);
-    Entry->Header.Key.Order = SORT_ORDER_MESHES;
-    Entry->Header.Target = World;
-    Entry->Alpha = Alpha;
-}
-
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Video                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -999,6 +1020,28 @@ void PushShaderPass(
     Entry->Width = Width;
 }
 
+void PushShaderPass(
+    render_group* Group,
+    game_compute_shader_id ShaderID,
+    color Color = White,
+    double Width = 2.0,
+    bool Load = false,
+    render_group_target Source = Output,
+    bool Save = false,
+    render_group_target Target = Output,
+    double Order = SORT_ORDER_SHADER_PASSES
+) {
+    render_entry_compute_shader_pass* Entry = PushRenderElement(Group, render_entry_compute_shader_pass);
+    Entry->Header.Key.Order = Order;
+    Entry->Header.Target = Target;
+    Entry->Color = Color;
+    Entry->Width = Width;
+    Entry->ShaderID = ShaderID;
+    Entry->Load = Load;
+    Entry->Source = Source;
+    Entry->Save = Load;
+}
+
 //void PushKernelShaderPass(
 //    render_group* Group,
 //    render_group_target Target,
@@ -1027,7 +1070,7 @@ void PushMeshOutline(
     int StartingLevel
 ) {
     PushRenderTarget(Group, Outline, SORT_ORDER_SHADER_PASSES - 10);
-    //PushShaderPass(Group, Shader_Outline_Init_ID, Postprocessing_Outline, White, SORT_ORDER_SHADER_PASSES);
+    PushShaderPass(Group, Outline_Init_Compute_Shader_ID, White, 2.0, true, Postprocessing_Outline);
 
     render_entry_mesh_outline* Entry = PushRenderElement(Group, render_entry_mesh_outline);
     Entry->Header.Key.Order = SORT_ORDER_SHADER_PASSES + 10.0;
@@ -1215,4 +1258,18 @@ void PushDebugFustrum(
     PushLine(Group, Position + rv + tv + nv, Position + lv + tv + nv, White, 2.0, World_Coordinates);
     PushLine(Group, Position + rv + bv + nv, Position + rv + tv + nv, White, 2.0, World_Coordinates);
     PushLine(Group, Position + lv + bv + nv, Position + lv + tv + nv, White, 2.0, World_Coordinates);
+}
+
+void PushDebugGrid(render_group* Group, double Alpha) {
+    render_entry_debug_grid* Entry = PushRenderElement(Group, render_entry_debug_grid);
+    Entry->Header.Key.Order = SORT_ORDER_MESHES;
+    Entry->Header.Target = World;
+    Entry->Alpha = Alpha;
+}
+
+void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer) {
+    render_entry_debug_framebuffer* Entry = PushRenderElement(Group, render_entry_debug_framebuffer);
+    Entry->Header.Key.Order = SORT_ORDER_PUSH_RENDER_TARGETS - 0.1;
+    Entry->Header.Target = Output;
+    Entry->Framebuffer = Framebuffer;
 }

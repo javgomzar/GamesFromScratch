@@ -1,24 +1,23 @@
 #version 430
 precision highp float;
 
-layout(binding = 0) uniform sampler2D binded_texture;
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(rgba32f, binding = 0) uniform image2D source;
+layout(rgba32f, binding = 1) uniform image2D target;
+layout(binding = 2) uniform sampler2D attachment_texture;
 
 uniform int level;
+uniform vec2 u_resolution;
 
-out vec4 frag_color;
-
-in vec2 v_position;
-in vec2 v_texture;
-
-vec3 StepJFA(vec2 p) {
+vec3 StepJFA(ivec2 p) {
     vec3 closest = vec3(-1.0, 0.0, 0.0);
     double closest_distance = 9999999.0;
-    float w = level;
+
     for (int y = -1; y <= 1; ++y) {
     for (int x = -1; x <= 1; ++x) {
-        vec2 t = p + w * vec2(x,y);
+        ivec2 t = p + level * ivec2(x,y);
         if (t.x >= 0. && t.y >= 0. && t.x <= u_resolution.x && t.y <= u_resolution.y) {
-            vec4 stored_color = texture(binded_texture, t / u_resolution);
+            vec4 stored_color = imageLoad(source, t);
             if (stored_color.b > 0.) { // skip computing for yet invalid seeds
                 vec2 stored_position = stored_color.rg;
                 double d = distance(p, stored_position);
@@ -34,11 +33,15 @@ vec3 StepJFA(vec2 p) {
 }
 
 void main() {
-    vec3 closest = StepJFA(gl_FragCoord.xy);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    vec3 closest = StepJFA(texelCoord);
+    vec4 result;
     if (closest.x < 0.) {
-        frag_color = texture(binded_texture, v_texture);
+        result = imageLoad(source, texelCoord);
     }
     else {
-        frag_color = vec4(closest, 1.0);
+        result = vec4(closest, 1.0);
     }
+
+    imageStore(target, texelCoord, result);
 }
