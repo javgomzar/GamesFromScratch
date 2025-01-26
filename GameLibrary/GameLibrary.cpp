@@ -186,10 +186,14 @@ void Update(camera* Camera, game_input* Input) {
     Camera->Position += Camera->Velocity;
 }
 
+void LogGameDebugRecords();
 
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
 {
+    {
+        TIMED_BLOCK;
+
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
@@ -351,4 +355,31 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
     }
     PushRenderTarget(Group, Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
+    }
+
+    LogGameDebugRecords();
+}
+
+debug_record DebugRecordArray_GameLibrary[__COUNTER__];
+
+void LogGameDebugRecords() {
+    char Buffer[512];
+    for (int i = 0; i < ArrayCount(DebugRecordArray_GameLibrary); i++) {
+        debug_record* DebugRecord = DebugRecordArray_GameLibrary + i;
+
+        if (DebugRecord->HitCount) {
+            if (DebugRecord->HitCount == 1) {
+                sprintf_s(Buffer, "%s: (%i hit) %.02f Mcycles (%s:%i)\n", 
+                    DebugRecord->FunctionName, DebugRecord->HitCount, DebugRecord->CycleCount / 1000000.0f, DebugRecord->FileName, DebugRecord->LineNumber);
+            }
+            else {
+                sprintf_s(Buffer, "%s: (%i hits) Total: %.02f Mcycles, Average: %.02f (%s:%i)\n", 
+                    DebugRecord->FunctionName, DebugRecord->HitCount, DebugRecord->CycleCount / 1000000.0f, 
+                    (float)DebugRecord->CycleCount / (1000000.0f * (float)DebugRecord->HitCount), DebugRecord->FileName, DebugRecord->LineNumber);
+            }
+            Log(Info, Buffer);
+            DebugRecord->HitCount = 0;
+            DebugRecord->CycleCount = 0;
+        }
+    }
 }

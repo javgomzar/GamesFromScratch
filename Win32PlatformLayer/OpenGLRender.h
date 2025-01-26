@@ -905,6 +905,7 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 
 void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 {
+	TIMED_BLOCK;
 	int32 Width = Group->Width;
 	int32 Height = Group->Height;
 

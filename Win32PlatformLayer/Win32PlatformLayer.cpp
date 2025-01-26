@@ -155,6 +155,8 @@ VOID DisplayBufferToWindow(
 
 // OpenGL render
 void Render(HWND Window, render_group* Group, openGL OpenGL, double Time) {
+    TIMED_BLOCK;
+    
     // Sorting render entries
     SortEntries(Group);
 
@@ -996,6 +998,8 @@ void DebugDrawVertical(game_offscreen_buffer* Buffer, int X, int Top, int Bottom
 //    }
 //}
 
+void LogDebugRecords();
+
 // Main window callback
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -1411,6 +1415,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         LARGE_INTEGER EndCounter = GetWallClock();
         LastCounter = EndCounter;
         LastCycleCount = EndCycleCount;
+
+        LogDebugRecords();
     }
 
     return 0;
@@ -1563,4 +1569,31 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
             break;
     }
     return (INT_PTR)FALSE;
+}
+
+debug_record DebugRecordArray_Win32[__COUNTER__];
+
+void LogDebugRecords() {
+    char Buffer[512];
+    for (int i = 0; i < ArrayCount(DebugRecordArray_Win32); i++) {
+        debug_record* DebugRecord = DebugRecordArray_Win32 + i;
+
+        if (DebugRecord->HitCount) {
+            if (DebugRecord->HitCount == 1) {
+                sprintf_s(Buffer, "%s: (%i hit) %.02f Mcycles (%s:%i)\n", 
+                    DebugRecord->FunctionName, DebugRecord->HitCount, 
+                    DebugRecord->CycleCount / 1000000.0f, DebugRecord->FileName, DebugRecord->LineNumber);
+            }
+            else {
+                sprintf_s(Buffer, "%s: (%i hits) Total: %.02f Mcycles, Average: %.02f ms (%s:%i)\n", 
+                    DebugRecord->FunctionName, DebugRecord->HitCount, 
+                    DebugRecord->CycleCount / 1000000.0f, 
+                    DebugRecord->CycleCount / (1000000.0f * DebugRecord->HitCount), 
+                    DebugRecord->FileName, DebugRecord->LineNumber);
+            }
+            Log(Info, Buffer);
+            DebugRecord->HitCount = 0;
+            DebugRecord->CycleCount = 0;
+        }
+    }
 }

@@ -576,6 +576,7 @@ void SwapEntries(sort_entry* Entry1, sort_entry* Entry2) {
 }
 
 void SortEntries(render_group* RenderGroup) {
+    TIMED_BLOCK;
     uint32 Count = RenderGroup->PushBufferElementCount;
 
     sort_entry* Entries = (sort_entry*)RenderGroup->SortedBufferBase;

@@ -31,6 +31,9 @@ struct string {
     char* Content;
 };
 
+// Array count
+#define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
+
 // Memory Arenas
 struct memory_arena {
     memory_index Size;

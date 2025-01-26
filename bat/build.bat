@@ -23,6 +23,7 @@ C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\ucrt\x64
  /Fo%project_dir%\bin\GameLibrary.obj^
  /Fd%project_dir%\bin\vc140.pdb^
  /D GAMELIBRARY_EXPORTS=1^
+ /D DebugRecordArray=DebugRecordArray_GameLibrary^
  /LD freetype.lib %project_dir%\GameLibrary\GameLibrary.cpp^
  /link^
  /DEBUG^
@@ -41,6 +42,7 @@ cd ..
  /Fe%project_dir%\bin\Win32PlatformLayer.exe^
  /Fo%project_dir%\bin\Win32PlatformLayer.obj^
  /Fd%project_dir%\bin\Win32PlatformLayer.pdb^
+ /D DebugRecordArray=DebugRecordArray_Win32^
  kernel32.lib^
  user32.lib^
  gdi32.lib^
