@@ -892,8 +892,6 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 			game_compute_shader* Shader = &Assets->ComputeShader[i];
 			Shader->ShaderID = OpenGLCompileShader(GL_COMPUTE_SHADER, Shader->Code, Shader->Size);
 			OpenGLLinkProgram(Shader);
-
-			CreateTexture(Width, Height, &Shader->Image, GL_RGBA32F, GL_LINEAR, GL_CLAMP_TO_EDGE);
 		}
 	}
 
@@ -1275,24 +1273,18 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				render_entry_compute_shader_pass Entry = *(render_entry_compute_shader_pass*)Header;
 
 				SetIdentityProjection();
-
+				
 				game_compute_shader* Shader = GetComputeShader(Group->Assets, Entry.ShaderID);
+
+				uint32 TargetTexture = OpenGL.Targets[Entry.Header.Target].Texture;
+
+				glBindImageTexture(0, TargetTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+				glBindImageTexture(0, TargetTexture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
 				glUseProgram(Shader->ProgramID);
 
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
-				
-				render_target Source = OpenGL.Targets[Entry.Source];
-				uint32 SourceTexture = Entry.Load ? Source.Texture                              : Shader->Image;
-				uint32 TargetTexture = Entry.Save ? OpenGL.Targets[Entry.Header.Target].Texture : Shader->Image;
-				
-				GLenum SourceAccess = SourceTexture == TargetTexture ? GL_READ_WRITE : GL_READ_ONLY;
-				GLenum TargetAccess = SourceTexture == TargetTexture ? GL_READ_WRITE : GL_WRITE_ONLY;
-
-				// glActiveTexture(GL_TEXTURE0);
-				// glBindImageTexture(0, SourceTexture, 0, GL_FALSE, 0, SourceAccess, GL_RGBA32F);
-
-				glActiveTexture(GL_TEXTURE0);
-				glBindImageTexture(0, TargetTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+				OpenGLSetUniform(Shader->ProgramID, "u_time", (float)Time);
 
 				// if (Entry.Load && Source.Attachment) {
 				// 	glActiveTexture(GL_TEXTURE2);
@@ -1302,6 +1294,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				glDispatchCompute(Width, Height, 1);
 
 				glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+				glBindTexture(GL_TEXTURE_2D, 0);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, 0);
 			} break;
 
 			case group_type_render_entry_mesh_outline:
@@ -1475,8 +1471,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				
 				GLenum TextureTarget = Framebuffer.Multisampling ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
 				
-				game_compute_shader* CShader = GetComputeShader(Group->Assets, Test_Compute_Shader_ID);
-				glBindTexture(GL_TEXTURE_2D, CShader->Image);
+				glBindTexture(GL_TEXTURE_2D, Framebuffer.Texture);
 
 				glBindVertexArray(OpenGL.DebugVAO);
 				glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -1494,65 +1489,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 			};
 		}
 	}
-
-	// Debug depth buffers
-	//SetIdentityProjection();
-	//glDepthFunc(GL_ALWAYS);
-	//game_shader* Shader = &Group->Assets->Shaders[Shader_Antialiasing_ID];
-
-	//glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
-	//glUseProgram(Shader->ProgramID);
-
-	//glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, OpenGL.Targets[World].Texture);
-
-	//glBindVertexArray(OpenGL.QuadVAO);
-	//glDrawArrays(GL_TRIANGLES, 0, 6);
-
-
-
-
-	//game_shader* Shader = &Group->Assets->Shaders[Shader_Tessellation_ID];
-
-	//if (!Shader->ProgramID) Shader->ProgramID = OpenGLLoadShader(Group->Assets, Shader);
-	//glUseProgram(Shader->ProgramID);
-
-	//static uint32 VBO = 0;
-	//static uint32 VAO = 0;
-	//if (VBO) {
-	//	glBindVertexArray(VAO);
-	//}
-	//else {
-	//	glGenBuffers(1, &VBO);
-	//	glGenVertexArrays(1, &VAO);
-
-	//	glBindVertexArray(VAO);
-	//	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	//	// GL_STATIC_DRAW  : Data is set only once and used many times
-	//	// GL_DYNAMIC_DRAW : Quickly changing vertices (set many times, used many times
-	//	// GL_STREAM_DRAW  : Set only once, used a few times
-	//	glBufferData(GL_ARRAY_BUFFER, 3 * sizeof(double), points, GL_STATIC_DRAW);
-
-	//	glVertexAttribPointer(0, 3, GL_DOUBLE, GL_FALSE, 3 * sizeof(double), (void*)0);
-	//	glEnableVertexAttribArray(0);
-	//}
-	//SetCameraProjection(Group->Camera, Width, Height);
-
-	//float Projection[16];
-	//glGetFloatv(GL_PROJECTION_MATRIX, Projection);
-
-	//float View[16];
-	//glGetFloatv(GL_MODELVIEW_MATRIX, View);
-
-	//float Model[16];
-	//Identity(Model, 4);
-
-	//OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
-	//OpenGLSetUniform(Shader->ProgramID, "u_color", Red);
-	//OpenGLSetUniform(Shader->ProgramID, "u_time", (float)Time);
-
-	//glDrawArrays(GL_POINTS, 0, 4);
 
 	SetIdentityProjection();
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);

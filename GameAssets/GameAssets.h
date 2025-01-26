@@ -1076,11 +1076,9 @@ struct game_compute_shader {
     game_compute_shader_id ID;
     uint32 ShaderID;
     uint32 ProgramID;
-    uint32 Image;
     uint32 Size;
     char* Code;
 };
-
 
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+

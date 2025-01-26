@@ -329,7 +329,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushRectOutline(Group, DebugFramebufferRect, White, SORT_ORDER_PUSH_RENDER_TARGETS - 0.11, Output);
     }
 
-    PushShaderPass(Group, Test_Compute_Shader_ID);
+    PushShaderPass(Group, Outline_Init_Compute_Shader_ID, Postprocessing_Outline, White, 2.0);
 
     PushRenderTarget(Group, World);
 

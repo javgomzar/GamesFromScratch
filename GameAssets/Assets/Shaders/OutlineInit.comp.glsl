@@ -2,8 +2,8 @@
 precision highp float;
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
-layout(rgba32f, binding = 0) uniform image2D source;
-layout(rgba32f, binding = 1) uniform image2D target;
+layout(rgba32f, binding = 0) readonly uniform image2D source;
+layout(rgba32f, binding = 0) writeonly uniform image2D target;
 layout(binding = 2) uniform sampler2D attachment_texture;
 
 uniform vec2 u_resolution;
