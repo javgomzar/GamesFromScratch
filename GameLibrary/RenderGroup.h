@@ -419,7 +419,6 @@ struct render_entry_compute_shader_pass {
     color Color;
     float Kernel[9];
     double Width;
-    int Passes;
 };
 
 struct render_entry_render_target {
@@ -435,6 +434,7 @@ struct render_entry_debug_grid {
 struct render_entry_debug_framebuffer {
     render_group_header Header;
     render_group_target Framebuffer;
+    bool Attachment;
 };
 
 uint32 GetSizeOf(render_group_entry_type Type) {
@@ -1024,7 +1024,7 @@ void PushShaderPass(
     render_group_target Target,
     color Color = White,
     double Width = 2.0,
-    
+    int Level = 1,
     double Order = SORT_ORDER_SHADER_PASSES
 ) {
     render_entry_compute_shader_pass* Entry = PushRenderElement(Group, render_entry_compute_shader_pass);
@@ -1063,19 +1063,19 @@ void PushMeshOutline(
     int StartingLevel
 ) {
     PushRenderTarget(Group, Outline, SORT_ORDER_SHADER_PASSES - 10);
-    // PushShaderPass(Group, Outline_Init_Compute_Shader_ID, White, 2.0, true, Postprocessing_Outline);
+    PushShaderPass(Group, Outline_Init_Compute_Shader_ID, Postprocessing_Outline);
 
-    // render_entry_mesh_outline* Entry = PushRenderElement(Group, render_entry_mesh_outline);
-    // Entry->Header.Key.Order = SORT_ORDER_SHADER_PASSES + 10.0;
-    // Entry->Header.Target = Postprocessing_Outline;
+    render_entry_mesh_outline* Entry = PushRenderElement(Group, render_entry_mesh_outline);
+    Entry->Header.Key.Order = SORT_ORDER_SHADER_PASSES + 10.0;
+    Entry->Header.Target = Postprocessing_Outline;
 
-    // Entry->Passes = Passes;
-    // Entry->Width = Width;
-    // Entry->StartingLevel = StartingLevel;
+    Entry->Passes = Passes;
+    Entry->Width = Width;
+    Entry->StartingLevel = StartingLevel;
 
-    // //PushShaderPass(Group, Shader_Outline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
+    PushShaderPass(Group, Outline_Shader_Pipeline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
 
-    // PushRenderTarget(Group, Postprocessing_Outline, SORT_ORDER_PUSH_RENDER_TARGETS - 10.0);
+    PushRenderTarget(Group, Postprocessing_Outline, SORT_ORDER_SHADER_PASSES + 30.0);
 }
 
 void PushMesh(
@@ -1260,9 +1260,10 @@ void PushDebugGrid(render_group* Group, double Alpha) {
     Entry->Alpha = Alpha;
 }
 
-void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer) {
+void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, bool Attachment = false) {
     render_entry_debug_framebuffer* Entry = PushRenderElement(Group, render_entry_debug_framebuffer);
     Entry->Header.Key.Order = SORT_ORDER_PUSH_RENDER_TARGETS - 0.1;
     Entry->Header.Target = Output;
     Entry->Framebuffer = Framebuffer;
+    Entry->Attachment = Attachment;
 }

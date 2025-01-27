@@ -2,7 +2,7 @@
 precision highp float;
 
 layout(binding = 0) uniform sampler2D binded_texture;
-layout(binding = 1) uniform sampler2D attachment_texture;
+//layout(binding = 1) uniform sampler2D attachment_texture;
 
 out vec4 frag_color;
 
@@ -19,21 +19,21 @@ void main() {
 
 		if (d < u_width - 1.) {
 			frag_color = u_color;
-			gl_FragDepth = texture_color.b;
+			//gl_FragDepth = texture_color.b;
 		}
 		else {
 			if (d < u_width) {
 				frag_color = vec4(u_color.rgb, (u_width - d) * u_color.a);
-				gl_FragDepth = texture_color.b;
+				//gl_FragDepth = texture_color.b;
 			}
 			else { 
 				frag_color = vec4(1.0, 0.0, 1.0, 0.0);
-				gl_FragDepth = 1.0;
+				//gl_FragDepth = 1.0;
 			}
 		}
 	}
 	else {
 		frag_color = vec4(1., 0., 1., 0.);
-		gl_FragDepth = 1.0;
+		//gl_FragDepth = 1.0;
 	}
 }

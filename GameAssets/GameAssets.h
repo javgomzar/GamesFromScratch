@@ -1032,6 +1032,7 @@ enum game_shader_id {
     Kernel_Fragment_Shader_ID,
     Mesh_Fragment_Shader_ID,
     Sphere_Fragment_Shader_ID,
+    Jump_Flood_Fragment_Shader_ID,
 
     game_shader_id_count
 };
@@ -1050,7 +1051,8 @@ enum game_shader_pipeline_id {
     Single_Color_Shader_Pipeline_ID,
     Mesh_Shader_Pipeline_ID,
     Sphere_Shader_Pipeline_ID,
-    //Shader_Pipeline_Outline_ID,
+    Jump_Flood_Shader_Pipeline_ID,
+    Outline_Shader_Pipeline_ID,
     //Shader_Pipeline_Kernel_ID,
     //Shader_Pipeline_Tessellation_ID,
 
@@ -1066,7 +1068,7 @@ struct game_shader_pipeline {
 
 enum game_compute_shader_id {
     Outline_Init_Compute_Shader_ID,
-    Jump_Flood_Compute_Shader_ID,
+    //Jump_Flood_Compute_Shader_ID,
     Test_Compute_Shader_ID,
 
     game_compute_shader_id_count
@@ -1486,6 +1488,7 @@ void WriteAssetFile() {
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Kernel.frag.glsl", Kernel_Fragment_Shader_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Sphere.frag.glsl", Sphere_Fragment_Shader_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Mesh.frag.glsl", Mesh_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\JumpFlood.frag.glsl", Jump_Flood_Fragment_Shader_ID);
 
     // Geometry
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Test.geom.glsl", Test_Geometry_Shader_ID);
@@ -1498,19 +1501,17 @@ void WriteAssetFile() {
     PushShaderPipeline(&Assets, Mesh_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Mesh_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Sphere_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Sphere_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Single_Color_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Single_Color_Fragment_Shader_ID);
-    //PushShaderPipeline(&Assets, Shader_Pipeline_Outline_Init_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Outline_Init_ID);
-    //PushShaderPipeline(&Assets, Shader_Pipeline_JFA_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_JFA_ID);
-    //PushShaderPipeline(&Assets, Shader_Pipeline_Outline_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Outline_ID);
+    PushShaderPipeline(&Assets, Outline_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Outline_Fragment_Shader_ID);
+    PushShaderPipeline(&Assets, Jump_Flood_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Jump_Flood_Fragment_Shader_ID);
     //PushShaderPipeline(&Assets, Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
     //PushShaderPipeline(&Assets, Shader_Pipeline_Tessellation_ID, Vertex_Shader_Tessellation_ID, Fragment_Shader_Single_Color_ID, Geometry_Shader_Tessellation_ID);
     
     // Compute
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\OutlineInit.comp.glsl", Outline_Init_Compute_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\JumpFlood.comp.glsl", Jump_Flood_Compute_Shader_ID);
+    //PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\JumpFlood.comp.glsl", Jump_Flood_Compute_Shader_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Test.comp.glsl", Test_Compute_Shader_ID);
 
     Assert(Assets.nShaderPipelines == game_shader_pipeline_id_count);
-
 
 // Output file
     void* FileMemory = VirtualAlloc(0, sizeof(game_assets) + Assets.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);

@@ -812,7 +812,6 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 		// Outline postprocessing
 		render_target* OutlinePostprocessingTarget = &Result.Targets[Postprocessing_Outline];
 		OutlinePostprocessingTarget->Label = Postprocessing_Outline;
-		OutlinePostprocessingTarget->Attachment = GL_DEPTH_ATTACHMENT;
 		OutlinePostprocessingTarget->Samples = 1;
 
 		// Output
@@ -972,6 +971,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 				if (Entry.Outline) {
 					// Rect outline
+					glDisable(GL_DEPTH_TEST);
 					v3 Points[4] = {
 						V3(Entry.Rect.Left                   , Entry.Rect.Top                    , 0),
 						V3(Entry.Rect.Left + Entry.Rect.Width, Entry.Rect.Top                    , 0),
@@ -1277,20 +1277,20 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				
 				game_compute_shader* Shader = GetComputeShader(Group->Assets, Entry.ShaderID);
 
-				uint32 TargetTexture = OpenGL.Targets[Entry.Header.Target].Texture;
+				render_target Target = OpenGL.Targets[Entry.Header.Target];
 
-				glBindImageTexture(0, TargetTexture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
-				glBindImageTexture(0, TargetTexture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+				glBindImageTexture(0, Target.Texture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+				glBindImageTexture(0, Target.Texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
+				if (Target.Attachment) {
+					glActiveTexture(GL_TEXTURE1);
+					glBindTexture(GL_TEXTURE_2D, Target.AttachmentTexture);
+				}
 
 				glUseProgram(Shader->ProgramID);
 
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
 				OpenGLSetUniform(Shader->ProgramID, "u_time", (float)Time);
-
-				// if (Entry.Load && Source.Attachment) {
-				// 	glActiveTexture(GL_TEXTURE2);
-				// 	glBindTexture(GL_TEXTURE_2D, Source.AttachmentTexture);
-				// }
 
 				glDispatchCompute(Width, Height, 1);
 
@@ -1303,66 +1303,66 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 			case group_type_render_entry_mesh_outline:
 			{
-				// render_entry_mesh_outline Entry = *(render_entry_mesh_outline*)Header;
+				render_entry_mesh_outline Entry = *(render_entry_mesh_outline*)Header;
 
-				// SetIdentityProjection();
+				SetIdentityProjection();
 
-				// game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, );
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Jump_Flood_Shader_Pipeline_ID);
 
-				// glUseProgram(Shader->ProgramID);
-				// OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+				glUseProgram(Shader->ProgramID);
+				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
 
-				// float Projection[16];
-				// Identity(Projection, 4);
+				float Projection[16];
+				Identity(Projection, 4);
 
-				// float View[16];
-				// Identity(View, 4);
+				float View[16];
+				Identity(View, 4);
 
-				// float Model[16];
-				// Identity(Model, 4);
+				float Model[16];
+				Identity(Model, 4);
 
-				// OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 
-				// int Level = Entry.StartingLevel;
+				int Level = Entry.StartingLevel;
 
-				// render_target OutlineTarget = OpenGL.Targets[Postprocessing_Outline];
-				// render_target PingPongTarget = OpenGL.Targets[PingPong];
-				// for (int i = 0; i < Entry.Passes; i++) {
-				// 	OpenGLSetUniform(Shader->ProgramID, "level", Level);
+				render_target OutlineTarget = OpenGL.Targets[Postprocessing_Outline];
+				render_target PingPongTarget = OpenGL.Targets[PingPong];
+				for (int i = 0; i < Entry.Passes; i++) {
+					OpenGLSetUniform(Shader->ProgramID, "level", Level);
 
-				// 	render_target Source = i % 2 == 0 ? OutlineTarget : PingPongTarget;
-				// 	render_target Target = i % 2 == 0 ? PingPongTarget : OutlineTarget;
+					render_target Source = i % 2 == 0 ? OutlineTarget : PingPongTarget;
+					render_target Target = i % 2 == 0 ? PingPongTarget : OutlineTarget;
 
-				// 	glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
-				// 	glClearColor(0, 0, 0, 0);
-				// 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+					glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+					glClearColor(0, 0, 0, 0);
+					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
-				// 	glActiveTexture(GL_TEXTURE0);
-				// 	glBindTexture(GL_TEXTURE_2D, Source.Texture);
+					glActiveTexture(GL_TEXTURE0);
+					glBindTexture(GL_TEXTURE_2D, Source.Texture);
 
-				// 	glActiveTexture(GL_TEXTURE1);
-				// 	glBindTexture(GL_TEXTURE_2D, Source.AttachmentTexture);
+					// glActiveTexture(GL_TEXTURE1);
+					// glBindTexture(GL_TEXTURE_2D, Source.AttachmentTexture);
 
-				// 	glBindVertexArray(OpenGL.QuadVAO);
-				// 	glDrawArrays(GL_TRIANGLES, 0, 6);
+					glBindVertexArray(OpenGL.QuadVAO);
+					glDrawArrays(GL_TRIANGLES, 0, 6);
 
-				// 	Level = Level >> 1;
-				// }
+					Level = Level >> 1;
+				}
 
-				// if (Entry.Passes % 2 == 1) {
-				// 	glBindFramebuffer(GL_READ_FRAMEBUFFER, PingPongTarget.Framebuffer);
-				// 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, OutlineTarget.Framebuffer);
-				// 	glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
-				// }
+				if (Entry.Passes % 2 == 1) {
+					glBindFramebuffer(GL_READ_FRAMEBUFFER, PingPongTarget.Framebuffer);
+					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, OutlineTarget.Framebuffer);
+					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+				}
 
-				// glActiveTexture(GL_TEXTURE1);
-				// glBindTexture(GL_TEXTURE_2D, 0);
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(GL_TEXTURE_2D, 0);
 
-				// glActiveTexture(GL_TEXTURE0);
-				// glBindTexture(GL_TEXTURE_2D, 0);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(GL_TEXTURE_2D, 0);
 
-				// glBindVertexArray(0);
-				// glUseProgram(0);
+				glBindVertexArray(0);
+				glUseProgram(0);
 			} break;
 
 			case group_type_render_entry_render_target:
@@ -1389,6 +1389,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 				if (Source.Label == Output) {
 					glDepthFunc(GL_ALWAYS);
+				}
+
+				if (Source.Label == Postprocessing_Outline) {
+					glDisable(GL_DEPTH_TEST);
 				}
 
 				uint32 TargetFramebuffer = Entry.Header.Target == Output ? 0 : OpenGL.Targets[Entry.Target].Framebuffer;
@@ -1469,14 +1473,23 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				glUseProgram(Shader->ProgramID);
 
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+				if (Framebuffer.Multisampling) {
+					OpenGLSetUniform(Shader->ProgramID, "u_samples", Framebuffer.Samples);
+					glActiveTexture(GL_TEXTURE1);
+					glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Framebuffer.AttachmentTexture);
+				}
 				
 				GLenum TextureTarget = Framebuffer.Multisampling ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
 				
-				glBindTexture(GL_TEXTURE_2D, Framebuffer.Texture);
+				glActiveTexture(GL_TEXTURE0);
+				glBindTexture(TextureTarget, Entry.Attachment ? Framebuffer.AttachmentTexture : Framebuffer.Texture);
 
 				glBindVertexArray(OpenGL.DebugVAO);
 				glDrawArrays(GL_TRIANGLES, 0, 6);
 
+				glActiveTexture(GL_TEXTURE1);
+				glBindTexture(TextureTarget, 0);
+				glActiveTexture(GL_TEXTURE0);
 				glBindTexture(TextureTarget, 0);
 				glUseProgram(0);
 				glBindVertexArray(0);
