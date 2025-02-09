@@ -85,32 +85,41 @@ color operator+(color Color1, color Color2) {
 
 struct camera {
     basis Basis;
-    vector_plane Plane;
     v3 Position;
     v3 Velocity;
-    double Distance;
-    double Pitch;
-    double Angle;
+    float Distance;
+    float Pitch;
+    float Angle;
+    matrix4 View;
 };
 
-basis GetCameraBasis(double Angle, double Pitch) {
+basis GetCameraBasis(float Angle, float Pitch) {
+    float cosA = cosf(Angle * Degrees);
+    float sinA = sinf(Angle * Degrees);
+    float cosP = cosf(Pitch * Degrees);
+    float sinP = sinf(Pitch * Degrees);
+
     v3 X = V3(
-        cos(Angle * Degrees),
+        cosA,
         0.0,
-        sin(Angle * Degrees)
+        sinA
     );
     v3 Y = V3(
-        -sin(Angle * Degrees) * sin(Pitch * Degrees),
-        cos(Pitch * Degrees),
-        cos(Angle * Degrees) * sin(Pitch * Degrees)
+        -sinA * sinP,
+        cosP,
+        cosA * sinP
     );
     v3 Z = V3(
-        sin(Angle * Degrees) * cos(Pitch * Degrees),
-        sin(Pitch * Degrees),
-        -cos(Angle * Degrees) * cos(Pitch * Degrees)
+        sinA * cosP,
+        sinP,
+        -cosA * cosP
     );
 
-    return { X, Y, Z };
+    basis Result;
+    Result.X = X;
+    Result.Y = Y;
+    Result.Z = Z;
+    return Result;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -119,8 +128,8 @@ basis GetCameraBasis(double Angle, double Pitch) {
 
 struct rect_collider {
     v3 Center;
-    double Width;
-    double Height;
+    float Width;
+    float Height;
 };
 
 struct cube_collider {
@@ -130,7 +139,7 @@ struct cube_collider {
 
 struct sphere_collider {
     v3 Center;
-    double Radius;
+    float Radius;
 };
 
 bool Collide(rect_collider Collider, v3 Position) {
@@ -776,8 +785,8 @@ void PushRectOutline(
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     game_rect Rect = {
-        Collider.Center.X - Collider.Width / 2.0,
-        Collider.Center.Y - Collider.Height / 2.0,
+        Collider.Center.X - Collider.Width / 2.0f,
+        Collider.Center.Y - Collider.Height / 2.0f,
         Collider.Width,
         Collider.Height
     };

@@ -4,6 +4,14 @@
 #include "GameMath.h"
 #include "GameAssets.h"
 
+/*
+    TODO:
+        - Mixer
+        - Some effects (low pass, high pass)
+        - Volume control
+        - Implement circular buffer with VirtualAlloc2 and MapViewOfFile3
+*/
+
 struct game_sound_buffer {
     uint32 SamplesPerSecond;
     uint16 BufferSize;

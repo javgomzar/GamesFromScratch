@@ -1046,10 +1046,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     MyRegisterClass(hInstance);
 
+    // Dummy window for OpenGL context creation
+    HWND DummyWindow = CreateWindowA(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, 0, 0,
+        100, 100, nullptr, nullptr, hInstance, nullptr);
+
+    GetWGLFunctions(DummyWindow);
+    DestroyWindow(DummyWindow);
+
     // Perform application initialization:
     HWND Window;
-    if (!InitInstance(hInstance, nCmdShow, &Window))
-    {
+    if (!InitInstance(hInstance, nCmdShow, &Window)) {
         return FALSE;
     }
 

@@ -1,4 +1,4 @@
-#version 430
+#version 430 core
 precision highp float;
 
 layout(binding = 0) uniform sampler2D binded_texture;

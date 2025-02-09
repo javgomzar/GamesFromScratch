@@ -271,31 +271,30 @@ struct game_bitmap {
     uint32* Content;
 };
 
-uint64 ComputeNeededMemoryForBitmap(read_file_result File) {
-    bitmap_header Header = *(bitmap_header*)File.Content;
+/* Returns number of bytes of pixels. Deals with 4-byte alignment for rows when pixels are 3 bytes wide. */
+uint64 ComputeNeededMemoryForBitmap(bitmap_header* Header) {
     Assert(
-        Header.Size == 40 || // BITMAPINFOHEADER
-        Header.Size == 124   // BITMAPV5HEADER
+        Header->Size == 40 || // BITMAPINFOHEADER
+        Header->Size == 124   // BITMAPV5HEADER
     );
 
     uint32 ExtraBytes = 0;
-    if (Header.Size == 124) {
-        bitmap_header_v5 v5Header = *(bitmap_header_v5*)File.Content;
+    if (Header->Size == 124) {
+        bitmap_header_v5 v5Header = *(bitmap_header_v5*)Header;
         ExtraBytes = v5Header.ProfileSize;
     }
 
-    Assert(File.ContentSize == Header.FileSize);
-    uint32 BytesPerPixel = (Header.BitsPerPixel >> 3);
-    uint32 RowSize = Header.Width * BytesPerPixel;
+    uint32 BytesPerPixel = (Header->BitsPerPixel >> 3);
+    uint32 RowSize = Header->Width * BytesPerPixel;
 
-    if (Header.Size == 40 && BytesPerPixel == 3) {
+    if (Header->Size == 40 && BytesPerPixel == 3) {
         // 4-byte alignment apparently
         RowSize = (RowSize / 4 + 1) * 4;
     }
 
-    uint64 PixelsSize = RowSize * Header.Height;
+    uint64 PixelsSize = RowSize * Header->Height;
     
-    Assert(PixelsSize + Header.BitmapOffset + ExtraBytes == Header.FileSize);
+    Assert(PixelsSize + Header->BitmapOffset + ExtraBytes == Header->FileSize);
     return PixelsSize;
 }
 
@@ -418,7 +417,7 @@ struct game_heightmap {
 const int HEIGHTMAP_RESOLUTION = 20;
 
 uint64 ComputeNeededMemoryForHeightmap(read_file_result File) {
-    uint64 BitmapSize = ComputeNeededMemoryForBitmap(File);
+    uint64 BitmapSize = ComputeNeededMemoryForBitmap((bitmap_header*)File.Content);
     uint64 VerticesSize = HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 4 * 5 * sizeof(double);
     return BitmapSize + VerticesSize;
 }
@@ -427,35 +426,35 @@ game_heightmap AssetLoadHeightmap(memory_arena* Arena, game_asset* Asset) {
     game_heightmap Result = {};
 
     Result.Bitmap = LoadBitmapFile(Arena, Asset->File);
-    double Width = Result.Bitmap.Header.Width;
-    double Height = Result.Bitmap.Header.Height;
+    double Width = 10.0;
+    double Height = 10.0;
 
     Result.nVertices = HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 4;
     Result.Vertices = (double*)PushSize(Arena, Result.nVertices * 5 * sizeof(double));
     double* Pointer = Result.Vertices;
     for (int i = 0; i < HEIGHTMAP_RESOLUTION; i++) {
         for (int j = 0; j < HEIGHTMAP_RESOLUTION; j++) {
-            *Pointer++ = -Width / 2.0 + Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
             *Pointer++ = 0.0; // v.y
-            *Pointer++ = -Height / 2.0 + Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
             *Pointer++ = (double)i / (double)HEIGHTMAP_RESOLUTION; // vt.x
             *Pointer++ = (double)j / (double)HEIGHTMAP_RESOLUTION; // vt.y
 
-            *Pointer++ = -Width / 2.0 + Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
             *Pointer++ = 0.0; // v.y
-            *Pointer++ = -Height / 2.0 + Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
             *Pointer++ = (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.x
             *Pointer++ = (double)j / (double)HEIGHTMAP_RESOLUTION; // vt.y
 
-            *Pointer++ = -Width / 2.0 + Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
             *Pointer++ = 0.0; // v.y
-            *Pointer++ = -Height / 2.0 + Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
             *Pointer++ = (double)i / (double)HEIGHTMAP_RESOLUTION; // vt.x
             *Pointer++ = (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.y
 
-            *Pointer++ = -Width / 2.0 + Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
             *Pointer++ = 0.0; // v.y
-            *Pointer++ = -Height / 2.0 + Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
             *Pointer++ = (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.x
             *Pointer++ = (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.y
         }
@@ -584,22 +583,22 @@ game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
             unsigned char c = '!';
             for (int i = 0; i < FONT_CHARACTERS_COUNT; i++) {
                 game_font_character* pCharacter = &Result.Characters[i];
-                game_bitmap* CharacterBMP = &pCharacter->Bitmap;
+                game_bitmap* Bitmap = &pCharacter->Bitmap;
                 error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
                 if (error) Assert(false);
                 else {
                     FT_GlyphSlot Slot = Font->glyph;
                     FT_Bitmap FTBMP = Slot->bitmap;
-                    *CharacterBMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
-                    LoadFTBMP(&FTBMP, CharacterBMP);
+                    *Bitmap = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
+                    LoadFTBMP(&FTBMP, Bitmap);
 
                     pCharacter->Letter = c;
                     pCharacter->Advance = Slot->advance.x >> 6;
                     pCharacter->Left = Slot->bitmap_left;
                     pCharacter->Top = Slot->bitmap_top;
-                    pCharacter->Height = Slot->metrics.height;
-                    pCharacter->Width = Slot->metrics.width;
-                    pCharacter->Bitmap = *CharacterBMP++;
+                    pCharacter->Height = Slot->bitmap.rows;
+                    pCharacter->Width = Slot->bitmap.width;
+                    pCharacter->Bitmap = *Bitmap++;
                     pCharacter->Bitmap.Handle = 0;
 
                     c++;
@@ -977,11 +976,11 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
             *pOutputVertex++ = Vertex.X;
             *pOutputVertex++ = Vertex.Y;
             *pOutputVertex++ = Vertex.Z;
+            *pOutputVertex++ = Texture.X;
+            *pOutputVertex++ = Texture.Y;
             *pOutputVertex++ = Normal.X;
             *pOutputVertex++ = Normal.Y;
             *pOutputVertex++ = Normal.Z;
-            *pOutputVertex++ = Texture.X;
-            *pOutputVertex++ = Texture.Y;
             WrittenBytes += 8 * sizeof(double);
         }
 
@@ -1016,10 +1015,10 @@ enum game_shader_id {
     Tessellation_Vertex_Shader_ID,
 
     // Tessellation control shaders
-    //Tessellation_Control_Shader_ID,
+    Tessellation_Control_Shader_ID,
 
     // Tessellation evaluation shaders
-    //Tessellation_Evaluation_Shader_ID,
+    Tessellation_Evaluation_Shader_ID,
 
     // Geometry shaders
     Test_Geometry_Shader_ID,
@@ -1028,11 +1027,13 @@ enum game_shader_id {
     Antialiasing_Fragment_Shader_ID,
     Single_Color_Fragment_Shader_ID,
     Texture_Fragment_Shader_ID,
+    Framebuffer_Attachment_Fragment_Shader_ID,
     Outline_Fragment_Shader_ID,
     Kernel_Fragment_Shader_ID,
     Mesh_Fragment_Shader_ID,
     Sphere_Fragment_Shader_ID,
     Jump_Flood_Fragment_Shader_ID,
+    Heightmap_Fragment_Shader_ID,
 
     game_shader_id_count
 };
@@ -1049,12 +1050,13 @@ enum game_shader_pipeline_id {
     Antialiasing_Shader_Pipeline_ID,
     Framebuffer_Shader_Pipeline_ID,
     Single_Color_Shader_Pipeline_ID,
+    Texture_Shader_Pipeline_ID,
     Mesh_Shader_Pipeline_ID,
     Sphere_Shader_Pipeline_ID,
     Jump_Flood_Shader_Pipeline_ID,
     Outline_Shader_Pipeline_ID,
     //Shader_Pipeline_Kernel_ID,
-    //Shader_Pipeline_Tessellation_ID,
+    Heightmap_Shader_Pipeline_ID,
 
     game_shader_pipeline_id_count
 };
@@ -1153,7 +1155,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_bitmap_id ID) {
     Asset->Type = Bitmap;
     Asset->ID.Bitmap = ID;
     Asset->File = PlatformReadEntireFile(Path);
-    Asset->MemoryNeeded = ComputeNeededMemoryForBitmap(Asset->File);
+    Asset->MemoryNeeded = ComputeNeededMemoryForBitmap((bitmap_header*)Asset->File.Content);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
 };
@@ -1389,7 +1391,8 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
             case Heightmap: {
                 game_heightmap* Heightmap = GetAsset(Assets, Asset.ID.Heightmap);
                 Heightmap->Bitmap.Content = (uint32*)(Assets->Memory + Asset.Offset);
-                Heightmap->Vertices = (double*)(Assets->Memory + Asset.Offset + (Heightmap->Bitmap.Header.FileSize >> 3));
+                uint64 BitmapSize = ComputeNeededMemoryForBitmap(&Heightmap->Bitmap.Header);
+                Heightmap->Vertices = (double*)(Assets->Memory + Asset.Offset + BitmapSize);
             } break;
 
             case Font: {
@@ -1476,40 +1479,52 @@ void WriteAssetFile() {
 
 // Shaders
     // Vertex
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Passthrough.vert.glsl", Passthrough_Vertex_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Perspective.vert.glsl", Perspective_Vertex_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation.vert.glsl", Tessellation_Vertex_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Passthrough.vert.glsl", Passthrough_Vertex_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Perspective.vert.glsl", Perspective_Vertex_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Tessellation.vert.glsl", Tessellation_Vertex_Shader_ID);
 
     // Fragment
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Antialiasing.frag.glsl", Antialiasing_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Texture.frag.glsl", Texture_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Outline.frag.glsl", Outline_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\SingleColor.frag.glsl", Single_Color_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Kernel.frag.glsl", Kernel_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Sphere.frag.glsl", Sphere_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Mesh.frag.glsl", Mesh_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\JumpFlood.frag.glsl", Jump_Flood_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Antialiasing.frag.glsl", Antialiasing_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\FramebufferAttachment.frag.glsl", Framebuffer_Attachment_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Texture.frag.glsl", Texture_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Outline.frag.glsl", Outline_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\SingleColor.frag.glsl", Single_Color_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Kernel.frag.glsl", Kernel_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Sphere.frag.glsl", Sphere_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Mesh.frag.glsl", Mesh_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\JumpFlood.frag.glsl", Jump_Flood_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Heightmap.frag.glsl", Heightmap_Fragment_Shader_ID);
 
     // Geometry
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Test.geom.glsl", Test_Geometry_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Geometry\\Test.geom.glsl", Test_Geometry_Shader_ID);
+
+    // Tessellation
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tcs.glsl", Tessellation_Control_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tes.glsl", Tessellation_Evaluation_Shader_ID);
 
     Assert(Assets.nShaders == game_shader_id_count);
 
     // Shader pipelines
     PushShaderPipeline(&Assets, Antialiasing_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Antialiasing_Fragment_Shader_ID);
-    PushShaderPipeline(&Assets, Framebuffer_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Texture_Fragment_Shader_ID);
+    PushShaderPipeline(&Assets, Framebuffer_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Framebuffer_Attachment_Fragment_Shader_ID);
+    PushShaderPipeline(&Assets, Texture_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Texture_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Mesh_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Mesh_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Sphere_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Sphere_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Single_Color_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Single_Color_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Outline_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Outline_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Jump_Flood_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Jump_Flood_Fragment_Shader_ID);
     //PushShaderPipeline(&Assets, Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
-    //PushShaderPipeline(&Assets, Shader_Pipeline_Tessellation_ID, Vertex_Shader_Tessellation_ID, Fragment_Shader_Single_Color_ID, Geometry_Shader_Tessellation_ID);
+    PushShaderPipeline(&Assets, Heightmap_Shader_Pipeline_ID, 4, 
+        Tessellation_Vertex_Shader_ID, 
+        Tessellation_Control_Shader_ID, 
+        Tessellation_Evaluation_Shader_ID, 
+        Heightmap_Fragment_Shader_ID
+    );
     
     // Compute
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\OutlineInit.comp.glsl", Outline_Init_Compute_Shader_ID);
-    //PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\JumpFlood.comp.glsl", Jump_Flood_Compute_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Test.comp.glsl", Test_Compute_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\OutlineInit.comp.glsl", Outline_Init_Compute_Shader_ID);
+    //PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\JumpFlood.comp.glsl", Jump_Flood_Compute_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\Test.comp.glsl", Test_Compute_Shader_ID);
 
     Assert(Assets.nShaderPipelines == game_shader_pipeline_id_count);
 

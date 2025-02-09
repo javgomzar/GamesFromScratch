@@ -152,10 +152,6 @@ void Update(camera* Camera, game_input* Input) {
         Camera->Pitch -= 3.0 * Joystic.Y;
     }
 
-    Camera->Basis = GetCameraBasis(Camera->Angle, Camera->Pitch);
-    Camera->Plane.Base[0] = Camera->Basis.X;
-    Camera->Plane.Base[1] = Camera->Basis.Y;
-
     // Translation
     Camera->Velocity = V3(0, 0, 0);
     if (Input->Keyboard.D.IsDown) {
@@ -192,7 +188,7 @@ void LogGameDebugRecords();
 extern "C" GAME_UPDATE(GameUpdate)
 {
     {
-        TIMED_BLOCK;
+    TIMED_BLOCK;
 
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_assets* Assets = &Memory->Assets;
@@ -215,7 +211,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // User Interface
 
         // Camera
-        Camera->Position = V3(0.0, 2.2, 5.0);
+        Camera->Position = V3(0.0, 0.0, 0.0);
         Camera->Angle = 45;
         Camera->Pitch = 45;
 
@@ -250,14 +246,18 @@ extern "C" GAME_UPDATE(GameUpdate)
     // Render
     light LightSource = Light(V3(-0.5, -1, 1), White);
 
-    transform Transform1 = Transform(Quaternion(Pi / 2, V3(0.0, -1.0, 0.0)), V3(0.0, 0.0, 5.0));
+    transform Transform1 = Transform(Quaternion(Time / 2, V3(0.0, -1.0, 0.0)), V3(0.0, 5.0, 5.0));
     transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(4.0, 0.0, 5.0));
     //PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
 
-    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, true);
+    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, false);
     PushMesh(Group, Mesh_Sphere_ID, Transform2, LightSource, Sphere_Shader_Pipeline_ID, Bitmap_Empty_ID, Red, SORT_ORDER_MESHES, false);
 
-    //PushCircle(Group, V3(0.0, 0.0, 0.0), V3(1.0, 1.0, 0.0), 1.0, Magenta, SORT_ORDER_MESHES);
+    //PushHeightmap(Group, Heightmap_Spain_ID);
+
+    // PushBitmap(Group, Bitmap_Background_ID, { 200, 200, 400, 200 });
+
+    // PushCircle(Group, V3(0.0, 0.0, 0.0), V3(1.0, 1.0, 0.0), 1.0, Magenta, SORT_ORDER_MESHES);
 
     // PushVideo(Group, &Assets->TestVideo, {0, 0, (double)Group->Width, (double)Group->Height}, pGameState->dt);
 
@@ -317,20 +317,12 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Screen_Coordinates, Red);
         PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Screen_Coordinates, Green);
         PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Screen_Coordinates, Blue);
+        PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
+        PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
+        PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
 
         // Debug Framebuffer
         PushDebugFramebuffer(Group, Postprocessing_Outline);
-        int RectX = 0.75 * Group->Width;
-        int RectY = 0.75 * Group->Height;
-        int Width = 0.25 * Group->Width;
-        int Height = 0.25 * Group->Height;
-        game_rect DebugFramebufferRect = { 
-            RectX, 
-            RectY, 
-            Width, 
-            Height, 
-        };
-        PushRectOutline(Group, DebugFramebufferRect, White, SORT_ORDER_PUSH_RENDER_TARGETS - 0.11, Output);
     }
 
     PushRenderTarget(Group, World);
