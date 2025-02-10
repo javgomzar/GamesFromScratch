@@ -178,7 +178,8 @@ void Update(camera* Camera, game_input* Input) {
     basis HorizontalBasis = GetCameraBasis(Camera->Angle, 0);
 
     v3 Direction = normalize(Camera->Velocity);
-    Camera->Velocity = 0.2 * (Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z);
+    float Speed = 0.01 * Camera->Distance;
+    Camera->Velocity = Speed * (Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z);
     Camera->Position += Camera->Velocity;
 }
 
@@ -246,14 +247,14 @@ extern "C" GAME_UPDATE(GameUpdate)
     // Render
     light LightSource = Light(V3(-0.5, -1, 1), White);
 
-    transform Transform1 = Transform(Quaternion(Time / 2, V3(0.0, -1.0, 0.0)), V3(0.0, 5.0, 5.0));
-    transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(4.0, 0.0, 5.0));
+    transform Transform1 = Transform(Quaternion(Time / 2, V3(0.0, -1.0, 0.0)), V3(0.0, 0.0, 5.0));
+    transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(-5.0, 0.0, 20.0));
     //PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
 
     PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, false);
     PushMesh(Group, Mesh_Sphere_ID, Transform2, LightSource, Sphere_Shader_Pipeline_ID, Bitmap_Empty_ID, Red, SORT_ORDER_MESHES, false);
 
-    //PushHeightmap(Group, Heightmap_Spain_ID);
+    PushHeightmap(Group, Heightmap_Spain_ID);
 
     // PushBitmap(Group, Bitmap_Background_ID, { 200, 200, 400, 200 });
 
@@ -317,9 +318,9 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Screen_Coordinates, Red);
         PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Screen_Coordinates, Green);
         PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Screen_Coordinates, Blue);
-        PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
-        PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
-        PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
+        // PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
+        // PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
+        // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
 
         // Debug Framebuffer
         PushDebugFramebuffer(Group, Postprocessing_Outline);

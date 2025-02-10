@@ -11,13 +11,12 @@ void main() {
     texture_coord[gl_InvocationID] = v_texture[gl_InvocationID];
 
     if (gl_InvocationID == 0) {
-        gl_TessLevelOuter[0] = 1.0;
-        gl_TessLevelOuter[1] = 1.0;
-        gl_TessLevelOuter[2] = 1.0;
-        gl_TessLevelOuter[3] = 1.0;
-
-        gl_TessLevelInner[0] = 1.0;
-        gl_TessLevelInner[1] = 1.0;
+        gl_TessLevelOuter[0] = 64;
+        gl_TessLevelOuter[1] = 64;
+        gl_TessLevelOuter[2] = 64;
+        gl_TessLevelOuter[3] = 64;
+        gl_TessLevelInner[0] = 64;
+        gl_TessLevelInner[1] = 64;
     }
 }
 

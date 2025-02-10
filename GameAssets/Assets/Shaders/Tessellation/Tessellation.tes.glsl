@@ -9,9 +9,9 @@
 layout ( quads, equal_spacing, ccw) in;
 
 uniform sampler2D heightMap;
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 u_model;
+uniform mat4 u_view;
+uniform mat4 u_projection;
 
 in vec2 texture_coord[];
 
@@ -32,7 +32,7 @@ void main() {
     vec2 t1       = t11 * u + (1.0 - u) * t10;
     vec2 texCoord =  t1 * v + (1.0 - v) * t0;
 
-    height = texture(heightMap, texCoord).y * 64.0 - 16.0;
+    height = 0.2 * texture(heightMap, texCoord).y;
     
     // Control point position coordinates
     vec4 p00 = gl_in[0].gl_Position;
@@ -54,6 +54,6 @@ void main() {
     // Height
     p += normal * height;
 
-    gl_Position = projection * view * model * p;
+    gl_Position = u_projection * u_view * u_model * p;
 }
 
