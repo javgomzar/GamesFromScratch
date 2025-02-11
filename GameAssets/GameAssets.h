@@ -1022,6 +1022,7 @@ enum game_shader_id {
 
     // Geometry shaders
     Test_Geometry_Shader_ID,
+    Debug_Normals_Geometry_Shader_ID,
 
     // Fragment shaders
     Antialiasing_Fragment_Shader_ID,
@@ -1057,6 +1058,7 @@ enum game_shader_pipeline_id {
     Outline_Shader_Pipeline_ID,
     //Shader_Pipeline_Kernel_ID,
     Heightmap_Shader_Pipeline_ID,
+    Debug_Normals_Shader_Pipeline_ID,
 
     game_shader_pipeline_id_count
 };
@@ -1497,6 +1499,7 @@ void WriteAssetFile() {
 
     // Geometry
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Geometry\\Test.geom.glsl", Test_Geometry_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Geometry\\DebugNormals.geom.glsl", Debug_Normals_Geometry_Shader_ID);
 
     // Tessellation
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tcs.glsl", Tessellation_Control_Shader_ID);
@@ -1513,6 +1516,11 @@ void WriteAssetFile() {
     PushShaderPipeline(&Assets, Single_Color_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Single_Color_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Outline_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Outline_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Jump_Flood_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Jump_Flood_Fragment_Shader_ID);
+    PushShaderPipeline(&Assets, Debug_Normals_Shader_Pipeline_ID, 3, 
+        Perspective_Vertex_Shader_ID, 
+        Debug_Normals_Geometry_Shader_ID, 
+        Single_Color_Fragment_Shader_ID
+    );
     //PushShaderPipeline(&Assets, Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
     PushShaderPipeline(&Assets, Heightmap_Shader_Pipeline_ID, 4, 
         Tessellation_Vertex_Shader_ID, 

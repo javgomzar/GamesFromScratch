@@ -248,7 +248,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     light LightSource = Light(V3(-0.5, -1, 1), White);
 
     transform Transform1 = Transform(Quaternion(Time / 2, V3(0.0, -1.0, 0.0)), V3(0.0, 0.0, 5.0));
-    transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(-5.0, 0.0, 20.0));
+    transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(-5.0, 0.0, 20.0), Scale(10,1,1));
     //PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
 
     PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, false);

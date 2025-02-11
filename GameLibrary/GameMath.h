@@ -706,6 +706,14 @@ inline bool operator==(matrix4 A, matrix4 B) {
 	return true;
 }
 
+inline matrix3 Matrix3(matrix4 Matrix) {
+	return {
+		Matrix.XX, Matrix.XY, Matrix.XZ,
+		Matrix.YX, Matrix.YY, Matrix.YZ,
+		Matrix.ZX, Matrix.ZY, Matrix.ZZ
+	};
+}
+
 // Rotations
 struct quaternion {
 	float c;

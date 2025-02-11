@@ -26,7 +26,7 @@
     - WM_SETCURSOR
     - QueryCancelAutoplay
     - WM_ACTIVEAPP (when we are not the active application)
-    - Blit speed improvements (BitBlt)
+    - Software renderer with blit speed improvements (BitBlt)
     - GetKeyboardLayout (international wasd support)
     - Restore software renderer as fallback
 */

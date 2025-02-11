@@ -487,15 +487,15 @@ void OpenGLSetUniform(int ProgramID, const char* Name, color Color) {
 	if (Location >= 0) glUniform4f(Location, Color.R, Color.G, Color.B, Color.Alpha);
 }
 
+void OpenGLSetUniform(int ProgramID, const char* Name, matrix4 Matrix) {
+	GLint Location = glGetUniformLocation(ProgramID, Name);
+	if (Location >= 0) glUniformMatrix4fv(Location, 1, GL_FALSE, Matrix.Element);
+}
+
 void OpenGLSetUniform(int ProgramID, matrix4 Projection, matrix4 View, matrix4 Model) {
-	GLint ProjectionLocation = glGetUniformLocation(ProgramID, "u_projection");
-	glUniformMatrix4fv(ProjectionLocation, 1, GL_FALSE, Projection.Element);
-
-	GLint ViewLocation = glGetUniformLocation(ProgramID, "u_view");
-	glUniformMatrix4fv(ViewLocation, 1, GL_FALSE,  View.Element);
-
-	GLint ModelLocation = glGetUniformLocation(ProgramID, "u_model");
-	glUniformMatrix4fv(ModelLocation, 1, GL_FALSE,  Model.Element);
+	OpenGLSetUniform(ProgramID, "u_projection", Projection);
+	OpenGLSetUniform(ProgramID, "u_view", View);
+	OpenGLSetUniform(ProgramID, "u_model", Model);
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1239,7 +1239,19 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				matrix4 Projection = GetWorldProjectionMatrix(Width, Height);
 				matrix4 View = GetViewMatrix(Group->Camera);
 				matrix4 Model = Matrix(Transform);
+
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+
+				// Normal transform
+				matrix3 Normal3 = inverse(Matrix3(Model));
+
+				matrix4 Normal = Identity4;
+				Normal.X = V4(Normal3.X, 0);
+				Normal.Y = V4(Normal3.Y, 0);
+				Normal.Z = V4(Normal3.Z, 0);
+				Normal.W = V4(0,0,0,1);
+
+				OpenGLSetUniform(Shader->ProgramID, "u_normal", Normal);
 
 				// Light
 				OpenGLSetUniform(Shader->ProgramID, "light_direction", Light.Direction);
@@ -1262,6 +1274,17 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				else glBindTexture(GL_TEXTURE_2D, 0);
 
 				glDrawElements(GL_TRIANGLES, 3 * Mesh->nFaces, GL_UNSIGNED_INT, 0);
+
+				if (Group->Debug) {
+					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Debug_Normals_Shader_Pipeline_ID);
+
+					glUseProgram(Shader->ProgramID);
+					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+					OpenGLSetUniform(Shader->ProgramID, "u_color", Yellow);
+					OpenGLSetUniform(Shader->ProgramID, "u_normal", Normal);
+
+					glDrawArrays(GL_POINTS, 0, Mesh->nVertices);
+				}
 
 				glUseProgram(0);
 				glBindVertexArray(0);
