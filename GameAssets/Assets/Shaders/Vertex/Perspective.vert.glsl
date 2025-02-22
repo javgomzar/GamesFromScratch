@@ -17,6 +17,6 @@ out vec2 v_texture;
 void main() {
 	v_position = a_position;
 	v_texture = a_texture;
-	v_normal = (u_view * normalize(u_normal * vec4(a_normal, 0))).xyz;
+	v_normal = (normalize(u_normal * vec4(a_normal, 0))).xyz;
 	gl_Position = u_projection * u_view * u_model * vec4(a_position, 1.0);
 }

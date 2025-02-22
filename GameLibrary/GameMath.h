@@ -92,12 +92,12 @@ inline float dot(v2 A, v2 B) {
 	return A.X * B.X + A.Y * B.Y;
 }
 
-inline float module(v2 A) {
+inline float modulus(v2 A) {
 	return sqrt(dot(A, A));
 }
 
 inline v2 normalize(v2 V) {
-	return (module(V) < 0.00001f) ? V : (1 / module(V)) * V;
+	return (modulus(V) < 0.00001f) ? V : (1 / modulus(V)) * V;
 }
 
 inline v2 project(v2 A, v2 B) {
@@ -242,16 +242,16 @@ inline v3 cross(v3 A, v3 B) {
 	return Result;
 }
 
-inline float module(v3 A) {
+inline float modulus(v3 A) {
 	return sqrt(dot(A, A));
 }
 
 inline float distance(v3 A, v3 B) {
-	return module(B - A);
+	return modulus(B - A);
 }
 
 inline v3 normalize(v3 V) {
-	return (module(V) < 0.00001) ? V : (1 / module(V)) * V;
+	return (modulus(V) < 0.00001) ? V : (1 / modulus(V)) * V;
 }
 
 inline v3 project(v3 A, v3 B) {
@@ -284,7 +284,7 @@ inline v3 Rotate(v3 v, float Angle) {
 
 inline v3 Rotate(v3 v, v3 w, float Angle = 0.0) {
 	if (Angle == 0.0) {
-		float Angle = Tau * module(w);
+		float Angle = Tau * modulus(w);
 	}
 	v3 n = normalize(w);
 	// Rodrigues formula
@@ -714,7 +714,156 @@ inline matrix3 Matrix3(matrix4 Matrix) {
 	};
 }
 
-// Rotations
+// Complex numbers
+struct complex {
+	double r; // Real part
+	double i; // Imaginary part
+};
+
+complex Complex(double r, double i) {
+	return {r, i};
+}
+
+inline complex conjugate(complex A) {
+	return {
+		A.r,
+		-A.i
+	};
+}
+
+inline complex operator+(complex A, double B) {
+	return {
+		A.r + B,
+		A.i
+	};
+}
+
+inline complex& operator+=(complex& A, double B) {
+	A.r += B;
+	return A;
+}
+
+inline complex operator+(double A, complex B) {
+	return {
+		A + B.r,
+		B.i
+	};
+}
+
+inline complex operator-(double A, complex B) {
+	return {
+		A - B.r,
+		B.i
+	};
+}
+
+inline complex operator-(complex A, double B) {
+	return {
+		A.r - B,
+		A.i
+	};
+}
+
+inline complex& operator-=(complex& A, double B) {
+	A.r -= B;
+	return A;
+}
+
+inline complex operator*(complex A, double C) {
+	return {
+		A.r * C,
+		A.i * C
+	};
+}
+
+inline complex operator*(double C, complex A) {
+	return {
+		A.r * C,
+		A.i * C
+	};
+}
+
+inline complex& operator*=(complex& A, double B) {
+	A.r *= B;
+	A.i *= B;
+	return A;
+}
+
+inline complex operator/(complex A, double C) {
+	return {
+		A.r / C,
+		A.i / C
+	};
+}
+
+inline complex& operator/=(complex& A, double B) {
+	A.r /= B;
+	A.i /= B;
+	return A;
+}
+
+inline double modulus(complex A) {
+	return sqrt(A.r * A.r + A.i * A.i);
+}
+
+inline complex inverse(complex A) {
+	return conjugate(A) / (A.r * A.r + A.i * A.i);
+}
+
+inline complex expi(double Alpha) {
+	return {
+		cos(Alpha),
+		sin(Alpha)
+	};
+}
+
+inline complex operator+(complex A, complex B) {
+	return {
+		A.r + B.r,
+		A.i + B.i
+	};
+}
+
+inline complex& operator+=(complex& A, complex B) {
+	A.r += B.r;
+	A.i += B.i;
+	return A;
+}
+
+inline complex operator-(complex A, complex B) {
+	return {
+		A.r - B.r,
+		A.i - B.i
+	};
+}
+
+inline complex& operator-=(complex& A, complex B) {
+	A.r -= B.r;
+	A.i -= B.i;
+	return A;
+}
+
+inline complex operator*(complex A, complex B) {
+	return {
+		A.r * B.r - A.i * B.i,
+		A.r * B.i + A.i * B.r
+	};
+}
+
+inline complex& operator*=(complex& A, complex B) {
+	A = A * B;
+	return A;
+}
+
+inline complex operator/(complex A, complex B) {
+	return A * inverse(B);
+}
+
+inline complex operator/(double A, complex B) {
+	return A * inverse(B);
+}
+
+// Quaternions
 struct quaternion {
 	float c;
 	float i;
@@ -883,6 +1032,112 @@ struct bone {
 
 float Length(bone Bone) {
 	return distance(Bone.Origin, Bone.Destination);
+}
+
+// Fast Fourier Transform
+int BitReverse(int x) {
+	x = (x & 0x5555) << 1 | (x & 0xAAAA) >> 1; //swaps bits
+	x = (x & 0x3333) << 2 | (x & 0xCCCC) >> 2; //swapss 2-bit fields
+	x = (x & 0x0F0F) << 4 | (x & 0xF0F0) >> 4;
+	x = (x & 0x00FF) << 8 | (x & 0xFF00) >> 8;
+	return x;
+}
+
+void DFT(complex* Out, int N, double* Data) {
+	for (int k = 0; k < N; k++) {
+		Out[k] = {0};
+		for (int n = 0; n < N; n++) {
+			float Xn = (float)Data[n]; 
+			Out[k] += Xn * expi(-Tau * k * n / N);
+		}
+	}
+}
+
+struct twiddle_factors {
+	int Size;
+	complex* Content;
+};
+
+twiddle_factors ComputeTwiddleFactors(memory_arena* Arena, int N) {
+	// Reserving memory
+	twiddle_factors Result = { N, PushArray(Arena, N, complex)};
+	
+	Result.Content[0] = Complex(1,0);
+	if (N >= 2) {
+		complex Value = Complex(0,0);
+		int HalfN = N >> 1;
+		for (int k = 1; k < HalfN; k++) {
+			Value = expi(-Tau * k / N);
+			Result.Content[k] = Value;
+			Result.Content[N - k] = conjugate(Value);
+		}
+		Result.Content[HalfN] = Complex(-1, 0);
+		if (N >= 4) {
+			int QuarterN = HalfN >> 1;
+			Result.Content[HalfN] = Complex(-1, 0);
+			Result.Content[QuarterN] = Complex(0, -1);
+			Result.Content[3*QuarterN] = Complex(0, 1);
+		}
+	}
+	
+	return Result;
+}
+
+complex GetTwiddleFactor(twiddle_factors Twiddle, int k) {
+	Assert(k >= 0);
+
+	if (k < Twiddle.Size) return Twiddle.Content[k];
+	else return Twiddle.Content[k % Twiddle.Size];
+}
+
+void RecursiveFFT(
+	memory_arena* Arena,
+	twiddle_factors Twiddle,
+	int N, 
+	complex* Out, 
+	double* Data, 
+	int Start = 0, 
+	int Stride = 1
+) {
+	if (N == 2) {
+		Out[0] = Complex(Data[Start] + Data[Start + Stride], 0);
+		Out[1] = Complex(Data[Start] - Data[Start + Stride], 0);
+	}
+	else {
+		int HalfN = N / 2;
+		complex* Even = PushArray(Arena, HalfN, complex);
+		RecursiveFFT(Arena, Twiddle, HalfN, Even, Data, Start, 2*Stride);
+		complex* Odd = PushArray(Arena, HalfN, complex);
+		RecursiveFFT(Arena, Twiddle, HalfN, Odd, Data, Start+Stride, 2*Stride);
+		Out[0] = Even[0] + Odd[0];
+		Out[HalfN] = Even[0] - Odd[0];
+		for (int k = 1; k < HalfN; k++) {
+			complex TwiddleFactor = GetTwiddleFactor(Twiddle, k * Stride);
+			complex Result = Even[k] + Odd[k] * TwiddleFactor;
+			Out[k] = Result;
+			Out[N-k] = conjugate(Result);
+		}
+	}
+}
+
+void FFT(memory_arena* Arena, complex* Out, int N, double* Data) {
+	int NthPower = 1;
+	int logN = 0;
+	while(N > NthPower) {
+		NthPower *= 2;
+		logN++;
+	}
+
+	Assert(N == NthPower);
+
+	twiddle_factors Twiddle = ComputeTwiddleFactors(Arena, N);
+	complex Test = GetTwiddleFactor(Twiddle, N / 2);
+	
+	RecursiveFFT(Arena, Twiddle, N, Out, Data);
+	Out[0] /= N;
+	for (int i = 1; i < N; i++) {
+		if (i > N / 2) Out[i];
+	}
 }
 
 #endif

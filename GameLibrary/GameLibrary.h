@@ -34,7 +34,9 @@ extern GAMELIBRARY_API int nGameLibrary;
 struct game_state {
     memory_arena RenderArena;
     memory_arena StringsArena;
-    UI UserInterface;
+    memory_arena GeneralPurposeArena;
+    memory_arena TransientArena;
+    user_interface UI;
     double dt;
     double Time;
 };

@@ -1018,7 +1018,8 @@ enum game_shader_id {
     Tessellation_Control_Shader_ID,
 
     // Tessellation evaluation shaders
-    Tessellation_Evaluation_Shader_ID,
+    Standard_Tessellation_Evaluation_Shader_ID,
+    Trochoidal_Tessellation_Evaluation_Shader_ID,
 
     // Geometry shaders
     Test_Geometry_Shader_ID,
@@ -1035,6 +1036,7 @@ enum game_shader_id {
     Sphere_Fragment_Shader_ID,
     Jump_Flood_Fragment_Shader_ID,
     Heightmap_Fragment_Shader_ID,
+    Sea_Fragment_Shader_ID,
 
     game_shader_id_count
 };
@@ -1058,6 +1060,7 @@ enum game_shader_pipeline_id {
     Outline_Shader_Pipeline_ID,
     //Shader_Pipeline_Kernel_ID,
     Heightmap_Shader_Pipeline_ID,
+    Trochoidal_Shader_Pipeline_ID,
     Debug_Normals_Shader_Pipeline_ID,
 
     game_shader_pipeline_id_count
@@ -1496,6 +1499,7 @@ void WriteAssetFile() {
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Mesh.frag.glsl", Mesh_Fragment_Shader_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\JumpFlood.frag.glsl", Jump_Flood_Fragment_Shader_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Heightmap.frag.glsl", Heightmap_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Sea.frag.glsl", Sea_Fragment_Shader_ID);
 
     // Geometry
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Geometry\\Test.geom.glsl", Test_Geometry_Shader_ID);
@@ -1503,7 +1507,8 @@ void WriteAssetFile() {
 
     // Tessellation
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tcs.glsl", Tessellation_Control_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tes.glsl", Tessellation_Evaluation_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tes.glsl", Standard_Tessellation_Evaluation_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Trochoidal.tes.glsl", Trochoidal_Tessellation_Evaluation_Shader_ID);
 
     Assert(Assets.nShaders == game_shader_id_count);
 
@@ -1525,8 +1530,14 @@ void WriteAssetFile() {
     PushShaderPipeline(&Assets, Heightmap_Shader_Pipeline_ID, 4, 
         Tessellation_Vertex_Shader_ID, 
         Tessellation_Control_Shader_ID, 
-        Tessellation_Evaluation_Shader_ID, 
+        Standard_Tessellation_Evaluation_Shader_ID, 
         Heightmap_Fragment_Shader_ID
+    );
+    PushShaderPipeline(&Assets, Trochoidal_Shader_Pipeline_ID, 4,
+        Tessellation_Vertex_Shader_ID,
+        Tessellation_Control_Shader_ID,
+        Trochoidal_Tessellation_Evaluation_Shader_ID,
+        Sea_Fragment_Shader_ID
     );
     
     // Compute

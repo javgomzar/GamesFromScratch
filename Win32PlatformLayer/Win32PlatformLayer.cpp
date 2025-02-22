@@ -16,9 +16,10 @@
 #include <mutex>
 
 /* TODO:
+    - Transient memory
     - Saved game locations
     - Getting a handle to our own executable file
-    - Asset loading (separate compilation process probably?) Asset hot loading?
+    - Asset hot loading
     - Multithreading
     - Multiple keyboards?
     - Sleep/timeBeginPeriod
@@ -1112,10 +1113,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
+    InitializeArena(&pGameState->TransientArena, Megabytes(10), ArenaStart);
+    ArenaStart += pGameState->TransientArena.Size;
     InitializeArena(&pGameState->StringsArena, Kilobytes(1), ArenaStart);
     ArenaStart += pGameState->StringsArena.Size;
     InitializeArena(&pGameState->RenderArena, Megabytes(9), ArenaStart);
     ArenaStart += pGameState->RenderArena.Size;
+    InitializeArena(&pGameState->GeneralPurposeArena, Megabytes(10), ArenaStart);
+    ArenaStart += pGameState->GeneralPurposeArena.Size;
 
     // Render group
     Group = AllocateRenderGroup(&GameMemory.Assets, &pGameState->RenderArena, Megabytes(4));
@@ -1138,6 +1143,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 Log(Info, "New game code loaded.\n");
             }
         }
+
+        // Clear transient memory
+        ClearArena(&pGameState->TransientArena);
 
         // Previous input
         Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;

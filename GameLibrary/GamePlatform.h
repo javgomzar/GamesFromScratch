@@ -19,7 +19,7 @@ typedef int64_t int64;
 typedef size_t memory_index;
 
 // Assert
-inline void Assert(bool assertion) {
+inline void Assert(bool assertion, const char* Message = "") {
     if (!assertion) {
         throw("Assert failed");
     }
@@ -55,6 +55,11 @@ inline void ZeroSize(memory_index Size, void* Ptr) {
     while (Size--) {
         *Byte++ = 0;
     }
+}
+
+inline void ClearArena(memory_arena* Arena) {
+    ZeroSize(Arena->Used, Arena->Base);
+    Arena->Used = 0;
 }
 
 #define PushStruct(Arena, type) (type *)PushSize_(Arena, sizeof(type))

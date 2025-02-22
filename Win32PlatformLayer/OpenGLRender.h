@@ -9,8 +9,15 @@
 /*
 	TODO:
 		- Kernel operations
-		- Optimize ping pong rendering (multithreading might be a good idea) (actually look up compute shaders)
 		- Pixel buffer objects for video rendering
+		- Skeletal animations
+		- Field of view projection matrix
+		- Water rendering with a heightmap
+		- Terrain textures
+		- Improve lighting: Shadows, reflections and point sources
+		- Mirrors
+		- Normal textures
+		- Get lighting from render_group, create OpenGLSetUniform for lighting
 */
 
 
@@ -1050,59 +1057,123 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 			case group_type_render_entry_circle:
 			{
 				render_entry_circle Entry = *(render_entry_circle*)Header;
+				
+				if (Entry.Fill) {
+					const int N = 50;
 
-				static uint32 VAO = 0;
-				static uint32 VBO = 0;
+					// Render circle
+					static uint32 VAO = 0;
+					static uint32 VBO = 0;
 
-				const int N = 50;
-				const int nVertices = N + 2;
+					const int nVertices = N + 2;
 
-				double Vertices[3 * nVertices] = { 0 };
-				Vertices[0] = Entry.Center.X;
-				Vertices[1] = Entry.Center.Y;
-				Vertices[2] = 0.0;
+					double Vertices[3 * nVertices] = { 0 };
+					Vertices[0] = Entry.Center.X;
+					Vertices[1] = Entry.Center.Y;
+					Vertices[2] = 0.0;
 
-				double dTheta = Tau / N;
-				double Theta = 0.0;
-				double* Pointer = Vertices + 2;
-				for (int i = 0; i < 50; i++) {
-					*Pointer++ = Entry.Center.X + Entry.Radius * cos(Theta);
-					*Pointer++ = Entry.Center.Y + Entry.Radius * sin(Theta);
-					*Pointer++ = 0.0;
+					double dTheta = Tau / N;
+					double Theta = 0.0;
+					double* Pointer = Vertices + 3;
+					for (int i = 0; i < N; i++) {
+						*Pointer++ = Entry.Center.X + Entry.Radius * cos(Theta);
+						*Pointer++ = Entry.Center.Y + Entry.Radius * sin(Theta);
+						*Pointer++ = 0.0;
 
-					Theta += dTheta;
-				}
+						Theta += dTheta;
+					}
 
-				Vertices[3 + 3*N] = Vertices[2];
-				Vertices[4 + 3*N] = Vertices[3];
-				Vertices[5 + 3*N] = Vertices[3];
+					Vertices[3 + 3*N] = Vertices[3];
+					Vertices[4 + 3*N] = Vertices[4];
+					Vertices[5 + 3*N] = Vertices[5];
 
-				if (VAO == 0 || VBO == 0) {
-					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, nVertices, 1, 3);
-					glBindVertexArray(VAO);
+					if (VAO == 0 || VBO == 0) {
+						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, nVertices, 1, 3);
+						glBindVertexArray(VAO);
+					}
+					else {
+						glBindVertexArray(VAO);
+						glBindBuffer(GL_ARRAY_BUFFER, VBO);
+						glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertices), Vertices);
+						glBindBuffer(GL_ARRAY_BUFFER, 0);
+					}
+
+					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+					glUseProgram(Shader->ProgramID);
+
+					matrix4 Projection = GetScreenProjectionMatrix(Width, Height);
+					matrix4 View = Identity4;
+					matrix4 Model = Identity4;
+
+					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+
+					OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
+					OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+
+					glDrawArrays(GL_TRIANGLE_FAN, 0, nVertices);
 				}
 				else {
-					glBindVertexArray(VAO);
-					glBindBuffer(GL_ARRAY_BUFFER, VBO);
-					glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertices), Vertices);
-					glBindBuffer(GL_ARRAY_BUFFER, 0);
+					// Render circunference
+
+					const int N = 20;
+					static uint32 VAO = 0;
+					static uint32 VBO = 0;
+					static uint32 EBO = 0;
+
+					const int nVertices = N;
+
+					double Vertices[3 * nVertices] = { 0 };
+
+					double dTheta = Tau / N;
+					double Theta = 0.0;
+					double* Pointer = Vertices;
+					for (int i = 0; i < N; i++) {
+						*Pointer++ = Entry.Center.X + Entry.Radius * cos(Theta);
+						*Pointer++ = Entry.Center.Y + Entry.Radius * sin(Theta);
+						*Pointer++ = 0.0;
+
+						Theta += dTheta;
+					}
+
+					if (VAO == 0 || VBO == 0 || EBO == 0) {
+						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, nVertices, 1, 3);
+						glBindVertexArray(VAO);
+						uint32 Elements[2 * nVertices] = { };
+						for (int i = 0; i < nVertices; i++) {
+							Elements[2*i] = i;
+							Elements[2*i + 1] = i + 1;
+						}
+						Elements[2*nVertices - 1] = 0;
+						glGenBuffers(1, &EBO);
+						glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+						glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Elements), Elements, GL_STATIC_DRAW);
+					}
+					else {
+						glBindVertexArray(VAO);
+						glBindBuffer(GL_ARRAY_BUFFER, VBO);
+						glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(Vertices), Vertices);
+						glBindBuffer(GL_ARRAY_BUFFER, 0);
+					}
+
+					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+					glUseProgram(Shader->ProgramID);
+
+					matrix4 Projection = GetScreenProjectionMatrix(Width, Height);
+					matrix4 View = Identity4;
+					matrix4 Model = Identity4;
+
+					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+
+					OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
+					OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
+					
+					glLineWidth(Entry.Thickness);
+					glDrawElements(GL_LINES, 2 * nVertices, GL_UNSIGNED_INT, 0);
 				}
 
-				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
-				glUseProgram(Shader->ProgramID);
-
-				matrix4 Projection = GetScreenProjectionMatrix(Width, Height);
-				matrix4 View = Identity4;
-				matrix4 Model = Identity4;
-
-				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
-
-				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
-				OpenGLSetUniform(Shader->ProgramID, "u_resoltuion", V2(Width, Height));
-
-				glDrawArrays(GL_TRIANGLE_FAN, 0, nVertices);
-
+				glUseProgram(0);
 				glBindVertexArray(0);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 			} break;
 
 			case group_type_render_entry_text:
@@ -1301,13 +1372,16 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				matrix4 View = GetViewMatrix(Group->Camera);
 				matrix4 Model = Identity4;
 
-				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Heightmap_Shader_Pipeline_ID);
+				game_shader_pipeline* Shader = Entry.Shader;
 
 				glUseProgram(Shader->ProgramID);
 
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 
 				OpenGLSetUniform(Shader->ProgramID, "heightMap", 0);
+
+				OpenGLSetUniform(Shader->ProgramID, "u_time", (float)Time);
+				OpenGLSetUniform(Shader->ProgramID, "u_color", White);
 
 				// OpenGLSetUniform(Shader->ProgramID, "light_direction", V3(0.0, -1.0, 0.0));
 				// OpenGLSetUniform(Shader->ProgramID, "light_color", V3(1.0, 1.0, 1.0));
@@ -1625,6 +1699,68 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				glBindTexture(TextureTarget, 0);
 				glUseProgram(0);
 				glBindVertexArray(0);
+			} break;
+
+			case group_type_render_entry_debug_plot: {
+				render_entry_debug_plot Entry = *(render_entry_debug_plot*)Header;
+
+				static uint32 VAO = 0;
+				static uint32 VBO = 0;
+				static uint32 EBO = 0;
+
+				const int MAX_PLOT_BUFFER_SIZE = 4096;
+
+				Assert(MAX_PLOT_BUFFER_SIZE >= Entry.Size);
+
+				double Vertices[3 * MAX_PLOT_BUFFER_SIZE] = {};
+				double X = Entry.Position.X;
+				for (int i = 0; i < Entry.Size; i++) {
+					Vertices[3 * i] = X;
+					Vertices[3 * i + 1] = Entry.Position.Y - Entry.Data[i];
+					Vertices[3 * i + 2] = 0.0f;
+					X += Entry.dx;
+				}
+
+				if (VAO == 0 || VBO == 0 || EBO == 0) {
+					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, MAX_PLOT_BUFFER_SIZE, 1, 3);
+					glBindVertexArray(VAO);
+
+					const int nElements = 2 * MAX_PLOT_BUFFER_SIZE - 2;
+					uint32 Elements[nElements] = {};
+					uint32 Index = 0;
+					for (int i = 0; i < MAX_PLOT_BUFFER_SIZE - 1; i++) {
+						Elements[Index++] = i;
+						Elements[Index++] = i + 1;
+					}
+
+					glGenBuffers(1, &EBO);
+					glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+					glBufferData(GL_ELEMENT_ARRAY_BUFFER, nElements * sizeof(uint32), Elements, GL_STATIC_DRAW);
+				}
+				else {
+					glBindVertexArray(VAO);
+					glBindBuffer(GL_ARRAY_BUFFER, VBO);
+					glBufferSubData(GL_ARRAY_BUFFER, 0, 3 * Entry.Size * sizeof(double), Vertices);
+					glBindBuffer(GL_ARRAY_BUFFER, 0);
+				}
+
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+				glUseProgram(Shader->ProgramID);
+
+				matrix4 Projection = GetScreenProjectionMatrix(Width, Height);
+				matrix4 View = Identity4;
+				matrix4 Model = Identity4;
+
+				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+
+				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
+				
+				glLineWidth(1.0f);
+				glDrawElements(GL_LINES, 2 * Entry.Size - 2, GL_UNSIGNED_INT, 0);
+
+				glBindVertexArray(0);
+				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+				glUseProgram(0);
 			} break;
 
 			default:

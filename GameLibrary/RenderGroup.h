@@ -1,6 +1,11 @@
 #pragma once
 #include "GameAssets.h"
 
+/*
+    TODO:
+        - Make lighting a render_group attribute
+*/
+
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Color                                                                                                                                        |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -154,7 +159,7 @@ bool Collide(cube_collider Collider, v3 Position) {
 }
 
 bool Collide(sphere_collider Collider, v3 Position) {
-    return module(Position - Collider.Center) < Collider.Radius;
+    return modulus(Position - Collider.Center) < Collider.Radius;
 }
 
 /*
@@ -273,6 +278,7 @@ enum render_group_entry_type {
     group_type_render_entry_render_target,
     group_type_render_entry_debug_grid,
     group_type_render_entry_debug_framebuffer,
+    group_type_render_entry_debug_plot,
 };
 
 enum render_group_target {
@@ -332,7 +338,7 @@ struct render_entry_circle {
     v3 Normal;
     double Radius;
     color Color;
-    double Thickness;
+    float Thickness;
     bool Fill;
 };
 
@@ -365,6 +371,15 @@ struct render_entry_text {
     v2 Position;
     int Points;
     bool Wrapped;
+};
+
+struct render_entry_debug_plot {
+    render_group_header Header;
+    v3 Position;
+    color Color;
+    uint32 Size;
+    int dx;
+    double* Data;
 };
 
 struct render_entry_button {
@@ -403,6 +418,7 @@ struct render_entry_mesh {
 struct render_entry_heightmap {
     render_group_header Header;
     game_heightmap* Heightmap;
+    game_shader_pipeline* Shader;
 };
 
 struct render_entry_mesh_outline {
@@ -506,6 +522,10 @@ uint32 GetSizeOf(render_group_entry_type Type) {
 
         case group_type_render_entry_debug_framebuffer: {
             return sizeof(render_entry_debug_framebuffer);
+        } break;
+
+        case group_type_render_entry_debug_plot: {
+            return sizeof(render_entry_debug_plot);
         } break;
 
         default: {
@@ -717,7 +737,8 @@ void PushCircunference(
     v2 Center,
     double Radius,
     color Color,
-    double Order = 0.0
+    float Thickness,
+    double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     render_entry_circle* Entry = PushRenderElement(Group, render_entry_circle);
     Entry->Header.Target = World;
@@ -728,6 +749,7 @@ void PushCircunference(
     Entry->Normal = V3(0.0,0.0,-1.0);
     Entry->Radius = Radius;
     Entry->Color = Color;
+    Entry->Thickness = Thickness;
 }
 
 void PushCircunference(
@@ -736,6 +758,7 @@ void PushCircunference(
     v3 Normal,
     double Radius,
     color Color,
+    float Thickness,
     double Order = 0.0
 ) {
     render_entry_circle* Entry = PushRenderElement(Group, render_entry_circle);
@@ -942,12 +965,14 @@ void PushCubeOutline(
 
 struct slider {
     double Value;
+    double MinValue;
+    double MaxValue;
     v3 Position;
     color Color;
     rect_collider Collider;
 };
 
-struct UI {
+struct user_interface {
     slider Slider1;
     slider Slider2;
     slider Slider3;
@@ -956,32 +981,41 @@ struct UI {
     slider Slider6;
 };
 
-void InitSlider(slider* Slider, double Value, color Color) {
+void InitializeSlider(slider* Slider, v3 Position, double MinValue = 0.0, double MaxValue = 1.0, color Color = Black) {
     *Slider = { 0 };
     
-    if (Value > 1.0 || Value < 0.0) Assert(false);
-    else Slider->Value = Value;
+    Slider->Position = Position;
+    Slider->MinValue = MinValue;
+    Slider->MaxValue = MaxValue;
+    Slider->Value = 0.5 * (MinValue + MaxValue);    
 
     Slider->Color = Color;
 }
 
 void PushSlider(render_group* Group, slider Slider, double Order = SORT_ORDER_DEBUG_OVERLAY) {
-    double CircleCenter = Slider.Position.Y + 60.0 * (1.0 - Slider.Value);
-    double Radius = 5.0;
+    Assert(Slider.MinValue != Slider.MaxValue);
+    double Range = Slider.MaxValue - Slider.MinValue;
+    double CircleCenter = Slider.Position.Y + 60.0 * (Slider.MaxValue - Slider.Value) / Range;
+    double Radius = 6.0;
     double UpperLineFinish = 0.0;
-    if (Slider.Value < 0.85) {
-        UpperLineFinish = (0.85 - Slider.Value) * 60;
+
+    double Percentage = 0;
+    if (Slider.MaxValue == 0.0) Percentage = 1.0 - Slider.Value / Slider.MinValue;
+    else Percentage = (Slider.Value - Slider.MinValue) / Range;
+
+    if (Percentage < 0.85) {
+        UpperLineFinish = (0.85 - (Slider.Value - Slider.MinValue) / Range) * 60;
     }
     double LowerLineStart = 60.0;
-    if (Slider.Value > 0.15) {
-        LowerLineStart = (1.15 - Slider.Value) * 60;
+    if (Slider.Value > Slider.MinValue + 0.15 * Range) {
+        LowerLineStart = (1.15 - Slider.Value / Range) * 60;
     }
     PushLine(Group, Slider.Position, Slider.Position + V3(0.0, UpperLineFinish, 0.0), Slider.Color, 2.0, Screen_Coordinates, Order);
-    PushCircunference(Group, V2(Slider.Position.X, CircleCenter), Radius, Slider.Color, Order);
+    PushCircunference(Group, V2(Slider.Position.X, CircleCenter), Radius, Slider.Color, 2.0, Order);
     PushLine(Group, Slider.Position + V3(0.0, LowerLineStart, 0.0), Slider.Position + V3(0.0, 60.0, 0.0), Slider.Color, 2.0, Screen_Coordinates, Order);
 }
 
-void PushUI(render_group* Group, UI* UserInterface) {
+void PushUI(render_group* Group, user_interface* UserInterface) {
     PushSlider(Group, UserInterface->Slider1, SORT_ORDER_DEBUG_OVERLAY);
     PushSlider(Group, UserInterface->Slider2, SORT_ORDER_DEBUG_OVERLAY);
     PushSlider(Group, UserInterface->Slider3, SORT_ORDER_DEBUG_OVERLAY);
@@ -991,7 +1025,7 @@ void PushUI(render_group* Group, UI* UserInterface) {
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-// | Targets & Shaders                                                                                                                                                |
+// | Shaders & render targets                                                                                                                                        |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 void PushRenderTarget(
@@ -1135,10 +1169,11 @@ void PushMesh(
     Entry->Color = Color;
 }
 
-void PushHeightmap(render_group* Group, game_heightmap_id ID, double Order = SORT_ORDER_MESHES) {
+void PushHeightmap(render_group* Group, game_heightmap_id ID, game_shader_pipeline_id ShaderID, double Order = SORT_ORDER_MESHES) {
     render_entry_heightmap* Entry = PushRenderElement(Group, render_entry_heightmap);
     Entry->Header.Key.Order = Order;
     Entry->Header.Target = World;
+    Entry->Shader = GetShaderPipeline(Group->Assets, ShaderID);
 
     Entry->Heightmap = GetAsset(Group->Assets, ID);
 }
@@ -1155,21 +1190,22 @@ void PushDebugArena(
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
-    double ArenaPercentage = (double)Arena.Used / (double)Arena.Size;
-    game_rect Rect = { Position.X, Position.Y, 120.0, 20.0 };
+    float ArenaPercentage = (float)Arena.Used / (float)Arena.Size;
+    float RectWidth = 250.0f;
+    game_rect Rect = { Position.X, Position.Y, RectWidth, 20.0f };
     PushRect(Group, Rect, Color(DarkGray, Alpha), Order + 0.1);
     Rect.Width *= ArenaPercentage;
     PushRect(Group, Rect, Color(Red, Alpha), Order + 0.2);
     PushText(Group, Position + V2(0, 15.0), Font, Arena.Name, Color(White, Alpha), 8, false, Order + 0.3);
     sprintf_s(Arena.Percentage.Content, 7, "%.02f%%", ArenaPercentage * 100.0);
-    PushText(Group, Position + V2(125.0, 15.0), Font, Arena.Percentage, Color(White, Alpha), 8, false, Order + 0.3);
+    PushText(Group, Position + V2(RectWidth - 55.0, 15.0), Font, Arena.Percentage, Color(White, Alpha), 8, false, Order + 0.3);
 }
 
 void PushDebugVector(render_group* Group, v3 Vector, v3 Position, coordinate_system Coordinates, color Color = White) {
     double Width = Group->Width;
     double Height = Group->Height;
 
-    double Length = module(Vector);
+    double Length = modulus(Vector);
     double Order = 0.0;
     v3 Orthogonal = V3(0, 0, 0);
     double OrthogonalLength = 0.0;
@@ -1275,4 +1311,23 @@ void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, 
     Entry->Header.Target = Output;
     Entry->Framebuffer = Framebuffer;
     Entry->Attachment = Attachment;
+}
+
+void PushDebugPlot(
+    render_group* Group, 
+    int N, 
+    double* Data, 
+    v3 Position, 
+    int dx, 
+    color Color = White, 
+    double Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    render_entry_debug_plot* Entry = PushRenderElement(Group, render_entry_debug_plot);
+    Entry->Header.Key.Order = Order;
+    Entry->Header.Target = World;
+    Entry->Size = N;
+    Entry->dx = dx;
+    Entry->Color = Color;
+    Entry->Data = Data;
+    Entry->Position = Position;
 }
