@@ -5,6 +5,11 @@
 
 #include "GamePlatform.h"
 
+/*
+    TODO:
+        - Make debug records thread safe
+        - Print debug records as text and plot performance
+*/
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
 // | Timing                                                                                                                          |

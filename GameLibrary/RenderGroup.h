@@ -361,6 +361,7 @@ struct render_entry_rect {
     double MaxTexX;
     double MaxTexY;
     bool Outline;
+    bool RefreshTexture;
 };
 
 struct render_entry_text {
@@ -610,22 +611,22 @@ void SortEntries(render_group* RenderGroup) {
 
     sort_entry* Entries = (sort_entry*)RenderGroup->SortedBufferBase;
 
-    uint32 BaseAddress = 0;
+    uint32 Offset = 0;
     for (int i = 0; i < Count; i++) {
-        render_group_header* Header = (render_group_header*)(RenderGroup->PushBufferBase + BaseAddress);
+        render_group_header* Header = (render_group_header*)(RenderGroup->PushBufferBase + Offset);
         Entries[i] = { Header->Key, Header->PushBufferOffset };
 
-        BaseAddress += GetSizeOf(Header->Type);
+        Offset += GetSizeOf(Header->Type);
     }
 
     for (int i = 0; i < Count - 1; i++) {
-        if (LessThan(Entries[i + 1].Key, Entries[i].Key))
-        {
+        bool Swap = LessThan(Entries[i + 1].Key, Entries[i].Key);
+        if (Swap) {
             int j = i;
             do {
                 SwapEntries(&Entries[j], &Entries[j + 1]);
                 j--;
-            } while (j > 0 && LessThan(Entries[j + 1].Key, Entries[j].Key));
+            } while (j >= 0 && LessThan(Entries[j + 1].Key, Entries[j].Key));
         }
     }
 }
@@ -821,6 +822,7 @@ void PushBitmap(
     game_bitmap* Bitmap, 
     game_rect Rect, 
     wrap_mode Mode = Clamp,
+    bool Refresh = false,
     v2 Size = V2(1.0, 1.0),
     v2 Offset = V2(0,0),
     double Order = SORT_ORDER_DEBUG_OVERLAY
@@ -832,6 +834,7 @@ void PushBitmap(
     Entry->Color = White;
     Entry->Texture = Bitmap;
     Entry->Mode = Mode;
+    Entry->RefreshTexture = Refresh;
 
     int Width = Entry->Texture->Header.Width;
     int Height = Entry->Texture->Header.Height;
@@ -880,7 +883,7 @@ void PushBitmap(
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     game_bitmap* Bitmap = GetAsset(Group->Assets, ID);
-    PushBitmap(Group, Bitmap, Rect, Mode, Size, Offset, Order);
+    PushBitmap(Group, Bitmap, Rect, Mode, false, Size, Offset, Order);
 }
 
 void PushText(

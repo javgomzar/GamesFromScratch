@@ -30,6 +30,7 @@
     - Software renderer with blit speed improvements (BitBlt)
     - GetKeyboardLayout (international wasd support)
     - Restore software renderer as fallback
+    - Render using all window space. Remove rounded borders
 */
 
 #define MAX_LOADSTRING 100
@@ -1119,7 +1120,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     ArenaStart += pGameState->StringsArena.Size;
     InitializeArena(&pGameState->RenderArena, Megabytes(9), ArenaStart);
     ArenaStart += pGameState->RenderArena.Size;
-    InitializeArena(&pGameState->GeneralPurposeArena, Megabytes(10), ArenaStart);
+    InitializeArena(&pGameState->GeneralPurposeArena, Megabytes(20), ArenaStart);
     ArenaStart += pGameState->GeneralPurposeArena.Size;
 
     // Render group

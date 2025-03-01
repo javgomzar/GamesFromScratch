@@ -45,31 +45,17 @@ color Lighten(color RGB) {
     return Result;
 }
 
-//void Plot(game_offscreen_buffer* Buffer, v3 Position, color Color) {
-//    game_rect ScreenRect;
-//    ScreenRect.Left = 0;
-//    ScreenRect.Top = 0;
-//    ScreenRect.Width = Buffer->Width;
-//    ScreenRect.Height = Buffer->Height;
-//
-//    if (Collision(ScreenRect, Position)) {
-//        uint8* PixelMemory = (uint8*)Buffer->Memory + (int)Position.X * Buffer->BytesPerPixel + (int)Position.Y * Buffer->Pitch;
-//        uint32* Pixel = (uint32*)PixelMemory;
-//        *Pixel = GetColorBytes(Color);
-//    }
-//}
-
 // UI
 /*
     Initialize your UI elements here
 */
 void InitializeUI(user_interface* UI) {
-    InitializeSlider(&UI->Slider1, V3(900 - 200.0, 180, 0.0), 1.0, 1000);
-    InitializeSlider(&UI->Slider2, V3(900 - 180.0, 180, 0.0));
-    InitializeSlider(&UI->Slider3, V3(900 - 160.0, 180, 0.0));
-    InitializeSlider(&UI->Slider4, V3(900 - 140.0, 180, 0.0));
-    InitializeSlider(&UI->Slider5, V3(900 - 120.0, 180, 0.0));
-    InitializeSlider(&UI->Slider6, V3(900 - 100.0, 180, 0.0));
+    InitializeSlider(&UI->Slider1, V3(300 - 200.0, 180, 0.0));
+    InitializeSlider(&UI->Slider2, V3(300 - 180.0, 180, 0.0));
+    InitializeSlider(&UI->Slider3, V3(300 - 160.0, 180, 0.0));
+    InitializeSlider(&UI->Slider4, V3(300 - 140.0, 180, 0.0));
+    InitializeSlider(&UI->Slider5, V3(300 - 120.0, 180, 0.0));
+    InitializeSlider(&UI->Slider6, V3(300 - 100.0, 180, 0.0));
 }
 
 // Sound
@@ -207,40 +193,9 @@ void Update(camera* Camera, game_input* Input) {
 
 void LogGameDebugRecords();
 
-#define FourierN 4096
-
-void FourierTransform(
-    memory_arena* TransientArena,
-    memory_arena* PermanentArena,
-    double Freq
-) {
-    TIMED_BLOCK;
-
-    static double* PlotBuffer = 0;
-    static double* DFTModuleBuffer = 0;
-    static double* DFTPhaseBuffer = 0;
-
-    if (PlotBuffer == 0) {
-        PlotBuffer = PushArray(PermanentArena, FourierN, double);
-        DFTModuleBuffer = PushArray(PermanentArena, FourierN, double);
-        DFTPhaseBuffer = PushArray(PermanentArena, FourierN, double);
-    }
+void TestPerformance() {
+    //TIMED_BLOCK;
     
-    int w = ceil(Freq);
-    double Step = w * Tau / (double)(FourierN);
-    for (int i = 0; i < FourierN; i ++) {
-        PlotBuffer[i] = i % (FourierN / w) < (FourierN / (2*w)) ? 50.0 : -50.0; // Square wave
-        //PlotBuffer[i] = 50.0 * sin(i * Step) + 100.0; // Sine wave
-        //PlotBuffer[i] = 50.0*w;
-    }
-
-    complex Transform[FourierN] = {};
-
-    FFT(TransientArena, Transform, FourierN, PlotBuffer);
-    for (int i = 0; i < FourierN; i++) {
-        DFTModuleBuffer[i] = 0.02 * modulus(Transform[i]);
-        DFTPhaseBuffer[i] = 10.0 * atan(Transform[i].i / Transform[i].r);
-    }
 }
 
 // Main
@@ -271,10 +226,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         pGameState->RenderArena.Name = PushString(StringsArena, 16, "Render Arena");
         pGameState->RenderArena.Percentage = PushString(StringsArena, 7, "0.0%");
 
-        const int N = 8;
-        double Test[N] = {50,50,50,50};
-        complex Out[N] = {0};
-        FFT(&pGameState->TransientArena, Out, N, Test);
+        //TestPerformance();
         
         // User Interface
         InitializeUI(&pGameState->UI);
@@ -287,7 +239,6 @@ extern "C" GAME_UPDATE(GameUpdate)
         
         Memory->IsInitialized = true;
     }
-    FourierTransform(&pGameState->TransientArena, &pGameState->GeneralPurposeArena, pGameState->UI.Slider1.Value);
 
     PushClear(Group, { 0 }, World);
     PushClear(Group, { 0 }, Outline);
@@ -307,16 +258,14 @@ extern "C" GAME_UPDATE(GameUpdate)
     // Render
     light LightSource = Light(V3(-0.5, -1, 1), White);
 
-    v3 MeshPosition = V3(0, 0, Group->Camera.Position.Z);
-    transform Transform1 = Transform(Quaternion((Group->Camera.Angle + 90) * Degrees, V3(0,1,0)), MeshPosition);
+    v3 MeshPosition = V3(Group->Camera.Position.X, 0, Group->Camera.Position.Z);
+    transform Transform1 = Transform(Quaternion((Group->Camera.Angle - 90) * Degrees, V3(0,1,0)), MeshPosition);
     transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(-5.0, 0.0, 20.0), Scale(10,1,1));
 
     PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, false);
     PushMesh(Group, Mesh_Sphere_ID, Transform2, LightSource, Sphere_Shader_Pipeline_ID, Bitmap_Empty_ID, Red, SORT_ORDER_MESHES, false);
 
-    //PushHeightmap(Group, Heightmap_Spain_ID, Trochoidal_Shader_Pipeline_ID);
-
-    //PushUI(Group, UI);
+    PushUI(Group, UI);
 
     // Debug info
     static double Alpha = 0.0;

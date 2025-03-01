@@ -10,6 +10,7 @@ layout (quads, equal_spacing, ccw) in;
 
 #define TAU 6.283185307179586476925287
 #define g 9.80665
+#define L 0.2
 
 uniform sampler2D heightMap;
 
@@ -30,6 +31,20 @@ float rand (in vec2 st) {
 
 float square(float x) {
     return x*x;
+}
+
+mat2 m2 = mat2(1.6,-1.2,1.2,1.6);
+
+float fbm( vec2 p ) {
+  float f = 0.5000*rand( p ); p = m2*p;
+  f += 0.2500*rand( p ); p = m2*p;
+  f += 0.1666*rand( p ); p = m2*p;
+  f += 0.0834*rand( p );
+  return f;
+}
+
+float spectrum(float k) {
+    return exp(-1.0/(square(L*k))) / square(square(k));
 }
 
 void main() {
@@ -69,30 +84,13 @@ void main() {
     float x = 0;
 	float y = 0;
     float z = 0;
-    vec2 slope = vec2(0);
-    float phi1 = 0;
-    float k_squared = 0;
-    float w_dot = 0;
-	for(float kx = 0.0; kx < 16.1; kx += 0.5) {
-        phi1 = kx * p.x;
-        k_squared = kx*kx;
-        w_dot = kx * wind.x - 0.5 * wind.z;
-
-        for(float kz = 0.0; kz < 16.1; kz += 0.5) {
-            if (kx != 0.0 || kz != 0.0) {
-                w_dot += 0.5 * wind.z;
-                k_squared += kz*kz;
-                float k = sqrt(k_squared);
-                float c = 0.1 * sqrt(exp(-1/k_squared)) * abs(w_dot) / k_squared;
-                float w = 2 * sqrt(k);
-                float phi2 = phi1 + 7 * rand(vec2(kx, kz)) - w * u_time;
-                float dy = c * sin(phi2 + kz * p.z);
-                y += dy;
-                k_squared -= kz*kz;
-                //slope += vec2(kx, kz) * 0.1 * c * sin(phi);
-            }
-        }
-	}
+    for (int i = 0; i < 5; i++) {
+        float kx = (1.0 - 2.0 * rand(vec2(i,0)));
+        float kz = (1.0 - 2.0 * rand(vec2(0,i)));
+        float k = length(vec2(kx,kz));
+        float w = sqrt(g*k);
+        y += (1 - abs(sin(kx*p.x + kz*p.z - w*u_time)));
+    }
     height = y;
     p += vec4(x,y,z,0);
 

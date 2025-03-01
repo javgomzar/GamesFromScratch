@@ -4,6 +4,9 @@
 #pragma once
 #include "math.h"
 
+//#include "fftw3.h"
+//#pragma comment(lib, "libfftw3-3.lib")
+
 #include "../GameLibrary/GamePlatform.h"
 
 // Utility macros
@@ -19,12 +22,12 @@
 #define min(a,b)            (((a) < (b)) ? (a) : (b))
 #endif
 
-// Platform independent constants
-static float Pi = 3.14159265359f;
-static float Tau = 2.0f * Pi;
-static float twroot = 1.05946309436f;
+// Constants
+static double Pi = 3.1415926535897932;
+static double Tau = 6.2831853071795865;
+static double twroot = 1.0594630943592952646;
 
-static float Degrees = Pi / 180.0f;
+static double Degrees = Pi / 180.0f;
 
 // Arithmetics
 inline int32 CustomRound(float X) {
@@ -420,12 +423,15 @@ union matrix3 {
 		       YX,YY,YZ,
 			   ZX,ZY,ZZ;
 	};
-	float Element[9];
+	float Array[9];
 	struct {
 		v3 Row[3];
 	};
 	struct {
 		v3 X, Y, Z;
+	};
+	struct {
+		float Element[3][3];
 	};
 };
 
@@ -513,7 +519,7 @@ inline matrix3& operator*=(matrix3& A, float c) {
 
 inline bool operator==(matrix3 A, matrix3 B) {
 	for (int i = 0; i < 9; i++) {
-		if (fabs(A.Element[i] - B.Element[i]) > 0.001f) return false;
+		if (fabs(A.Array[i] - B.Array[i]) > 0.001f) return false;
 	}
 	return true;
 }
@@ -635,12 +641,15 @@ union matrix4 {
 			   ZX,ZY,ZZ,ZW,
 			   WX,WY,WZ,WW;
 	};
-	float Element[16];
+	float Array[16];
 	struct {
 		v4 Row[4];
 	};
 	struct {
 		v4 X, Y, Z, W;
+	};
+	struct {
+		float Element[4][4];
 	};
 };
 
@@ -964,22 +973,22 @@ inline transform operator*(transform T, transform U) {
 
 inline matrix4 Matrix(transform Transform) {
 	matrix4 Result;
-	Result.Element[0]  = Transform.Scale.X * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.i * Transform.Rotation.i) - 1.0);
-	Result.Element[1]  = Transform.Scale.X * 2.0 * (Transform.Rotation.i * Transform.Rotation.j - Transform.Rotation.c * Transform.Rotation.k);
-	Result.Element[2]  = Transform.Scale.X * 2.0 * (Transform.Rotation.i * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.j);
-	Result.Element[3]  = 0.0;
-	Result.Element[4]  = Transform.Scale.Y * 2.0 * (Transform.Rotation.i * Transform.Rotation.j + Transform.Rotation.c * Transform.Rotation.k);
-	Result.Element[5]  = Transform.Scale.Y * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.j * Transform.Rotation.j) - 1.0);
-	Result.Element[6]  = Transform.Scale.Y * 2.0 * (Transform.Rotation.j * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.i);
-	Result.Element[7]  = 0.0;
-	Result.Element[8]  = Transform.Scale.Z * 2.0 * (Transform.Rotation.i * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.j);
-	Result.Element[9]  = Transform.Scale.Z * 2.0 * (Transform.Rotation.j * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.i);
-	Result.Element[10] = Transform.Scale.Z * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.k * Transform.Rotation.k) - 1.0);
-	Result.Element[11] = 0.0;
-	Result.Element[12] = Transform.Translation.X;;
-	Result.Element[13] = Transform.Translation.Y;
-	Result.Element[14] = Transform.Translation.Z;
-	Result.Element[15] = 1.0;
+	Result.Array[0]  = Transform.Scale.X * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.i * Transform.Rotation.i) - 1.0);
+	Result.Array[1]  = Transform.Scale.X * 2.0 * (Transform.Rotation.i * Transform.Rotation.j - Transform.Rotation.c * Transform.Rotation.k);
+	Result.Array[2]  = Transform.Scale.X * 2.0 * (Transform.Rotation.i * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.j);
+	Result.Array[3]  = 0.0;
+	Result.Array[4]  = Transform.Scale.Y * 2.0 * (Transform.Rotation.i * Transform.Rotation.j + Transform.Rotation.c * Transform.Rotation.k);
+	Result.Array[5]  = Transform.Scale.Y * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.j * Transform.Rotation.j) - 1.0);
+	Result.Array[6]  = Transform.Scale.Y * 2.0 * (Transform.Rotation.j * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.i);
+	Result.Array[7]  = 0.0;
+	Result.Array[8]  = Transform.Scale.Z * 2.0 * (Transform.Rotation.i * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.j);
+	Result.Array[9]  = Transform.Scale.Z * 2.0 * (Transform.Rotation.j * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.i);
+	Result.Array[10] = Transform.Scale.Z * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.k * Transform.Rotation.k) - 1.0);
+	Result.Array[11] = 0.0;
+	Result.Array[12] = Transform.Translation.X;;
+	Result.Array[13] = Transform.Translation.Y;
+	Result.Array[14] = Transform.Translation.Z;
+	Result.Array[15] = 1.0;
 	return Result;
 }
 
@@ -1032,112 +1041,6 @@ struct bone {
 
 float Length(bone Bone) {
 	return distance(Bone.Origin, Bone.Destination);
-}
-
-// Fast Fourier Transform
-int BitReverse(int x) {
-	x = (x & 0x5555) << 1 | (x & 0xAAAA) >> 1; //swaps bits
-	x = (x & 0x3333) << 2 | (x & 0xCCCC) >> 2; //swapss 2-bit fields
-	x = (x & 0x0F0F) << 4 | (x & 0xF0F0) >> 4;
-	x = (x & 0x00FF) << 8 | (x & 0xFF00) >> 8;
-	return x;
-}
-
-void DFT(complex* Out, int N, double* Data) {
-	for (int k = 0; k < N; k++) {
-		Out[k] = {0};
-		for (int n = 0; n < N; n++) {
-			float Xn = (float)Data[n]; 
-			Out[k] += Xn * expi(-Tau * k * n / N);
-		}
-	}
-}
-
-struct twiddle_factors {
-	int Size;
-	complex* Content;
-};
-
-twiddle_factors ComputeTwiddleFactors(memory_arena* Arena, int N) {
-	// Reserving memory
-	twiddle_factors Result = { N, PushArray(Arena, N, complex)};
-	
-	Result.Content[0] = Complex(1,0);
-	if (N >= 2) {
-		complex Value = Complex(0,0);
-		int HalfN = N >> 1;
-		for (int k = 1; k < HalfN; k++) {
-			Value = expi(-Tau * k / N);
-			Result.Content[k] = Value;
-			Result.Content[N - k] = conjugate(Value);
-		}
-		Result.Content[HalfN] = Complex(-1, 0);
-		if (N >= 4) {
-			int QuarterN = HalfN >> 1;
-			Result.Content[HalfN] = Complex(-1, 0);
-			Result.Content[QuarterN] = Complex(0, -1);
-			Result.Content[3*QuarterN] = Complex(0, 1);
-		}
-	}
-	
-	return Result;
-}
-
-complex GetTwiddleFactor(twiddle_factors Twiddle, int k) {
-	Assert(k >= 0);
-
-	if (k < Twiddle.Size) return Twiddle.Content[k];
-	else return Twiddle.Content[k % Twiddle.Size];
-}
-
-void RecursiveFFT(
-	memory_arena* Arena,
-	twiddle_factors Twiddle,
-	int N, 
-	complex* Out, 
-	double* Data, 
-	int Start = 0, 
-	int Stride = 1
-) {
-	if (N == 2) {
-		Out[0] = Complex(Data[Start] + Data[Start + Stride], 0);
-		Out[1] = Complex(Data[Start] - Data[Start + Stride], 0);
-	}
-	else {
-		int HalfN = N / 2;
-		complex* Even = PushArray(Arena, HalfN, complex);
-		RecursiveFFT(Arena, Twiddle, HalfN, Even, Data, Start, 2*Stride);
-		complex* Odd = PushArray(Arena, HalfN, complex);
-		RecursiveFFT(Arena, Twiddle, HalfN, Odd, Data, Start+Stride, 2*Stride);
-		Out[0] = Even[0] + Odd[0];
-		Out[HalfN] = Even[0] - Odd[0];
-		for (int k = 1; k < HalfN; k++) {
-			complex TwiddleFactor = GetTwiddleFactor(Twiddle, k * Stride);
-			complex Result = Even[k] + Odd[k] * TwiddleFactor;
-			Out[k] = Result;
-			Out[N-k] = conjugate(Result);
-		}
-	}
-}
-
-void FFT(memory_arena* Arena, complex* Out, int N, double* Data) {
-	int NthPower = 1;
-	int logN = 0;
-	while(N > NthPower) {
-		NthPower *= 2;
-		logN++;
-	}
-
-	Assert(N == NthPower);
-
-	twiddle_factors Twiddle = ComputeTwiddleFactors(Arena, N);
-	complex Test = GetTwiddleFactor(Twiddle, N / 2);
-	
-	RecursiveFFT(Arena, Twiddle, N, Out, Data);
-	Out[0] /= N;
-	for (int i = 1; i < N; i++) {
-		if (i > N / 2) Out[i];
-	}
 }
 
 #endif

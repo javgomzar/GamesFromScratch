@@ -57,6 +57,7 @@ cd ..
  odbccp32.lib^
  freetype.lib^
  glew32.lib^
+ libfftw3-3.lib^
  %project_dir%\Win32PlatformLayer\Win32PlatformLayer.cpp^
  /link Win32PlatformLayer/Win32PlatformLayer.res /MACHINE:X64
  

@@ -8,16 +8,18 @@
 
 /*
 	TODO:
-		- Kernel operations
+		- Kernel operations (Blur, sharpen, edge detection, ...)
 		- Pixel buffer objects for video rendering
 		- Skeletal animations
 		- Field of view projection matrix
-		- Water rendering with a heightmap
+		- Implement FFT in compute shader
+		- Water rendering with a compute shader FFT
 		- Terrain textures
 		- Improve lighting: Shadows, reflections and point sources
-		- Mirrors
+		- Mirrors (Stencil buffer + different camera)
 		- Normal textures
-		- Get lighting from render_group, create OpenGLSetUniform for lighting
+		- Get lighting from render_group, create OpenGLSetUniform for lighting?
+		- See if Uniform Buffer Objects are worth it (probably when there are a lot of uniforms, animations)
 */
 
 
@@ -496,7 +498,7 @@ void OpenGLSetUniform(int ProgramID, const char* Name, color Color) {
 
 void OpenGLSetUniform(int ProgramID, const char* Name, matrix4 Matrix) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
-	if (Location >= 0) glUniformMatrix4fv(Location, 1, GL_FALSE, Matrix.Element);
+	if (Location >= 0) glUniformMatrix4fv(Location, 1, GL_FALSE, Matrix.Array);
 }
 
 void OpenGLSetUniform(int ProgramID, matrix4 Projection, matrix4 View, matrix4 Model) {
@@ -1002,8 +1004,15 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 
+					glActiveTexture(GL_TEXTURE0);
 					OpenGLBindTexture(Entry.Texture);
+					if (Entry.RefreshTexture) {
+						glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 
+							Entry.Texture->Header.Width, Entry.Texture->Header.Height, 
+							GL_RGBA, GL_UNSIGNED_BYTE, Entry.Texture->Content);
+					}
 					glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+					glBindTexture(GL_TEXTURE_2D, 0);
 				}
 				// Solid color rect
 				else {
