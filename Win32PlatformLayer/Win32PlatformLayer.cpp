@@ -16,7 +16,6 @@
 #include <mutex>
 
 /* TODO:
-    - Transient memory
     - Saved game locations
     - Getting a handle to our own executable file
     - Asset hot loading
@@ -1000,7 +999,7 @@ void DebugDrawVertical(game_offscreen_buffer* Buffer, int X, int Top, int Bottom
 //    }
 //}
 
-void LogDebugRecords();
+void LogDebugRecords(render_group* Group, memory_arena* Arena);
 
 // Main window callback
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -1366,6 +1365,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ScreenCapture(OpenGL, Group->Width, Group->Height);
             }
 
+            LogDebugRecords(Group, &pGameState->TransientArena);
             Render(Window, Group, OpenGL, pGameState->Time);
 
         }
@@ -1430,8 +1430,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         LARGE_INTEGER EndCounter = GetWallClock();
         LastCounter = EndCounter;
         LastCycleCount = EndCycleCount;
-
-        LogDebugRecords();
     }
 
     return 0;
@@ -1588,8 +1586,10 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 debug_record DebugRecordArray_Win32[__COUNTER__];
 
-void LogDebugRecords() {
+void LogDebugRecords(render_group* Group, memory_arena* Arena) {
     char Buffer[512];
+    int Height = 350;
+    game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
     for (int i = 0; i < ArrayCount(DebugRecordArray_Win32); i++) {
         debug_record* DebugRecord = DebugRecordArray_Win32 + i;
 
@@ -1606,7 +1606,10 @@ void LogDebugRecords() {
                     DebugRecord->CycleCount / (1000000.0f * DebugRecord->HitCount), 
                     DebugRecord->FileName, DebugRecord->LineNumber);
             }
+            string String = PushString(Arena, 512, Buffer);
+            if (Group->Debug) PushText(Group, V2(20, Height), Font, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
             Log(Info, Buffer);
+            Height += 18;
             DebugRecord->HitCount = 0;
             DebugRecord->CycleCount = 0;
         }

@@ -8,7 +8,7 @@
 /*
     TODO:
         - Make debug records thread safe
-        - Print debug records as text and plot performance
+        - Plot performance counters
 */
 
 // +---------------------------------------------------------------------------------------------------------------------------------+

@@ -191,7 +191,7 @@ void Update(camera* Camera, game_input* Input) {
     Camera->Position += Camera->Velocity;
 }
 
-void LogGameDebugRecords();
+void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena);
 
 void TestPerformance() {
     //TIMED_BLOCK;
@@ -201,14 +201,12 @@ void TestPerformance() {
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
 {
-    {
-    TIMED_BLOCK;
-
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
     user_interface* UI = &pGameState->UI;
-    
+    {
+        TIMED_BLOCK;
     double Time = pGameState->Time;
     camera* Camera = &Group->Camera;
 
@@ -337,13 +335,15 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushRenderTarget(Group, Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
     }
 
-    LogGameDebugRecords();
+    LogGameDebugRecords(Group, &pGameState->TransientArena);
 }
 
 debug_record DebugRecordArray_GameLibrary[__COUNTER__];
 
-void LogGameDebugRecords() {
+void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
     char Buffer[512];
+    int Height = 270;
+    game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
     for (int i = 0; i < ArrayCount(DebugRecordArray_GameLibrary); i++) {
         debug_record* DebugRecord = DebugRecordArray_GameLibrary + i;
 
@@ -357,6 +357,9 @@ void LogGameDebugRecords() {
                     DebugRecord->FunctionName, DebugRecord->HitCount, DebugRecord->CycleCount / 1000000.0f, 
                     (float)DebugRecord->CycleCount / (1000000.0f * (float)DebugRecord->HitCount), DebugRecord->FileName, DebugRecord->LineNumber);
             }
+            string String = PushString(TransientArena, 512, Buffer);
+            if (Group->Debug) PushText(Group, V2(20, Height), Font, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
+            Height += 10;
             Log(Info, Buffer);
             DebugRecord->HitCount = 0;
             DebugRecord->CycleCount = 0;
