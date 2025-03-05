@@ -779,32 +779,50 @@ struct game_mesh {
     uint32 EBO;
 };
 
-v2 ParseV2(char* Pointer) {
+v2 ParseV2(char*& Pointer) {
     char* VXEnd = 0;
     double VX = strtod(Pointer, &VXEnd);
     char* VYEnd = 0;
     double VY = strtod(VXEnd + 1, &VYEnd);
+    Pointer = VYEnd;
     return V2(VX, VY);
 }
 
-v3 ParseV3(char* Pointer) {
+v3 ParseV3(char*& Pointer) {
     char* VXEnd = 0;
     double VX = strtod(Pointer, &VXEnd);
     char* VYEnd = 0;
     double VY = strtod(VXEnd + 1, &VYEnd);
     char* VZEnd = 0;
     double VZ = strtod(VYEnd + 1, &VZEnd);
+    Pointer = VZEnd;
     return V3(VX, VY, VZ);
 }
 
-iv3 ParseIV3(char* Pointer) {
+iv3 ParseIV3(char*& Pointer) {
     char* VXEnd = 0;
     int VX = strtol(Pointer, &VXEnd, 10);
     char* VYEnd = 0;
     int VY = strtol(VXEnd + 1, &VYEnd, 10);
     char* VZEnd = 0;
     int VZ = strtol(VYEnd + 1, &VZEnd, 10);
+    Pointer = VZEnd;
     return IV3(VX, VY, VZ);
+}
+
+void GetMeshSizes(char* Text, int* nVertices, int* nFaces) {
+    Assert(Text[0] == 'n' && Text[1] == 'V' && Text[2] == ' ');
+    Text += 3;
+
+    char *nVEnd, *nFEnd = 0;
+    *nVertices = strtol(Text, &nVEnd, 10);
+
+    while (Text++ != nVEnd);
+
+    Assert(Text[0] == 'n' && Text[1] == 'F' && Text[2] == ' ');
+    Text += 3;
+
+    *nFaces = strtol(Text, &nFEnd, 10);
 }
 
 uint64 ComputeNeededMemoryForMesh(read_file_result File) {
@@ -812,39 +830,13 @@ uint64 ComputeNeededMemoryForMesh(read_file_result File) {
 
     if (File.ContentSize > 0) {
         char* Pointer = (char*)File.Content;
-        uint32 ReadSize = 0;
 
-        // Skip until faces
-        char ReadChar = *Pointer;
-        while (ReadChar != 'f') {
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++; ReadSize++;
-            }
-            ReadChar = *Pointer++; ReadSize++;
-        }
-        ReadChar = *Pointer++; ReadSize++;
-
-        // Parse faces
-        std::set<iv3> Vertices = {};
-        int nFaces = 0;
-
-        while (ReadSize < File.ContentSize) {
-            int nFaceVertices = 0;
-            while (*Pointer != '\n') {
-                iv3 V = ParseIV3(Pointer);
-                Vertices.insert(V);
-                nFaceVertices++;
-                while (*Pointer++ != ' ' && *Pointer != '\n') { ReadSize++; };
-                ReadSize++;
-            }
-            // Number of triangles in a polygon
-            if (nFaceVertices > 2) nFaces += nFaceVertices - 2;
-            Pointer += 3; ReadSize += 3;
-        }
+        int nVertices, nFaces = 0;
+        GetMeshSizes(Pointer, &nVertices, &nFaces);
 
         // We need eight doubles for each combination of vertex, normal, texture (v3, v3, v2) and
-        // 3 integers for each triangle.
-        Result = Vertices.size() * 8 * sizeof(double) + nFaces * 3 * sizeof(uint32);
+        // 3 unsigned integers for each triangle.
+        Result = nVertices * 8 * sizeof(double) + nFaces * 3 * sizeof(uint32);
     }
     return Result;
 }
@@ -857,137 +849,47 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
 
     if (File.ContentSize > 0) {
         char* Pointer = (char*)File.Content;
-        uint32 ReadSize = 0;
 
-        // Skip until vertices
-        char ReadChar = *Pointer;
-        while (ReadChar != 'v') {
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++; ReadSize++;
-            }
-            ReadChar = *Pointer;
-        }
-
-        // Parse vertices
-        std::vector<v3> Vertices = {};
-        char NextChar = *(Pointer + 1);
-        while (ReadChar == 'v' && NextChar == ' ') {
-            Pointer += 2; ReadSize += 2;
-            v3 V = ParseV3(Pointer);
-            Vertices.push_back(V);
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++; 
-                ReadSize++;
-            }
-            ReadChar = *Pointer;
-            NextChar = *(Pointer + 1);
-        }
-
-        // Parse texture vertices
-        std::vector<v2> Textures = {};
-        while (ReadChar == 'v' && NextChar == 't') {
-            Pointer += 3; ReadSize += 3;
-            v2 V = ParseV2(Pointer);
-            Textures.push_back(V);
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++;
-                ReadSize++;
-            }
-            ReadChar = *Pointer;
-            NextChar = *(Pointer + 1);
-        }
-
-        // Parse normals
-        std::vector<v3> Normals = {};
-        while (ReadChar == 'v' && NextChar == 'n') {
-            Pointer += 3; ReadSize += 3;
-            v3 V = ParseV3(Pointer);
-            Normals.push_back(V);
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++;
-                ReadSize++; 
-            }
-            ReadChar = *Pointer;
-            NextChar = *(Pointer + 1);
-        }
-
-        // Skip until faces
-        while (ReadChar != 'f') {
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++; ReadSize++;
-            }
-            ReadChar = *Pointer++; ReadSize++;
-        }
-        Pointer++; ReadSize++;
-        ReadChar = *Pointer;
-
-        // Parse faces
-        std::set<iv3> FaceVertices = {};
-        std::vector<iv3> Triangles = {};
-        while (ReadSize < File.ContentSize) {
-            int nFaceVertices = 0;
-            iv3 Triangle[3] = {};
-            while (ReadChar != '\n' && ReadSize < File.ContentSize) {
-                iv3 V = ParseIV3(Pointer);
-                FaceVertices.insert(V);
-                if (nFaceVertices <= 2) {
-                    Triangle[nFaceVertices] = V;
-                }
-                nFaceVertices++;
-                if (nFaceVertices > 3) {
-                    Triangle[1] = Triangle[2];
-                    Triangle[2] = V;
-                }
-                if (nFaceVertices >= 3) {
-                    Triangles.push_back(Triangle[0]);
-                    Triangles.push_back(Triangle[1]);
-                    Triangles.push_back(Triangle[2]);
-                }
-                while (ReadChar != ' ' && ReadChar != '\n' && ReadSize < File.ContentSize) { ReadChar = *++Pointer; ReadSize++; };
-                if (ReadChar == ' ') {
-                    ReadChar = *++Pointer; ReadSize++;
-                }
-            }
-            Pointer += 3; ReadSize += 3;
-            if (ReadSize < File.ContentSize) {
-                ReadChar = *Pointer;
-            }
-        }
-
-        // Set properties and reserve memory
-        Result.nVertices = FaceVertices.size();
-        Result.nFaces = Triangles.size() / 3;
+        GetMeshSizes(Pointer, &Result.nVertices, &Result.nFaces);
 
         Result.Vertices = PushArray(Arena, 8 * Result.nVertices, double);
-        Result.Faces = PushArray(Arena, Triangles.size(), uint32);
+        Result.Faces = PushArray(Arena, 3 * Result.nFaces, uint32);
 
-        // Write result
-        std::set<iv3>::iterator itr;
-        std::map<iv3, uint32> dict = {};
-        double* pOutputVertex = Result.Vertices;
-        int n = 0;
-        int WrittenBytes = 0;
-        for (itr = FaceVertices.begin(); itr != FaceVertices.end(); itr++) {
-            iv3 FaceVertex = *itr;
-            dict[FaceVertex] = n++;
-            v3 Vertex = Vertices.at(FaceVertex.X-1);
-            v2 Texture = Textures.at(FaceVertex.Y-1);
-            v3 Normal = Normals.at(FaceVertex.Z-1);
-            *pOutputVertex++ = Vertex.X;
-            *pOutputVertex++ = Vertex.Y;
-            *pOutputVertex++ = Vertex.Z;
-            *pOutputVertex++ = Texture.X;
-            *pOutputVertex++ = Texture.Y;
-            *pOutputVertex++ = Normal.X;
-            *pOutputVertex++ = Normal.Y;
-            *pOutputVertex++ = Normal.Z;
-            WrittenBytes += 8 * sizeof(double);
+        // Skip until vertices
+        while (*Pointer++ != '\n');
+
+        double* pOutV = Result.Vertices;
+        for (int i = 0; i < Result.nVertices; i++) {
+            v3 Position = ParseV3(Pointer);
+            Pointer++;
+            v3 Normal = ParseV3(Pointer);
+            Pointer++;
+            v2 Texture = ParseV2(Pointer);
+            Pointer++;
+
+            *pOutV++ = Position.X;
+            *pOutV++ = Position.Y;
+            *pOutV++ = Position.Z;
+
+            *pOutV++ = Texture.X;
+            *pOutV++ = Texture.Y;
+            
+            *pOutV++ = Normal.X;
+            *pOutV++ = Normal.Y;
+            *pOutV++ = Normal.Z;
+
+            if (i == Result.nVertices - 1) {
+                Log(Info, "AA");
+            }
         }
 
-        uint32* pOutputFace = Result.Faces;
-        for (const iv3& v : Triangles) {
-            *pOutputFace++ = dict[v];
-            WrittenBytes += sizeof(uint32);
+        uint32* pOutF = Result.Faces;
+        for (int i = 0; i < Result.nFaces; i++) {
+            iv3 Face = ParseIV3(Pointer);
+            *pOutF++ = Face.X;
+            *pOutF++ = Face.Y;
+            *pOutF++ = Face.Z;
+            Pointer++;
         }
     }
 

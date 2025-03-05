@@ -257,7 +257,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     light LightSource = Light(V3(-0.5, -1, 1), White);
 
     v3 MeshPosition = V3(Group->Camera.Position.X, 0, Group->Camera.Position.Z);
-    transform Transform1 = Transform(Quaternion((Group->Camera.Angle - 90) * Degrees, V3(0,1,0)), MeshPosition);
+    transform Transform1 = Transform(Quaternion((Group->Camera.Angle + 180) * Degrees, V3(0,1,0)), MeshPosition);
     transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(-5.0, 0.0, 20.0), Scale(10,1,1));
 
     PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, false);
