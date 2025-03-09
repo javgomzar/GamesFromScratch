@@ -186,7 +186,7 @@ void Update(camera* Camera, game_input* Input) {
     basis HorizontalBasis = GetCameraBasis(Camera->Angle, 0);
 
     v3 Direction = normalize(Camera->Velocity);
-    float Speed = 0.01 * Camera->Distance;
+    float Speed = 0.05 * Camera->Distance;
     Camera->Velocity = Speed * (Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z);
     Camera->Position += Camera->Velocity;
 }

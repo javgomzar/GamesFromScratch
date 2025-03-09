@@ -92,6 +92,17 @@ GLenum GetType(GLenum InternalFormat) {
 	return 0;
 }
 
+int GetSizeOf(GLenum Type) {
+	switch(Type) {
+		case GL_DOUBLE: return sizeof(double);
+		case GL_FLOAT: return sizeof(float);
+		case GL_INT: return sizeof(int);
+		case GL_UNSIGNED_INT: return sizeof(unsigned int);
+		default: Assert(false);
+	}
+	return 0;
+}
+
 /* Changes the size of a previously generated texture.
 - Internal format should be one of `GL_RGBA8`, `GL_RGBA32F`, `GL_DEPTH_COMPONENT32F`, `GL_STENCIL_INDEX8`, `GL_DEPTH32F_STENCIL8`.
 - Filter should be one of `GL_LINEAR`, `GL_NEAREST`.
@@ -323,25 +334,16 @@ matrix4 GetViewMatrix(camera Camera) {
 void OpenGLCreateVertexBuffer(
 	uint32& VAO,
 	uint32& VBO,
-	double* Vertices, 
+	void* Vertices, 
 	GLenum Usage, 
 	int nVertices, 
-	int nAttributes
-	...
+	int nAttributes,
+	GLenum* AttributeTypes,
+	int* AttributeSizes
 ) {
-	va_list Args;
-    va_start(Args, nAttributes);
-
-	std::vector<int> AttributeSizes = {};
 	int VertexSize = 0;
 	for (int i = 0; i < nAttributes; i++) {
-		int AttributeSize = va_arg(Args, int);
-		AttributeSizes.push_back(AttributeSize);
-		VertexSize += AttributeSize;
-	}
-
-	if (AttributeSizes.size() != nAttributes) {
-		throw("nAttributes should be equal to number of attributes submitted.");
+		VertexSize += AttributeSizes[i] * GetSizeOf(AttributeTypes[i]);
 	}
 
 	glGenBuffers(1, &VBO);
@@ -349,13 +351,12 @@ void OpenGLCreateVertexBuffer(
 
 	glBindVertexArray(VAO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, nVertices * VertexSize * sizeof(double), Vertices, Usage);
+	glBufferData(GL_ARRAY_BUFFER, nVertices * VertexSize, Vertices, Usage);
 
 	uint64 Offset = 0;
 	for (int i = 0; i < nAttributes; i++) {
-		int Size = AttributeSizes[i];
-		glVertexAttribPointer(i, Size, GL_DOUBLE, GL_FALSE, VertexSize * sizeof(double), (void*)Offset);
-		Offset += Size * sizeof(double);
+		glVertexAttribPointer(i, AttributeSizes[i], AttributeTypes[i], GL_FALSE, VertexSize, (void*)Offset);
+		Offset += AttributeSizes[i] * GetSizeOf(AttributeTypes[i]);
 	}
 
 	for (int i = 0; i < nAttributes; i++) {
@@ -759,8 +760,10 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 		};
 
 		uint32 VBO = 0;
-		OpenGLCreateVertexBuffer(Result.QuadVAO, VBO, QuadVertices, GL_STATIC_DRAW, 6, 2, 3, 2);
-		OpenGLCreateVertexBuffer(Result.DebugVAO, VBO, DebugVertices, GL_STATIC_DRAW, 6, 2, 3, 2);
+		GLenum Types[2] = {GL_DOUBLE, GL_DOUBLE};
+		int Sizes[2] = {3, 2};
+		OpenGLCreateVertexBuffer(Result.QuadVAO, VBO, QuadVertices, GL_STATIC_DRAW, 6, 2, Types, Sizes);
+		OpenGLCreateVertexBuffer(Result.DebugVAO, VBO, DebugVertices, GL_STATIC_DRAW, 6, 2, Types, Sizes);
 
 		// Pixel buffer objects for fast pixel transfers
 		glGenBuffers(1, &Result.VideoPBO); // Use GL_PIXEL_PACK_BUFFER to upload pixels to OpenGL
@@ -851,7 +854,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				static uint32 VBO = 0;
 
 				if (VAO == 0 || VBO == 0) {
-					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 2, 1, 3);
+					int Size = 3;
+					GLenum Type = GL_DOUBLE;
+					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 2, 1, &Type, &Size);
 					glBindVertexArray(VAO);
 				}
 				else {
@@ -893,7 +898,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				static uint32 VBO = 0;
 
 				if (VAO == 0 || VBO == 0) {
-					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 3, 1, 3);
+					int Size = 3;
+					GLenum Type = GL_DOUBLE;
+					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 3, 1, &Type, &Size);
 				}
 				else {
 					glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -937,7 +944,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					};
 
 					if (VAO == 0 || VBO == 0 || EBO == 0) {
-						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 4, 1, 3);
+						int Size = 3;
+						GLenum Type = GL_DOUBLE;
+						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 4, 1, &Type, &Size);
 						glBindVertexArray(VAO);
 						uint32 Elements[8] = { 0, 1, 1, 2, 2, 3, 3, 0 };
 						glGenBuffers(1, &EBO);
@@ -979,7 +988,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					};
 
 					if (VAO == 0 || VBO == 0 || EBO == 0) {
-						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 4, 2, 3, 2);
+						GLenum Types[2] = {GL_DOUBLE, GL_DOUBLE};
+						int Sizes[2] = {3, 2};
+						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 4, 2, Types, Sizes);
 						glBindVertexArray(VAO);
 						uint32 Elements[6] = { 0, 1, 3, 1, 2, 3 };
 						glGenBuffers(1, &EBO);
@@ -1028,7 +1039,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					};
 
 					if (VAO == 0 || VBO == 0 || EBO == 0) {
-						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 4, 1, 3);
+						GLenum Type = GL_DOUBLE;
+						int Size = 3;
+						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 4, 1, &Type, &Size);
 						glBindVertexArray(VAO);
 						uint32 Elements[6] = { 0, 1, 3, 1, 2, 3 };
 						glGenBuffers(1, &EBO);
@@ -1097,7 +1110,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					Vertices[5 + 3*N] = Vertices[5];
 
 					if (VAO == 0 || VBO == 0) {
-						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, nVertices, 1, 3);
+						GLenum Type = GL_DOUBLE;
+						int Size = 3;
+						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, nVertices, 1, &Type, &Size);
 						glBindVertexArray(VAO);
 					}
 					else {
@@ -1145,7 +1160,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					}
 
 					if (VAO == 0 || VBO == 0 || EBO == 0) {
-						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, nVertices, 1, 3);
+						GLenum Type = GL_DOUBLE;
+						int Size = 3;
+						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, nVertices, 1, &Type, &Size);
 						glBindVertexArray(VAO);
 						uint32 Elements[2 * nVertices] = { };
 						for (int i = 0; i < nVertices; i++) {
@@ -1204,7 +1221,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				static uint32 VBO = 0;
 
 				if (VAO == 0 || VBO == 0) {
-					OpenGLCreateVertexBuffer(VAO, VBO, NULL, GL_DYNAMIC_DRAW, 6, 2, 3, 2);
+					GLenum Types[2] = {GL_DOUBLE, GL_DOUBLE};
+					int Sizes[2] = {3, 2};
+					OpenGLCreateVertexBuffer(VAO, VBO, NULL, GL_DYNAMIC_DRAW, 6, 2, Types, Sizes);
 				}
 				
 				glBindVertexArray(VAO);
@@ -1300,7 +1319,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					glBindVertexArray(Mesh->VAO);
 				}
 				else {
-					OpenGLCreateVertexBuffer(Mesh->VAO, Mesh->VBO, Mesh->Vertices, GL_STATIC_DRAW, Mesh->nVertices, 3, 3, 2, 3);
+					GLenum Types[5] = {GL_DOUBLE, GL_DOUBLE, GL_DOUBLE, GL_UNSIGNED_INT, GL_DOUBLE};
+					int Sizes[5] = {3, 2, 3, 2, 2};
+					int nAttributes = Mesh->Armature.nBones > 0 ? 5 : 3;
+					OpenGLCreateVertexBuffer(Mesh->VAO, Mesh->VBO, Mesh->Vertices, GL_STATIC_DRAW, Mesh->nVertices, nAttributes, Types, Sizes);
 					glBindVertexArray(Mesh->VAO);
 	
 					glGenBuffers(1, &Mesh->EBO);
@@ -1651,7 +1673,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 						*Pointer++ = 50.0;             *Pointer++ = 0.0; *Pointer++ = 50.0 - (double)i;
 					}
 
-					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_STATIC_DRAW, nVertices, 1, 3);	
+					GLenum Type = GL_DOUBLE;
+					int Size = 3;
+					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_STATIC_DRAW, nVertices, 1, &Type, &Size);	
 				}
 
 				glBindVertexArray(VAO);
@@ -1731,7 +1755,9 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				}
 
 				if (VAO == 0 || VBO == 0 || EBO == 0) {
-					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, MAX_PLOT_BUFFER_SIZE, 1, 3);
+					GLenum Type = GL_DOUBLE;
+					int Size = 3;
+					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, MAX_PLOT_BUFFER_SIZE, 1, &Type, &Size);
 					glBindVertexArray(VAO);
 
 					const int nElements = 2 * MAX_PLOT_BUFFER_SIZE - 2;

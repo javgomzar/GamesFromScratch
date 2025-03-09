@@ -762,16 +762,25 @@ game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
 // | Meshes                                                                                                                                                           |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-struct vertex {
-    v3 Vertex;
-    v3 Normal;
-    v2 Texture;
+struct bone {
+    int ID;
+    int ParentID;
+    char Name[32];
+    v3 Head;
+    v3 Tail;
+};
+
+const int MAX_ARMATURE_BONES = 32;
+struct armature {
+    int nBones;
+    bone Bones[MAX_ARMATURE_BONES];
 };
 
 struct game_mesh {
     game_mesh_id ID;
+    armature Armature;
     int nVertices;
-    double* Vertices;
+    void* Vertices;
     int nFaces;
     uint32* Faces;
     uint32 VBO;
@@ -799,6 +808,15 @@ v3 ParseV3(char*& Pointer) {
     return V3(VX, VY, VZ);
 }
 
+iv2 ParseIV2(char*& Pointer) {
+    char* VXEnd = 0;
+    int VX = strtol(Pointer, &VXEnd, 10);
+    char* VYEnd = 0;
+    int VY = strtol(VXEnd + 1, &VYEnd, 10);
+    Pointer = VYEnd;
+    return IV2(VX, VY);
+}
+
 iv3 ParseIV3(char*& Pointer) {
     char* VXEnd = 0;
     int VX = strtol(Pointer, &VXEnd, 10);
@@ -810,11 +828,11 @@ iv3 ParseIV3(char*& Pointer) {
     return IV3(VX, VY, VZ);
 }
 
-void GetMeshSizes(char* Text, int* nVertices, int* nFaces) {
+void GetMeshSizes(char* Text, int* nVertices, int* nFaces, int* nBones) {
     Assert(Text[0] == 'n' && Text[1] == 'V' && Text[2] == ' ');
     Text += 3;
 
-    char *nVEnd, *nFEnd = 0;
+    char *nVEnd, *nFEnd, *nBEnd = 0;
     *nVertices = strtol(Text, &nVEnd, 10);
 
     while (Text++ != nVEnd);
@@ -823,6 +841,19 @@ void GetMeshSizes(char* Text, int* nVertices, int* nFaces) {
     Text += 3;
 
     *nFaces = strtol(Text, &nFEnd, 10);
+
+    while (++Text != nFEnd);
+
+    if (
+        Text[0] == '\n' || 
+        (Text[0] == '\r' && Text[1] == '\n')
+    ) *nBones = 0;
+    else {
+        Text++;
+        Assert(Text[0] == 'n' && Text[1] == 'B' && Text[2] == ' ');
+        Text += 3;
+        *nBones = strtol(Text, &nBEnd, 10);
+    }
 }
 
 uint64 ComputeNeededMemoryForMesh(read_file_result File) {
@@ -831,12 +862,14 @@ uint64 ComputeNeededMemoryForMesh(read_file_result File) {
     if (File.ContentSize > 0) {
         char* Pointer = (char*)File.Content;
 
-        int nVertices, nFaces = 0;
-        GetMeshSizes(Pointer, &nVertices, &nFaces);
+        int nVertices = 0, nFaces = 0, nBones = 0;
+        GetMeshSizes(Pointer, &nVertices, &nFaces, &nBones);
 
-        // We need eight doubles for each combination of vertex, normal, texture (v3, v3, v2) and
-        // 3 unsigned integers for each triangle.
-        Result = nVertices * 8 * sizeof(double) + nFaces * 3 * sizeof(uint32);
+        // We need eight doubles for each combination of vertex, texture, normal (v3, v2, v3) and
+        // 3 unsigned integers for each triangle. Also, two ints for bone ids and two doubles for bone weights if armature is present
+        if (nBones > 0) Result = nVertices * (10 * sizeof(double) + 2 * sizeof(uint32));
+        else Result = nVertices * 8 * sizeof(double);
+        Result += nFaces * 3 * sizeof(uint32);
     }
     return Result;
 }
@@ -850,15 +883,21 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
     if (File.ContentSize > 0) {
         char* Pointer = (char*)File.Content;
 
-        GetMeshSizes(Pointer, &Result.nVertices, &Result.nFaces);
+        int nVertices, nFaces, nBones = 0;
+        GetMeshSizes(Pointer, &nVertices, &nFaces, &nBones);
 
-        Result.Vertices = PushArray(Arena, 8 * Result.nVertices, double);
+        Result.nVertices = nVertices;
+        Result.nFaces = nFaces;
+        Result.Armature.nBones = nBones;
+
+        int VerticesSize = nBones > 0 ? 10 * sizeof(double) + 2 * sizeof(uint32) : 8 * sizeof(double);
+        Result.Vertices = PushSize(Arena, nVertices * VerticesSize);
         Result.Faces = PushArray(Arena, 3 * Result.nFaces, uint32);
 
         // Skip until vertices
         while (*Pointer++ != '\n');
 
-        double* pOutV = Result.Vertices;
+        double* pOutV = (double*)Result.Vertices;
         for (int i = 0; i < Result.nVertices; i++) {
             v3 Position = ParseV3(Pointer);
             Pointer++;
@@ -877,9 +916,19 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
             *pOutV++ = Normal.X;
             *pOutV++ = Normal.Y;
             *pOutV++ = Normal.Z;
+            
+            if (nBones > 0) {
+                iv2 BoneIDs = ParseIV2(Pointer);
+                Pointer++;
+                v2 Weights = ParseV2(Pointer);
+                Pointer++;
+                uint32* pOutB = (uint32*)pOutV;
+                *pOutB++ = BoneIDs.X;
+                *pOutB++ = BoneIDs.Y;
 
-            if (i == Result.nVertices - 1) {
-                Log(Info, "AA");
+                pOutV = (double*)pOutB;
+                *pOutV++ = Weights.X;
+                *pOutV++ = Weights.Y;
             }
         }
 
@@ -1042,6 +1091,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_text_id ID) {
     Asset->Type = Text;
     Asset->ID.Text = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = Asset->File.ContentSize + 1;
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1052,6 +1102,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_sound_id ID) {
     Asset->Type = Sound;
     Asset->ID.Sound = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = ComputeNeededMemoryForSound(Asset->File);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1062,6 +1113,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_bitmap_id ID) {
     Asset->Type = Bitmap;
     Asset->ID.Bitmap = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = ComputeNeededMemoryForBitmap((bitmap_header*)Asset->File.Content);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1072,6 +1124,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_heightmap_id ID) {
     Asset->Type = Heightmap;
     Asset->ID.Heightmap = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = ComputeNeededMemoryForHeightmap(Asset->File);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1082,6 +1135,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_font_id ID) {
     Asset->Type = Font;
     Asset->ID.Font = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = ComputeNeededMemoryForFont(Asset->File.Path);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1092,6 +1146,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_mesh_id ID) {
     Asset->Type = Mesh;
     Asset->ID.Mesh = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = ComputeNeededMemoryForMesh(Asset->File);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1102,6 +1157,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
     Asset->Type = Video;
     Asset->ID.Video = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     //Asset.MemoryNeeded = ComputeNeededMemoryForVideo(Asset.File);
     Asset->MemoryNeeded = 0;
     Assets->TotalSize += Asset->MemoryNeeded;
@@ -1315,7 +1371,8 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
             case Mesh: {
                 game_mesh* Mesh = GetAsset(Assets, Asset.ID.Mesh);
                 Mesh->Vertices = (double*)(Assets->Memory + Asset.Offset);
-                Mesh->Faces = (uint32*)(Mesh->Vertices + 8 * Mesh->nVertices);
+                int VertexSize = Mesh->Armature.nBones > 0 ? 10 * sizeof(double) + 2 * sizeof(uint32) : 8 * sizeof(double);
+                Mesh->Faces = (uint32*)((uint8*)Mesh->Vertices + VertexSize * Mesh->nVertices);
             } break;
 
             //case Video: {

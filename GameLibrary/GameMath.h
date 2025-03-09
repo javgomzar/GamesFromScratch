@@ -48,6 +48,33 @@ inline int32 Sign(float x) {
 
 // Vectors
 // 2D
+struct iv2 {
+	int X, Y;
+};
+
+inline iv2 IV2(int X, int Y) {
+	return { X, Y };
+}
+
+inline iv2 operator+(iv2 a, iv2 b) {
+	return IV2(a.X + b.X, a.Y + b.Y);
+}
+
+inline bool operator==(const iv2& lhs, const iv2& rhs) {
+	return lhs.X == rhs.X && lhs.Y == rhs.Y;
+}
+
+inline bool operator<(const iv2& lhs, const iv2& rhs) {
+	bool Result = 0;
+	if (lhs.X == rhs.X) {
+		if (lhs.Y == rhs.Y) {
+			return false;
+		}
+		else return lhs.Y < rhs.Y;
+	}
+	else return lhs.X < rhs.X;
+}
+
 struct v2 {
 	float X, Y;
 };
@@ -1026,21 +1053,5 @@ struct affine_plane {
 //	return dot(Vector, Plane.Base[0]) * Plane.Base[0] + dot(Vector, Plane.Base[1]) * Plane.Base[1];
 //}
 
-// Bones and skeletons
-
-struct bone {
-	float Rotation;
-	union {
-		v3 Points[2];
-		struct {
-			v3 Origin;
-			v3 Destination;
-		};
-	};
-};
-
-float Length(bone Bone) {
-	return distance(Bone.Origin, Bone.Destination);
-}
 
 #endif

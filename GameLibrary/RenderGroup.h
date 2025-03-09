@@ -1249,22 +1249,6 @@ void PushDebugVector(render_group* Group, v3 Vector, v3 Position, coordinate_sys
     PushTriangle(Group, Triangle, Color, Coordinates, Order);
 }
 
-void PushDebugNormals(render_group* Group, game_mesh Mesh, transform Transform) {
-    for (int i = 0; i < Mesh.nFaces; i++) {
-        vertex Vertex1 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i]];
-        vertex Vertex2 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i + 1]];
-        vertex Vertex3 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i + 2]];
-
-        v3 TransformedVertex1 = Transform * Vertex1.Vertex;
-        v3 TransformedVertex2 = Transform * Vertex2.Vertex;
-        v3 TransformedVertex3 = Transform * Vertex3.Vertex;
-
-        v3 Position = (TransformedVertex1 + TransformedVertex2 + TransformedVertex3) * (1 / 3.0);
-        v3 Normal = Rotate(Vertex1.Normal, Transform.Rotation);
-        PushDebugVector(Group, Normal, Position, World_Coordinates);
-    }
-}
-
 void PushDebugFustrum(
     render_group* Group,
     v3 Position,
