@@ -1,10 +1,264 @@
 #pragma once
-#include "../../GameAssets/GameAssets.h"
+#include "GameAssets.h"
 
 /*
     TODO:
-        - Merge rect and textured rect types
+        - Make lighting a render_group attribute
 */
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Color                                                                                                                                        |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct color {
+    double Alpha;
+    double R;
+    double G;
+    double B;
+};
+
+color Color(double R, double G, double B, double Alpha = 1.0) {
+    return { Alpha, R, G, B };
+}
+
+color Color(color Color, double Alpha) {
+    return { Alpha, Color.R, Color.G, Color.B };
+}
+
+color operator*(double Luminosity, color Color) {
+    return {
+        Color.Alpha,
+        min(Luminosity * Color.R, 1.0),
+        min(Luminosity * Color.G, 1.0),
+        min(Luminosity * Color.B, 1.0),
+    };
+}
+
+static int Attenuation = 100;
+static color Black = { 1.0, 0.0, 0.0, 0.0 };
+static color White = { 1.0, 1.0, 1.0, 1.0 };
+static color Gray = { 1.0, 0.5, 0.5, 0.5 };
+static color DarkGray = { 1.0, 0.1, 0.1, 0.1 };
+static color Red = { 1.0, 1.0, 0.0, 0.0 };
+static color Green = { 1.0, 0.0, 1.0, 0.0 };
+static color Blue = { 1.0, 0.0, 0.0, 1.0 };
+static color Magenta = { 1.0, 1.0, 0.0, 1.0 };
+static color Yellow = { 1.0, 1.0, 1.0, 0.0 };
+static color Cyan = { 1.0, 0.0, 1.0, 1.0 };
+static color Orange = { 1.0, 1.0, 0.63, 0.0 };
+static color BackgroundBlue = { 1.0, 0.4, 0.4, 0.8 };
+
+uint32 GetColorBytes(color Color) {
+    uint8 Alpha = Color.Alpha * 255.0;
+    uint8 R = Color.R * 255.0;
+    uint8 G = Color.G * 255.0;
+    uint8 B = Color.B * 255.0;
+    return (Alpha << 24) | (R << 16) | (G << 8) | B;
+}
+
+//color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) {
+//    uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
+//    
+//    uint32 RedShift;
+//    uint32 GreenShift;
+//    uint32 BlueShift;
+//    uint32 AlphaShift;
+//    _BitScanForward((DWORD*)&RedShift, RedMask);
+//    _BitScanForward((DWORD*)&GreenShift, GreenMask);
+//    _BitScanForward((DWORD*)&BlueShift, BlueMask);
+//    _BitScanForward((DWORD*)&AlphaShift, AlphaMask);
+//
+//    color Color;
+//    Color.R = (double)((RedMask & Bytes) >> RedShift) / 255.0;
+//    Color.G = (double)((GreenMask & Bytes) >> GreenShift) / 255.0;
+//    Color.B = (double)((BlueMask & Bytes) >> BlueShift) / 255.0;
+//    Color.Alpha = (double)((AlphaMask & Bytes) >> AlphaShift) / 255.0;
+//    return Color;
+//}
+
+color operator+(color Color1, color Color2) {
+    return Color(
+        Color1.R + Color2.R,
+        Color1.G + Color2.G,
+        Color1.B + Color2.B
+    );
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Camera                                                                                                                                       |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct camera {
+    basis Basis;
+    v3 Position;
+    v3 Velocity;
+    float Distance;
+    float Pitch;
+    float Angle;
+    matrix4 View;
+};
+
+basis GetCameraBasis(float Angle, float Pitch) {
+    float cosA = cosf(Angle * Degrees);
+    float sinA = sinf(Angle * Degrees);
+    float cosP = cosf(Pitch * Degrees);
+    float sinP = sinf(Pitch * Degrees);
+
+    v3 X = V3(
+        cosA,
+        0.0,
+        sinA
+    );
+    v3 Y = V3(
+        -sinA * sinP,
+        cosP,
+        cosA * sinP
+    );
+    v3 Z = V3(
+        sinA * cosP,
+        sinP,
+        -cosA * cosP
+    );
+
+    basis Result;
+    Result.X = X;
+    Result.Y = Y;
+    Result.Z = Z;
+    return Result;
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Colliders                                                                                                                                    |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct rect_collider {
+    v3 Center;
+    float Width;
+    float Height;
+};
+
+struct cube_collider {
+    v3 Center;
+    scale Size;
+};
+
+struct sphere_collider {
+    v3 Center;
+    float Radius;
+};
+
+bool Collide(rect_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < (double)Collider.Width / 2.0 &&
+        fabs(Position.Y - Collider.Center.Y) < (double)Collider.Height / 2.0;
+}
+
+bool Collide(cube_collider Collider, v3 Position) {
+    return fabs(Position.X - Collider.Center.X) < Collider.Size.X / 2.0 &&
+           fabs(Position.Y - Collider.Center.Y) < Collider.Size.Y / 2.0 &&
+           fabs(Position.Z - Collider.Center.Z) < Collider.Size.Z / 2.0;
+}
+
+bool Collide(sphere_collider Collider, v3 Position) {
+    return modulus(Position - Collider.Center) < Collider.Radius;
+}
+
+/*
+Fast Ray-Box Intersection
+by Andrew Woo
+from "Graphics Gems", Academic Press, 1990
+*/
+bool HitBoundingBox(double minB[3], double maxB[3], double origin[3], double dir[3], double coord[3])
+/* double minB[NUMDIM], maxB[NUMDIM];		box */
+/* double origin[NUMDIM], dir[NUMDIM];		ray */
+/* double coord[NUMDIM];			hit point   */
+{
+    bool inside = true;
+    char quadrant[3];
+    register int i;
+    int whichPlane;
+    double maxT[3];
+    double candidatePlane[3];
+    char LEFT = 1;
+    char RIGHT = 0;
+    char MIDDLE = 2;
+
+    /* Find candidate planes; this loop can be avoided if
+    rays cast all from the eye(assume perpsective view) */
+    for (i = 0; i < 3; i++)
+        if (origin[i] < minB[i]) {
+            quadrant[i] = LEFT;
+            candidatePlane[i] = minB[i];
+            inside = false;
+        }
+        else if (origin[i] > maxB[i]) {
+            quadrant[i] = RIGHT;
+            candidatePlane[i] = maxB[i];
+            inside = false;
+        }
+        else {
+            quadrant[i] = MIDDLE;
+        }
+
+    /* Ray origin inside bounding box */
+    if (inside) {
+        coord = origin;
+        return true;
+    }
+
+
+    /* Calculate T distances to candidate planes */
+    for (i = 0; i < 3; i++)
+        if (quadrant[i] != MIDDLE && dir[i] != 0.)
+            maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
+        else
+            maxT[i] = -1.;
+
+    /* Get largest of the maxT's for final choice of intersection */
+    whichPlane = 0;
+    for (i = 1; i < 3; i++)
+        if (maxT[whichPlane] < maxT[i])
+            whichPlane = i;
+
+    /* Check final candidate actually inside box */
+    if (maxT[whichPlane] < 0.) return false;
+    for (i = 0; i < 3; i++)
+        if (whichPlane != i) {
+            coord[i] = origin[i] + maxT[whichPlane] * dir[i];
+            if (coord[i] < minB[i] || coord[i] > maxB[i])
+                return false;
+        }
+        else {
+            coord[i] = candidatePlane[i];
+        }
+    return true;				/* ray hits box */
+}
+
+bool Raycast(v3 Origin, v3 Direction, cube_collider Collider) {
+    double minB[3] = { 0 };
+    minB[0] = Collider.Center.X - Collider.Size.X / 2.0;
+    minB[1] = Collider.Center.Y - Collider.Size.Y / 2.0;
+    minB[2] = Collider.Center.Z - Collider.Size.Z / 2.0;
+    double maxB[3] = { 0 };
+    maxB[0] = Collider.Center.X + Collider.Size.X / 2.0;
+    maxB[1] = Collider.Center.Y + Collider.Size.Y / 2.0;
+    maxB[2] = Collider.Center.Z + Collider.Size.Z / 2.0;
+    double origin[3] = { Origin.X, Origin.Y, Origin.Z };
+    double dir[3] = { Direction.X, Direction.Y, Direction.Z };
+    double coord[3] = { 0,0,0 };
+
+    return HitBoundingBox(minB, maxB, origin, dir, coord);
+}
+
+bool Raycast(camera* Camera, double Width, double Height, v2 Mouse, cube_collider Collider) {
+    v3 ScreenOffset =
+        (2.0 * Mouse.X / Width - 1.0) * Camera->Basis.X +
+        (Height - 2.0 * Mouse.Y) / Width * Camera->Basis.Y - Camera->Basis.Z;
+    return Raycast(Camera->Position + Camera->Distance * Camera->Basis.Z, ScreenOffset, Collider);
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Render entries                                                                                                                               |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int MAX_RENDER_ENTRIES = 10000;
 
@@ -14,15 +268,17 @@ enum render_group_entry_type {
     group_type_render_entry_circle,
     group_type_render_entry_triangle,
     group_type_render_entry_rect,
-    group_type_render_entry_textured_rect,
     group_type_render_entry_text,
     group_type_render_entry_video,
     group_type_render_entry_mesh,
     group_type_render_entry_heightmap,
     group_type_render_entry_mesh_outline,
     group_type_render_entry_shader_pass,
+    group_type_render_entry_compute_shader_pass,
     group_type_render_entry_render_target,
-    group_type_render_entry_debug_grid
+    group_type_render_entry_debug_grid,
+    group_type_render_entry_debug_framebuffer,
+    group_type_render_entry_debug_plot,
 };
 
 enum render_group_target {
@@ -82,7 +338,7 @@ struct render_entry_circle {
     v3 Normal;
     double Radius;
     color Color;
-    double Thickness;
+    float Thickness;
     bool Fill;
 };
 
@@ -97,25 +353,15 @@ struct render_entry_rect {
     render_group_header Header;
     game_rect Rect;
     color Color;
-};
-
-struct render_entry_textured_rect {
-    render_group_header Header;
-    game_rect Rect;
     game_bitmap* Texture;
-    color Color;
     wrap_mode Mode;
+    v2 Offset;
     double MinTexX;
     double MinTexY;
     double MaxTexX;
     double MaxTexY;
-};
-
-struct render_entry_rect_outline {
-    render_group_header Header;
-    coordinate_system Coordinates;
-    game_rect Rect;
-    color Color;
+    bool Outline;
+    bool RefreshTexture;
 };
 
 struct render_entry_text {
@@ -126,6 +372,15 @@ struct render_entry_text {
     v2 Position;
     int Points;
     bool Wrapped;
+};
+
+struct render_entry_debug_plot {
+    render_group_header Header;
+    v3 Position;
+    color Color;
+    uint32 Size;
+    int dx;
+    double* Data;
 };
 
 struct render_entry_button {
@@ -164,6 +419,7 @@ struct render_entry_mesh {
 struct render_entry_heightmap {
     render_group_header Header;
     game_heightmap* Heightmap;
+    game_shader_pipeline* Shader;
 };
 
 struct render_entry_mesh_outline {
@@ -183,6 +439,14 @@ struct render_entry_shader_pass {
     double Width;
 };
 
+struct render_entry_compute_shader_pass {
+    render_group_header Header;
+    game_compute_shader_id ShaderID;
+    color Color;
+    float Kernel[9];
+    double Width;
+};
+
 struct render_entry_render_target {
     render_group_header Header;
     render_group_target Target;
@@ -191,6 +455,12 @@ struct render_entry_render_target {
 struct render_entry_debug_grid {
     render_group_header Header;
     double Alpha;
+};
+
+struct render_entry_debug_framebuffer {
+    render_group_header Header;
+    render_group_target Framebuffer;
+    bool Attachment;
 };
 
 uint32 GetSizeOf(render_group_entry_type Type) {
@@ -213,10 +483,6 @@ uint32 GetSizeOf(render_group_entry_type Type) {
 
         case group_type_render_entry_rect: {
             return sizeof(render_entry_rect);
-        } break;
-
-        case group_type_render_entry_textured_rect: {
-            return sizeof(render_entry_textured_rect);
         } break;
 
         case group_type_render_entry_text: {
@@ -247,14 +513,27 @@ uint32 GetSizeOf(render_group_entry_type Type) {
             return sizeof(render_entry_shader_pass);
         } break;
 
+        case group_type_render_entry_compute_shader_pass: {
+            return sizeof(render_entry_compute_shader_pass);
+        } break;
+
         case group_type_render_entry_debug_grid: {
             return sizeof(render_entry_debug_grid);
+        } break;
+
+        case group_type_render_entry_debug_framebuffer: {
+            return sizeof(render_entry_debug_framebuffer);
+        } break;
+
+        case group_type_render_entry_debug_plot: {
+            return sizeof(render_entry_debug_plot);
         } break;
 
         default: {
             Assert(false);
         } break;
     }
+    return 0;
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -327,26 +606,27 @@ void SwapEntries(sort_entry* Entry1, sort_entry* Entry2) {
 }
 
 void SortEntries(render_group* RenderGroup) {
+    TIMED_BLOCK;
     uint32 Count = RenderGroup->PushBufferElementCount;
 
     sort_entry* Entries = (sort_entry*)RenderGroup->SortedBufferBase;
 
-    uint32 BaseAddress = 0;
+    uint32 Offset = 0;
     for (int i = 0; i < Count; i++) {
-        render_group_header* Header = (render_group_header*)(RenderGroup->PushBufferBase + BaseAddress);
+        render_group_header* Header = (render_group_header*)(RenderGroup->PushBufferBase + Offset);
         Entries[i] = { Header->Key, Header->PushBufferOffset };
 
-        BaseAddress += GetSizeOf(Header->Type);
+        Offset += GetSizeOf(Header->Type);
     }
 
     for (int i = 0; i < Count - 1; i++) {
-        if (LessThan(Entries[i + 1].Key, Entries[i].Key))
-        {
+        bool Swap = LessThan(Entries[i + 1].Key, Entries[i].Key);
+        if (Swap) {
             int j = i;
             do {
                 SwapEntries(&Entries[j], &Entries[j + 1]);
                 j--;
-            } while (j > 0 && LessThan(Entries[j + 1].Key, Entries[j].Key));
+            } while (j >= 0 && LessThan(Entries[j + 1].Key, Entries[j].Key));
         }
     }
 }
@@ -458,7 +738,8 @@ void PushCircunference(
     v2 Center,
     double Radius,
     color Color,
-    double Order = 0.0
+    float Thickness,
+    double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     render_entry_circle* Entry = PushRenderElement(Group, render_entry_circle);
     Entry->Header.Target = World;
@@ -469,6 +750,7 @@ void PushCircunference(
     Entry->Normal = V3(0.0,0.0,-1.0);
     Entry->Radius = Radius;
     Entry->Color = Color;
+    Entry->Thickness = Thickness;
 }
 
 void PushCircunference(
@@ -477,6 +759,7 @@ void PushCircunference(
     v3 Normal,
     double Radius,
     color Color,
+    float Thickness,
     double Order = 0.0
 ) {
     render_entry_circle* Entry = PushRenderElement(Group, render_entry_circle);
@@ -494,81 +777,113 @@ void PushRect(
     render_group* Group,
     game_rect Rect,
     color Color,
-    render_group_target Target,
-    double Order = 0.0
+    double Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
+    Entry->Header.Key.Order = Order;
+    Entry->Header.Target = World;
+    Entry->Rect = Rect;
+    Entry->Color = Color;
+    Entry->Texture = 0;
+}
+
+void PushRectOutline(
+    render_group* Group,
+    game_rect Rect,
+    color Color,
+    double Order = SORT_ORDER_DEBUG_OVERLAY,
+    render_group_target Target = World
 ) {
     render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
     Entry->Header.Key.Order = Order;
     Entry->Header.Target = Target;
     Entry->Rect = Rect;
     Entry->Color = Color;
+    Entry->Outline = true;
 }
 
-void PushTexturedRect(
+void PushRectOutline(
     render_group* Group,
-    game_bitmap* Bitmap,
-    game_rect Rect,
-    wrap_mode Mode,
+    rect_collider Collider,
     color Color = White,
-    double Order = 0.0,
-    scale Size = Scale(),
-    v2 Offset = V2(0, 0)
+    double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
-    render_entry_textured_rect* Entry = PushRenderElement(Group, render_entry_textured_rect);
+    game_rect Rect = {
+        Collider.Center.X - Collider.Width / 2.0f,
+        Collider.Center.Y - Collider.Height / 2.0f,
+        Collider.Width,
+        Collider.Height
+    };
+    PushRectOutline(Group, Rect, Color, Order);
+}
+
+void PushBitmap(
+    render_group* Group, 
+    game_bitmap* Bitmap, 
+    game_rect Rect, 
+    wrap_mode Mode = Clamp,
+    bool Refresh = false,
+    v2 Size = V2(1.0, 1.0),
+    v2 Offset = V2(0,0),
+    double Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
     Entry->Header.Key.Order = Order;
     Entry->Header.Target = World;
-
     Entry->Rect = Rect;
+    Entry->Color = White;
     Entry->Texture = Bitmap;
-    Entry->Color = Color;
     Entry->Mode = Mode;
+    Entry->RefreshTexture = Refresh;
+
+    int Width = Entry->Texture->Header.Width;
+    int Height = Entry->Texture->Header.Height;
 
     switch (Entry->Mode) {
-    case Clamp: {
-        Entry->MinTexX = Size.X < 0 ? 1.0 : 0.0;
-        Entry->MaxTexX = Size.X < 0 ? 0.0 : 1.0;
-        Entry->MinTexY = Size.Y < 0 ? 1.0 : 0.0;
-        Entry->MaxTexY = Size.Y < 0 ? 0.0 : 1.0;
-    } break;
+        case Clamp: {
+            Entry->MinTexX = Size.X < 0 ? 1.0 : 0.0;
+            Entry->MaxTexX = Size.X < 0 ? 0.0 : 1.0;
+            Entry->MinTexY = Size.Y < 0 ? 1.0 : 0.0;
+            Entry->MaxTexY = Size.Y < 0 ? 0.0 : 1.0;
+        } break;
 
-    case Crop: {
-        double MinX = Offset.X / Size.X / (double)Bitmap->Header.Width;
-        double MinY = 1.0 - (Rect.Height + Offset.Y) / Size.Y / (double)Bitmap->Header.Height;
-        double MaxX = (Rect.Width + Offset.X) / Size.X / (double)Bitmap->Header.Width;
-        double MaxY = 1.0 - Offset.Y / Size.Y / (double)Bitmap->Header.Height;
-        Entry->MinTexX = Size.X < 0 ? MaxX : MinX;
-        Entry->MaxTexX = Size.X < 0 ? MinX : MaxX;
-        Entry->MinTexY = Size.Y < 0 ? MaxY : MinY;
-        Entry->MaxTexY = Size.Y < 0 ? MinY : MaxY;
-    } break;
+        case Crop: {
+            double MinX = Offset.X / Size.X / Width;
+            double MinY = 1.0 - (Rect.Height + Offset.Y) / Size.Y / Height;
+            double MaxX = (Rect.Width + Offset.X) / Size.X / Width;
+            double MaxY = 1.0 - Offset.Y / Size.Y / Height;
+            Entry->MinTexX = Size.X < 0 ? MaxX : MinX;
+            Entry->MaxTexX = Size.X < 0 ? MinX : MaxX;
+            Entry->MinTexY = Size.Y < 0 ? MaxY : MinY;
+            Entry->MaxTexY = Size.Y < 0 ? MinY : MaxY;
+        } break;
 
-    case Repeat: {
-        double MinX = 0.0;
-        double MinY = -Rect.Height / (Size.Y * (double)Bitmap->Header.Height);
-        double MaxX = Rect.Width / (Size.X * (double)Bitmap->Header.Width);
-        double MaxY = 1.0;
-        Entry->MinTexX = Size.X < 0 ? MaxX : MinX;
-        Entry->MaxTexX = Size.X < 0 ? MinX : MaxX;
-        Entry->MinTexY = Size.Y ? MaxY : MinY;
-        Entry->MaxTexY = Size.Y ? MinY : MaxY;
-    } break;
+        case Repeat: {
+            double MinX = 0.0;
+            double MinY = -Rect.Height / (Size.Y * Height);
+            double MaxX = Rect.Width / (Size.X * Width);
+            double MaxY = 1.0;
+            Entry->MinTexX = Size.X < 0 ? MaxX : MinX;
+            Entry->MaxTexX = Size.X < 0 ? MinX : MaxX;
+            Entry->MinTexY = Size.Y ? MaxY : MinY;
+            Entry->MaxTexY = Size.Y ? MinY : MaxY;
+        } break;
 
-    default: { Assert(false); }
+        default: { Assert(false); }
     }
 }
 
-void PushTexturedRect(
-    render_group* Group,
-    game_bitmap_id BitmapID,
-    game_rect Rect,
-    wrap_mode Mode,
-    color Color = White,
-    double Order = 0.0,
-    scale Size = Scale(),
-    v2 Offset = V2(0, 0)
+void PushBitmap(
+    render_group* Group, 
+    game_bitmap_id ID, 
+    game_rect Rect, 
+    wrap_mode Mode = Clamp,
+    v2 Size = V2(1.0, 1.0),
+    v2 Offset = V2(0,0),
+    double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
-    game_bitmap* Bitmap = GetAsset(Group->Assets, BitmapID);
-    PushTexturedRect(Group, Bitmap, Rect, Mode, Color, Order, Size, Offset);
+    game_bitmap* Bitmap = GetAsset(Group->Assets, ID);
+    PushBitmap(Group, Bitmap, Rect, Mode, false, Size, Offset, Order);
 }
 
 void PushText(
@@ -597,38 +912,6 @@ void PushText(
 //    // TODO: Push bitmap and text
 //}
 
-void PushRectOutline(
-    render_group* Group,
-    game_rect Rect,
-    color Color = White,
-    double Order = SORT_ORDER_DEBUG_OVERLAY
-) {
-    v3 A = V3(Rect.Left, Rect.Top, 0);
-    v3 B = V3(Rect.Left + Rect.Width, Rect.Top, 0);
-    v3 C = V3(Rect.Left, Rect.Top + Rect.Height, 0);
-    v3 D = V3(Rect.Left + Rect.Width, Rect.Top + Rect.Height, 0);
-
-    PushLine(Group, A, B, Color, 2.0, Screen_Coordinates, Order);
-    PushLine(Group, A, C, Color, 2.0, Screen_Coordinates, Order);
-    PushLine(Group, B, D, Color, 2.0, Screen_Coordinates, Order);
-    PushLine(Group, C, D, Color, 2.0, Screen_Coordinates, Order);
-}
-
-void PushRectOutline(
-    render_group* Group,
-    rect_collider Collider,
-    color Color = White,
-    double Order = SORT_ORDER_DEBUG_OVERLAY
-) {
-    game_rect Rect = {
-        Collider.Center.X - Collider.Width / 2.0,
-        Collider.Center.Y - Collider.Height / 2.0,
-        Collider.Width,
-        Collider.Height
-    };
-    PushRectOutline(Group, Rect, Color, Order);
-}
-
 void PushCubeOutline(
     render_group* Group,
     v3 Position,
@@ -644,18 +927,18 @@ void PushCubeOutline(
     v3 F = Position + V3(Size.X, Size.Y, 0.0);
     v3 G = Position + V3(0.0, Size.Y, 0.0);
     v3 H = Position + V3(0.0, 0.0, 0.0);
-    PushLine(Group, A, B, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, A, C, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, A, G, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, F, G, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, B, F, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, B, D, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, E, F, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, C, H, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, C, D, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, D, E, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, E, H, Color, 1.0, World_Coordinates, Order);
-    PushLine(Group, G, H, Color, 1.0, World_Coordinates, Order);
+    PushLine(Group, A, B, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, A, C, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, A, G, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, F, G, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, B, F, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, B, D, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, E, F, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, C, H, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, C, D, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, D, E, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, E, H, Color, 2.0, World_Coordinates, Order);
+    PushLine(Group, G, H, Color, 2.0, World_Coordinates, Order);
 }
 
 void PushCubeOutline(
@@ -665,33 +948,6 @@ void PushCubeOutline(
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     PushCubeOutline(Group, Collider.Center - 0.5 * Collider.Size * V3(1.0, 1.0, 1.0), Collider.Size, Color, Order);
-}
-
-void PushCircleOutline(
-    render_group* Group,
-    v3 Center,
-    double Radius,
-    color Color,
-    double Width = 1.0,
-    double Order = SORT_ORDER_DEBUG_OVERLAY
-) {
-    int N = max(12 * log(Radius), 10);
-
-    double dTheta = Tau / N;
-    double Theta = 0;
-    for (int i = 0; i < N; i++) {
-        v3 Start = Center + Radius * V3(cos(Theta), sin(Theta), 0);
-        Theta += dTheta;
-        v3 Finish = Center + Radius * V3(cos(Theta), sin(Theta), 0);
-        PushLine(Group, Start, Finish, Color, Width, Screen_Coordinates, Order);
-    }
-}
-
-void PushDebugGrid(render_group* Group, double Alpha) {
-    render_entry_debug_grid* Entry = PushRenderElement(Group, render_entry_debug_grid);
-    Entry->Header.Key.Order = SORT_ORDER_MESHES;
-    Entry->Header.Target = World;
-    Entry->Alpha = Alpha;
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -709,23 +965,60 @@ void PushDebugGrid(render_group* Group, double Alpha) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | UI                                                                                                                                                               |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct slider {
+    double Value;
+    double MinValue;
+    double MaxValue;
+    v3 Position;
+    color Color;
+    rect_collider Collider;
+};
+
+struct user_interface {
+    slider Slider1;
+    slider Slider2;
+    slider Slider3;
+    slider Slider4;
+    slider Slider5;
+    slider Slider6;
+};
+
+void InitializeSlider(slider* Slider, v3 Position, double MinValue = 0.0, double MaxValue = 1.0, color Color = Black) {
+    *Slider = { 0 };
+    
+    Slider->Position = Position;
+    Slider->MinValue = MinValue;
+    Slider->MaxValue = MaxValue;
+    Slider->Value = 0.5 * (MinValue + MaxValue);    
+
+    Slider->Color = Color;
+}
+
 void PushSlider(render_group* Group, slider Slider, double Order = SORT_ORDER_DEBUG_OVERLAY) {
-    double CircleCenter = Slider.Position.Y + 60.0 * (1.0 - Slider.Value);
-    double Radius = 5.0;
+    Assert(Slider.MinValue != Slider.MaxValue);
+    double Range = Slider.MaxValue - Slider.MinValue;
+    double CircleCenter = Slider.Position.Y + 60.0 * (Slider.MaxValue - Slider.Value) / Range;
+    double Radius = 6.0;
     double UpperLineFinish = 0.0;
-    if (Slider.Value < 0.85) {
-        UpperLineFinish = (0.85 - Slider.Value) * 60;
+
+    double Percentage = 0;
+    if (Slider.MaxValue == 0.0) Percentage = 1.0 - Slider.Value / Slider.MinValue;
+    else Percentage = (Slider.Value - Slider.MinValue) / Range;
+
+    if (Percentage < 0.85) {
+        UpperLineFinish = (0.85 - (Slider.Value - Slider.MinValue) / Range) * 60;
     }
     double LowerLineStart = 60.0;
-    if (Slider.Value > 0.15) {
-        LowerLineStart = (1.15 - Slider.Value) * 60;
+    if (Slider.Value > Slider.MinValue + 0.15 * Range) {
+        LowerLineStart = (1.15 - Slider.Value / Range) * 60;
     }
     PushLine(Group, Slider.Position, Slider.Position + V3(0.0, UpperLineFinish, 0.0), Slider.Color, 2.0, Screen_Coordinates, Order);
-    PushCircleOutline(Group, V3(Slider.Position.X, CircleCenter, 0), Radius, Slider.Color, 2.0, Order);
+    PushCircunference(Group, V2(Slider.Position.X, CircleCenter), Radius, Slider.Color, 2.0, Order);
     PushLine(Group, Slider.Position + V3(0.0, LowerLineStart, 0.0), Slider.Position + V3(0.0, 60.0, 0.0), Slider.Color, 2.0, Screen_Coordinates, Order);
 }
 
-void PushUI(render_group* Group, UI* UserInterface) {
+void PushUI(render_group* Group, user_interface* UserInterface) {
     PushSlider(Group, UserInterface->Slider1, SORT_ORDER_DEBUG_OVERLAY);
     PushSlider(Group, UserInterface->Slider2, SORT_ORDER_DEBUG_OVERLAY);
     PushSlider(Group, UserInterface->Slider3, SORT_ORDER_DEBUG_OVERLAY);
@@ -735,7 +1028,7 @@ void PushUI(render_group* Group, UI* UserInterface) {
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-// | Targets & Shaders                                                                                                                                                |
+// | Shaders & render targets                                                                                                                                        |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 void PushRenderTarget(
@@ -771,6 +1064,23 @@ void PushShaderPass(
     Entry->Width = Width;
 }
 
+void PushShaderPass(
+    render_group* Group,
+    game_compute_shader_id ShaderID,
+    render_group_target Target,
+    color Color = White,
+    double Width = 2.0,
+    int Level = 1,
+    double Order = SORT_ORDER_SHADER_PASSES
+) {
+    render_entry_compute_shader_pass* Entry = PushRenderElement(Group, render_entry_compute_shader_pass);
+    Entry->Header.Key.Order = Order;
+    Entry->Header.Target = Target;
+    Entry->Color = Color;
+    Entry->Width = Width;
+    Entry->ShaderID = ShaderID;
+}
+
 //void PushKernelShaderPass(
 //    render_group* Group,
 //    render_group_target Target,
@@ -799,7 +1109,7 @@ void PushMeshOutline(
     int StartingLevel
 ) {
     PushRenderTarget(Group, Outline, SORT_ORDER_SHADER_PASSES - 10);
-    //PushShaderPass(Group, Shader_Outline_Init_ID, Postprocessing_Outline, White, SORT_ORDER_SHADER_PASSES);
+    PushShaderPass(Group, Outline_Init_Compute_Shader_ID, Postprocessing_Outline);
 
     render_entry_mesh_outline* Entry = PushRenderElement(Group, render_entry_mesh_outline);
     Entry->Header.Key.Order = SORT_ORDER_SHADER_PASSES + 10.0;
@@ -809,9 +1119,9 @@ void PushMeshOutline(
     Entry->Width = Width;
     Entry->StartingLevel = StartingLevel;
 
-    //PushShaderPass(Group, Shader_Outline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
+    PushShaderPass(Group, Outline_Shader_Pipeline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
 
-    PushRenderTarget(Group, Postprocessing_Outline, SORT_ORDER_PUSH_RENDER_TARGETS - 10.0);
+    PushRenderTarget(Group, Postprocessing_Outline, SORT_ORDER_SHADER_PASSES + 30.0);
 }
 
 void PushMesh(
@@ -862,10 +1172,11 @@ void PushMesh(
     Entry->Color = Color;
 }
 
-void PushHeightmap(render_group* Group, game_heightmap_id ID, double Order = SORT_ORDER_MESHES) {
+void PushHeightmap(render_group* Group, game_heightmap_id ID, game_shader_pipeline_id ShaderID, double Order = SORT_ORDER_MESHES) {
     render_entry_heightmap* Entry = PushRenderElement(Group, render_entry_heightmap);
     Entry->Header.Key.Order = Order;
     Entry->Header.Target = World;
+    Entry->Shader = GetShaderPipeline(Group->Assets, ShaderID);
 
     Entry->Heightmap = GetAsset(Group->Assets, ID);
 }
@@ -882,21 +1193,22 @@ void PushDebugArena(
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
-    double ArenaPercentage = (double)Arena.Used / (double)Arena.Size;
-    game_rect Rect = { Position.X, Position.Y, 120.0, 20.0 };
-    PushRect(Group, Rect, Color(DarkGray, Alpha), World, Order + 0.1);
+    float ArenaPercentage = (float)Arena.Used / (float)Arena.Size;
+    float RectWidth = 250.0f;
+    game_rect Rect = { Position.X, Position.Y, RectWidth, 20.0f };
+    PushRect(Group, Rect, Color(DarkGray, Alpha), Order + 0.1);
     Rect.Width *= ArenaPercentage;
-    PushRect(Group, Rect, Color(Red, Alpha), World, Order + 0.2);
+    PushRect(Group, Rect, Color(Red, Alpha), Order + 0.2);
     PushText(Group, Position + V2(0, 15.0), Font, Arena.Name, Color(White, Alpha), 8, false, Order + 0.3);
     sprintf_s(Arena.Percentage.Content, 7, "%.02f%%", ArenaPercentage * 100.0);
-    PushText(Group, Position + V2(125.0, 15.0), Font, Arena.Percentage, Color(White, Alpha), 8, false, Order + 0.3);
+    PushText(Group, Position + V2(RectWidth - 55.0, 15.0), Font, Arena.Percentage, Color(White, Alpha), 8, false, Order + 0.3);
 }
 
 void PushDebugVector(render_group* Group, v3 Vector, v3 Position, coordinate_system Coordinates, color Color = White) {
     double Width = Group->Width;
     double Height = Group->Height;
 
-    double Length = module(Vector);
+    double Length = modulus(Vector);
     double Order = 0.0;
     v3 Orthogonal = V3(0, 0, 0);
     double OrthogonalLength = 0.0;
@@ -921,7 +1233,8 @@ void PushDebugVector(render_group* Group, v3 Vector, v3 Position, coordinate_sys
         }
     }
 
-    PushLine(Group, Position, Position + 0.875 * Vector, Color, 0.0025 * Height, Coordinates, Order);
+    int Thickness = max(1.0, 0.0025 * Height);
+    PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, Coordinates, Order);
     game_triangle Triangle = {
     Position + Vector,
     Position + 0.875 * Vector,
@@ -934,22 +1247,6 @@ void PushDebugVector(render_group* Group, v3 Vector, v3 Position, coordinate_sys
         Position + 0.8 * Vector + OrthogonalLength * Orthogonal,
     };
     PushTriangle(Group, Triangle, Color, Coordinates, Order);
-}
-
-void PushDebugNormals(render_group* Group, game_mesh Mesh, transform Transform) {
-    for (int i = 0; i < Mesh.nFaces; i++) {
-        vertex Vertex1 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i]];
-        vertex Vertex2 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i + 1]];
-        vertex Vertex3 = ((vertex*)Mesh.Vertices)[Mesh.Faces[3 * i + 2]];
-
-        v3 TransformedVertex1 = Transform * Vertex1.Vertex;
-        v3 TransformedVertex2 = Transform * Vertex2.Vertex;
-        v3 TransformedVertex3 = Transform * Vertex3.Vertex;
-
-        v3 Position = (TransformedVertex1 + TransformedVertex2 + TransformedVertex3) * (1 / 3.0);
-        v3 Normal = Rotate(Vertex1.Normal, Transform.Rotation);
-        PushDebugVector(Group, Normal, Position, World_Coordinates);
-    }
 }
 
 void PushDebugFustrum(
@@ -986,4 +1283,38 @@ void PushDebugFustrum(
     PushLine(Group, Position + rv + tv + nv, Position + lv + tv + nv, White, 2.0, World_Coordinates);
     PushLine(Group, Position + rv + bv + nv, Position + rv + tv + nv, White, 2.0, World_Coordinates);
     PushLine(Group, Position + lv + bv + nv, Position + lv + tv + nv, White, 2.0, World_Coordinates);
+}
+
+void PushDebugGrid(render_group* Group, double Alpha) {
+    render_entry_debug_grid* Entry = PushRenderElement(Group, render_entry_debug_grid);
+    Entry->Header.Key.Order = SORT_ORDER_MESHES;
+    Entry->Header.Target = World;
+    Entry->Alpha = Alpha;
+}
+
+void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, bool Attachment = false) {
+    render_entry_debug_framebuffer* Entry = PushRenderElement(Group, render_entry_debug_framebuffer);
+    Entry->Header.Key.Order = SORT_ORDER_PUSH_RENDER_TARGETS - 0.1;
+    Entry->Header.Target = Output;
+    Entry->Framebuffer = Framebuffer;
+    Entry->Attachment = Attachment;
+}
+
+void PushDebugPlot(
+    render_group* Group, 
+    int N, 
+    double* Data, 
+    v3 Position, 
+    int dx, 
+    color Color = White, 
+    double Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    render_entry_debug_plot* Entry = PushRenderElement(Group, render_entry_debug_plot);
+    Entry->Header.Key.Order = Order;
+    Entry->Header.Target = World;
+    Entry->Size = N;
+    Entry->dx = dx;
+    Entry->Color = Color;
+    Entry->Data = Data;
+    Entry->Position = Position;
 }

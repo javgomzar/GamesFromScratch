@@ -7,6 +7,7 @@
     TODO:
         - Make fonts load bitmaps into a single bitmap that can be cropped to select a certain character (Atlas).
         - Fix video. Possibly extract all frames and load them to the asset file.
+        - Asset hot reloading
 */
 
 int main() {
@@ -19,7 +20,6 @@ int main() {
     SpainAsset.File = PlatformReadEntireFile("..\\..\\Assets\\Bitmaps\\spain.bmp");
 
     game_bitmap SpainBMP = AssetLoadBitmap(&Arena, &SpainAsset);
-
 
     return 0;
 }

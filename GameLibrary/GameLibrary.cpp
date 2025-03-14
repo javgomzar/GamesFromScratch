@@ -22,6 +22,11 @@
 //    return;
 //}
 
+/*
+    TODO:
+        - Entity system
+*/
+
 // Game logic
 bool Collision(game_rect Rect, v3 Cursor) {
     return Cursor.X > Rect.Left &&
@@ -40,23 +45,17 @@ color Lighten(color RGB) {
     return Result;
 }
 
-//void Plot(game_offscreen_buffer* Buffer, v3 Position, color Color) {
-//    game_rect ScreenRect;
-//    ScreenRect.Left = 0;
-//    ScreenRect.Top = 0;
-//    ScreenRect.Width = Buffer->Width;
-//    ScreenRect.Height = Buffer->Height;
-//
-//    if (Collision(ScreenRect, Position)) {
-//        uint8* PixelMemory = (uint8*)Buffer->Memory + (int)Position.X * Buffer->BytesPerPixel + (int)Position.Y * Buffer->Pitch;
-//        uint32* Pixel = (uint32*)PixelMemory;
-//        *Pixel = GetColorBytes(Color);
-//    }
-//}
-
 // UI
-void InitializeUI(memory_arena* Arena, game_assets* Assets, UI* UserInterface, platform_read_entire_file* Read) {
-    // Initialize your UI elements here
+/*
+    Initialize your UI elements here
+*/
+void InitializeUI(user_interface* UI) {
+    InitializeSlider(&UI->Slider1, V3(300 - 200.0, 180, 0.0));
+    InitializeSlider(&UI->Slider2, V3(300 - 180.0, 180, 0.0));
+    InitializeSlider(&UI->Slider3, V3(300 - 160.0, 180, 0.0));
+    InitializeSlider(&UI->Slider4, V3(300 - 140.0, 180, 0.0));
+    InitializeSlider(&UI->Slider5, V3(300 - 120.0, 180, 0.0));
+    InitializeSlider(&UI->Slider6, V3(300 - 100.0, 180, 0.0));
 }
 
 // Sound
@@ -106,29 +105,38 @@ void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_
 //}
 
 // Updates
-void Update(slider* Slider, game_input* Input, v3 Position) {
-    Slider->Position = Position;
+
+/* 
+    Updates Slider. If slider is clicked and dragged, the value of the slider will fluctuate accordingly. Min and max values
+    of slider will be enforced.
+*/
+void Update(slider* Slider, game_input* Input) {
     Slider->Collider = {
         Slider->Position + V3(0.0, 30.0, 0.0),
         20.0,
         80.0
     };
 
-    if (Collide(Slider->Collider, V3(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y, 0.0)) &&
-        Input->Mouse.LeftClick.IsDown) {
-        Slider->Value = 1 - (Input->Mouse.Cursor.Y - Slider->Position.Y) / 60.0;
-        if (Slider->Value < 0.0) Slider->Value = 0.0;
-        else if (Slider->Value > 1.0) Slider->Value = 1.0;
+    if (
+        Input->Mouse.LeftClick.IsDown && 
+        Collide(Slider->Collider, V3(Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y, 0.0))
+    ) {
+        double Range = (Slider->MaxValue - Slider->MinValue) / 60.0;
+        Slider->Value = Slider->MaxValue - Range * (Input->Mouse.Cursor.Y - Slider->Position.Y);
+
+        // Min and max values shall not be surpassed
+        if (Slider->Value < Slider->MinValue) Slider->Value = Slider->MinValue;
+        else if (Slider->Value > Slider->MaxValue) Slider->Value = Slider->MaxValue;
     }
 };
 
-void Update(UI* UserInterface, game_input* Input, int Width, int Height) {
-    Update(&UserInterface->Slider1, Input, V3(Width - 200.0, 0.4 * Height, 0.0));
-    Update(&UserInterface->Slider2, Input, V3(Width - 180.0, 0.4 * Height, 0.0));
-    Update(&UserInterface->Slider3, Input, V3(Width - 160.0, 0.4 * Height, 0.0));
-    Update(&UserInterface->Slider4, Input, V3(Width - 140.0, 0.4 * Height, 0.0));
-    Update(&UserInterface->Slider5, Input, V3(Width - 120.0, 0.4 * Height, 0.0));
-    Update(&UserInterface->Slider6, Input, V3(Width - 100.0, 0.4 * Height, 0.0));
+void Update(user_interface* UI, game_input* Input) {
+    Update(&UI->Slider1, Input);
+    Update(&UI->Slider2, Input);
+    Update(&UI->Slider3, Input);
+    Update(&UI->Slider4, Input);
+    Update(&UI->Slider5, Input);
+    Update(&UI->Slider6, Input);
 }
 
 void Update(camera* Camera, game_input* Input) {
@@ -147,14 +155,10 @@ void Update(camera* Camera, game_input* Input) {
 
     v2 Joystic = V2(Input->Controller.RightJoystick.X, Input->Controller.RightJoystick.Y);
 
-    if (module(Joystic) > 0.1) {
+    if (modulus(Joystic) > 0.1) {
         Camera->Angle -= 3.0 * Joystic.X;
         Camera->Pitch -= 3.0 * Joystic.Y;
     }
-
-    Camera->Basis = GetCameraBasis(Camera->Angle, Camera->Pitch);
-    Camera->Plane.Base[0] = Camera->Basis.X;
-    Camera->Plane.Base[1] = Camera->Basis.Y;
 
     // Translation
     Camera->Velocity = V3(0, 0, 0);
@@ -182,10 +186,17 @@ void Update(camera* Camera, game_input* Input) {
     basis HorizontalBasis = GetCameraBasis(Camera->Angle, 0);
 
     v3 Direction = normalize(Camera->Velocity);
-    Camera->Velocity = 0.2 * (Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z);
+    float Speed = 0.05 * Camera->Distance;
+    Camera->Velocity = Speed * (Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z);
     Camera->Position += Camera->Velocity;
 }
 
+void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena);
+
+void TestPerformance() {
+    //TIMED_BLOCK;
+    
+}
 
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
@@ -193,8 +204,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
-    UI* UserInterface = &pGameState->UserInterface;
-    
+    user_interface* UI = &pGameState->UI;
+    {
+        TIMED_BLOCK;
     double Time = pGameState->Time;
     camera* Camera = &Group->Camera;
 
@@ -203,18 +215,26 @@ extern "C" GAME_UPDATE(GameUpdate)
         firstFrame = true;
 
         memory_arena* StringsArena = &pGameState->StringsArena;
-        pGameState->StringsArena.Name = PushString(StringsArena, 13, "Strings Arena");
+        pGameState->TransientArena.Name = PushString(StringsArena, 16, "Transient Arena");
+        pGameState->TransientArena.Percentage = PushString(StringsArena, 7, "0.0%");
+        pGameState->GeneralPurposeArena.Name = PushString(StringsArena, 24, "General purpose Arena");
+        pGameState->GeneralPurposeArena.Percentage = PushString(StringsArena, 7, "0.0%");
+        pGameState->StringsArena.Name = PushString(StringsArena, 16, "Strings Arena");
         pGameState->StringsArena.Percentage = PushString(StringsArena, 7, "0.0%");
-        pGameState->RenderArena.Name = PushString(StringsArena, 13, "Render Arena");
+        pGameState->RenderArena.Name = PushString(StringsArena, 16, "Render Arena");
         pGameState->RenderArena.Percentage = PushString(StringsArena, 7, "0.0%");
 
+        //TestPerformance();
+        
         // User Interface
-
+        InitializeUI(&pGameState->UI);
+        
         // Camera
-        Camera->Position = V3(0.0, 2.2, 5.0);
+        Camera->Position = V3(0.0, 3.2, 0.0);
         Camera->Angle = 45;
         Camera->Pitch = 45;
-
+        Camera->Distance = 9.0;
+        
         Memory->IsInitialized = true;
     }
 
@@ -225,53 +245,26 @@ extern "C" GAME_UPDATE(GameUpdate)
 
 // Controls
     // Put here your input code
-        
-    GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
-    // Debug mouse position
-    //if (Input->Mouse.LeftClick.IsDown) {
-    //    game_rect Rect;
-    //    Rect.Top = Input->Mouse.Cursor.Y;
-    //    Rect.Left = Input->Mouse.Cursor.X;  
-    //    Rect.Height = 20;
-    //    Rect.Width = 20;
-    //    DrawRectangle(ScreenBuffer, Rect, White);
-    //}
+    GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
     // Updates
     Update(Camera, Input);
 
-    Update(&pGameState->UserInterface, Input, Group->Width, Group->Height);
+    Update(&pGameState->UI, Input);
     
     // Render
     light LightSource = Light(V3(-0.5, -1, 1), White);
 
-    transform Transform1 = Transform(Quaternion(Pi / 2, V3(0.0, -1.0, 0.0)), V3(0.0, 0.0, 5.0));
-    transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(4.0, 0.0, 5.0));
-    //PushMesh(Group, Mesh_Enemy_ID, Transform1, LightSource, Shader_Texture_ID, Bitmap_Enemy_ID, White, SORT_ORDER_MESHES, true);
+    v3 MeshPosition = V3(Group->Camera.Position.X, 0, Group->Camera.Position.Z);
+    transform Transform1 = Transform(Quaternion((Group->Camera.Angle + 180) * Degrees, V3(0,1,0)), MeshPosition);
+    transform Transform2 = Transform(Quaternion(1.0, 0.0, 0.0, 0.0), V3(-5.0, 0.0, 20.0), Scale(10,1,1));
 
-    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Empty_ID, White, SORT_ORDER_MESHES, false);
-    PushMesh(Group, Mesh_Sphere_ID, Transform2, LightSource, Sphere_Shader_Pipeline_ID, Bitmap_Empty_ID, Red, SORT_ORDER_MESHES, false);
+    PushMesh(Group, Mesh_Body_ID, Transform1, LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Empty_ID);
+    PushMesh(Group, Mesh_Sphere_ID, Transform2, LightSource, Sphere_Shader_Pipeline_ID, Bitmap_Empty_ID, Red);
+    PushMesh(Group, Mesh_Enemy_ID, Transform(Quaternion(1.0, 0.0, 0.0, 0.0)), LightSource, Mesh_Shader_Pipeline_ID, Bitmap_Enemy_ID);
 
-    //PushCircle(Group, V3(0.0, 0.0, 0.0), V3(1.0, 1.0, 0.0), 1.0, Magenta, SORT_ORDER_MESHES);
-
-    // PushVideo(Group, &Assets->TestVideo, {0, 0, (double)Group->Width, (double)Group->Height}, pGameState->dt);
-
-    // Render
-
-    // Software renderer as a fallback
-    //static bool SoftwareRenderer = false;
-    //if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
-    //    SoftwareRenderer = !SoftwareRenderer;
-    //}
-    //if (SoftwareRenderer) {
-    //    RenderGroupToOutput(Group, &Target);
-    //}
-    //else {
-    //    Platform.OpenGLRender(Group, &Target);
-    //}
-
-    // PushHeightmap(Group, Heightmap_Spain_ID);
+    PushUI(Group, UI);
 
     // Debug info
     static double Alpha = 0.0;
@@ -287,23 +280,21 @@ extern "C" GAME_UPDATE(GameUpdate)
             double x = (pGameState->dt - 1.8) / 1.1;
             Alpha += exp(- x * x);
         }
-        else {
-            Alpha = 1.0;
-        }
+        else Alpha = 1.0;
 
         PushDebugGrid(Group, Alpha);
 
-        game_rect DebugInfoRect = { 0, 0, 350, 200 };
+        game_rect DebugInfoRect = { 0, 0, 350, 250 };
 
-        PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), World, SORT_ORDER_DEBUG_OVERLAY);
+        PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
         PushText(Group, V2(0, 30.0), GetAsset(Assets, Font_Cascadia_Mono_ID), Memory->DebugInfo, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
 
-        // Render Arena
-        PushDebugArena(Group, pGameState->RenderArena, V2(20.0, 120.0), Alpha);
-
-        // Strings Arena
-        PushDebugArena(Group, pGameState->StringsArena, V2(20.0, 150.0), Alpha);
+        // Debug arenas
+        PushDebugArena(Group, pGameState->TransientArena, V2(20.0, 120.0), Alpha);
+        PushDebugArena(Group, pGameState->GeneralPurposeArena, V2(20.0, 150.0), Alpha);
+        PushDebugArena(Group, pGameState->RenderArena, V2(20.0, 180.0), Alpha);
+        PushDebugArena(Group, pGameState->StringsArena, V2(20.0, 210.0), Alpha);
 
         // Axes
         v3 XAxis = V3(cos(Group->Camera.Angle * Degrees), sin(Group->Camera.Angle * Degrees) * sin(Group->Camera.Pitch * Degrees), 0.0);
@@ -313,12 +304,20 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Screen_Coordinates, Red);
         PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Screen_Coordinates, Green);
         PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Screen_Coordinates, Blue);
+
+        // Debug camera basis
+        // PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
+        // PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
+        // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
+
+        // Debug Framebuffer
+        PushDebugFramebuffer(Group, Postprocessing_Outline);
     }
 
     PushRenderTarget(Group, World);
 
     static bool Screenshot = false;
-    if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F10.WasDown) {
+    if (Input->Keyboard.F10.WasDown && !Input->Keyboard.F10.IsDown) {
         Screenshot = true;
     }
 
@@ -331,8 +330,40 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
         else {
             game_rect ScreenRect = { 0, 0, Group->Width, Group->Height };
-            PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), Output, SORT_ORDER_PUSH_RENDER_TARGETS + 50.0);
+            PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
     PushRenderTarget(Group, Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
+    }
+
+    LogGameDebugRecords(Group, &pGameState->TransientArena);
+}
+
+debug_record DebugRecordArray_GameLibrary[__COUNTER__];
+
+void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
+    char Buffer[512];
+    int Height = 270;
+    game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
+    for (int i = 0; i < ArrayCount(DebugRecordArray_GameLibrary); i++) {
+        debug_record* DebugRecord = DebugRecordArray_GameLibrary + i;
+
+        if (DebugRecord->HitCount) {
+            if (DebugRecord->HitCount == 1) {
+                sprintf_s(Buffer, "%s: (%i hit) %.02f Mcycles (%s:%i)\n", 
+                    DebugRecord->FunctionName, DebugRecord->HitCount, DebugRecord->CycleCount / 1000000.0f, DebugRecord->FileName, DebugRecord->LineNumber);
+            }
+            else {
+                sprintf_s(Buffer, "%s: (%i hits) Total: %.02f Mcycles, Average: %.02f (%s:%i)\n", 
+                    DebugRecord->FunctionName, DebugRecord->HitCount, DebugRecord->CycleCount / 1000000.0f, 
+                    (float)DebugRecord->CycleCount / (1000000.0f * (float)DebugRecord->HitCount), DebugRecord->FileName, DebugRecord->LineNumber);
+            }
+            string String = PushString(TransientArena, 512, Buffer);
+            if (Group->Debug) PushText(Group, V2(20, Height), Font, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
+            Height += 10;
+            Log(Info, Buffer);
+            DebugRecord->HitCount = 0;
+            DebugRecord->CycleCount = 0;
+        }
+    }
 }

@@ -1,5 +1,5 @@
 
-#include "..\GameLibrary\GameLibrary.h"
+#include "GameLibrary.h"
 #include "Win32PlatformLayer.h"
 
 #include "resource.h"
@@ -7,9 +7,6 @@
 #include "stdio.h"
 #include "XInput.h"
 #include "xaudio2.h"
-
-#include "glew.h"
-#include "gl/GL.h"
 
 #pragma comment (lib, "opengl32.lib")
 
@@ -21,7 +18,7 @@
 /* TODO:
     - Saved game locations
     - Getting a handle to our own executable file
-    - Asset loading (separate compilation process probably?) Asset hot loading?
+    - Asset hot loading
     - Multithreading
     - Multiple keyboards?
     - Sleep/timeBeginPeriod
@@ -29,9 +26,10 @@
     - WM_SETCURSOR
     - QueryCancelAutoplay
     - WM_ACTIVEAPP (when we are not the active application)
-    - Blit speed improvements (BitBlt)
+    - Software renderer with blit speed improvements (BitBlt)
     - GetKeyboardLayout (international wasd support)
     - Restore software renderer as fallback
+    - Render using all window space. Remove rounded borders
 */
 
 #define MAX_LOADSTRING 100
@@ -44,8 +42,8 @@ struct WNDDIMENSION {
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
-WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+char szTitle[MAX_LOADSTRING];                  // The title bar text
+char szWindowClass[MAX_LOADSTRING];            // the main window class name
 
 
 bool Running;
@@ -158,6 +156,8 @@ VOID DisplayBufferToWindow(
 
 // OpenGL render
 void Render(HWND Window, render_group* Group, openGL OpenGL, double Time) {
+    TIMED_BLOCK;
+    
     // Sorting render entries
     SortEntries(Group);
 
@@ -230,15 +230,15 @@ public:
     ~voice_callback() { CloseHandle(hBufferEndEvent); }
 
     //Called when the voice has just finished playing a contiguous audio stream.
-    void OnStreamEnd() { SetEvent(hBufferEndEvent); }
+    void __stdcall OnStreamEnd() { SetEvent(hBufferEndEvent); }
 
     //Unused methods are stubs
-    void OnVoiceProcessingPassEnd() {}
-    void OnVoiceProcessingPassStart(uint32 SamplesRequired) {}
-    void OnBufferEnd(void* pBufferContext) {}
-    void OnBufferStart(void* pBufferContext) {}
-    void OnLoopEnd(void* pBufferContext) {}
-    void OnVoiceError(void* pBufferContext, HRESULT Error) {}
+    void __stdcall OnVoiceProcessingPassEnd() {}
+    void __stdcall OnVoiceProcessingPassStart(uint32 SamplesRequired) {}
+    void __stdcall OnBufferEnd(void* pBufferContext) {}
+    void __stdcall OnBufferStart(void* pBufferContext) {}
+    void __stdcall OnLoopEnd(void* pBufferContext) {}
+    void __stdcall OnVoiceError(void* pBufferContext, HRESULT Error) {}
 };
 
 voice_callback VoiceCallback;
@@ -301,7 +301,7 @@ static HRESULT SubmitBuffer(XAUDIO2_BUFFER* pBuffer, IXAudio2SourceVoice* pSourc
         //}
         hr = pSourceVoice->SubmitSourceBuffer(pBuffer);
         if (FAILED(hr)) {
-            OutputDebugString(L"Sound buffer submit went wrong\n");
+            OutputDebugStringA("Sound buffer submit went wrong\n");
             return hr;
         }
         else {
@@ -309,7 +309,7 @@ static HRESULT SubmitBuffer(XAUDIO2_BUFFER* pBuffer, IXAudio2SourceVoice* pSourc
         }
     }
     else {
-        OutputDebugString(L"No source voice\n");
+        OutputDebugStringA("No source voice\n");
         return(1);
     }
 }
@@ -381,7 +381,7 @@ void ScreenCapture(openGL OpenGL, int Width, int Height) {
     struct tm tm;
     localtime_s(&tm, &t);
     char Filename[100];
-    sprintf_s(Filename, "../../Captures/Screenshot %d-%02d-%02d %02d.%02d.%02d.bmp",
+    sprintf_s(Filename, "../Captures/Screenshot %d-%02d-%02d %02d.%02d.%02d.bmp",
         tm.tm_year + 1900,
         tm.tm_mon + 1,
         tm.tm_mday,
@@ -999,6 +999,8 @@ void DebugDrawVertical(game_offscreen_buffer* Buffer, int X, int Top, int Bottom
 //    }
 //}
 
+void LogDebugRecords(render_group* Group, memory_arena* Arena);
+
 // Main window callback
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -1037,14 +1039,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     PerfCountFrequency = PerfCountFrequencyResult.QuadPart;
 
     // Initialize global strings
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_WIN32PLATFORMLAYER, szWindowClass, MAX_LOADSTRING);
+    LoadStringA(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+    DWORD WinError = GetLastError();
+
+    LoadStringA(hInstance, IDC_WIN32PLATFORMLAYER, szWindowClass, MAX_LOADSTRING);
+    WinError = GetLastError();
+
     MyRegisterClass(hInstance);
+
+    // Dummy window for OpenGL context creation
+    HWND DummyWindow = CreateWindowA(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, 0, 0,
+        100, 100, nullptr, nullptr, hInstance, nullptr);
+
+    GetWGLFunctions(DummyWindow);
+    DestroyWindow(DummyWindow);
 
     // Perform application initialization:
     HWND Window;
-    if (!InitInstance(hInstance, nCmdShow, &Window))
-    {
+    if (!InitInstance(hInstance, nCmdShow, &Window)) {
         return FALSE;
     }
 
@@ -1094,17 +1106,21 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Assets
     WriteAssetFile();
-    LoadAssetsFromFile(Platform.ReadEntireFile, &GameMemory.Assets, "..\\..\\GameAssets\\game_assets");
+    LoadAssetsFromFile(Platform.ReadEntireFile, &GameMemory.Assets, "..\\GameAssets\\game_assets");
 
     // OpenGl
     OpenGL = InitOpenGL(Window, &GameMemory.Assets);
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
+    InitializeArena(&pGameState->TransientArena, Megabytes(10), ArenaStart);
+    ArenaStart += pGameState->TransientArena.Size;
     InitializeArena(&pGameState->StringsArena, Kilobytes(1), ArenaStart);
     ArenaStart += pGameState->StringsArena.Size;
     InitializeArena(&pGameState->RenderArena, Megabytes(9), ArenaStart);
     ArenaStart += pGameState->RenderArena.Size;
+    InitializeArena(&pGameState->GeneralPurposeArena, Megabytes(20), ArenaStart);
+    ArenaStart += pGameState->GeneralPurposeArena.Size;
 
     // Render group
     Group = AllocateRenderGroup(&GameMemory.Assets, &pGameState->RenderArena, Megabytes(4));
@@ -1127,6 +1143,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 Log(Info, "New game code loaded.\n");
             }
         }
+
+        // Clear transient memory
+        ClearArena(&pGameState->TransientArena);
 
         // Previous input
         Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;
@@ -1346,6 +1365,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ScreenCapture(OpenGL, Group->Width, Group->Height);
             }
 
+            LogDebugRecords(Group, &pGameState->TransientArena);
             Render(Window, Group, OpenGL, pGameState->Time);
 
         }
@@ -1390,7 +1410,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         double FPS = 1.0 / ActualSecsElapsed;
         double MegaCyclesPerFrame = CyclesElapsed / 1000000.0;
 
-        sprintf_s(GameMemory.DebugInfo.Content, GameMemory.DebugInfo.Length, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
+        sprintf_s(GameMemory.DebugInfo.Content, GameMemory.DebugInfo.Length, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)\0", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
 
         pGameState->dt = ActualSecsElapsed;
         pGameState->Time += ActualSecsElapsed;
@@ -1416,7 +1436,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 }
 
 
-
 //
 //  FUNCTION: MyRegisterClass()
 //
@@ -1424,11 +1443,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 //
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
-    WNDCLASSEXW wcex;
+    WNDCLASSEXA wcex;
 
     wcex.cbSize = sizeof(WNDCLASSEX);
-
-    wcex.style = 0;
+    wcex.style = CS_HREDRAW | CS_VREDRAW;
     wcex.lpfnWndProc = WndProc;
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
@@ -1440,7 +1458,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.lpszClassName = szWindowClass;
     wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
-    return RegisterClassExW(&wcex);
+    return RegisterClassExA(&wcex);
 }
 
 //
@@ -1457,8 +1475,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
 {
     hInst = hInstance; // Store instance handle in our global variable
 
-    HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+    // This code starts the window centered
+    HWND hWnd = CreateWindowA(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, 0, 0,
+        100, 100, nullptr, nullptr, hInstance, nullptr);
+
+    DWORD Error = GetLastError();
 
     if (!hWnd)
     {
@@ -1561,4 +1582,36 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
             break;
     }
     return (INT_PTR)FALSE;
+}
+
+debug_record DebugRecordArray_Win32[__COUNTER__];
+
+void LogDebugRecords(render_group* Group, memory_arena* Arena) {
+    char Buffer[512];
+    int Height = 350;
+    game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
+    for (int i = 0; i < ArrayCount(DebugRecordArray_Win32); i++) {
+        debug_record* DebugRecord = DebugRecordArray_Win32 + i;
+
+        if (DebugRecord->HitCount) {
+            if (DebugRecord->HitCount == 1) {
+                sprintf_s(Buffer, "%s: (%i hit) %.02f Mcycles (%s:%i)\n", 
+                    DebugRecord->FunctionName, DebugRecord->HitCount, 
+                    DebugRecord->CycleCount / 1000000.0f, DebugRecord->FileName, DebugRecord->LineNumber);
+            }
+            else {
+                sprintf_s(Buffer, "%s: (%i hits) Total: %.02f Mcycles, Average: %.02f ms (%s:%i)\n", 
+                    DebugRecord->FunctionName, DebugRecord->HitCount, 
+                    DebugRecord->CycleCount / 1000000.0f, 
+                    DebugRecord->CycleCount / (1000000.0f * DebugRecord->HitCount), 
+                    DebugRecord->FileName, DebugRecord->LineNumber);
+            }
+            string String = PushString(Arena, 512, Buffer);
+            if (Group->Debug) PushText(Group, V2(20, Height), Font, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
+            Log(Info, Buffer);
+            Height += 18;
+            DebugRecord->HitCount = 0;
+            DebugRecord->CycleCount = 0;
+        }
+    }
 }

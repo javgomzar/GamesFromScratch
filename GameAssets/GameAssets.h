@@ -271,31 +271,30 @@ struct game_bitmap {
     uint32* Content;
 };
 
-uint64 ComputeNeededMemoryForBitmap(read_file_result File) {
-    bitmap_header Header = *(bitmap_header*)File.Content;
+/* Returns number of bytes of pixels. Deals with 4-byte alignment for rows when pixels are 3 bytes wide. */
+uint64 ComputeNeededMemoryForBitmap(bitmap_header* Header) {
     Assert(
-        Header.Size == 40 || // BITMAPINFOHEADER
-        Header.Size == 124   // BITMAPV5HEADER
+        Header->Size == 40 || // BITMAPINFOHEADER
+        Header->Size == 124   // BITMAPV5HEADER
     );
 
     uint32 ExtraBytes = 0;
-    if (Header.Size == 124) {
-        bitmap_header_v5 v5Header = *(bitmap_header_v5*)File.Content;
+    if (Header->Size == 124) {
+        bitmap_header_v5 v5Header = *(bitmap_header_v5*)Header;
         ExtraBytes = v5Header.ProfileSize;
     }
 
-    Assert(File.ContentSize == Header.FileSize);
-    uint32 BytesPerPixel = (Header.BitsPerPixel >> 3);
-    uint32 RowSize = Header.Width * BytesPerPixel;
+    uint32 BytesPerPixel = (Header->BitsPerPixel >> 3);
+    uint32 RowSize = Header->Width * BytesPerPixel;
 
-    if (Header.Size == 40 && BytesPerPixel == 3) {
+    if (Header->Size == 40 && BytesPerPixel == 3) {
         // 4-byte alignment apparently
         RowSize = (RowSize / 4 + 1) * 4;
     }
 
-    uint64 PixelsSize = RowSize * Header.Height;
+    uint64 PixelsSize = RowSize * Header->Height;
     
-    Assert(PixelsSize + Header.BitmapOffset + ExtraBytes == Header.FileSize);
+    Assert(PixelsSize + Header->BitmapOffset + ExtraBytes == Header->FileSize);
     return PixelsSize;
 }
 
@@ -418,7 +417,7 @@ struct game_heightmap {
 const int HEIGHTMAP_RESOLUTION = 20;
 
 uint64 ComputeNeededMemoryForHeightmap(read_file_result File) {
-    uint64 BitmapSize = ComputeNeededMemoryForBitmap(File);
+    uint64 BitmapSize = ComputeNeededMemoryForBitmap((bitmap_header*)File.Content);
     uint64 VerticesSize = HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 4 * 5 * sizeof(double);
     return BitmapSize + VerticesSize;
 }
@@ -427,35 +426,35 @@ game_heightmap AssetLoadHeightmap(memory_arena* Arena, game_asset* Asset) {
     game_heightmap Result = {};
 
     Result.Bitmap = LoadBitmapFile(Arena, Asset->File);
-    double Width = Result.Bitmap.Header.Width;
-    double Height = Result.Bitmap.Header.Height;
+    double Width = 10.0;
+    double Height = 10.0;
 
     Result.nVertices = HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 4;
     Result.Vertices = (double*)PushSize(Arena, Result.nVertices * 5 * sizeof(double));
     double* Pointer = Result.Vertices;
     for (int i = 0; i < HEIGHTMAP_RESOLUTION; i++) {
         for (int j = 0; j < HEIGHTMAP_RESOLUTION; j++) {
-            *Pointer++ = -Width / 2.0 + Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
             *Pointer++ = 0.0; // v.y
-            *Pointer++ = -Height / 2.0 + Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
             *Pointer++ = (double)i / (double)HEIGHTMAP_RESOLUTION; // vt.x
             *Pointer++ = (double)j / (double)HEIGHTMAP_RESOLUTION; // vt.y
 
-            *Pointer++ = -Width / 2.0 + Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
             *Pointer++ = 0.0; // v.y
-            *Pointer++ = -Height / 2.0 + Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
             *Pointer++ = (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.x
             *Pointer++ = (double)j / (double)HEIGHTMAP_RESOLUTION; // vt.y
 
-            *Pointer++ = -Width / 2.0 + Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
             *Pointer++ = 0.0; // v.y
-            *Pointer++ = -Height / 2.0 + Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
             *Pointer++ = (double)i / (double)HEIGHTMAP_RESOLUTION; // vt.x
             *Pointer++ = (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.y
 
-            *Pointer++ = -Width / 2.0 + Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
             *Pointer++ = 0.0; // v.y
-            *Pointer++ = -Height / 2.0 + Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
             *Pointer++ = (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.x
             *Pointer++ = (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.y
         }
@@ -584,22 +583,22 @@ game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
             unsigned char c = '!';
             for (int i = 0; i < FONT_CHARACTERS_COUNT; i++) {
                 game_font_character* pCharacter = &Result.Characters[i];
-                game_bitmap* CharacterBMP = &pCharacter->Bitmap;
+                game_bitmap* Bitmap = &pCharacter->Bitmap;
                 error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
                 if (error) Assert(false);
                 else {
                     FT_GlyphSlot Slot = Font->glyph;
                     FT_Bitmap FTBMP = Slot->bitmap;
-                    *CharacterBMP = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
-                    LoadFTBMP(&FTBMP, CharacterBMP);
+                    *Bitmap = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
+                    LoadFTBMP(&FTBMP, Bitmap);
 
                     pCharacter->Letter = c;
                     pCharacter->Advance = Slot->advance.x >> 6;
                     pCharacter->Left = Slot->bitmap_left;
                     pCharacter->Top = Slot->bitmap_top;
-                    pCharacter->Height = Slot->metrics.height;
-                    pCharacter->Width = Slot->metrics.width;
-                    pCharacter->Bitmap = *CharacterBMP++;
+                    pCharacter->Height = Slot->bitmap.rows;
+                    pCharacter->Width = Slot->bitmap.width;
+                    pCharacter->Bitmap = *Bitmap++;
                     pCharacter->Bitmap.Handle = 0;
 
                     c++;
@@ -763,16 +762,25 @@ game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
 // | Meshes                                                                                                                                                           |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-struct vertex {
-    v3 Vertex;
-    v3 Normal;
-    v2 Texture;
+struct bone {
+    int ID;
+    int ParentID;
+    char Name[32];
+    v3 Head;
+    v3 Tail;
+};
+
+const int MAX_ARMATURE_BONES = 32;
+struct armature {
+    int nBones;
+    bone Bones[MAX_ARMATURE_BONES];
 };
 
 struct game_mesh {
     game_mesh_id ID;
+    armature Armature;
     int nVertices;
-    double* Vertices;
+    void* Vertices;
     int nFaces;
     uint32* Faces;
     uint32 VBO;
@@ -780,32 +788,72 @@ struct game_mesh {
     uint32 EBO;
 };
 
-v2 ParseV2(char* Pointer) {
+v2 ParseV2(char*& Pointer) {
     char* VXEnd = 0;
     double VX = strtod(Pointer, &VXEnd);
     char* VYEnd = 0;
     double VY = strtod(VXEnd + 1, &VYEnd);
+    Pointer = VYEnd;
     return V2(VX, VY);
 }
 
-v3 ParseV3(char* Pointer) {
+v3 ParseV3(char*& Pointer) {
     char* VXEnd = 0;
     double VX = strtod(Pointer, &VXEnd);
     char* VYEnd = 0;
     double VY = strtod(VXEnd + 1, &VYEnd);
     char* VZEnd = 0;
     double VZ = strtod(VYEnd + 1, &VZEnd);
+    Pointer = VZEnd;
     return V3(VX, VY, VZ);
 }
 
-iv3 ParseIV3(char* Pointer) {
+iv2 ParseIV2(char*& Pointer) {
+    char* VXEnd = 0;
+    int VX = strtol(Pointer, &VXEnd, 10);
+    char* VYEnd = 0;
+    int VY = strtol(VXEnd + 1, &VYEnd, 10);
+    Pointer = VYEnd;
+    return IV2(VX, VY);
+}
+
+iv3 ParseIV3(char*& Pointer) {
     char* VXEnd = 0;
     int VX = strtol(Pointer, &VXEnd, 10);
     char* VYEnd = 0;
     int VY = strtol(VXEnd + 1, &VYEnd, 10);
     char* VZEnd = 0;
     int VZ = strtol(VYEnd + 1, &VZEnd, 10);
+    Pointer = VZEnd;
     return IV3(VX, VY, VZ);
+}
+
+void GetMeshSizes(char* Text, int* nVertices, int* nFaces, int* nBones) {
+    Assert(Text[0] == 'n' && Text[1] == 'V' && Text[2] == ' ');
+    Text += 3;
+
+    char *nVEnd, *nFEnd, *nBEnd = 0;
+    *nVertices = strtol(Text, &nVEnd, 10);
+
+    while (Text++ != nVEnd);
+
+    Assert(Text[0] == 'n' && Text[1] == 'F' && Text[2] == ' ');
+    Text += 3;
+
+    *nFaces = strtol(Text, &nFEnd, 10);
+
+    while (++Text != nFEnd);
+
+    if (
+        Text[0] == '\n' || 
+        (Text[0] == '\r' && Text[1] == '\n')
+    ) *nBones = 0;
+    else {
+        Text++;
+        Assert(Text[0] == 'n' && Text[1] == 'B' && Text[2] == ' ');
+        Text += 3;
+        *nBones = strtol(Text, &nBEnd, 10);
+    }
 }
 
 uint64 ComputeNeededMemoryForMesh(read_file_result File) {
@@ -813,39 +861,15 @@ uint64 ComputeNeededMemoryForMesh(read_file_result File) {
 
     if (File.ContentSize > 0) {
         char* Pointer = (char*)File.Content;
-        uint32 ReadSize = 0;
 
-        // Skip until faces
-        char ReadChar = *Pointer;
-        while (ReadChar != 'f') {
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++; ReadSize++;
-            }
-            ReadChar = *Pointer++; ReadSize++;
-        }
-        ReadChar = *Pointer++; ReadSize++;
+        int nVertices = 0, nFaces = 0, nBones = 0;
+        GetMeshSizes(Pointer, &nVertices, &nFaces, &nBones);
 
-        // Parse faces
-        std::set<iv3> Vertices = {};
-        int nFaces = 0;
-
-        while (ReadSize < File.ContentSize) {
-            int nFaceVertices = 0;
-            while (*Pointer != '\n') {
-                iv3 V = ParseIV3(Pointer);
-                Vertices.insert(V);
-                nFaceVertices++;
-                while (*Pointer++ != ' ' && *Pointer != '\n') { ReadSize++; };
-                ReadSize++;
-            }
-            // Number of triangles in a polygon
-            if (nFaceVertices > 2) nFaces += nFaceVertices - 2;
-            Pointer += 3; ReadSize += 3;
-        }
-
-        // We need eight doubles for each combination of vertex, normal, texture (v3, v3, v2) and
-        // 3 integers for each triangle.
-        Result = Vertices.size() * 8 * sizeof(double) + nFaces * 3 * sizeof(uint32);
+        // We need eight doubles for each combination of vertex, texture, normal (v3, v2, v3) and
+        // 3 unsigned integers for each triangle. Also, two ints for bone ids and two doubles for bone weights if armature is present
+        if (nBones > 0) Result = nVertices * (10 * sizeof(double) + 2 * sizeof(uint32));
+        else Result = nVertices * 8 * sizeof(double);
+        Result += nFaces * 3 * sizeof(uint32);
     }
     return Result;
 }
@@ -858,137 +882,63 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
 
     if (File.ContentSize > 0) {
         char* Pointer = (char*)File.Content;
-        uint32 ReadSize = 0;
+
+        int nVertices, nFaces, nBones = 0;
+        GetMeshSizes(Pointer, &nVertices, &nFaces, &nBones);
+
+        Result.nVertices = nVertices;
+        Result.nFaces = nFaces;
+        Result.Armature.nBones = nBones;
+
+        int VerticesSize = nBones > 0 ? 10 * sizeof(double) + 2 * sizeof(uint32) : 8 * sizeof(double);
+        Result.Vertices = PushSize(Arena, nVertices * VerticesSize);
+        Result.Faces = PushArray(Arena, 3 * Result.nFaces, uint32);
 
         // Skip until vertices
-        char ReadChar = *Pointer;
-        while (ReadChar != 'v') {
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++; ReadSize++;
-            }
-            ReadChar = *Pointer;
-        }
+        while (*Pointer++ != '\n');
 
-        // Parse vertices
-        std::vector<v3> Vertices = {};
-        char NextChar = *(Pointer + 1);
-        while (ReadChar == 'v' && NextChar == ' ') {
-            Pointer += 2; ReadSize += 2;
-            v3 V = ParseV3(Pointer);
-            Vertices.push_back(V);
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++; 
-                ReadSize++;
-            }
-            ReadChar = *Pointer;
-            NextChar = *(Pointer + 1);
-        }
+        double* pOutV = (double*)Result.Vertices;
+        for (int i = 0; i < Result.nVertices; i++) {
+            v3 Position = ParseV3(Pointer);
+            Pointer++;
+            v3 Normal = ParseV3(Pointer);
+            Pointer++;
+            v2 Texture = ParseV2(Pointer);
+            Pointer++;
 
-        // Parse texture vertices
-        std::vector<v2> Textures = {};
-        while (ReadChar == 'v' && NextChar == 't') {
-            Pointer += 3; ReadSize += 3;
-            v2 V = ParseV2(Pointer);
-            Textures.push_back(V);
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++;
-                ReadSize++;
-            }
-            ReadChar = *Pointer;
-            NextChar = *(Pointer + 1);
-        }
+            *pOutV++ = Position.X;
+            *pOutV++ = Position.Y;
+            *pOutV++ = Position.Z;
 
-        // Parse normals
-        std::vector<v3> Normals = {};
-        while (ReadChar == 'v' && NextChar == 'n') {
-            Pointer += 3; ReadSize += 3;
-            v3 V = ParseV3(Pointer);
-            Normals.push_back(V);
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++;
-                ReadSize++; 
-            }
-            ReadChar = *Pointer;
-            NextChar = *(Pointer + 1);
-        }
+            *pOutV++ = Texture.X;
+            *pOutV++ = Texture.Y;
+            
+            *pOutV++ = Normal.X;
+            *pOutV++ = Normal.Y;
+            *pOutV++ = Normal.Z;
+            
+            if (nBones > 0) {
+                iv2 BoneIDs = ParseIV2(Pointer);
+                Pointer++;
+                v2 Weights = ParseV2(Pointer);
+                Pointer++;
+                uint32* pOutB = (uint32*)pOutV;
+                *pOutB++ = BoneIDs.X;
+                *pOutB++ = BoneIDs.Y;
 
-        // Skip until faces
-        while (ReadChar != 'f') {
-            while (ReadChar != '\n') {
-                ReadChar = *Pointer++; ReadSize++;
-            }
-            ReadChar = *Pointer++; ReadSize++;
-        }
-        Pointer++; ReadSize++;
-        ReadChar = *Pointer;
-
-        // Parse faces
-        std::set<iv3> FaceVertices = {};
-        std::vector<iv3> Triangles = {};
-        while (ReadSize < File.ContentSize) {
-            int nFaceVertices = 0;
-            iv3 Triangle[3] = {};
-            while (ReadChar != '\n' && ReadSize < File.ContentSize) {
-                iv3 V = ParseIV3(Pointer);
-                FaceVertices.insert(V);
-                if (nFaceVertices <= 2) {
-                    Triangle[nFaceVertices] = V;
-                }
-                nFaceVertices++;
-                if (nFaceVertices > 3) {
-                    Triangle[1] = Triangle[2];
-                    Triangle[2] = V;
-                }
-                if (nFaceVertices >= 3) {
-                    Triangles.push_back(Triangle[0]);
-                    Triangles.push_back(Triangle[1]);
-                    Triangles.push_back(Triangle[2]);
-                }
-                while (ReadChar != ' ' && ReadChar != '\n' && ReadSize < File.ContentSize) { ReadChar = *++Pointer; ReadSize++; };
-                if (ReadChar == ' ') {
-                    ReadChar = *++Pointer; ReadSize++;
-                }
-            }
-            Pointer += 3; ReadSize += 3;
-            if (ReadSize < File.ContentSize) {
-                ReadChar = *Pointer;
+                pOutV = (double*)pOutB;
+                *pOutV++ = Weights.X;
+                *pOutV++ = Weights.Y;
             }
         }
 
-        // Set properties and reserve memory
-        Result.nVertices = FaceVertices.size();
-        Result.nFaces = Triangles.size() / 3;
-
-        Result.Vertices = PushArray(Arena, 8 * Result.nVertices, double);
-        Result.Faces = PushArray(Arena, Triangles.size(), uint32);
-
-        // Write result
-        std::set<iv3>::iterator itr;
-        std::map<iv3, uint32> dict = {};
-        double* pOutputVertex = Result.Vertices;
-        int n = 0;
-        int WrittenBytes = 0;
-        for (itr = FaceVertices.begin(); itr != FaceVertices.end(); itr++) {
-            iv3 FaceVertex = *itr;
-            dict[FaceVertex] = n++;
-            v3 Vertex = Vertices.at(FaceVertex.X-1);
-            v2 Texture = Textures.at(FaceVertex.Y-1);
-            v3 Normal = Normals.at(FaceVertex.Z-1);
-            *pOutputVertex++ = Vertex.X;
-            *pOutputVertex++ = Vertex.Y;
-            *pOutputVertex++ = Vertex.Z;
-            *pOutputVertex++ = Normal.X;
-            *pOutputVertex++ = Normal.Y;
-            *pOutputVertex++ = Normal.Z;
-            *pOutputVertex++ = Texture.X;
-            *pOutputVertex++ = Texture.Y;
-            WrittenBytes += 8 * sizeof(double);
-        }
-
-        uint32* pOutputFace = Result.Faces;
-        for (const iv3& v : Triangles) {
-            *pOutputFace++ = dict[v];
-            WrittenBytes += sizeof(uint32);
+        uint32* pOutF = Result.Faces;
+        for (int i = 0; i < Result.nFaces; i++) {
+            iv3 Face = ParseIV3(Pointer);
+            *pOutF++ = Face.X;
+            *pOutF++ = Face.Y;
+            *pOutF++ = Face.Z;
+            Pointer++;
         }
     }
 
@@ -999,60 +949,7 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
 // | Shaders                                                                                                                                                          |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-enum game_shader_id {
-    // Header shaders
-    Header_Shader_ID,
-
-    // Compute shaders
-    //Outline_Init_Compute_Shader_ID,
-    //Jumping_Flood_Compute_Shader_ID,
-    Test_Compute_Shader_ID,
-
-    // Vertex shaders
-    Passthrough_Vertex_Shader_ID,
-    Perspective_Vertex_Shader_ID,
-    Tessellation_Vertex_Shader_ID,
-
-    // Tessellation control shaders
-    //Tessellation_Control_Shader_ID,
-
-    // Tessellation evaluation shaders
-    //Tessellation_Evaluation_Shader_ID,
-
-    // Geometry shaders
-    Test_Geometry_Shader_ID,
-
-    // Fragment shaders
-    Antialiasing_Fragment_Shader_ID,
-    Single_Color_Fragment_Shader_ID,
-    Texture_Fragment_Shader_ID,
-    Outline_Fragment_Shader_ID,
-    Kernel_Fragment_Shader_ID,
-    Mesh_Fragment_Shader_ID,
-    Sphere_Fragment_Shader_ID,
-
-    game_shader_id_count
-};
-
-enum game_shader_pipeline_id {
-    Antialiasing_Shader_Pipeline_ID,
-    Framebuffer_Shader_Pipeline_ID,
-    Single_Color_Shader_Pipeline_ID,
-    Mesh_Shader_Pipeline_ID,
-    Sphere_Shader_Pipeline_ID,
-    Test_Shader_Pipeline_ID,
-    //Shader_Pipeline_Outline_Init_ID,
-    //Shader_Pipeline_JFA_ID,
-    //Shader_Pipeline_Outline_ID,
-    //Shader_Pipeline_Kernel_ID,
-    //Shader_Pipeline_Tessellation_ID,
-
-    game_shader_pipeline_id_count
-};
-
 enum game_shader_type {
-    Header_Shader,
-    Compute_Shader,
     Vertex_Shader,
     Tessellation_Control_Shader,
     Tessellation_Evaluation_Shader,
@@ -1060,6 +957,39 @@ enum game_shader_type {
     Fragment_Shader,
 
     game_shader_type_count
+};
+
+enum game_shader_id {
+    // Vertex shaders
+    Passthrough_Vertex_Shader_ID,
+    Perspective_Vertex_Shader_ID,
+    Tessellation_Vertex_Shader_ID,
+
+    // Tessellation control shaders
+    Tessellation_Control_Shader_ID,
+
+    // Tessellation evaluation shaders
+    Standard_Tessellation_Evaluation_Shader_ID,
+    Trochoidal_Tessellation_Evaluation_Shader_ID,
+
+    // Geometry shaders
+    Test_Geometry_Shader_ID,
+    Debug_Normals_Geometry_Shader_ID,
+
+    // Fragment shaders
+    Antialiasing_Fragment_Shader_ID,
+    Single_Color_Fragment_Shader_ID,
+    Texture_Fragment_Shader_ID,
+    Framebuffer_Attachment_Fragment_Shader_ID,
+    Outline_Fragment_Shader_ID,
+    Kernel_Fragment_Shader_ID,
+    Mesh_Fragment_Shader_ID,
+    Sphere_Fragment_Shader_ID,
+    Jump_Flood_Fragment_Shader_ID,
+    Heightmap_Fragment_Shader_ID,
+    Sea_Fragment_Shader_ID,
+
+    game_shader_id_count
 };
 
 struct game_shader {
@@ -1070,12 +1000,46 @@ struct game_shader {
     char* Code;
 };
 
+enum game_shader_pipeline_id {
+    Antialiasing_Shader_Pipeline_ID,
+    Framebuffer_Shader_Pipeline_ID,
+    Single_Color_Shader_Pipeline_ID,
+    Texture_Shader_Pipeline_ID,
+    Mesh_Shader_Pipeline_ID,
+    Sphere_Shader_Pipeline_ID,
+    Jump_Flood_Shader_Pipeline_ID,
+    Outline_Shader_Pipeline_ID,
+    //Shader_Pipeline_Kernel_ID,
+    Heightmap_Shader_Pipeline_ID,
+    Trochoidal_Shader_Pipeline_ID,
+    Debug_Normals_Shader_Pipeline_ID,
+
+    game_shader_pipeline_id_count
+};
+
 struct game_shader_pipeline {
     game_shader_pipeline_id ID;
     uint32 ProgramID;
     game_shader_id Pipeline[game_shader_type_count];
     bool IsProvided[game_shader_type_count];
 };
+
+enum game_compute_shader_id {
+    Outline_Init_Compute_Shader_ID,
+    //Jump_Flood_Compute_Shader_ID,
+    Test_Compute_Shader_ID,
+
+    game_compute_shader_id_count
+};
+
+struct game_compute_shader {
+    game_compute_shader_id ID;
+    uint32 ShaderID;
+    uint32 ProgramID;
+    uint32 Size;
+    char* Code;
+};
+
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Game assets                                                                                                                                                      |
@@ -1105,18 +1069,21 @@ struct game_assets {
     game_shader Shader[game_shader_id_count];
     int nShaderPipelines;
     game_shader_pipeline ShaderPipeline[game_shader_pipeline_id_count];
+    int nComputeShaders;
+    game_compute_shader ComputeShader[game_compute_shader_id_count];
     uint64 ShadersSize;
+    uint64 ComputeShadersSize;
     uint64 TotalSize;
     uint8* Memory;
 };
 
 
-game_text* GetAsset(game_assets* Assets, game_text_id ID) { return &Assets->Text[ID]; }
-game_sound* GetAsset(game_assets* Assets, game_sound_id ID) { return &Assets->Sound[ID]; }
-game_bitmap* GetAsset(game_assets* Assets, game_bitmap_id ID) { return &Assets->Bitmap[ID]; }
+game_text*      GetAsset(game_assets* Assets, game_text_id ID)      { return &Assets->Text[ID]; }
+game_sound*     GetAsset(game_assets* Assets, game_sound_id ID)     { return &Assets->Sound[ID]; }
+game_bitmap*    GetAsset(game_assets* Assets, game_bitmap_id ID)    { return &Assets->Bitmap[ID]; }
 game_heightmap* GetAsset(game_assets* Assets, game_heightmap_id ID) { return &Assets->Heightmap[ID]; }
-game_font* GetAsset(game_assets* Assets, game_font_id ID) { return &Assets->Font[ID]; }
-game_mesh* GetAsset(game_assets* Assets, game_mesh_id ID) { return &Assets->Mesh[ID]; }
+game_font*      GetAsset(game_assets* Assets, game_font_id ID)      { return &Assets->Font[ID]; }
+game_mesh*      GetAsset(game_assets* Assets, game_mesh_id ID)      { return &Assets->Mesh[ID]; }
 //game_video* GetAsset(game_assets* Assets, game_video_id ID) { return &Assets->Videos[ID]; }
 
 void PushAsset(game_assets* Assets, const char* Path, game_text_id ID) {
@@ -1124,6 +1091,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_text_id ID) {
     Asset->Type = Text;
     Asset->ID.Text = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = Asset->File.ContentSize + 1;
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1134,6 +1102,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_sound_id ID) {
     Asset->Type = Sound;
     Asset->ID.Sound = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = ComputeNeededMemoryForSound(Asset->File);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1144,7 +1113,8 @@ void PushAsset(game_assets* Assets, const char* Path, game_bitmap_id ID) {
     Asset->Type = Bitmap;
     Asset->ID.Bitmap = ID;
     Asset->File = PlatformReadEntireFile(Path);
-    Asset->MemoryNeeded = ComputeNeededMemoryForBitmap(Asset->File);
+    Assert(Asset->File.ContentSize > 0);
+    Asset->MemoryNeeded = ComputeNeededMemoryForBitmap((bitmap_header*)Asset->File.Content);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
 };
@@ -1154,6 +1124,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_heightmap_id ID) {
     Asset->Type = Heightmap;
     Asset->ID.Heightmap = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = ComputeNeededMemoryForHeightmap(Asset->File);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1164,6 +1135,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_font_id ID) {
     Asset->Type = Font;
     Asset->ID.Font = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = ComputeNeededMemoryForFont(Asset->File.Path);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1174,6 +1146,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_mesh_id ID) {
     Asset->Type = Mesh;
     Asset->ID.Mesh = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     Asset->MemoryNeeded = ComputeNeededMemoryForMesh(Asset->File);
     Assets->TotalSize += Asset->MemoryNeeded;
     Assets->AssetsSize += Asset->MemoryNeeded;
@@ -1184,6 +1157,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
     Asset->Type = Video;
     Asset->ID.Video = ID;
     Asset->File = PlatformReadEntireFile(Path);
+    Assert(Asset->File.ContentSize > 0);
     //Asset.MemoryNeeded = ComputeNeededMemoryForVideo(Asset.File);
     Asset->MemoryNeeded = 0;
     Assets->TotalSize += Asset->MemoryNeeded;
@@ -1245,12 +1219,13 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
     Asset->File = { 0 };
 }
 
-game_shader* GetShader(game_assets* Assets, game_shader_id ID) { return &Assets->Shader[ID]; }
+game_shader*          GetShader        (game_assets* Assets, game_shader_id ID)          { return &Assets->Shader[ID]; }
 game_shader_pipeline* GetShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID) { return &Assets->ShaderPipeline[ID]; }
+game_compute_shader*  GetComputeShader (game_assets* Assets, game_compute_shader_id ID)  { return &Assets->ComputeShader[ID]; }
 
-void PushShader(game_assets* Assets, const char* Path, game_shader_id ShaderID) {
-    game_shader* Shader = GetShader(Assets, ShaderID);
-    Shader->ID = ShaderID;
+void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
+    game_shader* Shader = GetShader(Assets, ID);
+    Shader->ID = ID;
 
     WIN32_FIND_DATAA Data;
     HANDLE hFind = FindFirstFileA(Path, &Data);
@@ -1263,13 +1238,11 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ShaderID) 
     char* _ = strtok_s(Buffer, ".", &Extension);
 
     if (Extension != 0) {
-        if (strcmp(Extension, "frag.glsl") == 0) { Shader->Type = Fragment_Shader; }
+        if      (strcmp(Extension, "frag.glsl") == 0) { Shader->Type = Fragment_Shader; }
         else if (strcmp(Extension, "vert.glsl") == 0) { Shader->Type = Vertex_Shader; }
-        else if (strcmp(Extension, "comp.glsl") == 0) { Shader->Type = Compute_Shader; }
         else if (strcmp(Extension, "geom.glsl") == 0) { Shader->Type = Geometry_Shader; }
-        else if (strcmp(Extension, "tcs.glsl") == 0) { Shader->Type = Tessellation_Control_Shader; }
-        else if (strcmp(Extension, "tes.glsl") == 0) { Shader->Type = Tessellation_Evaluation_Shader; }
-        else if (strcmp(Extension, "h.glsl") == 0) { Shader->Type = Header_Shader; }
+        else if (strcmp(Extension, "tcs.glsl")  == 0) { Shader->Type = Tessellation_Control_Shader; }
+        else if (strcmp(Extension, "tes.glsl")  == 0) { Shader->Type = Tessellation_Evaluation_Shader; }
         else Assert(false);
     }
     else Assert(false);
@@ -1289,7 +1262,6 @@ void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nSh
 
     game_shader_pipeline* ShaderPipeline = GetShaderPipeline(Assets, ID);
     ShaderPipeline->ID = ID;
-    ShaderPipeline->IsProvided[Header_Shader] = true; // Header is the same for all shaders
     
     va_list Shaders;
     va_start(Shaders, nShaders);
@@ -1299,8 +1271,7 @@ void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nSh
 
         game_shader* Shader = &Assets->Shader[ShaderID];
 
-        if (ShaderPipeline->IsProvided[Compute_Shader]) throw("Compute shaders can't have other shaders attached.");
-        else if (ShaderPipeline->IsProvided[Shader->Type]) throw("Shader of this type has alredy been attached to pipeline.");
+        if (ShaderPipeline->IsProvided[Shader->Type]) throw("Shader of this type has alredy been attached to pipeline.");
         else {
             ShaderPipeline->IsProvided[Shader->Type] = true;
             ShaderPipeline->Pipeline[Shader->Type] = Shader->ID;
@@ -1310,7 +1281,42 @@ void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nSh
     Assets->nShaderPipelines++;
 }
 
+void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID) {
+    game_compute_shader* Shader = GetComputeShader(Assets, ID);
+    Shader->ID = ID;
+
+    WIN32_FIND_DATAA Data;
+    HANDLE hFind = FindFirstFileA(Path, &Data);
+
+    if (hFind == INVALID_HANDLE_VALUE) Assert(false);
+
+    char* Extension = 0;
+    char* Buffer = new char[strlen(Data.cFileName) + 1];
+    strcpy_s(Buffer, strlen(Data.cFileName) + 1, Data.cFileName);
+    char* _ = strtok_s(Buffer, ".", &Extension);
+
+    if (strcmp(Extension, "comp.glsl") != 0) {
+        throw("Extension of compute shader file should be 'comp.glsl'.");
+    }
+    else {
+        read_file_result ShaderFile = PlatformReadEntireFile(Path);
+        Shader->Size = ShaderFile.ContentSize;
+        Shader->Code = (char*)ShaderFile.Content;
+
+        // Extra char with value 0 to separate shaders
+        Assets->TotalSize += Shader->Size + 1;
+        Assets->ComputeShadersSize += Shader->Size + 1;
+        Assets->nComputeShaders++;
+    }
+}
+
 void LoadShader(memory_arena* Arena, game_shader* Shader) {
+    char* Destination = (char*)PushSize(Arena, Shader->Size + 1);
+    memcpy(Destination, Shader->Code, Shader->Size);
+    PlatformFreeFileMemory(Shader->Code);
+}
+
+void LoadComputeShader(memory_arena* Arena, game_compute_shader* Shader) {
     char* Destination = (char*)PushSize(Arena, Shader->Size + 1);
     memcpy(Destination, Shader->Code, Shader->Size);
     PlatformFreeFileMemory(Shader->Code);
@@ -1348,7 +1354,8 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
             case Heightmap: {
                 game_heightmap* Heightmap = GetAsset(Assets, Asset.ID.Heightmap);
                 Heightmap->Bitmap.Content = (uint32*)(Assets->Memory + Asset.Offset);
-                Heightmap->Vertices = (double*)(Assets->Memory + Asset.Offset + (Heightmap->Bitmap.Header.FileSize >> 3));
+                uint64 BitmapSize = ComputeNeededMemoryForBitmap(&Heightmap->Bitmap.Header);
+                Heightmap->Vertices = (double*)(Assets->Memory + Asset.Offset + BitmapSize);
             } break;
 
             case Font: {
@@ -1364,7 +1371,8 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
             case Mesh: {
                 game_mesh* Mesh = GetAsset(Assets, Asset.ID.Mesh);
                 Mesh->Vertices = (double*)(Assets->Memory + Asset.Offset);
-                Mesh->Faces = (uint32*)(Mesh->Vertices + 8 * Mesh->nVertices);
+                int VertexSize = Mesh->Armature.nBones > 0 ? 10 * sizeof(double) + 2 * sizeof(uint32) : 8 * sizeof(double);
+                Mesh->Faces = (uint32*)((uint8*)Mesh->Vertices + VertexSize * Mesh->nVertices);
             } break;
 
             //case Video: {
@@ -1390,6 +1398,13 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
         Pointer += Shader->Size + 1;
     }
 
+    for (int i = 0; i < Assets->nComputeShaders; i++) {
+        game_compute_shader* Shader = &Assets->ComputeShader[i];
+
+        Shader->Code = Pointer;
+        Pointer += Shader->Size + 1;
+    }
+
     Log(Info, "Shaders loaded.\n");
 }
 
@@ -1398,77 +1413,98 @@ void WriteAssetFile() {
 
 // Assets
     // Fonts
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Fonts\\CascadiaMono.ttf", Font_Cascadia_Mono_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Fonts\\CascadiaMono.ttf", Font_Cascadia_Mono_ID);
 
     // Text
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Texts\\Test.txt", Text_Test_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Texts\\Test.txt", Text_Test_ID);
 
     // Bitmaps
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\Background.bmp", Bitmap_Background_ID);
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\Button.bmp", Bitmap_Button_ID);
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\Empty.bmp", Bitmap_Empty_ID);
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\Enemy.bmp", Bitmap_Enemy_ID);
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\Player.bmp", Bitmap_Player_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Bitmaps\\Background.bmp", Bitmap_Background_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Bitmaps\\Button.bmp", Bitmap_Button_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Bitmaps\\Empty.bmp", Bitmap_Empty_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Bitmaps\\Enemy.bmp", Bitmap_Enemy_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Bitmaps\\Player.bmp", Bitmap_Player_ID);
 
     // Heightmaps
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Bitmaps\\spain.bmp", Heightmap_Spain_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Bitmaps\\spain.bmp", Heightmap_Spain_ID);
 
     // Sound
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Sounds\\16agosto.wav", Sound_Test_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Sounds\\16agosto.wav", Sound_Test_ID);
 
     // Meshes
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Models\\Enemy.mdl", Mesh_Enemy_ID);
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Models\\Sphere.mdl", Mesh_Sphere_ID);
-    PushAsset(&Assets, "..\\..\\GameAssets\\Assets\\Models\\Body.mdl", Mesh_Body_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Enemy.mdl", Mesh_Enemy_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Sphere.mdl", Mesh_Sphere_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Body.mdl", Mesh_Body_ID);
 
     // Video
-    //PushAsset(&Assets, "..\\..\\Assets\\Videos\\The Witness.mp4", Video_Test_ID);
+    //PushAsset(&Assets, "..\\Assets\\Videos\\The Witness.mp4", Video_Test_ID);
     
     Assert(Assets.nAssets == ASSET_COUNT);
 
 // Shaders
-    // Header
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Header.h.glsl", Header_Shader_ID);
-
-    // Compute
-    //PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\OutlineInit.comp.glsl", Outline_Init_Compute_Shader_ID);
-    //PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\JumpFlood.comp.glsl", Jumping_Flood_Compute_Shader_ID);
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Test.comp.glsl", Test_Compute_Shader_ID);
-
     // Vertex
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Passthrough.vert.glsl", Passthrough_Vertex_Shader_ID);
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Perspective.vert.glsl", Perspective_Vertex_Shader_ID);
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Tessellation.vert.glsl", Tessellation_Vertex_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Passthrough.vert.glsl", Passthrough_Vertex_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Perspective.vert.glsl", Perspective_Vertex_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Tessellation.vert.glsl", Tessellation_Vertex_Shader_ID);
 
     // Fragment
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Antialiasing.frag.glsl", Antialiasing_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Texture.frag.glsl", Texture_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Outline.frag.glsl", Outline_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\SingleColor.frag.glsl", Single_Color_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Kernel.frag.glsl", Kernel_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Sphere.frag.glsl", Sphere_Fragment_Shader_ID);
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Mesh.frag.glsl", Mesh_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Antialiasing.frag.glsl", Antialiasing_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\FramebufferAttachment.frag.glsl", Framebuffer_Attachment_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Texture.frag.glsl", Texture_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Outline.frag.glsl", Outline_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\SingleColor.frag.glsl", Single_Color_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Kernel.frag.glsl", Kernel_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Sphere.frag.glsl", Sphere_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Mesh.frag.glsl", Mesh_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\JumpFlood.frag.glsl", Jump_Flood_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Heightmap.frag.glsl", Heightmap_Fragment_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Sea.frag.glsl", Sea_Fragment_Shader_ID);
 
     // Geometry
-    PushShader(&Assets, "..\\..\\GameAssets\\Assets\\Shaders\\Test.geom.glsl", Test_Geometry_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Geometry\\Test.geom.glsl", Test_Geometry_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Geometry\\DebugNormals.geom.glsl", Debug_Normals_Geometry_Shader_ID);
+
+    // Tessellation
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tcs.glsl", Tessellation_Control_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tes.glsl", Standard_Tessellation_Evaluation_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Trochoidal.tes.glsl", Trochoidal_Tessellation_Evaluation_Shader_ID);
 
     Assert(Assets.nShaders == game_shader_id_count);
 
     // Shader pipelines
     PushShaderPipeline(&Assets, Antialiasing_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Antialiasing_Fragment_Shader_ID);
-    PushShaderPipeline(&Assets, Framebuffer_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Texture_Fragment_Shader_ID);
+    PushShaderPipeline(&Assets, Framebuffer_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Framebuffer_Attachment_Fragment_Shader_ID);
+    PushShaderPipeline(&Assets, Texture_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Texture_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Mesh_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Mesh_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Sphere_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Sphere_Fragment_Shader_ID);
     PushShaderPipeline(&Assets, Single_Color_Shader_Pipeline_ID, 2, Perspective_Vertex_Shader_ID, Single_Color_Fragment_Shader_ID);
-    PushShaderPipeline(&Assets, Test_Shader_Pipeline_ID, 1, Test_Compute_Shader_ID);
-    //PushShaderPipeline(&Assets, Shader_Pipeline_Outline_Init_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Outline_Init_ID);
-    //PushShaderPipeline(&Assets, Shader_Pipeline_JFA_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_JFA_ID);
-    //PushShaderPipeline(&Assets, Shader_Pipeline_Outline_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Outline_ID);
+    PushShaderPipeline(&Assets, Outline_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Outline_Fragment_Shader_ID);
+    PushShaderPipeline(&Assets, Jump_Flood_Shader_Pipeline_ID, 2, Passthrough_Vertex_Shader_ID, Jump_Flood_Fragment_Shader_ID);
+    PushShaderPipeline(&Assets, Debug_Normals_Shader_Pipeline_ID, 3, 
+        Perspective_Vertex_Shader_ID, 
+        Debug_Normals_Geometry_Shader_ID, 
+        Single_Color_Fragment_Shader_ID
+    );
     //PushShaderPipeline(&Assets, Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
-    //PushShaderPipeline(&Assets, Shader_Pipeline_Tessellation_ID, Vertex_Shader_Tessellation_ID, Fragment_Shader_Single_Color_ID, Geometry_Shader_Tessellation_ID);
+    PushShaderPipeline(&Assets, Heightmap_Shader_Pipeline_ID, 4, 
+        Tessellation_Vertex_Shader_ID, 
+        Tessellation_Control_Shader_ID, 
+        Standard_Tessellation_Evaluation_Shader_ID, 
+        Heightmap_Fragment_Shader_ID
+    );
+    PushShaderPipeline(&Assets, Trochoidal_Shader_Pipeline_ID, 4,
+        Tessellation_Vertex_Shader_ID,
+        Tessellation_Control_Shader_ID,
+        Trochoidal_Tessellation_Evaluation_Shader_ID,
+        Sea_Fragment_Shader_ID
+    );
+    
+    // Compute
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\OutlineInit.comp.glsl", Outline_Init_Compute_Shader_ID);
+    //PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\JumpFlood.comp.glsl", Jump_Flood_Compute_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\Test.comp.glsl", Test_Compute_Shader_ID);
 
     Assert(Assets.nShaderPipelines == game_shader_pipeline_id_count);
-
 
 // Output file
     void* FileMemory = VirtualAlloc(0, sizeof(game_assets) + Assets.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -1486,9 +1522,14 @@ void WriteAssetFile() {
         LoadShader(&AssetArena, &Assets.Shader[i]);
     }
 
+    // Compute shaders
+    for (int i = 0; i < game_compute_shader_id_count; i++) {
+        LoadComputeShader(&AssetArena, &Assets.ComputeShader[i]);
+    }
+
     game_assets* OutputAssets = (game_assets*)FileMemory;
     if (OutputAssets) *OutputAssets = Assets;
-    PlatformWriteEntireFile("..\\..\\GameAssets\\game_assets", sizeof(game_assets) + Assets.TotalSize, FileMemory);
+    PlatformWriteEntireFile("..\\GameAssets\\game_assets", sizeof(game_assets) + Assets.TotalSize, FileMemory);
 
     Log(Info, "Finished writing assets file.\n");
 }
