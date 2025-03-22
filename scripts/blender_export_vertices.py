@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 import bpy # type: ignore
 from mathutils import Vector # type: ignore
 import os
+from math import sqrt
 
 
 @dataclass
@@ -11,6 +12,7 @@ class Bone:
     parent: str
     head: Vector
     tail: Vector
+    parent_id: int = -1
 
 @dataclass
 class Vertex:
@@ -34,9 +36,12 @@ def collect_bones(mesh) -> dict[str, Bone]:
     exclude = ['Knee', 'Wrist', 'Elbow', 'Heel']
     id = 0
     for bone_name, bone in mesh.parent.data.bones.items():
-        if bone_name.split(" ")[0] not in exclude:
-            result[bone_name] = Bone(id, bone_name, bone.parent.name if bone.parent else None, bone.head, bone.tail)
+        if bone_name.split("_")[0] not in exclude:
+            result[bone_name] = Bone(id, bone_name, bone.parent.name if bone.parent else None, bone.head_local, bone.tail_local)
             id += 1
+    for bone in result.values():
+        if bone.parent:
+            bone.parent_id = result[bone.parent].id
     return result
 
 def consolidate_loops(loops: list[Loop]) -> list[Loop]:
@@ -59,8 +64,7 @@ def export_vertices(output_path):
     mesh = bpy.context.object  # Assumes the active object is a mesh
     
     if mesh is None or mesh.type != 'MESH':
-        print("Please select a mesh object with an armature modifier.")
-        return
+        raise Exception("Please select a mesh object with an armature modifier.")
     
     uv_layer = mesh.data.uv_layers.active.data
     
@@ -91,13 +95,15 @@ def export_vertices(output_path):
             if len(vertex_weights) > 0:
                 if len(vertex_weights) == 1:
                     bone0, w0 = vertex_weights[0]
-                    id0 = bones[bone0]['id']
+                    id0 = bones[bone0].id
+                    w0 = 1.0
                 else:
                     vertex_weights.sort(key=lambda x: x[1], reverse=True)
                     (bone0, w0), (bone1, w1) = vertex_weights[:2]
-                    id0, id1 = bones[bone0]['id'], bones[bone1]['id']
+                    id0, id1 = bones[bone0].id, bones[bone1].id
+                    w1 = 1.0 - w0
             vertex_obj.bone_ids.extend([id0, id1])
-            vertex_obj.bone_ids.extend([w0, w1])
+            vertex_obj.bone_weights.extend([w0, w1])
 
         vertices.append(vertex_obj)
 
@@ -140,6 +146,11 @@ def export_vertices(output_path):
             faces = [f"{face_loops[0]} {face_loops[i]} {face_loops[i+1]}" for i in range(1, n_vertices-1)]
             nFaces += len(faces)
             lines.append("\n".join(faces))
+
+    # Bones loop
+    if nBones > 0:
+        for bone in bones.values():
+            lines.append(f"{bone.id} {bone.name} {bone.parent_id} {bone.head.x:.6f} {bone.head.z:.6f} {bone.head.y:.6f} {bone.tail.x:.6f} {bone.tail.z:.6f} {bone.tail.y:.6f}")
     
     # Exporting file
     with open(output_path, "w") as out_file:

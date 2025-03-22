@@ -1,260 +1,6 @@
 #pragma once
 #include "GameAssets.h"
-
-/*
-    TODO:
-        - Make lighting a render_group attribute
-*/
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Color                                                                                                                                        |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-struct color {
-    double Alpha;
-    double R;
-    double G;
-    double B;
-};
-
-color Color(double R, double G, double B, double Alpha = 1.0) {
-    return { Alpha, R, G, B };
-}
-
-color Color(color Color, double Alpha) {
-    return { Alpha, Color.R, Color.G, Color.B };
-}
-
-color operator*(double Luminosity, color Color) {
-    return {
-        Color.Alpha,
-        min(Luminosity * Color.R, 1.0),
-        min(Luminosity * Color.G, 1.0),
-        min(Luminosity * Color.B, 1.0),
-    };
-}
-
-static int Attenuation = 100;
-static color Black = { 1.0, 0.0, 0.0, 0.0 };
-static color White = { 1.0, 1.0, 1.0, 1.0 };
-static color Gray = { 1.0, 0.5, 0.5, 0.5 };
-static color DarkGray = { 1.0, 0.1, 0.1, 0.1 };
-static color Red = { 1.0, 1.0, 0.0, 0.0 };
-static color Green = { 1.0, 0.0, 1.0, 0.0 };
-static color Blue = { 1.0, 0.0, 0.0, 1.0 };
-static color Magenta = { 1.0, 1.0, 0.0, 1.0 };
-static color Yellow = { 1.0, 1.0, 1.0, 0.0 };
-static color Cyan = { 1.0, 0.0, 1.0, 1.0 };
-static color Orange = { 1.0, 1.0, 0.63, 0.0 };
-static color BackgroundBlue = { 1.0, 0.4, 0.4, 0.8 };
-
-uint32 GetColorBytes(color Color) {
-    uint8 Alpha = Color.Alpha * 255.0;
-    uint8 R = Color.R * 255.0;
-    uint8 G = Color.G * 255.0;
-    uint8 B = Color.B * 255.0;
-    return (Alpha << 24) | (R << 16) | (G << 8) | B;
-}
-
-//color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) {
-//    uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
-//    
-//    uint32 RedShift;
-//    uint32 GreenShift;
-//    uint32 BlueShift;
-//    uint32 AlphaShift;
-//    _BitScanForward((DWORD*)&RedShift, RedMask);
-//    _BitScanForward((DWORD*)&GreenShift, GreenMask);
-//    _BitScanForward((DWORD*)&BlueShift, BlueMask);
-//    _BitScanForward((DWORD*)&AlphaShift, AlphaMask);
-//
-//    color Color;
-//    Color.R = (double)((RedMask & Bytes) >> RedShift) / 255.0;
-//    Color.G = (double)((GreenMask & Bytes) >> GreenShift) / 255.0;
-//    Color.B = (double)((BlueMask & Bytes) >> BlueShift) / 255.0;
-//    Color.Alpha = (double)((AlphaMask & Bytes) >> AlphaShift) / 255.0;
-//    return Color;
-//}
-
-color operator+(color Color1, color Color2) {
-    return Color(
-        Color1.R + Color2.R,
-        Color1.G + Color2.G,
-        Color1.B + Color2.B
-    );
-}
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Camera                                                                                                                                       |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-struct camera {
-    basis Basis;
-    v3 Position;
-    v3 Velocity;
-    float Distance;
-    float Pitch;
-    float Angle;
-    matrix4 View;
-};
-
-basis GetCameraBasis(float Angle, float Pitch) {
-    float cosA = cosf(Angle * Degrees);
-    float sinA = sinf(Angle * Degrees);
-    float cosP = cosf(Pitch * Degrees);
-    float sinP = sinf(Pitch * Degrees);
-
-    v3 X = V3(
-        cosA,
-        0.0,
-        sinA
-    );
-    v3 Y = V3(
-        -sinA * sinP,
-        cosP,
-        cosA * sinP
-    );
-    v3 Z = V3(
-        sinA * cosP,
-        sinP,
-        -cosA * cosP
-    );
-
-    basis Result;
-    Result.X = X;
-    Result.Y = Y;
-    Result.Z = Z;
-    return Result;
-}
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Colliders                                                                                                                                    |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-struct rect_collider {
-    v3 Center;
-    float Width;
-    float Height;
-};
-
-struct cube_collider {
-    v3 Center;
-    scale Size;
-};
-
-struct sphere_collider {
-    v3 Center;
-    float Radius;
-};
-
-bool Collide(rect_collider Collider, v3 Position) {
-    return fabs(Position.X - Collider.Center.X) < (double)Collider.Width / 2.0 &&
-        fabs(Position.Y - Collider.Center.Y) < (double)Collider.Height / 2.0;
-}
-
-bool Collide(cube_collider Collider, v3 Position) {
-    return fabs(Position.X - Collider.Center.X) < Collider.Size.X / 2.0 &&
-           fabs(Position.Y - Collider.Center.Y) < Collider.Size.Y / 2.0 &&
-           fabs(Position.Z - Collider.Center.Z) < Collider.Size.Z / 2.0;
-}
-
-bool Collide(sphere_collider Collider, v3 Position) {
-    return modulus(Position - Collider.Center) < Collider.Radius;
-}
-
-/*
-Fast Ray-Box Intersection
-by Andrew Woo
-from "Graphics Gems", Academic Press, 1990
-*/
-bool HitBoundingBox(double minB[3], double maxB[3], double origin[3], double dir[3], double coord[3])
-/* double minB[NUMDIM], maxB[NUMDIM];		box */
-/* double origin[NUMDIM], dir[NUMDIM];		ray */
-/* double coord[NUMDIM];			hit point   */
-{
-    bool inside = true;
-    char quadrant[3];
-    register int i;
-    int whichPlane;
-    double maxT[3];
-    double candidatePlane[3];
-    char LEFT = 1;
-    char RIGHT = 0;
-    char MIDDLE = 2;
-
-    /* Find candidate planes; this loop can be avoided if
-    rays cast all from the eye(assume perpsective view) */
-    for (i = 0; i < 3; i++)
-        if (origin[i] < minB[i]) {
-            quadrant[i] = LEFT;
-            candidatePlane[i] = minB[i];
-            inside = false;
-        }
-        else if (origin[i] > maxB[i]) {
-            quadrant[i] = RIGHT;
-            candidatePlane[i] = maxB[i];
-            inside = false;
-        }
-        else {
-            quadrant[i] = MIDDLE;
-        }
-
-    /* Ray origin inside bounding box */
-    if (inside) {
-        coord = origin;
-        return true;
-    }
-
-
-    /* Calculate T distances to candidate planes */
-    for (i = 0; i < 3; i++)
-        if (quadrant[i] != MIDDLE && dir[i] != 0.)
-            maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
-        else
-            maxT[i] = -1.;
-
-    /* Get largest of the maxT's for final choice of intersection */
-    whichPlane = 0;
-    for (i = 1; i < 3; i++)
-        if (maxT[whichPlane] < maxT[i])
-            whichPlane = i;
-
-    /* Check final candidate actually inside box */
-    if (maxT[whichPlane] < 0.) return false;
-    for (i = 0; i < 3; i++)
-        if (whichPlane != i) {
-            coord[i] = origin[i] + maxT[whichPlane] * dir[i];
-            if (coord[i] < minB[i] || coord[i] > maxB[i])
-                return false;
-        }
-        else {
-            coord[i] = candidatePlane[i];
-        }
-    return true;				/* ray hits box */
-}
-
-bool Raycast(v3 Origin, v3 Direction, cube_collider Collider) {
-    double minB[3] = { 0 };
-    minB[0] = Collider.Center.X - Collider.Size.X / 2.0;
-    minB[1] = Collider.Center.Y - Collider.Size.Y / 2.0;
-    minB[2] = Collider.Center.Z - Collider.Size.Z / 2.0;
-    double maxB[3] = { 0 };
-    maxB[0] = Collider.Center.X + Collider.Size.X / 2.0;
-    maxB[1] = Collider.Center.Y + Collider.Size.Y / 2.0;
-    maxB[2] = Collider.Center.Z + Collider.Size.Z / 2.0;
-    double origin[3] = { Origin.X, Origin.Y, Origin.Z };
-    double dir[3] = { Direction.X, Direction.Y, Direction.Z };
-    double coord[3] = { 0,0,0 };
-
-    return HitBoundingBox(minB, maxB, origin, dir, coord);
-}
-
-bool Raycast(camera* Camera, double Width, double Height, v2 Mouse, cube_collider Collider) {
-    v3 ScreenOffset =
-        (2.0 * Mouse.X / Width - 1.0) * Camera->Basis.X +
-        (Height - 2.0 * Mouse.Y) / Width * Camera->Basis.Y - Camera->Basis.Z;
-    return Raycast(Camera->Position + Camera->Distance * Camera->Basis.Z, ScreenOffset, Collider);
-}
+#include "GameEntity.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Render entries                                                                                                                               |
@@ -409,10 +155,10 @@ light Light(v3 Direction, color Color = White, double Ambient = 0.5, double Diff
 struct render_entry_mesh {
     render_group_header Header;
     game_mesh* Mesh;
+    armature* Armature;
     game_bitmap* Texture;
     transform Transform;
     game_shader_pipeline_id ShaderID;
-    light Light;
     color Color;
 };
 
@@ -551,7 +297,8 @@ struct render_group {
     uint32 PushBufferElementCount;
     uint8* PushBufferBase;
     uint8* SortedBufferBase;
-    camera Camera;
+    camera* Camera;
+    light Light;
     bool Debug;
     bool PushOutline;
 };
@@ -569,11 +316,9 @@ render_group* AllocateRenderGroup(game_assets* Assets, memory_arena* Arena, memo
     Result->DefaultBasis.X = V3(1, 0, 0);
     Result->DefaultBasis.Y = V3(0, 1, 0);
     Result->DefaultBasis.Z = V3(0, 0, 1);
-    Result->Camera = { 0 };
-    Result->Camera.Distance = 15.0;
-    Result->Camera.Velocity = V3(0, 0, 0);
-    Result->Camera.Angle = 0;
-    Result->Camera.Pitch = 0;
+
+    // Lighting
+    Result->Light = Light(V3(-0.5, -1, 1), White);
 
     return(Result);
 }
@@ -802,21 +547,6 @@ void PushRectOutline(
     Entry->Outline = true;
 }
 
-void PushRectOutline(
-    render_group* Group,
-    rect_collider Collider,
-    color Color = White,
-    double Order = SORT_ORDER_DEBUG_OVERLAY
-) {
-    game_rect Rect = {
-        Collider.Center.X - Collider.Width / 2.0f,
-        Collider.Center.Y - Collider.Height / 2.0f,
-        Collider.Width,
-        Collider.Height
-    };
-    PushRectOutline(Group, Rect, Color, Order);
-}
-
 void PushBitmap(
     render_group* Group, 
     game_bitmap* Bitmap, 
@@ -941,15 +671,6 @@ void PushCubeOutline(
     PushLine(Group, G, H, Color, 2.0, World_Coordinates, Order);
 }
 
-void PushCubeOutline(
-    render_group* Group,
-    cube_collider Collider,
-    color Color,
-    double Order = SORT_ORDER_DEBUG_OVERLAY
-) {
-    PushCubeOutline(Group, Collider.Center - 0.5 * Collider.Size * V3(1.0, 1.0, 1.0), Collider.Size, Color, Order);
-}
-
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Video                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -966,39 +687,10 @@ void PushCubeOutline(
 // | UI                                                                                                                                                               |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-struct slider {
-    double Value;
-    double MinValue;
-    double MaxValue;
-    v3 Position;
-    color Color;
-    rect_collider Collider;
-};
-
-struct user_interface {
-    slider Slider1;
-    slider Slider2;
-    slider Slider3;
-    slider Slider4;
-    slider Slider5;
-    slider Slider6;
-};
-
-void InitializeSlider(slider* Slider, v3 Position, double MinValue = 0.0, double MaxValue = 1.0, color Color = Black) {
-    *Slider = { 0 };
-    
-    Slider->Position = Position;
-    Slider->MinValue = MinValue;
-    Slider->MaxValue = MaxValue;
-    Slider->Value = 0.5 * (MinValue + MaxValue);    
-
-    Slider->Color = Color;
-}
-
-void PushSlider(render_group* Group, slider Slider, double Order = SORT_ORDER_DEBUG_OVERLAY) {
+void PushSlider(render_group* Group, ui_slider Slider, v3 Position, color Color, double Order = SORT_ORDER_DEBUG_OVERLAY) {
     Assert(Slider.MinValue != Slider.MaxValue);
     double Range = Slider.MaxValue - Slider.MinValue;
-    double CircleCenter = Slider.Position.Y + 60.0 * (Slider.MaxValue - Slider.Value) / Range;
+    double CircleCenter = Position.Y + 60.0 * (Slider.MaxValue - Slider.Value) / Range;
     double Radius = 6.0;
     double UpperLineFinish = 0.0;
 
@@ -1013,18 +705,9 @@ void PushSlider(render_group* Group, slider Slider, double Order = SORT_ORDER_DE
     if (Slider.Value > Slider.MinValue + 0.15 * Range) {
         LowerLineStart = (1.15 - Slider.Value / Range) * 60;
     }
-    PushLine(Group, Slider.Position, Slider.Position + V3(0.0, UpperLineFinish, 0.0), Slider.Color, 2.0, Screen_Coordinates, Order);
-    PushCircunference(Group, V2(Slider.Position.X, CircleCenter), Radius, Slider.Color, 2.0, Order);
-    PushLine(Group, Slider.Position + V3(0.0, LowerLineStart, 0.0), Slider.Position + V3(0.0, 60.0, 0.0), Slider.Color, 2.0, Screen_Coordinates, Order);
-}
-
-void PushUI(render_group* Group, user_interface* UserInterface) {
-    PushSlider(Group, UserInterface->Slider1, SORT_ORDER_DEBUG_OVERLAY);
-    PushSlider(Group, UserInterface->Slider2, SORT_ORDER_DEBUG_OVERLAY);
-    PushSlider(Group, UserInterface->Slider3, SORT_ORDER_DEBUG_OVERLAY);
-    PushSlider(Group, UserInterface->Slider4, SORT_ORDER_DEBUG_OVERLAY);
-    PushSlider(Group, UserInterface->Slider5, SORT_ORDER_DEBUG_OVERLAY);
-    PushSlider(Group, UserInterface->Slider6, SORT_ORDER_DEBUG_OVERLAY);
+    PushLine(Group, Position, Position + V3(0.0, UpperLineFinish, 0.0), Color, 2.0, Screen_Coordinates, Order);
+    PushCircunference(Group, V2(Position.X, CircleCenter), Radius, Color, 2.0, Order);
+    PushLine(Group, Position + V3(0.0, LowerLineStart, 0.0), Position + V3(0.0, 60.0, 0.0), Color, 2.0, Screen_Coordinates, Order);
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1119,7 +802,7 @@ void PushMeshOutline(
     Entry->Width = Width;
     Entry->StartingLevel = StartingLevel;
 
-    PushShaderPass(Group, Outline_Shader_Pipeline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
+    PushShaderPass(Group, Shader_Pipeline_Outline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
 
     PushRenderTarget(Group, Postprocessing_Outline, SORT_ORDER_SHADER_PASSES + 30.0);
 }
@@ -1128,9 +811,9 @@ void PushMesh(
     render_group* Group,
     game_mesh_id MeshID,
     transform Transform,
-    light Light,
     game_shader_pipeline_id ShaderID,
     game_bitmap_id TextureID = Bitmap_Empty_ID,
+    armature* Armature = 0,
     color Color = White,
     double Order = SORT_ORDER_MESHES,
     bool Outlined = false
@@ -1149,8 +832,8 @@ void PushMesh(
 
         OutlineEntry->Transform = Transform;
         OutlineEntry->Mesh = pMesh;
-        OutlineEntry->Light = Light;
-        OutlineEntry->ShaderID = Single_Color_Shader_Pipeline_ID;
+        OutlineEntry->Armature = Armature;
+        OutlineEntry->ShaderID = Shader_Pipeline_Single_Color_ID;
         OutlineEntry->Color = White;
         OutlineEntry->Texture = GetAsset(Group->Assets, Bitmap_Empty_ID);
 
@@ -1166,8 +849,8 @@ void PushMesh(
 
     Entry->Transform = Transform;
     Entry->Mesh = pMesh;
+    Entry->Armature = Armature;
     Entry->Texture = pTexture;
-    Entry->Light = Light;
     Entry->ShaderID = ShaderID;
     Entry->Color = Color;
 }
@@ -1179,6 +862,39 @@ void PushHeightmap(render_group* Group, game_heightmap_id ID, game_shader_pipeli
     Entry->Shader = GetShaderPipeline(Group->Assets, ShaderID);
 
     Entry->Heightmap = GetAsset(Group->Assets, ID);
+}
+
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+// | Entities                                                                                                                                                         |
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+void PushEntities(render_group* Group, game_entity_list* List) {
+    for (int i = 0; i < List->nEntities; i++) {
+        game_entity Entity = List->Entities[i];
+        switch(Entity.Type) {
+            case Character: {
+                character* Character = &List->Character[Entity.Index];
+                PushMesh(
+                    Group, 
+                    Mesh_Body_ID, 
+                    Entity.Transform,
+                    Shader_Pipeline_Mesh_ID, 
+                    Bitmap_Empty_ID,
+                    &Character->Armature
+                );
+            } break;
+    
+            case Enemy: {
+                PushMesh(
+                    Group,
+                    Mesh_Enemy_ID,
+                    Entity.Transform,
+                    Shader_Pipeline_Mesh_ID,
+                    Bitmap_Enemy_ID
+                );
+            } break;
+        }
+    }
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1216,8 +932,8 @@ void PushDebugVector(render_group* Group, v3 Vector, v3 Position, coordinate_sys
     switch (Coordinates) {
         case World_Coordinates: {
             Order = SORT_ORDER_MESHES;
-            v2 CameraCoordinates = perp(V2(dot(Vector, Group->Camera.Basis.X), dot(Vector, Group->Camera.Basis.Y)));
-            Orthogonal = normalize(CameraCoordinates.X * Group->Camera.Basis.X + CameraCoordinates.Y * Group->Camera.Basis.Y);
+            v2 CameraCoordinates = perp(V2(dot(Vector, Group->Camera->Basis.X), dot(Vector, Group->Camera->Basis.Y)));
+            Orthogonal = normalize(CameraCoordinates.X * Group->Camera->Basis.X + CameraCoordinates.Y * Group->Camera->Basis.Y);
             OrthogonalLength = (Length / 15.0);
         } break;
 

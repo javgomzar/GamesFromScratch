@@ -23,23 +23,10 @@ extern GAMELIBRARY_API int nGameLibrary;
 #include "GamePlatform.h"
 #include "GameMath.h"
 #include "GameInput.h"
-
 #include "GameAssets.h"
-
 #include "GameSound.h"
 
 #include "RenderGroup.h"
-
-// Game State: Persistent (between frames) values
-struct game_state {
-    memory_arena RenderArena;
-    memory_arena StringsArena;
-    memory_arena GeneralPurposeArena;
-    memory_arena TransientArena;
-    user_interface UI;
-    double dt;
-    double Time;
-};
 
 
 // Game Memory

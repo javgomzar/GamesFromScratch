@@ -1108,6 +1108,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     WriteAssetFile();
     LoadAssetsFromFile(Platform.ReadEntireFile, &GameMemory.Assets, "..\\GameAssets\\game_assets");
 
+    pGameState->EntityList.Assets = &GameMemory.Assets;
+
     // OpenGl
     OpenGL = InitOpenGL(Window, &GameMemory.Assets);
 

@@ -23,11 +23,11 @@
 #endif
 
 // Constants
-static double Pi = 3.1415926535897932;
-static double Tau = 6.2831853071795865;
-static double twroot = 1.0594630943592952646;
+const double Pi = 3.1415926535897932;
+const double Tau = 6.2831853071795865;
+const double twroot = 1.0594630943592952646;
 
-static double Degrees = Pi / 180.0f;
+const double Degrees = Pi / 180.0f;
 
 // Arithmetics
 inline int32 CustomRound(float X) {

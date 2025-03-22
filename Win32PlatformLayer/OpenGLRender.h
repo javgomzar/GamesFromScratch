@@ -334,9 +334,9 @@ matrix4 GetViewMatrix(camera Camera) {
 void OpenGLCreateVertexBuffer(
 	uint32& VAO,
 	uint32& VBO,
+	int nVertices, 
 	void* Vertices, 
 	GLenum Usage, 
-	int nVertices, 
 	int nAttributes,
 	GLenum* AttributeTypes,
 	int* AttributeSizes
@@ -355,8 +355,15 @@ void OpenGLCreateVertexBuffer(
 
 	uint64 Offset = 0;
 	for (int i = 0; i < nAttributes; i++) {
-		glVertexAttribPointer(i, AttributeSizes[i], AttributeTypes[i], GL_FALSE, VertexSize, (void*)Offset);
-		Offset += AttributeSizes[i] * GetSizeOf(AttributeTypes[i]);
+		GLenum Type = AttributeTypes[i];
+		GLint Size = AttributeSizes[i];
+		if (
+			Type == GL_BYTE || Type == GL_UNSIGNED_BYTE || 
+			Type == GL_SHORT || Type == GL_UNSIGNED_SHORT || 
+			Type == GL_INT || Type == GL_UNSIGNED_INT
+		) glVertexAttribIPointer(i, Size, Type, VertexSize, (void*)Offset);
+		else glVertexAttribPointer(i, Size, Type, GL_FALSE, VertexSize, (void*)Offset);
+		Offset += Size * GetSizeOf(Type);
 	}
 
 	for (int i = 0; i < nAttributes; i++) {
@@ -500,6 +507,11 @@ void OpenGLSetUniform(int ProgramID, const char* Name, color Color) {
 void OpenGLSetUniform(int ProgramID, const char* Name, matrix4 Matrix) {
 	GLint Location = glGetUniformLocation(ProgramID, Name);
 	if (Location >= 0) glUniformMatrix4fv(Location, 1, GL_FALSE, Matrix.Array);
+}
+
+void OpenGLSetUniform(int ProgramID, const char* Name, matrix4* Matrix, int Count) {
+	GLint Location = glGetUniformLocation(ProgramID, Name);
+	if (Location >= 0) glUniformMatrix4fv(Location, Count, GL_FALSE, Matrix->Array);
 }
 
 void OpenGLSetUniform(int ProgramID, matrix4 Projection, matrix4 View, matrix4 Model) {
@@ -762,8 +774,8 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 		uint32 VBO = 0;
 		GLenum Types[2] = {GL_DOUBLE, GL_DOUBLE};
 		int Sizes[2] = {3, 2};
-		OpenGLCreateVertexBuffer(Result.QuadVAO, VBO, QuadVertices, GL_STATIC_DRAW, 6, 2, Types, Sizes);
-		OpenGLCreateVertexBuffer(Result.DebugVAO, VBO, DebugVertices, GL_STATIC_DRAW, 6, 2, Types, Sizes);
+		OpenGLCreateVertexBuffer(Result.QuadVAO, VBO, 6, QuadVertices, GL_STATIC_DRAW, 2, Types, Sizes);
+		OpenGLCreateVertexBuffer(Result.DebugVAO, VBO, 6, DebugVertices, GL_STATIC_DRAW, 2, Types, Sizes);
 
 		// Pixel buffer objects for fast pixel transfers
 		glGenBuffers(1, &Result.VideoPBO); // Use GL_PIXEL_PACK_BUFFER to upload pixels to OpenGL
@@ -856,7 +868,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				if (VAO == 0 || VBO == 0) {
 					int Size = 3;
 					GLenum Type = GL_DOUBLE;
-					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 2, 1, &Type, &Size);
+					OpenGLCreateVertexBuffer(VAO, VBO, 2, Vertices, GL_DYNAMIC_DRAW, 1, &Type, &Size);
 					glBindVertexArray(VAO);
 				}
 				else {
@@ -866,13 +878,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					glBindBuffer(GL_ARRAY_BUFFER, 0);
 				}
 
-				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
 				glUseProgram(Shader->ProgramID);
 
 				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
 
 				matrix4 Projection = GetProjectionMatrix(Entry.Coordinates, Width, Height);
-				matrix4 View = Entry.Coordinates == World_Coordinates ? GetViewMatrix(Group->Camera) : Identity4;
+				matrix4 View = Entry.Coordinates == World_Coordinates ? GetViewMatrix(*Group->Camera) : Identity4;
 				matrix4 Model = Identity4;
 
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
@@ -900,7 +912,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				if (VAO == 0 || VBO == 0) {
 					int Size = 3;
 					GLenum Type = GL_DOUBLE;
-					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 3, 1, &Type, &Size);
+					OpenGLCreateVertexBuffer(VAO, VBO, 3, Vertices, GL_DYNAMIC_DRAW, 1, &Type, &Size);
 				}
 				else {
 					glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -908,13 +920,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					glBindBuffer(GL_ARRAY_BUFFER, 0);
 				}
 
-				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
 				glUseProgram(Shader->ProgramID);
 
 				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
 
 				matrix4 Projection = GetProjectionMatrix(Entry.Coordinates, Width, Height);
-				matrix4 View = Entry.Coordinates == World_Coordinates ? GetViewMatrix(Group->Camera) : Identity4;
+				matrix4 View = Entry.Coordinates == World_Coordinates ? GetViewMatrix(*Group->Camera) : Identity4;
 				matrix4 Model = Identity4;
 
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
@@ -946,7 +958,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					if (VAO == 0 || VBO == 0 || EBO == 0) {
 						int Size = 3;
 						GLenum Type = GL_DOUBLE;
-						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 4, 1, &Type, &Size);
+						OpenGLCreateVertexBuffer(VAO, VBO, 4, Vertices, GL_DYNAMIC_DRAW, 1, &Type, &Size);
 						glBindVertexArray(VAO);
 						uint32 Elements[8] = { 0, 1, 1, 2, 2, 3, 3, 0 };
 						glGenBuffers(1, &EBO);
@@ -960,7 +972,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 						glBindBuffer(GL_ARRAY_BUFFER, 0);
 					}
 
-					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
 					glUseProgram(Shader->ProgramID);
 					OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
 					OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
@@ -990,7 +1002,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					if (VAO == 0 || VBO == 0 || EBO == 0) {
 						GLenum Types[2] = {GL_DOUBLE, GL_DOUBLE};
 						int Sizes[2] = {3, 2};
-						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 4, 2, Types, Sizes);
+						OpenGLCreateVertexBuffer(VAO, VBO, 4, Vertices, GL_DYNAMIC_DRAW, 2, Types, Sizes);
 						glBindVertexArray(VAO);
 						uint32 Elements[6] = { 0, 1, 3, 1, 2, 3 };
 						glGenBuffers(1, &EBO);
@@ -1004,7 +1016,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 						glBindBuffer(GL_ARRAY_BUFFER, 0);
 					}
 
-					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Texture_Shader_Pipeline_ID);
+					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Texture_ID);
 					glUseProgram(Shader->ProgramID);
 					OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
 					OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
@@ -1041,7 +1053,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					if (VAO == 0 || VBO == 0 || EBO == 0) {
 						GLenum Type = GL_DOUBLE;
 						int Size = 3;
-						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, 4, 1, &Type, &Size);
+						OpenGLCreateVertexBuffer(VAO, VBO, 4, Vertices, GL_DYNAMIC_DRAW, 1, &Type, &Size);
 						glBindVertexArray(VAO);
 						uint32 Elements[6] = { 0, 1, 3, 1, 2, 3 };
 						glGenBuffers(1, &EBO);
@@ -1055,7 +1067,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 						glBindBuffer(GL_ARRAY_BUFFER, 0);
 					}
 
-					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
 					glUseProgram(Shader->ProgramID);
 					OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
 					OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
@@ -1112,7 +1124,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					if (VAO == 0 || VBO == 0) {
 						GLenum Type = GL_DOUBLE;
 						int Size = 3;
-						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, nVertices, 1, &Type, &Size);
+						OpenGLCreateVertexBuffer(VAO, VBO, nVertices, Vertices, GL_DYNAMIC_DRAW, 1, &Type, &Size);
 						glBindVertexArray(VAO);
 					}
 					else {
@@ -1122,7 +1134,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 						glBindBuffer(GL_ARRAY_BUFFER, 0);
 					}
 
-					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
 					glUseProgram(Shader->ProgramID);
 
 					matrix4 Projection = GetScreenProjectionMatrix(Width, Height);
@@ -1162,7 +1174,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					if (VAO == 0 || VBO == 0 || EBO == 0) {
 						GLenum Type = GL_DOUBLE;
 						int Size = 3;
-						OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, nVertices, 1, &Type, &Size);
+						OpenGLCreateVertexBuffer(VAO, VBO, nVertices, Vertices, GL_DYNAMIC_DRAW, 1, &Type, &Size);
 						glBindVertexArray(VAO);
 						uint32 Elements[2 * nVertices] = { };
 						for (int i = 0; i < nVertices; i++) {
@@ -1181,7 +1193,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 						glBindBuffer(GL_ARRAY_BUFFER, 0);
 					}
 
-					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
 					glUseProgram(Shader->ProgramID);
 
 					matrix4 Projection = GetScreenProjectionMatrix(Width, Height);
@@ -1205,7 +1217,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 			case group_type_render_entry_text:
 			{
 				render_entry_text Entry = *(render_entry_text*)Header;
-				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Texture_Shader_Pipeline_ID);
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Texture_ID);
 				glUseProgram(Shader->ProgramID);
 
 				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
@@ -1223,7 +1235,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				if (VAO == 0 || VBO == 0) {
 					GLenum Types[2] = {GL_DOUBLE, GL_DOUBLE};
 					int Sizes[2] = {3, 2};
-					OpenGLCreateVertexBuffer(VAO, VBO, NULL, GL_DYNAMIC_DRAW, 6, 2, Types, Sizes);
+					OpenGLCreateVertexBuffer(VAO, VBO, 6, NULL, GL_DYNAMIC_DRAW, 2, Types, Sizes);
 				}
 				
 				glBindVertexArray(VAO);
@@ -1315,14 +1327,15 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				
 			// Mesh vertices
 				game_mesh* Mesh = Entry.Mesh;
+				armature* Armature = Entry.Armature;
 				if (Mesh->VBO) {
 					glBindVertexArray(Mesh->VAO);
 				}
 				else {
-					GLenum Types[5] = {GL_DOUBLE, GL_DOUBLE, GL_DOUBLE, GL_UNSIGNED_INT, GL_DOUBLE};
+					GLenum Types[5] = {GL_DOUBLE, GL_DOUBLE, GL_DOUBLE, GL_INT, GL_DOUBLE};
 					int Sizes[5] = {3, 2, 3, 2, 2};
-					int nAttributes = Mesh->Armature.nBones > 0 ? 5 : 3;
-					OpenGLCreateVertexBuffer(Mesh->VAO, Mesh->VBO, Mesh->Vertices, GL_STATIC_DRAW, Mesh->nVertices, nAttributes, Types, Sizes);
+					int nAttributes = Armature ? 5 : 3;
+					OpenGLCreateVertexBuffer(Mesh->VAO, Mesh->VBO, Mesh->nVertices, Mesh->Vertices, GL_STATIC_DRAW, nAttributes, Types, Sizes);
 					glBindVertexArray(Mesh->VAO);
 	
 					glGenBuffers(1, &Mesh->EBO);
@@ -1331,16 +1344,15 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				}
 
 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Entry.ShaderID);
-				light Light = Entry.Light;
-				transform Transform = Entry.Transform;
+				transform MeshTransform = Entry.Transform;
 
 				glUseProgram(Shader->ProgramID);
 				
 			// Setting uniforms
 				// Projection and modelview matrices
 				matrix4 Projection = GetWorldProjectionMatrix(Width, Height);
-				matrix4 View = GetViewMatrix(Group->Camera);
-				matrix4 Model = Matrix(Transform);
+				matrix4 View = GetViewMatrix(*Group->Camera);
+				matrix4 Model = Matrix(MeshTransform);
 
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 
@@ -1354,21 +1366,31 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				Normal.W = V4(0,0,0,1);
 
 				OpenGLSetUniform(Shader->ProgramID, "u_normal", Normal);
-
-				// Light
+				
+				light Light = Group->Light;
 				OpenGLSetUniform(Shader->ProgramID, "light_direction", Light.Direction);
 				OpenGLSetUniform(Shader->ProgramID, "light_color", V3(Light.Color.R, Light.Color.G, Light.Color.B));
 				OpenGLSetUniform(Shader->ProgramID, "light_ambient", (float)Light.Ambient);
 				OpenGLSetUniform(Shader->ProgramID, "light_diffuse", (float)Light.Diffuse);
 
-				// Color
 				OpenGLSetUniform(Shader->ProgramID, "u_color", Entry.Color);
-
-				// Resolution
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
-
-				// Time 
 				OpenGLSetUniform(Shader->ProgramID, "u_time", (float)Time);
+
+				OpenGLSetUniform(Shader->ProgramID, "nBones", Mesh->Armature.nBones);
+				
+				if (Armature) {
+					matrix4 BoneTransforms[MAX_ARMATURE_BONES] = {};
+					for (int i = 0; i < MAX_ARMATURE_BONES; i++) {
+						matrix4 BoneMatrix = Identity4;
+						if (i < Armature->nBones) {
+							bone Bone = Armature->Bones[i];
+							BoneMatrix = Matrix(Bone.Transform);
+						}
+						BoneTransforms[i] = BoneMatrix;
+					}
+					OpenGLSetUniform(Shader->ProgramID, "bone_transforms", BoneTransforms, MAX_ARMATURE_BONES);
+				}
 
 				game_bitmap* Texture = Entry.Texture;
 
@@ -1378,7 +1400,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				glDrawElements(GL_TRIANGLES, 3 * Mesh->nFaces, GL_UNSIGNED_INT, 0);
 
 				if (Group->Debug) {
-					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Debug_Normals_Shader_Pipeline_ID);
+					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Debug_Normals_ID);
 
 					glUseProgram(Shader->ProgramID);
 					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
@@ -1386,6 +1408,55 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					OpenGLSetUniform(Shader->ProgramID, "u_normal", Normal);
 
 					glDrawArrays(GL_POINTS, 0, Mesh->nVertices);
+
+					Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
+
+					if (Armature) {
+						int nBones = Armature->nBones;
+
+						static uint32 VAO = 0;
+						static uint32 VBO = 0;
+
+						v3 Vertices[2 * MAX_ARMATURE_BONES] = {};
+						float* Pointer = (float*)Vertices;
+						for (int i = 0; i < nBones; i++) {
+							bone Bone = Armature->Bones[i];
+							transform BoneTransform = Bone.Transform;
+							v3 Head = BoneTransform * Bone.Head;
+							v3 Tail = BoneTransform * Bone.Tail;
+
+							*Pointer++ = Head.X;
+							*Pointer++ = Head.Y;
+							*Pointer++ = Head.Z;
+							*Pointer++ = Tail.X;
+							*Pointer++ = Tail.Y;
+							*Pointer++ = Tail.Z;
+						}
+
+						if (VBO == 0 || VAO == 0) {
+							GLenum Type = GL_FLOAT;
+							GLint Size = 3;
+							OpenGLCreateVertexBuffer(VAO, VBO, 2 * nBones, Vertices, GL_DYNAMIC_DRAW, 1, &Type, &Size);
+							glBindVertexArray(VAO);
+						}
+						else {
+							glBindVertexArray(VAO);
+							glBindBuffer(GL_ARRAY_BUFFER, VBO);
+							glBufferSubData(GL_ARRAY_BUFFER, 0, 6 * nBones * sizeof(float), Vertices);
+							glBindBuffer(GL_ARRAY_BUFFER, 0);
+						}
+
+						glUseProgram(Shader->ProgramID);
+
+						OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+						OpenGLSetUniform(Shader->ProgramID, "u_color", Black);
+						glLineWidth(5.0);
+						glDisable(GL_DEPTH_TEST);
+						glDrawArrays(GL_LINES, 0, 2 * nBones);
+						glEnable(GL_DEPTH_TEST);
+
+						glLineWidth(1.0);
+					}
 				}
 
 				glUseProgram(0);
@@ -1400,7 +1471,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				render_entry_heightmap Entry = *(render_entry_heightmap*)Header;
 
 				matrix4 Projection = GetWorldProjectionMatrix(Width, Height);
-				matrix4 View = GetViewMatrix(Group->Camera);
+				matrix4 View = GetViewMatrix(*Group->Camera);
 				matrix4 Model = Identity4;
 
 				game_shader_pipeline* Shader = Entry.Shader;
@@ -1531,7 +1602,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 			{
 				render_entry_mesh_outline Entry = *(render_entry_mesh_outline*)Header;
 
-				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Jump_Flood_Shader_Pipeline_ID);
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Jump_Flood_ID);
 
 				glUseProgram(Shader->ProgramID);
 				OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
@@ -1608,7 +1679,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 				uint32 TargetFramebuffer = Entry.Header.Target == Output ? 0 : OpenGL.Targets[Entry.Target].Framebuffer;
 
-				game_shader_pipeline_id ShaderID = Source.Multisampling ? Antialiasing_Shader_Pipeline_ID : Framebuffer_Shader_Pipeline_ID;
+				game_shader_pipeline_id ShaderID = Source.Multisampling ? Shader_Pipeline_Antialiasing_ID : Shader_Pipeline_Framebuffer_ID;
 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, ShaderID);
 
 				glUseProgram(Shader->ProgramID);
@@ -1675,16 +1746,16 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 					GLenum Type = GL_DOUBLE;
 					int Size = 3;
-					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_STATIC_DRAW, nVertices, 1, &Type, &Size);	
+					OpenGLCreateVertexBuffer(VAO, VBO, nVertices, Vertices, GL_STATIC_DRAW, 1, &Type, &Size);	
 				}
 
 				glBindVertexArray(VAO);
 
-				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
 				glUseProgram(Shader->ProgramID);
 
 				matrix4 Projection = GetWorldProjectionMatrix(Width, Height);
-				matrix4 View = GetViewMatrix(Group->Camera);
+				matrix4 View = GetViewMatrix(*Group->Camera);
 				matrix4 Model = Identity4;
 
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
@@ -1707,7 +1778,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 				render_target Framebuffer = OpenGL.Targets[Entry.Framebuffer];
 
-				game_shader_pipeline_id ShaderID = Framebuffer.Multisampling ? Antialiasing_Shader_Pipeline_ID : Framebuffer_Shader_Pipeline_ID;
+				game_shader_pipeline_id ShaderID = Framebuffer.Multisampling ? Shader_Pipeline_Antialiasing_ID : Shader_Pipeline_Framebuffer_ID;
 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, ShaderID);
 				glUseProgram(Shader->ProgramID);
 
@@ -1757,7 +1828,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				if (VAO == 0 || VBO == 0 || EBO == 0) {
 					GLenum Type = GL_DOUBLE;
 					int Size = 3;
-					OpenGLCreateVertexBuffer(VAO, VBO, Vertices, GL_DYNAMIC_DRAW, MAX_PLOT_BUFFER_SIZE, 1, &Type, &Size);
+					OpenGLCreateVertexBuffer(VAO, VBO, MAX_PLOT_BUFFER_SIZE, Vertices, GL_DYNAMIC_DRAW, 1, &Type, &Size);
 					glBindVertexArray(VAO);
 
 					const int nElements = 2 * MAX_PLOT_BUFFER_SIZE - 2;
@@ -1779,7 +1850,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					glBindBuffer(GL_ARRAY_BUFFER, 0);
 				}
 
-				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Single_Color_Shader_Pipeline_ID);
+				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
 				glUseProgram(Shader->ProgramID);
 
 				matrix4 Projection = GetScreenProjectionMatrix(Width, Height);
