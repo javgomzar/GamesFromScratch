@@ -1,10 +1,8 @@
-#pragma once
-#include <stdint.h>
-#include <time.h>
-
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
 
+#include <stdint.h>
+#include <time.h>
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;

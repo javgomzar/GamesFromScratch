@@ -1127,9 +1127,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Render group
     Group = AllocateRenderGroup(&GameMemory.Assets, &pGameState->RenderArena, Megabytes(4));
 
-    // DebugInfo
-    GameMemory.DebugInfo = PushString(&pGameState->StringsArena, 71, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
-
     Running = true;
     bool FirstFrame = true;
     // Main message loop:
@@ -1412,11 +1409,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         double FPS = 1.0 / ActualSecsElapsed;
         double MegaCyclesPerFrame = CyclesElapsed / 1000000.0;
 
-        sprintf_s(GameMemory.DebugInfo.Content, GameMemory.DebugInfo.Length, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)\0", msPerFrame, FPS, MegaCyclesPerFrame, pGameState->Time);
+        GameMemory.DebugInfo.FPS = FPS;
+        GameMemory.DebugInfo.msPerFrame = msPerFrame;
+        GameMemory.DebugInfo.MCyclesPerFrame = MegaCyclesPerFrame;
+        GameMemory.DebugInfo.SecsElapsed = ActualSecsElapsed;
 
         pGameState->dt = ActualSecsElapsed;
         pGameState->Time += ActualSecsElapsed;
-
 
         if (FirstFrame) {
             pSourceVoice->Start(0, 0);
@@ -1609,7 +1608,6 @@ void LogDebugRecords(render_group* Group, memory_arena* Arena) {
                     DebugRecord->FileName, DebugRecord->LineNumber);
             }
             string String = PushString(Arena, 512, Buffer);
-            if (Group->Debug) PushText(Group, V2(20, Height), Font, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
             Log(Info, Buffer);
             Height += 18;
             DebugRecord->HitCount = 0;

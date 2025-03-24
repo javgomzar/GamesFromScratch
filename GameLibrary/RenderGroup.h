@@ -1,6 +1,7 @@
 #pragma once
 #include "GameAssets.h"
 #include "GameEntity.h"
+#include "GameUI.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Render entries                                                                                                                               |
@@ -873,7 +874,7 @@ void PushEntities(render_group* Group, game_entity_list* List) {
         game_entity Entity = List->Entities[i];
         switch(Entity.Type) {
             case Character: {
-                character* Character = &List->Character[Entity.Index];
+                character* Character = &List->Characters.List[Entity.Index];
                 PushMesh(
                     Group, 
                     Mesh_Body_ID, 

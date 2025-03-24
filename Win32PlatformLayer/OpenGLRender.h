@@ -1357,13 +1357,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 
 				// Normal transform
-				matrix3 Normal3 = inverse(Matrix3(Model));
-
-				matrix4 Normal = Identity4;
-				Normal.X = V4(Normal3.X, 0);
-				Normal.Y = V4(Normal3.Y, 0);
-				Normal.Z = V4(Normal3.Z, 0);
-				Normal.W = V4(0,0,0,1);
+				matrix4 Normal = Matrix4(inverse(Matrix3(Model)));
 
 				OpenGLSetUniform(Shader->ProgramID, "u_normal", Normal);
 				
@@ -1381,15 +1375,20 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				
 				if (Armature) {
 					matrix4 BoneTransforms[MAX_ARMATURE_BONES] = {};
+					matrix4 BoneNormalTransforms[MAX_ARMATURE_BONES] = {};
 					for (int i = 0; i < MAX_ARMATURE_BONES; i++) {
 						matrix4 BoneMatrix = Identity4;
+						matrix4 BoneNormalMatrix = Identity4;
 						if (i < Armature->nBones) {
 							bone Bone = Armature->Bones[i];
 							BoneMatrix = Matrix(Bone.Transform);
+							BoneNormalMatrix = Matrix4(inverse(Matrix3(BoneMatrix)));
 						}
 						BoneTransforms[i] = BoneMatrix;
+						BoneNormalTransforms[i] = BoneNormalMatrix;
 					}
 					OpenGLSetUniform(Shader->ProgramID, "bone_transforms", BoneTransforms, MAX_ARMATURE_BONES);
+					OpenGLSetUniform(Shader->ProgramID, "bone_normal_transforms", BoneNormalTransforms, MAX_ARMATURE_BONES);
 				}
 
 				game_bitmap* Texture = Entry.Texture;
@@ -1406,6 +1405,25 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
 					OpenGLSetUniform(Shader->ProgramID, "u_color", Yellow);
 					OpenGLSetUniform(Shader->ProgramID, "u_normal", Normal);
+					OpenGLSetUniform(Shader->ProgramID, "nBones", Mesh->Armature.nBones);
+
+					if (Armature) {
+						matrix4 BoneTransforms[MAX_ARMATURE_BONES] = {};
+						matrix4 BoneNormalTransforms[MAX_ARMATURE_BONES] = {};
+						for (int i = 0; i < MAX_ARMATURE_BONES; i++) {
+							matrix4 BoneMatrix = Identity4;
+							matrix4 BoneNormalMatrix = Identity4;
+							if (i < Armature->nBones) {
+								bone Bone = Armature->Bones[i];
+								BoneMatrix = Matrix(Bone.Transform);
+								BoneNormalMatrix = Matrix4(inverse(Matrix3(BoneMatrix)));
+							}
+							BoneTransforms[i] = BoneMatrix;
+							BoneNormalTransforms[i] = BoneNormalMatrix;
+						}
+						OpenGLSetUniform(Shader->ProgramID, "bone_transforms", BoneTransforms, MAX_ARMATURE_BONES);
+						OpenGLSetUniform(Shader->ProgramID, "bone_normal_transforms", BoneNormalTransforms, MAX_ARMATURE_BONES);
+					}
 
 					glDrawArrays(GL_POINTS, 0, Mesh->nVertices);
 

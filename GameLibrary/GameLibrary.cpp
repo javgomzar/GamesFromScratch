@@ -169,7 +169,12 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
-        PushText(Group, V2(0, 30.0), GetAsset(Assets, Font_Cascadia_Mono_ID), Memory->DebugInfo, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
+        
+    // DebugInfo
+        string Buffer = PushString(&pGameState->TransientArena, 128, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
+        sprintf_s(Buffer.Content, 128, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", Memory->DebugInfo.msPerFrame, Memory->DebugInfo.FPS, Memory->DebugInfo.MCyclesPerFrame, pGameState->Time);
+
+        PushText(Group, V2(0, 30.0), GetAsset(Assets, Font_Cascadia_Mono_ID), Buffer, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
 
         // Debug arenas
         PushDebugArena(Group, pGameState->TransientArena, V2(20.0, 120.0), Alpha);
@@ -220,14 +225,14 @@ extern "C" GAME_UPDATE(GameUpdate)
     LogGameDebugRecords(Group, &pGameState->TransientArena);
 }
 
-debug_record DebugRecordArray_GameLibrary[__COUNTER__];
+debug_record DebugRecordArray[__COUNTER__];
 
 void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
     char Buffer[512];
     int Height = 270;
     game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
-    for (int i = 0; i < ArrayCount(DebugRecordArray_GameLibrary); i++) {
-        debug_record* DebugRecord = DebugRecordArray_GameLibrary + i;
+    for (int i = 0; i < ArrayCount(DebugRecordArray); i++) {
+        debug_record* DebugRecord = DebugRecordArray + i;
 
         if (DebugRecord->HitCount) {
             if (DebugRecord->HitCount == 1) {
@@ -242,7 +247,6 @@ void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
             string String = PushString(TransientArena, 512, Buffer);
             if (Group->Debug) PushText(Group, V2(20, Height), Font, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
             Height += 10;
-            Log(Info, Buffer);
             DebugRecord->HitCount = 0;
             DebugRecord->CycleCount = 0;
         }

@@ -750,6 +750,15 @@ inline matrix3 Matrix3(matrix4 Matrix) {
 	};
 }
 
+inline matrix4 Matrix4(matrix3 Matrix) {
+	matrix4 Result;
+	Result.X = V4(Matrix.X, 0);
+	Result.Y = V4(Matrix.Y, 0);
+	Result.Z = V4(Matrix.Z, 0);
+	Result.W = V4(0,0,0,1);
+	return Result;
+}
+
 // Complex numbers
 struct complex {
 	double r; // Real part
@@ -1053,5 +1062,128 @@ struct affine_plane {
 //	return dot(Vector, Plane.Base[0]) * Plane.Base[0] + dot(Vector, Plane.Base[1]) * Plane.Base[1];
 //}
 
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Colliders                                                                                                                                    |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+enum collider_type {
+    Rect_Collider,
+    Cube_Collider,
+    Sphere_Collider
+};
+
+struct collider {
+    collider_type Type;
+    v3 Center;
+    scale Scale;
+};
+
+bool Collide(collider Collider, v3 Position) {
+    switch(Collider.Type) {
+        case Rect_Collider: {
+            return fabs(Position.X - Collider.Center.X) < Collider.Scale.X / 2.0f &&
+                   fabs(Position.Y - Collider.Center.Y) < Collider.Scale.Y / 2.0f;
+        } break;
+
+        case Cube_Collider: {
+            return fabs(Position.X - Collider.Center.X) < Collider.Scale.X / 2.0 &&
+                   fabs(Position.Y - Collider.Center.Y) < Collider.Scale.Y / 2.0 &&
+                   fabs(Position.Z - Collider.Center.Z) < Collider.Scale.Z / 2.0;
+        } break;
+
+        case Sphere_Collider: {
+            return modulus(Position - Collider.Center) < Collider.Scale.X;
+        } break;
+    }
+    return false;
+}
+
+/*
+Fast Ray-Box Intersection
+by Andrew Woo
+from "Graphics Gems", Academic Press, 1990
+*/
+bool HitBoundingBox(double minB[3], double maxB[3], double origin[3], double dir[3], double coord[3])
+/* double minB[NUMDIM], maxB[NUMDIM];		box */
+/* double origin[NUMDIM], dir[NUMDIM];		ray */
+/* double coord[NUMDIM];			hit point   */
+{
+    bool inside = true;
+    char quadrant[3];
+    register int i;
+    int whichPlane;
+    double maxT[3];
+    double candidatePlane[3];
+    char LEFT = 1;
+    char RIGHT = 0;
+    char MIDDLE = 2;
+
+    /* Find candidate planes; this loop can be avoided if
+    rays cast all from the eye(assume perpsective view) */
+    for (i = 0; i < 3; i++)
+        if (origin[i] < minB[i]) {
+            quadrant[i] = LEFT;
+            candidatePlane[i] = minB[i];
+            inside = false;
+        }
+        else if (origin[i] > maxB[i]) {
+            quadrant[i] = RIGHT;
+            candidatePlane[i] = maxB[i];
+            inside = false;
+        }
+        else {
+            quadrant[i] = MIDDLE;
+        }
+
+    /* Ray origin inside bounding box */
+    if (inside) {
+        coord = origin;
+        return true;
+    }
+
+
+    /* Calculate T distances to candidate planes */
+    for (i = 0; i < 3; i++)
+        if (quadrant[i] != MIDDLE && dir[i] != 0.)
+            maxT[i] = (candidatePlane[i] - origin[i]) / dir[i];
+        else
+            maxT[i] = -1.;
+
+    /* Get largest of the maxT's for final choice of intersection */
+    whichPlane = 0;
+    for (i = 1; i < 3; i++)
+        if (maxT[whichPlane] < maxT[i])
+            whichPlane = i;
+
+    /* Check final candidate actually inside box */
+    if (maxT[whichPlane] < 0.) return false;
+    for (i = 0; i < 3; i++)
+        if (whichPlane != i) {
+            coord[i] = origin[i] + maxT[whichPlane] * dir[i];
+            if (coord[i] < minB[i] || coord[i] > maxB[i])
+                return false;
+        }
+        else {
+            coord[i] = candidatePlane[i];
+        }
+    return true;				/* ray hits box */
+}
+
+bool Raycast(v3 Origin, v3 Direction, collider Collider) {
+    Assert(Collider.Type == Cube_Collider);
+    double minB[3] = { 0 };
+    minB[0] = Collider.Center.X - Collider.Scale.X / 2.0;
+    minB[1] = Collider.Center.Y - Collider.Scale.Y / 2.0;
+    minB[2] = Collider.Center.Z - Collider.Scale.Z / 2.0;
+    double maxB[3] = { 0 };
+    maxB[0] = Collider.Center.X + Collider.Scale.X / 2.0;
+    maxB[1] = Collider.Center.Y + Collider.Scale.Y / 2.0;
+    maxB[2] = Collider.Center.Z + Collider.Scale.Z / 2.0;
+    double origin[3] = { Origin.X, Origin.Y, Origin.Z };
+    double dir[3] = { Direction.X, Direction.Y, Direction.Z };
+    double coord[3] = { 0,0,0 };
+
+    return HitBoundingBox(minB, maxB, origin, dir, coord);
+}
 
 #endif

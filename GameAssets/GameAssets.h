@@ -71,6 +71,7 @@ enum game_mesh_id {
 
 enum game_animation_id {
     Animation_Walking_ID,
+    Animation_Jumping_ID,
 
     game_animation_id_count
 };
@@ -844,7 +845,6 @@ game_font AssetLoadFont(memory_arena* Arena, game_asset* Asset) {
 
 struct bone {
     int ID;
-    int ParentID;
     char Name[32];
     v3 Head;
     v3 Tail;
@@ -1062,8 +1062,6 @@ game_mesh AssetLoadMesh(memory_arena* Arena, game_asset* Asset) {
             Pointer++;
             ParseString(Pointer, Bone.Name);
             Pointer++;
-            Bone.ParentID = ParseInt(Pointer);
-            Pointer++;
             Bone.Head = ParseV3(Pointer);
             Pointer++;
             Bone.Tail = ParseV3(Pointer);
@@ -1091,6 +1089,7 @@ struct game_animator {
     armature* Armature;
     uint32 CurrentFrame;
     bool Active;
+    bool Loop;
 };
 
 void Update(game_animator* Animator) {
@@ -1116,6 +1115,7 @@ void Update(game_animator* Animator) {
         Animator->CurrentFrame++;
         if (Animator->CurrentFrame >= Animation->nFrames - 1) {
             Animator->CurrentFrame = 0;
+            if (!Animator->Loop) Animator->Active = false;
         }
     }
     else {
@@ -1159,6 +1159,7 @@ uint64 ComputeNeededMemoryForAnimation(read_file_result File) {
 
 game_animation AssetLoadAnimation(memory_arena* Arena, game_asset* Asset) {
     game_animation Result = {};
+    Result.ID = Asset->ID.Animation;
 
     GetAnimationSizes((char*)Asset->File.Content, &Result.nFrames, &Result.nBones);
 
@@ -1715,6 +1716,7 @@ void WriteAssetFile() {
 
     // Animation
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Animations\\Walking.anim", Animation_Walking_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Animations\\Jumping.anim", Animation_Jumping_ID);
 
     // Video
     //PushAsset(&Assets, "..\\Assets\\Videos\\The Witness.mp4", Video_Test_ID);

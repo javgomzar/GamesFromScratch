@@ -28,8 +28,22 @@ extern GAMELIBRARY_API int nGameLibrary;
 
 #include "RenderGroup.h"
 
+// +---------------------------------------------------------------------------------------------------------------------------------+
+// | Debug info                                                                                                                      |
+// +---------------------------------------------------------------------------------------------------------------------------------+
 
-// Game Memory
+struct debug_info {
+    double SecsElapsed;
+    double FPS;
+    double msPerFrame;
+    double MCyclesPerFrame;
+};
+
+
+// +---------------------------------------------------------------------------------------------------------------------------------+
+// | Game memory                                                                                                                     |
+// +---------------------------------------------------------------------------------------------------------------------------------+
+
 struct game_memory {
     bool IsInitialized;
     uint64 PermanentStorageSize;
@@ -37,7 +51,7 @@ struct game_memory {
     platform_api Platform;
     game_assets Assets;
     render_group* Group;
-    string DebugInfo;
+    debug_info DebugInfo;
 };
 
 #define GAME_UPDATE(name) void GAMELIBRARY_API name(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, render_group* Group, game_input* Input)

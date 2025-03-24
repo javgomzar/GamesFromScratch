@@ -2,17 +2,14 @@ from dataclasses import dataclass, field
 import bpy # type: ignore
 from mathutils import Vector # type: ignore
 import os
-from math import sqrt
 
 
 @dataclass
 class Bone:
     id: int
     name: str
-    parent: str
     head: Vector
     tail: Vector
-    parent_id: int = -1
 
 @dataclass
 class Vertex:
@@ -37,11 +34,8 @@ def collect_bones(mesh) -> dict[str, Bone]:
     id = 0
     for bone_name, bone in mesh.parent.data.bones.items():
         if bone_name.split("_")[0] not in exclude:
-            result[bone_name] = Bone(id, bone_name, bone.parent.name if bone.parent else None, bone.head_local, bone.tail_local)
+            result[bone_name] = Bone(id, bone_name, bone.head_local, bone.tail_local)
             id += 1
-    for bone in result.values():
-        if bone.parent:
-            bone.parent_id = result[bone.parent].id
     return result
 
 def consolidate_loops(loops: list[Loop]) -> list[Loop]:
@@ -55,7 +49,7 @@ def consolidate_loops(loops: list[Loop]) -> list[Loop]:
                 break
         else:
             result.append(loop)
-    result.sort(key=lambda x: x.id, )
+    result.sort(key=lambda x: x.id)
     return result
 
 
@@ -150,7 +144,7 @@ def export_vertices(output_path):
     # Bones loop
     if nBones > 0:
         for bone in bones.values():
-            lines.append(f"{bone.id} {bone.name} {bone.parent_id} {bone.head.x:.6f} {bone.head.z:.6f} {bone.head.y:.6f} {bone.tail.x:.6f} {bone.tail.z:.6f} {bone.tail.y:.6f}")
+            lines.append(f"{bone.id} {bone.name} {bone.head.x:.6f} {bone.head.z:.6f} {bone.head.y:.6f} {bone.tail.x:.6f} {bone.tail.z:.6f} {bone.tail.y:.6f}")
     
     # Exporting file
     with open(output_path, "w") as out_file:

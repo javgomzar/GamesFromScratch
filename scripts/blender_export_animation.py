@@ -8,10 +8,8 @@ from mathutils import Vector # type: ignore
 class Bone:
     id: int
     name: str
-    parent: str
     head: Vector
     tail: Vector
-    parent_id: int = -1
 
 
 def collect_bones(armature) -> dict[str, Bone]:
@@ -20,11 +18,8 @@ def collect_bones(armature) -> dict[str, Bone]:
     id = 0
     for bone_name, bone in armature.data.bones.items():
         if bone_name.split("_")[0] not in exclude:
-            result[bone_name] = Bone(id, bone_name, bone.parent.name if bone.parent else None, bone.head_local, bone.tail_local)
+            result[bone_name] = Bone(id, bone_name, bone.head_local, bone.tail_local)
             id += 1
-    for bone in result.values():
-        if bone.parent:
-            bone.parent_id = result[bone.parent].id
     return result
 
 def export_animation(filepath):

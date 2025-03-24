@@ -12,45 +12,6 @@
 */
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
-// | Timing                                                                                                                          |
-// +---------------------------------------------------------------------------------------------------------------------------------+
-
-#define TIMED_BLOCK__(FunctionName) timed_block TimedBlock_##FunctionName(__COUNTER__, __FILE__, __LINE__, __FUNCTION__)
-#define TIMED_BLOCK_(Line) TIMED_BLOCK__(Line);
-#define TIMED_BLOCK TIMED_BLOCK_(__LINE__)
-
-struct debug_record {
-    uint64 CycleCount;
-    
-    char* FileName;
-    char* FunctionName;
-    
-    int LineNumber;
-    int HitCount;
-};
-
-debug_record DebugRecordArray[];
-
-struct timed_block {
-    debug_record* Record;
-    uint64 StartCycles;
-
-    timed_block(int Counter, char* FileName, int LineNumber, char* FunctionName) {
-        Record = DebugRecordArray + Counter;
-        Record->FileName = FileName;
-        Record->FunctionName = FunctionName;
-        Record->LineNumber = LineNumber;
-        Record->HitCount++; 
-        StartCycles = __rdtsc();
-    }
-
-    ~timed_block() {
-        Record->CycleCount += __rdtsc() - StartCycles;
-    }
-};
-
-
-// +---------------------------------------------------------------------------------------------------------------------------------+
 // | Logging                                                                                                                         |
 // +---------------------------------------------------------------------------------------------------------------------------------+
 
@@ -130,6 +91,45 @@ void Log(log_level Level, const char* Content) {
         } break;
     }
 }
+
+// +---------------------------------------------------------------------------------------------------------------------------------+
+// | Timing                                                                                                                          |
+// +---------------------------------------------------------------------------------------------------------------------------------+
+
+#define TIMED_BLOCK__(FunctionName) timed_block TimedBlock_##FunctionName(__COUNTER__, __FILE__, __LINE__, __FUNCTION__)
+#define TIMED_BLOCK_(Line) TIMED_BLOCK__(Line);
+#define TIMED_BLOCK TIMED_BLOCK_(__LINE__)
+
+struct debug_record {
+    uint64 CycleCount;
+    
+    char* FileName;
+    char* FunctionName;
+    
+    int LineNumber;
+    int HitCount;
+};
+
+debug_record DebugRecordArray[];
+
+struct timed_block {
+    debug_record* Record;
+    uint64 StartCycles;
+
+    timed_block(int Counter, char* FileName, int LineNumber, char* FunctionName) {
+        Record = DebugRecordArray + Counter;
+        Record->FileName = FileName;
+        Record->FunctionName = FunctionName;
+        Record->LineNumber = LineNumber;
+        Record->HitCount++; 
+        StartCycles = __rdtsc();
+    }
+
+    ~timed_block() {
+        Record->CycleCount += __rdtsc() - StartCycles;
+    }
+};
+
 
 #define WIN32_DEBUG_H
 #endif
