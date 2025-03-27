@@ -63,8 +63,8 @@ enum game_mesh_id {
     Mesh_Enemy_ID,
     Mesh_Sphere_ID,
     Mesh_Body_ID,
-    //Mesh_Shield_ID,
-    //Mesh_Sword_ID,
+    Mesh_Shield_ID,
+    Mesh_Sword_ID,
     
     game_mesh_id_count
 };
@@ -1713,6 +1713,8 @@ void WriteAssetFile() {
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Enemy.mdl", Mesh_Enemy_ID);
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Sphere.mdl", Mesh_Sphere_ID);
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Body.mdl", Mesh_Body_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Sword.mdl", Mesh_Sword_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Shield.mdl", Mesh_Shield_ID);
 
     // Animation
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Animations\\Walking.anim", Animation_Walking_ID);

@@ -22,27 +22,12 @@
 //    return;
 //}
 
-/*
-    TODO:
-        - Entity system
-*/
-
 // Game logic
-bool Collision(game_rect Rect, v3 Cursor) {
+bool Collision(rectangle Rect, v3 Cursor) {
     return Cursor.X > Rect.Left &&
         Cursor.X < Rect.Left + Rect.Width &&
         Cursor.Y > Rect.Top &&
         Cursor.Y < Rect.Top + Rect.Height;
-}
-
-color Lighten(color RGB) {
-    color Result;
-
-    Result.R = min(RGB.R + Attenuation, 255);
-    Result.G = min(RGB.G + Attenuation, 255);
-    Result.B = min(RGB.B + Attenuation, 255);
-
-    return Result;
 }
 
 // Sound
@@ -131,7 +116,10 @@ extern "C" GAME_UPDATE(GameUpdate)
         // Initialize entities
         AddCamera(EntityList, V3(0.0, 3.2, 0.0));
         AddCharacter(EntityList, V3(0,0,0), 100);
-        AddEnemy(EntityList, V3(5.0, 3.0, 0.0), 100);
+        AddEnemy(EntityList, V3(5.0, 3.0, 10.0), 100);
+        AddWeapon(EntityList, Sword, White, V3(10.0, 0, 15.0));
+        AddWeapon(EntityList, Shield, White, V3(10.0, 2.0, 10.0));
+        AddProp(EntityList, Mesh_Sphere_ID, Shader_Pipeline_Sphere_ID, Red, V3(5.0, 0.0, 5.0), Quaternion(1,0,0,0), Scale(5.0, 1.0, 1.0));
         
         Memory->IsInitialized = true;
     }
@@ -149,7 +137,10 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // Debug info
     static double Alpha = 0.0;
-    if (Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown) {
+    if (
+        Input->Mode == Keyboard && Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown || 
+        Input->Mode == Controller && Input->Controller.Start.IsDown && !Input->Controller.Start.WasDown
+    ) {
         Group->Debug = !Group->Debug;
         if (!Group->Debug) {
             Alpha = 0.0;
@@ -163,9 +154,21 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
         else Alpha = 1.0;
 
+        if (Input->Keyboard.N.IsDown && !Input->Keyboard.N.WasDown) {
+            Group->DebugNormals = !Group->DebugNormals;
+        }
+
+        if (Input->Keyboard.B.IsDown && !Input->Keyboard.B.WasDown) {
+            Group->DebugBones = !Group->DebugBones;
+        }
+
+        if (Input->Keyboard.C.IsDown && !Input->Keyboard.C.WasDown) {
+            Group->DebugColliders = !Group->DebugColliders;
+        }
+
         PushDebugGrid(Group, Alpha);
 
-        game_rect DebugInfoRect = { 0, 0, 350, 250 };
+        rectangle DebugInfoRect = { 0, 0, 350, 250 };
 
         PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
@@ -215,7 +218,7 @@ extern "C" GAME_UPDATE(GameUpdate)
             ScreenRectAlpha = 1.0;
         }
         else {
-            game_rect ScreenRect = { 0, 0, Group->Width, Group->Height };
+            rectangle ScreenRect = { 0, 0, Group->Width, Group->Height };
             PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }

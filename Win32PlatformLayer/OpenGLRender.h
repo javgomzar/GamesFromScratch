@@ -845,16 +845,14 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 		DebugTypes[EntryIndex] = Header->Type;
 
 		switch (Header->Type) {
-			case group_type_render_entry_clear:
-			{
+			case group_type_render_entry_clear: {
 				render_entry_clear Entry = *(render_entry_clear*)Header;
 
 				glClearColor(Entry.Color.R, Entry.Color.G, Entry.Color.B, 4.0 * Entry.Color.Alpha);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			} break;
 
-			case group_type_render_entry_line:
-			{
+			case group_type_render_entry_line: {
 				render_entry_line Entry = *(render_entry_line*)Header;
 
 				double Vertices[6] = {
@@ -894,10 +892,10 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 				glUseProgram(0);
 				glBindVertexArray(0);
+				glLineWidth(2.0f);
 			} break;
 
-			case group_type_render_entry_triangle:
-			{
+			case group_type_render_entry_triangle: {
 				render_entry_triangle Entry = *(render_entry_triangle*)Header;
 
 				double Vertices[9] = {
@@ -938,8 +936,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				glBindVertexArray(0);
 			} break;
 
-			case group_type_render_entry_rect:
-			{
+			case group_type_render_entry_rect: {
 				render_entry_rect Entry = *(render_entry_rect*)Header;
 
 				// Rect outline
@@ -1088,8 +1085,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				glUseProgram(0);
 			} break;
 
-			case group_type_render_entry_circle:
-			{
+			case group_type_render_entry_circle: {
 				render_entry_circle Entry = *(render_entry_circle*)Header;
 				
 				if (Entry.Fill) {
@@ -1106,13 +1102,14 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					Vertices[1] = Entry.Center.Y;
 					Vertices[2] = 0.0;
 
-					double dTheta = Tau / N;
+					double dTheta = Entry.Angle * Degrees / N;
 					double Theta = 0.0;
 					double* Pointer = Vertices + 3;
 					for (int i = 0; i < N; i++) {
-						*Pointer++ = Entry.Center.X + Entry.Radius * cos(Theta);
-						*Pointer++ = Entry.Center.Y + Entry.Radius * sin(Theta);
-						*Pointer++ = 0.0;
+						v3 Position = Entry.Center + Entry.Radius * cos(Theta) * Entry.Basis.X + Entry.Radius * sin(Theta) * Entry.Basis.Y;
+						*Pointer++ = Position.X;
+						*Pointer++ = Position.Y;
+						*Pointer++ = Position.Z;
 
 						Theta += dTheta;
 					}
@@ -1137,8 +1134,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
 					glUseProgram(Shader->ProgramID);
 
-					matrix4 Projection = GetScreenProjectionMatrix(Width, Height);
-					matrix4 View = Identity4;
+					matrix4 Projection = GetProjectionMatrix(Entry.Coordinates, Width, Height);
+					matrix4 View = Entry.Coordinates == World_Coordinates ? GetViewMatrix(*Group->Camera) : Identity4;
 					matrix4 Model = Identity4;
 
 					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
@@ -1160,13 +1157,14 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 
 					double Vertices[3 * nVertices] = { 0 };
 
-					double dTheta = Tau / N;
+					double dTheta = Entry.Angle * Degrees / (Entry.Angle < 360.0f ? N - 1 : N);
 					double Theta = 0.0;
 					double* Pointer = Vertices;
 					for (int i = 0; i < N; i++) {
-						*Pointer++ = Entry.Center.X + Entry.Radius * cos(Theta);
-						*Pointer++ = Entry.Center.Y + Entry.Radius * sin(Theta);
-						*Pointer++ = 0.0;
+						v3 Position = Entry.Center + Entry.Radius * cos(Theta) * Entry.Basis.X + Entry.Radius * sin(Theta) * Entry.Basis.Y;
+						*Pointer++ = Position.X;
+						*Pointer++ = Position.Y;
+						*Pointer++ = Position.Z;
 
 						Theta += dTheta;
 					}
@@ -1196,8 +1194,8 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
 					glUseProgram(Shader->ProgramID);
 
-					matrix4 Projection = GetScreenProjectionMatrix(Width, Height);
-					matrix4 View = Identity4;
+					matrix4 Projection = GetProjectionMatrix(Entry.Coordinates, Width, Height);
+					matrix4 View = Entry.Coordinates == World_Coordinates ? GetViewMatrix(*Group->Camera) : Identity4;;
 					matrix4 Model = Identity4;
 
 					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
@@ -1206,9 +1204,12 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 					OpenGLSetUniform(Shader->ProgramID, "u_resolution", V2(Width, Height));
 					
 					glLineWidth(Entry.Thickness);
-					glDrawElements(GL_LINES, 2 * nVertices, GL_UNSIGNED_INT, 0);
+					// If it's an arc of circunference, dont draw the last line that connects start and end
+					int nElements = Entry.Angle < 360.0f ? 2 * nVertices - 2 : 2 * nVertices;
+					glDrawElements(GL_LINES, nElements, GL_UNSIGNED_INT, 0);
 				}
 
+				glLineWidth(2.0f);
 				glUseProgram(0);
 				glBindVertexArray(0);
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -1399,81 +1400,83 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				glDrawElements(GL_TRIANGLES, 3 * Mesh->nFaces, GL_UNSIGNED_INT, 0);
 
 				if (Group->Debug) {
-					game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Debug_Normals_ID);
-
-					glUseProgram(Shader->ProgramID);
-					OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
-					OpenGLSetUniform(Shader->ProgramID, "u_color", Yellow);
-					OpenGLSetUniform(Shader->ProgramID, "u_normal", Normal);
-					OpenGLSetUniform(Shader->ProgramID, "nBones", Mesh->Armature.nBones);
-
-					if (Armature) {
-						matrix4 BoneTransforms[MAX_ARMATURE_BONES] = {};
-						matrix4 BoneNormalTransforms[MAX_ARMATURE_BONES] = {};
-						for (int i = 0; i < MAX_ARMATURE_BONES; i++) {
-							matrix4 BoneMatrix = Identity4;
-							matrix4 BoneNormalMatrix = Identity4;
-							if (i < Armature->nBones) {
-								bone Bone = Armature->Bones[i];
-								BoneMatrix = Matrix(Bone.Transform);
-								BoneNormalMatrix = Matrix4(inverse(Matrix3(BoneMatrix)));
-							}
-							BoneTransforms[i] = BoneMatrix;
-							BoneNormalTransforms[i] = BoneNormalMatrix;
-						}
-						OpenGLSetUniform(Shader->ProgramID, "bone_transforms", BoneTransforms, MAX_ARMATURE_BONES);
-						OpenGLSetUniform(Shader->ProgramID, "bone_normal_transforms", BoneNormalTransforms, MAX_ARMATURE_BONES);
-					}
-
-					glDrawArrays(GL_POINTS, 0, Mesh->nVertices);
-
-					Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
-
-					if (Armature) {
-						int nBones = Armature->nBones;
-
-						static uint32 VAO = 0;
-						static uint32 VBO = 0;
-
-						v3 Vertices[2 * MAX_ARMATURE_BONES] = {};
-						float* Pointer = (float*)Vertices;
-						for (int i = 0; i < nBones; i++) {
-							bone Bone = Armature->Bones[i];
-							transform BoneTransform = Bone.Transform;
-							v3 Head = BoneTransform * Bone.Head;
-							v3 Tail = BoneTransform * Bone.Tail;
-
-							*Pointer++ = Head.X;
-							*Pointer++ = Head.Y;
-							*Pointer++ = Head.Z;
-							*Pointer++ = Tail.X;
-							*Pointer++ = Tail.Y;
-							*Pointer++ = Tail.Z;
-						}
-
-						if (VBO == 0 || VAO == 0) {
-							GLenum Type = GL_FLOAT;
-							GLint Size = 3;
-							OpenGLCreateVertexBuffer(VAO, VBO, 2 * nBones, Vertices, GL_DYNAMIC_DRAW, 1, &Type, &Size);
-							glBindVertexArray(VAO);
-						}
-						else {
-							glBindVertexArray(VAO);
-							glBindBuffer(GL_ARRAY_BUFFER, VBO);
-							glBufferSubData(GL_ARRAY_BUFFER, 0, 6 * nBones * sizeof(float), Vertices);
-							glBindBuffer(GL_ARRAY_BUFFER, 0);
-						}
+					if (Group->DebugNormals) {
+						Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Debug_Normals_ID);
 
 						glUseProgram(Shader->ProgramID);
-
 						OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
-						OpenGLSetUniform(Shader->ProgramID, "u_color", Black);
-						glLineWidth(5.0);
-						glDisable(GL_DEPTH_TEST);
-						glDrawArrays(GL_LINES, 0, 2 * nBones);
-						glEnable(GL_DEPTH_TEST);
+						OpenGLSetUniform(Shader->ProgramID, "u_color", Yellow);
+						OpenGLSetUniform(Shader->ProgramID, "u_normal", Normal);
+						OpenGLSetUniform(Shader->ProgramID, "nBones", Mesh->Armature.nBones);
+	
+						if (Armature) {
+							matrix4 BoneTransforms[MAX_ARMATURE_BONES] = {};
+							matrix4 BoneNormalTransforms[MAX_ARMATURE_BONES] = {};
+							for (int i = 0; i < MAX_ARMATURE_BONES; i++) {
+								matrix4 BoneMatrix = Identity4;
+								matrix4 BoneNormalMatrix = Identity4;
+								if (i < Armature->nBones) {
+									bone Bone = Armature->Bones[i];
+									BoneMatrix = Matrix(Bone.Transform);
+									BoneNormalMatrix = Matrix4(inverse(Matrix3(BoneMatrix)));
+								}
+								BoneTransforms[i] = BoneMatrix;
+								BoneNormalTransforms[i] = BoneNormalMatrix;
+							}
+							OpenGLSetUniform(Shader->ProgramID, "bone_transforms", BoneTransforms, MAX_ARMATURE_BONES);
+							OpenGLSetUniform(Shader->ProgramID, "bone_normal_transforms", BoneNormalTransforms, MAX_ARMATURE_BONES);
+						}
+						glLineWidth(1.0f);
+						glDrawArrays(GL_POINTS, 0, Mesh->nVertices);
+					}
 
-						glLineWidth(1.0);
+					if (Group->DebugBones) {
+						Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Single_Color_ID);
+
+						if (Armature) {
+							int nBones = Armature->nBones;
+	
+							static uint32 VAO = 0;
+							static uint32 VBO = 0;
+	
+							v3 Vertices[2 * MAX_ARMATURE_BONES] = {};
+							float* Pointer = (float*)Vertices;
+							for (int i = 0; i < nBones; i++) {
+								bone Bone = Armature->Bones[i];
+								transform BoneTransform = Bone.Transform;
+								v3 Head = BoneTransform * Bone.Head;
+								v3 Tail = BoneTransform * Bone.Tail;
+	
+								*Pointer++ = Head.X;
+								*Pointer++ = Head.Y;
+								*Pointer++ = Head.Z;
+								*Pointer++ = Tail.X;
+								*Pointer++ = Tail.Y;
+								*Pointer++ = Tail.Z;
+							}
+	
+							if (VBO == 0 || VAO == 0) {
+								GLenum Type = GL_FLOAT;
+								GLint Size = 3;
+								OpenGLCreateVertexBuffer(VAO, VBO, 2 * nBones, Vertices, GL_DYNAMIC_DRAW, 1, &Type, &Size);
+								glBindVertexArray(VAO);
+							}
+							else {
+								glBindVertexArray(VAO);
+								glBindBuffer(GL_ARRAY_BUFFER, VBO);
+								glBufferSubData(GL_ARRAY_BUFFER, 0, 6 * nBones * sizeof(float), Vertices);
+								glBindBuffer(GL_ARRAY_BUFFER, 0);
+							}
+	
+							glUseProgram(Shader->ProgramID);
+	
+							OpenGLSetUniform(Shader->ProgramID, Projection, View, Model);
+							OpenGLSetUniform(Shader->ProgramID, "u_color", Black);
+							glLineWidth(5.0f);
+							glDisable(GL_DEPTH_TEST);
+							glDrawArrays(GL_LINES, 0, 2 * nBones);
+							glEnable(GL_DEPTH_TEST);
+						}
 					}
 				}
 
@@ -1482,6 +1485,7 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
 				glBindTexture(GL_TEXTURE_2D, 0);
+				glLineWidth(2.0f);
 			} break;
 
 			case group_type_render_entry_heightmap: {
@@ -1780,11 +1784,13 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				OpenGLSetUniform(Shader->ProgramID, "u_color", Color(White, 0.6));
 				
 				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+				glLineWidth(1.0f);
 				glDrawArrays(GL_LINES, 0, nVertices);
 				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
 				glBindVertexArray(0);
 				glUseProgram(0);
+				glLineWidth(2.0f);
 			} break;
 
 			case group_type_render_entry_debug_framebuffer:

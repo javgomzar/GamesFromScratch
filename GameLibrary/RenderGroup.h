@@ -44,9 +44,9 @@ enum coordinate_system {
 };
 
 enum wrap_mode {
-    Clamp,
-    Repeat,
-    Crop
+    Wrap_Clamp,
+    Wrap_Repeat,
+    Wrap_Crop
 };
 
 struct sort_key {
@@ -82,7 +82,8 @@ struct render_entry_circle {
     render_group_header Header;
     coordinate_system Coordinates;
     v3 Center;
-    v3 Normal;
+    basis Basis;
+    double Angle;
     double Radius;
     color Color;
     float Thickness;
@@ -92,13 +93,13 @@ struct render_entry_circle {
 struct render_entry_triangle {
     render_group_header Header;
     coordinate_system Coordinates;
-    game_triangle Triangle;
+    triangle Triangle;
     color Color;
 };
 
 struct render_entry_rect {
     render_group_header Header;
-    game_rect Rect;
+    rectangle Rect;
     color Color;
     game_bitmap* Texture;
     wrap_mode Mode;
@@ -139,7 +140,7 @@ struct render_entry_button {
 struct render_entry_video {
     render_group_header Header;
     //game_video* Video;
-    game_rect Rect;
+    rectangle Rect;
 };
 
 struct light {
@@ -301,6 +302,9 @@ struct render_group {
     camera* Camera;
     light Light;
     bool Debug;
+    bool DebugNormals;
+    bool DebugBones;
+    bool DebugColliders;
     bool PushOutline;
 };
 
@@ -430,7 +434,7 @@ void PushLine(
 
 void PushTriangle(
     render_group* Group,
-    game_triangle Triangle,
+    triangle Triangle,
     color Color,
     coordinate_system Coordinates = Screen_Coordinates,
     double Order = 0.0
@@ -455,16 +459,17 @@ void PushCircle(
     Entry->Header.Key.Order = Order;
     Entry->Fill = true;
     Entry->Center = V3(Center.X, Center.Y, 0.0);
-    Entry->Normal = V3(0.0, 0.0, -1.0);
+    Entry->Basis = Identity3;
     Entry->Radius = Radius;
     Entry->Color = Color;
+    Entry->Angle = 360;
 }
 
 void PushCircle(
     render_group* Group, 
     v3 Center,
-    v3 Normal,
     double Radius, 
+    basis Basis,
     color Color,
     double Order = 0.0
 ) {
@@ -474,9 +479,10 @@ void PushCircle(
     Entry->Header.Key.Order = Order;
     Entry->Fill = true;
     Entry->Center = Center;
-    Entry->Normal = normalize(Normal);
+    Entry->Basis = Basis;
     Entry->Radius = Radius;
     Entry->Color = Color;
+    Entry->Angle = 360;
 }
 
 void PushCircunference(
@@ -493,10 +499,11 @@ void PushCircunference(
     Entry->Header.Key.Order = Order;
     Entry->Fill = false;
     Entry->Center = V3(Center.X, Center.Y, 0.0);
-    Entry->Normal = V3(0.0,0.0,-1.0);
+    Entry->Basis = Identity3;
     Entry->Radius = Radius;
     Entry->Color = Color;
     Entry->Thickness = Thickness;
+    Entry->Angle = 360;
 }
 
 void PushCircunference(
@@ -506,7 +513,7 @@ void PushCircunference(
     double Radius,
     color Color,
     float Thickness,
-    double Order = 0.0
+    double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     render_entry_circle* Entry = PushRenderElement(Group, render_entry_circle);
     Entry->Header.Target = World;
@@ -514,14 +521,42 @@ void PushCircunference(
     Entry->Header.Key.Order = Order;
     Entry->Fill = false;
     Entry->Center = Center;
-    Entry->Normal = normalize(Normal);
+    basis Basis = Complete(Normal);
+    Basis.X = Basis.Z;
+    Basis.Z = Normal;
+    Entry->Basis = Basis;
     Entry->Radius = Radius;
     Entry->Color = Color;
+    Entry->Thickness = Thickness;
+    Entry->Angle = 360;
+}
+
+void PushArc(
+    render_group* Group,
+    v3 Center,
+    basis Basis,
+    double Radius,
+    double Angle,
+    color Color,
+    double Thickness,
+    double Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    render_entry_circle* Entry = PushRenderElement(Group, render_entry_circle);
+    Entry->Header.Target = World;
+    Entry->Coordinates = World_Coordinates;
+    Entry->Header.Key.Order = Order;
+    Entry->Fill = false;
+    Entry->Center = Center;
+    Entry->Basis = Basis;
+    Entry->Radius = Radius;
+    Entry->Angle = Angle;
+    Entry->Color = Color;
+    Entry->Thickness = Thickness;
 }
 
 void PushRect(
     render_group* Group,
-    game_rect Rect,
+    rectangle Rect,
     color Color,
     double Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -531,11 +566,13 @@ void PushRect(
     Entry->Rect = Rect;
     Entry->Color = Color;
     Entry->Texture = 0;
+    Entry->Outline = false;
+    Entry->RefreshTexture = false;
 }
 
 void PushRectOutline(
     render_group* Group,
-    game_rect Rect,
+    rectangle Rect,
     color Color,
     double Order = SORT_ORDER_DEBUG_OVERLAY,
     render_group_target Target = World
@@ -551,8 +588,8 @@ void PushRectOutline(
 void PushBitmap(
     render_group* Group, 
     game_bitmap* Bitmap, 
-    game_rect Rect, 
-    wrap_mode Mode = Clamp,
+    rectangle Rect, 
+    wrap_mode Mode = Wrap_Clamp,
     bool Refresh = false,
     v2 Size = V2(1.0, 1.0),
     v2 Offset = V2(0,0),
@@ -571,14 +608,14 @@ void PushBitmap(
     int Height = Entry->Texture->Header.Height;
 
     switch (Entry->Mode) {
-        case Clamp: {
+        case Wrap_Clamp: {
             Entry->MinTexX = Size.X < 0 ? 1.0 : 0.0;
             Entry->MaxTexX = Size.X < 0 ? 0.0 : 1.0;
             Entry->MinTexY = Size.Y < 0 ? 1.0 : 0.0;
             Entry->MaxTexY = Size.Y < 0 ? 0.0 : 1.0;
         } break;
 
-        case Crop: {
+        case Wrap_Crop: {
             double MinX = Offset.X / Size.X / Width;
             double MinY = 1.0 - (Rect.Height + Offset.Y) / Size.Y / Height;
             double MaxX = (Rect.Width + Offset.X) / Size.X / Width;
@@ -589,7 +626,7 @@ void PushBitmap(
             Entry->MaxTexY = Size.Y < 0 ? MinY : MaxY;
         } break;
 
-        case Repeat: {
+        case Wrap_Repeat: {
             double MinX = 0.0;
             double MinY = -Rect.Height / (Size.Y * Height);
             double MaxX = Rect.Width / (Size.X * Width);
@@ -607,8 +644,8 @@ void PushBitmap(
 void PushBitmap(
     render_group* Group, 
     game_bitmap_id ID, 
-    game_rect Rect, 
-    wrap_mode Mode = Clamp,
+    rectangle Rect, 
+    wrap_mode Mode = Wrap_Clamp,
     v2 Size = V2(1.0, 1.0),
     v2 Offset = V2(0,0),
     double Order = SORT_ORDER_DEBUG_OVERLAY
@@ -814,10 +851,10 @@ void PushMesh(
     transform Transform,
     game_shader_pipeline_id ShaderID,
     game_bitmap_id TextureID = Bitmap_Empty_ID,
-    armature* Armature = 0,
     color Color = White,
-    double Order = SORT_ORDER_MESHES,
-    bool Outlined = false
+    armature* Armature = 0,
+    bool Outlined = false,
+    double Order = SORT_ORDER_MESHES
 ) {
     render_entry_mesh* Entry = PushRenderElement(Group, render_entry_mesh);
 
@@ -869,19 +906,74 @@ void PushHeightmap(render_group* Group, game_heightmap_id ID, game_shader_pipeli
 // | Entities                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+void PushCollider(render_group* Group, collider Collider, color Color) {
+    switch (Collider.Type) {
+        case Rect_Collider: {
+            PushRectOutline(Group, Rectangle(Collider), Color);
+        } break;
+
+        case Cube_Collider: {
+            PushCubeOutline(Group, Collider.Center, Scale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), Color);
+        } break;
+
+        case Sphere_Collider: {
+            PushCircunference(Group, Collider.Center, V3(1,0,0), Collider.Sphere.Radius, Color, 2.0f);
+            PushCircunference(Group, Collider.Center, V3(0,1,0), Collider.Sphere.Radius, Color, 2.0f);
+            PushCircunference(Group, Collider.Center, V3(0,0,1), Collider.Sphere.Radius, Color, 2.0f);
+        } break;
+
+        case Capsule_Collider: {
+            v3 Head = Collider.Capsule.Segment.Head;
+            v3 Tail = Collider.Capsule.Segment.Tail;
+
+            // Top part
+            PushArc(Group, Tail, Identity3, Collider.Capsule.Distance, 180, Color, 2.0f);
+            basis Basis = Identity3;
+            Basis.X = V3(0,0,1);
+            Basis.Z = V3(1,0,0);
+            PushArc(Group, Tail, Basis, Collider.Capsule.Distance, 180, Color, 2.0f);
+            PushCircunference(Group, Tail, V3(0,1,0), Collider.Capsule.Distance, Color, 2.0f);
+
+            // Vertical lines
+            v3 Offset[4] = { V3(1,0,0), V3(-1,0,0), V3(0,0,1), V3(0,0,-1) };
+            for (int i = 0; i < 4; i++) {
+                PushLine(
+                    Group, 
+                    Tail + Collider.Capsule.Distance * Offset[i], 
+                    Head + Collider.Capsule.Distance * Offset[i], 
+                    Color, 2.0f, World_Coordinates
+                );
+            }
+
+            // Bottom part
+            PushCircunference(Group, Head, V3(0,1,0), 1.0f, Color, 2.0f);
+            Basis = Identity3;
+            Basis.X *= -1.0f;
+            Basis.Y *= -1.0f;
+            PushArc(Group, Head, Basis, 1.0f, 180, Color, 2.0f);
+            Basis.X = V3(0,0,-1);
+            Basis.Z = V3(-1,0,0);
+            PushArc(Group, Head, Basis, 1.0f, 180, Color, 2.0f);
+        } break;
+
+        default: Assert(false);
+    }
+}
+
 void PushEntities(render_group* Group, game_entity_list* List) {
     for (int i = 0; i < List->nEntities; i++) {
         game_entity Entity = List->Entities[i];
         switch(Entity.Type) {
             case Character: {
-                character* Character = &List->Characters.List[Entity.Index];
+                character* pCharacter = &List->Characters.List[Entity.Index];
                 PushMesh(
                     Group, 
                     Mesh_Body_ID, 
                     Entity.Transform,
                     Shader_Pipeline_Mesh_ID, 
                     Bitmap_Empty_ID,
-                    &Character->Armature
+                    White,
+                    &pCharacter->Armature
                 );
             } break;
     
@@ -894,6 +986,34 @@ void PushEntities(render_group* Group, game_entity_list* List) {
                     Bitmap_Enemy_ID
                 );
             } break;
+
+            case Prop: {
+                prop* pProp = &List->Props.List[Entity.Index];
+                PushMesh(
+                    Group,
+                    pProp->MeshID,
+                    Entity.Transform,
+                    pProp->Shader,
+                    Bitmap_Empty_ID,
+                    pProp->Color
+                );
+            } break;
+
+            case Weapon: {
+                weapon* pWeapon = &List->Weapons.List[Entity.Index];
+                game_mesh_id MeshID;
+                switch(pWeapon->Type) {
+                    case Sword: MeshID = Mesh_Sword_ID; break;
+                    case Shield: MeshID = Mesh_Shield_ID; break;
+                    default: Assert(false);
+                }
+
+                PushMesh(Group, MeshID, Entity.Transform, Shader_Pipeline_Mesh_ID);
+            } break;
+        }
+
+        if (Group->Debug && Group->DebugColliders && Entity.Type != Camera) {
+            PushCollider(Group, Entity.Collider, Entity.Collided ? Red : Yellow);
         }
     }
 }
@@ -912,7 +1032,7 @@ void PushDebugArena(
     game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
     float ArenaPercentage = (float)Arena.Used / (float)Arena.Size;
     float RectWidth = 250.0f;
-    game_rect Rect = { Position.X, Position.Y, RectWidth, 20.0f };
+    rectangle Rect = { Position.X, Position.Y, RectWidth, 20.0f };
     PushRect(Group, Rect, Color(DarkGray, Alpha), Order + 0.1);
     Rect.Width *= ArenaPercentage;
     PushRect(Group, Rect, Color(Red, Alpha), Order + 0.2);
@@ -952,7 +1072,7 @@ void PushDebugVector(render_group* Group, v3 Vector, v3 Position, coordinate_sys
 
     int Thickness = max(1.0, 0.0025 * Height);
     PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, Coordinates, Order);
-    game_triangle Triangle = {
+    triangle Triangle = {
     Position + Vector,
     Position + 0.875 * Vector,
     Position + 0.8 * Vector - OrthogonalLength * Orthogonal,

@@ -27,15 +27,10 @@ struct game_button_state {
     float End;
 };*/
 
-struct game_joystick_state {
-    float X;
-    float Y;
-};
-
 struct game_controller_input {
     bool Any;
-    game_joystick_state LeftJoystick;
-    game_joystick_state RightJoystick;
+    v2 LeftJoystick;
+    v2 RightJoystick;
     union {
         game_button_state Buttons[16];
         struct {

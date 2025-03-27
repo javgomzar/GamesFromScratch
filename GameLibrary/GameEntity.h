@@ -16,7 +16,7 @@ enum game_entity_type {
     Enemy,
     Camera,
     Prop,
-    UIElement,
+    Weapon,
 
     game_entity_type_count
 };
@@ -29,6 +29,8 @@ struct game_entity {
     game_entity_type Type;
     transform Transform;
     v3 Velocity;
+    collider Collider;
+    bool Collided;
     bool Active;
 };
 
@@ -36,6 +38,7 @@ game_entity Entity(
     const char* Name,
     transform T = Transform(V3(0,0,0)),
     v3 Velocity = V3(0,0,0),
+    collider Collider = SphereCollider(V3(0.0f, 0.0f, 0.0f), 1.0f),
     bool Active = true
 ) {
     game_entity Result = {0};
@@ -44,6 +47,7 @@ game_entity Entity(
     Result.Transform = T;
     Result.Velocity = Velocity;
     Result.Active = Active;
+    Result.Collider = Collider;
     return Result;
 }
 
@@ -93,6 +97,27 @@ bool Raycast(camera* Camera, v3 CameraPosition, double Width, double Height, v2 
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Weapons                                                                                                                                      |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+enum weapon_type {
+    Sword,
+    Shield,
+
+    weapon_type_count
+};
+
+struct weapon {
+    int EntityID;
+    weapon_type Type;
+    color Color;
+    int ParentBone;
+};
+
+const int MAX_WEAPONS = 32;
+DefineEntityList(MAX_WEAPONS, weapon);
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Character                                                                                                                                    |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
@@ -128,6 +153,8 @@ DefineEntityList(MAX_ENEMIES, enemy);
 struct prop {
     int EntityID;
     game_mesh_id MeshID;
+    game_bitmap_id Texture;
+    game_shader_pipeline_id Shader;
     color Color;
 };
 
@@ -149,19 +176,20 @@ struct game_entity_list {
     character_list Characters;
     enemy_list Enemies;
     prop_list Props;
+    weapon_list Weapons;
 };
 
 int AddEntity(
     game_entity_list* List,
     const char* Name,
     game_entity_type Type,
-    v3 Position,
-    quaternion Rotation,
-    scale Scale,
-    bool Active
+    collider Collider,
+    v3 Position = V3(0,0,0),
+    quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f),
+    scale S = Scale(),
+    bool Active = true
 ) {
     Assert(List->nEntities < MAX_ENTITIES);
-    transform T = Transform(Position, Rotation, Scale);
 
     // If any ID is free, use it
     int EntityID = -1;
@@ -177,8 +205,9 @@ int AddEntity(
     game_entity* Entity = &List->Entities[EntityID];
     Entity->ID = EntityID;
     Entity->Type = Type;
-    Entity->Transform = T;
+    Entity->Transform = Transform(Position, Rotation, S);
     Entity->Active = Active;
+    Entity->Collider = Collider;
     strcpy_s(Entity->Name, Name);
 
     return EntityID;
@@ -241,7 +270,7 @@ void AddCamera(
     sprintf_s(NameBuffer, "Camera %d", CameraID);
 
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
-    int EntityID = AddEntity(List, NameBuffer, Camera, Position, Rotation, Scale(), CameraID == 0);
+    int EntityID = AddEntity(List, NameBuffer, Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), CameraID == 0);
     Cam->EntityID = EntityID;
     game_entity* CameraEntity = &List->Entities[EntityID];
     CameraEntity->Index = CameraID;
@@ -271,7 +300,15 @@ void AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
     sprintf_s(NameBuffer, "Character %d", CharacterID);
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
-    int EntityID = AddEntity(List, NameBuffer, Character, Position, Rotation, Scale(), true);
+    int EntityID = AddEntity(
+        List, 
+        NameBuffer, 
+        Character,
+        CapsuleCollider(Position + V3(0,0.4f,0), Position + V3(0,4.0f,0), 3.0f),
+        Position, 
+        Rotation, 
+        Scale()
+    );
     pCharacter->EntityID = EntityID;
     game_entity* CharacterEntity = &List->Entities[EntityID];
     CharacterEntity->Index = CharacterID;
@@ -296,10 +333,90 @@ void AddEnemy(game_entity_list* List, v3 Position, int MaxHP) {
     sprintf_s(NameBuffer, "Enemy %d", EnemyID);
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
-    int EntityID = AddEntity(List, NameBuffer, Enemy, Position, Rotation, Scale(), true);
+    int EntityID = AddEntity(List, NameBuffer, Enemy, SphereCollider(Position, 1.5f), Position, Rotation, Scale());
     pEnemy->EntityID = EntityID;
     game_entity* EnemyEntity = &List->Entities[EntityID];
     EnemyEntity->Index = EnemyID;
+}
+
+void AddProp(
+    game_entity_list* List, 
+    game_mesh_id MeshID, 
+    game_shader_pipeline_id Shader, 
+    color Color = White,
+    v3 Position = V3(0,0,0),
+    quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
+    scale S = Scale()
+) {
+    Assert(List->Props.Size < MAX_PROPS);
+    // If any ID is free, use it
+    int PropID = -1;
+    if (List->Props.nFreeIDs > 0) {
+        PropID = List->Props.FreeIDs[List->Props.nFreeIDs - 1];
+        List->FreeIDs[List->nFreeIDs-- - 1] = -1;
+        List->Props.Size++;
+    }
+    else PropID = List->Props.Size++;
+
+    prop* pProp = &List->Props.List[PropID];
+    pProp->MeshID = MeshID;
+    pProp->Shader = Shader;
+    pProp->Color = Color;
+
+    char NameBuffer[32];
+    sprintf_s(NameBuffer, "Prop %d", PropID);
+
+    int EntityID = AddEntity(List, NameBuffer, Prop, SphereCollider(Position, 5.0f), Position, Rotation, S);
+    pProp->EntityID = EntityID;
+    game_entity* PropEntity = &List->Entities[EntityID];
+    PropEntity->Index = PropID;
+}
+
+void AddWeapon(   
+    game_entity_list* List,
+    weapon_type Type,
+    color Color = White,
+    v3 Position = V3(0,0,0),
+    quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
+    scale S = Scale()
+) {
+    Assert(List->Weapons.Size < MAX_PROPS);
+    // If any ID is free, use it
+    int WeaponID = -1;
+    if (List->Weapons.nFreeIDs > 0) {
+        WeaponID = List->Weapons.FreeIDs[List->Weapons.nFreeIDs - 1];
+        List->FreeIDs[List->nFreeIDs-- - 1] = -1;
+        List->Weapons.Size++;
+    }
+    else WeaponID = List->Weapons.Size++;
+
+    weapon* pWeapon = &List->Weapons.List[WeaponID];
+    pWeapon->Type = Type;
+    pWeapon->ParentBone = -1;
+    pWeapon->Color = Color;
+
+    char NameBuffer[32];
+    sprintf_s(NameBuffer, "Weapon %d", WeaponID);
+
+    collider Collider;
+    switch (pWeapon->Type) {
+        case Sword: Collider = CapsuleCollider(Position, Position + V3(0,3,0), 1.0f); break;
+        case Shield: Collider = CapsuleCollider(Position, Position + V3(0,1,0), 1.0f); break;
+        default: Assert(false);
+    }
+
+    int EntityID = AddEntity(
+        List, 
+        NameBuffer, 
+        Weapon,
+        Collider,
+        Position, 
+        Rotation, 
+        S
+    );
+    pWeapon->EntityID = EntityID;
+    game_entity* WeaponEntity = &List->Entities[EntityID];
+    WeaponEntity->Index = WeaponID;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -330,11 +447,13 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
             ActiveCamera = Cam;
 
         // Zoom
-            if (Input->Mouse.Wheel > 0)      Cam->Distance /= 1.2;
-            else if (Input->Mouse.Wheel < 0) Cam->Distance *= 1.2;
+            if (Input->Mode == Keyboard) {
+                if (Input->Mouse.Wheel > 0)      Cam->Distance /= 1.2;
+                else if (Input->Mouse.Wheel < 0) Cam->Distance *= 1.2;
+            }
 
         // Orbit around position
-            if (Input->Mouse.MiddleClick.IsDown && Input->Mouse.MiddleClick.WasDown) {
+            if (Input->Mode == Keyboard && Input->Mouse.MiddleClick.IsDown && Input->Mouse.MiddleClick.WasDown) {
                 v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
                 double AngularVelocity = 0.5;
 
@@ -342,11 +461,13 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
                 Cam->Pitch += AngularVelocity * Offset.Y;
             }
 
-            v2 Joystic = V2(Input->Controller.RightJoystick.X, Input->Controller.RightJoystick.Y);
+            if (Input->Mode == Controller) {
+                v2 Joystic = V2(Input->Controller.RightJoystick.X, Input->Controller.RightJoystick.Y);
 
-            if (modulus(Joystic) > 0.1) {
-                Cam->Angle -= 3.0 * Joystic.X;
-                Cam->Pitch -= 3.0 * Joystic.Y;
+                if (modulus(Joystic) > 0.1) {
+                    Cam->Angle -= 3.0 * Joystic.X;
+                    Cam->Pitch -= 3.0 * Joystic.Y;
+                }
             }
 
         // Rotation
@@ -361,12 +482,16 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
         
 // Characters ______________________________________________________________________________________________________________________________
     v3 CharacterPosition = V3(0,0,0);
+    collider* CharacterCollider = 0;
+    bool* CharacterCollided = 0;
     for (int i = 0; i < List->Characters.Size; i++) {
         character* Character = &List->Characters.List[i];
         game_entity* CharacterEntity = &List->Entities[Character->EntityID];
         
         CharacterEntity->Velocity = V3(0, 0, 0);
-        if (Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown) {
+        bool JumpingInput = Input->Mode == Keyboard && Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown ||
+                            Input->Mode == Controller && Input->Controller.BButton.IsDown && !Input->Controller.BButton.WasDown;
+        if (JumpingInput) {
             if (!Character->Jumping){ 
                 Character->Jumping = true;
                 Character->Animator.Active = true;
@@ -379,17 +504,30 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
             Character->Animator.Animation = GetAsset(List->Assets, Animation_Walking_ID);
             Character->Jumping = false;
         }
-        
-        if (Input->Keyboard.W.IsDown || Input->Keyboard.A.IsDown || Input->Keyboard.S.IsDown || Input->Keyboard.D.IsDown) {
+
+        bool KeyboardMoving = Input->Keyboard.W.IsDown || Input->Keyboard.A.IsDown || Input->Keyboard.S.IsDown || Input->Keyboard.D.IsDown;
+        bool ControllerMoving = fabs(Input->Controller.LeftJoystick.X) > 0.1 || fabs(Input->Controller.LeftJoystick.Y) > 0.1;
+        bool Moving = (Input->Mode == Keyboard && KeyboardMoving) ||
+                      (Input->Mode == Controller && ControllerMoving);
+        if (Moving) {
         // Translation
-            if      (Input->Keyboard.D.IsDown) CharacterEntity->Velocity.X += 1.0;
-            else if (Input->Keyboard.A.IsDown) CharacterEntity->Velocity.X -= 1.0;
-            if      (Input->Keyboard.W.IsDown) CharacterEntity->Velocity.Z += 1.0;
-            else if (Input->Keyboard.S.IsDown) CharacterEntity->Velocity.Z -= 1.0;
+            v3 Direction = V3(0,0,0);
+            float Speed = 20.0f;
+            if (Input->Mode == Keyboard) {
+                if (Input->Keyboard.D.IsDown) Direction.X += 1.0;
+                if (Input->Keyboard.A.IsDown) Direction.X -= 1.0;
+                if (Input->Keyboard.W.IsDown) Direction.Z += 1.0;
+                if (Input->Keyboard.S.IsDown) Direction.Z -= 1.0;
+                Direction = normalize(Direction);
+            }
+            else if (Input->Mode == Controller) {
+                v2 Normalized = normalize(Input->Controller.LeftJoystick);
+                Direction.X = Normalized.X;
+                Direction.Z = Normalized.Y;
+                Speed = 20.0f * modulus(Input->Controller.LeftJoystick);
+            }
 
             basis HorizontalBasis = GetCameraBasis(ActiveCamera->Angle, 0);
-            v3 Direction = normalize(CharacterEntity->Velocity);
-            float Speed = 20;
             CharacterEntity->Velocity = Speed * (Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z);
             
             CharacterEntity->Transform.Rotation = Quaternion(ActiveCamera->Angle * Degrees, V3(0,1,0));
@@ -404,6 +542,15 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
         }
         CharacterEntity->Transform.Translation += State->dt * CharacterEntity->Velocity;
         CharacterPosition = CharacterEntity->Transform.Translation;
+        
+        CharacterEntity->Collider.Capsule.Distance = 1.0f;
+        CharacterEntity->Collider.Capsule.Segment.Head = CharacterPosition + V3(0,0.4,0);
+        CharacterEntity->Collider.Capsule.Segment.Tail = CharacterPosition + V3(0,4.0,0);
+        CharacterEntity->Collider.Center = 0.5 * (CharacterEntity->Collider.Capsule.Segment.Head + CharacterEntity->Collider.Capsule.Segment.Head);
+        CharacterEntity->Collided = false;
+
+        CharacterCollider = &CharacterEntity->Collider;
+        CharacterCollided = &CharacterEntity->Collided;
 
         Update(&Character->Animator);
     }
@@ -417,7 +564,26 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
     for (int i = 0; i < List->Enemies.Size; i++) {
         enemy* pEnemy = &List->Enemies.List[i];
         game_entity* EnemyEntity = &List->Entities[pEnemy->EntityID];
-        EnemyEntity->Transform.Translation = V3(0,3.2 + sin(3 * State->Time), 0);
+        EnemyEntity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
+        EnemyEntity->Collider.Center = EnemyEntity->Transform.Translation;
+    }
+    
+// Weapons _________________________________________________________________________________________________________________________________
+    for (int i = 0; i < List->Weapons.Size; i++) {
+        weapon* pWeapon = &List->Weapons.List[i];
+        game_entity* WeaponEntity = &List->Entities[pWeapon->EntityID];
+        if (pWeapon->ParentBone == -1) {
+            WeaponEntity->Transform.Rotation = Quaternion(State->Time, V3(0,1,0));
+        }
+
+        WeaponEntity->Collider.Center = WeaponEntity->Transform.Translation;
+        WeaponEntity->Collided = false;
+
+        bool Collision = Collide(WeaponEntity->Collider, *CharacterCollider);
+        if (Collision) {
+            *CharacterCollided = true;
+            WeaponEntity->Collided = true;
+        }
     }
 }
 
