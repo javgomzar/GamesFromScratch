@@ -664,7 +664,7 @@ inline basis Complete(v3 X) {
 			Y = cross(X, V3(0,0,1));
 		}
 	}
-	return Complete(X, Y);
+	return Complete(X, normalize(Y));
 }
 
 union matrix4 {
@@ -1056,8 +1056,12 @@ inline transform Transform(v3 Translation = V3(0.0, 0.0, 0.0), quaternion Rotati
 	return { Translation, Scaling, Rotation };
 }
 
-inline v3 operator*(transform Transform, v3 Vector) {
-	return Rotate((Transform.Scale * Vector), Transform.Rotation) + Transform.Translation;
+inline v3 operator*(transform T, v3 Vector) {
+	return Rotate((T.Scale * Vector), T.Rotation) + T.Translation;
+}
+
+inline v4 operator*(transform T, v4 Vector) {
+	return V4(Rotate(T.Scale * V3(Vector.X, Vector.Y, Vector.Z), T.Rotation) + Vector.W * T.Translation, Vector.W);
 }
 
 inline transform operator*(transform T, transform U) {
@@ -1097,6 +1101,10 @@ struct segment {
 	v3 Head;
 	v3 Tail;
 };
+
+inline segment operator*(transform T, segment S) {
+	return { T * S.Head, T * S.Tail };
+}
 
 inline v3 ClosestPoint(segment Segment, v3 Point) {
 	v3 V = Segment.Tail - Segment.Head;
@@ -1267,7 +1275,7 @@ enum collider_type {
 
 struct collider {
     collider_type Type;
-    v3 Center;
+    v3 Offset;
     union {
 		struct {
 			float HalfWidth;
@@ -1288,10 +1296,10 @@ struct collider {
 	};
 };
 
-collider RectCollider(v2 Center, float Width, float Height) {
+collider RectCollider(v2 Offset, float Width, float Height) {
 	collider Result = {};
 	Result.Type = Rect_Collider;
-	Result.Center = V3(Center.X, Center.Y, 0);
+	Result.Offset = V3(Offset.X, Offset.Y, 0);
 	Result.Rect.HalfWidth = 0.5f * Width;
 	Result.Rect.HalfHeight = 0.5f * Height;
 	return Result;
@@ -1300,27 +1308,27 @@ collider RectCollider(v2 Center, float Width, float Height) {
 rectangle Rectangle(collider Collider) {
 	Assert(Collider.Type == Rect_Collider);
 	return {
-		Collider.Center.X - Collider.Rect.HalfWidth,
-		Collider.Center.Y - Collider.Rect.HalfHeight,
+		Collider.Offset.X - Collider.Rect.HalfWidth,
+		Collider.Offset.Y - Collider.Rect.HalfHeight,
 		2.0f * Collider.Rect.HalfWidth,
 		2.0f * Collider.Rect.HalfHeight
 	};
 }
 
-collider CubeCollider(v3 Center, float Width, float Height, float Depth) {
+collider CubeCollider(v3 Offset, float Width, float Height, float Depth) {
 	collider Result = {};
 	Result.Type = Cube_Collider;
-	Result.Center = Center;
+	Result.Offset = Offset;
 	Result.Cube.HalfWidth = 0.5f * Width;
 	Result.Cube.HalfHeight = 0.5f * Height;
 	Result.Cube.HalfDepth = 0.5f * Depth;
 	return Result;
 }
 
-collider SphereCollider(v3 Center, float Radius) {
+collider SphereCollider(v3 Offset, float Radius) {
 	collider Result = {};
 	Result.Type = Sphere_Collider;
-	Result.Center = Center;
+	Result.Offset = Offset;
 	Result.Sphere.Radius = Radius;
 	return Result;
 }
@@ -1328,7 +1336,7 @@ collider SphereCollider(v3 Center, float Radius) {
 collider CapsuleCollider(v3 Head, v3 Tail, float Distance) {
 	collider Result = {};
 	Result.Type = Capsule_Collider;
-	Result.Center = 0.5f * (Head + Tail);
+	Result.Offset = 0.5f * (Head + Tail);
 	Result.Capsule.Segment = {Head, Tail};
 	Result.Capsule.Distance = Distance;
 	return Result;
@@ -1337,18 +1345,18 @@ collider CapsuleCollider(v3 Head, v3 Tail, float Distance) {
 bool Collide(collider Collider, v3 Position) {
     switch(Collider.Type) {
         case Rect_Collider: {
-            return fabs(Position.X - Collider.Center.X) <= Collider.Rect.HalfWidth &&
-                   fabs(Position.Y - Collider.Center.Y) <= Collider.Rect.HalfHeight;
+            return fabs(Position.X - Collider.Offset.X) <= Collider.Rect.HalfWidth &&
+                   fabs(Position.Y - Collider.Offset.Y) <= Collider.Rect.HalfHeight;
         } break;
 
         case Cube_Collider: {
-            return fabs(Position.X - Collider.Center.X) <= Collider.Cube.HalfWidth &&
-                   fabs(Position.Y - Collider.Center.Y) <= Collider.Cube.HalfHeight &&
-                   fabs(Position.Z - Collider.Center.Z) <= Collider.Cube.HalfDepth;
+            return fabs(Position.X - Collider.Offset.X) <= Collider.Cube.HalfWidth &&
+                   fabs(Position.Y - Collider.Offset.Y) <= Collider.Cube.HalfHeight &&
+                   fabs(Position.Z - Collider.Offset.Z) <= Collider.Cube.HalfDepth;
         } break;
 
         case Sphere_Collider: {
-            return dot(Position - Collider.Center, Position - Collider.Center) <= Collider.Sphere.Radius * Collider.Sphere.Radius;
+            return dot(Position - Collider.Offset, Position - Collider.Offset) <= Collider.Sphere.Radius * Collider.Sphere.Radius;
         } break;
 
 		case Capsule_Collider: {
@@ -1364,10 +1372,10 @@ bool Collide(collider Collider1, collider Collider2) {
 	if (Collider1.Type == Collider2.Type) {
 		switch(Collider1.Type) {
 			case Rect_Collider: {
-				float Left = Collider1.Center.X - Collider1.Rect.HalfWidth;
-				float Right = Collider1.Center.X + Collider1.Rect.HalfWidth;
-				float Top = Collider1.Center.Y - Collider1.Rect.HalfHeight;
-				float Bottom = Collider1.Center.Y + Collider1.Rect.HalfHeight;
+				float Left   = Collider1.Offset.X - Collider1.Rect.HalfWidth;
+				float Right  = Collider1.Offset.X + Collider1.Rect.HalfWidth;
+				float Top    = Collider1.Offset.Y - Collider1.Rect.HalfHeight;
+				float Bottom = Collider1.Offset.Y + Collider1.Rect.HalfHeight;
 				v2 Points[4] = { V2(Left, Top), V2(Left, Bottom), V2(Right, Top), V2(Right, Bottom) };
 				for (int i = 0; i < 4; i++) {
 					if (Collide(Collider2, V3(Points[i], 0))) return true;
@@ -1375,9 +1383,9 @@ bool Collide(collider Collider1, collider Collider2) {
 				return false;
 			} break;
 			case Cube_Collider: {
-				float X[2] = { Collider1.Center.X - Collider1.Cube.HalfWidth,  Collider1.Center.X + Collider1.Cube.HalfWidth };
-				float Y[2] = { Collider1.Center.Y - Collider1.Cube.HalfHeight, Collider1.Center.Y + Collider1.Cube.HalfHeight };
-				float Z[2] = { Collider1.Center.Z - Collider1.Cube.HalfDepth,  Collider1.Center.Z + Collider1.Cube.HalfDepth };
+				float X[2] = { Collider1.Offset.X - Collider1.Cube.HalfWidth,  Collider1.Offset.X + Collider1.Cube.HalfWidth };
+				float Y[2] = { Collider1.Offset.Y - Collider1.Cube.HalfHeight, Collider1.Offset.Y + Collider1.Cube.HalfHeight };
+				float Z[2] = { Collider1.Offset.Z - Collider1.Cube.HalfDepth,  Collider1.Offset.Z + Collider1.Cube.HalfDepth };
 				for (int i = 0; i < 2; i++) 
 				for (int j = 0; j < 2; j++) 
 				for (int k = 0; k < 2; k++) {
@@ -1387,7 +1395,7 @@ bool Collide(collider Collider1, collider Collider2) {
 			} break;
 			case Sphere_Collider: {
 				float SumRadii = Collider1.Sphere.Radius + Collider2.Sphere.Radius;
-				v3 r = Collider2.Center - Collider1.Center;
+				v3 r = Collider2.Offset - Collider1.Offset;
 				return dot(r, r) <= SumRadii * SumRadii;
 			} break;
 			case Capsule_Collider: {
@@ -1418,7 +1426,7 @@ bool Collide(collider Collider1, collider Collider2) {
 			case Sphere_Collider: {
 				Assert(Collider2.Type == Capsule_Collider);
 				float SumDistances = Collider1.Sphere.Radius + Collider2.Capsule.Distance;
-				return SqDistance(Collider2.Capsule.Segment, Collider1.Center) <= SumDistances * SumDistances;
+				return SqDistance(Collider2.Capsule.Segment, Collider1.Offset) <= SumDistances * SumDistances;
 			} break;
 
 			default: Assert(false);
@@ -1501,13 +1509,13 @@ bool HitBoundingBox(float minB[3], float maxB[3], float origin[3], float dir[3],
 bool Raycast(v3 Origin, v3 Direction, collider Collider) {
     Assert(Collider.Type == Cube_Collider);
     float minB[3] = { 0 };
-    minB[0] = Collider.Center.X - Collider.Cube.HalfWidth / 2.0f;
-    minB[1] = Collider.Center.Y - Collider.Cube.HalfHeight / 2.0f;
-    minB[2] = Collider.Center.Z - Collider.Cube.HalfDepth / 2.0f;
+    minB[0] = Collider.Offset.X - Collider.Cube.HalfWidth / 2.0f;
+    minB[1] = Collider.Offset.Y - Collider.Cube.HalfHeight / 2.0f;
+    minB[2] = Collider.Offset.Z - Collider.Cube.HalfDepth / 2.0f;
     float maxB[3] = { 0 };
-    maxB[0] = Collider.Center.X + Collider.Cube.HalfWidth / 2.0f;
-    maxB[1] = Collider.Center.Y + Collider.Cube.HalfHeight / 2.0f;
-    maxB[2] = Collider.Center.Z + Collider.Cube.HalfDepth / 2.0f;
+    maxB[0] = Collider.Offset.X + Collider.Cube.HalfWidth / 2.0f;
+    maxB[1] = Collider.Offset.Y + Collider.Cube.HalfHeight / 2.0f;
+    maxB[2] = Collider.Offset.Z + Collider.Cube.HalfDepth / 2.0f;
     float origin[3] = { Origin.X, Origin.Y, Origin.Z };
     float dir[3] = { Direction.X, Direction.Y, Direction.Z };
     float coord[3] = { 0,0,0 };

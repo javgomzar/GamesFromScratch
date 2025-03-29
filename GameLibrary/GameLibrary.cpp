@@ -117,8 +117,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         AddCamera(EntityList, V3(0.0, 3.2, 0.0));
         AddCharacter(EntityList, V3(0,0,0), 100);
         AddEnemy(EntityList, V3(5.0, 3.0, 10.0), 100);
-        AddWeapon(EntityList, Sword, White, V3(10.0, 0, 15.0));
-        AddWeapon(EntityList, Shield, White, V3(10.0, 2.0, 10.0));
+        AddWeapon(EntityList, Sword, White, V3(10.0, 0, 15.0), Quaternion(1.0, 0, 0, 0), Scale(0.75f, 0.75f, 0.75f));
+        AddWeapon(EntityList, Shield, White, V3(10.0, 2.0, 10.0), Quaternion(1.0, 0, 0, 0), Scale(0.75f, 0.75f, 0.75f));
         AddProp(EntityList, Mesh_Sphere_ID, Shader_Pipeline_Sphere_ID, Red, V3(5.0, 0.0, 5.0), Quaternion(1,0,0,0), Scale(5.0, 1.0, 1.0));
         
         Memory->IsInitialized = true;
@@ -134,6 +134,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
     PushEntities(Group, &pGameState->EntityList);
+
+    
 
     // Debug info
     static double Alpha = 0.0;

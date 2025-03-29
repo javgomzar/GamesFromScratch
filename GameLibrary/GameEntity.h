@@ -51,6 +51,25 @@ game_entity Entity(
     return Result;
 }
 
+bool Collide(game_entity* Entity1, game_entity* Entity2) {
+    collider Collider1 = Entity1->Collider;
+    Collider1.Offset += Entity1->Transform.Translation;
+    if (Collider1.Type == Capsule_Collider) {
+        Collider1.Capsule.Segment = Entity1->Transform * Collider1.Capsule.Segment;
+    }
+    collider Collider2 = Entity2->Collider;
+    Collider2.Offset += Entity2->Transform.Translation;
+    if (Collider2.Type == Capsule_Collider) {
+        Collider2.Capsule.Segment = Entity2->Transform * Collider2.Capsule.Segment;
+    }
+    if (Collide(Collider1, Collider2)) {
+        Entity1->Collided = true;
+        Entity2->Collided = true;
+        return true;
+    }
+    return false;
+}
+
 #define DefineEntityList(maxNumber, type) struct type##_list {int nFreeIDs; int FreeIDs[maxNumber]; int Size; type List[maxNumber];}
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -127,6 +146,8 @@ struct character {
     int HP;
     armature Armature;
     game_animator Animator;
+    weapon* LeftHand;
+    weapon* RightHand;
     bool Jumping;
 };
 
@@ -304,7 +325,7 @@ void AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
         List, 
         NameBuffer, 
         Character,
-        CapsuleCollider(Position + V3(0,0.4f,0), Position + V3(0,4.0f,0), 3.0f),
+        CapsuleCollider(V3(0,0.6f,0), V3(0,3.0f,0), 0.8f),
         Position, 
         Rotation, 
         Scale()
@@ -333,7 +354,7 @@ void AddEnemy(game_entity_list* List, v3 Position, int MaxHP) {
     sprintf_s(NameBuffer, "Enemy %d", EnemyID);
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
-    int EntityID = AddEntity(List, NameBuffer, Enemy, SphereCollider(Position, 1.5f), Position, Rotation, Scale());
+    int EntityID = AddEntity(List, NameBuffer, Enemy, SphereCollider(V3(0,0,0), 1.5f), Position, Rotation, Scale());
     pEnemy->EntityID = EntityID;
     game_entity* EnemyEntity = &List->Entities[EntityID];
     EnemyEntity->Index = EnemyID;
@@ -366,7 +387,7 @@ void AddProp(
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Prop %d", PropID);
 
-    int EntityID = AddEntity(List, NameBuffer, Prop, SphereCollider(Position, 5.0f), Position, Rotation, S);
+    int EntityID = AddEntity(List, NameBuffer, Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, S);
     pProp->EntityID = EntityID;
     game_entity* PropEntity = &List->Entities[EntityID];
     PropEntity->Index = PropID;
@@ -400,8 +421,8 @@ void AddWeapon(
 
     collider Collider;
     switch (pWeapon->Type) {
-        case Sword: Collider = CapsuleCollider(Position, Position + V3(0,3,0), 1.0f); break;
-        case Shield: Collider = CapsuleCollider(Position, Position + V3(0,1,0), 1.0f); break;
+        case Sword: Collider = CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f); break;
+        case Shield: Collider = CapsuleCollider(V3(0,-0.3,0), V3(0,0.7,0), 1.0f); break;
         default: Assert(false);
     }
 
@@ -481,9 +502,8 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
     }
         
 // Characters ______________________________________________________________________________________________________________________________
-    v3 CharacterPosition = V3(0,0,0);
-    collider* CharacterCollider = 0;
-    bool* CharacterCollided = 0;
+    character* ControlledCharacter;
+    game_entity* ControlledCharacterEntity;
     for (int i = 0; i < List->Characters.Size; i++) {
         character* Character = &List->Characters.List[i];
         game_entity* CharacterEntity = &List->Entities[Character->EntityID];
@@ -513,11 +533,25 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
         // Translation
             v3 Direction = V3(0,0,0);
             float Speed = 20.0f;
+            float DirectionAngle = 0;
             if (Input->Mode == Keyboard) {
-                if (Input->Keyboard.D.IsDown) Direction.X += 1.0;
-                if (Input->Keyboard.A.IsDown) Direction.X -= 1.0;
-                if (Input->Keyboard.W.IsDown) Direction.Z += 1.0;
-                if (Input->Keyboard.S.IsDown) Direction.Z -= 1.0;
+                bool Left = Input->Keyboard.A.IsDown;
+                bool Right = Input->Keyboard.D.IsDown;
+                bool Up = Input->Keyboard.W.IsDown;
+                bool Down = Input->Keyboard.S.IsDown;
+                if (Right) { Direction.X += 1.0; DirectionAngle -= 90; }
+                if (Left)  { Direction.X -= 1.0; DirectionAngle += 90; }
+                if (Up) {
+                    Direction.Z += 1.0; 
+                    if (Right) DirectionAngle += 45;
+                    else if (Left) DirectionAngle -= 45;
+                }
+                if (Down) {
+                    Direction.Z -= 1.0;
+                    if (Right) DirectionAngle -= 45;
+                    else if (Left) DirectionAngle += 45;
+                    else DirectionAngle += 180;
+                }
                 Direction = normalize(Direction);
             }
             else if (Input->Mode == Controller) {
@@ -530,7 +564,7 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
             basis HorizontalBasis = GetCameraBasis(ActiveCamera->Angle, 0);
             CharacterEntity->Velocity = Speed * (Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z);
             
-            CharacterEntity->Transform.Rotation = Quaternion(ActiveCamera->Angle * Degrees, V3(0,1,0));
+            CharacterEntity->Transform.Rotation = Quaternion((ActiveCamera->Angle + DirectionAngle) * Degrees, V3(0,1,0));
 
             if (!Character->Jumping) {
                 Character->Animator.Active = true;
@@ -541,22 +575,22 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
             Character->Animator.Active = false;
         }
         CharacterEntity->Transform.Translation += State->dt * CharacterEntity->Velocity;
-        CharacterPosition = CharacterEntity->Transform.Translation;
         
-        CharacterEntity->Collider.Capsule.Distance = 1.0f;
-        CharacterEntity->Collider.Capsule.Segment.Head = CharacterPosition + V3(0,0.4,0);
-        CharacterEntity->Collider.Capsule.Segment.Tail = CharacterPosition + V3(0,4.0,0);
-        CharacterEntity->Collider.Center = 0.5 * (CharacterEntity->Collider.Capsule.Segment.Head + CharacterEntity->Collider.Capsule.Segment.Head);
         CharacterEntity->Collided = false;
+        CharacterEntity->Collider.Capsule.Segment = { V3(0,0.75f,0), V3(0,3.75f,0) };
+        if (Character->Jumping) {
+            CharacterEntity->Collider.Capsule.Segment.Head += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
+            CharacterEntity->Collider.Capsule.Segment.Tail += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
+        }
 
-        CharacterCollider = &CharacterEntity->Collider;
-        CharacterCollided = &CharacterEntity->Collided;
+        ControlledCharacter = Character;
+        ControlledCharacterEntity = CharacterEntity;
 
         Update(&Character->Animator);
     }
     
 // Autofollow player _______________________________________________________________________________________________________________________
-    ActiveCamera->Position = CharacterPosition + V3(0,3.2,0);
+    ActiveCamera->Position = ControlledCharacterEntity->Transform.Translation + V3(0,3.2,0);
     game_entity* ActiveCameraEntity = &List->Entities[ActiveCamera->EntityID];
     ActiveCameraEntity->Transform.Translation = V3(0,0,ActiveCamera->Distance) - ActiveCamera->Position * ActiveCamera->Basis;
 
@@ -565,7 +599,6 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
         enemy* pEnemy = &List->Enemies.List[i];
         game_entity* EnemyEntity = &List->Entities[pEnemy->EntityID];
         EnemyEntity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
-        EnemyEntity->Collider.Center = EnemyEntity->Transform.Translation;
     }
     
 // Weapons _________________________________________________________________________________________________________________________________
@@ -576,13 +609,41 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
             WeaponEntity->Transform.Rotation = Quaternion(State->Time, V3(0,1,0));
         }
 
-        WeaponEntity->Collider.Center = WeaponEntity->Transform.Translation;
         WeaponEntity->Collided = false;
 
-        bool Collision = Collide(WeaponEntity->Collider, *CharacterCollider);
-        if (Collision) {
-            *CharacterCollided = true;
+        bool Collision = Collide(WeaponEntity, ControlledCharacterEntity);
+        if (!WeaponEntity->ParentID && Collision) {
+            ControlledCharacterEntity->Collided = true;
             WeaponEntity->Collided = true;
+            WeaponEntity->ParentID = ControlledCharacterEntity->ID;
+            if (pWeapon->Type == Sword) {
+                ControlledCharacter->RightHand = pWeapon;
+                pWeapon->ParentBone = 8;
+            }
+            else if (pWeapon->Type == Shield) {
+                ControlledCharacter->LeftHand = pWeapon;
+                pWeapon->ParentBone = 2;
+            }
+        }
+
+        if (pWeapon->ParentBone > 0) {
+            bone Bone = ControlledCharacter->Armature.Bones[pWeapon->ParentBone];
+            transform ModelTransform;
+            if (pWeapon->Type == Sword) {
+                ModelTransform = Transform(
+                    V3(0.5f,2.0f,0),
+                    Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0)),
+                    WeaponEntity->Transform.Scale
+                );
+            }
+            else if (pWeapon->Type == Shield) {
+                ModelTransform = Transform(
+                    V3(-0.7f,2.2f,0),
+                    Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0)),
+                    WeaponEntity->Transform.Scale
+                );
+            }
+            WeaponEntity->Transform = ModelTransform * Bone.Transform * ControlledCharacterEntity->Transform;
         }
     }
 }

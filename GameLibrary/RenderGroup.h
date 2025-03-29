@@ -531,6 +531,10 @@ void PushCircunference(
     Entry->Angle = 360;
 }
 
+/*
+    Pushes an arc of circunference to the renderer. Basis will determine the plane in which the circunference is contained.
+    Basis.Z will be the normal to this plane, and Basis.X will be the offset from the center where the arc will be started.
+*/
 void PushArc(
     render_group* Group,
     v3 Center,
@@ -906,36 +910,45 @@ void PushHeightmap(render_group* Group, game_heightmap_id ID, game_shader_pipeli
 // | Entities                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void PushCollider(render_group* Group, collider Collider, color Color) {
+void PushCollider(render_group* Group, game_entity Entity, color Color) {
+    collider Collider = Entity.Collider;
+    Collider.Offset += Entity.Transform.Translation;
     switch (Collider.Type) {
         case Rect_Collider: {
             PushRectOutline(Group, Rectangle(Collider), Color);
         } break;
 
         case Cube_Collider: {
-            PushCubeOutline(Group, Collider.Center, Scale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), Color);
+            PushCubeOutline(Group, Collider.Offset, Scale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), Color);
         } break;
 
         case Sphere_Collider: {
-            PushCircunference(Group, Collider.Center, V3(1,0,0), Collider.Sphere.Radius, Color, 2.0f);
-            PushCircunference(Group, Collider.Center, V3(0,1,0), Collider.Sphere.Radius, Color, 2.0f);
-            PushCircunference(Group, Collider.Center, V3(0,0,1), Collider.Sphere.Radius, Color, 2.0f);
+            PushCircunference(Group, Collider.Offset, V3(1,0,0), Collider.Sphere.Radius, Color, 2.0f);
+            PushCircunference(Group, Collider.Offset, V3(0,1,0), Collider.Sphere.Radius, Color, 2.0f);
+            PushCircunference(Group, Collider.Offset, V3(0,0,1), Collider.Sphere.Radius, Color, 2.0f);
         } break;
 
         case Capsule_Collider: {
-            v3 Head = Collider.Capsule.Segment.Head;
-            v3 Tail = Collider.Capsule.Segment.Tail;
-
+            v3 Head = Entity.Transform * Collider.Capsule.Segment.Head;
+            v3 Tail = Entity.Transform * Collider.Capsule.Segment.Tail;
+            v3 V = Head - Tail;
+            v3 D = normalize(Tail - Head);
+            basis Basis = Complete(D);
+            Basis.X = Basis.Y;
+            Basis.Y = D;
+            if (fabs(V.X) < 0.001) Basis.X = V3(1,0,0);
+            Basis.Y = D;
+            Basis.Z = normalize(cross(Basis.X,Basis.Y));
             // Top part
-            PushArc(Group, Tail, Identity3, Collider.Capsule.Distance, 180, Color, 2.0f);
-            basis Basis = Identity3;
-            Basis.X = V3(0,0,1);
-            Basis.Z = V3(1,0,0);
             PushArc(Group, Tail, Basis, Collider.Capsule.Distance, 180, Color, 2.0f);
-            PushCircunference(Group, Tail, V3(0,1,0), Collider.Capsule.Distance, Color, 2.0f);
+            v3 Temp = Basis.X;
+            Basis.X = Basis.Z;
+            Basis.Z = Temp;
+            PushArc(Group, Tail, Basis, Collider.Capsule.Distance, 180, Color, 2.0f);
+            PushCircunference(Group, Tail, D, Collider.Capsule.Distance, Color, 2.0f);
 
             // Vertical lines
-            v3 Offset[4] = { V3(1,0,0), V3(-1,0,0), V3(0,0,1), V3(0,0,-1) };
+            v3 Offset[4] = { Basis.X, -Basis.X, Basis.Z, -Basis.Z };
             for (int i = 0; i < 4; i++) {
                 PushLine(
                     Group, 
@@ -946,14 +959,20 @@ void PushCollider(render_group* Group, collider Collider, color Color) {
             }
 
             // Bottom part
-            PushCircunference(Group, Head, V3(0,1,0), 1.0f, Color, 2.0f);
-            Basis = Identity3;
-            Basis.X *= -1.0f;
-            Basis.Y *= -1.0f;
-            PushArc(Group, Head, Basis, 1.0f, 180, Color, 2.0f);
-            Basis.X = V3(0,0,-1);
-            Basis.Z = V3(-1,0,0);
-            PushArc(Group, Head, Basis, 1.0f, 180, Color, 2.0f);
+            PushCircunference(Group, Head, D, Collider.Capsule.Distance, Color, 2.0f);
+            
+            if (fabs(V.X) < 0.001) Basis.X = V3(-1,0,0);
+            Basis = Complete(-D);
+            Basis.X = Basis.Y;
+            Basis.Y = -D;
+            Basis.Z = normalize(cross(Basis.X,Basis.Y));
+            PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color, 2.0f);
+            Temp = Basis.X;
+            Basis.X = Basis.Z;
+            Basis.Z = Temp;
+            PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color, 2.0f);
+
+            Collider.Capsule.Segment = Entity.Transform * Collider.Capsule.Segment;
         } break;
 
         default: Assert(false);
@@ -1013,7 +1032,7 @@ void PushEntities(render_group* Group, game_entity_list* List) {
         }
 
         if (Group->Debug && Group->DebugColliders && Entity.Type != Camera) {
-            PushCollider(Group, Entity.Collider, Entity.Collided ? Red : Yellow);
+            PushCollider(Group, Entity, Entity.Collided ? Red : Yellow);
         }
     }
 }
