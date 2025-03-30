@@ -931,14 +931,12 @@ void PushCollider(render_group* Group, game_entity Entity, color Color) {
         case Capsule_Collider: {
             v3 Head = Entity.Transform * Collider.Capsule.Segment.Head;
             v3 Tail = Entity.Transform * Collider.Capsule.Segment.Tail;
-            v3 V = Head - Tail;
+
+            segment TransformedSegment = { Head, Tail };
+            transform T = SegmentTransform(TransformedSegment);
+            basis Basis = T * Identity3;
             v3 D = normalize(Tail - Head);
-            basis Basis = Complete(D);
-            Basis.X = Basis.Y;
-            Basis.Y = D;
-            if (fabs(V.X) < 0.001) Basis.X = V3(1,0,0);
-            Basis.Y = D;
-            Basis.Z = normalize(cross(Basis.X,Basis.Y));
+
             // Top part
             PushArc(Group, Tail, Basis, Collider.Capsule.Distance, 180, Color, 2.0f);
             v3 Temp = Basis.X;
@@ -960,12 +958,9 @@ void PushCollider(render_group* Group, game_entity Entity, color Color) {
 
             // Bottom part
             PushCircunference(Group, Head, D, Collider.Capsule.Distance, Color, 2.0f);
-            
-            if (fabs(V.X) < 0.001) Basis.X = V3(-1,0,0);
-            Basis = Complete(-D);
-            Basis.X = Basis.Y;
-            Basis.Y = -D;
-            Basis.Z = normalize(cross(Basis.X,Basis.Y));
+            Basis = T * Identity3;
+            Basis.X = -Basis.X;
+            Basis.Y = -Basis.Y;
             PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color, 2.0f);
             Temp = Basis.X;
             Basis.X = Basis.Z;
@@ -980,6 +975,7 @@ void PushCollider(render_group* Group, game_entity Entity, color Color) {
 }
 
 void PushEntities(render_group* Group, game_entity_list* List) {
+    TIMED_BLOCK;
     for (int i = 0; i < List->nEntities; i++) {
         game_entity Entity = List->Entities[i];
         switch(Entity.Type) {

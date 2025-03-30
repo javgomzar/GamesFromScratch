@@ -135,8 +135,6 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     PushEntities(Group, &pGameState->EntityList);
 
-    
-
     // Debug info
     static double Alpha = 0.0;
     if (
@@ -234,7 +232,7 @@ debug_record DebugRecordArray[__COUNTER__];
 
 void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
     char Buffer[512];
-    int Height = 270;
+    int Height = Group->Height - 20;
     game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
     for (int i = 0; i < ArrayCount(DebugRecordArray); i++) {
         debug_record* DebugRecord = DebugRecordArray + i;
@@ -251,7 +249,7 @@ void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
             }
             string String = PushString(TransientArena, 512, Buffer);
             if (Group->Debug) PushText(Group, V2(20, Height), Font, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
-            Height += 10;
+            Height -= 17;
             DebugRecord->HitCount = 0;
             DebugRecord->CycleCount = 0;
         }

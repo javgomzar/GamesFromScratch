@@ -455,6 +455,7 @@ struct game_state {
 };
 
 void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
+    TIMED_BLOCK;
     game_entity_list* List = &State->EntityList;
 
 // Cameras _________________________________________________________________________________________________________________________________

@@ -667,6 +667,22 @@ inline basis Complete(v3 X) {
 	return Complete(X, normalize(Y));
 }
 
+inline basis Identity(float Factor = 1.0) {
+	basis Result;
+	Result.X = V3(Factor, 0.0, 0.0);
+	Result.Y = V3(0.0, Factor, 0.0);
+	Result.Z = V3(0.0, 0.0, Factor);
+	return Result;
+}
+
+inline basis normalize(basis Basis) {
+	basis Result;
+	Result.X = normalize(Basis.X);
+	Result.Y = normalize(Basis.Y);
+	Result.Z = normalize(Basis.Z);
+	return Result;
+}
+
 union matrix4 {
 	struct {
 		float XX,XY,XZ,XW,
@@ -975,19 +991,33 @@ inline quaternion operator-(quaternion q) {
 	return { -q.c, -q.i, -q.j, -q.k };
 }
 
-inline v3 Rotate(v3 Vector, quaternion Q) {
+inline v3 operator*(quaternion Q, v3 Vector) {
 	quaternion Q_ = Conjugate(Q);
 	quaternion V = Quaternion(0.0, Vector.X, Vector.Y, Vector.Z);
 	quaternion Result = Q_ * V * Q;
 	return V3(Result.i, Result.j, Result.k);
 }
 
-inline basis Rotate(basis Basis, quaternion Q) {
+inline basis operator*(quaternion Q, basis Basis) {
 	basis Result;
-	Result.X = Rotate(Basis.X, Q);
-	Result.Y = Rotate(Basis.Y, Q);
-	Result.Z = Rotate(Basis.Z, Q);
+	Result.X = Q * Basis.X;
+	Result.Y = Q * Basis.Y;
+	Result.Z = Q * Basis.Z;
 
+	return Result;
+}
+
+inline matrix3 Matrix(quaternion Q) {
+	matrix3 Result;
+	Result.XX  = (2.0f * (Q.c * Q.c + Q.i * Q.i) - 1.0f);
+	Result.XY  = 2.0f * (Q.i * Q.j - Q.c * Q.k);
+	Result.XZ  = 2.0f * (Q.i * Q.k + Q.c * Q.j);
+	Result.YX  = 2.0f * (Q.i * Q.j + Q.c * Q.k);
+	Result.YY  = (2.0f * (Q.c * Q.c + Q.j * Q.j) - 1.0f);
+	Result.YZ  = 2.0f * (Q.j * Q.k - Q.c * Q.i);
+	Result.ZX  = 2.0f * (Q.i * Q.k - Q.c * Q.j);
+	Result.ZY  = 2.0f * (Q.j * Q.k + Q.c * Q.i);
+	Result.ZZ = (2.0f * (Q.c * Q.c + Q.k * Q.k) - 1.0f);
 	return Result;
 }
 
@@ -1026,22 +1056,6 @@ inline basis operator*(scale Scale, basis Basis) {
 	return Result;
 }
 
-inline basis Identity(float Factor = 1.0) {
-	basis Result;
-	Result.X = V3(Factor, 0.0, 0.0);
-	Result.Y = V3(0.0, Factor, 0.0);
-	Result.Z = V3(0.0, 0.0, Factor);
-	return Result;
-}
-
-inline basis normalize(basis Basis) {
-	basis Result;
-	Result.X = normalize(Basis.X);
-	Result.Y = normalize(Basis.Y);
-	Result.Z = normalize(Basis.Z);
-	return Result;
-}
-
 struct transform {
 	v3 Translation;
 	scale Scale;
@@ -1057,38 +1071,43 @@ inline transform Transform(v3 Translation = V3(0.0, 0.0, 0.0), quaternion Rotati
 }
 
 inline v3 operator*(transform T, v3 Vector) {
-	return Rotate((T.Scale * Vector), T.Rotation) + T.Translation;
+	return T.Rotation * (T.Scale * Vector) + T.Translation;
 }
 
 inline v4 operator*(transform T, v4 Vector) {
-	return V4(Rotate(T.Scale * V3(Vector.X, Vector.Y, Vector.Z), T.Rotation) + Vector.W * T.Translation, Vector.W);
+	return V4(T.Rotation * (T.Scale * V3(Vector.X, Vector.Y, Vector.Z)) + Vector.W * T.Translation, Vector.W);
+}
+
+inline basis operator*(transform T, basis Basis) {
+	return T.Rotation * Basis;
 }
 
 inline transform operator*(transform T, transform U) {
 	transform Result = { 0 };
 	Result.Scale = T.Scale * U.Scale;
-	Result.Translation = U.Translation + Rotate(T.Translation, U.Rotation);
+	Result.Translation = U.Translation + U.Rotation * T.Translation;
 	Result.Rotation = T.Rotation * U.Rotation;
 	return Result;
 }
 
-inline matrix4 Matrix(transform Transform) {
+inline matrix4 Matrix(transform T) {
+	matrix3 Rotation = Matrix(T.Rotation);
 	matrix4 Result;
-	Result.Array[0]  = Transform.Scale.X * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.i * Transform.Rotation.i) - 1.0);
-	Result.Array[1]  = Transform.Scale.X * 2.0 * (Transform.Rotation.i * Transform.Rotation.j - Transform.Rotation.c * Transform.Rotation.k);
-	Result.Array[2]  = Transform.Scale.X * 2.0 * (Transform.Rotation.i * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.j);
+	Result.Array[0]  = T.Scale.X * Rotation.XX;
+	Result.Array[1]  = T.Scale.X * Rotation.XY;
+	Result.Array[2]  = T.Scale.X * Rotation.XZ;
 	Result.Array[3]  = 0.0;
-	Result.Array[4]  = Transform.Scale.Y * 2.0 * (Transform.Rotation.i * Transform.Rotation.j + Transform.Rotation.c * Transform.Rotation.k);
-	Result.Array[5]  = Transform.Scale.Y * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.j * Transform.Rotation.j) - 1.0);
-	Result.Array[6]  = Transform.Scale.Y * 2.0 * (Transform.Rotation.j * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.i);
+	Result.Array[4]  = T.Scale.Y * Rotation.YX;
+	Result.Array[5]  = T.Scale.Y * Rotation.YY;
+	Result.Array[6]  = T.Scale.Y * Rotation.YZ;
 	Result.Array[7]  = 0.0;
-	Result.Array[8]  = Transform.Scale.Z * 2.0 * (Transform.Rotation.i * Transform.Rotation.k - Transform.Rotation.c * Transform.Rotation.j);
-	Result.Array[9]  = Transform.Scale.Z * 2.0 * (Transform.Rotation.j * Transform.Rotation.k + Transform.Rotation.c * Transform.Rotation.i);
-	Result.Array[10] = Transform.Scale.Z * (2.0 * (Transform.Rotation.c * Transform.Rotation.c + Transform.Rotation.k * Transform.Rotation.k) - 1.0);
+	Result.Array[8]  = T.Scale.Z * Rotation.ZX;
+	Result.Array[9]  = T.Scale.Z * Rotation.ZY;
+	Result.Array[10] = T.Scale.Z * Rotation.ZZ;
 	Result.Array[11] = 0.0;
-	Result.Array[12] = Transform.Translation.X;;
-	Result.Array[13] = Transform.Translation.Y;
-	Result.Array[14] = Transform.Translation.Z;
+	Result.Array[12] = T.Translation.X;;
+	Result.Array[13] = T.Translation.Y;
+	Result.Array[14] = T.Translation.Z;
 	Result.Array[15] = 1.0;
 	return Result;
 }
@@ -1104,6 +1123,19 @@ struct segment {
 
 inline segment operator*(transform T, segment S) {
 	return { T * S.Head, T * S.Tail };
+}
+
+/*
+	Returns the transform that moves the segment [origin, (0,L,0)] to the input segment, L being the length of this segment.
+*/
+inline transform SegmentTransform(segment Segment) {
+	transform Result;
+	Result.Translation = Segment.Head;
+	v3 V = Segment.Tail - Segment.Head;
+	float L = modulus(V);
+	float Angle = acosf(V.Y / L);
+	Result.Rotation = Quaternion(Angle, V3(-V.Z,0,V.X));
+	return Result;
 }
 
 inline v3 ClosestPoint(segment Segment, v3 Point) {
