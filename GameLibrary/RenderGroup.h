@@ -16,7 +16,6 @@ enum render_group_entry_type {
     group_type_render_entry_triangle,
     group_type_render_entry_rect,
     group_type_render_entry_text,
-    group_type_render_entry_video,
     group_type_render_entry_mesh,
     group_type_render_entry_heightmap,
     group_type_render_entry_mesh_outline,
@@ -102,7 +101,7 @@ struct render_entry_rect {
     rectangle Rect;
     color Color;
     game_bitmap* Texture;
-    wrap_mode Mode;
+    wrap_mode WrapMode;
     v2 Offset;
     double MinTexX;
     double MinTexY;
@@ -129,18 +128,6 @@ struct render_entry_debug_plot {
     uint32 Size;
     int dx;
     double* Data;
-};
-
-struct render_entry_button {
-    render_group_header Header;
-    game_font* Characters;
-    //button* Button;
-};
-
-struct render_entry_video {
-    render_group_header Header;
-    //game_video* Video;
-    rectangle Rect;
 };
 
 struct light {
@@ -235,10 +222,6 @@ uint32 GetSizeOf(render_group_entry_type Type) {
 
         case group_type_render_entry_text: {
             return sizeof(render_entry_text);
-        } break;
-
-        case group_type_render_entry_video: {
-            return sizeof(render_entry_video);
         } break;
 
         case group_type_render_entry_mesh: {
@@ -593,7 +576,7 @@ void PushBitmap(
     render_group* Group, 
     game_bitmap* Bitmap, 
     rectangle Rect, 
-    wrap_mode Mode = Wrap_Clamp,
+    wrap_mode WrapMode = Wrap_Clamp,
     bool Refresh = false,
     v2 Size = V2(1.0, 1.0),
     v2 Offset = V2(0,0),
@@ -605,13 +588,13 @@ void PushBitmap(
     Entry->Rect = Rect;
     Entry->Color = White;
     Entry->Texture = Bitmap;
-    Entry->Mode = Mode;
+    Entry->WrapMode = WrapMode;
     Entry->RefreshTexture = Refresh;
 
     int Width = Entry->Texture->Header.Width;
     int Height = Entry->Texture->Header.Height;
 
-    switch (Entry->Mode) {
+    switch (Entry->WrapMode) {
         case Wrap_Clamp: {
             Entry->MinTexX = Size.X < 0 ? 1.0 : 0.0;
             Entry->MaxTexX = Size.X < 0 ? 0.0 : 1.0;
@@ -716,14 +699,72 @@ void PushCubeOutline(
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Video                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-//void _PushVideo(render_group* Group, game_video* Video, game_rect Rect, double Order = SORT_ORDER_DEBUG_OVERLAY) {
-//    render_entry_video* Entry = PushRenderElement(Group, render_entry_video);
-//    Entry->Header.Target = World;
-//
-//    Entry->Header.Key.Order = Order;
-//    Entry->Video = Video;
-//    Entry->Rect = Rect;
-//}
+
+void PushVideo(
+    render_group* Group, 
+    game_video_id VideoID, 
+    rectangle Rect, 
+    double SecondsElapsed, 
+    double Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    game_video* Video = GetAsset(Group->Assets, VideoID);
+    int Width = roundf(Rect.Width);
+    int Height = roundf(Rect.Height);
+    if (!Video->VideoContext.Ended) {
+        TIMED_BLOCK;
+        Video->TimeElapsed += SecondsElapsed;
+        char Text[256];
+        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext.PTS * Video->VideoContext.TimeBase);
+        Log(Info, Text);
+
+        render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
+        Entry->Header.Target = World;
+        Entry->Header.Key.Order = Order;
+   
+        Entry->Texture = &Video->Texture;
+        Entry->WrapMode = Wrap_Clamp;
+        Entry->Header.Key.Order = Order;
+        Entry->Rect = Rect;
+        Entry->RefreshTexture = true;
+        Entry->Color = White;
+
+        if (Video->TimeElapsed > Video->VideoContext.PTS * Video->VideoContext.TimeBase) {
+            LoadFrame(&Video->VideoContext);
+            Entry->MinTexX = 0.0;
+            Entry->MinTexY = Clamp(Rect.Height / (float)Video->Height, 0.0f, 1.0f);
+            Entry->MaxTexX = Clamp(Rect.Width / (float)Video->Width, 0.0f, 1.0f);
+            Entry->MaxTexY = 0.0;
+            
+            Video->Texture.Header.Width = Width;
+            Video->Texture.Header.Height = Height;
+        }
+        WriteFrame(&Video->VideoContext, Width, Height);
+    }
+}
+
+void PushVideoLoop(
+    render_group* Group, 
+    game_video_id VideoID, 
+    rectangle Rect, 
+    double SecondsElapsed, 
+    int64_t StartOffset, 
+    int64_t EndOffset,
+    double Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    PushVideo(Group, VideoID, Rect, SecondsElapsed, Order);
+    game_video* Video = GetAsset(Group->Assets, VideoID);
+    auto& VideoContext = Video->VideoContext;
+    auto& FormatContext = VideoContext.FormatContext;
+    auto& CodecContext = VideoContext.CodecContext;
+    auto& StreamIndex = VideoContext.VideoStreamIndex;
+    auto& PTS = VideoContext.PTS; // Presentation time-stamp (in time-base units)
+
+    if (PTS >= EndOffset) {
+        av_seek_frame(FormatContext, StreamIndex, StartOffset, AVSEEK_FLAG_BACKWARD);
+        do { LoadFrame(&Video->VideoContext); } while (Video->VideoContext.PTS < StartOffset - 1000);
+        Video->TimeElapsed = Video->VideoContext.PTS * Video->VideoContext.TimeBase;
+    }
+}
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | UI                                                                                                                                                               |

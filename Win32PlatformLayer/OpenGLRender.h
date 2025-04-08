@@ -9,8 +9,6 @@
 /*
 	TODO:
 		- Kernel operations (Blur, sharpen, edge detection, ...)
-		- Pixel buffer objects for video rendering
-		- Skeletal animations
 		- Field of view projection matrix
 		- Implement FFT in compute shader
 		- Water rendering with a compute shader FFT
@@ -38,8 +36,6 @@ struct openGL {
 	render_target Targets[render_group_target_count];
 	uint32 QuadVAO;
 	uint32 DebugVAO;
-	uint32 VideoPBO;
-	uint32 ReadPBO;
 	bool Initialized;
 	bool VSync;
 };
@@ -777,10 +773,6 @@ openGL InitOpenGL(HWND Window, game_assets* Assets) {
 		OpenGLCreateVertexBuffer(Result.QuadVAO, VBO, 6, QuadVertices, GL_STATIC_DRAW, 2, Types, Sizes);
 		OpenGLCreateVertexBuffer(Result.DebugVAO, VBO, 6, DebugVertices, GL_STATIC_DRAW, 2, Types, Sizes);
 
-		// Pixel buffer objects for fast pixel transfers
-		glGenBuffers(1, &Result.VideoPBO); // Use GL_PIXEL_PACK_BUFFER to upload pixels to OpenGL
-		glGenBuffers(1, &Result.ReadPBO); // Use GL_PIXEL_UNPACK_BUFFER to get pixels from OpenGL
-
 		// Compiling & attaching shaders
 		for (int i = 0; i < Assets->nShaders; i++) {
 			game_shader* Shader = &Assets->Shader[i];
@@ -1305,21 +1297,6 @@ void OpenGLRenderGroupToOutput(render_group* Group, openGL OpenGL, double Time)
 				glBindTexture(GL_TEXTURE_2D, 0);
 				glUseProgram(0);
 			} break;
-
-			//case group_type_render_entry_video:
-			//{
-			//	render_entry_video Entry = *(render_entry_video*)Header;
-
-			//	SetCoordinates(Screen_Coordinates, Group->Camera, Group->Width, Group->Height);
-
-			//	game_video* Video = Entry.Video;
-			//	int Width = Video->VideoContext.Width;
-			//	int Height = Video->VideoContext.Height;
-			//	int BytesToWrite = Width * Height * 4;
-
-			//	OpenGLBindTexture(Width, Height, (GLuint*)&Video->Handle, Video->VideoContext.VideoOut, Clamp, true);
-			//	OpenGLTexturedRect(Entry.Rect, White, 0.0, 1.0, 1.0, 0.0);
-			//} break;
 
 			case group_type_render_entry_mesh:
 			{

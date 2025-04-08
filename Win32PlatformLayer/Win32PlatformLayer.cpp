@@ -1115,13 +1115,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
-    InitializeArena(&pGameState->TransientArena, Megabytes(10), ArenaStart);
+    pGameState->TransientArena = MemoryArena(Megabytes(10), ArenaStart);
     ArenaStart += pGameState->TransientArena.Size;
-    InitializeArena(&pGameState->StringsArena, Kilobytes(1), ArenaStart);
+    pGameState->StringsArena = MemoryArena(Kilobytes(1), ArenaStart);
     ArenaStart += pGameState->StringsArena.Size;
-    InitializeArena(&pGameState->RenderArena, Megabytes(9), ArenaStart);
+    pGameState->RenderArena = MemoryArena(Megabytes(9), ArenaStart);
     ArenaStart += pGameState->RenderArena.Size;
-    InitializeArena(&pGameState->GeneralPurposeArena, Megabytes(20), ArenaStart);
+    pGameState->GeneralPurposeArena = MemoryArena(Megabytes(20), ArenaStart);
     ArenaStart += pGameState->GeneralPurposeArena.Size;
 
     // Render group

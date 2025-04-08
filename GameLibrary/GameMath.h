@@ -1258,6 +1258,10 @@ struct rectangle {
 	float Height;
 };
 
+rectangle Rectangle(float Left, float Top, float Width, float Height) {
+	return {Left, Top, Width, Height};
+}
+
 struct vector_plane {
 	v3 Normal;
 };

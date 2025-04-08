@@ -39,45 +39,7 @@ void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_
     //WriteSineWave(pSoundBuffer, 480, 0);
 }
 
-// Video
-//void PushVideo(render_group* Group, game_video_id VideoID, game_rect Rect, double SecondsElapsed, double Order = SORT_ORDER_DEBUG_OVERLAY) {
-//    game_video* Video = GetAsset(Group->Assets, VideoID);
-//    if (!Video->VideoContext.Ended) {
-//        Video->TimeElapsed += SecondsElapsed;
-//        char Text[256];
-//        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext.PTS * Video->VideoContext.TimeBase);
-//        OutputDebugStringA(Text);
-//
-//        if (Video->TimeElapsed > Video->VideoContext.PTS * Video->VideoContext.TimeBase) {
-//            LoadFrame(&Video->VideoContext);
-//            Video->VideoContext.Width = Rect.Width;
-//            Video->VideoContext.Height = Rect.Height;
-//            WriteFrame(&Video->VideoContext);
-//        }
-//    }
-//
-//    _PushVideo(Group, Video, Rect, Order);
-//}
-
-//void PushVideoLoop(render_group* Group, game_video_id VideoID, game_rect Rect, int Z, double SecondsElapsed, int64_t StartOffset, int64_t EndOffset) {
-//
-//    PushVideo(Group, VideoID, Rect, Z, SecondsElapsed);
-//    game_video* Video = GetAsset(Group->Assets, VideoID);
-//    auto& VideoContext = Video->VideoContext;
-//    auto& FormatContext = VideoContext.FormatContext;
-//    auto& CodecContext = VideoContext.CodecContext;
-//    auto& StreamIndex = VideoContext.VideoStreamIndex;
-//    auto& PTS = VideoContext.PTS; // Presentation time-stamp (in time-base units)
-//
-//    if (PTS >= EndOffset) {
-//        av_seek_frame(FormatContext, StreamIndex, StartOffset, AVSEEK_FLAG_BACKWARD);
-//        do { LoadFrame(&Video->VideoContext); } while (Video->VideoContext.PTS < StartOffset - 1000);
-//        Video->TimeElapsed = Video->VideoContext.PTS * Video->VideoContext.TimeBase;
-//    }
-//}
-
-// Updates
-
+// Debug
 void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena);
 
 void TestPerformance() {
@@ -93,7 +55,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     platform_api* Platform = &Memory->Platform;
     game_entity_list* EntityList = &pGameState->EntityList;
     {
-        TIMED_BLOCK;
+    TIMED_BLOCK;
+
     double Time = pGameState->Time;
     camera* ActiveCamera = Group->Camera;
 
@@ -114,12 +77,6 @@ extern "C" GAME_UPDATE(GameUpdate)
         //TestPerformance();
 
         // Initialize entities
-        AddCamera(EntityList, V3(0.0, 3.2, 0.0));
-        AddCharacter(EntityList, V3(0,0,0), 100);
-        AddEnemy(EntityList, V3(5.0, 3.0, 10.0), 100);
-        AddWeapon(EntityList, Sword, White, V3(10.0, 0, 15.0), Quaternion(1.0, 0, 0, 0), Scale(0.75f, 0.75f, 0.75f));
-        AddWeapon(EntityList, Shield, White, V3(10.0, 2.0, 10.0), Quaternion(1.0, 0, 0, 0), Scale(0.75f, 0.75f, 0.75f));
-        AddProp(EntityList, Mesh_Sphere_ID, Shader_Pipeline_Sphere_ID, Red, V3(5.0, 0.0, 5.0), Quaternion(1,0,0,0), Scale(5.0, 1.0, 1.0));
         
         Memory->IsInitialized = true;
     }

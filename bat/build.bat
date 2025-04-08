@@ -2,6 +2,7 @@ set project_dir=D:\Code\C\GamesFromScratch
 
 set INCLUDE=^
 %project_dir%\Linking\include;^
+%project_dir%\Linking\include\ffmpeg;^
 D:\Program Files\Visual Studio Community 2020\VC\Tools\MSVC\14.42.34433\include;^
 C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\ucrt;^
 C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\um;^
@@ -12,6 +13,7 @@ C:\Program Files (x86)\Windows Kits\10\Include\10.0.22621.0\shared;^
 
 set LIB=^
 %project_dir%\Linking\lib;^
+%project_dir%\Linking\lib\ffmpeg;^
 C:\Program Files (x86)\Windows Kits\10\lib\10.0.22621.0\um\x64;^
 D:\Program Files\Visual Studio Community 2020\VC\Tools\MSVC\14.42.34433\lib\x64;^
 C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\ucrt\x64
@@ -24,7 +26,13 @@ C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\ucrt\x64
  /Fd%project_dir%\bin\vc140.pdb^
  /D GAMELIBRARY_EXPORTS=1^
  /D DebugRecordArray=DebugRecordArray_GameLibrary^
- /LD freetype.lib %project_dir%\GameLibrary\GameLibrary.cpp^
+ /LD^
+ freetype.lib^
+ avcodec.lib^
+ avformat.lib^
+ avutil.lib^
+ swscale.lib^
+ %project_dir%\GameLibrary\GameLibrary.cpp^
  /link^
  /DEBUG^
  /DLL^
@@ -58,6 +66,10 @@ cd ..
  freetype.lib^
  glew32.lib^
  libfftw3-3.lib^
+ avcodec.lib^
+ avformat.lib^
+ avutil.lib^
+ swscale.lib^
  %project_dir%\Win32PlatformLayer\Win32PlatformLayer.cpp^
  /link Win32PlatformLayer/Win32PlatformLayer.res /MACHINE:X64
  
