@@ -1,0 +1,41 @@
+# OPENGL
+Bindings:
+    - (0) GlobalUBO: resolution, time.
+    - (1) ProjectionUBO: world_projection, screen_projection, view, use_screen_projection.
+    - (2) ScreenUBO: use_screen_projection.
+    - (3) ModelUBO: model, normal.
+    - (4) BonesUBO: Bone transforms and normal transforms.
+    - (5) ColorUBO: Color.
+    - (6) LightUBO: Light direction, color, etc.
+    - (7) OutlineUBO: Outline uniforms
+    - (8) KernelUBO: Kernel matrix.
+    - (9) JumpFloodUBO: Jump flood uniforms.
+    - (10) AntialiasingUBO: Antialiasing uniforms.
+
+# VULKAN
+______ Set = 0:
+    Uniforms shared between shader.
+
+    Bindings:
+    - (0) GlobalUBO: resolution, time.
+    - (1) ProjectionUBO: world_projection, screen_projection, view.
+    - (2) LightUBO: Light direction, color, etc.
+
+______ Set = 1:
+    Per shader uniforms.
+
+    Bindings:
+    - (0) ScreenUBO: use_screen_projection.
+    - (1) ModelUBO: Model matrix and normal matrix for 3D models.
+    - (2) ColorUBO: Color.
+    - (3) BonesUBO: Bone transforms and normal transforms.
+    - (4) JumpFloodUBO: Level.
+    - (5) KernelUBO: Kernel matrix.
+    - (6) OutlineUBO: Outline width.
+
+______ Set = 2:
+    Per draw uniforms. Samplers must be here.
+
+    Bindings:
+    - (0) ColorSampler.
+    - (1) AttachmentSampler (Depth & Stencil).

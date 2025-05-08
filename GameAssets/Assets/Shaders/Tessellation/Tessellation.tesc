@@ -1,10 +1,9 @@
-#version 430 core
+#version 450
 
-layout (vertices=4) out;
+layout (vertices = 4) out;
 
-in vec2 v_texture[];
-
-out vec2 texture_coord[4];
+layout(location = 0) in vec2 v_texture[];
+layout(location = 0) out vec2 texture_coord[4];
 
 void main() {
     gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;

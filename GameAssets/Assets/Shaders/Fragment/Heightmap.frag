@@ -1,8 +1,7 @@
-#version 430 core
+#version 450
 
-in float height;
-
-out vec4 frag_color;
+layout (location = 0) in float height;
+layout (location = 0) out vec4 frag_color;
 
 void main() {
 	float h = 5.0 * height;

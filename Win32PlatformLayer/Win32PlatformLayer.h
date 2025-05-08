@@ -42,7 +42,7 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
     else {
         DWORD LastError = GetLastError();
         char ErrorText[256];
-        sprintf_s(ErrorText, "Error while opening file %s. Error code %d.\n", Path, LastError);
+        sprintf_s(ErrorText, "Error while opening file %s. Error code %d.", Path, LastError);
         Log(Error, ErrorText);
     }
     return Result;
@@ -62,7 +62,7 @@ PLATFORM_WRITE_ENTIRE_FILE(PlatformWriteEntireFile) {
         // Debug
         DWORD WinError = GetLastError();
         if (WinError == ERROR_PATH_NOT_FOUND) {
-            Log(Error, "Path not found\n");
+            Log(Error, "Path not found.");
         }
         Assert(false);
     }

@@ -8,9 +8,16 @@
 #include "XInput.h"
 #include "xaudio2.h"
 
-#pragma comment (lib, "opengl32.lib")
+#if GAME_RENDER_API_OPENGL
+    #pragma comment (lib, "opengl32.lib")
+    #include "OpenGLRender.h"
+#endif
 
-#include "OpenGLRender.h"
+#if GAME_RENDER_API_VULKAN
+    #include "VulkanRender.h"
+#endif
+
+#include "Tokenizer.h"
 
 #include <thread>
 #include <mutex>
@@ -154,42 +161,14 @@ VOID DisplayBufferToWindow(
     SwapBuffers(DeviceContext);
 }
 
-// OpenGL render
-void Render(HWND Window, render_group* Group, openGL OpenGL, double Time) {
-    TIMED_BLOCK;
-    
-    // Sorting render entries
-    SortEntries(Group);
-
-    if (OpenGL.Initialized) {
-        OpenGLRenderGroupToOutput(Group, OpenGL, Time);
-    }
-    else {
-        // TODO: Call software renderer (fix it first)
-    }
-
-    HDC hdc = GetDC(Window);
-    SwapBuffers(hdc);
-
-    ReleaseDC(Window, hdc);
-}
-
-void ResizeWindow(HWND Window, render_group* Group, openGL OpenGL) {
-    RECT Rect = { 0 };
-    GetClientRect(Window, &Rect);
-
-    int32 NewWidth = Rect.right - Rect.left;
-    int32 NewHeight = Rect.bottom - Rect.top;
-
-    if (NewWidth != Group->Width || NewHeight != Group->Height) {
-        Group->Width = NewWidth;
-        Group->Height = NewHeight;
-        ResizeFramebuffers(OpenGL, NewWidth, NewHeight);
-    }
-}
-
 render_group* Group;
-openGL OpenGL;
+
+#if GAME_RENDER_API_OPENGL
+    openGL RendererContext = { 0 };
+#endif
+#if GAME_RENDER_API_VULKAN
+    vulkan RendererContext = { 0 };
+#endif
 
 // Full screen
 VOID ToggleFullScreen(HWND Window) {
@@ -252,14 +231,14 @@ static void InitXAudio2(int nBuffers,
     hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     if (FAILED(hr = XAudio2Create(&pXAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
-        Log(Error, "ERROR creating XAudio2");
+        Log(Error, "ERROR creating XAudio2.");
     }
     else if (FAILED(hr = pXAudio2->CreateMasteringVoice(&pMasterVoice))) {
-        Log(Error, "ERROR creating mastering voice");
+        Log(Error, "ERROR creating mastering voice.");
     }
     else {
         if (FAILED(hr = pXAudio2->CreateSourceVoice(&pSourceVoice, pWaveFormat, 0, XAUDIO2_DEFAULT_FREQ_RATIO, &VoiceCallback))) {
-            Log(Error, "ERROR creating source voice");
+            Log(Error, "ERROR creating source voice.");
         }
         else {
             uint32 AudioBytes = BufferSize * pWaveFormat->nChannels * (pWaveFormat->wBitsPerSample / 8);
@@ -362,42 +341,6 @@ void PlaybackInput(record_and_playback* RecordPlayback, game_input* Input) {
             EndInputPlayback(RecordPlayback);
             BeginInputPlayback(RecordPlayback, Index);
         }
-    }
-}
-
-// Capture screen
-void ScreenCapture(openGL OpenGL, int Width, int Height) {
-    game_bitmap BMP = {};
-
-    // Bitmap header
-    MakeBitmapHeader(&BMP.Header, Width, Height);
-
-    BMP.BytesPerPixel = 4;
-    BMP.Pitch = 4 * Width;
-    BMP.AlphaMask = 0xff000000;
-
-    // File name
-    time_t t = time(NULL);
-    struct tm tm;
-    localtime_s(&tm, &t);
-    char Filename[100];
-    sprintf_s(Filename, "../Captures/Screenshot %d-%02d-%02d %02d.%02d.%02d.bmp",
-        tm.tm_year + 1900,
-        tm.tm_mon + 1,
-        tm.tm_mday,
-        tm.tm_hour,
-        tm.tm_min,
-        tm.tm_sec
-    );
-
-    // Read pixels
-    BMP.Content = (uint32*)VirtualAlloc(0, Width * Height * BMP.BytesPerPixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    glReadPixels(0, 0, Width, Height, GL_BGRA, GL_UNSIGNED_BYTE, (void*)BMP.Content);
-
-    SaveBMP(Filename, &BMP);
-    if (BMP.Content) {
-        VirtualFree(BMP.Content, 0, MEM_RELEASE);
     }
 }
 
@@ -871,18 +814,18 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
         if (LastError == ERROR_SHARING_VIOLATION) {
             int Retries = 0;
             do {
-                Log(Warn, "Retrying game code loading after sharing violation.\n");
+                Log(Warn, "Retrying game code loading after sharing violation.");
                 Sleep(100);
                 CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
                 Retries++;
                 if (Retries > 100) {
-                    Log(Error, "Max number of retries reached.\n");
+                    Log(Error, "Max number of retries reached.");
                     break;
                 }
             } while (!CopyResult);
         }
         else {
-            sprintf_s(ErrorText, "Error copying .dll file. Error code %d.\n", LastError);
+            sprintf_s(ErrorText, "Error copying .dll file. Error code %d.", LastError);
             Log(Error, ErrorText);
             return;
         }
@@ -898,7 +841,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
     }
     else {
         LastError = GetLastError();
-        sprintf_s(ErrorText, "Error loading game code. Error code %d.\n", LastError);
+        sprintf_s(ErrorText, "Error loading game code. Error code %d.", LastError);
         Log(Error, ErrorText); // If error is 126 (dependency error while loading DLL) try using Process Monitor.
     }
 }
@@ -1048,11 +991,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     MyRegisterClass(hInstance);
 
     // Dummy window for OpenGL context creation
+#if GAME_RENDER_API_OPENGL
     HWND DummyWindow = CreateWindowA(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, 0, 0,
         100, 100, nullptr, nullptr, hInstance, nullptr);
 
     GetWGLFunctions(DummyWindow);
     DestroyWindow(DummyWindow);
+#endif
 
     // Perform application initialization:
     HWND Window;
@@ -1110,8 +1055,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     pGameState->EntityList.Assets = &GameMemory.Assets;
 
-    // OpenGl
-    OpenGL = InitOpenGL(Window, &GameMemory.Assets);
+    // Initilize render API
+    InitializeRenderer(&RendererContext, Window, hInstance, &GameMemory.Assets);
 
     // Memory arenas
     uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state);
@@ -1139,7 +1084,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             UnloadGameCode(&GameCode);
             LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
             if (GameCode.IsValid) {
-                Log(Info, "New game code loaded.\n");
+                Log(Info, "New game code loaded.");
             }
         }
 
@@ -1147,70 +1092,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         ClearArena(&pGameState->TransientArena);
 
         // Previous input
-        Input.Mouse.LeftClick.WasDown = Input.Mouse.LeftClick.IsDown;
-        Input.Mouse.MiddleClick.WasDown = Input.Mouse.MiddleClick.IsDown;
-        Input.Mouse.RightClick.WasDown = Input.Mouse.RightClick.IsDown;
-
-        Input.Mouse.Wheel = 0;
-
-        Input.Keyboard.One.WasDown = Input.Keyboard.One.IsDown;
-        Input.Keyboard.Two.WasDown = Input.Keyboard.Two.IsDown;
-        Input.Keyboard.Three.WasDown = Input.Keyboard.Three.IsDown;
-        Input.Keyboard.Four.WasDown = Input.Keyboard.Four.IsDown;
-        Input.Keyboard.Five.WasDown = Input.Keyboard.Five.IsDown;
-        Input.Keyboard.Six.WasDown = Input.Keyboard.Six.IsDown;
-        Input.Keyboard.Seven.WasDown = Input.Keyboard.Seven.IsDown;
-        Input.Keyboard.Eight.WasDown = Input.Keyboard.Eight.IsDown;
-        Input.Keyboard.Nine.WasDown = Input.Keyboard.Nine.IsDown;
-        Input.Keyboard.Zero.WasDown = Input.Keyboard.Zero.IsDown;
-        Input.Keyboard.Q.WasDown = Input.Keyboard.Q.IsDown;
-        Input.Keyboard.W.WasDown = Input.Keyboard.W.IsDown;
-        Input.Keyboard.E.WasDown = Input.Keyboard.E.IsDown;
-        Input.Keyboard.R.WasDown = Input.Keyboard.R.IsDown;
-        Input.Keyboard.T.WasDown = Input.Keyboard.T.IsDown;
-        Input.Keyboard.Y.WasDown = Input.Keyboard.Y.IsDown;
-        Input.Keyboard.U.WasDown = Input.Keyboard.U.IsDown;
-        Input.Keyboard.I.WasDown = Input.Keyboard.I.IsDown;
-        Input.Keyboard.O.WasDown = Input.Keyboard.O.IsDown;
-        Input.Keyboard.P.WasDown = Input.Keyboard.P.IsDown;
-        Input.Keyboard.A.WasDown = Input.Keyboard.A.IsDown;
-        Input.Keyboard.S.WasDown = Input.Keyboard.S.IsDown;
-        Input.Keyboard.D.WasDown = Input.Keyboard.D.IsDown;
-        Input.Keyboard.F.WasDown = Input.Keyboard.F.IsDown;
-        Input.Keyboard.G.WasDown = Input.Keyboard.G.IsDown;
-        Input.Keyboard.H.WasDown = Input.Keyboard.H.IsDown;
-        Input.Keyboard.J.WasDown = Input.Keyboard.J.IsDown;
-        Input.Keyboard.K.WasDown = Input.Keyboard.K.IsDown;
-        Input.Keyboard.L.WasDown = Input.Keyboard.L.IsDown;
-        Input.Keyboard.Z.WasDown = Input.Keyboard.Z.IsDown;
-        Input.Keyboard.X.WasDown = Input.Keyboard.X.IsDown;
-        Input.Keyboard.C.WasDown = Input.Keyboard.C.IsDown;
-        Input.Keyboard.V.WasDown = Input.Keyboard.V.IsDown;
-        Input.Keyboard.B.WasDown = Input.Keyboard.B.IsDown;
-        Input.Keyboard.N.WasDown = Input.Keyboard.N.IsDown;
-        Input.Keyboard.M.WasDown = Input.Keyboard.M.IsDown;
-        Input.Keyboard.Up.WasDown = Input.Keyboard.Up.IsDown;
-        Input.Keyboard.Down.WasDown = Input.Keyboard.Down.IsDown;
-        Input.Keyboard.Left.WasDown = Input.Keyboard.Left.IsDown;
-        Input.Keyboard.Right.WasDown = Input.Keyboard.Right.IsDown;
-        Input.Keyboard.Escape.WasDown = Input.Keyboard.Escape.IsDown;
-        Input.Keyboard.Space.WasDown = Input.Keyboard.Space.IsDown;
-        Input.Keyboard.Enter.WasDown = Input.Keyboard.Enter.IsDown;
-        Input.Keyboard.F1.WasDown = Input.Keyboard.F1.IsDown;
-        Input.Keyboard.F2.WasDown = Input.Keyboard.F2.IsDown;
-        Input.Keyboard.F3.WasDown = Input.Keyboard.F3.IsDown;
-        Input.Keyboard.F4.WasDown = Input.Keyboard.F4.IsDown;
-        Input.Keyboard.F5.WasDown = Input.Keyboard.F5.IsDown;
-        Input.Keyboard.F6.WasDown = Input.Keyboard.F6.IsDown;
-        Input.Keyboard.F7.WasDown = Input.Keyboard.F7.IsDown;
-        Input.Keyboard.F8.WasDown = Input.Keyboard.F8.IsDown;
-        Input.Keyboard.F9.WasDown = Input.Keyboard.F9.IsDown;
-        Input.Keyboard.F10.WasDown = Input.Keyboard.F10.IsDown;
-        Input.Keyboard.F11.WasDown = Input.Keyboard.F11.IsDown;
-        Input.Keyboard.F12.WasDown = Input.Keyboard.F12.IsDown;
-        Input.Keyboard.PageUp.WasDown = Input.Keyboard.PageUp.IsDown;
-        Input.Keyboard.PageDown.WasDown = Input.Keyboard.PageDown.IsDown;
-        Input.Keyboard.Shift.WasDown = Input.Keyboard.Shift.IsDown;
+        UpdatePreviousInput(&Input);
 
         // Peek and dispatch messages
         if (!FirstFrame) {
@@ -1234,24 +1116,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             XINPUT_STATE ControllerState;
             if (XInputGetState(ControllerIndex, &ControllerState) == ERROR_SUCCESS) {
                 XINPUT_GAMEPAD* Pad = &ControllerState.Gamepad;
-
-                // Previous input
-                Input.Controller.PadUp.WasDown = Input.Controller.PadUp.IsDown;
-                Input.Controller.PadDown.WasDown = Input.Controller.PadDown.IsDown;
-                Input.Controller.PadLeft.WasDown = Input.Controller.PadLeft.IsDown;
-                Input.Controller.PadRight.WasDown = Input.Controller.PadRight.IsDown;
-                Input.Controller.LB.WasDown = Input.Controller.LB.IsDown;
-                Input.Controller.RB.WasDown = Input.Controller.RB.IsDown;
-                Input.Controller.AButton.WasDown = Input.Controller.AButton.IsDown;
-                Input.Controller.BButton.WasDown = Input.Controller.BButton.IsDown;
-                Input.Controller.XButton.WasDown = Input.Controller.XButton.IsDown;
-                Input.Controller.YButton.WasDown = Input.Controller.YButton.IsDown;
-                Input.Controller.Start.WasDown = Input.Controller.Start.IsDown;
-                Input.Controller.Back.WasDown = Input.Controller.Back.IsDown;
-                Input.Controller.LS.WasDown = Input.Controller.LS.IsDown;
-                Input.Controller.RS.WasDown = Input.Controller.RS.IsDown;
-                Input.Controller.LT.WasDown = Input.Controller.LT.IsDown;
-                Input.Controller.RT.WasDown = Input.Controller.RT.IsDown;
 
                 // Button mapping
                 Input.Controller.PadUp.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
@@ -1350,7 +1214,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 Group->Height = Rect.bottom - Rect.top;
             }
             else {
-                ResizeWindow(Window, Group, OpenGL);
+                ResizeWindow(Window, Group, &RendererContext);
             }
 
             if (!Pause) {
@@ -1361,15 +1225,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
 
             if (Input.Keyboard.F10.IsDown && !Input.Keyboard.F11.WasDown) {
-                ScreenCapture(OpenGL, Group->Width, Group->Height);
+                ScreenCapture(&RendererContext, Group->Width, Group->Height);
             }
 
             LogDebugRecords(Group, &pGameState->TransientArena);
-            Render(Window, Group, OpenGL, pGameState->Time);
-
+            Render(Window, Group, &RendererContext, pGameState->Time);
         }
         else {
-            Log(Error, "Could not update state due to invalid game code.\n");
+            Log(Error, "Could not update state due to invalid game code.");
         }
 
         //DebugSyncDisplay(&Buffer, &GameSoundBuffers[currentBuffer]);
@@ -1378,7 +1241,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         XAUDIO2_VOICE_STATE VoiceState;
         pSourceVoice->GetState(&VoiceState);
         if (FAILED(SubmitBuffer(&XAudio2Buffers[currentBuffer], pSourceVoice))) {
-            Log(Error, "Buffer playing went wrong.\n");
+            Log(Error, "Buffer playing went wrong.");
         }
         else {
             currentBuffer = (currentBuffer + 1) % nBuffers;
@@ -1401,7 +1264,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
         else {
             // Missed a frame!
-            Log(Warn, "Missed a frame!\n");
+            Log(Warn, "Missed a frame!");
         }
 
         double ActualSecsElapsed = SecsElapsedPerFrame + 0.0005;
@@ -1482,21 +1345,16 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
 
     DWORD Error = GetLastError();
 
-    if (!hWnd)
-    {
-        return FALSE;
-    }
-    else {
-        *WindowPtr = hWnd;
-    }
+    if (!hWnd) return FALSE;
+    else *WindowPtr = hWnd;
 
     // Starting resolution
     int ScreenWidth = GetSystemMetrics(SM_CXSCREEN);
     int ScreenHeight = GetSystemMetrics(SM_CYSCREEN);
 
     // These are not the actual dimensions of the buffer
-    int WindowWidth = 967;
-    int WindowHeight = 529;
+    int WindowWidth = 1280;
+    int WindowHeight = 720;
 
     // This code starts the window centered
     int X = (ScreenWidth / 2) - (WindowWidth / 2);
@@ -1521,44 +1379,35 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
 //
 LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    switch (message)
-    {
-        case WM_COMMAND:
-        {
+    switch (message) {
+        case WM_COMMAND: {
             int wmId = LOWORD(wParam);
             // Parse the menu selections:
-            switch (wmId)
-            {
+            switch (wmId) {
                 case IDM_ABOUT:
-                    DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), Window, About);
-                    break;
+                    { DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), Window, About); } break;
                 case IDM_EXIT:
-                    DestroyWindow(Window);
-                    break;
+                    { DestroyWindow(Window); } break;
                 default:
                     return DefWindowProc(Window, message, wParam, lParam);
             }
         }
         break;
-        case WM_PAINT:
-        {
+        case WM_PAINT: {
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(Window, &ps);
 
             if (Group) {
-                ResizeWindow(Window, Group, OpenGL);
-                Render(Window, Group, OpenGL, 0.0);
+                ResizeWindow(Window, Group, &RendererContext);
+                Render(Window, Group, &RendererContext, 0.0);
             }
 
             EndPaint(Window, &ps);
             ReleaseDC(Window, hdc);
-        }
-        break;
+        } break;
         case WM_CLOSE:
         case WM_DESTROY:
-            Running = false;
-            PostQuitMessage(0);
-            break;
+            { Running = false; PostQuitMessage(0); } break;
         default:
             return DefWindowProc(Window, message, wParam, lParam);
     }
@@ -1569,14 +1418,12 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
+    switch (message) {
         case WM_INITDIALOG:
             return (INT_PTR)TRUE;
 
         case WM_COMMAND:
-            if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-            {
+            if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) {
                 EndDialog(hDlg, LOWORD(wParam));
                 return (INT_PTR)TRUE;
             }
@@ -1596,12 +1443,12 @@ void LogDebugRecords(render_group* Group, memory_arena* Arena) {
 
         if (DebugRecord->HitCount) {
             if (DebugRecord->HitCount == 1) {
-                sprintf_s(Buffer, "%s: (%i hit) %.02f Mcycles (%s:%i)\n", 
+                sprintf_s(Buffer, "%s: (%i hit) %.02f Mcycles (%s:%i).", 
                     DebugRecord->FunctionName, DebugRecord->HitCount, 
                     DebugRecord->CycleCount / 1000000.0f, DebugRecord->FileName, DebugRecord->LineNumber);
             }
             else {
-                sprintf_s(Buffer, "%s: (%i hits) Total: %.02f Mcycles, Average: %.02f ms (%s:%i)\n", 
+                sprintf_s(Buffer, "%s: (%i hits) Total: %.02f Mcycles, Average: %.02f ms (%s:%i).", 
                     DebugRecord->FunctionName, DebugRecord->HitCount, 
                     DebugRecord->CycleCount / 1000000.0f, 
                     DebugRecord->CycleCount / (1000000.0f * DebugRecord->HitCount), 

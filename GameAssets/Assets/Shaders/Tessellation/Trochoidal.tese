@@ -1,4 +1,5 @@
-#version 430 core
+#version 450
+#extension GL_KHR_vulkan_glsl : enable
 
 /*
     Tessellation primitive generation
@@ -12,18 +13,55 @@ layout (quads, equal_spacing, ccw) in;
 #define g 9.80665
 #define L 0.2
 
-uniform sampler2D heightMap;
+#ifdef VULKAN
+layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
+#else
+layout (std140, binding = 0) uniform GlobalUniforms
+#endif
+{
+    vec2 resolution;
+    float time;
+} GlobalUBO;
 
-uniform mat4 u_projection;
-uniform mat4 u_view;
-uniform mat4 u_model;
+#ifdef VULKAN
+layout(std140, set = 0, binding = 1) uniform ProjectionUniforms
+#else
+layout(std140, binding = 1) uniform ProjectionUniforms
+#endif
+{
+	mat4 world_projection;
+	mat4 screen_projection;
+	mat4 view;
+} ProjectionUBO;
 
-uniform float u_time;
+#ifdef VULKAN
+layout(std140, set = 1, binding = 0) uniform ScreenUniforms 
+#else 
+layout(std140, binding = 2) uniform ScreenUniforms 
+#endif
+{
+	int use_screen_projection;
+} ScreenUBO;
 
-in vec2 texture_coord[];
+#ifdef VULKAN
+layout(std140, set = 1, binding = 1) uniform ModelUniforms
+#else
+layout(std140, binding = 3) uniform ModelUniforms
+#endif
+{
+    mat4 model;
+	mat4 normal;
+} ModelUBO;
 
-out vec3 v_normal;
-out float height;
+#ifdef VULKAN
+layout(set = 2, binding = 0) uniform sampler2D heightMap;
+#else
+layout(binding = 0) uniform sampler2D heightMap;
+#endif
+
+layout(location = 0) in vec2 texture_coord[];
+layout(location = 0) out vec3 v_normal;
+layout(location = 1) out float height;
 
 float rand (in vec2 st) {
     return fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
@@ -89,10 +127,10 @@ void main() {
         float kz = (1.0 - 2.0 * rand(vec2(0,i)));
         float k = length(vec2(kx,kz));
         float w = sqrt(g*k);
-        y += (1 - abs(sin(kx*p.x + kz*p.z - w*u_time)));
+        y += (1 - abs(sin(kx*p.x + kz*p.z - w*GlobalUBO.time)));
     }
     height = y;
     p += vec4(x,y,z,0);
 
-    gl_Position = u_projection * u_view * u_model * p;
+    gl_Position = ProjectionUBO.world_projection * ProjectionUBO.view * ModelUBO.model * p;
 }

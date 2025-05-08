@@ -145,4 +145,90 @@ struct game_input {
     game_mouse_input Mouse;
 };
 
+void UpdatePreviousInput(game_input* Input) {
+
+// Mouse
+    Input->Mouse.LeftClick.WasDown = Input->Mouse.LeftClick.IsDown;
+    Input->Mouse.MiddleClick.WasDown = Input->Mouse.MiddleClick.IsDown;
+    Input->Mouse.RightClick.WasDown = Input->Mouse.RightClick.IsDown;
+    Input->Mouse.Wheel = 0;
+
+// Keyboard
+    Input->Keyboard.One.WasDown = Input->Keyboard.One.IsDown;
+    Input->Keyboard.Two.WasDown = Input->Keyboard.Two.IsDown;
+    Input->Keyboard.Three.WasDown = Input->Keyboard.Three.IsDown;
+    Input->Keyboard.Four.WasDown = Input->Keyboard.Four.IsDown;
+    Input->Keyboard.Five.WasDown = Input->Keyboard.Five.IsDown;
+    Input->Keyboard.Six.WasDown = Input->Keyboard.Six.IsDown;
+    Input->Keyboard.Seven.WasDown = Input->Keyboard.Seven.IsDown;
+    Input->Keyboard.Eight.WasDown = Input->Keyboard.Eight.IsDown;
+    Input->Keyboard.Nine.WasDown = Input->Keyboard.Nine.IsDown;
+    Input->Keyboard.Zero.WasDown = Input->Keyboard.Zero.IsDown;
+    Input->Keyboard.Q.WasDown = Input->Keyboard.Q.IsDown;
+    Input->Keyboard.W.WasDown = Input->Keyboard.W.IsDown;
+    Input->Keyboard.E.WasDown = Input->Keyboard.E.IsDown;
+    Input->Keyboard.R.WasDown = Input->Keyboard.R.IsDown;
+    Input->Keyboard.T.WasDown = Input->Keyboard.T.IsDown;
+    Input->Keyboard.Y.WasDown = Input->Keyboard.Y.IsDown;
+    Input->Keyboard.U.WasDown = Input->Keyboard.U.IsDown;
+    Input->Keyboard.I.WasDown = Input->Keyboard.I.IsDown;
+    Input->Keyboard.O.WasDown = Input->Keyboard.O.IsDown;
+    Input->Keyboard.P.WasDown = Input->Keyboard.P.IsDown;
+    Input->Keyboard.A.WasDown = Input->Keyboard.A.IsDown;
+    Input->Keyboard.S.WasDown = Input->Keyboard.S.IsDown;
+    Input->Keyboard.D.WasDown = Input->Keyboard.D.IsDown;
+    Input->Keyboard.F.WasDown = Input->Keyboard.F.IsDown;
+    Input->Keyboard.G.WasDown = Input->Keyboard.G.IsDown;
+    Input->Keyboard.H.WasDown = Input->Keyboard.H.IsDown;
+    Input->Keyboard.J.WasDown = Input->Keyboard.J.IsDown;
+    Input->Keyboard.K.WasDown = Input->Keyboard.K.IsDown;
+    Input->Keyboard.L.WasDown = Input->Keyboard.L.IsDown;
+    Input->Keyboard.Z.WasDown = Input->Keyboard.Z.IsDown;
+    Input->Keyboard.X.WasDown = Input->Keyboard.X.IsDown;
+    Input->Keyboard.C.WasDown = Input->Keyboard.C.IsDown;
+    Input->Keyboard.V.WasDown = Input->Keyboard.V.IsDown;
+    Input->Keyboard.B.WasDown = Input->Keyboard.B.IsDown;
+    Input->Keyboard.N.WasDown = Input->Keyboard.N.IsDown;
+    Input->Keyboard.M.WasDown = Input->Keyboard.M.IsDown;
+    Input->Keyboard.Up.WasDown = Input->Keyboard.Up.IsDown;
+    Input->Keyboard.Down.WasDown = Input->Keyboard.Down.IsDown;
+    Input->Keyboard.Left.WasDown = Input->Keyboard.Left.IsDown;
+    Input->Keyboard.Right.WasDown = Input->Keyboard.Right.IsDown;
+    Input->Keyboard.Escape.WasDown = Input->Keyboard.Escape.IsDown;
+    Input->Keyboard.Space.WasDown = Input->Keyboard.Space.IsDown;
+    Input->Keyboard.Enter.WasDown = Input->Keyboard.Enter.IsDown;
+    Input->Keyboard.F1.WasDown = Input->Keyboard.F1.IsDown;
+    Input->Keyboard.F2.WasDown = Input->Keyboard.F2.IsDown;
+    Input->Keyboard.F3.WasDown = Input->Keyboard.F3.IsDown;
+    Input->Keyboard.F4.WasDown = Input->Keyboard.F4.IsDown;
+    Input->Keyboard.F5.WasDown = Input->Keyboard.F5.IsDown;
+    Input->Keyboard.F6.WasDown = Input->Keyboard.F6.IsDown;
+    Input->Keyboard.F7.WasDown = Input->Keyboard.F7.IsDown;
+    Input->Keyboard.F8.WasDown = Input->Keyboard.F8.IsDown;
+    Input->Keyboard.F9.WasDown = Input->Keyboard.F9.IsDown;
+    Input->Keyboard.F10.WasDown = Input->Keyboard.F10.IsDown;
+    Input->Keyboard.F11.WasDown = Input->Keyboard.F11.IsDown;
+    Input->Keyboard.F12.WasDown = Input->Keyboard.F12.IsDown;
+    Input->Keyboard.PageUp.WasDown = Input->Keyboard.PageUp.IsDown;
+    Input->Keyboard.PageDown.WasDown = Input->Keyboard.PageDown.IsDown;
+    Input->Keyboard.Shift.WasDown = Input->Keyboard.Shift.IsDown;
+
+// Controller
+    Input->Controller.PadUp.WasDown = Input->Controller.PadUp.IsDown;
+    Input->Controller.PadDown.WasDown = Input->Controller.PadDown.IsDown;
+    Input->Controller.PadLeft.WasDown = Input->Controller.PadLeft.IsDown;
+    Input->Controller.PadRight.WasDown = Input->Controller.PadRight.IsDown;
+    Input->Controller.LB.WasDown = Input->Controller.LB.IsDown;
+    Input->Controller.RB.WasDown = Input->Controller.RB.IsDown;
+    Input->Controller.AButton.WasDown = Input->Controller.AButton.IsDown;
+    Input->Controller.BButton.WasDown = Input->Controller.BButton.IsDown;
+    Input->Controller.XButton.WasDown = Input->Controller.XButton.IsDown;
+    Input->Controller.YButton.WasDown = Input->Controller.YButton.IsDown;
+    Input->Controller.Start.WasDown = Input->Controller.Start.IsDown;
+    Input->Controller.Back.WasDown = Input->Controller.Back.IsDown;
+    Input->Controller.LS.WasDown = Input->Controller.LS.IsDown;
+    Input->Controller.RS.WasDown = Input->Controller.RS.IsDown;
+    Input->Controller.LT.WasDown = Input->Controller.LT.IsDown;
+    Input->Controller.RT.WasDown = Input->Controller.RT.IsDown;
+}
 #endif

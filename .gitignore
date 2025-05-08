@@ -17,6 +17,7 @@ Captures/
 
 # Binaries
 bin/
+GameAssets/Assets/Shaders/*/*.spv
 
 # Linking
 Linking/

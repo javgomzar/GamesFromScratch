@@ -1,1 +1,1 @@
-This is game engine being developed for educational purposes.
+This is a game engine being developed for educational purposes.

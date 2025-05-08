@@ -12,6 +12,7 @@ extern "C" {
 
 
 #include "GameMath.h"
+#include "Tokenizer.h"
 #include "Win32PlatformLayer.h"
 
 #ifndef GAME_ASSETS
@@ -83,7 +84,7 @@ enum game_animation_id {
 };
 
 enum game_video_id {
-    Video_Test_ID,
+    //Video_Test_ID,
 
     game_video_id_count
 };
@@ -122,48 +123,47 @@ struct game_text {
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct color {
-    double Alpha;
-    double R;
-    double G;
-    double B;
+    float R;
+    float G;
+    float B;
+    float Alpha;
 };
 
-color Color(double R, double G, double B, double Alpha = 1.0) {
-    return { Alpha, R, G, B };
+color Color(float R, float G, float B, float Alpha = 1.0f) {
+    return { R, G, B, Alpha };
 }
 
-color Color(color Color, double Alpha) {
-    return { Alpha, Color.R, Color.G, Color.B };
+color Color(color Color, float Alpha) {
+    return { Color.R, Color.G, Color.B, Alpha };
 }
 
-color operator*(double Luminosity, color Color) {
+color operator*(float Luminosity, color Color) {
     return {
-        Color.Alpha,
-        min(Luminosity * Color.R, 1.0),
-        min(Luminosity * Color.G, 1.0),
-        min(Luminosity * Color.B, 1.0),
+        Clamp(Luminosity * Color.R, 0.0f, 1.0f),
+        Clamp(Luminosity * Color.G, 0.0f, 1.0f),
+        Clamp(Luminosity * Color.B, 0.0f, 1.0f),
+        Color.Alpha
     };
 }
 
-static int Attenuation = 100;
-static color Black = { 1.0, 0.0, 0.0, 0.0 };
-static color White = { 1.0, 1.0, 1.0, 1.0 };
-static color Gray = { 1.0, 0.5, 0.5, 0.5 };
-static color DarkGray = { 1.0, 0.1, 0.1, 0.1 };
-static color Red = { 1.0, 1.0, 0.0, 0.0 };
-static color Green = { 1.0, 0.0, 1.0, 0.0 };
-static color Blue = { 1.0, 0.0, 0.0, 1.0 };
-static color Magenta = { 1.0, 1.0, 0.0, 1.0 };
-static color Yellow = { 1.0, 1.0, 1.0, 0.0 };
-static color Cyan = { 1.0, 0.0, 1.0, 1.0 };
-static color Orange = { 1.0, 1.0, 0.63, 0.0 };
-static color BackgroundBlue = { 1.0, 0.4, 0.4, 0.8 };
+static color Black = { 0.0f, 0.0f, 0.0f, 1.0f };
+static color White = { 1.0f, 1.0f, 1.0f, 1.0f };
+static color Gray = { 0.5f, 0.5f, 0.5f, 1.0f };
+static color DarkGray = { 0.1f, 0.1f, 0.1f, 1.0f };
+static color Red = { 1.0f, 0.0f, 0.0f, 1.0f };
+static color Green = { 0.0f, 1.0f, 0.0f, 1.0f };
+static color Blue = { 0.0f, 0.0f, 1.0f, 1.0f };
+static color Magenta = { 1.0f, 0.0f, 1.0f, 1.0f };
+static color Yellow = { 1.0f, 1.0f, 0.0f, 1.0f };
+static color Cyan = { 0.0f, 1.0f, 1.0f, 1.0f };
+static color Orange = { 1.0f, 0.63f, 0.0f, 1.0f };
+static color BackgroundBlue = { 0.4f, 0.4f, 0.8f, 1.0f };
 
 uint32 GetColorBytes(color Color) {
-    uint8 Alpha = Color.Alpha * 255.0;
-    uint8 R = Color.R * 255.0;
-    uint8 G = Color.G * 255.0;
-    uint8 B = Color.B * 255.0;
+    uint8 Alpha = Color.Alpha * 255.0f;
+    uint8 R = Color.R * 255.0f;
+    uint8 G = Color.G * 255.0f;
+    uint8 B = Color.B * 255.0f;
     return (Alpha << 24) | (R << 16) | (G << 8) | B;
 }
 
@@ -1306,6 +1306,9 @@ enum game_shader_id {
     Vertex_Shader_Passthrough_ID,
     Vertex_Shader_Perspective_ID,
     Vertex_Shader_Tessellation_ID,
+#if GAME_RENDER_API_VULKAN
+    Vertex_Shader_Vulkan_Test_ID,
+#endif
 
     // Tessellation control shaders
     Tessellation_Control_Shader_ID,
@@ -1330,16 +1333,191 @@ enum game_shader_id {
     Fragment_Shader_Jump_Flood_ID,
     Fragment_Shader_Heightmap_ID,
     Fragment_Shader_Sea_ID,
+#if GAME_RENDER_API_VULKAN
+    Fragment_Shader_Vulkan_Test_ID,
+#endif
 
     game_shader_id_count
 };
 
+const uint8 MAX_SHADER_ATTRIBUTES = 16;
+
+enum shader_layout_type {
+    shader_layout_type_float,
+    shader_layout_type_vec2,
+    shader_layout_type_vec3,
+    shader_layout_type_vec4,
+    shader_layout_type_int,
+    shader_layout_type_ivec2,
+    shader_layout_type_ivec3,
+    shader_layout_type_ivec4,
+    shader_layout_type_mat2,
+    shader_layout_type_mat3,
+    shader_layout_type_mat4,
+
+    shader_layout_type_count
+};
+
+const char* ShaderLayoutTypeNames[shader_layout_type_count] = {
+    "float",
+    "vec2",
+    "vec3",
+    "vec4",
+    "int",
+    "ivec2",
+    "ivec3",
+    "ivec4",
+    "mat2",
+    "mat3",
+    "mat4"
+};
+
+shader_layout_type GetShaderLayoutType(token Token) {
+    for (int i = 0; i < shader_layout_type_count; i++) {
+        if (Token == ShaderLayoutTypeNames[i]) {
+            return (shader_layout_type)i;
+        }
+    }
+    char ErrorBuffer[256];
+    sprintf_s(ErrorBuffer, "Invalid shader attribute type token `%s`.", Token.Text);
+    Raise(ErrorBuffer);
+    return shader_layout_type_count;
+}
+
+uint32 GetShaderLayoutSize(shader_layout_type Type) {
+    switch (Type) {
+        case shader_layout_type_float:      { return 4; } break;
+        case shader_layout_type_vec2:       { return 8; } break;
+        case shader_layout_type_vec3:       { return 12; } break;
+        case shader_layout_type_vec4:       { return 16; } break;
+        case shader_layout_type_int:        { return 4; } break;
+        case shader_layout_type_ivec2:      { return 8; } break;
+        case shader_layout_type_ivec3:      { return 12; } break;
+        case shader_layout_type_ivec4:      { return 16; } break;
+        case shader_layout_type_mat2:       { return 16; } break;
+        case shader_layout_type_mat3:       { return 36; } break;
+        case shader_layout_type_mat4:       { return 64; } break;
+        default: Raise("Invalid shader attribute type `shader_attribute_type_count`.");
+    }
+    return 0;
+}
+
+struct shader_attribute {
+    shader_layout_type Type;
+    uint32 Location;
+    uint32 Size;
+    uint32 Offset;
+};
+
+const int MAX_SHADER_UNIFORM_BLOCK_MEMBERS = 16;
+
+struct shader_uniform_block {
+    uint32 Set;
+    uint32 Binding;
+    uint32 nMembers;
+    shader_layout_type Member[MAX_SHADER_UNIFORM_BLOCK_MEMBERS];
+};
+
+bool operator==(shader_uniform_block UBO1, shader_uniform_block UBO2) {
+    if (UBO1.Set == UBO2.Set && UBO1.Binding == UBO2.Binding && UBO1.nMembers == UBO2.nMembers) {
+        for (int i = 0; i < UBO1.nMembers; i++) {
+            if (UBO1.Member[i] != UBO2.Member[i]) return false;
+        }
+        return true;
+    }
+    return false;
+}
+
+bool operator!=(shader_uniform_block UBO1, shader_uniform_block UBO2) {
+    if (UBO1.Set != UBO2.Set || UBO1.Binding != UBO2.Binding || UBO1.nMembers != UBO2.nMembers) {
+        return true;
+    }
+    else {
+        for (int i = 0; i < UBO1.nMembers; i++) {
+            if (UBO1.Member[i] != UBO2.Member[i]) return true;
+        }
+    }
+    return false;
+}
+
+struct shader_uniform_sampler {
+    uint32 Set;
+    uint32 Binding;
+};
+
+struct global_uniforms {
+    alignas(16) v2 resolution;
+    alignas(16) float time;
+};
+
+struct projection_uniforms {
+    matrix4 world_projection;
+    matrix4 screen_projection;
+    matrix4 view;
+};
+
+struct use_screen_uniforms {
+    alignas(16) int use_screen_projection;
+};
+
+struct alignas(16) model_uniforms {
+    matrix4 model;
+    matrix4 normal;
+};
+
+struct bone_uniforms {
+    matrix4 bone_transforms[32];
+    matrix4 bone_normal_transforms[32];
+    alignas(16) int n_bones;
+};
+
+struct color_uniforms {
+    v4 color;
+};
+
+struct alignas(16) light_uniforms {
+    alignas(16) v3 direction;
+    alignas(16) v3 color;
+    float ambient;
+    float diffuse;
+};
+
+struct alignas(16) outline_uniforms {
+    float width;
+};
+
+struct alignas(16) kernel_uniforms {
+    matrix3 kernel;
+};
+
+struct alignas(16) jump_flood_uniforms {
+    int level;
+};
+
+struct alignas(16) antialiasing_uniforms {
+    int samples;
+};
+
+const int SHADER_SETS = 3;
+const int MAX_SHADER_SET_BINDINGS = 8;
+const int MAX_SHADER_UBOS = 8;
+const int MAX_SHADER_SAMPLERS = 4;
+
 struct game_shader {
     game_shader_id ID;
     game_shader_type Type;
+    read_file_result File;
     uint32 ShaderID;
-    uint32 Size;
     char* Code;
+    uint64 BinarySize;
+    uint32* Binary;
+    uint32 VertexSize;
+    uint32 nAttributes;
+    shader_attribute Attributes[MAX_SHADER_ATTRIBUTES];
+    uint32 nUBOs;
+    shader_uniform_block UBO[MAX_SHADER_UBOS];
+    uint32 nSamplers;
+    shader_uniform_sampler Sampler[MAX_SHADER_SAMPLERS];
 };
 
 enum game_shader_pipeline_id {
@@ -1354,6 +1532,9 @@ enum game_shader_pipeline_id {
     Shader_Pipeline_Heightmap_ID,
     Shader_Pipeline_Trochoidal_ID,
     Shader_Pipeline_Debug_Normals_ID,
+#if GAME_RENDER_API_VULKAN
+    Shader_Pipeline_Vulkan_Test_ID,
+#endif
 
     game_shader_pipeline_id_count
 };
@@ -1363,6 +1544,7 @@ struct game_shader_pipeline {
     uint32 ProgramID;
     game_shader_id Pipeline[game_shader_type_count];
     bool IsProvided[game_shader_type_count];
+    bool Bindings[SHADER_SETS][MAX_SHADER_SET_BINDINGS];
 };
 
 enum game_compute_shader_id {
@@ -1407,7 +1589,10 @@ struct game_assets {
     game_mesh Mesh[game_mesh_id_count];
     game_animation Animation[game_animation_id_count];
     uint64 AssetsSize;
-    game_video Videos[game_video_id_count];
+    game_video Videos[1];
+    uint32 nBindings[SHADER_SETS];
+    shader_uniform_block UBOs[SHADER_SETS][MAX_SHADER_SET_BINDINGS];
+    uint32 nSamplers;
     int nShaders;
     game_shader Shader[game_shader_id_count];
     int nShaderPipelines;
@@ -1529,46 +1714,46 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
             Assets->Text[ID.Text].Size = Asset->MemoryNeeded;
             Assets->Text[ID.Text].Content = TextContent;
             memcpy(TextContent, Asset->File.Content, Asset->MemoryNeeded);
-            sprintf_s(LogBuffer, "Loaded text %s\n", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded text %s.", Asset->File.Path);
         } break;
 
         case Video: {
            Assets->Videos[ID.Video] = AssetLoadVideo(Arena, Asset);
-           sprintf_s(LogBuffer, "Loaded video %s\n", Asset->File.Path);
+           sprintf_s(LogBuffer, "Loaded video %s.", Asset->File.Path);
         } break;
 
         case Bitmap: {
             Assets->Bitmap[ID.Bitmap] = AssetLoadBitmap(Arena, Asset);
-            sprintf_s(LogBuffer, "Loaded bitmap %s\n", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded bitmap %s.", Asset->File.Path);
         } break;
 
         case Heightmap: {
             Assets->Heightmap[ID.Heightmap] = AssetLoadHeightmap(Arena, Asset);
-            sprintf_s(LogBuffer, "Loaded heightmap %s\n", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded heightmap %s.", Asset->File.Path);
         } break;
 
         case Font: {
             Assets->Font[ID.Font] = AssetLoadFont(Arena, Asset);
-            sprintf_s(LogBuffer, "Loaded font %s\n", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded font %s.", Asset->File.Path);
         } break;
 
         case Sound: {
             Assets->Sound[ID.Sound] = AssetLoadSound(Arena, Asset);
-            sprintf_s(LogBuffer, "Loaded sound %s\n", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded sound %s.", Asset->File.Path);
         } break;
 
         case Mesh: {
             Assets->Mesh[ID.Mesh] = AssetLoadMesh(Arena, Asset);
-            sprintf_s(LogBuffer, "Loaded mesh %s\n", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded mesh %s.", Asset->File.Path);
         } break;
 
         case Animation: {
             Assets->Animation[ID.Animation] = AssetLoadAnimation(Arena, Asset);
-            sprintf_s(LogBuffer, "Loaded animation %s\n", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded animation %s.", Asset->File.Path);
         } break;
 
         default: {
-            sprintf_s(LogBuffer, "Asset ignored %s\n", Asset->File.Path);
+            sprintf_s(LogBuffer, "Asset ignored %s.", Asset->File.Path);
         }
     }
 
@@ -1597,22 +1782,21 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
     char* _ = strtok_s(Buffer, ".", &Extension);
 
     if (Extension != 0) {
-        if      (strcmp(Extension, "frag.glsl") == 0) { Shader->Type = Fragment_Shader; }
-        else if (strcmp(Extension, "vert.glsl") == 0) { Shader->Type = Vertex_Shader; }
-        else if (strcmp(Extension, "geom.glsl") == 0) { Shader->Type = Geometry_Shader; }
-        else if (strcmp(Extension, "tcs.glsl")  == 0) { Shader->Type = Tessellation_Control_Shader; }
-        else if (strcmp(Extension, "tes.glsl")  == 0) { Shader->Type = Tessellation_Evaluation_Shader; }
+        if      (strcmp(Extension, "frag") == 0)  { Shader->Type = Fragment_Shader; }
+        else if (strcmp(Extension, "vert") == 0)  { Shader->Type = Vertex_Shader; }
+        else if (strcmp(Extension, "geom") == 0)  { Shader->Type = Geometry_Shader; }
+        else if (strcmp(Extension, "tesc")  == 0) { Shader->Type = Tessellation_Control_Shader; }
+        else if (strcmp(Extension, "tese")  == 0) { Shader->Type = Tessellation_Evaluation_Shader; }
         else Assert(false);
     }
     else Assert(false);
 
-    read_file_result ShaderFile = PlatformReadEntireFile(Path);
-    Shader->Size = ShaderFile.ContentSize;
-    Shader->Code = (char*)ShaderFile.Content;
+    Shader->File = PlatformReadEntireFile(Path);
+    Shader->Code = (char*)Shader->File.Content;
 
     // Extra char with value 0 to separate shaders
-    Assets->TotalSize += Shader->Size + 1;
-    Assets->ShadersSize += Shader->Size + 1;
+    Assets->TotalSize += Shader->File.ContentSize + 1;
+    Assets->ShadersSize += Shader->File.ContentSize + 1;
     Assets->nShaders++;
 }
 
@@ -1654,8 +1838,8 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
     strcpy_s(Buffer, strlen(Data.cFileName) + 1, Data.cFileName);
     char* _ = strtok_s(Buffer, ".", &Extension);
 
-    if (strcmp(Extension, "comp.glsl") != 0) {
-        throw("Extension of compute shader file should be 'comp.glsl'.");
+    if (strcmp(Extension, "comp") != 0) {
+        throw("Extension of compute shader file should be '.comp'.");
     }
     else {
         read_file_result ShaderFile = PlatformReadEntireFile(Path);
@@ -1670,9 +1854,100 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
 }
 
 void LoadShader(memory_arena* Arena, game_shader* Shader) {
-    char* Destination = (char*)PushSize(Arena, Shader->Size + 1);
-    memcpy(Destination, Shader->Code, Shader->Size);
+    char* Destination = (char*)PushSize(Arena, Shader->File.ContentSize + 1);
+    memcpy(Destination, Shader->Code, Shader->File.ContentSize);
+
+    // Get attributes and uniforms
+    tokenizer Tokenizer = InitTokenizer(Shader->Code);
+    token Token = GetToken(&Tokenizer);
+    uint32 Offset = 0;
+    while (Token.Type != Token_End) {
+        // Attributes
+        if (Shader->Type == Vertex_Shader && Token == "layout") {
+            shader_attribute Attribute = {};
+
+            Token = RequireToken(&Tokenizer, Token_OpenParen);
+            Token = RequireToken(&Tokenizer, "location");
+            Token = RequireToken(&Tokenizer, Token_Equal);
+            Token = RequireToken(&Tokenizer, Token_Constant);
+            char* Pointer = Token.Text;
+            Attribute.Location = Parseuint32(Pointer);
+
+            Token = RequireToken(&Tokenizer, Token_CloseParen);
+            Token = RequireToken(&Tokenizer, Token_Identifier);
+            // We only need input vertex attributes
+            if (Token == "in") {
+                Token = GetToken(&Tokenizer);
+                Attribute.Type = GetShaderLayoutType(Token);
+                Attribute.Size = GetShaderLayoutSize(Attribute.Type);
+                Attribute.Offset = Offset;
+                Offset += Attribute.Size;
+
+                Shader->Attributes[Shader->nAttributes++] = Attribute;
+            }
+        }
+
+        // Uniforms
+        if (Token == "VULKAN") {
+            Token = RequireToken(&Tokenizer, "layout");
+
+            shader_uniform_block UBO = {};
+            shader_uniform_sampler Sampler = {};
+
+            Token = RequireToken(&Tokenizer, Token_OpenParen);
+            Token = RequireToken(&Tokenizer, Token_Identifier);
+            while (Token.Type != Token_CloseParen && Token.Type != Token_End) {
+                if (Token == "set") {
+                    Token = RequireToken(&Tokenizer, Token_Equal);
+                    Token = RequireToken(&Tokenizer, Token_Constant);
+                    char* Pointer = Token.Text;
+                    UBO.Set = Parseuint32(Pointer);
+                    Sampler.Set = UBO.Set;
+                }
+                else if (Token == "binding") {
+                    Token = RequireToken(&Tokenizer, Token_Equal);
+                    Token = RequireToken(&Tokenizer, Token_Constant);
+                    char* Pointer = Token.Text;
+                    UBO.Binding = Parseuint32(Pointer);
+                    Sampler.Binding = UBO.Binding;
+                }
+                Token = GetToken(&Tokenizer);
+            }
+
+            if (Token.Type == Token_End) {
+                break;
+            }
+
+            Token = RequireToken(&Tokenizer, Token_Identifier);
+            if (Token == "uniform") {
+                Token = GetToken(&Tokenizer);
+                if (Token == "sampler2D" || Token == "sampler2DMS") {
+                    Assert(Sampler.Set == 2);
+                    Shader->Sampler[Shader->nSamplers++] = Sampler;
+                }
+                else {
+                    AdvanceUntil(&Tokenizer, '{');
+                    Token = RequireToken(&Tokenizer, Token_OpenBrace);
+                    Token = GetToken(&Tokenizer);
+                    while (Token.Type != Token_CloseBrace && Token.Type != Token_End) {
+                        shader_layout_type Type = GetShaderLayoutType(Token);
+                        AdvanceUntil(&Tokenizer, ';');
+                        Token = GetToken(&Tokenizer);
+                        Token = GetToken(&Tokenizer);
+                        UBO.Member[UBO.nMembers++] = Type;
+                    }
+                    Shader->UBO[Shader->nUBOs++] = UBO;
+                }
+            }
+        }
+        Token = GetToken(&Tokenizer);
+    }
+
     PlatformFreeFileMemory(Shader->Code);
+
+    char LogBuffer[256];
+    sprintf_s(LogBuffer, "Loaded shader %s.", Shader->File.Path);
+    Log(Info, LogBuffer);
 }
 
 void LoadComputeShader(memory_arena* Arena, game_compute_shader* Shader) {
@@ -1756,20 +2031,19 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
             } break;
 
             default: {
-                Log(Error, "ERROR: Asset type not implemented.\n");
-                Assert(false);
+                Raise("Asset type not implemented.");
             }
         }
     }
 
-    Log(Info, "Assets loaded.\n");
+    Log(Info, "Assets loaded.");
 
     char* Pointer = (char*)(Assets->Memory + Assets->AssetsSize);
     for (int i = 0; i < Assets->nShaders; i++) {
         game_shader* Shader = &Assets->Shader[i];
 
         Shader->Code = Pointer;
-        Pointer += Shader->Size + 1;
+        Pointer += Shader->File.ContentSize + 1;
     }
 
     for (int i = 0; i < Assets->nComputeShaders; i++) {
@@ -1779,7 +2053,7 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
         Pointer += Shader->Size + 1;
     }
 
-    Log(Info, "Shaders loaded.\n");
+    Log(Info, "Shaders loaded.");
 }
 
 void WriteAssetFile() {
@@ -1817,37 +2091,43 @@ void WriteAssetFile() {
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Animations\\Jumping.anim", Animation_Jumping_ID);
 
     // Video
-    PushAsset(&Assets, "..\\GameAssets\\Assets\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
+    //PushAsset(&Assets, "..\\GameAssets\\Assets\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
     
     Assert(Assets.nAssets == ASSET_COUNT);
 
 // Shaders
     // Vertex
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Passthrough.vert.glsl", Vertex_Shader_Passthrough_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Perspective.vert.glsl", Vertex_Shader_Perspective_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Tessellation.vert.glsl", Vertex_Shader_Tessellation_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Passthrough.vert", Vertex_Shader_Passthrough_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Perspective.vert", Vertex_Shader_Perspective_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Tessellation.vert", Vertex_Shader_Tessellation_ID);
+#if GAME_RENDER_API_VULKAN
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\VulkanTest.vert", Vertex_Shader_Vulkan_Test_ID);
+#endif
 
     // Fragment
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Antialiasing.frag.glsl", Fragment_Shader_Antialiasing_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\FramebufferAttachment.frag.glsl", Fragment_Shader_Framebuffer_Attachment_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Texture.frag.glsl", Fragment_Shader_Texture_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Outline.frag.glsl", Fragment_Shader_Outline_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\SingleColor.frag.glsl", Fragment_Shader_Single_Color_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Kernel.frag.glsl", Fragment_Shader_Kernel_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Sphere.frag.glsl", Fragment_Shader_Sphere_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Mesh.frag.glsl", Fragment_Shader_Mesh_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\JumpFlood.frag.glsl", Fragment_Shader_Jump_Flood_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Heightmap.frag.glsl", Fragment_Shader_Heightmap_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Sea.frag.glsl", Fragment_Shader_Sea_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Antialiasing.frag", Fragment_Shader_Antialiasing_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\FramebufferAttachment.frag", Fragment_Shader_Framebuffer_Attachment_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Texture.frag", Fragment_Shader_Texture_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Outline.frag", Fragment_Shader_Outline_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\SingleColor.frag", Fragment_Shader_Single_Color_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Kernel.frag", Fragment_Shader_Kernel_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Sphere.frag", Fragment_Shader_Sphere_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Mesh.frag", Fragment_Shader_Mesh_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\JumpFlood.frag", Fragment_Shader_Jump_Flood_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Heightmap.frag", Fragment_Shader_Heightmap_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\Sea.frag", Fragment_Shader_Sea_ID);
+#if GAME_RENDER_API_VULKAN
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Fragment\\VulkanTest.frag", Fragment_Shader_Vulkan_Test_ID);
+#endif
 
     // Geometry
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Geometry\\Test.geom.glsl", Geometry_Shader_Test_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Geometry\\DebugNormals.geom.glsl", Geometry_Shader_Debug_Normals_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Geometry\\Test.geom", Geometry_Shader_Test_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Geometry\\DebugNormals.geom", Geometry_Shader_Debug_Normals_ID);
 
     // Tessellation
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tcs.glsl", Tessellation_Control_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tes.glsl", Tessellation_Evaluation_Shader_Standard_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Trochoidal.tes.glsl", Tessellation_Evaluation_Shader_Trochoidal_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tesc", Tessellation_Control_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tese", Tessellation_Evaluation_Shader_Standard_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Trochoidal.tese", Tessellation_Evaluation_Shader_Trochoidal_ID);
 
     Assert(Assets.nShaders == game_shader_id_count);
 
@@ -1860,9 +2140,9 @@ void WriteAssetFile() {
     PushShaderPipeline(&Assets, Shader_Pipeline_Single_Color_ID, 2, Vertex_Shader_Perspective_ID, Fragment_Shader_Single_Color_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Outline_ID, 2, Vertex_Shader_Passthrough_ID, Fragment_Shader_Outline_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Jump_Flood_ID, 2, Vertex_Shader_Passthrough_ID, Fragment_Shader_Jump_Flood_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Debug_Normals_ID, 3, 
-        Vertex_Shader_Perspective_ID, 
-        Geometry_Shader_Debug_Normals_ID, 
+    PushShaderPipeline(&Assets, Shader_Pipeline_Debug_Normals_ID, 3,
+        Vertex_Shader_Perspective_ID,
+        Geometry_Shader_Debug_Normals_ID,
         Fragment_Shader_Single_Color_ID
     );
     //PushShaderPipeline(&Assets, Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
@@ -1878,11 +2158,14 @@ void WriteAssetFile() {
         Tessellation_Evaluation_Shader_Trochoidal_ID,
         Fragment_Shader_Sea_ID
     );
+#if GAME_RENDER_API_VULKAN
+    PushShaderPipeline(&Assets, Shader_Pipeline_Vulkan_Test_ID, 2, Vertex_Shader_Vulkan_Test_ID, Fragment_Shader_Vulkan_Test_ID);
+#endif
     
     // Compute
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\OutlineInit.comp.glsl", Outline_Init_Compute_Shader_ID);
-    //PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\JumpFlood.comp.glsl", Jump_Flood_Compute_Shader_ID);
-    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\Test.comp.glsl", Test_Compute_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\OutlineInit.comp", Outline_Init_Compute_Shader_ID);
+    //PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\JumpFlood.comp", Jump_Flood_Compute_Shader_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\Test.comp", Test_Compute_Shader_ID);
 
     Assert(Assets.nShaderPipelines == game_shader_pipeline_id_count);
 
@@ -1906,11 +2189,40 @@ void WriteAssetFile() {
         LoadComputeShader(&AssetArena, &Assets.ComputeShader[i]);
     }
 
+    // Shader pipelines uniform layout
+    Assets.nSamplers = 0;
+    bool UBOLoaded[SHADER_SETS][MAX_SHADER_SET_BINDINGS] = {};
+    for (int i = 0; i < game_shader_pipeline_id_count; i++) {
+        game_shader_pipeline* Pipeline = &Assets.ShaderPipeline[i];
+        for (int j = 0; j < game_shader_type_count; j++) {
+            if (Pipeline->IsProvided[j]) {
+                game_shader* Shader = &Assets.Shader[Pipeline->Pipeline[j]];
+                if (Assets.nSamplers < Shader->nSamplers) Assets.nSamplers = Shader->nSamplers;
+                for (int k = 0; k < Shader->nUBOs; k++) {
+                    shader_uniform_block UBO = Shader->UBO[k];
+                    shader_uniform_block* LoadUBO = &Assets.UBOs[UBO.Set][UBO.Binding];
+                    if (UBOLoaded[UBO.Set][UBO.Binding]) {
+                        if (UBO != *LoadUBO) {
+                            Raise("Inconsistent UBO definition.");
+                        }
+                    }
+                    else {
+                        *LoadUBO = UBO;
+                        UBOLoaded[UBO.Set][UBO.Binding] = true;
+                        Assets.nBindings[UBO.Set]++;
+                    }
+                }
+
+                if (Shader->nSamplers > Assets.nSamplers) Assets.nSamplers = Shader->nSamplers;
+            }
+        }
+    }
+
     game_assets* OutputAssets = (game_assets*)FileMemory;
     if (OutputAssets) *OutputAssets = Assets;
     PlatformWriteEntireFile("..\\GameAssets\\game_assets", sizeof(game_assets) + Assets.TotalSize, FileMemory);
 
-    Log(Info, "Finished writing assets file.\n");
+    Log(Info, "Finished writing assets file.");
 }
 
 #endif

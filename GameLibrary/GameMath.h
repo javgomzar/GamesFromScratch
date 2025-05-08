@@ -61,6 +61,18 @@ inline float Clamp(float Value, float Min, float Max) {
 	else return Value;
 }
 
+inline int Clamp(int Value, int Min, int Max) {
+	if (Value < Min) return Min;
+	else if (Value > Max) return Max;
+	else return Value;
+}
+
+inline uint32 Clamp(uint32 Value, uint32 Min, uint32 Max) {
+	if (Value < Min) return Min;
+	else if (Value > Max) return Max;
+	else return Value;
+}
+
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | 2D                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------+

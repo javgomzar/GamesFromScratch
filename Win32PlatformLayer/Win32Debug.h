@@ -88,8 +88,14 @@ void Log(log_level Level, const char* Content) {
             OutputDebugStringA(Date);
             OutputDebugStringA(LevelString);
             OutputDebugStringA(Content);
+            OutputDebugStringA("\n");
         } break;
     }
+}
+
+void Raise(const char* ErrorMessage) {
+    Log(Error, ErrorMessage);
+    Assert(false);
 }
 
 // +---------------------------------------------------------------------------------------------------------------------------------+

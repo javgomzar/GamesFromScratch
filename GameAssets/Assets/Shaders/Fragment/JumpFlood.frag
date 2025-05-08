@@ -1,29 +1,48 @@
-#version 430
+#version 450
+#extension GL_KHR_vulkan_glsl : enable
 precision highp float;
 
+#ifdef VULKAN
+layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
+#else
+layout(std140, binding = 0) uniform GlobalUniforms 
+#endif
+{
+	vec2 resolution;
+    float time;
+} GlobalUBO;
 
+#ifdef VULKAN
+layout(set = 2, binding = 0) uniform sampler2D binded_texture;
+#else
 layout(binding = 0) uniform sampler2D binded_texture;
+#endif
 //layout(binding = 1) uniform sampler2D attachment_texture;
 
 const int maxSteps = 12;
 
-uniform int level;
-uniform vec2 u_resolution;
+#ifdef VULKAN
+layout (std140, set = 1, binding = 4) uniform JumpFloodUniforms 
+#else
+layout (std140, binding = 9) uniform JumpFloodUniforms
+#endif
+{
+    int level;
+} JumpFloodUBO;
 
-out vec4 frag_color;
-
-in vec2 v_position;
-in vec2 v_texture;
+layout (location = 0) in vec2 v_position;
+layout (location = 1) in vec2 v_texture;
+layout (location = 0) out vec4 frag_color;
 
 vec3 StepJFA(vec2 p) {
     vec3 closest = vec3(-1.0, 0.0, 0.0);
     double closest_distance = 9999999.0;
-    float w = level;
+    float w = JumpFloodUBO.level;
     for (int y = -1; y <= 1; ++y) {
     for (int x = -1; x <= 1; ++x) {
         vec2 t = p + w * vec2(x,y);
-        if (t.x >= 0. && t.y >= 0. && t.x <= u_resolution.x && t.y <= u_resolution.y) {
-            vec4 stored_color = texture(binded_texture, t / u_resolution);
+        if (t.x >= 0. && t.y >= 0. && t.x <= GlobalUBO.resolution.x && t.y <= GlobalUBO.resolution.y) {
+            vec4 stored_color = texture(binded_texture, t / GlobalUBO.resolution);
             if (stored_color.b > 0.) { // skip computing for yet invalid seeds
                 vec2 stored_position = stored_color.rg;
                 double d = distance(p, stored_position);

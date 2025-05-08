@@ -77,6 +77,13 @@ extern "C" GAME_UPDATE(GameUpdate)
         //TestPerformance();
 
         // Initialize entities
+        game_entity_list* Entities = &pGameState->EntityList;
+        AddCamera(Entities);
+        AddCharacter(Entities, V3(0,0,0), 100);
+        AddEnemy(Entities, V3(10,0,0), 100);
+        AddProp(Entities, Mesh_Sphere_ID, Shader_Pipeline_Sphere_ID, Red, V3(0,0,10), Quaternion(1.0f, 0.0f, 0.0f, 0.0f), Scale(10,2,1));
+        AddWeapon(Entities, Sword, White, V3(-5,0,0));
+        AddWeapon(Entities, Shield, White, V3(-10,0,0));
         
         Memory->IsInitialized = true;
     }
@@ -87,11 +94,11 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Color(BackgroundBlue, 1.0), Output);
 
     Update(&Group->Camera, pGameState, Input);
-
+    
     GameOutputSound(Assets, SoundBuffer, pGameState, Input);
-
+    
     PushEntities(Group, &pGameState->EntityList);
-
+    
     // Debug info
     static double Alpha = 0.0;
     if (
@@ -103,39 +110,38 @@ extern "C" GAME_UPDATE(GameUpdate)
             Alpha = 0.0;
         }
     }
-
+    
     if (Group->Debug) {
         if (Alpha < 1.0) {
             double x = (pGameState->dt - 1.8) / 1.1;
             Alpha += exp(- x * x);
         }
         else Alpha = 1.0;
-
+        
         if (Input->Keyboard.N.IsDown && !Input->Keyboard.N.WasDown) {
             Group->DebugNormals = !Group->DebugNormals;
         }
-
+        
         if (Input->Keyboard.B.IsDown && !Input->Keyboard.B.WasDown) {
             Group->DebugBones = !Group->DebugBones;
         }
-
+        
         if (Input->Keyboard.C.IsDown && !Input->Keyboard.C.WasDown) {
             Group->DebugColliders = !Group->DebugColliders;
         }
-
+        
         PushDebugGrid(Group, Alpha);
-
         rectangle DebugInfoRect = { 0, 0, 350, 250 };
-
+        
         PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
         
-    // DebugInfo
+        // DebugInfo
         string Buffer = PushString(&pGameState->TransientArena, 128, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
         sprintf_s(Buffer.Content, 128, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", Memory->DebugInfo.msPerFrame, Memory->DebugInfo.FPS, Memory->DebugInfo.MCyclesPerFrame, pGameState->Time);
-
+        
         PushText(Group, V2(0, 30.0), GetAsset(Assets, Font_Cascadia_Mono_ID), Buffer, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
-
+        
         // Debug arenas
         PushDebugArena(Group, pGameState->TransientArena, V2(20.0, 120.0), Alpha);
         PushDebugArena(Group, pGameState->GeneralPurposeArena, V2(20.0, 150.0), Alpha);

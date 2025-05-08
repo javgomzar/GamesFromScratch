@@ -131,13 +131,13 @@ struct render_entry_debug_plot {
 };
 
 struct light {
-    double Ambient;
-    double Diffuse;
+    float Ambient;
+    float Diffuse;
     v3 Direction;
     color Color;
 };
 
-light Light(v3 Direction, color Color = White, double Ambient = 0.5, double Diffuse = 0.5) {
+light Light(v3 Direction, color Color = White, float Ambient = 0.5f, float Diffuse = 0.5f) {
     return { Ambient, Diffuse, normalize(Direction), Color };
 }
 
@@ -170,7 +170,7 @@ struct render_entry_shader_pass {
     game_shader_pipeline_id ShaderID;
     render_group_target Target;
     color Color;
-    float Kernel[9];
+    matrix3 Kernel;
     double Width;
 };
 
@@ -714,7 +714,7 @@ void PushVideo(
         TIMED_BLOCK;
         Video->TimeElapsed += SecondsElapsed;
         char Text[256];
-        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played\n", Video->TimeElapsed, Video->VideoContext.PTS * Video->VideoContext.TimeBase);
+        sprintf_s(Text, "%.02f Time elapsed | %.02f Time played", Video->TimeElapsed, Video->VideoContext.PTS * Video->VideoContext.TimeBase);
         Log(Info, Text);
 
         render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
