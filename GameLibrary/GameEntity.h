@@ -454,7 +454,7 @@ struct game_state {
     double Time;
 };
 
-void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
+void Update(camera** pActiveCamera, game_state* State, game_input* Input, float Width, float Height) {
     TIMED_BLOCK;
     game_entity_list* List = &State->EntityList;
 
@@ -475,7 +475,13 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input) {
             }
 
         // Orbit around position
-            if (Input->Mode == Keyboard && Input->Mouse.MiddleClick.IsDown && Input->Mouse.MiddleClick.WasDown) {
+            if (
+                Input->Mode == Keyboard && 
+                Input->Mouse.MiddleClick.IsDown && 
+                Input->Mouse.MiddleClick.WasDown &&
+                Input->Mouse.Cursor.X >= 0 && Input->Mouse.Cursor.X <= Width &&
+                Input->Mouse.Cursor.Y >= 0 && Input->Mouse.Cursor.Y <= Height
+            ) {
                 v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
                 double AngularVelocity = 0.5;
 

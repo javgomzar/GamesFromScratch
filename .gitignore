@@ -21,3 +21,6 @@ GameAssets/Assets/Shaders/*/*.spv
 
 # Linking
 Linking/
+
+# Environment
+bat/env.bat

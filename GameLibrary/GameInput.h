@@ -146,7 +146,6 @@ struct game_input {
 };
 
 void UpdatePreviousInput(game_input* Input) {
-
 // Mouse
     Input->Mouse.LeftClick.WasDown = Input->Mouse.LeftClick.IsDown;
     Input->Mouse.MiddleClick.WasDown = Input->Mouse.MiddleClick.IsDown;
@@ -231,4 +230,87 @@ void UpdatePreviousInput(game_input* Input) {
     Input->Controller.LT.WasDown = Input->Controller.LT.IsDown;
     Input->Controller.RT.WasDown = Input->Controller.RT.IsDown;
 }
+
+void PressKey(game_input* Input, char Key) {
+    switch(Key) {
+        case '0': { Input->Keyboard.Zero.IsDown = true; } break;
+        case '1': { Input->Keyboard.One.IsDown = true; } break;
+        case '2': { Input->Keyboard.Two.IsDown = true; } break;
+        case '3': { Input->Keyboard.Three.IsDown = true; } break;
+        case '4': { Input->Keyboard.Four.IsDown = true; } break;
+        case '5': { Input->Keyboard.Five.IsDown = true; } break;
+        case '6': { Input->Keyboard.Six.IsDown = true; } break;
+        case '7': { Input->Keyboard.Seven.IsDown = true; } break;
+        case '8': { Input->Keyboard.Eight.IsDown = true; } break;
+        case '9': { Input->Keyboard.Nine.IsDown = true; } break;
+        case 'A': { Input->Keyboard.A.IsDown = true; } break;
+        case 'B': { Input->Keyboard.B.IsDown = true; } break;
+        case 'C': { Input->Keyboard.C.IsDown = true; } break;
+        case 'D': { Input->Keyboard.D.IsDown = true; } break;
+        case 'E': { Input->Keyboard.E.IsDown = true; } break;
+        case 'F': { Input->Keyboard.F.IsDown = true; } break;
+        case 'G': { Input->Keyboard.G.IsDown = true; } break;
+        case 'H': { Input->Keyboard.H.IsDown = true; } break;
+        case 'I': { Input->Keyboard.I.IsDown = true; } break;
+        case 'J': { Input->Keyboard.J.IsDown = true; } break;
+        case 'K': { Input->Keyboard.K.IsDown = true; } break;
+        case 'L': { Input->Keyboard.L.IsDown = true; } break;
+        case 'M': { Input->Keyboard.M.IsDown = true; } break;
+        case 'N': { Input->Keyboard.N.IsDown = true; } break;
+        case 'O': { Input->Keyboard.O.IsDown = true; } break;
+        case 'P': { Input->Keyboard.P.IsDown = true; } break;
+        case 'Q': { Input->Keyboard.Q.IsDown = true; } break;
+        case 'R': { Input->Keyboard.R.IsDown = true; } break;
+        case 'S': { Input->Keyboard.S.IsDown = true; } break;
+        case 'T': { Input->Keyboard.T.IsDown = true; } break;
+        case 'U': { Input->Keyboard.U.IsDown = true; } break;
+        case 'V': { Input->Keyboard.V.IsDown = true; } break;
+        case 'W': { Input->Keyboard.W.IsDown = true; } break;
+        case 'X': { Input->Keyboard.X.IsDown = true; } break;
+        case 'Y': { Input->Keyboard.Y.IsDown = true; } break;
+        case 'Z': { Input->Keyboard.Z.IsDown = true; } break;
+    }
+}
+
+void LiftKey(game_input* Input, char Key) {
+    switch(Key) {
+        case '0': { Input->Keyboard.Zero.IsDown = false; } break;
+        case '1': { Input->Keyboard.One.IsDown = false; } break;
+        case '2': { Input->Keyboard.Two.IsDown = false; } break;
+        case '3': { Input->Keyboard.Three.IsDown = false; } break;
+        case '4': { Input->Keyboard.Four.IsDown = false; } break;
+        case '5': { Input->Keyboard.Five.IsDown = false; } break;
+        case '6': { Input->Keyboard.Six.IsDown = false; } break;
+        case '7': { Input->Keyboard.Seven.IsDown = false; } break;
+        case '8': { Input->Keyboard.Eight.IsDown = false; } break;
+        case '9': { Input->Keyboard.Nine.IsDown = false; } break;
+        case 'A': { Input->Keyboard.A.IsDown = false; } break;
+        case 'B': { Input->Keyboard.B.IsDown = false; } break;
+        case 'C': { Input->Keyboard.C.IsDown = false; } break;
+        case 'D': { Input->Keyboard.D.IsDown = false; } break;
+        case 'E': { Input->Keyboard.E.IsDown = false; } break;
+        case 'F': { Input->Keyboard.F.IsDown = false; } break;
+        case 'G': { Input->Keyboard.G.IsDown = false; } break;
+        case 'H': { Input->Keyboard.H.IsDown = false; } break;
+        case 'I': { Input->Keyboard.I.IsDown = false; } break;
+        case 'J': { Input->Keyboard.J.IsDown = false; } break;
+        case 'K': { Input->Keyboard.K.IsDown = false; } break;
+        case 'L': { Input->Keyboard.L.IsDown = false; } break;
+        case 'M': { Input->Keyboard.M.IsDown = false; } break;
+        case 'N': { Input->Keyboard.N.IsDown = false; } break;
+        case 'O': { Input->Keyboard.O.IsDown = false; } break;
+        case 'P': { Input->Keyboard.P.IsDown = false; } break;
+        case 'Q': { Input->Keyboard.Q.IsDown = false; } break;
+        case 'R': { Input->Keyboard.R.IsDown = false; } break;
+        case 'S': { Input->Keyboard.S.IsDown = false; } break;
+        case 'T': { Input->Keyboard.T.IsDown = false; } break;
+        case 'U': { Input->Keyboard.U.IsDown = false; } break;
+        case 'V': { Input->Keyboard.V.IsDown = false; } break;
+        case 'W': { Input->Keyboard.W.IsDown = false; } break;
+        case 'X': { Input->Keyboard.X.IsDown = false; } break;
+        case 'Y': { Input->Keyboard.Y.IsDown = false; } break;
+        case 'Z': { Input->Keyboard.Z.IsDown = false; } break;
+    }
+}
+
 #endif

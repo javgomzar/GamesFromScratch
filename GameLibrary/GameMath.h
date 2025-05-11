@@ -61,7 +61,7 @@ inline float Clamp(float Value, float Min, float Max) {
 	else return Value;
 }
 
-inline int Clamp(int Value, int Min, int Max) {
+inline int32 Clamp(int32 Value, int32 Min, int32 Max) {
 	if (Value < Min) return Min;
 	else if (Value > Max) return Max;
 	else return Value;

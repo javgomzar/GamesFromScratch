@@ -242,7 +242,7 @@ void ResizeFramebuffer(int Width, int Height, uint32 Texture, GLenum InternalFor
 	}
 }
 
-void ResizeFramebuffers(openGL* OpenGL, int32 Width, int32 Height) {
+void ResizeWindow(openGL* OpenGL, int32 Width, int32 Height) {
 	for (int i = 0; i < OpenGL->TargetCount; i++) {
 		render_target Target = OpenGL->Targets[i];
 
@@ -252,20 +252,6 @@ void ResizeFramebuffers(openGL* OpenGL, int32 Width, int32 Height) {
 			ResizeFramebuffer(Width, Height, Target.Texture, InternalFormat, Target.Attachment, Target.AttachmentTexture);
 		}
 	}
-}
-
-void ResizeWindow(HWND Window, render_group* Group, openGL* OpenGL) {
-    RECT Rect = { 0 };
-    GetClientRect(Window, &Rect);
-
-    int32 NewWidth = Rect.right - Rect.left;
-    int32 NewHeight = Rect.bottom - Rect.top;
-
-    if (NewWidth != Group->Width || NewHeight != Group->Height) {
-        Group->Width = NewWidth;
-        Group->Height = NewHeight;
-        ResizeFramebuffers(OpenGL, NewWidth, NewHeight);
-    }
 }
 
 // Print screen

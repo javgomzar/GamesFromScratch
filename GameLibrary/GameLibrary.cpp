@@ -93,7 +93,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, { 0 }, Postprocessing_Outline);
     PushClear(Group, Color(BackgroundBlue, 1.0), Output);
 
-    Update(&Group->Camera, pGameState, Input);
+    Update(&Group->Camera, pGameState, Input, Group->Width, Group->Height);
     
     GameOutputSound(Assets, SoundBuffer, pGameState, Input);
     
@@ -181,7 +181,7 @@ extern "C" GAME_UPDATE(GameUpdate)
             ScreenRectAlpha = 1.0;
         }
         else {
-            rectangle ScreenRect = { 0, 0, Group->Width, Group->Height };
+            rectangle ScreenRect = { 0, 0, (float)Group->Width, (float)Group->Height };
             PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
