@@ -2,9 +2,9 @@
 precision highp float;
 
 #ifdef VULKAN
-layout(std140, set = 1, binding = 2) uniform ColorUniform 
+layout(std140, set = 1, binding = 0) uniform ColorUniform 
 #else
-layout(std140, binding = 5) uniform ColorUniform
+layout(std140, binding = 2) uniform ColorUniform
 #endif
 {
 	vec4 color;

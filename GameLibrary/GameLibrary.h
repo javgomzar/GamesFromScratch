@@ -44,15 +44,25 @@ struct debug_info {
 // | Game memory                                                                                                                     |
 // +---------------------------------------------------------------------------------------------------------------------------------+
 
+/*
+    This struct will manage all necessary memory for the game. The current layout of this memory will be
+        - First, the `game_state`.
+        - Second, vertex and element buffers for rendering.
+        - Then, memory that will be managed by memory arenas. Strings, transient memory (erased each memory) and general purpose arena.
+*/
 struct game_memory {
-    bool IsInitialized;
+    game_assets Assets;
+    platform_api Platform;
+    render_group RenderGroup;
+    memory_arena StringsArena;
+    memory_arena GeneralPurposeArena;
+    memory_arena TransientArena;
+    debug_info DebugInfo;
     uint64 PermanentStorageSize;
     void* PermanentStorage;
-    platform_api Platform;
-    game_assets Assets;
-    render_group* Group;
-    debug_info DebugInfo;
+    bool IsInitialized;
 };
 
-#define GAME_UPDATE(name) void GAMELIBRARY_API name(game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, render_group* Group, game_input* Input)
+#define GAME_UPDATE_INPUTS game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, game_input* Input
+#define GAME_UPDATE(name) void GAMELIBRARY_API name(GAME_UPDATE_INPUTS)
 typedef GAME_UPDATE(game_update);

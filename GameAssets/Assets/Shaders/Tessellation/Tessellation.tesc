@@ -2,7 +2,7 @@
 
 layout (vertices = 4) out;
 
-layout(location = 0) in vec2 v_texture[];
+layout(location = 1) in vec2 v_texture[];
 layout(location = 0) out vec2 texture_coord[4];
 
 void main() {

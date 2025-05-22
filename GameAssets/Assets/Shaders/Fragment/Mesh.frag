@@ -1,11 +1,10 @@
 #version 450
-#extension GL_KHR_vulkan_glsl : enable
 precision highp float;
 
 #ifdef VULKAN
-layout (std140, set = 0, binding = 2) uniform LightUniforms 
+layout (std140, set = 0, binding = 1) uniform LightUniforms 
 #else
-layout (std140, binding = 6) uniform LightUniforms
+layout (std140, binding = 1) uniform LightUniforms
 #endif
 {
 	vec3 direction;
@@ -20,6 +19,7 @@ layout (set = 2, binding = 0) uniform sampler2D binded_texture;
 layout (binding = 0) uniform sampler2D binded_texture;
 #endif
 
+layout (location = 0) in vec3 v_position;
 layout (location = 1) in vec2 v_texture;
 layout (location = 2) in vec3 v_normal;
 layout (location = 0) out vec4 frag_color;

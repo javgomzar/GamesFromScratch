@@ -445,10 +445,6 @@ void AddWeapon(
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct game_state {
-    memory_arena RenderArena;
-    memory_arena StringsArena;
-    memory_arena GeneralPurposeArena;
-    memory_arena TransientArena;
     game_entity_list EntityList;
     double dt;
     double Time;

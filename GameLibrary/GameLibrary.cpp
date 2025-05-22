@@ -50,6 +50,11 @@ void TestPerformance() {
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
 {
+    memory_arena* StringsArena = &Memory->StringsArena;
+    memory_arena* TransientArena = &Memory->TransientArena;
+    memory_arena* GeneralPurposeArena = &Memory->GeneralPurposeArena;
+
+    render_group* Group = &Memory->RenderGroup;
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
@@ -64,15 +69,13 @@ extern "C" GAME_UPDATE(GameUpdate)
     if (!Memory->IsInitialized) {
         firstFrame = true;
 
-        memory_arena* StringsArena = &pGameState->StringsArena;
-        pGameState->TransientArena.Name = PushString(StringsArena, 16, "Transient Arena");
-        pGameState->TransientArena.Percentage = PushString(StringsArena, 7, "0.0%");
-        pGameState->GeneralPurposeArena.Name = PushString(StringsArena, 24, "General purpose Arena");
-        pGameState->GeneralPurposeArena.Percentage = PushString(StringsArena, 7, "0.0%");
-        pGameState->StringsArena.Name = PushString(StringsArena, 16, "Strings Arena");
-        pGameState->StringsArena.Percentage = PushString(StringsArena, 7, "0.0%");
-        pGameState->RenderArena.Name = PushString(StringsArena, 16, "Render Arena");
-        pGameState->RenderArena.Percentage = PushString(StringsArena, 7, "0.0%");
+        SetUpDebugArena(StringsArena, &Group->VertexBuffer.VertexArena[0], "Vertex arena (vec3)");
+        SetUpDebugArena(StringsArena, &Group->VertexBuffer.VertexArena[1], "Vertex arena (vec3, vec2)");
+        SetUpDebugArena(StringsArena, &Group->VertexBuffer.VertexArena[2], "Vertex arena (vec3, vec2, vec3)");
+        SetUpDebugArena(StringsArena, &Group->VertexBuffer.VertexArena[3], "Vertex arena (mesh with bones)");
+        SetUpDebugArena(StringsArena, TransientArena, "Transient arena");
+        SetUpDebugArena(StringsArena, GeneralPurposeArena, "General purpose arena");
+        SetUpDebugArena(StringsArena, StringsArena, "Strings arena");
 
         //TestPerformance();
 
@@ -88,14 +91,16 @@ extern "C" GAME_UPDATE(GameUpdate)
         Memory->IsInitialized = true;
     }
 
-    PushClear(Group, { 0 }, World);
-    PushClear(Group, { 0 }, Outline);
-    PushClear(Group, { 0 }, Postprocessing_Outline);
-    PushClear(Group, Color(BackgroundBlue, 1.0), Output);
+    PushClear(Group, Orange, Target_None);
+    PushClear(Group, { 0 }, Target_World);
+    PushClear(Group, { 0 }, Target_Outline);
+    PushClear(Group, { 0 }, Target_Postprocessing_Outline);
+    PushClear(Group, Magenta, Target_PingPong);
+    PushClear(Group, Color(BackgroundBlue, 1.0), Target_Output);
 
     Update(&Group->Camera, pGameState, Input, Group->Width, Group->Height);
     
-    GameOutputSound(Assets, SoundBuffer, pGameState, Input);
+    //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
     
     PushEntities(Group, &pGameState->EntityList);
     
@@ -131,31 +136,43 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
         
         PushDebugGrid(Group, Alpha);
-        rectangle DebugInfoRect = { 0, 0, 350, 250 };
+        rectangle DebugInfoRect = { 0, 0, 400, 350 };
         
         PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), SORT_ORDER_DEBUG_OVERLAY);
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
         
         // DebugInfo
-        string Buffer = PushString(&pGameState->TransientArena, 128, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
+        string Buffer = PushString(TransientArena, 128, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
         sprintf_s(Buffer.Content, 128, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", Memory->DebugInfo.msPerFrame, Memory->DebugInfo.FPS, Memory->DebugInfo.MCyclesPerFrame, pGameState->Time);
         
         PushText(Group, V2(0, 30.0), GetAsset(Assets, Font_Cascadia_Mono_ID), Buffer, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
         
         // Debug arenas
-        PushDebugArena(Group, pGameState->TransientArena, V2(20.0, 120.0), Alpha);
-        PushDebugArena(Group, pGameState->GeneralPurposeArena, V2(20.0, 150.0), Alpha);
-        PushDebugArena(Group, pGameState->RenderArena, V2(20.0, 180.0), Alpha);
-        PushDebugArena(Group, pGameState->StringsArena, V2(20.0, 210.0), Alpha);
+        float DebugArenaStartHeight = 120.0f;
+        PushDebugArena(Group, *TransientArena,                    V2(20.0f, DebugArenaStartHeight), Alpha);
+        PushDebugArena(Group, *GeneralPurposeArena,               V2(20.0f, DebugArenaStartHeight + 30.0f), Alpha);
+        PushDebugArena(Group, *StringsArena,                      V2(20.0f, DebugArenaStartHeight + 60.0f), Alpha);
+        PushDebugArena(Group, Group->VertexBuffer.VertexArena[0], V2(20.0f, DebugArenaStartHeight + 90.0f), Alpha);
+        PushDebugArena(Group, Group->VertexBuffer.VertexArena[1], V2(20.0f, DebugArenaStartHeight + 120.0f), Alpha);
+        PushDebugArena(Group, Group->VertexBuffer.VertexArena[2], V2(20.0f, DebugArenaStartHeight + 150.0f), Alpha);
+        PushDebugArena(Group, Group->VertexBuffer.VertexArena[3], V2(20.0f, DebugArenaStartHeight + 180.0f), Alpha);
 
         // Axes
-        v3 XAxis = V3(cos(Group->Camera->Angle * Degrees), sin(Group->Camera->Angle * Degrees) * sin(Group->Camera->Pitch * Degrees), 0.0);
-        v3 YAxis = V3(0.0, -cos(Group->Camera->Pitch * Degrees), 0.0);
-        v3 ZAxis = V3(-sin(Group->Camera->Angle * Degrees), sin(Group->Camera->Pitch * Degrees) * cos(Group->Camera->Angle * Degrees), 0.0);
-        v3 AxisOrigin = V3(Group->Width - 0.08 * (double)Group->Height - 10.0, 0.1 * (double)Group->Height, 0);
-        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Screen_Coordinates, Red);
-        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Screen_Coordinates, Green);
-        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Screen_Coordinates, Blue);
+        v2 XAxis = V2(cos(Group->Camera->Angle * Degrees), sin(Group->Camera->Angle * Degrees) * sin(Group->Camera->Pitch * Degrees));
+        v2 YAxis = V2(0.0, -cos(Group->Camera->Pitch * Degrees));
+        v2 ZAxis = V2(-sin(Group->Camera->Angle * Degrees), sin(Group->Camera->Pitch * Degrees) * cos(Group->Camera->Angle * Degrees));
+        v2 AxisOrigin = V2(Group->Width - 0.08 * (float)Group->Height - 10.0, 0.1 * (float)Group->Height);
+        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Red);
+        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Green);
+        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Blue);
+
+        triangle Triangle = {
+            V3(0,0,0),
+            V3(5,0,0),
+            V3(0,5,0)
+        };
+
+        PushTriangle(Group, Triangle, Black, SORT_ORDER_DEBUG_OVERLAY);
 
         // Debug camera basis
         // PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
@@ -163,10 +180,10 @@ extern "C" GAME_UPDATE(GameUpdate)
         // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
 
         // Debug Framebuffer
-        PushDebugFramebuffer(Group, Postprocessing_Outline);
+        PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
     }
 
-    PushRenderTarget(Group, World);
+    PushRenderTarget(Group, Target_World);
 
     static bool Screenshot = false;
     if (Input->Keyboard.F10.WasDown && !Input->Keyboard.F10.IsDown) {
@@ -185,10 +202,10 @@ extern "C" GAME_UPDATE(GameUpdate)
             PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
-    PushRenderTarget(Group, Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
+    PushRenderTarget(Group, Target_Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
     }
 
-    LogGameDebugRecords(Group, &pGameState->TransientArena);
+    LogGameDebugRecords(Group, TransientArena);
 }
 
 debug_record DebugRecordArray[__COUNTER__];

@@ -2,19 +2,9 @@
 precision highp float;
 
 #ifdef VULKAN
-layout (std140, set = 0, binding = 0) uniform GlobalUniforms
+layout (std140, set = 0, binding = 1) uniform LightUniforms 
 #else
-layout (std140, binding = 0) uniform GlobalUniforms
-#endif
-{
-	vec2 resolution;
-	float time;
-} GlobalUBO;
-
-#ifdef VULKAN
-layout (std140, set = 0, binding = 2) uniform LightUniforms 
-#else
-layout (std140, binding = 6) uniform LightUniforms 
+layout (std140, binding = 1) uniform LightUniforms 
 #endif
 {
 	vec3 direction;
@@ -24,9 +14,9 @@ layout (std140, binding = 6) uniform LightUniforms
 } LightUBO;
 
 #ifdef VULKAN
-layout (std140, set = 1, binding = 2) uniform ColorUniform 
+layout (std140, set = 1, binding = 0) uniform ColorUniform 
 #else
-layout (std140, binding = 5) uniform ColorUniform 
+layout (std140, binding = 2) uniform ColorUniform 
 #endif
 {
 	vec4 color;

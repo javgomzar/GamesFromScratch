@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <time.h>
 
+#include <thread>
+#include <mutex>
+
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
@@ -19,7 +22,8 @@ typedef size_t memory_index;
 // Assert
 inline void Assert(bool assertion, const char* Message = "") {
     if (!assertion) {
-        throw("Assert failed");
+        int* i = 0;
+        int j = *i;
     }
 }
 
@@ -94,6 +98,11 @@ inline string PushString(memory_arena* Arena, int Length, const char* Content) {
     return String;
 }
 
+void SetUpDebugArena(memory_arena* StringsArena, memory_arena* DebugArena, const char* Name) {
+    DebugArena->Name = PushString(StringsArena, 32, Name);
+    DebugArena->Percentage = PushString(StringsArena, 8, "0.0%");
+}
+
 // Services that the platform layer provides for the game
 struct read_file_result {
     char Path[512];
@@ -103,10 +112,73 @@ struct read_file_result {
 };
 
 // Multithreading
-struct thread_info {
-    int ID;
-    bool Running;
-};
+// struct thread_info {
+//     int ID;
+//     bool Running;
+// };
+
+// struct work_queue_entry {
+//    const char* String;
+// };
+
+// int EntryCount = 0;
+// int NextEntryToDo = 0;
+// work_queue_entry Entries[1000];
+
+// std::mutex Mutex;
+
+// void PushWorkEntry(const char* String) {
+//    Assert(EntryCount < 1000);
+
+//    std::lock_guard<std::mutex> guard(Mutex);
+//    work_queue_entry* Entry = &Entries[EntryCount++];
+//    Entry->String = String;
+// }
+
+// void ThreadProc(thread_info* ThreadInfo) {
+//    char Buffer[256];
+//    sprintf_s(Buffer, "Thread %u started.\n", ThreadInfo->ID);
+//    OutputDebugStringA(Buffer);
+
+//    while(ThreadInfo->Running) {
+//        Mutex.lock();
+
+//        int CurrentEntryCount = EntryCount;
+//        if (CurrentEntryCount > 0) {
+//            int EntryIndex = NextEntryToDo++;
+//            EntryCount--;
+//            Mutex.unlock();
+
+//            work_queue_entry* Entry = &Entries[EntryIndex];
+
+//            sprintf_s(Buffer, "Thread %u: %s; EntryCount=%u, EntryIndex=%u\n", ThreadInfo->ID, Entry->String, CurrentEntryCount, EntryIndex);
+//            OutputDebugStringA(Buffer);
+//        }
+//        else {
+//            Mutex.unlock();
+//            ThreadInfo->Running = false;
+//        }
+//    }
+
+//    sprintf_s(Buffer, "Thread %u was shut down.\n", ThreadInfo->ID);
+//    OutputDebugStringA(Buffer);
+// }
+
+// void TestThreads() {
+//    std::thread Threads[5];
+//    thread_info ThreadInfos[5];
+
+//    for (int i = 0; i < 5; i++) {
+//        thread_info* ThreadInfo = &ThreadInfos[i];
+//        ThreadInfo->ID = i;
+//        ThreadInfo->Running = true;
+//        Threads[i] = std::thread(ThreadProc, ThreadInfo);
+//    }
+
+//    for (int i = 0; i < 5; i++) {
+//        Threads[i].join();
+//    }
+// }
 
 #define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Path)
 typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);

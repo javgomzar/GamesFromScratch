@@ -1,5 +1,4 @@
 #version 450
-#extension GL_KHR_vulkan_glsl : enable
 
 /*
     Tessellation primitive generation
@@ -10,24 +9,16 @@
 layout (quads, equal_spacing, ccw) in;
 
 #ifdef VULKAN
-layout(std140, set = 0, binding = 1) uniform ProjectionUniforms 
+layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
 #else
-layout(std140, binding = 1) uniform ProjectionUniforms
+layout(std140, binding = 0) uniform GlobalUniforms
 #endif
 {
-	mat4 world_projection;
-	mat4 screen_projection;
+	mat4 projection;
 	mat4 view;
-} ProjectionUBO;
-
-#ifdef VULKAN
-layout(std140, set = 1, binding = 0) uniform ScreenUniforms 
-#else 
-layout(std140, binding = 2) uniform ScreenUniforms 
-#endif
-{
-	int use_screen_projection;
-} ScreenUBO;
+    vec2 resolution;
+    float time;
+} GlobalUBO;
 
 #ifdef VULKAN
 layout(std140, set = 1, binding = 1) uniform ModelUniforms 
@@ -40,9 +31,9 @@ layout(std140, binding = 3) uniform ModelUniforms
 } ModelUBO;
 
 #ifdef VULKAN
-layout (set = 2, binding = 0) uniform sampler2D heightMap;
+layout (set = 2, binding = 0) uniform sampler2D binded_texture;
 #else
-layout (binding = 0) uniform sampler2D heightMap;
+layout (binding = 0) uniform sampler2D binded_texture;
 #endif
 
 layout (location = 0) in vec2 texture_coord[];
@@ -63,7 +54,7 @@ void main() {
     vec2 t1       = t11 * u + (1.0 - u) * t10;
     vec2 texCoord =  t1 * v + (1.0 - v) * t0;
 
-    height = 0.2 * texture(heightMap, texCoord).y;
+    height = 0.2 * texture(binded_texture, texCoord).y;
     
     // Control point position coordinates
     vec4 p00 = gl_in[0].gl_Position;
@@ -85,6 +76,6 @@ void main() {
     // Height
     p += normal * height;
 
-    gl_Position = ProjectionUBO.world_projection * ProjectionUBO.view * ModelUBO.model * p;
+    gl_Position = GlobalUBO.projection * GlobalUBO.view * ModelUBO.model * p;
 }
 

@@ -2,9 +2,9 @@
 precision highp float;
 
 #if VULKAN
-layout (std140, set = 0, binding = 2) uniform LightUniforms 
+layout (std140, set = 0, binding = 1) uniform LightUniforms 
 #else
-layout (std140, binding = 6) uniform LightUniforms
+layout (std140, binding = 1) uniform LightUniforms
 #endif
 {
     vec3 direction;

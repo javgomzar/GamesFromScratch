@@ -1,4 +1,4 @@
-#version 430
+#version 450
 precision highp float;
 
 layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
@@ -6,7 +6,17 @@ layout(rgba32f, binding = 0) readonly uniform image2D source;
 layout(rgba32f, binding = 0) writeonly uniform image2D target;
 //layout(binding = 1) uniform sampler2D attachment_texture;
 
-uniform vec2 u_resolution;
+#ifdef VULKAN
+layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
+#else 
+layout(std140, binding = 0) uniform GlobalUniforms 
+#endif
+{
+	mat4 projection;
+	mat4 view;
+	vec2 resolution;
+	float time;
+} GlobalUBO;
 
 void main() {
 	ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
@@ -38,7 +48,7 @@ void main() {
 
 		for (int j = 0; j < 3; ++j) {
 		for (int i = 0; i < 3; ++i) {
-			vec2 p = (gl_GlobalInvocationID.xy + vec2(i-1,j-1)) / u_resolution.xy;
+			vec2 p = (gl_GlobalInvocationID.xy + vec2(i-1,j-1)) / GlobalUBO.resolution;
 			float value = image_color.r;
 			offset_x += sobel_x[j][i] * value;
 			offset_y += sobel_y[j][i] * value;

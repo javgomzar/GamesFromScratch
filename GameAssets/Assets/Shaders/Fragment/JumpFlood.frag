@@ -8,6 +8,8 @@ layout(std140, set = 0, binding = 0) uniform GlobalUniforms
 layout(std140, binding = 0) uniform GlobalUniforms 
 #endif
 {
+    mat4 projection;
+    mat4 view;
 	vec2 resolution;
     float time;
 } GlobalUBO;
@@ -30,7 +32,6 @@ layout (std140, binding = 9) uniform JumpFloodUniforms
     int level;
 } JumpFloodUBO;
 
-layout (location = 0) in vec2 v_position;
 layout (location = 1) in vec2 v_texture;
 layout (location = 0) out vec4 frag_color;
 

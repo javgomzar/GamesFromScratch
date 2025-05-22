@@ -172,6 +172,22 @@ inline v2 perp(v2 A) {
 // | 3D                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
+struct uv3 {
+	uint32 X, Y, Z;
+};
+
+inline uv3 UV3(uint32 X, uint32 Y, uint32 Z) {
+	return { X, Y, Z };
+}
+
+inline uv3 operator+(uv3 a, uv3 b) {
+	return UV3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+}
+
+inline bool operator==(const uv3& lhs, const uv3& rhs) {
+	return lhs.X == rhs.X && lhs.Y == rhs.Y && lhs.Z == rhs.Z;
+}
+
 struct iv3 {
 	int X, Y, Z;
 };
@@ -298,6 +314,14 @@ inline v3& operator*=(v3& A, float C) {
 	A.Y *= C;
 	A.Z *= C;
 	return A;
+}
+
+inline bool operator==(v3 A, v3 B) {
+	return A.X == B.X && A.Y == B.Y && A.Z == B.Z;
+}
+
+inline bool operator!=(v3 A, v3 B) {
+	return A.X != B.X || A.Y != B.Y || A.Z != B.Z;
 }
 
 inline float dot(v3 A, v3 B) {
@@ -737,6 +761,7 @@ inline matrix4 transpose(matrix4 A) {
 	Result.Y = col(A, 1);
 	Result.Z = col(A, 2);
 	Result.W = col(A, 3);
+	return Result;
 }
 
 inline matrix4 operator*(matrix4 A, matrix4 B) {
@@ -1019,6 +1044,14 @@ inline basis operator*(quaternion Q, basis Basis) {
 	return Result;
 }
 
+inline bool operator==(quaternion Q1, quaternion Q2) {
+	return Q1.c == Q2.c && Q1.i == Q2.i && Q1.j == Q2.j && Q1.k == Q2.k; 
+}
+
+inline bool operator!=(quaternion Q1, quaternion Q2) {
+	return Q1.c != Q2.c || Q1.i == Q2.i || Q1.j == Q2.j || Q1.k == Q2.k; 
+}
+
 inline matrix3 Matrix(quaternion Q) {
 	matrix3 Result;
 	Result.XX  = (2.0f * (Q.c * Q.c + Q.i * Q.i) - 1.0f);
@@ -1068,17 +1101,27 @@ inline basis operator*(scale Scale, basis Basis) {
 	return Result;
 }
 
+inline bool operator==(scale Scale1, scale Scale2) {
+	return Scale1.X == Scale2.X && Scale1.Y == Scale2.Y && Scale1.Z == Scale2.Z;
+}
+
+inline bool operator!=(scale Scale1, scale Scale2) {
+	return Scale1.X != Scale2.X || Scale1.Y != Scale2.Y || Scale1.Z != Scale2.Z;
+}
+
 struct transform {
 	v3 Translation;
 	scale Scale;
 	quaternion Rotation;
 };
 
-inline transform Transform(quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), v3 Translation = V3(0.0, 0.0, 0.0), scale Scaling = Scale()) {
+transform IdentityTransform = { V3(0,0,0), Scale(), Quaternion(1.0f) };
+
+inline transform Transform(quaternion Rotation, v3 Translation = V3(0.0, 0.0, 0.0), scale Scaling = Scale()) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline transform Transform(v3 Translation = V3(0.0, 0.0, 0.0), quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = Scale()) {
+inline transform Transform(v3 Translation, quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = Scale()) {
 	return { Translation, Scaling, Rotation };
 }
 
@@ -1102,25 +1145,21 @@ inline transform operator*(transform T, transform U) {
 	return Result;
 }
 
+inline bool operator==(transform T, transform U) {
+	return T.Translation == U.Translation && T.Scale == U.Scale && T.Rotation == U.Rotation;
+}
+
+inline bool operator!=(transform T, transform U) {
+	return T.Translation != U.Translation || T.Scale == U.Scale || T.Rotation == U.Rotation;
+}
+
 inline matrix4 Matrix(transform T) {
 	matrix3 Rotation = Matrix(T.Rotation);
 	matrix4 Result;
-	Result.Array[0]  = T.Scale.X * Rotation.XX;
-	Result.Array[1]  = T.Scale.X * Rotation.XY;
-	Result.Array[2]  = T.Scale.X * Rotation.XZ;
-	Result.Array[3]  = 0.0;
-	Result.Array[4]  = T.Scale.Y * Rotation.YX;
-	Result.Array[5]  = T.Scale.Y * Rotation.YY;
-	Result.Array[6]  = T.Scale.Y * Rotation.YZ;
-	Result.Array[7]  = 0.0;
-	Result.Array[8]  = T.Scale.Z * Rotation.ZX;
-	Result.Array[9]  = T.Scale.Z * Rotation.ZY;
-	Result.Array[10] = T.Scale.Z * Rotation.ZZ;
-	Result.Array[11] = 0.0;
-	Result.Array[12] = T.Translation.X;;
-	Result.Array[13] = T.Translation.Y;
-	Result.Array[14] = T.Translation.Z;
-	Result.Array[15] = 1.0;
+	Result.X = T.Scale.X * V4(Rotation.X,0);
+	Result.Y = T.Scale.Y * V4(Rotation.Y,0);
+	Result.Z = T.Scale.Z * V4(Rotation.Z,0);
+	Result.W = V4(T.Translation, 1.0f);
 	return Result;
 }
 

@@ -7,6 +7,8 @@ layout(std140, set = 0, binding = 0) uniform GlobalUniforms
 layout(std140, binding = 0) uniform GlobalUniforms
 #endif
 {
+	mat4 projection;
+	mat4 view;
 	vec2 resolution;
 	float time;
 } GlobalUBO;

@@ -1,5 +1,4 @@
 #version 450
-#extension GL_KHR_vulkan_glsl : enable
 precision highp float;
 
 #ifdef VULKAN
@@ -10,9 +9,9 @@ layout(binding = 0) uniform sampler2D binded_texture;
 //layout(binding = 1) uniform sampler2D attachment_texture;
 
 #ifdef VULKAN
-layout (std140, set = 1, binding = 2) uniform ColorUniforms 
+layout (std140, set = 1, binding = 0) uniform ColorUniforms 
 #else
-layout (std140, binding = 5) uniform ColorUniforms 
+layout (std140, binding = 2) uniform ColorUniforms 
 #endif
 {
 	vec4 color;

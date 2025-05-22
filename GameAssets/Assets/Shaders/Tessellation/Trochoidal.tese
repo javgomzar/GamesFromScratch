@@ -19,29 +19,11 @@ layout(std140, set = 0, binding = 0) uniform GlobalUniforms
 layout (std140, binding = 0) uniform GlobalUniforms
 #endif
 {
+    mat4 projection;
+    mat4 view;
     vec2 resolution;
     float time;
 } GlobalUBO;
-
-#ifdef VULKAN
-layout(std140, set = 0, binding = 1) uniform ProjectionUniforms
-#else
-layout(std140, binding = 1) uniform ProjectionUniforms
-#endif
-{
-	mat4 world_projection;
-	mat4 screen_projection;
-	mat4 view;
-} ProjectionUBO;
-
-#ifdef VULKAN
-layout(std140, set = 1, binding = 0) uniform ScreenUniforms 
-#else 
-layout(std140, binding = 2) uniform ScreenUniforms 
-#endif
-{
-	int use_screen_projection;
-} ScreenUBO;
 
 #ifdef VULKAN
 layout(std140, set = 1, binding = 1) uniform ModelUniforms
@@ -132,5 +114,5 @@ void main() {
     height = y;
     p += vec4(x,y,z,0);
 
-    gl_Position = ProjectionUBO.world_projection * ProjectionUBO.view * ModelUBO.model * p;
+    gl_Position = GlobalUBO.projection * GlobalUBO.view * ModelUBO.model * p;
 }

@@ -8,6 +8,8 @@ layout (std140, set = 0, binding = 0) uniform GlobalUniforms
 layout (std140, binding = 0) uniform GlobalUniforms
 #endif
 {
+	mat4 projection;
+	mat4 view;
 	vec2 resolution;
 	float time;
 } GlobalUBO;
@@ -15,7 +17,7 @@ layout (std140, binding = 0) uniform GlobalUniforms
 #ifdef VULKAN
 layout (std140, set = 1, binding = 4) uniform KernelUniforms 
 #else
-layout (std140, binding = 8) uniform KernelUniforms 
+layout (std140, binding = 6) uniform KernelUniforms 
 #endif
 {
 	mat3 kernel;
