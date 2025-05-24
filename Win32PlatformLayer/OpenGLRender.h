@@ -928,17 +928,17 @@ void InitializeRenderer(
 		}
 
 		// Compiling & attaching shaders
-		for (int i = 0; i < Assets->nShaders; i++) {
+		for (int i = 0; i < game_shader_id_count; i++) {
 			game_shader* Shader = &Assets->Shader[i];
 			OpenGL->ShaderIDs[Shader->ID] = OpenGLCompileShader(GetShaderType(Shader->Type), Shader->Code, Shader->File.ContentSize);
 		}
 
-		for (int i = 0; i < Assets->nShaderPipelines; i++) {
+		for (int i = 0; i < game_shader_pipeline_id_count; i++) {
 			game_shader_pipeline* Pipeline = &Assets->ShaderPipeline[i];
 			OpenGL->ProgramIDs[Pipeline->ID] = OpenGLLinkProgram(OpenGL, Assets, Pipeline);
 		}
 
-		for (int i = 0; i < Assets->nComputeShaders; i++) {
+		for (int i = 0; i < game_compute_shader_id_count; i++) {
 			game_compute_shader* Shader = &Assets->ComputeShader[i];
 			OpenGL->ComputeShaderIDs[Shader->ID] = OpenGLCompileShader(GL_COMPUTE_SHADER, Shader->Code, Shader->Size);
 			OpenGL->ComputeProgramIDs[Shader->ID] = OpenGLLinkProgram(OpenGL, Shader);
@@ -1241,139 +1241,3 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 // 				glUseProgram(0);
 // 			} break;
 
-// 			case group_type_render_entry_mesh_outline:
-// 			{
-// 				render_entry_mesh_outline Entry = *(render_entry_mesh_outline*)Header;
-
-// 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Jump_Flood_ID);
-
-// 				glUseProgram(Shader->ProgramID);
-
-// 				int Level = Entry.StartingLevel;
-
-// 				openGL_framebuffer OutlineTarget = OpenGL->Targets[Postprocessing_Outline];
-// 				openGL_framebuffer PingPongTarget = OpenGL->Targets[PingPong];
-// 				for (int i = 0; i < Entry.Passes; i++) {
-// 					SetJumpFloodUniforms(OpenGL, Level);
-
-// 					openGL_framebuffer Source = i % 2 == 0 ? OutlineTarget : PingPongTarget;
-// 					openGL_framebuffer Target = i % 2 == 0 ? PingPongTarget : OutlineTarget;
-
-// 					glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
-// 					glClearColor(0, 0, 0, 0);
-// 					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-// 					glActiveTexture(GL_TEXTURE0);
-// 					glBindTexture(GL_TEXTURE_2D, Source.Texture);
-
-// 					// glActiveTexture(GL_TEXTURE1);
-// 					// glBindTexture(GL_TEXTURE_2D, Source.AttachmentTexture);
-
-// 					glBindVertexArray(OpenGL->QuadVAO);
-// 					glDrawArrays(GL_TRIANGLES, 0, 6);
-
-// 					Level = Level >> 1;
-// 				}
-
-// 				if (Entry.Passes % 2 == 1) {
-// 					glBindFramebuffer(GL_READ_FRAMEBUFFER, PingPongTarget.Framebuffer);
-// 					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, OutlineTarget.Framebuffer);
-// 					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
-// 				}
-
-// 				glActiveTexture(GL_TEXTURE1);
-// 				glBindTexture(GL_TEXTURE_2D, 0);
-
-// 				glActiveTexture(GL_TEXTURE0);
-// 				glBindTexture(GL_TEXTURE_2D, 0);
-
-// 				glBindVertexArray(0);
-// 				glUseProgram(0);
-// 			} break;
-
-// 			case group_type_render_entry_openGL_framebuffer:
-// 			{
-// 				render_entry_openGL_framebuffer Entry = *(render_entry_openGL_framebuffer*)Header;
-
-// 				openGL_framebuffer Source = OpenGL->Targets[Entry.Header.Target];
-
-// 				uint32 TargetFramebuffer = Entry.Header.Target == Output ? 0 : OpenGL->Targets[Entry.Target].Framebuffer;
-
-// 				game_shader_pipeline_id ShaderID = Source.Multisampling ? Shader_Pipeline_Antialiasing_ID : Shader_Pipeline_Framebuffer_ID;
-// 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, ShaderID);
-
-// 				glUseProgram(Shader->ProgramID);
-
-// 				glBindFramebuffer(GL_FRAMEBUFFER, TargetFramebuffer);
-
-// 				if (Source.Multisampling) {
-// 					openGL_framebuffer Target = OpenGL->Targets[Entry.Target];
-
-// 					glActiveTexture(GL_TEXTURE0);
-// 					glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Source.Texture);
-
-// 					if (Source.Attachment) {
-// 						glActiveTexture(GL_TEXTURE1);
-// 						glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Source.AttachmentTexture);
-// 					}
-
-// 					SetAntialiasingUniforms(OpenGL, Source.Samples);
-// 				}
-// 				else {
-// 					glActiveTexture(GL_TEXTURE0);
-// 					glBindTexture(GL_TEXTURE_2D, Source.Texture);
-
-// 					if (Source.Attachment) {
-// 						glActiveTexture(GL_TEXTURE1);
-// 						glBindTexture(GL_TEXTURE_2D, Source.AttachmentTexture);
-// 					}
-// 				}
-
-// 				glBindVertexArray(OpenGL->QuadVAO);
-// 				glDrawArrays(GL_TRIANGLES, 0, 6);
-
-// 				glUseProgram(0);
-// 				glBindVertexArray(0);
-// 				glActiveTexture(GL_TEXTURE1);
-// 				glBindTexture(GL_TEXTURE_2D, 0);
-// 				glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-// 				glActiveTexture(GL_TEXTURE0);
-// 				glBindTexture(GL_TEXTURE_2D, 0);
-// 				glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, 0);
-// 				glDepthFunc(GL_LESS);
-// 			} break;
-
-// 			case group_type_render_entry_debug_framebuffer:
-// 			{
-// 				render_entry_debug_framebuffer Entry = *(render_entry_debug_framebuffer*)Header;
-
-// 				openGL_framebuffer Target = OpenGL->Targets[Header->Target];
-// 				glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
-
-// 				openGL_framebuffer Framebuffer = OpenGL->Targets[Entry.Framebuffer];
-
-// 				game_shader_pipeline_id ShaderID = Framebuffer.Multisampling ? Shader_Pipeline_Antialiasing_ID : Shader_Pipeline_Framebuffer_ID;
-// 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, ShaderID);
-// 				glUseProgram(Shader->ProgramID);
-
-// 				if (Framebuffer.Multisampling) {
-// 					SetAntialiasingUniforms(OpenGL, Framebuffer.Samples);
-// 					glActiveTexture(GL_TEXTURE1);
-// 					glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, Framebuffer.AttachmentTexture);
-// 				}
-				
-// 				GLenum TextureTarget = Framebuffer.Multisampling ? GL_TEXTURE_2D_MULTISAMPLE : GL_TEXTURE_2D;
-				
-// 				glActiveTexture(GL_TEXTURE0);
-// 				glBindTexture(TextureTarget, Entry.Attachment ? Framebuffer.AttachmentTexture : Framebuffer.Texture);
-
-// 				glBindVertexArray(OpenGL->DebugVAO);
-// 				glDrawArrays(GL_TRIANGLES, 0, 6);
-
-// 				glActiveTexture(GL_TEXTURE1);
-// 				glBindTexture(TextureTarget, 0);
-// 				glActiveTexture(GL_TEXTURE0);
-// 				glBindTexture(TextureTarget, 0);
-// 				glUseProgram(0);
-// 				glBindVertexArray(0);
-// 			} break;

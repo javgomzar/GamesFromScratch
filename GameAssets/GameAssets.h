@@ -61,6 +61,7 @@ enum game_heightmap_id {
 
 enum game_font_id {
     Font_Cascadia_Mono_ID,
+    Font_Menlo_Regular_ID,
 
     game_font_id_count
 };
@@ -438,7 +439,7 @@ game_bitmap LoadBitmap(memory_arena* Arena, game_asset* Asset) {
 
 void ClearBitmap(game_bitmap* Bitmap) {
     if (Bitmap->Content) {
-        int32 TotalBitmapSize = Bitmap->Header.Width * Bitmap->Header.Height * 8;
+        int32 TotalBitmapSize = Bitmap->Header.Width * Bitmap->Header.Height * Bitmap->BytesPerPixel;
         ZeroSize(TotalBitmapSize, Bitmap->Content);
     }
 }
@@ -485,6 +486,25 @@ void SaveBMP(const char* Path, game_bitmap* BMP) {
         PlatformAppendToFile(Path, 1, &Zero);
     }
     PlatformAppendToFile(Path, BMP->Header.Width * BMP->Header.Height * BMP->BytesPerPixel, BMP->Content);
+}
+
+uint32* GetPixelAddress(game_bitmap* BMP, int X, int Y) {
+    Assert(X >= 0 && X <= BMP->Header.Width);
+    Assert(Y >= 0 && Y <= BMP->Header.Height);
+    return BMP->Content + BMP->Header.Width * (BMP->Header.Height - Y) + X;
+}
+
+uint32 GetPixel(game_bitmap* BMP, int X, int Y) {
+    Assert(X >= 0 && X <= BMP->Header.Width);
+    Assert(Y >= 0 && Y <= BMP->Header.Height);
+    return *GetPixelAddress(BMP, X, Y);
+}
+
+void SetPixel(game_bitmap* BMP, int X, int Y, uint32 Value) {
+    Assert(X >= 0 && X <= BMP->Header.Width);
+    Assert(Y >= 0 && Y <= BMP->Header.Height);
+    uint32* PixelAddress = GetPixelAddress(BMP, X, Y);
+    *PixelAddress = Value;
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -552,6 +572,7 @@ game_heightmap LoadHeightmap(memory_arena* Arena, game_asset* Asset) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int FONT_CHARACTERS_COUNT = 94;
+const int LOAD_POINTS = 20;
 
 struct game_font_character {
     unsigned char Letter;
@@ -560,13 +581,15 @@ struct game_font_character {
     signed long Height;
     int Left;
     int Top;
-    game_bitmap Bitmap;
+    int AtlasX;
+    int AtlasY;
 };
 
 struct game_font {
     game_font_id ID;
     signed long SpaceAdvance;
     game_font_character Characters[FONT_CHARACTERS_COUNT];
+    game_bitmap Bitmap;
 };
 
 void LoadFTBMP(FT_Bitmap* SourceBMP, game_bitmap* DestBMP) {
@@ -585,49 +608,54 @@ void LoadFTBMP(FT_Bitmap* SourceBMP, game_bitmap* DestBMP) {
     }
 }
 
-uint64 ComputeNeededMemoryForFont(const char* Path) {
-    uint64 Result = 0;
+void GetFontBMPWidthAndHeight(FT_Face Font, uint32* Width, uint32* Height) {
+    uint32 ResultWidth = 0, ResultHeight = 0, RowWidth = 0, MaxHeight = 0;
+    FT_Error FTError = FT_Set_Char_Size(Font, 0, LOAD_POINTS*64, 128, 128);
+    if (FTError) Assert(false);
 
+    char Starts[3] = {'!', 'A', 'a'};
+    char Ends[3] = {'@', '`', '~'};
+
+    for (int i = 0; i < 3; i++) {
+        for (unsigned char c = Starts[i]; c <= Ends[i]; c++) {
+            FTError = FT_Load_Char(Font, c, FT_LOAD_RENDER);
+            if (FTError) Assert(false);
+
+            FT_GlyphSlot Slot = Font->glyph;
+            FT_Bitmap FTBMP = Slot->bitmap;
+
+            RowWidth += FTBMP.width;
+            if (MaxHeight < FTBMP.rows) MaxHeight = FTBMP.rows;
+        }
+
+        if (RowWidth > ResultWidth) ResultWidth = RowWidth;
+        RowWidth = 0;
+
+        ResultHeight += MaxHeight;
+        MaxHeight = 0;
+    }
+
+    *Width = ResultWidth;
+    *Height = ResultHeight;
+}
+
+uint64 ComputeNeededMemoryForFont(const char* Path) {
     FT_Library FTLibrary;
     FT_Face Font;
     FT_Error error = FT_Init_FreeType(&FTLibrary);
-    if (error) {
-        Assert(false);
-    }
-    else {
-        error = FT_New_Face(FTLibrary, Path, 0, &Font);
-        if (error == FT_Err_Unknown_File_Format) {
-            Assert(false);
-        }
-        else if (error) {
-            Assert(false);
-        }
-        else {
-            // Initializing char bitmaps
-            int Points = 20;
-            error = FT_Set_Char_Size(Font, 0, Points * 64, 128, 128);
-            if (error) {
-                Assert(false);
-            }
-            
-            for (unsigned char c = '!'; c <= '~'; c++) {
-                error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
-                if (error) {
-                    Assert(false);
-                }
-                else {
-                    FT_GlyphSlot Slot = Font->glyph;
-                    FT_Bitmap FTBMP = Slot->bitmap;
+    if (error) Assert(false);
 
-                    Result += FTBMP.width * FTBMP.rows * 4;
-                }
-            }
-        }
-        FT_Done_Face(Font);
-        FT_Done_FreeType(FTLibrary);
-    }
+    error = FT_New_Face(FTLibrary, Path, 0, &Font);
+    if (error == FT_Err_Unknown_File_Format) Raise("Freetype error: Unknown file format.");
+    else if (error) Assert(false);
+    
+    uint32 Width = 0, Height = 0;
+    GetFontBMPWidthAndHeight(Font, &Width, &Height);
 
-    return Result;
+    FT_Done_Face(Font);
+    FT_Done_FreeType(FTLibrary);
+
+    return 4 * Width * Height;
 }
 
 game_font LoadFont(memory_arena* Arena, game_asset* Asset) {
@@ -637,57 +665,76 @@ game_font LoadFont(memory_arena* Arena, game_asset* Asset) {
     FT_Library FTLibrary;
     FT_Face Font;
     FT_Error error = FT_Init_FreeType(&FTLibrary);
-    if (error) {
-        Assert(false);
-    }
-    else {
-        error = FT_New_Face(FTLibrary, Asset->File.Path, 0, &Font);
-        if (error == FT_Err_Unknown_File_Format) {
-            Assert(false);
-        }
-        else if (error) {
-            Assert(false);
-        }
-        else {
-            // Initializing char bitmaps
-            int Points = 20;
-            error = FT_Set_Char_Size(Font, 0, Points * 64, 128, 128);
-            if (error) {
-                Assert(false);
+    if (error) Assert(false);
+
+    error = FT_New_Face(FTLibrary, Asset->File.Path, 0, &Font);
+    if (error == FT_Err_Unknown_File_Format) Raise("Freetype error: Unknown file format.");
+    else if (error) Assert(false);
+        
+    // Initializing char bitmaps
+    error = FT_Set_Char_Size(Font, 0, LOAD_POINTS * 64, 128, 128);
+    if (error) Assert(false);
+
+    error = FT_Load_Char(Font, ' ', FT_LOAD_RENDER);
+    if (error) Assert(false);
+    Result.SpaceAdvance = Font->glyph->advance.x >> 6;
+
+    uint32 Width = 0, Height = 0;
+    GetFontBMPWidthAndHeight(Font, &Width, &Height);
+
+    Result.Bitmap = MakeEmptyBitmap(Arena, Width, Height, true);
+
+    uint32* Buffer = new uint32[3686400];
+    memory_arena BufferArena = MemoryArena(3686400, (uint8*)Buffer);
+
+    unsigned char c = '!';
+    int X = 0;
+    int Y = 0;
+    int MaxHeight = 0;
+    for (int i = 0; i < FONT_CHARACTERS_COUNT; i++) {
+        game_font_character* pCharacter = &Result.Characters[i];
+        error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
+        if (error) Assert(false);
+        
+        FT_GlyphSlot Slot = Font->glyph;
+        FT_Bitmap FTBMP = Slot->bitmap;
+        game_bitmap Test = MakeEmptyBitmap(&BufferArena, FTBMP.width, FTBMP.rows, true);
+        LoadFTBMP(&FTBMP, &Test);
+
+        pCharacter->Letter = c;
+        pCharacter->Advance = Slot->advance.x >> 6;
+        pCharacter->Left = Slot->bitmap_left;
+        pCharacter->Top = Slot->bitmap_top;
+        pCharacter->Height = FTBMP.rows;
+        pCharacter->Width = FTBMP.width;
+
+        for (int Row = 0; Row <= FTBMP.rows; Row++) {
+            for (int Col = 0; Col <= FTBMP.width; Col++) {
+                uint32* PixelAddress = GetPixelAddress(&Result.Bitmap, X + Col, Y + Row);
+                *PixelAddress = GetPixel(&Test, Col, Row);
             }
-
-            error = FT_Load_Char(Font, ' ', FT_LOAD_RENDER);
-            if (error) Assert(false);
-            Result.SpaceAdvance = Font->glyph->advance.x >> 6;
-
-            unsigned char c = '!';
-            for (int i = 0; i < FONT_CHARACTERS_COUNT; i++) {
-                game_font_character* pCharacter = &Result.Characters[i];
-                game_bitmap* Bitmap = &pCharacter->Bitmap;
-                error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
-                if (error) Assert(false);
-                else {
-                    FT_GlyphSlot Slot = Font->glyph;
-                    FT_Bitmap FTBMP = Slot->bitmap;
-                    *Bitmap = MakeEmptyBitmap(Arena, FTBMP.width, FTBMP.rows, true);
-                    LoadFTBMP(&FTBMP, Bitmap);
-
-                    pCharacter->Letter = c;
-                    pCharacter->Advance = Slot->advance.x >> 6;
-                    pCharacter->Left = Slot->bitmap_left;
-                    pCharacter->Top = Slot->bitmap_top;
-                    pCharacter->Height = Slot->bitmap.rows;
-                    pCharacter->Width = Slot->bitmap.width;
-                    pCharacter->Bitmap = *Bitmap++;
-                    pCharacter->Bitmap.Handle = 0;
-
-                    c++;
-                }
-            }
-            FT_Done_Face(Font);
-            FT_Done_FreeType(FTLibrary);
         }
+
+        pCharacter->AtlasX = X;
+        pCharacter->AtlasY = Y;
+
+        PopSize(&BufferArena, FTBMP.width * FTBMP.rows * 4);
+
+        if (FTBMP.rows > MaxHeight) MaxHeight = FTBMP.rows;
+        X += FTBMP.width;
+        if (c == '@' || c == '`') {
+            X = 0;
+            Y += MaxHeight;
+            MaxHeight = 0;
+        }
+
+        c++;
     }
+    FT_Done_Face(Font);
+    FT_Done_FreeType(FTLibrary);
+
+    delete [] Buffer;
+
     return Result;
 }
 
@@ -1539,9 +1586,10 @@ game_mesh_id_count +
 game_animation_id_count + 
 game_video_id_count;
 
+ArrayDefinition(ASSET_COUNT, game_asset, game_asset_array)
+
 struct game_assets {
-    game_asset Asset[ASSET_COUNT];
-    int nAssets;
+    game_asset_array Asset;
     game_text Text[game_text_id_count];
     game_bitmap Bitmap[game_bitmap_id_count];
     game_heightmap Heightmap[game_heightmap_id_count];
@@ -1555,11 +1603,8 @@ struct game_assets {
     uint32 nBindings[SHADER_SETS];
     shader_uniform_block UBOs[SHADER_SETS][MAX_SHADER_SET_BINDINGS];
     uint32 nSamplers;
-    int nShaders;
     game_shader Shader[game_shader_id_count];
-    int nShaderPipelines;
     game_shader_pipeline ShaderPipeline[game_shader_pipeline_id_count];
-    int nComputeShaders;
     game_compute_shader ComputeShader[game_compute_shader_id_count];
     uint64 ShadersSize;
     uint64 ComputeShadersSize;
@@ -1578,91 +1623,107 @@ game_animation* GetAsset(game_assets* Assets, game_animation_id ID) { return &As
 game_video*     GetAsset(game_assets* Assets, game_video_id ID)     { return &Assets->Videos[ID]; }
 
 void PushAsset(game_assets* Assets, const char* Path, game_text_id ID) {
-    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
-    Asset->Type = Text;
-    Asset->ID.Text = ID;
-    Asset->File = PlatformReadEntireFile(Path);
-    Assert(Asset->File.ContentSize > 0);
-    Asset->MemoryNeeded = Asset->File.ContentSize + 1;
-    Assets->TotalSize += Asset->MemoryNeeded;
-    Assets->AssetsSize += Asset->MemoryNeeded;
+    game_asset Asset = {};
+    Asset.Type = Text;
+    Asset.ID.Text = ID;
+    Asset.File = PlatformReadEntireFile(Path);
+    Assert(Asset.File.ContentSize > 0);
+    Asset.MemoryNeeded = Asset.File.ContentSize + 1;
+    
+    Append(&Assets->Asset, Asset);
+    Assets->TotalSize += Asset.MemoryNeeded;
+    Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
 void PushAsset(game_assets* Assets, const char* Path, game_sound_id ID) {
-    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
-    Asset->Type = Sound;
-    Asset->ID.Sound = ID;
-    Asset->File = PlatformReadEntireFile(Path);
-    Assert(Asset->File.ContentSize > 0);
-    Asset->MemoryNeeded = ComputeNeededMemoryForSound(Asset->File);
-    Assets->TotalSize += Asset->MemoryNeeded;
-    Assets->AssetsSize += Asset->MemoryNeeded;
+    game_asset Asset = {};
+    Asset.Type = Sound;
+    Asset.ID.Sound = ID;
+    Asset.File = PlatformReadEntireFile(Path);
+    Assert(Asset.File.ContentSize > 0);
+    Asset.MemoryNeeded = ComputeNeededMemoryForSound(Asset.File);
+
+    Append(&Assets->Asset, Asset);
+    Assets->TotalSize += Asset.MemoryNeeded;
+    Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
 void PushAsset(game_assets* Assets, const char* Path, game_bitmap_id ID) {
-    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
-    Asset->Type = Bitmap;
-    Asset->ID.Bitmap = ID;
-    Asset->File = PlatformReadEntireFile(Path);
-    Assert(Asset->File.ContentSize > 0);
-    Asset->MemoryNeeded = ComputeNeededMemoryForBitmap((bitmap_header*)Asset->File.Content);
-    Assets->TotalSize += Asset->MemoryNeeded;
-    Assets->AssetsSize += Asset->MemoryNeeded;
+    game_asset Asset = {};
+    Asset.Type = Bitmap;
+    Asset.ID.Bitmap = ID;
+    Asset.File = PlatformReadEntireFile(Path);
+    Assert(Asset.File.ContentSize > 0);
+    Asset.MemoryNeeded = ComputeNeededMemoryForBitmap((bitmap_header*)Asset.File.Content);
+
+    Append(&Assets->Asset, Asset);
+    Assets->TotalSize += Asset.MemoryNeeded;
+    Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
 void PushAsset(game_assets* Assets, const char* Path, game_heightmap_id ID) {
-    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
-    Asset->Type = Heightmap;
-    Asset->ID.Heightmap = ID;
-    Asset->File = PlatformReadEntireFile(Path);
-    Assert(Asset->File.ContentSize > 0);
-    Asset->MemoryNeeded = ComputeNeededMemoryForHeightmap(Asset->File);
-    Assets->TotalSize += Asset->MemoryNeeded;
-    Assets->AssetsSize += Asset->MemoryNeeded;
+    game_asset Asset = {};
+    Asset.Type = Heightmap;
+    Asset.ID.Heightmap = ID;
+    Asset.File = PlatformReadEntireFile(Path);
+    Assert(Asset.File.ContentSize > 0);
+    Asset.MemoryNeeded = ComputeNeededMemoryForHeightmap(Asset.File);
+
+    Append(&Assets->Asset, Asset);
+    Assets->TotalSize += Asset.MemoryNeeded;
+    Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
 void PushAsset(game_assets* Assets, const char* Path, game_font_id ID) {
-    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
-    Asset->Type = Font;
-    Asset->ID.Font = ID;
-    Asset->File = PlatformReadEntireFile(Path);
-    Assert(Asset->File.ContentSize > 0);
-    Asset->MemoryNeeded = ComputeNeededMemoryForFont(Asset->File.Path);
-    Assets->TotalSize += Asset->MemoryNeeded;
-    Assets->AssetsSize += Asset->MemoryNeeded;
+    game_asset Asset = {};
+    Asset.Type = Font;
+    Asset.ID.Font = ID;
+    Asset.File = PlatformReadEntireFile(Path);
+    Assert(Asset.File.ContentSize > 0);
+    Asset.MemoryNeeded = ComputeNeededMemoryForFont(Asset.File.Path);
+
+    Append(&Assets->Asset, Asset);
+    Assets->TotalSize += Asset.MemoryNeeded;
+    Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
 void PushAsset(game_assets* Assets, const char* Path, game_mesh_id ID) {
-    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
-    Asset->Type = Mesh;
-    Asset->ID.Mesh = ID;
-    Asset->File = PlatformReadEntireFile(Path);
-    Assert(Asset->File.ContentSize > 0);
-    Asset->MemoryNeeded = ComputeNeededMemoryForMesh(Asset->File);
-    Assets->TotalSize += Asset->MemoryNeeded;
-    Assets->AssetsSize += Asset->MemoryNeeded;
+    game_asset Asset = {};
+    Asset.Type = Mesh;
+    Asset.ID.Mesh = ID;
+    Asset.File = PlatformReadEntireFile(Path);
+    Assert(Asset.File.ContentSize > 0);
+    Asset.MemoryNeeded = ComputeNeededMemoryForMesh(Asset.File);
+
+    Append(&Assets->Asset, Asset);
+    Assets->TotalSize += Asset.MemoryNeeded;
+    Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
 void PushAsset(game_assets* Assets, const char* Path, game_animation_id ID) {
-    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
-    Asset->Type = Animation;
-    Asset->ID.Animation = ID;
-    Asset->File = PlatformReadEntireFile(Path);
-    Assert(Asset->File.ContentSize > 0);
-    Asset->MemoryNeeded = ComputeNeededMemoryForAnimation(Asset->File);
-    Assets->TotalSize += Asset->MemoryNeeded;
-    Assets->AssetsSize += Asset->MemoryNeeded;
+    game_asset Asset = {};
+    Asset.Type = Animation;
+    Asset.ID.Animation = ID;
+    Asset.File = PlatformReadEntireFile(Path);
+    Assert(Asset.File.ContentSize > 0);
+    Asset.MemoryNeeded = ComputeNeededMemoryForAnimation(Asset.File);
+
+    Append(&Assets->Asset, Asset);
+    Assets->TotalSize += Asset.MemoryNeeded;
+    Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
 void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
-    game_asset* Asset = &Assets->Asset[Assets->nAssets++];
-    Asset->Type = Video;
-    Asset->ID.Video = ID;
-    Asset->File = PlatformReadEntireFile(Path);
-    Assert(Asset->File.ContentSize > 0);
-    Asset->MemoryNeeded = Asset->File.ContentSize;
-    Assets->TotalSize += Asset->MemoryNeeded;
-    Assets->AssetsSize += Asset->MemoryNeeded;
+    game_asset Asset = {};
+    Asset.Type = Video;
+    Asset.ID.Video = ID;
+    Asset.File = PlatformReadEntireFile(Path);
+    Assert(Asset.File.ContentSize > 0);
+    Asset.MemoryNeeded = Asset.File.ContentSize;
+
+    Append(&Assets->Asset, Asset);
+    Assets->TotalSize += Asset.MemoryNeeded;
+    Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
 void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
@@ -1736,7 +1797,7 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
     WIN32_FIND_DATAA Data;
     HANDLE hFind = FindFirstFileA(Path, &Data);
 
-    if (hFind == INVALID_HANDLE_VALUE) Assert(false);
+    Assert(hFind != INVALID_HANDLE_VALUE);
 
     char* Extension = 0;
     char* Buffer = new char[strlen(Data.cFileName) + 1];
@@ -1759,7 +1820,6 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
     // Extra char with value 0 to separate shaders
     Assets->TotalSize += Shader->File.ContentSize + 1;
     Assets->ShadersSize += Shader->File.ContentSize + 1;
-    Assets->nShaders++;
 }
 
 void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nShaders, ...) {
@@ -1782,8 +1842,6 @@ void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nSh
             ShaderPipeline->Pipeline[Shader->Type] = Shader->ID;
         }
     }
-
-    Assets->nShaderPipelines++;
 }
 
 void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID) {
@@ -1793,7 +1851,7 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
     WIN32_FIND_DATAA Data;
     HANDLE hFind = FindFirstFileA(Path, &Data);
 
-    if (hFind == INVALID_HANDLE_VALUE) Assert(false);
+    Assert(hFind != INVALID_HANDLE_VALUE);
 
     char* Extension = 0;
     char* Buffer = new char[strlen(Data.cFileName) + 1];
@@ -1811,7 +1869,6 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
         // Extra char with value 0 to separate shaders
         Assets->TotalSize += Shader->Size + 1;
         Assets->ComputeShadersSize += Shader->Size + 1;
-        Assets->nComputeShaders++;
     }
 }
 
@@ -1979,7 +2036,7 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
     Assets->Memory = (uint8*)AssetsFile.Content + sizeof(game_assets);
 
     for (int i = 0; i < ASSET_COUNT; i++) {
-        game_asset Asset = Assets->Asset[i];
+        game_asset Asset = Assets->Asset.Content[i];
 
         switch (Asset.Type) {
             case Text: {
@@ -2006,12 +2063,7 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
 
             case Font: {
                 game_font* Font = GetAsset(Assets, Asset.ID.Font);
-                uint8* Pointer = (uint8*)(Assets->Memory + Asset.Offset);
-                for (int i = 0; i < FONT_CHARACTERS_COUNT; i++) {
-                    game_bitmap* Character = &Font->Characters[i].Bitmap;
-                    Character->Content = (uint32*)Pointer;
-                    Pointer += Character->Header.Width * Character->Header.Height * Character->BytesPerPixel;
-                }
+                Font->Bitmap.Content = (uint32*)(Assets->Memory + Asset.Offset);
             } break;
 
             case Mesh: {
@@ -2051,14 +2103,14 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
     Log(Info, "Assets loaded.");
 
     char* Pointer = (char*)(Assets->Memory + Assets->AssetsSize);
-    for (int i = 0; i < Assets->nShaders; i++) {
+    for (int i = 0; i < game_shader_id_count; i++) {
         game_shader* Shader = &Assets->Shader[i];
 
         Shader->Code = Pointer;
         Pointer += Shader->File.ContentSize + 1;
     }
 
-    for (int i = 0; i < Assets->nComputeShaders; i++) {
+    for (int i = 0; i < game_compute_shader_id_count; i++) {
         game_compute_shader* Shader = &Assets->ComputeShader[i];
 
         Shader->Code = Pointer;
@@ -2074,6 +2126,7 @@ void WriteAssetsFile(const char* Path) {
 // Assets
     // Fonts
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Fonts\\CascadiaMono.ttf", Font_Cascadia_Mono_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Fonts\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
 
     // Text
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Texts\\Test.txt", Text_Test_ID);
@@ -2104,8 +2157,6 @@ void WriteAssetsFile(const char* Path) {
 
     // Video
     //PushAsset(&Assets, "..\\GameAssets\\Assets\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
-    
-    Assert(Assets.nAssets == ASSET_COUNT);
 
 // Shaders
     // Vertex layouts
@@ -2149,8 +2200,6 @@ void WriteAssetsFile(const char* Path) {
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Tessellation.tese", Tessellation_Evaluation_Shader_Standard_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Tessellation\\Trochoidal.tese", Tessellation_Evaluation_Shader_Trochoidal_ID);
 
-    Assert(Assets.nShaders == game_shader_id_count);
-
     // Shader pipelines
     PushShaderPipeline(&Assets, Shader_Pipeline_Antialiasing_ID, 2, Vertex_Shader_Passthrough_ID, Fragment_Shader_Antialiasing_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Framebuffer_ID, 2, Vertex_Shader_Passthrough_ID, Fragment_Shader_Framebuffer_Attachment_ID);
@@ -2183,14 +2232,11 @@ void WriteAssetsFile(const char* Path) {
 #if GAME_RENDER_API_VULKAN
     PushShaderPipeline(&Assets, Shader_Pipeline_Vulkan_Test_ID, 2, Vertex_Shader_Vulkan_Test_ID, Fragment_Shader_Vulkan_Test_ID);
 #endif
-    Assert(Assets.nShaderPipelines == game_shader_pipeline_id_count);
     
     // Compute
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\OutlineInit.comp", Compute_Shader_Outline_Init_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\JumpFlood.comp", Compute_Shader_Jump_Flood_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Compute\\Test.comp", Compute_Shader_Test_ID);
-
-    Assert(Assets.nComputeShaders == game_compute_shader_id_count);
 
 // Output file
     void* FileMemory = VirtualAlloc(0, sizeof(game_assets) + Assets.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -2198,8 +2244,8 @@ void WriteAssetsFile(const char* Path) {
     memory_arena AssetArena = MemoryArena(Assets.TotalSize, (uint8*)Assets.Memory);
 
     // Assets
-    for (int i = 0; i < Assets.nAssets; i++) {
-        LoadAsset(&AssetArena, &Assets, &Assets.Asset[i]);
+    for (int i = 0; i < Assets.Asset.Count; i++) {
+        LoadAsset(&AssetArena, &Assets, &Assets.Asset.Content[i]);
     }
 
     // Shaders

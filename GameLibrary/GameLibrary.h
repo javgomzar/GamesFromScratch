@@ -33,10 +33,10 @@ extern GAMELIBRARY_API int nGameLibrary;
 // +---------------------------------------------------------------------------------------------------------------------------------+
 
 struct debug_info {
-    double SecsElapsed;
-    double FPS;
-    double msPerFrame;
-    double MCyclesPerFrame;
+    float FPS;
+    float BudgetTime;
+    float UsedTime;
+    float UsedMCyclesPerFrame;
 };
 
 

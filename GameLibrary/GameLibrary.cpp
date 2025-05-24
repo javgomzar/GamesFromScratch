@@ -142,20 +142,37 @@ extern "C" GAME_UPDATE(GameUpdate)
         PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
         
         // DebugInfo
-        string Buffer = PushString(TransientArena, 128, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)");
-        sprintf_s(Buffer.Content, 128, " %.02f ms/frame\n %.02f fps\n %.02f Mcycles/frame\n %.02f time (s)", Memory->DebugInfo.msPerFrame, Memory->DebugInfo.FPS, Memory->DebugInfo.MCyclesPerFrame, pGameState->Time);
-        
-        PushText(Group, V2(0, 30.0), GetAsset(Assets, Font_Cascadia_Mono_ID), Buffer, Color(White, Alpha), 12, false, SORT_ORDER_DEBUG_OVERLAY);
+        char DebugTextBuffer[128] = {};
+        sprintf_s(
+            DebugTextBuffer, 
+            "%.02f ms/frame\n%.02f ms used\n%.02f fps\n%.02f Mcycles/frame\n%.02f time (s)", 
+            Memory->DebugInfo.BudgetTime, 
+            Memory->DebugInfo.UsedTime,
+            Memory->DebugInfo.FPS,
+            Memory->DebugInfo.UsedMCyclesPerFrame, 
+            pGameState->Time
+        );
+        PushText(
+            Group, 
+            V2(10.0, 30.0), 
+            Font_Menlo_Regular_ID, 
+            128,
+            DebugTextBuffer, 
+            Color(White, Alpha), 
+            12, 
+            false, 
+            SORT_ORDER_DEBUG_OVERLAY
+        );
         
         // Debug arenas
-        float DebugArenaStartHeight = 120.0f;
-        PushDebugArena(Group, *TransientArena,                    V2(20.0f, DebugArenaStartHeight), Alpha);
-        PushDebugArena(Group, *GeneralPurposeArena,               V2(20.0f, DebugArenaStartHeight + 30.0f), Alpha);
-        PushDebugArena(Group, *StringsArena,                      V2(20.0f, DebugArenaStartHeight + 60.0f), Alpha);
-        PushDebugArena(Group, Group->VertexBuffer.VertexArena[0], V2(20.0f, DebugArenaStartHeight + 90.0f), Alpha);
-        PushDebugArena(Group, Group->VertexBuffer.VertexArena[1], V2(20.0f, DebugArenaStartHeight + 120.0f), Alpha);
-        PushDebugArena(Group, Group->VertexBuffer.VertexArena[2], V2(20.0f, DebugArenaStartHeight + 150.0f), Alpha);
-        PushDebugArena(Group, Group->VertexBuffer.VertexArena[3], V2(20.0f, DebugArenaStartHeight + 180.0f), Alpha);
+        float DebugArenaStartHeight = 135.0f;
+        PushDebugArena(Group, *TransientArena,                    V2(10.0f, DebugArenaStartHeight), Alpha);
+        PushDebugArena(Group, *GeneralPurposeArena,               V2(10.0f, DebugArenaStartHeight + 30.0f), Alpha);
+        PushDebugArena(Group, *StringsArena,                      V2(10.0f, DebugArenaStartHeight + 60.0f), Alpha);
+        PushDebugArena(Group, Group->VertexBuffer.VertexArena[0], V2(10.0f, DebugArenaStartHeight + 90.0f), Alpha);
+        PushDebugArena(Group, Group->VertexBuffer.VertexArena[1], V2(10.0f, DebugArenaStartHeight + 120.0f), Alpha);
+        PushDebugArena(Group, Group->VertexBuffer.VertexArena[2], V2(10.0f, DebugArenaStartHeight + 150.0f), Alpha);
+        PushDebugArena(Group, Group->VertexBuffer.VertexArena[3], V2(10.0f, DebugArenaStartHeight + 180.0f), Alpha);
 
         // Axes
         v2 XAxis = V2(cos(Group->Camera->Angle * Degrees), sin(Group->Camera->Angle * Degrees) * sin(Group->Camera->Pitch * Degrees));
@@ -171,8 +188,6 @@ extern "C" GAME_UPDATE(GameUpdate)
             V3(5,0,0),
             V3(0,5,0)
         };
-
-        PushTriangle(Group, Triangle, Black, SORT_ORDER_DEBUG_OVERLAY);
 
         // Debug camera basis
         // PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
@@ -213,7 +228,6 @@ debug_record DebugRecordArray[__COUNTER__];
 void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
     char Buffer[512];
     int Height = Group->Height - 20;
-    game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
     for (int i = 0; i < ArrayCount(DebugRecordArray); i++) {
         debug_record* DebugRecord = DebugRecordArray + i;
 
@@ -228,7 +242,7 @@ void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
                     (float)DebugRecord->CycleCount / (1000000.0f * (float)DebugRecord->HitCount), DebugRecord->FileName, DebugRecord->LineNumber);
             }
             string String = PushString(TransientArena, 512, Buffer);
-            if (Group->Debug) PushText(Group, V2(20, Height), Font, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
+            if (Group->Debug) PushText(Group, V2(20, Height), Font_Menlo_Regular_ID, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
             Height -= 17;
             DebugRecord->HitCount = 0;
             DebugRecord->CycleCount = 0;

@@ -46,6 +46,7 @@ if %RENDER_API%==VULKAN (
 @REM Compile Win32PlatformLayer
 "D:\Program Files\Visual Studio Community 2020\VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\cl.exe" %DEBUG_FLAG% /EHsc /nologo^
  %OPTIMIZATION_FLAG%^
+ /fsanitize=address^
  /Fe.\bin\Win32PlatformLayer.exe^
  /Fo.\bin\Win32PlatformLayer.obj^
  /Fd.\bin\Win32PlatformLayer.pdb^

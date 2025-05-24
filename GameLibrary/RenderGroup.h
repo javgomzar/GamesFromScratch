@@ -882,25 +882,39 @@ void PushBitmap(
 void PushText(
     render_group* Group,
     v2 Position,
-    game_font* Font,
-    string String,
+    game_font_id FontID,
+    int StringLength,
+    char* String,
     color Color = White,
     float Points = 20.0f,
     bool Wrapped = false,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
+    uint32 nCharacters = 0;
+    for (int i = 0; i < StringLength; i++) {
+        if (String[i] == '\0') break;
+        if (String[i] >= '!' && String[i] <= '~') nCharacters++;
+    }
+
+    game_font* Font = GetAsset(Group->Assets, FontID);
+
     v2 Pen = Position;
     float Size = 0.05f * (float)Points;
     float LineJump = 1.5f * (float)Font->Characters[0].Height * Size; // 0.023 because height is in 64ths of pixel
 
-    for (int i = 0; i < String.Length; i++) {
-        char c = String.Content[i];
+    float* Vertices = new float[4 * 5 * nCharacters];
+    uint32* Elements = new uint32[6 * nCharacters];
 
-        // End of string
+    uint32 nVertices = 0;
+    uint32 nElements = 0;
+
+    for (int i = 0; i < StringLength; i++) {
+        char c = String[i];
+
         if (c == '\0') break;
 
         // Carriage returns
-        else if (c == '\n') {
+        if (c == '\n') {
             Pen.X = Position.X;
             Pen.Y += LineJump;
         }
@@ -918,22 +932,86 @@ void PushText(
                 Pen.X = Position.X;
                 Pen.Y += LineJump;
             }
-            game_bitmap* CharacterBMP = &pCharacter->Bitmap;
 
-            v2 CharacterPosition;
-            CharacterPosition.X = Pen.X + pCharacter->Left * Size;
-            CharacterPosition.Y = Pen.Y - pCharacter->Top * Size;
-            rectangle Rect = { 
-                Pen.X + pCharacter->Left * Size,
-                Pen.Y - pCharacter->Top * Size,
-                pCharacter->Width * Size,
-                pCharacter->Height * Size
-            };
-            PushBitmap(Group, CharacterBMP, Rect, Order);
+            float Left = Pen.X + pCharacter->Left * Size;
+            float Top = Pen.Y - pCharacter->Top * Size;
+            float CharWidth = pCharacter->Width * Size;
+            float CharHeight = pCharacter->Height * Size;
+
+            float MinTexX = (float)(pCharacter->AtlasX) / (float)(Font->Bitmap.Header.Width);
+            float MaxTexX = (float)(pCharacter->AtlasX + pCharacter->Width) / (float)(Font->Bitmap.Header.Width);
+            float MinTexY = 1.0f - (float)(pCharacter->AtlasY + pCharacter->Height) / (float)(Font->Bitmap.Header.Height);
+            float MaxTexY = 1.0f - (float)(pCharacter->AtlasY) / (float)(Font->Bitmap.Header.Height);
+
+            Vertices[20*nVertices]   = Left;
+            Vertices[20*nVertices+1] = Top;
+            Vertices[20*nVertices+2] = 0;
+            Vertices[20*nVertices+3] = MinTexX;
+            Vertices[20*nVertices+4] = MaxTexY;
+
+            Vertices[20*nVertices+5] = Left + CharWidth;
+            Vertices[20*nVertices+6] = Top;
+            Vertices[20*nVertices+7] = 0;
+            Vertices[20*nVertices+8] = MaxTexX;
+            Vertices[20*nVertices+9] = MaxTexY;
+
+            Vertices[20*nVertices+10] = Left;
+            Vertices[20*nVertices+11] = Top + CharHeight;
+            Vertices[20*nVertices+12] = 0;
+            Vertices[20*nVertices+13] = MinTexX;
+            Vertices[20*nVertices+14] = MinTexY;
+
+            Vertices[20*nVertices+15] = Left + CharWidth;
+            Vertices[20*nVertices+16] = Top + CharHeight;
+            Vertices[20*nVertices+17] = 0;
+            Vertices[20*nVertices+18] = MaxTexX;
+            Vertices[20*nVertices+19] = MinTexY;
+
+            Elements[6*nElements]   = 4*nVertices;
+            Elements[6*nElements+1] = 4*nVertices + 1;
+            Elements[6*nElements+2] = 4*nVertices + 2;
+            Elements[6*nElements+3] = 4*nVertices + 3;
+            Elements[6*nElements+4] = 4*nVertices + 2;
+            Elements[6*nElements+5] = 4*nVertices + 1;
+
+            nVertices++;
+            nElements++;
 
             Pen.X += pCharacter->Advance * Size;
         }
     }
+
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Texture_ID);
+    PushPrimitiveCommand(
+        Group,
+        Color,
+        render_primitive_triangle,
+        Shader,
+        vertex_layout_vec3_vec2_id,
+        4 * nCharacters,
+        Vertices,
+        0,
+        Order,
+        6 * nCharacters,
+        Elements,
+        &Font->Bitmap
+    );
+
+    delete [] Elements;
+    delete [] Vertices;
+}
+
+void PushText(
+    render_group* Group,
+    v2 Position,
+    game_font_id FontID,
+    string String,
+    color Color = White,
+    float Points = 20.0f,
+    bool Wrapped = false,
+    float Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    PushText(Group, Position, FontID, String.Length, String.Content, Color, Points, Wrapped, Order);
 }
 
 void PushCubeOutline(
@@ -1087,6 +1165,7 @@ void PushRenderTarget(
 
     render_target_command TargetCommand;
     TargetCommand.Source = Target;
+    TargetCommand.DebugAttachment = false;
 
     game_shader_pipeline_id ShaderID = 
         Target == Target_World || Target == Target_Outline ? 
@@ -1437,16 +1516,15 @@ void PushDebugArena(
     double Alpha = 1.0,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
-    game_font* Font = GetAsset(Group->Assets, Font_Cascadia_Mono_ID);
     float ArenaPercentage = (float)Arena.Used / (float)Arena.Size;
     float RectWidth = 350.0f;
     rectangle Rect = { Position.X, Position.Y, RectWidth, 20.0f };
     PushRect(Group, Rect, Color(DarkGray, Alpha), Order + 0.1);
     Rect.Width *= ArenaPercentage;
     PushRect(Group, Rect, Color(Red, Alpha), Order + 0.2);
-    PushText(Group, Position + V2(0, 15.0), Font, Arena.Name, Color(White, Alpha), 8, false, Order + 0.3);
+    PushText(Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Arena.Name, Color(White, Alpha), 8, false, Order + 0.3);
     sprintf_s(Arena.Percentage.Content, 7, "%.02f%%", ArenaPercentage * 100.0);
-    PushText(Group, Position + V2(RectWidth - 55.0, 15.0), Font, Arena.Percentage, Color(White, Alpha), 8, false, Order + 0.3);
+    PushText(Group, Position + V2(RectWidth - 55.0, 15.0), Font_Menlo_Regular_ID, Arena.Percentage, Color(White, Alpha), 8, false, Order + 0.3);
 }
 
 void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
@@ -1580,7 +1658,7 @@ void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, 
 
     PushCommand(Group, Command);
 
-    render_target_command TargetCommand;
+    render_target_command TargetCommand = {};
     TargetCommand.Source = Framebuffer;
     TargetCommand.Target = Target_Output;
     TargetCommand.DebugAttachment = Attachment;

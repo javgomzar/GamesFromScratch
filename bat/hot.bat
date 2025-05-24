@@ -5,6 +5,7 @@ call bat\env.bat
 
 @REM Compile GameLibrary
 "D:\Program Files\Visual Studio Community 2020\VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\cl.exe"^
+ /fsanitize=address^
  /Fo.\bin\GameLibrary.obj^
  /D GAMELIBRARY_EXPORTS=1^
  /LD^

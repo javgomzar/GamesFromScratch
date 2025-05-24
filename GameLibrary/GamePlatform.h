@@ -33,7 +33,19 @@ struct string {
     char* Content;
 };
 
-// Array count
+// Arrays
+#define ArrayStructDefinition(Capacity, Type, Name) struct Name { uint32 Size = Capacity; uint32 Count = 0; Type Content[Capacity]; }
+#define ArrayAppendDefinition(Capacity, Type, Name) void Append(Name* Array, Type Element) { Assert(Array->Count < Capacity); \
+    Array->Content[Array->Count++] = Element; }
+#define ArrayPopDefinition(Capacity, Type, Name) Type Pop(Name* Array) { Assert(Array->Count > 0); \
+    Type Result = Array->Content[Array->Count]; Array->Content[Array->Count--] = {}; return Result; }
+#define ArrayClearDefinition(Name) void Clear(Name* Array) { for(int i = 0; i < Array->Count; i++) Array->Content[i] = {}; Array->Count = 0; }
+#define ArrayDefinition(Capacity, Type, Name) \
+    ArrayStructDefinition(Capacity, Type, Name); \
+    ArrayAppendDefinition(Capacity, Type, Name); \
+    ArrayPopDefinition(Capacity, Type, Name); \
+    ArrayClearDefinition(Name)
+
 #define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
 
 // Memory Arenas

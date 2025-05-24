@@ -30,7 +30,7 @@ struct logger {
     log_mode Mode;
 };
 
-const log_mode LOG_MODE = (const log_mode)Terminal;
+const log_mode LOG_MODE = Terminal;
 
 void Log(log_level Level, const char* Content) {
     // Level

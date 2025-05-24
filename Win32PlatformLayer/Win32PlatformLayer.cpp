@@ -864,9 +864,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         // Performance computations
         uint64 EndCycleCount = __rdtsc();
         uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
+        GameMemory.DebugInfo.UsedMCyclesPerFrame = CyclesElapsed / 1000000.0f;
 
         LARGE_INTEGER WorkCounter = GetWallClock();
         float WorkSecsElapsed = GetSecondsElapsed(LastCounter, WorkCounter);
+        GameMemory.DebugInfo.UsedTime = 1000.0f * WorkSecsElapsed;
 
         float SecsElapsedPerFrame = WorkSecsElapsed;
         if (SecsElapsedPerFrame < TargetSecondsPerFrame) {
@@ -881,15 +883,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             Log(Warn, "Missed a frame!");
         }
 
-        double ActualSecsElapsed = SecsElapsedPerFrame + 0.0005;
-        double msPerFrame = 1000.0 * ActualSecsElapsed;
-        double FPS = 1.0 / ActualSecsElapsed;
-        double MegaCyclesPerFrame = CyclesElapsed / 1000000.0;
-
-        GameMemory.DebugInfo.FPS = FPS;
-        GameMemory.DebugInfo.msPerFrame = msPerFrame;
-        GameMemory.DebugInfo.MCyclesPerFrame = MegaCyclesPerFrame;
-        GameMemory.DebugInfo.SecsElapsed = ActualSecsElapsed;
+        float ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
+        GameMemory.DebugInfo.BudgetTime = 1000.0f * ActualSecsElapsed; // (in ms)
+        GameMemory.DebugInfo.FPS = 1.0f / ActualSecsElapsed;
 
         pGameState->dt = ActualSecsElapsed;
         pGameState->Time += ActualSecsElapsed;
