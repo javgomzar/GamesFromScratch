@@ -62,7 +62,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     {
     TIMED_BLOCK;
 
-    double Time = pGameState->Time;
+    float Time = pGameState->Time;
     camera* ActiveCamera = Group->Camera;
 
     bool firstFrame = false;
@@ -102,7 +102,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
     
-    PushEntities(Group, &pGameState->EntityList);
+    PushEntities(Group, &pGameState->EntityList, Time);
     
     // Debug info
     static double Alpha = 0.0;
@@ -195,7 +195,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
 
         // Debug Framebuffer
-        PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
+        // PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
     }
 
     PushRenderTarget(Group, Target_World);

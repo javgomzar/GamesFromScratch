@@ -24,13 +24,14 @@ layout(binding = 0) uniform sampler2D binded_texture;
 const int maxSteps = 12;
 
 #ifdef VULKAN
-layout (std140, set = 1, binding = 4) uniform JumpFloodUniforms 
+layout (std140, set = 1, binding = 4) uniform OutlineUniforms 
 #else
-layout (std140, binding = 9) uniform JumpFloodUniforms
+layout (std140, binding = 5) uniform OutlineUniforms
 #endif
 {
+    float width;
     int level;
-} JumpFloodUBO;
+} OutlineUBO;
 
 layout (location = 1) in vec2 v_texture;
 layout (location = 0) out vec4 frag_color;
@@ -38,7 +39,7 @@ layout (location = 0) out vec4 frag_color;
 vec3 StepJFA(vec2 p) {
     vec3 closest = vec3(-1.0, 0.0, 0.0);
     double closest_distance = 9999999.0;
-    float w = JumpFloodUBO.level;
+    float w = OutlineUBO.level;
     for (int y = -1; y <= 1; ++y) {
     for (int x = -1; x <= 1; ++x) {
         vec2 t = p + w * vec2(x,y);

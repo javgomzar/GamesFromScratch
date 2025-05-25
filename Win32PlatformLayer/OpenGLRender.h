@@ -801,7 +801,6 @@ void InitializeRenderer(
 			Square += n;
 			n += 2;
 		}
-
 		int MSAASamples = min(Square, 9);
 
 		// World
@@ -1078,7 +1077,7 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 				}
 
 				if (DrawCommand.Outline) {
-					glUseProgram(OpenGL->ProgramIDs[Shader_Pipeline_World_Single_Color_ID]);
+					glUseProgram(OpenGL->ProgramIDs[Shader_Pipeline_Bones_Single_Color_ID]);
 					SetColorUniform(OpenGL, White);
 					BindTarget(OpenGL, Target_Outline);
 					glDrawElements(GL_TRIANGLES, 3 * DrawCommand.Mesh->nFaces, GL_UNSIGNED_INT, 0);
@@ -1090,10 +1089,69 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 
 			case render_draw_heightmap: {
 				//TODO
+// 				//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+// 				render_entry_heightmap Entry = *(render_entry_heightmap*)Header;
+
+// 				if (CurrentCoordinates != World_Coordinates) {
+// 					ToggleCoordinates(OpenGL, World_Coordinates);
+// 					CurrentCoordinates = World_Coordinates;
+// 				}
+
+// 				SetColorUniform(OpenGL, White);
+
+// 				game_shader_pipeline* Shader = Entry.Shader;
+// 				glUseProgram(Shader->ProgramID);
+
+// 				game_heightmap* Heightmap = Entry.Heightmap;
+// 				glActiveTexture(GL_TEXTURE0);
+// 				OpenGLBindTexture(&Heightmap->Bitmap);
+
+// 				glDrawArrays(GL_PATCHES, 0, Heightmap->nVertices);
+// 				glBindTexture(GL_TEXTURE_2D, 0);
+// 				glUseProgram(0);
+// 				glBindVertexArray(0);
 			} break;
 
 			case render_shader_pass: {
-				//TODO
+				render_shader_pass_command ShaderCommand = Group->ShaderPassCommands[Command.Index];
+
+				SetColorUniform(OpenGL, ShaderCommand.Color);
+
+ 				SetOutlineUniforms(OpenGL, ShaderCommand.Width, ShaderCommand.Level);
+// 				SetKernelUniforms(OpenGL, Entry.Kernel);
+
+				uint32 ProgramID = OpenGL->ProgramIDs[ShaderCommand.Shader->ID];
+				glUseProgram(ProgramID);
+
+				openGL_framebuffer Target = OpenGL->Targets[ShaderCommand.Target];
+				openGL_framebuffer PingPongTarget = OpenGL->Targets[Target_PingPong];
+
+// 				glEnable(GL_DEPTH_TEST);
+				glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, PingPongTarget.Framebuffer);
+				glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
+
+				glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+				glClearColor(0, 0, 0, 0);
+				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+
+				BindTexture(ProgramID, PingPongTarget.Texture, 0);
+
+// 				if (Target.Attachment) {
+// 					glActiveTexture(GL_TEXTURE1);
+// 					glBindTexture(GL_TEXTURE_2D, PingPongTarget.AttachmentTexture);
+// 				}
+
+// 				glBindVertexArray(OpenGL->QuadVAO);
+// 				glDrawArrays(GL_TRIANGLES, 0, 6);
+
+// 				glActiveTexture(GL_TEXTURE0);
+// 				glBindTexture(GL_TEXTURE_2D, 0);
+// 				glBindVertexArray(0);
+// 				glUseProgram(0);
+
+				glBindVertexArray(OpenGL->VAOs[ShaderCommand.VertexEntry.LayoutID]);
+				glDrawArrays(GL_TRIANGLES, ShaderCommand.VertexEntry.Offset, ShaderCommand.VertexEntry.Count);
 			} break;
 
 			case render_compute_shader_pass: {
@@ -1110,6 +1168,8 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 					glBindImageTexture(0, Source.Texture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
 					glBindImageTexture(1, Target.Texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 				}
+
+				// SetOutlineUniforms(OpenGL, ComputeCommand.Width, ComputeCommand.Level);
 				
 				uint32 ProgramID = OpenGL->ComputeProgramIDs[ComputeCommand.Shader->ID];
 				// if (Target.Attachment) BindTexture(ProgramID, Target.AttachmentTexture, 1);
@@ -1177,67 +1237,3 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 
     ReleaseDC(Window, hdc);
 }
-
-// 			case group_type_render_entry_heightmap: {
-// 				//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-// 				render_entry_heightmap Entry = *(render_entry_heightmap*)Header;
-
-// 				if (CurrentCoordinates != World_Coordinates) {
-// 					ToggleCoordinates(OpenGL, World_Coordinates);
-// 					CurrentCoordinates = World_Coordinates;
-// 				}
-
-// 				SetColorUniform(OpenGL, White);
-
-// 				game_shader_pipeline* Shader = Entry.Shader;
-// 				glUseProgram(Shader->ProgramID);
-
-// 				game_heightmap* Heightmap = Entry.Heightmap;
-// 				glActiveTexture(GL_TEXTURE0);
-// 				OpenGLBindTexture(&Heightmap->Bitmap);
-
-// 				glDrawArrays(GL_PATCHES, 0, Heightmap->nVertices);
-// 				glBindTexture(GL_TEXTURE_2D, 0);
-// 				glUseProgram(0);
-// 				glBindVertexArray(0);
-// 			} break;
-
-// 			case group_type_render_entry_shader_pass: {
-// 				render_entry_shader_pass Entry = *(render_entry_shader_pass*)Header;
-
-// 				SetColorUniform(OpenGL, Entry.Color);
-// 				SetOutlineUniforms(OpenGL, Entry.Width);
-// 				SetKernelUniforms(OpenGL, Entry.Kernel);
-
-// 				game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Entry.ShaderID);
-// 				glUseProgram(Shader->ProgramID);
-
-// 				openGL_framebuffer Target = OpenGL->Targets[Entry.Target];
-// 				openGL_framebuffer PingPongTarget = OpenGL->Targets[PingPong];
-
-// 				glEnable(GL_DEPTH_TEST);
-// 				glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
-// 				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, PingPongTarget.Framebuffer);
-// 				glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
-
-// 				glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
-// 				glClearColor(0, 0, 0, 0);
-// 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-
-// 				glActiveTexture(GL_TEXTURE0);
-// 				glBindTexture(GL_TEXTURE_2D, PingPongTarget.Texture);
-
-// 				if (Target.Attachment) {
-// 					glActiveTexture(GL_TEXTURE1);
-// 					glBindTexture(GL_TEXTURE_2D, PingPongTarget.AttachmentTexture);
-// 				}
-
-// 				glBindVertexArray(OpenGL->QuadVAO);
-// 				glDrawArrays(GL_TRIANGLES, 0, 6);
-
-// 				glActiveTexture(GL_TEXTURE0);
-// 				glBindTexture(GL_TEXTURE_2D, 0);
-// 				glBindVertexArray(0);
-// 				glUseProgram(0);
-// 			} break;
-

@@ -174,6 +174,7 @@ enum render_group_target {
 };
 
 struct render_shader_pass_command {
+    vertex_buffer_entry VertexEntry;
     game_shader_pipeline* Shader;
     render_group_target Target;
     color Color;
@@ -185,6 +186,7 @@ struct render_compute_shader_pass_command {
     game_compute_shader* Shader;
     render_group_target Source;
     render_group_target Target;
+
 };
 
 struct render_target_command {
@@ -220,7 +222,7 @@ const int MAX_FRAMEBUFFER_COUNT = 8;
 const int MAX_PRIMITIVE_COMMANDS = 1024;
 const int MAX_MESH_COMMANDS = 64;
 const int MAX_HEIGHTMAP_COMMANDS = 8;
-const int MAX_SHADER_PASS_COMMANDS = 8;
+const int MAX_SHADER_PASS_COMMANDS = 32;
 const int MAX_COMPUTE_SHADER_PASS_COMMANDS = 32;
 const int MAX_RENDER_TARGET_COMMANDS = 16;
 
@@ -1195,9 +1197,9 @@ void PushShaderPass(
     render_group* Group,
     game_shader_pipeline_id ShaderID,
     render_group_target Target,
-    color Color = White,
-    double Width = 0.0,
-    int Level = 0,
+    color Color,
+    int Level,
+    float Width,
     float Order = SORT_ORDER_SHADER_PASSES
 ) {
     render_command Command;
@@ -1209,12 +1211,22 @@ void PushShaderPass(
 
     render_shader_pass_command ShaderCommand;
     ShaderCommand.Color = Color;
-    ShaderCommand.Level = Level;
     ShaderCommand.Shader = GetShaderPipeline(Group->Assets, ShaderID);
     ShaderCommand.Target = Target;
     ShaderCommand.Width = Width;
+    ShaderCommand.Level = Level;
 
-    Group->ShaderPassCommands[Group->nShaderPassCommands++];
+    float Data[30] = {
+       -1.0f,-1.0f, 0.0f, 0.0f, 0.0f,
+        1.0f,-1.0f, 0.0f, 1.0f, 0.0f,
+        1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+       -1.0f,-1.0f, 0.0f, 0.0f, 0.0f,
+        1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
+       -1.0f, 1.0f, 0.0f, 0.0f, 1.0f
+    };
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id, Data);
+
+    Group->ShaderPassCommands[Group->nShaderPassCommands++] = ShaderCommand;
 }
 
 void PushShaderPass(
@@ -1259,33 +1271,11 @@ void PushShaderPass(
 //    }
 //}
 
-// void PushMeshOutline(
-//     render_group* Group,
-//     float Width,
-//     color Color,
-//     int Passes,
-//     int StartingLevel
-// ) {
-//     PushRenderTarget(Group, Outline, SORT_ORDER_SHADER_PASSES - 10);
-//     PushShaderPass(Group, Outline_Init_Compute_Shader_ID, Postprocessing_Outline);
-
-//     render_entry_mesh_outline* Entry = PushRenderElement(Group, render_entry_mesh_outline);
-//     Entry->Header.Key.Order = SORT_ORDER_SHADER_PASSES + 10.0;
-//     Entry->Header.Target = Postprocessing_Outline;
-
-//     Entry->Passes = Passes;
-//     Entry->Width = Width;
-//     Entry->StartingLevel = StartingLevel;
-
-//     PushShaderPass(Group, Shader_Pipeline_Outline_ID, Postprocessing_Outline, Color, Width, 0, SORT_ORDER_SHADER_PASSES + 20.0);
-
-//     PushRenderTarget(Group, Postprocessing_Outline, SORT_ORDER_SHADER_PASSES + 30.0);
-// }
-
 void PushMesh(
     render_group* Group,
     game_mesh_id MeshID,
     transform Transform,
+    float Time,
     game_shader_pipeline_id ShaderID,
     game_bitmap_id TextureID = Bitmap_Empty_ID,
     color Color = White,
@@ -1313,19 +1303,21 @@ void PushMesh(
 
     if (Outlined && !Group->PushOutline) {
         PushRenderTarget(Group, Target_Outline, SORT_ORDER_SHADER_PASSES - 10.0f);
-        //PushShaderPass(Group, Compute_Shader_Outline_Init_ID, Target_Postprocessing_Outline, Target_Postprocessing_Outline, SORT_ORDER_SHADER_PASSES);
-        // float Order = SORT_ORDER_SHADER_PASSES + 1.0f;
-        // int Level =  1 << 15;
-        // for (int i = 0; i < 15; i++) {
-        //     render_group_target Source = Level % 2 == 0 ? Target_Postprocessing_Outline : Target_PingPong;
-		// 	render_group_target Target = Level % 2 == 0 ? Target_PingPong : Target_Postprocessing_Outline;
+        PushShaderPass(Group, Compute_Shader_Outline_Init_ID, Target_Postprocessing_Outline, Target_Postprocessing_Outline, SORT_ORDER_SHADER_PASSES);
 
-        //     PushShaderPass(Group, Compute_Shader_Jump_Flood_ID, Source, Target, Order);
-        //     Order += 1.0f;
-        //     Level = Level >> 1;
-        // }
-        // PushShaderPass(Group, Shader_Pipeline_Outline_ID, Target_Postprocessing_Outline, White, 5.0f, (1 << 15), SORT_ORDER_SHADER_PASSES + 10);
-        // PushRenderTarget(Group, Target_Postprocessing_Outline, SORT_ORDER_SHADER_PASSES + 30.0);
+        int Shifts = 11;
+        int Level = 1 << Shifts;
+        float JumpOrder = SORT_ORDER_SHADER_PASSES;
+
+        for (int i = 0; i <= Shifts; i++) {
+            JumpOrder += 1.0f;
+            PushShaderPass(Group, Shader_Pipeline_Jump_Flood_ID, Target_Postprocessing_Outline, White, Level, 0.0f, JumpOrder);
+            Level >>= 1;
+        }
+
+        PushShaderPass(Group, Shader_Pipeline_Outline_ID, Target_Postprocessing_Outline, White, 0, 30.0f, JumpOrder);
+
+        PushRenderTarget(Group, Target_Postprocessing_Outline, SORT_ORDER_SHADER_PASSES + 30.0f);
         Group->PushOutline = true;
     }
 
@@ -1445,7 +1437,7 @@ void PushCollider(render_group* Group, game_entity Entity, color Color) {
     }
 }
 
-void PushEntities(render_group* Group, game_entity_list* List) {
+void PushEntities(render_group* Group, game_entity_list* List, float Time) {
     TIMED_BLOCK;
     for (int i = 0; i < List->nEntities; i++) {
         game_entity Entity = List->Entities[i];
@@ -1456,11 +1448,11 @@ void PushEntities(render_group* Group, game_entity_list* List) {
                     Group, 
                     Mesh_Body_ID, 
                     Entity.Transform,
+                    Time,
                     Shader_Pipeline_Mesh_Bones_ID, 
                     Bitmap_Empty_ID,
                     White,
-                    &pCharacter->Armature,
-                    true
+                    &pCharacter->Armature
                 );
             } break;
     
@@ -1469,6 +1461,7 @@ void PushEntities(render_group* Group, game_entity_list* List) {
                     Group,
                     Mesh_Enemy_ID,
                     Entity.Transform,
+                    Time,
                     Shader_Pipeline_Mesh_ID,
                     Bitmap_Enemy_ID
                 );
@@ -1480,6 +1473,7 @@ void PushEntities(render_group* Group, game_entity_list* List) {
                     Group,
                     pProp->MeshID,
                     Entity.Transform,
+                    Time,
                     pProp->Shader,
                     Bitmap_Empty_ID,
                     pProp->Color
@@ -1495,7 +1489,7 @@ void PushEntities(render_group* Group, game_entity_list* List) {
                     default: Assert(false);
                 }
 
-                PushMesh(Group, MeshID, Entity.Transform, Shader_Pipeline_Mesh_ID);
+                PushMesh(Group, MeshID, Entity.Transform, Time, Shader_Pipeline_Mesh_ID);
             } break;
         }
 

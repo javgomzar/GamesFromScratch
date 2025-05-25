@@ -1533,6 +1533,7 @@ enum game_shader_pipeline_id {
     Shader_Pipeline_Framebuffer_ID,
     Shader_Pipeline_Screen_Single_Color_ID,
     Shader_Pipeline_World_Single_Color_ID,
+    Shader_Pipeline_Bones_Single_Color_ID,
     Shader_Pipeline_Texture_ID,
     Shader_Pipeline_Mesh_ID,
     Shader_Pipeline_Mesh_Bones_ID,
@@ -2209,6 +2210,7 @@ void WriteAssetsFile(const char* Path) {
     PushShaderPipeline(&Assets, Shader_Pipeline_Sphere_ID, 2, Vertex_Shader_Perspective_ID, Fragment_Shader_Sphere_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_World_Single_Color_ID, 2, Vertex_Shader_Perspective_ID, Fragment_Shader_Single_Color_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Screen_Single_Color_ID, 2, Vertex_Shader_Screen_ID, Fragment_Shader_Single_Color_ID);
+    PushShaderPipeline(&Assets, Shader_Pipeline_Bones_Single_Color_ID, 2, Vertex_Shader_Bones_ID, Fragment_Shader_Single_Color_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Outline_ID, 2, Vertex_Shader_Passthrough_ID, Fragment_Shader_Outline_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Jump_Flood_ID, 2, Vertex_Shader_Passthrough_ID, Fragment_Shader_Jump_Flood_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Debug_Normals_ID, 3,

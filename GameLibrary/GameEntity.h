@@ -447,7 +447,7 @@ void AddWeapon(
 struct game_state {
     game_entity_list EntityList;
     double dt;
-    double Time;
+    float Time;
 };
 
 void Update(camera** pActiveCamera, game_state* State, game_input* Input, float Width, float Height) {
