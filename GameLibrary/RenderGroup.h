@@ -1,7 +1,9 @@
+#ifndef RENDER_GROUP
+#define RENDER_GROUP
+
 #pragma once
 #include "GameAssets.h"
 #include "GameEntity.h"
-#include "GameUI.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Vertex buffer                                                                                                                                |
@@ -131,9 +133,13 @@ enum render_primitive {
     render_primitive_count
 };
 
-const uint64 DEPTH_TEST_FLAG = 1;
-const uint64 STENCIL_TEST_FLAG = 1 << 1;
-const uint64 ALPHA_BLEND_OVERWRITE_FLAG = 1 << 2;
+typedef uint64 render_flags;
+enum {
+    DEPTH_TEST_RENDER_FLAG            = 1 << 0,
+    STENCIL_TEST_RENDER_FLAG          = 1 << 1,
+    ALPHA_BLEND_OVERWRITE_RENDER_FLAG = 1 << 2,
+};
+
 
 struct render_primitive_command {
     color Color = White;
@@ -141,7 +147,7 @@ struct render_primitive_command {
     element_buffer_entry ElementEntry = {0};
     game_bitmap* Texture = 0;
     game_shader_pipeline* Shader = 0;
-    uint64 Flags = 0;
+    render_flags Flags = 0;
     render_primitive Primitive = render_primitive_point;
     float Thickness = 2.0f;
 };
@@ -383,7 +389,7 @@ void PushPrimitiveCommand(
     vertex_layout_id LayoutID,
     uint32 nVertices,
     float* Vertices,
-    uint64 Flags = 0,
+    render_flags Flags = 0,
     float Order = 0.0,
     uint32 nElements = 0,
     uint32* Elements = 0,
@@ -462,7 +468,7 @@ void PushLine(
         vertex_layout_vec3_id,
         2,
         Data,
-        DEPTH_TEST_FLAG,
+        DEPTH_TEST_RENDER_FLAG,
         Order,
         0,0,0,
         Thickness
@@ -489,7 +495,7 @@ void PushTriangle(
         vertex_layout_vec3_id,
         3,
         Data,
-        DEPTH_TEST_FLAG,
+        DEPTH_TEST_RENDER_FLAG,
         Order
     );
 }
@@ -597,7 +603,7 @@ void PushCircle(
         vertex_layout_vec3_id,
         N+2,
         Data,
-        DEPTH_TEST_FLAG,
+        DEPTH_TEST_RENDER_FLAG,
         Order
     );
 
@@ -682,7 +688,7 @@ void PushCircunference(
         vertex_layout_vec3_id,
         N,
         Data,
-        DEPTH_TEST_FLAG,
+        DEPTH_TEST_RENDER_FLAG,
         Order,
         0,0,0,
         Thickness
@@ -728,7 +734,7 @@ void PushArc(
         vertex_layout_vec3_id,
         N,
         Data,
-        DEPTH_TEST_FLAG,
+        DEPTH_TEST_RENDER_FLAG,
         Order,
         0,0,0,
         Thickness
@@ -885,14 +891,14 @@ void PushText(
     render_group* Group,
     v2 Position,
     game_font_id FontID,
-    int StringLength,
-    char* String,
+    const char* String,
     color Color = White,
     float Points = 20.0f,
     bool Wrapped = false,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     uint32 nCharacters = 0;
+    uint32 StringLength = strlen(String);
     for (int i = 0; i < StringLength; i++) {
         if (String[i] == '\0') break;
         if (String[i] >= '!' && String[i] <= '~') nCharacters++;
@@ -902,7 +908,7 @@ void PushText(
 
     v2 Pen = Position;
     float Size = 0.05f * (float)Points;
-    float LineJump = 1.5f * (float)Font->Characters[0].Height * Size; // 0.023 because height is in 64ths of pixel
+    float LineJump = Font->LineJump * Size;
 
     float* Vertices = new float[4 * 5 * nCharacters];
     uint32* Elements = new uint32[6 * nCharacters];
@@ -1013,7 +1019,7 @@ void PushText(
     bool Wrapped = false,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
-    PushText(Group, Position, FontID, String.Length, String.Content, Color, Points, Wrapped, Order);
+    PushText(Group, Position, FontID, String.Content, Color, Points, Wrapped, Order);
 }
 
 void PushCubeOutline(
@@ -1045,7 +1051,7 @@ void PushCubeOutline(
         vertex_layout_vec3_id,
         8,
         (float*)Vertices,
-        DEPTH_TEST_FLAG,
+        DEPTH_TEST_RENDER_FLAG,
         Order,
         24,
         Elements
@@ -1122,32 +1128,28 @@ void PushCubeOutline(
 //     }
 // }
 
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-// | UI                                                                                                                                                               |
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+// void PushSlider(render_group* Group, ui_slider Slider, v2 Position, color Color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
+//     Assert(Slider.MinValue != Slider.MaxValue);
+//     double Range = Slider.MaxValue - Slider.MinValue;
+//     double CircleCenter = Position.Y + 60.0 * (Slider.MaxValue - Slider.Value) / Range;
+//     double Radius = 6.0;
+//     double UpperLineFinish = 0.0;
 
-void PushSlider(render_group* Group, ui_slider Slider, v2 Position, color Color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
-    Assert(Slider.MinValue != Slider.MaxValue);
-    double Range = Slider.MaxValue - Slider.MinValue;
-    double CircleCenter = Position.Y + 60.0 * (Slider.MaxValue - Slider.Value) / Range;
-    double Radius = 6.0;
-    double UpperLineFinish = 0.0;
+//     double Percentage = 0;
+//     if (Slider.MaxValue == 0.0) Percentage = 1.0 - Slider.Value / Slider.MinValue;
+//     else Percentage = (Slider.Value - Slider.MinValue) / Range;
 
-    double Percentage = 0;
-    if (Slider.MaxValue == 0.0) Percentage = 1.0 - Slider.Value / Slider.MinValue;
-    else Percentage = (Slider.Value - Slider.MinValue) / Range;
-
-    if (Percentage < 0.85) {
-        UpperLineFinish = (0.85 - (Slider.Value - Slider.MinValue) / Range) * 60;
-    }
-    double LowerLineStart = 60.0;
-    if (Slider.Value > Slider.MinValue + 0.15 * Range) {
-        LowerLineStart = (1.15 - Slider.Value / Range) * 60;
-    }
-    PushLine(Group, Position, Position + V2(0.0, UpperLineFinish), Color, 2.0, Order);
-    PushCircunference(Group, V2(Position.X, CircleCenter), Radius, Color, 2.0, Order);
-    PushLine(Group, Position + V2(0.0, LowerLineStart), Position + V2(0.0, 60.0), Color, 2.0, Order);
-}
+//     if (Percentage < 0.85) {
+//         UpperLineFinish = (0.85 - (Slider.Value - Slider.MinValue) / Range) * 60;
+//     }
+//     double LowerLineStart = 60.0;
+//     if (Slider.Value > Slider.MinValue + 0.15 * Range) {
+//         LowerLineStart = (1.15 - Slider.Value / Range) * 60;
+//     }
+//     PushLine(Group, Position, Position + V2(0.0, UpperLineFinish), Color, 2.0, Order);
+//     PushCircunference(Group, V2(Position.X, CircleCenter), Radius, Color, 2.0, Order);
+//     PushLine(Group, Position + V2(0.0, LowerLineStart), Position + V2(0.0, 60.0), Color, 2.0, Order);
+// }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Shaders & render targets                                                                                                                                        |
@@ -1345,6 +1347,8 @@ void PushMesh(
             0,0,0,
             2.5f
         );
+
+        delete [] Vertices;
     }
 
 }
@@ -1503,24 +1507,6 @@ void PushEntities(render_group* Group, game_entity_list* List, float Time) {
 // | Debug                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void PushDebugArena(
-    render_group* Group,
-    memory_arena Arena,
-    v2 Position,
-    double Alpha = 1.0,
-    float Order = SORT_ORDER_DEBUG_OVERLAY
-) {
-    float ArenaPercentage = (float)Arena.Used / (float)Arena.Size;
-    float RectWidth = 350.0f;
-    rectangle Rect = { Position.X, Position.Y, RectWidth, 20.0f };
-    PushRect(Group, Rect, Color(DarkGray, Alpha), Order + 0.1);
-    Rect.Width *= ArenaPercentage;
-    PushRect(Group, Rect, Color(Red, Alpha), Order + 0.2);
-    PushText(Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Arena.Name, Color(White, Alpha), 8, false, Order + 0.3);
-    sprintf_s(Arena.Percentage.Content, 7, "%.02f%%", ArenaPercentage * 100.0);
-    PushText(Group, Position + V2(RectWidth - 55.0, 15.0), Font_Menlo_Regular_ID, Arena.Percentage, Color(White, Alpha), 8, false, Order + 0.3);
-}
-
 void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
     v2 Orthogonal = perp(normalize(V2(Vector.X, Vector.Y)));
     float OrthogonalLength = 0.005333f * Group->Height;
@@ -1611,7 +1597,7 @@ void PushDebugFustrum(
         vertex_layout_vec3_vec2_id,
         9,
         (float*)Vertices,
-        DEPTH_TEST_FLAG,
+        DEPTH_TEST_RENDER_FLAG,
         SORT_ORDER_DEBUG_OVERLAY,
         24,
         Elements
@@ -1637,8 +1623,8 @@ void PushDebugGrid(render_group* Group, double Alpha) {
         vertex_layout_vec3_id,
         nVertices,
         (float*)Vertices,
-        DEPTH_TEST_FLAG | ALPHA_BLEND_OVERWRITE_FLAG,
-        SORT_ORDER_DEBUG_OVERLAY,
+        DEPTH_TEST_RENDER_FLAG | ALPHA_BLEND_OVERWRITE_RENDER_FLAG,
+        SORT_ORDER_DEBUG_OVERLAY-2.0f,
         0,0,0,
         1.0f
     );
@@ -1711,3 +1697,5 @@ void PushDebugPlot(
 
     delete [] Vertices;
 }
+
+#endif

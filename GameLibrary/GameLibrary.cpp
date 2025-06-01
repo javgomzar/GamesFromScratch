@@ -4,8 +4,7 @@
 #include "pch.h"
 #include "framework.h"
 #include "GameLibrary.h"
-#include "RenderGroup.h"
-
+#include "GameUI.h"
 
 //// This is an example of an exported variable
 //GAMELIBRARY_API int nGameLibrary=0;
@@ -69,14 +68,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     if (!Memory->IsInitialized) {
         firstFrame = true;
 
-        SetUpDebugArena(StringsArena, &Group->VertexBuffer.VertexArena[0], "Vertex arena (vec3)");
-        SetUpDebugArena(StringsArena, &Group->VertexBuffer.VertexArena[1], "Vertex arena (vec3, vec2)");
-        SetUpDebugArena(StringsArena, &Group->VertexBuffer.VertexArena[2], "Vertex arena (vec3, vec2, vec3)");
-        SetUpDebugArena(StringsArena, &Group->VertexBuffer.VertexArena[3], "Vertex arena (mesh with bones)");
-        SetUpDebugArena(StringsArena, TransientArena, "Transient arena");
-        SetUpDebugArena(StringsArena, GeneralPurposeArena, "General purpose arena");
-        SetUpDebugArena(StringsArena, StringsArena, "Strings arena");
-
         //TestPerformance();
 
         // Initialize entities
@@ -102,101 +93,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
     
+    UpdateUI(Memory, Input);
+
     PushEntities(Group, &pGameState->EntityList, Time);
-    
-    // Debug info
-    static double Alpha = 0.0;
-    if (
-        Input->Mode == Keyboard && Input->Keyboard.F1.IsDown && !Input->Keyboard.F1.WasDown || 
-        Input->Mode == Controller && Input->Controller.Start.IsDown && !Input->Controller.Start.WasDown
-    ) {
-        Group->Debug = !Group->Debug;
-        if (!Group->Debug) {
-            Alpha = 0.0;
-        }
-    }
-    
-    if (Group->Debug) {
-        if (Alpha < 1.0) {
-            double x = (pGameState->dt - 1.8) / 1.1;
-            Alpha += exp(- x * x);
-        }
-        else Alpha = 1.0;
-        
-        if (Input->Keyboard.N.IsDown && !Input->Keyboard.N.WasDown) {
-            Group->DebugNormals = !Group->DebugNormals;
-        }
-        
-        if (Input->Keyboard.B.IsDown && !Input->Keyboard.B.WasDown) {
-            Group->DebugBones = !Group->DebugBones;
-        }
-        
-        if (Input->Keyboard.C.IsDown && !Input->Keyboard.C.WasDown) {
-            Group->DebugColliders = !Group->DebugColliders;
-        }
-        
-        PushDebugGrid(Group, Alpha);
-        rectangle DebugInfoRect = { 0, 0, 400, 350 };
-        
-        PushRect(Group, DebugInfoRect, Color(Black, 0.5 * Alpha), SORT_ORDER_DEBUG_OVERLAY);
-        PushRectOutline(Group, DebugInfoRect, Color(Gray, Alpha));
-        
-        // DebugInfo
-        char DebugTextBuffer[128] = {};
-        sprintf_s(
-            DebugTextBuffer, 
-            "%.02f ms/frame\n%.02f ms used\n%.02f fps\n%.02f Mcycles/frame\n%.02f time (s)", 
-            Memory->DebugInfo.BudgetTime, 
-            Memory->DebugInfo.UsedTime,
-            Memory->DebugInfo.FPS,
-            Memory->DebugInfo.UsedMCyclesPerFrame, 
-            pGameState->Time
-        );
-        PushText(
-            Group, 
-            V2(10.0, 30.0), 
-            Font_Menlo_Regular_ID, 
-            128,
-            DebugTextBuffer, 
-            Color(White, Alpha), 
-            12, 
-            false, 
-            SORT_ORDER_DEBUG_OVERLAY
-        );
-        
-        // Debug arenas
-        float DebugArenaStartHeight = 135.0f;
-        PushDebugArena(Group, *TransientArena,                    V2(10.0f, DebugArenaStartHeight), Alpha);
-        PushDebugArena(Group, *GeneralPurposeArena,               V2(10.0f, DebugArenaStartHeight + 30.0f), Alpha);
-        PushDebugArena(Group, *StringsArena,                      V2(10.0f, DebugArenaStartHeight + 60.0f), Alpha);
-        PushDebugArena(Group, Group->VertexBuffer.VertexArena[0], V2(10.0f, DebugArenaStartHeight + 90.0f), Alpha);
-        PushDebugArena(Group, Group->VertexBuffer.VertexArena[1], V2(10.0f, DebugArenaStartHeight + 120.0f), Alpha);
-        PushDebugArena(Group, Group->VertexBuffer.VertexArena[2], V2(10.0f, DebugArenaStartHeight + 150.0f), Alpha);
-        PushDebugArena(Group, Group->VertexBuffer.VertexArena[3], V2(10.0f, DebugArenaStartHeight + 180.0f), Alpha);
-
-        // Axes
-        v2 XAxis = V2(cos(Group->Camera->Angle * Degrees), sin(Group->Camera->Angle * Degrees) * sin(Group->Camera->Pitch * Degrees));
-        v2 YAxis = V2(0.0, -cos(Group->Camera->Pitch * Degrees));
-        v2 ZAxis = V2(-sin(Group->Camera->Angle * Degrees), sin(Group->Camera->Pitch * Degrees) * cos(Group->Camera->Angle * Degrees));
-        v2 AxisOrigin = V2(Group->Width - 0.08 * (float)Group->Height - 10.0, 0.1 * (float)Group->Height);
-        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Red);
-        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Green);
-        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Blue);
-
-        triangle Triangle = {
-            V3(0,0,0),
-            V3(5,0,0),
-            V3(0,5,0)
-        };
-
-        // Debug camera basis
-        // PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
-        // PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
-        // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
-
-        // Debug Framebuffer
-        // PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
-    }
 
     PushRenderTarget(Group, Target_World);
 

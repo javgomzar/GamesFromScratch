@@ -1,6 +1,8 @@
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
 
+#include "GameDebug.h"
+
 #include <stdint.h>
 #include <time.h>
 
@@ -19,14 +21,6 @@ typedef int64_t int64;
 
 typedef size_t memory_index;
 
-// Assert
-inline void Assert(bool assertion, const char* Message = "") {
-    if (!assertion) {
-        int* i = 0;
-        int j = *i;
-    }
-}
-
 // Strings
 struct string {
     int Length;
@@ -34,17 +28,17 @@ struct string {
 };
 
 // Arrays
-#define ArrayStructDefinition(Capacity, Type, Name) struct Name { uint32 Size = Capacity; uint32 Count = 0; Type Content[Capacity]; }
-#define ArrayAppendDefinition(Capacity, Type, Name) void Append(Name* Array, Type Element) { Assert(Array->Count < Capacity); \
+#define ArrayStructDefinition(Capacity, Type) struct Type##_array { uint32 Size = Capacity; uint32 Count = 0; Type Content[Capacity]; }
+#define ArrayAppendDefinition(Capacity, Type) void Append(Type##_array* Array, Type Element) { Assert(Array->Count < Capacity); \
     Array->Content[Array->Count++] = Element; }
-#define ArrayPopDefinition(Capacity, Type, Name) Type Pop(Name* Array) { Assert(Array->Count > 0); \
+#define ArrayPopDefinition(Capacity, Type) Type Pop(Type##_array* Array) { Assert(Array->Count > 0); \
     Type Result = Array->Content[Array->Count]; Array->Content[Array->Count--] = {}; return Result; }
-#define ArrayClearDefinition(Name) void Clear(Name* Array) { for(int i = 0; i < Array->Count; i++) Array->Content[i] = {}; Array->Count = 0; }
-#define ArrayDefinition(Capacity, Type, Name) \
-    ArrayStructDefinition(Capacity, Type, Name); \
-    ArrayAppendDefinition(Capacity, Type, Name); \
-    ArrayPopDefinition(Capacity, Type, Name); \
-    ArrayClearDefinition(Name)
+#define ArrayClearDefinition(Type) void Clear(Type##_array* Array) { for(int i = 0; i < Array->Count; i++) Array->Content[i] = {}; Array->Count = 0; }
+#define ArrayDefinition(Capacity, Type) \
+    ArrayStructDefinition(Capacity, Type); \
+    ArrayAppendDefinition(Capacity, Type); \
+    ArrayPopDefinition(Capacity, Type); \
+    ArrayClearDefinition(Type)
 
 #define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
 
@@ -53,8 +47,6 @@ struct memory_arena {
     memory_index Size;
     uint8* Base;
     memory_index Used;
-    string Name;
-    string Percentage;
 };
 
 inline memory_arena MemoryArena(memory_index Size, uint8* Base) {
@@ -108,11 +100,6 @@ inline string PushString(memory_arena* Arena, int Length, const char* Content) {
     }
 
     return String;
-}
-
-void SetUpDebugArena(memory_arena* StringsArena, memory_arena* DebugArena, const char* Name) {
-    DebugArena->Name = PushString(StringsArena, 32, Name);
-    DebugArena->Percentage = PushString(StringsArena, 8, "0.0%");
 }
 
 // Services that the platform layer provides for the game

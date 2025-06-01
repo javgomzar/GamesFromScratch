@@ -115,6 +115,10 @@ inline v2 V2(float X, float Y) {
 	return Result;
 }
 
+inline v2 Radial(float Angle) {
+	return V2(cosf(Angle), sinf(Angle));
+}
+
 inline v2 operator+(v2 A, v2 B) {
 	v2 Result;
 	Result.X = A.X + B.X;
@@ -1311,6 +1315,11 @@ struct rectangle {
 
 rectangle Rectangle(float Left, float Top, float Width, float Height) {
 	return {Left, Top, Width, Height};
+}
+
+bool IsIn(rectangle Rect, v2 Position) {
+	return Rect.Left <= Position.X && Position.X <= Rect.Left+Rect.Width &&
+		   Rect.Top  <= Position.Y && Position.Y <= Rect.Top+Rect.Height;
 }
 
 struct vector_plane {

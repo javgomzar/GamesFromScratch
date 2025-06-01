@@ -19,6 +19,9 @@
 
 extern GAMELIBRARY_API int nGameLibrary;
 
+#ifndef GAME_LIBRARY
+#define GAME_LIBRARY
+
 #pragma once
 #include "GamePlatform.h"
 #include "GameMath.h"
@@ -27,18 +30,6 @@ extern GAMELIBRARY_API int nGameLibrary;
 #include "GameSound.h"
 
 #include "RenderGroup.h"
-
-// +---------------------------------------------------------------------------------------------------------------------------------+
-// | Debug info                                                                                                                      |
-// +---------------------------------------------------------------------------------------------------------------------------------+
-
-struct debug_info {
-    float FPS;
-    float BudgetTime;
-    float UsedTime;
-    float UsedMCyclesPerFrame;
-};
-
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
 // | Game memory                                                                                                                     |
@@ -66,3 +57,5 @@ struct game_memory {
 #define GAME_UPDATE_INPUTS game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, game_input* Input
 #define GAME_UPDATE(name) void GAMELIBRARY_API name(GAME_UPDATE_INPUTS)
 typedef GAME_UPDATE(game_update);
+
+#endif

@@ -588,6 +588,7 @@ struct game_font_character {
 struct game_font {
     game_font_id ID;
     signed long SpaceAdvance;
+    signed long LineJump;
     game_font_character Characters[FONT_CHARACTERS_COUNT];
     game_bitmap Bitmap;
 };
@@ -730,6 +731,9 @@ game_font LoadFont(memory_arena* Arena, game_asset* Asset) {
 
         c++;
     }
+
+    Result.LineJump = Result.Characters[0].Height * 3 / 2;
+
     FT_Done_Face(Font);
     FT_Done_FreeType(FTLibrary);
 
@@ -1587,7 +1591,7 @@ game_mesh_id_count +
 game_animation_id_count + 
 game_video_id_count;
 
-ArrayDefinition(ASSET_COUNT, game_asset, game_asset_array)
+ArrayDefinition(ASSET_COUNT, game_asset)
 
 struct game_assets {
     game_asset_array Asset;
@@ -1821,6 +1825,8 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
     // Extra char with value 0 to separate shaders
     Assets->TotalSize += Shader->File.ContentSize + 1;
     Assets->ShadersSize += Shader->File.ContentSize + 1;
+
+    delete [] Buffer;
 }
 
 void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nShaders, ...) {
@@ -1871,6 +1877,8 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
         Assets->TotalSize += Shader->Size + 1;
         Assets->ComputeShadersSize += Shader->Size + 1;
     }
+
+    delete [] Buffer;
 }
 
 void LoadShader(memory_arena* Arena, game_shader* Shader) {

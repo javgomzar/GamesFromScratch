@@ -328,16 +328,18 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
     MSG msg;
     while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
         switch (msg.message) {
-            case WM_LBUTTONDOWN: { pInput->Mouse.LeftClick.IsDown = true; } break;
-            case WM_LBUTTONUP:   { pInput->Mouse.LeftClick.IsDown = false; } break;
-            case WM_RBUTTONDOWN: { pInput->Mouse.RightClick.IsDown = true; } break;
-            case WM_RBUTTONUP:   { pInput->Mouse.RightClick.IsDown = false; } break;
+            // Mouse
+            case WM_LBUTTONDOWN: { PressButton(&pInput->Mouse.LeftClick); } break;
+            case WM_LBUTTONUP:   { LiftButton(&pInput->Mouse.LeftClick); } break;
+            case WM_RBUTTONDOWN: { PressButton(&pInput->Mouse.RightClick); } break;
+            case WM_RBUTTONUP:   { LiftButton(&pInput->Mouse.RightClick); } break;
+            case WM_MBUTTONDOWN: { PressButton(&pInput->Mouse.MiddleClick); } break;
+            case WM_MBUTTONUP:   { LiftButton(&pInput->Mouse.MiddleClick); } break;
             case WM_MOUSEWHEEL:  { pInput->Mouse.Wheel = GET_WHEEL_DELTA_WPARAM(msg.wParam); } break;
-            case WM_MBUTTONDOWN: { pInput->Mouse.MiddleClick.IsDown = true; } break;
-            case WM_MBUTTONUP:   { pInput->Mouse.MiddleClick.IsDown = false; } break;
             case WM_KEYDOWN:
-            case WM_SYSKEYDOWN:
-            {
+            
+            // Keyboard
+            case WM_SYSKEYDOWN: {
                 uint32 VKCode = msg.wParam;
                 bool WasDown = (msg.lParam & (1 << 30)) != 0;
 
@@ -350,35 +352,31 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                         Pause = !Pause;
                     }
                     
-                    if (VKCode == VK_UP) pInput->Keyboard.Up.IsDown = true;
-                    else if (VKCode == VK_DOWN) pInput->Keyboard.Down.IsDown = true;
-                    else if (VKCode == VK_LEFT) pInput->Keyboard.Left.IsDown = true;
-                    else if (VKCode == VK_RIGHT) pInput->Keyboard.Right.IsDown = true;
-                    else if (VKCode == VK_ESCAPE) {
-                        pInput->Keyboard.Escape.IsDown = true;
-                        Running = false;
-                        PostQuitMessage(0);
-                    }
-                    else if (VKCode == VK_SPACE) pInput->Keyboard.Space.IsDown = true;
-                    else if (VKCode == VK_RETURN) pInput->Keyboard.Enter.IsDown = true;
-                    else if (VKCode == VK_F1) pInput->Keyboard.F1.IsDown = true;
-                    else if (VKCode == VK_F2) pInput->Keyboard.F2.IsDown = true;
-                    else if (VKCode == VK_F3) pInput->Keyboard.F3.IsDown = true;
-                    else if (VKCode == VK_F4) pInput->Keyboard.F4.IsDown = true;
-                    else if (VKCode == VK_F5) pInput->Keyboard.F5.IsDown = true;
-                    else if (VKCode == VK_F6) pInput->Keyboard.F6.IsDown = true;
-                    else if (VKCode == VK_F7) pInput->Keyboard.F7.IsDown = true;
-                    else if (VKCode == VK_F8) pInput->Keyboard.F8.IsDown = true;
-                    else if (VKCode == VK_F9) pInput->Keyboard.F9.IsDown = true;
-                    else if (VKCode == VK_F10) pInput->Keyboard.F10.IsDown = true;
+                    if (VKCode == VK_UP)          PressButton(&pInput->Keyboard.Up);
+                    else if (VKCode == VK_DOWN)   PressButton(&pInput->Keyboard.Down);
+                    else if (VKCode == VK_LEFT)   PressButton(&pInput->Keyboard.Left);
+                    else if (VKCode == VK_RIGHT)  PressButton(&pInput->Keyboard.Right);
+                    else if (VKCode == VK_ESCAPE) PressButton(&pInput->Keyboard.Escape);
+                    else if (VKCode == VK_SPACE)  PressButton(&pInput->Keyboard.Space);
+                    else if (VKCode == VK_RETURN) PressButton(&pInput->Keyboard.Enter);
+                    else if (VKCode == VK_F1)     PressButton(&pInput->Keyboard.F1);
+                    else if (VKCode == VK_F2)     PressButton(&pInput->Keyboard.F2);
+                    else if (VKCode == VK_F3)     PressButton(&pInput->Keyboard.F3);
+                    else if (VKCode == VK_F4)     PressButton(&pInput->Keyboard.F4);
+                    else if (VKCode == VK_F5)     PressButton(&pInput->Keyboard.F5);
+                    else if (VKCode == VK_F6)     PressButton(&pInput->Keyboard.F6);
+                    else if (VKCode == VK_F7)     PressButton(&pInput->Keyboard.F7);
+                    else if (VKCode == VK_F8)     PressButton(&pInput->Keyboard.F8);
+                    else if (VKCode == VK_F9)     PressButton(&pInput->Keyboard.F9);
+                    else if (VKCode == VK_F10)    PressButton(&pInput->Keyboard.F10);
                     else if (VKCode == VK_F11) {
-                        pInput->Keyboard.F11.IsDown = true;
+                        PressButton(&pInput->Keyboard.F11);
                         ToggleFullScreen(Window);
                     }
-                    else if (VKCode == VK_F12) pInput->Keyboard.F12.IsDown = true;
-                    else if (VKCode == VK_PRIOR) pInput->Keyboard.PageUp.IsDown = true;
-                    else if (VKCode == VK_NEXT) pInput->Keyboard.PageDown.IsDown = true;
-                    else if (VKCode == VK_SHIFT) pInput->Keyboard.Shift.IsDown = true;
+                    else if (VKCode == VK_F12)   PressButton(&pInput->Keyboard.F12);
+                    else if (VKCode == VK_PRIOR) PressButton(&pInput->Keyboard.PageUp);
+                    else if (VKCode == VK_NEXT)  PressButton(&pInput->Keyboard.PageDown);
+                    else if (VKCode == VK_SHIFT) PressButton(&pInput->Keyboard.Shift);
                     else if (VKCode == 'L') {
                         if (RecordPlayback->RecordIndex == 0) {
                             BeginRecordingInput(RecordPlayback, 1);
@@ -398,35 +396,34 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                 }
             } break;
             case WM_KEYUP:
-            case WM_SYSKEYUP:
-            {
+            case WM_SYSKEYUP: {
                 uint32 VKCode = msg.wParam;
                 if (VKCode >= '0' && VKCode <= '9' || VKCode >= 'A' && VKCode <= 'Z') {
                     LiftKey(pInput, VKCode);
                 }
 
-                if (VKCode == VK_UP) pInput->Keyboard.Up.IsDown = false;
-                else if (VKCode == VK_DOWN) pInput->Keyboard.Down.IsDown = false;
-                else if (VKCode == VK_LEFT) pInput->Keyboard.Left.IsDown = false;
-                else if (VKCode == VK_RIGHT) pInput->Keyboard.Right.IsDown = false;
-                else if (VKCode == VK_ESCAPE) pInput->Keyboard.Escape.IsDown = false;
-                else if (VKCode == VK_SPACE) pInput->Keyboard.Space.IsDown = false;
-                else if (VKCode == VK_RETURN) pInput->Keyboard.Enter.IsDown = false;
-                else if (VKCode == VK_F1) pInput->Keyboard.F1.IsDown = false;
-                else if (VKCode == VK_F2) pInput->Keyboard.F2.IsDown = false;
-                else if (VKCode == VK_F3) pInput->Keyboard.F3.IsDown = false;
-                else if (VKCode == VK_F4) pInput->Keyboard.F4.IsDown = false;
-                else if (VKCode == VK_F5) pInput->Keyboard.F5.IsDown = false;
-                else if (VKCode == VK_F6) pInput->Keyboard.F6.IsDown = false;
-                else if (VKCode == VK_F7) pInput->Keyboard.F7.IsDown = false;
-                else if (VKCode == VK_F8) pInput->Keyboard.F8.IsDown = false;
-                else if (VKCode == VK_F9) pInput->Keyboard.F9.IsDown = false;
-                else if (VKCode == VK_F10) pInput->Keyboard.F10.IsDown = false;
-                else if (VKCode == VK_F11) pInput->Keyboard.F11.IsDown = false;
-                else if (VKCode == VK_F12) pInput->Keyboard.F12.IsDown = false;
-                else if (VKCode == VK_PRIOR) pInput->Keyboard.PageUp.IsDown = false;
-                else if (VKCode == VK_NEXT) pInput->Keyboard.PageDown.IsDown = false;
-                else if (VKCode == VK_SHIFT) pInput->Keyboard.Shift.IsDown = false;
+                if (VKCode == VK_UP)          LiftButton(&pInput->Keyboard.Up);
+                else if (VKCode == VK_DOWN)   LiftButton(&pInput->Keyboard.Down);
+                else if (VKCode == VK_LEFT)   LiftButton(&pInput->Keyboard.Left);
+                else if (VKCode == VK_RIGHT)  LiftButton(&pInput->Keyboard.Right);
+                else if (VKCode == VK_ESCAPE) LiftButton(&pInput->Keyboard.Escape);
+                else if (VKCode == VK_SPACE)  LiftButton(&pInput->Keyboard.Space);
+                else if (VKCode == VK_RETURN) LiftButton(&pInput->Keyboard.Enter);
+                else if (VKCode == VK_F1)     LiftButton(&pInput->Keyboard.F1);
+                else if (VKCode == VK_F2)     LiftButton(&pInput->Keyboard.F2);
+                else if (VKCode == VK_F3)     LiftButton(&pInput->Keyboard.F3);
+                else if (VKCode == VK_F4)     LiftButton(&pInput->Keyboard.F4);
+                else if (VKCode == VK_F5)     LiftButton(&pInput->Keyboard.F5);
+                else if (VKCode == VK_F6)     LiftButton(&pInput->Keyboard.F6);
+                else if (VKCode == VK_F7)     LiftButton(&pInput->Keyboard.F7);
+                else if (VKCode == VK_F8)     LiftButton(&pInput->Keyboard.F8);
+                else if (VKCode == VK_F9)     LiftButton(&pInput->Keyboard.F9);
+                else if (VKCode == VK_F10)    LiftButton(&pInput->Keyboard.F10);
+                else if (VKCode == VK_F11)    LiftButton(&pInput->Keyboard.F11);
+                else if (VKCode == VK_F12)    LiftButton(&pInput->Keyboard.F12);
+                else if (VKCode == VK_PRIOR)  LiftButton(&pInput->Keyboard.PageUp);
+                else if (VKCode == VK_NEXT)   LiftButton(&pInput->Keyboard.PageDown);
+                else if (VKCode == VK_SHIFT)  LiftButton(&pInput->Keyboard.Shift);
             } break;
             case WM_CLOSE:
             case WM_DESTROY:
@@ -785,11 +782,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         Input.Mouse.LastCursor.X = Input.Mouse.Cursor.X;
         Input.Mouse.LastCursor.Y = Input.Mouse.Cursor.Y;
-        Input.Mouse.LastCursor.Z = 0;
 
         Input.Mouse.Cursor.X = MouseP.x;
         Input.Mouse.Cursor.Y = MouseP.y;
-        Input.Mouse.Cursor.Z = 0;
 
         /*char MouseTextBuffer[256];
         sprintf_s(MouseTextBuffer, "X: %d\nY: %d\n", Input.Mouse.Cursor.X, Input.Mouse.Cursor.Y);
@@ -835,6 +830,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ClearEntries(Group);
 
                 GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], &Input);
+
+                if (pGameState->Exit) {
+                    Running = false; PostQuitMessage(0);
+                }
             }
 
             if (Input.Keyboard.F10.IsDown && !Input.Keyboard.F11.WasDown) {

@@ -320,7 +320,7 @@ void AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Character %d", CharacterID);
 
-    quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
+    quaternion Rotation = Quaternion(Pi, V3(0,1,0));
     int EntityID = AddEntity(
         List, 
         NameBuffer, 
@@ -448,6 +448,7 @@ struct game_state {
     game_entity_list EntityList;
     double dt;
     float Time;
+    bool Exit;
 };
 
 void Update(camera** pActiveCamera, game_state* State, game_input* Input, float Width, float Height) {
@@ -478,7 +479,7 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
                 Input->Mouse.Cursor.X >= 0 && Input->Mouse.Cursor.X <= Width &&
                 Input->Mouse.Cursor.Y >= 0 && Input->Mouse.Cursor.Y <= Height
             ) {
-                v3 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
+                v2 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
                 double AngularVelocity = 0.5;
 
                 Cam->Angle -= AngularVelocity * Offset.X;
@@ -528,7 +529,8 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
             Character->Jumping = false;
         }
 
-        bool KeyboardMoving = Input->Keyboard.W.IsDown || Input->Keyboard.A.IsDown || Input->Keyboard.S.IsDown || Input->Keyboard.D.IsDown;
+        bool KeyboardMoving = Input->Keyboard.W.IsDown != Input->Keyboard.S.IsDown ||
+                              Input->Keyboard.A.IsDown != Input->Keyboard.D.IsDown;
         bool ControllerMoving = fabs(Input->Controller.LeftJoystick.X) > 0.1 || fabs(Input->Controller.LeftJoystick.Y) > 0.1;
         bool Moving = (Input->Mode == Keyboard && KeyboardMoving) ||
                       (Input->Mode == Controller && ControllerMoving);
@@ -536,25 +538,15 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
         // Translation
             v3 Direction = V3(0,0,0);
             float Speed = 20.0f;
-            float DirectionAngle = 0;
             if (Input->Mode == Keyboard) {
                 bool Left = Input->Keyboard.A.IsDown;
                 bool Right = Input->Keyboard.D.IsDown;
                 bool Up = Input->Keyboard.W.IsDown;
                 bool Down = Input->Keyboard.S.IsDown;
-                if (Right) { Direction.X += 1.0; DirectionAngle -= 90; }
-                if (Left)  { Direction.X -= 1.0; DirectionAngle += 90; }
-                if (Up) {
-                    Direction.Z += 1.0; 
-                    if (Right) DirectionAngle += 45;
-                    else if (Left) DirectionAngle -= 45;
-                }
-                if (Down) {
-                    Direction.Z -= 1.0;
-                    if (Right) DirectionAngle -= 45;
-                    else if (Left) DirectionAngle += 45;
-                    else DirectionAngle += 180;
-                }
+                if (Right) { Direction.X += 1.0; }
+                if (Left)  { Direction.X -= 1.0; }
+                if (Up) { Direction.Z += 1.0; }
+                if (Down) { Direction.Z -= 1.0; }
                 Direction = normalize(Direction);
             }
             else if (Input->Mode == Controller) {
@@ -565,9 +557,12 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
             }
 
             basis HorizontalBasis = GetCameraBasis(ActiveCamera->Angle, 0);
-            CharacterEntity->Velocity = Speed * (Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z);
             
-            CharacterEntity->Transform.Rotation = Quaternion((ActiveCamera->Angle + DirectionAngle) * Degrees, V3(0,1,0));
+            // Direction is in coordinates relative to camera
+            float Angle = atan2f(-Direction.X, Direction.Z);
+            Direction = Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z;
+            CharacterEntity->Velocity = Speed * Direction;
+            CharacterEntity->Transform.Rotation = Quaternion(ActiveCamera->Angle * Degrees + Angle, V3(0,1,0));
 
             if (!Character->Jumping) {
                 Character->Animator.Active = true;
