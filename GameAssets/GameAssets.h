@@ -17,6 +17,11 @@ extern "C" {
 #ifndef GAME_ASSETS
 #define GAME_ASSETS
 
+/*
+    TODO:
+        - Fix video. Possibly extract all frames and load them to the asset file.
+        - Asset hot reloading
+*/
 
 enum game_asset_type {
     Text,

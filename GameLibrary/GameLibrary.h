@@ -14,7 +14,7 @@
 //class GAMELIBRARY_API CGameLibrary {
 //public:
 //	CGameLibrary(void);
-//	// TODO: add your methods here.
+//	// Add your methods here.
 //};
 
 extern GAMELIBRARY_API int nGameLibrary;

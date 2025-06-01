@@ -3,6 +3,14 @@
 
 #include "GameLibrary.h"
 
+/*
+    TODO:
+        - Save game state in files.
+        - Load game state from files.
+        - Debug fps graphs.
+        - Log debug records as a table.
+        - Debug entities.
+*/
 
 enum ui_axis {
     axis_x,
