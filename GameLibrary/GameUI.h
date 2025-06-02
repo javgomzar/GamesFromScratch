@@ -101,8 +101,6 @@ struct ui_context {
     ui_hierarchy Tree;
     render_group* Group;
     game_input* Input;
-    float Time;
-    float DebugAlpha;
 };
 
 static ui_context UI;
@@ -280,6 +278,7 @@ struct UIMenu {
     float Margins[2];
     ui_axis StackAxis;
     ui_axis NoStackAxis;
+    float Alpha;
 
     UIMenu(
         char* Text, 
@@ -305,6 +304,7 @@ struct UIMenu {
 
         Margins[axis_x] = MarginX;
         Margins[axis_y] = MarginY;
+        Alpha = Opacity;
         
         Element = PushUIElement(
             Text, 
@@ -363,6 +363,8 @@ struct UIMenu {
             if (Child->Size[axis_y].Type == ui_size_percent_of_parent) {
                 Child->Rect.Height = Child->Size[axis_y].Value * Element->Rect.Height;
             }
+
+            Child->Color.Alpha = Alpha;
 
             NextValue += Margins[StackAxis] + Child->Size[StackAxis].Value;
 
@@ -521,38 +523,39 @@ void UpdateUI(
     }
 
     // Debug UI
+    static float DebugAlpha = 0.0f;
     if (
         Input->Mode == Keyboard && Input->Keyboard.F1.JustPressed || 
         Input->Mode == Controller && Input->Controller.Start.JustPressed
     ) {
         Group->Debug = !Group->Debug;
-        if (!Group->Debug) UI.DebugAlpha = 0.0;
+        if (!Group->Debug) DebugAlpha = 0.0;
     }
     
     if (Group->Debug) {
         // Handle input
-        if (UI.DebugAlpha < 1.0) {
+        if (DebugAlpha < 1.0) {
             double x = (pGameState->dt - 1.8) / 1.1;
-            UI.DebugAlpha += exp(- x * x);
+            DebugAlpha += exp(- x * x);
         }
-        else UI.DebugAlpha = 1.0;
+        else DebugAlpha = 1.0;
 
         if (Input->Keyboard.N.IsDown && !Input->Keyboard.N.WasDown) Group->DebugNormals = !Group->DebugNormals;
         if (Input->Keyboard.B.IsDown && !Input->Keyboard.B.WasDown) Group->DebugBones = !Group->DebugBones;
         if (Input->Keyboard.C.IsDown && !Input->Keyboard.C.WasDown) Group->DebugColliders = !Group->DebugColliders;
         
-        UIMenu DebugMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 10.0f, 10.0f, UI.DebugAlpha);
+        UIMenu DebugMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 10.0f, 10.0f, DebugAlpha);
         
-        PushDebugGrid(Group, UI.DebugAlpha);
+        PushDebugGrid(Group, DebugAlpha);
 
         // Axes
         v2 XAxis = V2(cos(Group->Camera->Angle * Degrees), sin(Group->Camera->Angle * Degrees) * sin(Group->Camera->Pitch * Degrees));
         v2 YAxis = V2(0.0, -cos(Group->Camera->Pitch * Degrees));
         v2 ZAxis = V2(-sin(Group->Camera->Angle * Degrees), sin(Group->Camera->Pitch * Degrees) * cos(Group->Camera->Angle * Degrees));
         v2 AxisOrigin = V2(Group->Width - 0.08 * (float)Group->Height - 10.0, 0.1 * (float)Group->Height);
-        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Red);
-        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Green);
-        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Blue);
+        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Color(Red, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Color(Green, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Color(Blue, DebugAlpha));
 
         // Debug camera basis
         // PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
@@ -562,12 +565,11 @@ void UpdateUI(
         // Debug Framebuffer
         // PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
 
-        // UIBox(100, 100, 100, 100, UI.DebugAlpha);
         UIDebugFloat("%.02f ms/frame", DebugInfo.BudgetTime);
         UIDebugFloat("%.02f ms used", DebugInfo.UsedTime);
         UIDebugFloat("%.02f fps", DebugInfo.FPS);
         UIDebugFloat("%.02f Mcycles/frame", DebugInfo.UsedMCyclesPerFrame);
-        UIDebugFloat("%.02f time (s)", UI.Time); 
+        UIDebugFloat("%.02f time (s)", pGameState->Time); 
 
         static bool DebugArenas = false;
         if (UIDropdown("Arenas", DebugArenas)) {

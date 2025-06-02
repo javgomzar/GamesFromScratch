@@ -1019,6 +1019,9 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 				if (DrawCommand.Flags & ALPHA_BLEND_OVERWRITE_RENDER_FLAG) {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
 				}
+				else {
+					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
+				}
 
 				if (DrawCommand.Texture) BindTexture(ProgramID, DrawCommand.Texture, 0);
 				if (DrawCommand.Thickness) glLineWidth(DrawCommand.Thickness);

@@ -1,11 +1,6 @@
 #ifndef TOKENIZER_H
 #define TOKENIZER_H
 
-#include "Win32PlatformLayer.h"
-
-#include <stdlib.h>
-#include <string.h>
-
 
 enum token_type {
     Token_Unknown,
@@ -114,7 +109,7 @@ tokenizer InitTokenizer(void* At) {
 
 void Advance(tokenizer& Tokenizer) {
     if (Tokenizer.At[0] == '\0') {
-        Log(Warn, "Tokenizer reached EOF.");
+        Assert(false); // Tokenizer reached EOF
         return;
     }
     else if (Tokenizer.At[0] == '\n') {
@@ -328,7 +323,7 @@ token RequireToken(tokenizer& Tokenizer, const char* Token) {
     else {
         char ErrorBuffer[256];
         sprintf_s(ErrorBuffer, "Token `%s` at line %d, column %d should be `%s`.", NextToken.Text, NextToken.Line, NextToken.Column, Token);
-        Raise(ErrorBuffer);
+        Assert(false);
     }
     return NextToken;
 }
@@ -349,7 +344,7 @@ token RequireToken(tokenizer& Tokenizer, token_type Type) {
             NextToken.Type,
             Type
         );
-        Raise(ErrorBuffer);
+        Assert(false);
     }
     return NextToken;
 }

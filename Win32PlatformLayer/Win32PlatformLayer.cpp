@@ -1,12 +1,6 @@
-
+#include "pch.h"
 #include "GameLibrary.h"
 #include "Win32PlatformLayer.h"
-
-#include "resource.h"
-#include "framework.h"
-#include "stdio.h"
-#include "XInput.h"
-#include "xaudio2.h"
 
 #if GAME_RENDER_API_OPENGL
     #pragma comment (lib, "opengl32.lib")
@@ -17,12 +11,13 @@
     #include "VulkanRender.h"
 #endif
 
+#pragma comment(lib, "xaudio2.lib")
+
 #include "Tokenizer.h"
 
 /* TODO:
     - Saved game locations
     - Getting a handle to our own executable file
-    - Asset hot loading
     - Multithreading
     - Multiple keyboards?
     - Sleep/timeBeginPeriod

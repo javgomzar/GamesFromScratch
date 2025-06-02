@@ -1,18 +1,35 @@
-@ECHO OFF
-
 @REM Environment variables
 call bat\env.bat
 
+set STARTTIME=%TIME%
+
 @REM Compile GameLibrary
-"D:\Program Files\Visual Studio Community 2020\VC\Tools\MSVC\14.42.34433\bin\Hostx64\x64\cl.exe"^
- /fsanitize=address^
- /Fo.\bin\GameLibrary.obj^
- /D GAMELIBRARY_EXPORTS=1^
- /LD^
+%COMPILE%^
+ /D GAMELIBRARY_EXPORTS^
+ /D DebugRecordArray=DebugRecordArray_GameLibrary^
+ GameLibrary\GameLibrary.cpp^
+ %DEBUG_FLAG%^
+ /Fo"bin\GameLibrary.obj"^
+ /Fd"bin\vc140.pdb"^
+ /Yu"pch.h" /Fp"bin\pch.pch"^
+ /link^
  freetype.lib^
  avcodec.lib^
  avformat.lib^
  avutil.lib^
  swscale.lib^
- .\GameLibrary\GameLibrary.cpp^
- /link /DLL /IMPLIB:".\bin\GameLibrary.lib" /PDB:"./bin/GameLibrary.pdb" /OUT:".\bin\GameLibrary.dll"
+ bin\pch.obj^
+ /DEBUG^
+ /DLL^
+ /IMPLIB:"bin\GameLibrary.lib"^
+ /PDB:"bin\GameLibrary.pdb"^
+ /ILK:"bin\GameLibrary.ilk"^
+ /OUT:"bin\GameLibrary.dll"
+
+set ENDTIME=%TIME%
+
+set /a START_SEC=(1%STARTTIME:~0,2%*3600)+(1%STARTTIME:~3,2%*60)+(1%STARTTIME:~6,2%)-(100000)
+set /a END_SEC=(1%ENDTIME:~0,2%*3600)+(1%ENDTIME:~3,2%*60)+(1%ENDTIME:~6,2%)-(100000)
+set /a DURATION=%END_SEC% - %START_SEC%
+
+echo GameLibrary compilation took %DURATION% seconds.

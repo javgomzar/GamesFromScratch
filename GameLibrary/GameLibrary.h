@@ -55,7 +55,7 @@ struct game_memory {
 };
 
 #define GAME_UPDATE_INPUTS game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, game_input* Input
-#define GAME_UPDATE(name) void GAMELIBRARY_API name(GAME_UPDATE_INPUTS)
+#define GAME_UPDATE(name) GAMELIBRARY_API void name(GAME_UPDATE_INPUTS)
 typedef GAME_UPDATE(game_update);
 
 #endif

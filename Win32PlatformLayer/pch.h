@@ -8,6 +8,18 @@
 #define PCH_H
 
 // add headers that you want to pre-compile here
+#include "windows.h"
+
+#include "resource.h"
 #include "framework.h"
+
+#include <stdint.h>
+#include <time.h>
+
+#include <thread>
+#include <mutex>
+
+#include <XInput.h>
+#include <xaudio2.h>
 
 #endif //PCH_H
