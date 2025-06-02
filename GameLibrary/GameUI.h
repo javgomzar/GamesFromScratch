@@ -310,7 +310,7 @@ struct UIMenu {
             Text, 
             SizeX, SizeY,
             AlignmentX, AlignmentY,
-            Color(Black, 0.5f * Opacity)
+            Color(Black, 0.7f * Opacity)
         );
         PushParent(Element);
     }
@@ -364,8 +364,6 @@ struct UIMenu {
                 Child->Rect.Height = Child->Size[axis_y].Value * Element->Rect.Height;
             }
 
-            Child->Color.Alpha = Alpha;
-
             NextValue += Margins[StackAxis] + Child->Size[StackAxis].Value;
 
             Child = Child->Next;
@@ -392,7 +390,7 @@ void UIText(char* Text, color Color = White) {
     PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Color, Points);
 }
 
-void UIDebugFloat(char* Text, float Value) {
+void UIDebugFloat(char* Text, float Value, color Color = White) {
     TIMED_BLOCK;
     char Buffer[128];
     sprintf_s(Buffer, Text, Value);
@@ -400,18 +398,19 @@ void UIDebugFloat(char* Text, float Value) {
     int Points = 10;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
-    rectangle Rect = PushUIElement(
+    ui_element* Element = PushUIElement(
         Text, 
         Sizes[axis_x], Sizes[axis_y], 
         ui_alignment_min, ui_alignment_min, 
-        White
-    )->Rect;
+        Color
+    );
+    rectangle Rect = Element->Rect;
 
     game_font_id FontID = Font_Menlo_Regular_ID;
-    PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, White, Points);
+    PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
 }
 
-bool UIDropdown(char* Text, bool& Control) {
+bool UIDropdown(char* Text, bool& Control, color Color = White) {
     int Points = 10;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
@@ -419,12 +418,13 @@ bool UIDropdown(char* Text, bool& Control) {
         Text, 
         Sizes[axis_x], Sizes[axis_y], 
         ui_alignment_min, ui_alignment_min, 
-        White
+        Color
     );
 
     bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
     if (Hovered) {
         Element->Color = Yellow;
+        Element->Color.Alpha = Color.Alpha;
     }
 
     bool Clicked = Hovered && UI.Input->Mouse.LeftClick.JustPressed;
@@ -433,7 +433,7 @@ bool UIDropdown(char* Text, bool& Control) {
     }
 
     game_font_id FontID = Font_Menlo_Regular_ID;
-    PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Element->Color, Points);
+    PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Color, Points);
     return Control;
 }
 
@@ -454,12 +454,13 @@ bool UIButton(char* Text) {
     return Element->Clicked;
 }
 
-void UIDebugArena(char* Text, memory_arena Arena) {
+void UIDebugArena(char* Text, memory_arena Arena, color C = White) {
     ui_size Sizes[2] = { UISizePixels(350.0f), UISizePixels(20.0f) };
     ui_element* Element = PushUIElement(
         Text, 
         Sizes[axis_x], Sizes[axis_y],
-        ui_alignment_min, ui_alignment_min
+        ui_alignment_min, ui_alignment_min,
+        C
     );
     
     float ArenaPercentage = (float)Arena.Used / (float)Arena.Size;
@@ -467,14 +468,14 @@ void UIDebugArena(char* Text, memory_arena Arena) {
     v2 Position = V2(Element->Rect.Left, Element->Rect.Top);
     rectangle Rect = Element->Rect;
 
-    PushRect(UI.Group, Rect, DarkGray);
+    PushRect(UI.Group, Rect, Color(DarkGray, C.Alpha));
     Rect.Width *= ArenaPercentage;
-    PushRect(UI.Group, Rect, Red);
-    PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, White, 8);
+    PushRect(UI.Group, Rect, Color(Red, C.Alpha));
+    PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, C, 8);
     
     char Buffer[8];
     sprintf_s(Buffer, "%.02f%%", ArenaPercentage * 100.0);
-    PushText(UI.Group, Position + V2(350.0f - 55.0, 15.0), Font_Menlo_Regular_ID, Buffer, White, 8);
+    PushText(UI.Group, Position + V2(350.0f - 55.0, 15.0), Font_Menlo_Regular_ID, Buffer, C, 8);
 }
 
 void UpdateUI(
@@ -536,7 +537,7 @@ void UpdateUI(
         // Handle input
         if (DebugAlpha < 1.0) {
             double x = (pGameState->dt - 1.8) / 1.1;
-            DebugAlpha += exp(- x * x);
+            DebugAlpha += 0.5 * exp(- x * x);
         }
         else DebugAlpha = 1.0;
 
@@ -565,21 +566,21 @@ void UpdateUI(
         // Debug Framebuffer
         // PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
 
-        UIDebugFloat("%.02f ms/frame", DebugInfo.BudgetTime);
-        UIDebugFloat("%.02f ms used", DebugInfo.UsedTime);
-        UIDebugFloat("%.02f fps", DebugInfo.FPS);
-        UIDebugFloat("%.02f Mcycles/frame", DebugInfo.UsedMCyclesPerFrame);
-        UIDebugFloat("%.02f time (s)", pGameState->Time); 
+        UIDebugFloat("%.02f ms/frame", DebugInfo.BudgetTime, Color(White, DebugAlpha));
+        UIDebugFloat("%.02f ms used", DebugInfo.UsedTime, Color(White, DebugAlpha));
+        UIDebugFloat("%.02f fps", DebugInfo.FPS, Color(White, DebugAlpha));
+        UIDebugFloat("%.02f Mcycles/frame", DebugInfo.UsedMCyclesPerFrame, Color(White, DebugAlpha));
+        UIDebugFloat("%.02f time (s)", pGameState->Time, Color(White, DebugAlpha)); 
 
         static bool DebugArenas = false;
-        if (UIDropdown("Arenas", DebugArenas)) {
-            UIDebugArena("Strings Arena", Memory->StringsArena);
-            UIDebugArena("Transient Arena", Memory->TransientArena);
-            UIDebugArena("General purpose Arena", Memory->GeneralPurposeArena);
-            UIDebugArena("Vertex arena (vec3)", Group->VertexBuffer.VertexArena[0]);
-            UIDebugArena("Vertex arena (vec3, vec2)", Group->VertexBuffer.VertexArena[1]);
-            UIDebugArena("Vertex arena (vec3, vec2, vec3)", Group->VertexBuffer.VertexArena[2]);
-            UIDebugArena("Vertex arena (mesh with bones)", Group->VertexBuffer.VertexArena[3]);
+        if (UIDropdown("Arenas", DebugArenas, Color(White, DebugAlpha))) {
+            UIDebugArena("Strings Arena", Memory->StringsArena, Color(White, DebugAlpha));
+            UIDebugArena("Transient Arena", Memory->TransientArena, Color(White, DebugAlpha));
+            UIDebugArena("General purpose Arena", Memory->GeneralPurposeArena, Color(White, DebugAlpha));
+            UIDebugArena("Vertex arena (vec3)", Group->VertexBuffer.VertexArena[0], Color(White, DebugAlpha));
+            UIDebugArena("Vertex arena (vec3, vec2)", Group->VertexBuffer.VertexArena[1], Color(White, DebugAlpha));
+            UIDebugArena("Vertex arena (vec3, vec2, vec3)", Group->VertexBuffer.VertexArena[2], Color(White, DebugAlpha));
+            UIDebugArena("Vertex arena (mesh with bones)", Group->VertexBuffer.VertexArena[3], Color(White, DebugAlpha));
         }
     }
 

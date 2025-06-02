@@ -86,7 +86,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, { 0 }, Target_Outline);
     PushClear(Group, { 0 }, Target_Postprocessing_Outline);
     PushClear(Group, Magenta, Target_PingPong);
-    PushClear(Group, Color(BackgroundBlue, 1.0), Target_Output);
+    PushClear(Group, BackgroundBlue, Target_Output);
 
     Update(&Group->Camera, pGameState, Input, Group->Width, Group->Height);
     
@@ -140,7 +140,7 @@ void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
                     (float)DebugRecord->CycleCount / (1000000.0f * (float)DebugRecord->HitCount), DebugRecord->FileName, DebugRecord->LineNumber);
             }
             string String = PushString(TransientArena, 512, Buffer);
-            if (Group->Debug) PushText(Group, V2(20, Height), Font_Menlo_Regular_ID, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
+            if (Group->Debug) PushText(Group, V2(250, Height), Font_Menlo_Regular_ID, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
             Height -= 17;
             DebugRecord->HitCount = 0;
             DebugRecord->CycleCount = 0;

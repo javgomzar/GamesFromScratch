@@ -1617,13 +1617,13 @@ void PushDebugGrid(render_group* Group, double Alpha) {
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
     PushPrimitiveCommand(
         Group,
-        Color(White, min(Alpha, 0.6f)),
+        Color(White, 0.2f*Alpha),
         render_primitive_line,
         Shader,
         vertex_layout_vec3_id,
         nVertices,
         (float*)Vertices,
-        DEPTH_TEST_RENDER_FLAG | ALPHA_BLEND_OVERWRITE_RENDER_FLAG,
+        DEPTH_TEST_RENDER_FLAG,
         SORT_ORDER_DEBUG_OVERLAY-2.0f,
         0,0,0,
         1.0f

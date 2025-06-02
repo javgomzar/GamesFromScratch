@@ -1017,7 +1017,7 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 				else glDepthFunc(GL_ALWAYS);
 
 				if (DrawCommand.Flags & ALPHA_BLEND_OVERWRITE_RENDER_FLAG) {
-					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);
+					glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
 				}
 				else {
 					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
@@ -1064,6 +1064,8 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 				SetModelUniforms(OpenGL, Model);
 				if (DrawCommand.Armature) SetBoneUniforms(OpenGL, DrawCommand.Armature);
 				if (DrawCommand.Texture) BindTexture(ProgramID, DrawCommand.Texture, 0);
+
+				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 
 				uint32 VAO = OpenGL->MeshVAOs[DrawCommand.Mesh->ID];
 				glBindVertexArray(VAO);
@@ -1219,6 +1221,8 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 
 				if (Source.Label == Target_Output) glDepthFunc(GL_ALWAYS);
 				if (Source.Label == Target_Postprocessing_Outline) glDisable(GL_DEPTH_TEST);
+
+				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
 				
 				glBindVertexArray(OpenGL->VAOs[TargetCommand.VertexEntry.LayoutID]);
 				glDrawArrays(GL_TRIANGLES, TargetCommand.VertexEntry.Offset, TargetCommand.VertexEntry.Count);
