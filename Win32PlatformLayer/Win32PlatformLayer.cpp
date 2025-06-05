@@ -480,7 +480,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
             } while (!CopyResult);
         }
         else {
-            sprintf_s(ErrorText, "Error copying .dll file. Error code %d.", LastError);
+            sprintf_s(ErrorText, "Error copying file %s into %s. Error code %d.", SourceDLLName, TempDLLName, LastError);
             Log(Error, ErrorText);
             return;
         }
@@ -679,8 +679,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         LONG DebugFiletime = CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime);
 
         if (DebugFiletime != 0) {
+            static int Loads = 0;
             UnloadGameCode(&GameCode);
-            LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
+            char DLLNameBuffer[64];
+            sprintf_s(DLLNameBuffer, "GameLibraryTemp%d.dll", Loads++);
+            char PDBNameBuffer[64];
+            sprintf_s(PDBNameBuffer, "GameLibraryTemp%d.pdb", Loads++);
+            LoadGameCode(&GameCode, SourceDLLName, DLLNameBuffer);
             if (GameCode.IsValid) {
                 Log(Info, "New game code loaded.");
             }
@@ -730,8 +735,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 Input.Controller.Back.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_BACK);
                 Input.Controller.LS.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_THUMB);
                 Input.Controller.RS.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_THUMB);
-                Input.Controller.LT.IsDown = (Pad->bLeftTrigger > 0);
-                Input.Controller.RT.IsDown = (Pad->bRightTrigger > 0);
+                Input.Controller.LT.IsDown = Pad->bLeftTrigger > 0;
+                Input.Controller.RT.IsDown = Pad->bRightTrigger > 0;
+
+                for (int i = 0; i < NUMBER_OF_CONTROLLER_BUTTONS; i++) {
+                    game_button_state* Button = &Input.Controller.Buttons[i];
+                    Button->JustPressed = Button->IsDown && !Button->WasDown;
+                    Button->JustPressed = !Button->IsDown && Button->WasDown;
+                }
 
                 Input.Controller.Any = false;
                 for (int i = 0; i < 16; i++) {

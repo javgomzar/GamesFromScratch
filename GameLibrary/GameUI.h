@@ -375,14 +375,18 @@ struct UIMenu {
     }
 };
 
-void UIText(char* Text, color Color = White) {
+void UIText(
+    char* Text, 
+    ui_alignment AlignmentX = ui_alignment_center, ui_alignment AlignmentY = ui_alignment_center, 
+    color Color = White
+) {
     int Points = 10;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
     rectangle Rect = PushUIElement(
         Text, 
         Sizes[axis_x], Sizes[axis_y], 
-        ui_alignment_center, ui_alignment_min, 
+        AlignmentX, AlignmentY, 
         Color
     )->Rect;
 
@@ -391,10 +395,6 @@ void UIText(char* Text, color Color = White) {
 }
 
 void UIDebugFloat(char* Text, float Value, color Color = White) {
-    TIMED_BLOCK;
-    char Buffer[128];
-    sprintf_s(Buffer, Text, Value);
-
     int Points = 10;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
@@ -407,6 +407,44 @@ void UIDebugFloat(char* Text, float Value, color Color = White) {
     rectangle Rect = Element->Rect;
 
     game_font_id FontID = Font_Menlo_Regular_ID;
+    char Buffer[128];
+    sprintf_s(Buffer, Text, Value);
+    PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+}
+
+void UIDebugInt(char* Text, int Value, color Color = White) {
+    int Points = 10;
+    ui_size Sizes[2];
+    UISizeText(Text, Points, Sizes);
+    ui_element* Element = PushUIElement(
+        Text, 
+        Sizes[axis_x], Sizes[axis_y], 
+        ui_alignment_min, ui_alignment_min, 
+        Color
+    );
+    rectangle Rect = Element->Rect;
+
+    game_font_id FontID = Font_Menlo_Regular_ID;
+    char Buffer[128];
+    sprintf_s(Buffer, Text, Value);
+    PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+}
+
+void UIDebugInt(char* Text, int Value1, int Value2, color Color = White) {
+    int Points = 10;
+    ui_size Sizes[2];
+    UISizeText(Text, Points, Sizes);
+    ui_element* Element = PushUIElement(
+        Text, 
+        Sizes[axis_x], Sizes[axis_y], 
+        ui_alignment_min, ui_alignment_min, 
+        Color
+    );
+    rectangle Rect = Element->Rect;
+
+    game_font_id FontID = Font_Menlo_Regular_ID;
+    char Buffer[128];
+    sprintf_s(Buffer, Text, Value1, Value2);
     PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
 }
 
@@ -433,7 +471,7 @@ bool UIDropdown(char* Text, bool& Control, color Color = White) {
     }
 
     game_font_id FontID = Font_Menlo_Regular_ID;
-    PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Color, Points);
+    PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Element->Color, Points);
     return Control;
 }
 
@@ -454,7 +492,8 @@ bool UIButton(char* Text) {
     return Element->Clicked;
 }
 
-void UIDebugArena(char* Text, memory_arena Arena, color C = White) {
+void UIDebugFillbar(char* Text, float Percent, color C = Red) {
+    TIMED_BLOCK;
     ui_size Sizes[2] = { UISizePixels(350.0f), UISizePixels(20.0f) };
     ui_element* Element = PushUIElement(
         Text, 
@@ -463,19 +502,43 @@ void UIDebugArena(char* Text, memory_arena Arena, color C = White) {
         C
     );
     
-    float ArenaPercentage = (float)Arena.Used / (float)Arena.Size;
-    float FillWidth = ArenaPercentage * Element->Rect.Width;
     v2 Position = V2(Element->Rect.Left, Element->Rect.Top);
     rectangle Rect = Element->Rect;
 
-    PushRect(UI.Group, Rect, Color(DarkGray, C.Alpha));
-    Rect.Width *= ArenaPercentage;
-    PushRect(UI.Group, Rect, Color(Red, C.Alpha));
-    PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, C, 8);
+    PushFillBar(UI.Group, Rect, C, Percent);
+    PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, White, 8);
     
     char Buffer[8];
-    sprintf_s(Buffer, "%.02f%%", ArenaPercentage * 100.0);
-    PushText(UI.Group, Position + V2(350.0f - 55.0, 15.0), Font_Menlo_Regular_ID, Buffer, C, 8);
+    sprintf_s(Buffer, "%.02f%%", Percent * 100.0);
+    PushText(UI.Group, Position + V2(350.0f - 55.0, 15.0), Font_Menlo_Regular_ID, Buffer, White, 8);
+}
+
+void UIDebugFillbar(char* Text, int Used, int Max, color C = Red) {
+    TIMED_BLOCK;
+    ui_size Sizes[2] = { UISizePixels(350.0f), UISizePixels(20.0f) };
+    ui_element* Element = PushUIElement(
+        Text, 
+        Sizes[axis_x], Sizes[axis_y],
+        ui_alignment_min, ui_alignment_min,
+        C
+    );
+    
+    v2 Position = V2(Element->Rect.Left, Element->Rect.Top);
+    rectangle Rect = Element->Rect;
+
+    float Percent = (float)Used / (float)Max;
+    PushFillBar(UI.Group, Rect, C, Percent);
+    PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, White, 8);
+    
+    char Buffer[8];
+    sprintf_s(Buffer, "%d/%d", Used, Max);
+    ui_size TextSizes[2];
+    UISizeText(Buffer, 8, TextSizes);
+    PushText(UI.Group, Position + V2(350.0f - TextSizes[axis_x].Value, 15.0), Font_Menlo_Regular_ID, Buffer, White, 8);
+}
+
+void UIDebugArena(char* Text, memory_arena Arena, color C = Red) {
+    UIDebugFillbar(Text, (float)Arena.Used / (float)Arena.Size, C);
 }
 
 void UpdateUI(
@@ -492,7 +555,9 @@ void UpdateUI(
 
     // Main menu
     static bool ShowMainMenu = false;
-    if (Input->Keyboard.Escape.JustPressed) {
+    bool MainMenuInput = Input->Mode == Keyboard && Input->Keyboard.Escape.JustPressed ||
+                         Input->Mode == Controller && Input->Controller.Start.JustPressed;
+    if (MainMenuInput) {
         ShowMainMenu = !ShowMainMenu;
     }
     if (ShowMainMenu) {
@@ -527,7 +592,7 @@ void UpdateUI(
     static float DebugAlpha = 0.0f;
     if (
         Input->Mode == Keyboard && Input->Keyboard.F1.JustPressed || 
-        Input->Mode == Controller && Input->Controller.Start.JustPressed
+        Input->Mode == Controller && Input->Controller.Back.JustPressed
     ) {
         Group->Debug = !Group->Debug;
         if (!Group->Debug) DebugAlpha = 0.0;
@@ -574,13 +639,23 @@ void UpdateUI(
 
         static bool DebugArenas = false;
         if (UIDropdown("Arenas", DebugArenas, Color(White, DebugAlpha))) {
-            UIDebugArena("Strings Arena", Memory->StringsArena, Color(White, DebugAlpha));
-            UIDebugArena("Transient Arena", Memory->TransientArena, Color(White, DebugAlpha));
-            UIDebugArena("General purpose Arena", Memory->GeneralPurposeArena, Color(White, DebugAlpha));
-            UIDebugArena("Vertex arena (vec3)", Group->VertexBuffer.VertexArena[0], Color(White, DebugAlpha));
-            UIDebugArena("Vertex arena (vec3, vec2)", Group->VertexBuffer.VertexArena[1], Color(White, DebugAlpha));
-            UIDebugArena("Vertex arena (vec3, vec2, vec3)", Group->VertexBuffer.VertexArena[2], Color(White, DebugAlpha));
-            UIDebugArena("Vertex arena (mesh with bones)", Group->VertexBuffer.VertexArena[3], Color(White, DebugAlpha));
+            UIDebugArena("Strings Arena", Memory->StringsArena, Color(Red, DebugAlpha));
+            UIDebugArena("Transient Arena", Memory->TransientArena, Color(Red, DebugAlpha));
+            UIDebugArena("General purpose Arena", Memory->GeneralPurposeArena, Color(Red, DebugAlpha));
+            UIDebugArena("Vertex arena (vec3)", Group->VertexBuffer.VertexArena[0], Color(Red, DebugAlpha));
+            UIDebugArena("Vertex arena (vec3, vec2)", Group->VertexBuffer.VertexArena[1], Color(Red, DebugAlpha));
+            UIDebugArena("Vertex arena (vec3, vec2, vec3)", Group->VertexBuffer.VertexArena[2], Color(Red, DebugAlpha));
+            UIDebugArena("Vertex arena (mesh with bones)", Group->VertexBuffer.VertexArena[3], Color(Red, DebugAlpha));
+        }
+
+        static bool DebugEntities = false;
+        if (UIDropdown("Entities", DebugEntities, Color(White, DebugAlpha))) {
+            character* Character = &pGameState->EntityList.Characters.List[0];
+            char* ActionNames[4] = { "Idle", "Walk", "Jump", "Attack" };
+            UIText(" Character Action:", ui_alignment_min, ui_alignment_center, Color(White, DebugAlpha));
+            UIText(ActionNames[Character->Action.ID], ui_alignment_center, ui_alignment_center);
+
+            UIDebugFillbar("Character HP:", Character->HP, Character->MaxHP);
         }
     }
 

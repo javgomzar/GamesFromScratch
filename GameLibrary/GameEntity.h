@@ -140,16 +140,113 @@ DefineEntityList(MAX_WEAPONS, weapon);
 // | Character                                                                                                                                    |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
+enum character_action_id {
+    Character_Action_Idle_ID,
+    Character_Action_Walk_ID,
+    Character_Action_Jump_ID,
+    Character_Action_Attack_ID
+};
+
+struct character_action {
+    character_action_id ID;
+    game_animation_id AnimationID;
+    bool Loop;
+};
+
 struct character {
+    armature Armature;
+    game_animator Animator;
+    character_action Action;
+    weapon* LeftHand;
+    weapon* RightHand;
     int EntityID;
     int MaxHP;
     int HP;
-    armature Armature;
-    game_animator Animator;
-    weapon* LeftHand;
-    weapon* RightHand;
-    bool Jumping;
 };
+
+character_action CharacterAction(character_action_id ID) {
+    character_action Result = {};
+    Result.ID = ID;
+
+    switch(ID) {
+        case Character_Action_Idle_ID: break;
+        case Character_Action_Walk_ID: {
+            Result.AnimationID = Animation_Walk_ID;
+            Result.Loop = true;
+        } break;
+        case Character_Action_Jump_ID: {
+            Result.AnimationID = Animation_Jump_ID;
+        } break;
+        case Character_Action_Attack_ID: {
+            Result.AnimationID = Animation_Attack_ID;
+        } break;
+        default: Assert(false);
+    }
+
+    return Result;
+}
+
+character_action GetCharacterAction(character* Character, game_input* Input) {
+    bool JumpingInput = Input->Mode == Keyboard && Input->Keyboard.Space.JustPressed ||
+                        Input->Mode == Controller && Input->Controller.BButton.JustPressed;
+
+    bool AttackInput = Input->Mode == Keyboard && Input->Keyboard.E.JustPressed ||
+                       Input->Mode == Controller && Input->Controller.XButton.JustPressed;
+
+    bool KeyboardMoving = Input->Keyboard.W.IsDown != Input->Keyboard.S.IsDown ||
+                          Input->Keyboard.A.IsDown != Input->Keyboard.D.IsDown;
+    bool ControllerMoving = fabs(Input->Controller.LeftJoystick.X) > 0.1 || fabs(Input->Controller.LeftJoystick.Y) > 0.1;
+    bool MovingInput = (Input->Mode == Keyboard && KeyboardMoving) ||
+                       (Input->Mode == Controller && ControllerMoving);
+
+    character_action Result = Character->Action;
+    if (AttackInput) {
+        OutputDebugStringA("A");
+    }
+
+    switch(Character->Action.ID) {
+        case Character_Action_Idle_ID: {
+            if (JumpingInput || MovingInput || AttackInput) {
+                Character->Animator.Active = true;
+                Character->Animator.CurrentFrame = 0;
+            }
+
+            if     (JumpingInput) Result = CharacterAction(Character_Action_Jump_ID);
+            else if (MovingInput) Result = CharacterAction(Character_Action_Walk_ID);
+            else if (AttackInput) Result = CharacterAction(Character_Action_Attack_ID);
+        } break;
+        case Character_Action_Walk_ID: {
+            if (JumpingInput) {
+                Result = CharacterAction(Character_Action_Jump_ID);
+                Character->Animator.CurrentFrame = 0;
+            }
+            else if (AttackInput) {
+                Result = CharacterAction(Character_Action_Attack_ID);
+                Character->Animator.CurrentFrame = 0;
+            }
+            else if (!MovingInput) {
+                Character->Animator.Active = false;
+                Result = CharacterAction(Character_Action_Idle_ID);
+            }
+        } break;
+        case Character_Action_Jump_ID: {
+            if (!Character->Animator.Active) {
+                Result = CharacterAction(Character_Action_Idle_ID);
+                Character->Animator.CurrentFrame = 0;
+            }
+        } break;
+        case Character_Action_Attack_ID: {
+            if (!Character->Animator.Active) {
+                Result = CharacterAction(Character_Action_Idle_ID);
+                Character->Animator.CurrentFrame = 0;
+            }
+        } break;
+        default: Raise("Invalid character action");
+    }
+
+    Character->Animator.Loop = Result.Loop;
+    return Result;
+}
 
 const int MAX_CHARACTERS = 1;
 DefineEntityList(MAX_CHARACTERS, character);
@@ -312,7 +409,7 @@ void AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
     pCharacter->MaxHP = MaxHP;
     pCharacter->HP = MaxHP;
     pCharacter->Animator.Active = false;
-    pCharacter->Animator.Animation = GetAsset(List->Assets, Animation_Walking_ID);
+    pCharacter->Animator.Animation = GetAsset(List->Assets, Animation_Walk_ID);
     game_mesh* Mesh = GetAsset(List->Assets, Mesh_Body_ID);
     pCharacter->Armature = Mesh->Armature;
     pCharacter->Animator.Armature = &pCharacter->Armature;
@@ -513,29 +610,21 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
         game_entity* CharacterEntity = &List->Entities[Character->EntityID];
         
         CharacterEntity->Velocity = V3(0, 0, 0);
-        bool JumpingInput = Input->Mode == Keyboard && Input->Keyboard.Space.IsDown && !Input->Keyboard.Space.WasDown ||
-                            Input->Mode == Controller && Input->Controller.BButton.IsDown && !Input->Controller.BButton.WasDown;
-        if (JumpingInput) {
-            if (!Character->Jumping){ 
-                Character->Jumping = true;
-                Character->Animator.Active = true;
-                Character->Animator.Animation = GetAsset(List->Assets, Animation_Jumping_ID);
-                Character->Animator.Loop = false;
-                Character->Animator.CurrentFrame = 0;
-            }
-        }
-        if (Character->Jumping && !Character->Animator.Active) {
-            Character->Animator.Animation = GetAsset(List->Assets, Animation_Walking_ID);
-            Character->Jumping = false;
+
+        character_action_id PastAction = Character->Action.ID;
+        Character->Action = GetCharacterAction(Character, Input);
+        character_action_id NewAction = Character->Action.ID;
+        if (Character->Action.ID != Character_Action_Idle_ID) {
+            Character->Animator.Animation = GetAsset(List->Assets, Character->Action.AnimationID);
         }
 
-        bool KeyboardMoving = Input->Keyboard.W.IsDown != Input->Keyboard.S.IsDown ||
-                              Input->Keyboard.A.IsDown != Input->Keyboard.D.IsDown;
-        bool ControllerMoving = fabs(Input->Controller.LeftJoystick.X) > 0.1 || fabs(Input->Controller.LeftJoystick.Y) > 0.1;
-        bool Moving = (Input->Mode == Keyboard && KeyboardMoving) ||
-                      (Input->Mode == Controller && ControllerMoving);
-        if (Moving) {
-        // Translation
+        if (PastAction == Character_Action_Jump_ID) {
+            CharacterEntity->Collider.Capsule.Segment.Head += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
+            CharacterEntity->Collider.Capsule.Segment.Tail += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
+        }
+
+        // Movement
+        if (NewAction == Character_Action_Walk_ID || NewAction == Character_Action_Jump_ID) {
             v3 Direction = V3(0,0,0);
             float Speed = 20.0f;
             if (Input->Mode == Keyboard) {
@@ -563,32 +652,39 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
             Direction = Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z;
             CharacterEntity->Velocity = Speed * Direction;
             CharacterEntity->Transform.Rotation = Quaternion(ActiveCamera->Angle * Degrees + Angle, V3(0,1,0));
-
-            if (!Character->Jumping) {
-                Character->Animator.Active = true;
-                Character->Animator.Loop = true;
-            }
-        }
-        else if (!Character->Jumping) {
-            Character->Animator.Active = false;
         }
         CharacterEntity->Transform.Translation += State->dt * CharacterEntity->Velocity;
+
+        if (PastAction == Character_Action_Attack_ID && NewAction == Character_Action_Idle_ID) {
+            CharacterEntity->Transform.Translation += CharacterEntity->Transform.Rotation * V3(0,0,2);
+        }
         
         CharacterEntity->Collided = false;
         CharacterEntity->Collider.Capsule.Segment = { V3(0,0.75f,0), V3(0,3.75f,0) };
-        if (Character->Jumping) {
-            CharacterEntity->Collider.Capsule.Segment.Head += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
-            CharacterEntity->Collider.Capsule.Segment.Tail += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
-        }
 
         ControlledCharacter = Character;
         ControlledCharacterEntity = CharacterEntity;
+
+        if (Input->Keyboard.Q.JustPressed && Character->HP >= 10) {
+            Character->HP -= 10;
+        }
+
+        if (Input->Keyboard.Z.JustPressed && Character->HP < Character->MaxHP) {
+            Character->HP += 10;
+            if (Character->HP > Character->MaxHP) Character->HP = Character->MaxHP;
+        }
 
         Update(&Character->Animator);
     }
     
 // Autofollow player _______________________________________________________________________________________________________________________
-    ActiveCamera->Position = ControlledCharacterEntity->Transform.Translation + V3(0,3.2,0);
+    v3 Displacement = ControlledCharacterEntity->Transform.Translation - ActiveCamera->Position;
+    Displacement.Y = 0;
+    float Distance = modulus(Displacement);
+    v3 Velocity = V3(0,0,0);
+    float MinDistance = .01f;
+    if (Distance >= MinDistance) Velocity = 20.0f * (Distance - MinDistance) * normalize(Displacement);
+    ActiveCamera->Position += State->dt * Velocity;
     game_entity* ActiveCameraEntity = &List->Entities[ActiveCamera->EntityID];
     ActiveCameraEntity->Transform.Translation = V3(0,0,ActiveCamera->Distance) - ActiveCamera->Position * ActiveCamera->Basis;
 
@@ -597,6 +693,9 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
         enemy* pEnemy = &List->Enemies.List[i];
         game_entity* EnemyEntity = &List->Entities[pEnemy->EntityID];
         EnemyEntity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
+        v3 FacingDirection = ControlledCharacterEntity->Transform.Translation - EnemyEntity->Transform.Translation;
+        float Angle = atan2f(FacingDirection.Z, FacingDirection.X);
+        EnemyEntity->Transform.Rotation = Quaternion(Angle, V3(0,1,0));
     }
     
 // Weapons _________________________________________________________________________________________________________________________________

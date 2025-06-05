@@ -1022,6 +1022,17 @@ void PushText(
     PushText(Group, Position, FontID, String.Content, Color, Points, Wrapped, Order);
 }
 
+void PushFillBar(
+    render_group* Group,
+    rectangle Rect,
+    color Color,
+    float FillPercent
+) {
+    PushRect(Group, Rect, DarkGray);
+    Rect.Width *= FillPercent;
+    PushRect(Group, Rect, Color);
+}
+
 void PushCubeOutline(
     render_group* Group,
     v3 Position,

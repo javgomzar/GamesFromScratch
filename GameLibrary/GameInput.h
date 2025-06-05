@@ -29,12 +29,14 @@ struct game_button_state {
     float End;
 };*/
 
+const int NUMBER_OF_CONTROLLER_BUTTONS = 16;
+
 struct game_controller_input {
     bool Any;
     v2 LeftJoystick;
     v2 RightJoystick;
     union {
-        game_button_state Buttons[16];
+        game_button_state Buttons[NUMBER_OF_CONTROLLER_BUTTONS];
         struct {
             game_button_state AButton;
             game_button_state BButton;

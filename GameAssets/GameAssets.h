@@ -82,8 +82,9 @@ enum game_mesh_id {
 };
 
 enum game_animation_id {
-    Animation_Walking_ID,
-    Animation_Jumping_ID,
+    Animation_Walk_ID,
+    Animation_Jump_ID,
+    Animation_Attack_ID,
 
     game_animation_id_count
 };
@@ -2166,8 +2167,9 @@ void WriteAssetsFile(const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Shield.mdl", Mesh_Shield_ID);
 
     // Animation
-    PushAsset(&Assets, "..\\GameAssets\\Assets\\Animations\\Walking.anim", Animation_Walking_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Assets\\Animations\\Jumping.anim", Animation_Jumping_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Animations\\Walking.anim", Animation_Walk_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Animations\\Jumping.anim", Animation_Jump_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Animations\\Attack.anim", Animation_Attack_ID);
 
     // Video
     //PushAsset(&Assets, "..\\GameAssets\\Assets\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
