@@ -3,6 +3,9 @@
 @REM Environment variables
 call bat\env.bat
 
+@REM Delete hot reload .dll files
+del bin\GameLibraryTemp*.dll
+
 @REM Compile GameLibrary
 %COMPILE%^
  /D GAMELIBRARY_EXPORTS^
