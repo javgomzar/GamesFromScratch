@@ -770,6 +770,8 @@ void InitializeRenderer(
 		glEnable(GL_MULTISAMPLE);
 		glEnable(GL_DEBUG_OUTPUT);
 		glEnable(GL_DEPTH_TEST);
+
+		glEnable(GL_PROGRAM_POINT_SIZE);
 	
 		//glShadeModel(GL_FLAT);
 
@@ -1222,7 +1224,7 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 				if (Source.Label == Target_Output) glDepthFunc(GL_ALWAYS);
 				if (Source.Label == Target_Postprocessing_Outline) glDisable(GL_DEPTH_TEST);
 
-				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ZERO, GL_ONE);
+				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE);
 				
 				glBindVertexArray(OpenGL->VAOs[TargetCommand.VertexEntry.LayoutID]);
 				glDrawArrays(GL_TRIANGLES, TargetCommand.VertexEntry.Offset, TargetCommand.VertexEntry.Count);

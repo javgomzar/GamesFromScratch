@@ -638,7 +638,7 @@ void UpdateUI(
         // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
 
         // Debug Framebuffer
-        // PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
+        PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
 
         UIDebugFloat("%.02f ms/frame", DebugInfo.BudgetTime, Color(White, DebugAlpha));
         UIDebugFloat("%.02f ms used", DebugInfo.UsedTime, Color(White, DebugAlpha));

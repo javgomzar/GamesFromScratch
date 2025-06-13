@@ -1258,9 +1258,55 @@ inline v3 ClosestPoint(ray Ray, v3 Point) {
 	else return Ray.Point + t * Ray.Direction;
 }
 
-inline float Distance (ray Ray, v3 Point) {
-	float t = dot(Ray.Direction, Point - Ray.Point);
-	return max(t, 0);
+inline float SqDistance(ray Ray, v3 Point) {
+	v3 D = Point - ClosestPoint(Ray, Point);
+	return dot(D,D);
+}
+
+inline ray MouseRay(float Width, float Height, v3 CameraPosition, basis CameraBasis, v2 Mouse) {
+	v3 Direction =
+        (2.0 * Mouse.X / Width - 1.0) *    CameraBasis.X +
+        (Height - 2.0 * Mouse.Y) / Width * CameraBasis.Y - 
+                                           CameraBasis.Z;
+	ray Result = Ray(CameraPosition, Direction);
+	return Result;
+}
+
+inline float SqDistance(segment Segment, ray Ray) {
+	v3 SegmentDirection = Segment.Tail - Segment.Head;
+	v3 V = Ray.Point - Segment.Head;
+
+    float b = dot(Ray.Direction, SegmentDirection);
+    float c = dot(SegmentDirection, SegmentDirection);
+    float d = dot(Ray.Direction, V);
+    float e = dot(SegmentDirection, V);
+
+    float denom = c - b * b;
+    float t, u;
+
+    if (denom != 0.0f) {
+        t = (b * e - c * d) / denom;
+        u = (e - b * d) / denom;
+    } else {
+        // Lines are parallel: pick t = 0, project S onto R
+        t = 0.0f;
+        u = e / c;
+    }
+
+    // Clamp u to [0,1] for the segment
+    u = Clamp(u, 0.0f, 1.0f);
+
+    // Clamp t to [0, ∞) for the ray
+    if (t < 0.0f) {
+        t = 0.0f;
+        // Recompute u for this t
+        v3 P = Ray.Point + t * Ray.Direction;
+        u = dot(SegmentDirection, P - Segment.Head) / c;
+        u = Clamp(u, 0.0f, 1.0f);
+    }
+
+    v3 D = V + t * Ray.Direction - u * SegmentDirection;
+	return modulus(D);
 }
 
 struct line {
@@ -1438,6 +1484,32 @@ collider CapsuleCollider(v3 Head, v3 Tail, float Distance) {
 	return Result;
 }
 
+inline collider operator*(transform T, collider C) {
+	switch(C.Type) {
+        case Rect_Collider: {
+            v3 Displacement = T.Translation;
+			Displacement.Z = 0;
+			C.Offset += Displacement;
+			return C;
+        } break;
+
+		case Sphere_Collider:
+        case Cube_Collider: {
+            v3 Displacement = T.Translation;
+			C.Offset += Displacement;
+			return C;
+        } break;
+
+		case Capsule_Collider: {
+			C.Capsule.Segment = T * C.Capsule.Segment;
+			return C;
+		} break;
+
+		default: Assert(false);
+	}
+	return C;
+}
+
 bool Collide(collider Collider, v3 Position) {
     switch(Collider.Type) {
         case Rect_Collider: {
@@ -1602,21 +1674,37 @@ bool HitBoundingBox(float minB[3], float maxB[3], float origin[3], float dir[3],
     return true;				/* ray hits box */
 }
 
-bool Raycast(v3 Origin, v3 Direction, collider Collider) {
-    Assert(Collider.Type == Cube_Collider);
-    float minB[3] = { 0 };
-    minB[0] = Collider.Offset.X - Collider.Cube.HalfWidth / 2.0f;
-    minB[1] = Collider.Offset.Y - Collider.Cube.HalfHeight / 2.0f;
-    minB[2] = Collider.Offset.Z - Collider.Cube.HalfDepth / 2.0f;
-    float maxB[3] = { 0 };
-    maxB[0] = Collider.Offset.X + Collider.Cube.HalfWidth / 2.0f;
-    maxB[1] = Collider.Offset.Y + Collider.Cube.HalfHeight / 2.0f;
-    maxB[2] = Collider.Offset.Z + Collider.Cube.HalfDepth / 2.0f;
-    float origin[3] = { Origin.X, Origin.Y, Origin.Z };
-    float dir[3] = { Direction.X, Direction.Y, Direction.Z };
-    float coord[3] = { 0,0,0 };
+bool Raycast(ray Ray, collider Collider) {
+	switch(Collider.Type) {
+		case Rect_Collider: {
+			return IsIn(Rectangle(Collider), V2(Ray.Point.X, Ray.Point.Y));
+		} break;
+		case Cube_Collider: {
+			float minB[3] = { 0 };
+			minB[0] = Collider.Offset.X - Collider.Cube.HalfWidth / 2.0f;
+			minB[1] = Collider.Offset.Y - Collider.Cube.HalfHeight / 2.0f;
+			minB[2] = Collider.Offset.Z - Collider.Cube.HalfDepth / 2.0f;
+			float maxB[3] = { 0 };
+			maxB[0] = Collider.Offset.X + Collider.Cube.HalfWidth / 2.0f;
+			maxB[1] = Collider.Offset.Y + Collider.Cube.HalfHeight / 2.0f;
+			maxB[2] = Collider.Offset.Z + Collider.Cube.HalfDepth / 2.0f;
+			float origin[3] = { Ray.Point.X, Ray.Point.Y, Ray.Point.Z };
+			float dir[3] = { Ray.Direction.X, Ray.Direction.Y, Ray.Direction.Z };
+			float coord[3] = { 0,0,0 };
 
-    return HitBoundingBox(minB, maxB, origin, dir, coord);
+			return HitBoundingBox(minB, maxB, origin, dir, coord);
+		} break;
+		case Sphere_Collider: {
+			float R = Collider.Sphere.Radius;
+			return SqDistance(Ray, Collider.Offset) < R*R;
+		} break;
+		case Capsule_Collider: {
+			float R = Collider.Capsule.Distance;
+			return SqDistance(Collider.Capsule.Segment, Ray) < R*R;
+		} break;
+		default: Assert(false);
+	}
+	return false;
 }
 
 #endif

@@ -425,6 +425,23 @@ void PushPrimitiveCommand(
     Group->PrimitiveCommands[Group->nPrimitiveCommands++] = PrimitiveCommand;
 }
 
+void PushPoint(render_group* Group, v3 Point, color Color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
+    float Vertices[3] = { Point.X, Point.Y, Point.Z };
+    PushPrimitiveCommand(
+        Group, 
+        Color, 
+        render_primitive_point, 
+        Shader, 
+        vertex_layout_vec3_id, 
+        1, 
+        Vertices,
+        0,
+        Order,
+        0, 0, 0
+    );
+}
+
 void PushLine(
     render_group* Group,
     v2 Start,
@@ -473,6 +490,20 @@ void PushLine(
         0,0,0,
         Thickness
     );
+}
+
+void PushRay(
+    render_group* Group,
+    ray Ray,
+    color Color,
+    float Thickness = 2.0f,
+    float Length = 10.0f,
+    float Order = 0.0
+) {
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
+    v3 Start = Ray.Point;
+    v3 End = Start + Length * Ray.Direction;
+    PushLine(Group, Start, End, Color, Thickness, Order);
 }
 
 void PushTriangle(
@@ -1328,7 +1359,7 @@ void PushMesh(
             Level >>= 1;
         }
 
-        PushShaderPass(Group, Shader_Pipeline_Outline_ID, Target_Postprocessing_Outline, White, 0, 30.0f, JumpOrder);
+        PushShaderPass(Group, Shader_Pipeline_Outline_ID, Target_Postprocessing_Outline, White, 0, 4.0f, JumpOrder);
 
         PushRenderTarget(Group, Target_Postprocessing_Outline, SORT_ORDER_SHADER_PASSES + 30.0f);
         Group->PushOutline = true;
@@ -1390,20 +1421,20 @@ void PushHeightmap(
 
 void PushCollider(render_group* Group, game_entity Entity, color Color) {
     collider Collider = Entity.Collider;
-    Collider.Offset += Entity.Transform.Translation;
+    v3 Position = Entity.Transform.Translation + Collider.Offset;
     switch (Collider.Type) {
         case Rect_Collider: {
             PushRectOutline(Group, Rectangle(Collider), Color);
         } break;
 
         case Cube_Collider: {
-            PushCubeOutline(Group, Collider.Offset, Scale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), Color);
+            PushCubeOutline(Group, Position, Scale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), Color);
         } break;
 
         case Sphere_Collider: {
-            PushCircunference(Group, Collider.Offset, V3(1,0,0), Collider.Sphere.Radius, Color);
-            PushCircunference(Group, Collider.Offset, V3(0,1,0), Collider.Sphere.Radius, Color);
-            PushCircunference(Group, Collider.Offset, V3(0,0,1), Collider.Sphere.Radius, Color);
+            PushCircunference(Group, Position, V3(1,0,0), Collider.Sphere.Radius, Color);
+            PushCircunference(Group, Position, V3(0,1,0), Collider.Sphere.Radius, Color);
+            PushCircunference(Group, Position, V3(0,0,1), Collider.Sphere.Radius, Color);
         } break;
 
         case Capsule_Collider: {
@@ -1452,10 +1483,14 @@ void PushCollider(render_group* Group, game_entity Entity, color Color) {
     }
 }
 
-void PushEntities(render_group* Group, game_entity_list* List, float Time) {
+void PushEntities(render_group* Group, game_entity_list* List, game_input* Input, float Time) {
     TIMED_BLOCK;
+    basis Basis = Group->Camera->Basis;
+    ray Ray = MouseRay(Group->Width, Group->Height, Group->Camera->Position + Group->Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
     for (int i = 0; i < List->nEntities; i++) {
         game_entity Entity = List->Entities[i];
+        collider Collider = Entity.Transform * Entity.Collider;
+        bool Hovered = Raycast(Ray, Collider);
         switch(Entity.Type) {
             case Character: {
                 character* pCharacter = &List->Characters.List[Entity.Index];
@@ -1467,7 +1502,8 @@ void PushEntities(render_group* Group, game_entity_list* List, float Time) {
                     Shader_Pipeline_Mesh_Bones_ID, 
                     Bitmap_Empty_ID,
                     White,
-                    &pCharacter->Armature
+                    &pCharacter->Armature,
+                    Hovered
                 );
             } break;
     
@@ -1478,7 +1514,9 @@ void PushEntities(render_group* Group, game_entity_list* List, float Time) {
                     Entity.Transform,
                     Time,
                     Shader_Pipeline_Mesh_ID,
-                    Bitmap_Enemy_ID
+                    Bitmap_Enemy_ID,
+                    White, 0,
+                    Hovered
                 );
             } break;
 

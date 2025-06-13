@@ -6,6 +6,7 @@
 #include "GameAssets.h"
 #include "GameInput.h"
 
+#include <vector>
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Entities                                                                                                                                     |
@@ -106,15 +107,6 @@ basis GetCameraBasis(float Angle, float Pitch) {
     return Result;
 }
 
-bool Raycast(camera* Camera, v3 CameraPosition, double Width, double Height, v2 Mouse, collider Collider) {
-    Assert(Collider.Type == Cube_Collider);
-    v3 ScreenOffset =
-        (2.0 * Mouse.X / Width - 1.0) *    Camera->Basis.X +
-        (Height - 2.0 * Mouse.Y) / Width * Camera->Basis.Y - 
-                                           Camera->Basis.Z;
-    return Raycast(CameraPosition + Camera->Distance * Camera->Basis.Z, ScreenOffset, Collider);
-}
-
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Weapons                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -169,7 +161,10 @@ character_action CharacterAction(character_action_id ID) {
     Result.ID = ID;
 
     switch(ID) {
-        case Character_Action_Idle_ID: break;
+        case Character_Action_Idle_ID: {
+            Result.AnimationID = Animation_Idle_ID;
+            Result.Loop = true;
+        } break;
         case Character_Action_Walk_ID: {
             Result.AnimationID = Animation_Walk_ID;
             Result.Loop = true;
@@ -206,8 +201,8 @@ character_action GetCharacterAction(character* Character, game_input* Input) {
 
     switch(Character->Action.ID) {
         case Character_Action_Idle_ID: {
+            Character->Animator.Active = true;
             if (JumpingInput || MovingInput || AttackInput) {
-                Character->Animator.Active = true;
                 Character->Animator.CurrentFrame = 0;
             }
 
@@ -363,9 +358,9 @@ int QueryEntityCount(game_entity_list* List, game_entity_type Type, bool Active 
 // Entity initialization ___________________________________________________________________________________________________________________
 
 void AddCamera(
-    game_entity_list* List, 
-    v3 Position = V3(0,0,0), 
-    float Angle = 45.0, float Pitch = 45.0, 
+    game_entity_list* List,
+    v3 Position,
+    float Angle, float Pitch,
     float Distance = 9.0
 ) {
     Assert(List->Cameras.Size < MAX_CAMERAS);
@@ -417,7 +412,7 @@ void AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Character %d", CharacterID);
 
-    quaternion Rotation = Quaternion(Pi, V3(0,1,0));
+    quaternion Rotation = Quaternion(1.5f * Pi, V3(0,1,0));
     int EntityID = AddEntity(
         List, 
         NameBuffer, 
@@ -614,9 +609,7 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
         character_action_id PastAction = Character->Action.ID;
         Character->Action = GetCharacterAction(Character, Input);
         character_action_id NewAction = Character->Action.ID;
-        if (Character->Action.ID != Character_Action_Idle_ID) {
-            Character->Animator.Animation = GetAsset(List->Assets, Character->Action.AnimationID);
-        }
+        Character->Animator.Animation = GetAsset(List->Assets, Character->Action.AnimationID);
 
         if (PastAction == Character_Action_Jump_ID) {
             CharacterEntity->Collider.Capsule.Segment.Head += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
@@ -697,7 +690,7 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
         float Angle = atan2f(FacingDirection.Z, FacingDirection.X);
         EnemyEntity->Transform.Rotation = Quaternion(Angle, V3(0,1,0));
     }
-    
+
 // Weapons _________________________________________________________________________________________________________________________________
     for (int i = 0; i < List->Weapons.Size; i++) {
         weapon* pWeapon = &List->Weapons.List[i];

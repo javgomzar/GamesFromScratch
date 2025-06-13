@@ -71,7 +71,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Initialize entities
         game_entity_list* Entities = &pGameState->EntityList;
-        AddCamera(Entities, V3(0, 3.2f, 0));
+        AddCamera(Entities, V3(0, 3.2f, 0), -90, 45);
         AddCharacter(Entities, V3(0,0,0), 100);
         AddEnemy(Entities, V3(10,0,0), 100);
         AddProp(Entities, Mesh_Sphere_ID, Shader_Pipeline_Sphere_ID, Red, V3(0,0,10), Quaternion(1.0f, 0.0f, 0.0f, 0.0f), Scale(10,2,1));
@@ -94,7 +94,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     
     UpdateUI(Memory, Input);
 
-    PushEntities(Group, &pGameState->EntityList, Time);
+    PushEntities(Group, &pGameState->EntityList, Input, Time);
 
     PushRenderTarget(Group, Target_World);
 
