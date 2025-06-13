@@ -394,6 +394,15 @@ void UIText(
     PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Color, Points);
 }
 
+void UIDebugBool(char* Text, bool Value) {
+    char* TrueText = "true";
+    char* FalseText = "false";
+    char Buffer[64];
+    sprintf_s(Buffer, "%s: %s", Text, Value? TrueText : FalseText);
+
+    UIText(Buffer, ui_alignment_min, ui_alignment_min);
+}
+
 void UIDebugFloat(char* Text, float Value, color Color = White) {
     int Points = 10;
     ui_size Sizes[2];
@@ -635,7 +644,7 @@ void UpdateUI(
         UIDebugFloat("%.02f ms used", DebugInfo.UsedTime, Color(White, DebugAlpha));
         UIDebugFloat("%.02f fps", DebugInfo.FPS, Color(White, DebugAlpha));
         UIDebugFloat("%.02f Mcycles/frame", DebugInfo.UsedMCyclesPerFrame, Color(White, DebugAlpha));
-        UIDebugFloat("%.02f time (s)", pGameState->Time, Color(White, DebugAlpha)); 
+        UIDebugFloat("%.02f time (s)", pGameState->Time, Color(White, DebugAlpha));
 
         static bool DebugArenas = false;
         if (UIDropdown("Arenas", DebugArenas, Color(White, DebugAlpha))) {
