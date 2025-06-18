@@ -697,12 +697,30 @@ void UpdateUI(
     }
 
     // Combat menu
-    {
-        UIMenu CombatMenu("Combat menu", axis_y, ui_alignment_min, ui_alignment_max, 80.0f, 20.0f);
-        UIButton("Attack");
-        UIButton("Magic");
-        UIButton("Items");
-        UIButton("Flee");
+    if (pGameState->Combat.Active) {
+        { // Combat menu
+            UIMenu CombatMenu("Combat menu", axis_y, ui_alignment_min, ui_alignment_max, 80.0f, 20.0f);
+            if (UIButton("Attack")) {
+
+            }
+            UIButton("Magic");
+            UIButton("Items");
+            UIButton("Flee");
+        }
+
+        { // Turns menu
+            UIMenu TurnsMenu("Turns menu", axis_y, ui_alignment_max, ui_alignment_center, 20.0f, 20.0f);
+
+            const int TurnsShown = 8;
+            const int TurnUINamesSize = 16;
+            char TurnUINames[TurnsShown][TurnUINamesSize] = {};
+
+            for (int i = 0; i < TurnsShown; i++) {
+                sprintf_s(TurnUINames[i], "Turn %d: ", i);
+                strcat(TurnUINames[i], pGameState->Combat.NextTurns[i].Attacker->Entity->Name);
+                UIText(TurnUINames[i]);
+            }
+        }
     }
 
     // Debug UI
@@ -753,6 +771,7 @@ void UpdateUI(
         UIDebugFloat("%.02f fps", DebugInfo.FPS, Color(White, DebugAlpha));
         UIDebugFloat("%.02f Mcycles/frame", DebugInfo.UsedMCyclesPerFrame, Color(White, DebugAlpha));
         UIDebugFloat("%.02f time (s)", pGameState->Time, Color(White, DebugAlpha));
+        UIDebugBool("In combat", pGameState->Combat.Active);
 
         static bool DebugArenas = false;
         if (UIDropdown("Arenas", DebugArenas, Color(White, DebugAlpha))) {
@@ -769,10 +788,15 @@ void UpdateUI(
         if (UIDropdown("Entities", DebugEntities, Color(White, DebugAlpha))) {
             character* Character = &pGameState->EntityList.Characters.List[0];
             char* ActionNames[4] = { "Idle", "Walk", "Jump", "Attack" };
-            UIText(" Character Action:", ui_alignment_min, ui_alignment_center, Color(White, DebugAlpha));
+            UIText("Character Action:", ui_alignment_min, ui_alignment_center, Color(White, DebugAlpha));
             UIText(ActionNames[Character->Action.ID], ui_alignment_center, ui_alignment_center);
-
-            UIDebugFillbar("Character HP:", Character->HP, Character->MaxHP);
+            
+            if (pGameState->Combat.Active) {
+                for (int i = 0; i < pGameState->Combat.Combatants.Count; i++) {
+                    combatant* Combatant = &pGameState->Combat.Combatants.Content[i];
+                    UIDebugFillbar(Combatant->Entity->Name, Combatant->Stats.HP, Combatant->Stats.MaxHP);
+                }
+            }
         }
     }
 
