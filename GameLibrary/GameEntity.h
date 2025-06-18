@@ -6,18 +6,16 @@
 #include "GameAssets.h"
 #include "GameInput.h"
 
-#include <vector>
-
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Entities                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 enum game_entity_type {
-    Character,
-    Enemy,
-    Camera,
-    Prop,
-    Weapon,
+    Entity_Type_Character,
+    Entity_Type_Enemy,
+    Entity_Type_Camera,
+    Entity_Type_Prop,
+    Entity_Type_Weapon,
 
     game_entity_type_count
 };
@@ -25,7 +23,7 @@ enum game_entity_type {
 struct game_entity {
     char Name[32];
     int ID;
-    int ParentID;
+    game_entity* Parent;
     int Index;
     game_entity_type Type;
     transform Transform;
@@ -108,18 +106,45 @@ basis GetCameraBasis(float Angle, float Pitch) {
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Stats                                                                                                                                        |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct stats {
+    uint32 HP;
+    uint32 MaxHP;
+    uint32 Strength;
+    uint32 Defense;
+    uint32 Intelligence;
+    uint32 Wisdom;
+    float Speed;
+    float Precission;
+};
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Enemies                                                                                                                                      |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct enemy {
+    stats Stats;
+    game_entity* Entity;
+};
+
+const int MAX_ENEMIES = 32;
+DefineEntityList(MAX_ENEMIES, enemy);
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Weapons                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 enum weapon_type {
-    Sword,
-    Shield,
+    Weapon_Sword,
+    Weapon_Shield,
 
     weapon_type_count
 };
 
 struct weapon {
-    int EntityID;
+    game_entity* Entity;
     weapon_type Type;
     color Color;
     int ParentBone;
@@ -145,15 +170,24 @@ struct character_action {
     bool Loop;
 };
 
+enum character_class {
+    Knight_Class,
+    Rogue_Class,
+    Hunter_Class,
+    Wizard_Class,
+    Bard_Class,
+    Priest_Class
+};
+
 struct character {
     armature Armature;
+    stats Stats;
     game_animator Animator;
     character_action Action;
+    game_entity* Entity;
     weapon* LeftHand;
     weapon* RightHand;
-    int EntityID;
-    int MaxHP;
-    int HP;
+    character_class Class;
 };
 
 character_action CharacterAction(character_action_id ID) {
@@ -243,21 +277,20 @@ character_action GetCharacterAction(character* Character, game_input* Input) {
     return Result;
 }
 
+void Equip(weapon* Weapon, character* Character) {
+    Weapon->Entity->Parent = Character->Entity;
+    if (Weapon->Type == Weapon_Sword) {
+        Character->RightHand = Weapon;
+        Weapon->ParentBone = 8;
+    }
+    else if (Weapon->Type == Weapon_Shield) {
+        Character->LeftHand = Weapon;
+        Weapon->ParentBone = 2;
+    }
+}
+
 const int MAX_CHARACTERS = 1;
 DefineEntityList(MAX_CHARACTERS, character);
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Enemies                                                                                                                                      |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-struct enemy {
-    int EntityID;
-    int MaxHP;
-    int HP;
-};
-
-const int MAX_ENEMIES = 32;
-DefineEntityList(MAX_ENEMIES, enemy);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Props                                                                                                                                        |
@@ -357,7 +390,7 @@ int QueryEntityCount(game_entity_list* List, game_entity_type Type, bool Active 
 
 // Entity initialization ___________________________________________________________________________________________________________________
 
-void AddCamera(
+camera* AddCamera(
     game_entity_list* List,
     v3 Position,
     float Angle, float Pitch,
@@ -383,13 +416,15 @@ void AddCamera(
     sprintf_s(NameBuffer, "Camera %d", CameraID);
 
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
-    int EntityID = AddEntity(List, NameBuffer, Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), CameraID == 0);
+    int EntityID = AddEntity(List, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), CameraID == 0);
     Cam->EntityID = EntityID;
     game_entity* CameraEntity = &List->Entities[EntityID];
     CameraEntity->Index = CameraID;
+
+    return Cam;
 }
 
-void AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
+character* AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
     Assert(List->Characters.Size < MAX_CHARACTERS);
     // If any ID is free, use it
     int CharacterID = -1;
@@ -401,8 +436,6 @@ void AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
     else CharacterID = List->Characters.Size++;
 
     character* pCharacter = &List->Characters.List[CharacterID];
-    pCharacter->MaxHP = MaxHP;
-    pCharacter->HP = MaxHP;
     pCharacter->Animator.Active = false;
     pCharacter->Animator.Animation = GetAsset(List->Assets, Animation_Walk_ID);
     game_mesh* Mesh = GetAsset(List->Assets, Mesh_Body_ID);
@@ -416,18 +449,30 @@ void AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
     int EntityID = AddEntity(
         List, 
         NameBuffer, 
-        Character,
+        Entity_Type_Character,
         CapsuleCollider(V3(0,0.6f,0), V3(0,3.0f,0), 0.8f),
         Position, 
         Rotation, 
         Scale()
     );
-    pCharacter->EntityID = EntityID;
+
+    pCharacter->Stats.MaxHP = 100;
+    pCharacter->Stats.HP = pCharacter->Stats.MaxHP;
+    pCharacter->Stats.Strength = 10;
+    pCharacter->Stats.Defense = 10;
+    pCharacter->Stats.Intelligence = 10;
+    pCharacter->Stats.Wisdom = 10;
+    pCharacter->Stats.Speed = 10;
+    pCharacter->Stats.Precission = 10;
+
     game_entity* CharacterEntity = &List->Entities[EntityID];
+    pCharacter->Entity = CharacterEntity;
     CharacterEntity->Index = CharacterID;
+
+    return pCharacter;
 }
 
-void AddEnemy(game_entity_list* List, v3 Position, int MaxHP) {
+enemy* AddEnemy(game_entity_list* List, v3 Position, int MaxHP) {
     Assert(List->Characters.Size < MAX_ENEMIES);
     // If any ID is free, use it
     int EnemyID = -1;
@@ -439,20 +484,28 @@ void AddEnemy(game_entity_list* List, v3 Position, int MaxHP) {
     else EnemyID = List->Enemies.Size++;
 
     enemy* pEnemy = &List->Enemies.List[EnemyID];
-    pEnemy->MaxHP = MaxHP;
-    pEnemy->HP = MaxHP;
+    pEnemy->Stats.MaxHP = 50;
+    pEnemy->Stats.HP = pEnemy->Stats.MaxHP;
+    pEnemy->Stats.Strength = 10;
+    pEnemy->Stats.Defense = 10;
+    pEnemy->Stats.Intelligence = 10;
+    pEnemy->Stats.Wisdom = 10;
+    pEnemy->Stats.Speed = 7;
+    pEnemy->Stats.Precission = 10;
 
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Enemy %d", EnemyID);
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
-    int EntityID = AddEntity(List, NameBuffer, Enemy, SphereCollider(V3(0,0,0), 1.5f), Position, Rotation, Scale());
-    pEnemy->EntityID = EntityID;
+    int EntityID = AddEntity(List, NameBuffer, Entity_Type_Enemy, SphereCollider(V3(0,0,0), 1.5f), Position, Rotation, Scale());
     game_entity* EnemyEntity = &List->Entities[EntityID];
+    pEnemy->Entity = EnemyEntity;
     EnemyEntity->Index = EnemyID;
+
+    return pEnemy;
 }
 
-void AddProp(
+prop* AddProp(
     game_entity_list* List, 
     game_mesh_id MeshID, 
     game_shader_pipeline_id Shader, 
@@ -479,13 +532,15 @@ void AddProp(
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Prop %d", PropID);
 
-    int EntityID = AddEntity(List, NameBuffer, Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, S);
+    int EntityID = AddEntity(List, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, S);
     pProp->EntityID = EntityID;
     game_entity* PropEntity = &List->Entities[EntityID];
     PropEntity->Index = PropID;
+
+    return pProp;
 }
 
-void AddWeapon(   
+weapon* AddWeapon(   
     game_entity_list* List,
     weapon_type Type,
     color Color = White,
@@ -513,24 +568,205 @@ void AddWeapon(
 
     collider Collider;
     switch (pWeapon->Type) {
-        case Sword: Collider = CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f); break;
-        case Shield: Collider = CapsuleCollider(V3(0,-0.3,0), V3(0,0.7,0), 1.0f); break;
+        case Weapon_Sword: Collider = CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f); break;
+        case Weapon_Shield: Collider = CapsuleCollider(V3(0,-0.3,0), V3(0,0.7,0), 1.0f); break;
         default: Assert(false);
     }
 
     int EntityID = AddEntity(
         List, 
         NameBuffer, 
-        Weapon,
+        Entity_Type_Weapon,
         Collider,
         Position, 
         Rotation, 
         S
     );
-    pWeapon->EntityID = EntityID;
     game_entity* WeaponEntity = &List->Entities[EntityID];
+    pWeapon->Entity = WeaponEntity;
     WeaponEntity->Index = WeaponID;
+
+    return pWeapon;
 }
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Combat                                                                                                                                       |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+enum combatant_type {
+    Combatant_Type_Player,
+    Combatant_Type_Enemy,
+};
+
+struct combatant {
+    stats Stats;
+    game_entity* Entity;
+    uint32 Index;
+    float ATB;
+    combatant_type Type;
+};
+
+combatant Combatant(character Character) {
+    combatant Result;
+    Result.Stats = Character.Stats;
+    Result.Entity = Character.Entity;
+    Result.ATB = 100.0f;
+    Result.Type = Combatant_Type_Player;
+    return Result;
+}
+
+combatant Combatant(enemy Enemy) {
+    combatant Result;
+    Result.Stats = Enemy.Stats;
+    Result.Entity = Enemy.Entity;
+    Result.ATB = 100.0f;
+    Result.Type = Combatant_Type_Enemy;
+    return Result;
+}
+
+void ReceiveDamage(combatant* Combatant, int Damage) {
+    if (Damage > Combatant->Stats.HP) {
+        Combatant->Stats.HP = 0;
+    }
+    else Combatant->Stats.HP -= Damage;
+}
+
+const int MAX_COMBATANTS = 32;
+struct turn {
+    combatant* Targets[MAX_COMBATANTS];
+    combatant* Attacker;
+    float ATB[MAX_COMBATANTS];
+    float ATBCost;
+    uint32 Index;
+    uint32 nTargets;
+};
+
+const int MAX_HISTORY_SIZE = 128;
+ArrayDefinition(MAX_HISTORY_SIZE, turn);
+
+ArrayDefinition(MAX_COMBATANTS, combatant);
+
+const int TURN_BUFFER_SIZE = 16;
+struct game_combat {
+    turn_array History;
+    combatant_array Combatants;
+    turn NextTurns[TURN_BUFFER_SIZE];
+    turn Turn;
+    bool Active;
+
+    turn GetNextTurn(turn PreviousTurn) {
+        turn Result = PreviousTurn;
+        Result.Index++;
+        Result.Attacker = 0;
+        Result.nTargets = 0;
+        for (int i = 0; i < Combatants.Count; i++) {
+            Result.Targets[i] = 0;
+        }
+        while (Result.Attacker == 0) {
+            float MaxSpeed = 0.0f;
+            for (int i = 0; i < Combatants.Count; i++) {
+                combatant* Combatant = &Combatants.Content[i];
+                if (Combatant->Stats.HP > 0) {
+                    Result.ATB[i] += Combatant->Stats.Speed;
+                    if (Result.ATB[i] >= 100) {
+                        Result.ATB[i] = 100;
+                        if (Combatant->Stats.Speed > MaxSpeed) {
+                            Result.Attacker = Combatant;
+                        }
+                        else if (Combatant->Stats.Speed == MaxSpeed) {
+                            float Random = (float)rand() / (float)RAND_MAX;
+                            if (Random >= 0.5f) {
+                                Result.Attacker = Combatant;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return Result;
+    }
+
+    void FillTurnBuffer() {
+        NextTurns[0] = GetNextTurn(Turn);
+        for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
+            NextTurns[i] = GetNextTurn(NextTurns[i-1]);
+        }
+    }
+
+    void EndTurn() {
+        Combatants.Content[Turn.Attacker->Index].ATB -= Turn.ATBCost;
+        for (int i = 0; i < Combatants.Count; i++) {
+            Turn.ATB[i] = Combatants.Content[i].ATB;
+        }
+        Append(&History, Turn);
+        Turn = NextTurns[0];
+        for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
+            NextTurns[i-1] = NextTurns[i];
+        }
+        turn LastKnown = NextTurns[TURN_BUFFER_SIZE - 1];
+        NextTurns[TURN_BUFFER_SIZE - 1] = GetNextTurn(LastKnown);
+    }
+
+    void Erase() {
+        Clear(&History);
+        Clear(&Combatants);
+        Turn = {};
+        for (int i = 0; i < TURN_BUFFER_SIZE; i++) {
+            NextTurns[i] = {};
+        }
+    }
+
+    void Start(game_entity_list* List) {
+        Erase();
+        Active = true;
+
+        Turn.Index = 0;
+        Turn.ATBCost = 50.0f;
+        Turn.nTargets = 0;
+
+        // Add entities to struct
+        float MaxSpeed = 0.0f;
+        for (int i = 0; i < List->nEntities; i++) {
+            game_entity* Entity = &List->Entities[i];
+            combatant EntityCombatant;
+            bool IsEnemy = Entity->Type == Entity_Type_Enemy;
+            bool IsCharacter = Entity->Type == Entity_Type_Character;
+            if (IsEnemy || IsCharacter) {
+                if (IsEnemy) {
+                    enemy Enemy = List->Enemies.List[Entity->Index];
+                    EntityCombatant = Combatant(Enemy);
+                }
+                else if (IsCharacter) {
+                    character Character = List->Characters.List[Entity->Index];
+                    EntityCombatant = Combatant(Character);
+                }
+
+                EntityCombatant.Index = Combatants.Count;
+                combatant* Combatant = &Combatants.Content[EntityCombatant.Index];
+                Append(&Combatants, EntityCombatant);
+
+                if (EntityCombatant.Stats.Speed > MaxSpeed) {
+                    Turn.Attacker = Combatant;
+                    MaxSpeed = EntityCombatant.Stats.Speed;
+                }
+                else if (Combatant->Stats.Speed == MaxSpeed) {
+                    float Random = (float)rand() / (float)RAND_MAX;
+                    if (Random >= 0.5f) {
+                        Turn.Attacker = Combatant;
+                        MaxSpeed = EntityCombatant.Stats.Speed;
+                    }
+                }
+            }
+        }
+
+        FillTurnBuffer();
+    }
+
+    void End() {
+        Erase();
+        Active = false;
+    }
+};
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Game state                                                                                                                                   |
@@ -538,6 +774,7 @@ void AddWeapon(
 
 struct game_state {
     game_entity_list EntityList;
+    game_combat Combat;
     double dt;
     float Time;
     bool Exit;
@@ -546,6 +783,23 @@ struct game_state {
 void Update(camera** pActiveCamera, game_state* State, game_input* Input, float Width, float Height) {
     TIMED_BLOCK;
     game_entity_list* List = &State->EntityList;
+    game_combat* Combat = &State->Combat; 
+
+// Combat
+    if (!State->Combat.Active && Input->Keyboard.One.JustPressed) {
+        Combat->Start(List);
+    }
+
+    if (State->Combat.Active) {
+        bool End = true;
+        for (int i = 0; i < State->Combat.Combatants.Count; i++) {
+            if (State->Combat.Combatants.Content[i].Type == Combatant_Type_Enemy) {
+                End = false;
+                break;
+            }
+        }
+        if (End) Combat->End();
+    }
 
 // Cameras _________________________________________________________________________________________________________________________________
     camera* ActiveCamera = 0;
@@ -602,7 +856,7 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
     game_entity* ControlledCharacterEntity;
     for (int i = 0; i < List->Characters.Size; i++) {
         character* Character = &List->Characters.List[i];
-        game_entity* CharacterEntity = &List->Entities[Character->EntityID];
+        game_entity* CharacterEntity = Character->Entity;
         
         CharacterEntity->Velocity = V3(0, 0, 0);
 
@@ -658,15 +912,6 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
         ControlledCharacter = Character;
         ControlledCharacterEntity = CharacterEntity;
 
-        if (Input->Keyboard.Q.JustPressed && Character->HP >= 10) {
-            Character->HP -= 10;
-        }
-
-        if (Input->Keyboard.Z.JustPressed && Character->HP < Character->MaxHP) {
-            Character->HP += 10;
-            if (Character->HP > Character->MaxHP) Character->HP = Character->MaxHP;
-        }
-
         Update(&Character->Animator);
     }
     
@@ -684,17 +929,16 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
 // Enemies _________________________________________________________________________________________________________________________________
     for (int i = 0; i < List->Enemies.Size; i++) {
         enemy* pEnemy = &List->Enemies.List[i];
-        game_entity* EnemyEntity = &List->Entities[pEnemy->EntityID];
-        EnemyEntity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
-        v3 FacingDirection = ControlledCharacterEntity->Transform.Translation - EnemyEntity->Transform.Translation;
+        pEnemy->Entity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
+        v3 FacingDirection = ControlledCharacterEntity->Transform.Translation - pEnemy->Entity->Transform.Translation;
         float Angle = atan2f(FacingDirection.Z, FacingDirection.X);
-        EnemyEntity->Transform.Rotation = Quaternion(Angle, V3(0,1,0));
+        pEnemy->Entity->Transform.Rotation = Quaternion(Angle, V3(0,1,0));
     }
 
 // Weapons _________________________________________________________________________________________________________________________________
     for (int i = 0; i < List->Weapons.Size; i++) {
         weapon* pWeapon = &List->Weapons.List[i];
-        game_entity* WeaponEntity = &List->Entities[pWeapon->EntityID];
+        game_entity* WeaponEntity = pWeapon->Entity;
         if (pWeapon->ParentBone == -1) {
             WeaponEntity->Transform.Rotation = Quaternion(State->Time, V3(0,1,0));
         }
@@ -702,31 +946,23 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
         WeaponEntity->Collided = false;
 
         bool Collision = Collide(WeaponEntity, ControlledCharacterEntity);
-        if (!WeaponEntity->ParentID && Collision) {
+        if (!WeaponEntity->Parent && Collision) {
             ControlledCharacterEntity->Collided = true;
             WeaponEntity->Collided = true;
-            WeaponEntity->ParentID = ControlledCharacterEntity->ID;
-            if (pWeapon->Type == Sword) {
-                ControlledCharacter->RightHand = pWeapon;
-                pWeapon->ParentBone = 8;
-            }
-            else if (pWeapon->Type == Shield) {
-                ControlledCharacter->LeftHand = pWeapon;
-                pWeapon->ParentBone = 2;
-            }
+            Equip(pWeapon, ControlledCharacter);
         }
 
         if (pWeapon->ParentBone > 0) {
             bone Bone = ControlledCharacter->Armature.Bones[pWeapon->ParentBone];
             transform ModelTransform;
-            if (pWeapon->Type == Sword) {
+            if (pWeapon->Type == Weapon_Sword) {
                 ModelTransform = Transform(
                     V3(0.5f,2.0f,0),
                     Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0)),
                     WeaponEntity->Transform.Scale
                 );
             }
-            else if (pWeapon->Type == Shield) {
+            else if (pWeapon->Type == Weapon_Shield) {
                 ModelTransform = Transform(
                     V3(-0.7f,2.2f,0),
                     Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0)),
