@@ -71,13 +71,16 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Initialize entities
         game_entity_list* Entities = &pGameState->EntityList;
-        AddCamera(Entities, V3(0, 3.2f, 0), -90, 45);
-        AddCharacter(Entities, V3(0,0,0), 100);
-        AddEnemy(Entities, V3(10,0,0), 100);
-        AddProp(Entities, Mesh_Sphere_ID, Shader_Pipeline_Sphere_ID, Red, V3(0,0,10), Quaternion(1.0f, 0.0f, 0.0f, 0.0f), Scale(10,2,1));
-        AddWeapon(Entities, Sword, White, V3(-5,0,0));
-        AddWeapon(Entities, Shield, White, V3(-10,0,0));
-        
+        Group->Camera = AddCamera(Entities, V3(0, 3.2f, 0), -45.0f, 22.5f);
+        character* Character = AddCharacter(Entities, V3(0,0,0), 100);
+        enemy* Enemy1 = AddEnemy(Entities, V3(10,0,5), 30);
+        enemy* Enemy2 = AddEnemy(Entities, V3(10,0,0), 30);
+        enemy* Enemy3 = AddEnemy(Entities, V3(10,0,-5), 30);
+        weapon* Sword = AddWeapon(Entities, Weapon_Sword, White, V3(-5,0,0));
+        weapon* Shield = AddWeapon(Entities, Weapon_Shield, White, V3(-10,0,0));
+        Equip(Sword, Character);
+        Equip(Shield, Character);
+
         Memory->IsInitialized = true;
     }
 

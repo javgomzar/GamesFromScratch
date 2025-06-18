@@ -1495,7 +1495,7 @@ void PushEntities(render_group* Group, game_entity_list* List, game_input* Input
         collider Collider = Entity.Transform * Entity.Collider;
         bool Hovered = Raycast(Ray, Collider);
         switch(Entity.Type) {
-            case Character: {
+            case Entity_Type_Character: {
                 character* pCharacter = &List->Characters.List[Entity.Index];
                 PushMesh(
                     Group, 
@@ -1510,7 +1510,7 @@ void PushEntities(render_group* Group, game_entity_list* List, game_input* Input
                 );
             } break;
     
-            case Enemy: {
+            case Entity_Type_Enemy: {
                 PushMesh(
                     Group,
                     Mesh_Enemy_ID,
@@ -1523,7 +1523,7 @@ void PushEntities(render_group* Group, game_entity_list* List, game_input* Input
                 );
             } break;
 
-            case Prop: {
+            case Entity_Type_Prop: {
                 prop* pProp = &List->Props.List[Entity.Index];
                 PushMesh(
                     Group,
@@ -1536,12 +1536,12 @@ void PushEntities(render_group* Group, game_entity_list* List, game_input* Input
                 );
             } break;
 
-            case Weapon: {
+            case Entity_Type_Weapon: {
                 weapon* pWeapon = &List->Weapons.List[Entity.Index];
                 game_mesh_id MeshID;
                 switch(pWeapon->Type) {
-                    case Sword: MeshID = Mesh_Sword_ID; break;
-                    case Shield: MeshID = Mesh_Shield_ID; break;
+                    case Weapon_Sword: MeshID = Mesh_Sword_ID; break;
+                    case Weapon_Shield: MeshID = Mesh_Shield_ID; break;
                     default: Assert(false);
                 }
 
@@ -1549,7 +1549,7 @@ void PushEntities(render_group* Group, game_entity_list* List, game_input* Input
             } break;
         }
 
-        if (Group->Debug && Group->DebugColliders && Entity.Type != Camera) {
+        if (Group->Debug && Group->DebugColliders && Entity.Type != Entity_Type_Camera) {
             PushCollider(Group, Entity, Entity.Collided ? Red : Yellow);
         }
     }
