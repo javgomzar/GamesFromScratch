@@ -681,11 +681,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         if (DebugFiletime != 0) {
             static int Loads = 0;
             UnloadGameCode(&GameCode);
-            char DLLNameBuffer[64];
-            sprintf_s(DLLNameBuffer, "GameLibraryTemp%d.dll", Loads++);
-            char PDBNameBuffer[64];
-            sprintf_s(PDBNameBuffer, "GameLibraryTemp%d.pdb", Loads++);
-            LoadGameCode(&GameCode, SourceDLLName, DLLNameBuffer);
+            LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
             if (GameCode.IsValid) {
                 Log(Info, "New game code loaded.");
             }

@@ -461,7 +461,7 @@ void UIText(
 
 }
 
-void UIDebugBool(char* Text, bool Value) {
+void UIDebugBool(char* Text, bool Value, float Alpha = 1.0f) {
     char* BoolText = Value ? "true " : "false";
 
     char Buffer[128];
@@ -480,11 +480,18 @@ void UIDebugBool(char* Text, bool Value) {
     if (!Element->FirstFrame) {
         game_font_id FontID = Font_Menlo_Regular_ID;
         sprintf_s(Buffer, "%s: ", Text);
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, White, Points);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color(White, Alpha), Points);
 
-        color Color = Value ? Cyan : Red;
+        color BoolColor = Value ? Cyan : Red;
         UISizeText(Buffer, Points, Sizes);
-        PushText(UI.Group, V2(Rect.Left + Sizes[axis_x].Value, Rect.Top + GetTextHeight(FontID, Points)), FontID, BoolText, Color, Points);
+        PushText(
+            UI.Group, 
+            V2(Rect.Left + Sizes[axis_x].Value, Rect.Top + GetTextHeight(FontID, Points)), 
+            FontID, 
+            BoolText, 
+            Color(BoolColor, Alpha), 
+            Points
+        );
     }
 }
 
@@ -611,11 +618,13 @@ void UIDebugFillbar(char* Text, float Percent, color C = Red) {
 
     if (!Element->FirstFrame) {
         PushFillBar(UI.Group, Rect, C, Percent);
-        PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, White, 8);
+        PushText(UI.Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Text, White, 8);
         
         char Buffer[8];
-        sprintf_s(Buffer, "%.02f%%", Percent * 100.0);
-        PushText(UI.Group, Position + V2(350.0f - 55.0, 15.0), Font_Menlo_Regular_ID, Buffer, White, 8);
+        sprintf_s(Buffer, "%.02f%%", Percent * 100.0f);
+        ui_size TextSizes[2];
+        UISizeText(Buffer, 8, TextSizes);
+        PushText(UI.Group, Position + V2(350.0f - TextSizes[axis_x].Value - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
     }
 }
 
@@ -635,13 +644,13 @@ void UIDebugFillbar(char* Text, int Used, int Max, color C = Red) {
     if (!Element->FirstFrame) {
         float Percent = (float)Used / (float)Max;
         PushFillBar(UI.Group, Rect, C, Percent);
-        PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, White, 8);
+        PushText(UI.Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Text, White, 8);
         
         char Buffer[8];
         sprintf_s(Buffer, "%d/%d", Used, Max);
         ui_size TextSizes[2];
         UISizeText(Buffer, 8, TextSizes);
-        PushText(UI.Group, Position + V2(350.0f - TextSizes[axis_x].Value, 15.0), Font_Menlo_Regular_ID, Buffer, White, 8);
+        PushText(UI.Group, Position + V2(350.0f - TextSizes[axis_x].Value - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
     }
 }
 

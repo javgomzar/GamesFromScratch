@@ -1,6 +1,10 @@
 @REM Environment variables
 call bat\env.bat
 
+set /p N=<bin\PDBNumber.txt
+set /a N+=1
+echo %N% > bin\PDBNumber.txt
+
 @REM Compile GameLibrary
 %COMPILE%^
  /D GAMELIBRARY_EXPORTS^
@@ -20,6 +24,6 @@ call bat\env.bat
  /DEBUG^
  /DLL^
  /IMPLIB:"bin\GameLibrary.lib"^
- /PDB:"bin\GameLibrary.pdb"^
+ /PDB:"bin\GameLibrary%N%.pdb"^
  /ILK:"bin\GameLibrary.ilk"^
  /OUT:"bin\GameLibrary.dll"

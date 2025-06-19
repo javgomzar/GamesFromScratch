@@ -3,8 +3,9 @@
 @REM Environment variables
 call bat\env.bat
 
-@REM Delete hot reload .dll files
-del bin\GameLibraryTemp*.dll
+@REM Delete hot reload .pdb files
+del bin\GameLibrary*.pdb
+echo 0 > bin\PDBNumber.txt
 
 @REM Compile GameLibrary
 %COMPILE%^
