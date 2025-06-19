@@ -2,6 +2,7 @@
 #define GAME_UI
 
 #include "GameLibrary.h"
+#include <vector>
 
 /*
     TODO:
@@ -72,6 +73,13 @@ ui_size UISizeSumChildren() {
     return { ui_size_sum_of_children, 0.0f };
 }
 
+typedef uint32 ui_flags;
+
+enum {
+    DRAGGABLE_UI_FLAG = 1 << 2,
+};
+
+const int UI_TEXT_LENGTH = 64;
 struct ui_element {
     char* Text;
     ui_element* Parent;
@@ -82,9 +90,13 @@ struct ui_element {
     ui_alignment Alignment[2];
     ui_size Size[2];
     float RelativePosition[2];
+    uint32 ID;
+    uint32 Index;
+    ui_flags Flags;
     bool Hovered;
     bool Clicked;
     bool Dragged;
+    bool FirstFrame;
 };
 
 const int MAX_UI_ELEMENTS = 64;
@@ -101,6 +113,8 @@ struct ui_context {
     ui_hierarchy Tree;
     render_group* Group;
     game_input* Input;
+    std::vector<uint32> IDStack;
+    uint32 CurrentIndex;
 };
 
 static ui_context UI;
@@ -120,6 +134,7 @@ rectangle GetTextRect(const char* Text, int Points) {
     int Length = strlen(Text);
     for (int i = 0; i < Length; i++) {
         char c = Text[i];
+        if (c == '#' && Text[i+1] == '#') break;
         if (c == ' ')             Result.Width += Font->SpaceAdvance * Size;
         if ('!' <= c && c <= '~') Result.Width += Font->Characters[c - '!'].Advance * Size;
         if (c == '\n')            Result.Height += Font->LineJump * Size;
@@ -136,7 +151,49 @@ void UISizeText(char * Text, int Points, ui_size* Sizes) {
     Sizes[axis_y].Value = Rect.Height;
 }
 
+void PushID(uint32 ID) {
+    UI.IDStack.push_back(ID);
+    UI.CurrentIndex = 0;
+}
+
+void PushID(char* String) {
+    PushID(Hash(String));
+}
+
+void PopID() {
+    UI.IDStack.pop_back();
+    UI.CurrentIndex = 0;
+}
+
+uint32 GetID(char* String) {
+    uint32 i = 0;
+    bool UseIndex = false;
+    while (String[i]) {
+        if (String[i] == '#' && String[i+1] == '#') {
+            i = UI.CurrentIndex++;
+            UseIndex = true;
+            break;
+        }
+        i++;
+    }
+
+    uint32 StackHash = 2166136261u;
+    for (uint32 ID : UI.IDStack) {
+        StackHash ^= ID;
+        StackHash *= 16777619u;
+    }
+    uint32 TextHash = Hash(String);
+    StackHash ^= TextHash;
+    StackHash *= 16777619u;
+    if (UseIndex) {
+        StackHash ^= i;
+        StackHash *= 16777619u;
+    }
+    return StackHash;
+}
+
 void PushParent(ui_element* Parent) {
+    PushID(Parent->ID);
     Parent->Parent = UI.Tree.Parent;
     UI.Tree.Parent = Parent;
 }
@@ -144,11 +201,15 @@ void PushParent(ui_element* Parent) {
 void PopParent() {
     if (UI.Tree.Parent == NULL) Raise("No parent in the stack.");
     UI.Tree.Parent = UI.Tree.Parent->Parent;
+    PopID();
 }
 
-ui_element* NewUIElement() {
+ui_element* NewUIElement(uint32 ID) {
     if (UI.Tree.Count >= MAX_UI_ELEMENTS) Raise("UI Elements Tree is FULL!!");
     ui_element* Result = &UI.Tree.Elements[UI.Tree.Count++];
+    Result->ID = ID;
+    Result->Index = UI.CurrentIndex;
+    Result->FirstFrame = true;
     return Result;
 }
 
@@ -161,15 +222,17 @@ ui_element* PushUIElement(
     color Color = White
 ) {
     bool Found = false;
+    uint32 ID = GetID(Text);
     ui_element* Element = 0;
     for (int i = 0; i < MAX_UI_ELEMENTS; i++) {
         Element = &UI.Tree.Elements[i];
-        if (Text == Element->Text) {
+        if (ID == Element->ID) {
             Found = true;
+            Element->FirstFrame = false;
             break;
         }
     }
-    if (!Found) Element = NewUIElement();
+    if (!Found) Element = NewUIElement(ID);
     if (UI.Tree.First == NULL) UI.Tree.First = Element;
 
     Element->Parent = UI.Tree.Parent;
@@ -196,8 +259,8 @@ ui_element* PushUIElement(
         }
     }
 
-    Element->Color = Color;
     Element->Text = Text;
+    Element->Color = Color;
     Element->Alignment[axis_x] = AlignmentX;
     Element->Alignment[axis_y] = AlignmentY;
     Element->Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
@@ -383,24 +446,46 @@ void UIText(
     int Points = 10;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
-    rectangle Rect = PushUIElement(
+    ui_element* Element = PushUIElement(
         Text, 
         Sizes[axis_x], Sizes[axis_y], 
         AlignmentX, AlignmentY, 
         Color
-    )->Rect;
+    );
+    rectangle Rect = Element->Rect;
 
-    game_font_id FontID = Font_Menlo_Regular_ID;
-    PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Color, Points);
+    if (!Element->FirstFrame) {
+        game_font_id FontID = Font_Menlo_Regular_ID;
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Color, Points);
+    }
+
 }
 
 void UIDebugBool(char* Text, bool Value) {
-    char* TrueText = "true";
-    char* FalseText = "false";
-    char Buffer[64];
-    sprintf_s(Buffer, "%s: %s", Text, Value? TrueText : FalseText);
+    char* BoolText = Value ? "true " : "false";
 
-    UIText(Buffer, ui_alignment_min, ui_alignment_min);
+    char Buffer[128];
+    sprintf_s(Buffer, "%s: %s", Text, BoolText);
+    int Points = 10;
+    ui_size Sizes[2];
+    UISizeText(Buffer, Points, Sizes);
+    ui_element* Element = PushUIElement(
+        Text,
+        Sizes[axis_x], Sizes[axis_y], 
+        ui_alignment_min, ui_alignment_center, 
+        White
+    );
+    rectangle Rect = Element->Rect;
+
+    if (!Element->FirstFrame) {
+        game_font_id FontID = Font_Menlo_Regular_ID;
+        sprintf_s(Buffer, "%s: ", Text);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, White, Points);
+
+        color Color = Value ? Cyan : Red;
+        UISizeText(Buffer, Points, Sizes);
+        PushText(UI.Group, V2(Rect.Left + Sizes[axis_x].Value, Rect.Top + GetTextHeight(FontID, Points)), FontID, BoolText, Color, Points);
+    }
 }
 
 void UIDebugFloat(char* Text, float Value, color Color = White) {
@@ -415,10 +500,12 @@ void UIDebugFloat(char* Text, float Value, color Color = White) {
     );
     rectangle Rect = Element->Rect;
 
-    game_font_id FontID = Font_Menlo_Regular_ID;
-    char Buffer[128];
-    sprintf_s(Buffer, Text, Value);
-    PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+    if (!Element->FirstFrame) {
+        game_font_id FontID = Font_Menlo_Regular_ID;
+        char Buffer[128];
+        sprintf_s(Buffer, Text, Value);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+    }
 }
 
 void UIDebugInt(char* Text, int Value, color Color = White) {
@@ -433,10 +520,12 @@ void UIDebugInt(char* Text, int Value, color Color = White) {
     );
     rectangle Rect = Element->Rect;
 
-    game_font_id FontID = Font_Menlo_Regular_ID;
-    char Buffer[128];
-    sprintf_s(Buffer, Text, Value);
-    PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+    if (!Element->FirstFrame) {
+        game_font_id FontID = Font_Menlo_Regular_ID;
+        char Buffer[128];
+        sprintf_s(Buffer, Text, Value);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+    }
 }
 
 void UIDebugInt(char* Text, int Value1, int Value2, color Color = White) {
@@ -451,10 +540,12 @@ void UIDebugInt(char* Text, int Value1, int Value2, color Color = White) {
     );
     rectangle Rect = Element->Rect;
 
-    game_font_id FontID = Font_Menlo_Regular_ID;
-    char Buffer[128];
-    sprintf_s(Buffer, Text, Value1, Value2);
-    PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+    if (!Element->FirstFrame) {
+        game_font_id FontID = Font_Menlo_Regular_ID;
+        char Buffer[128];
+        sprintf_s(Buffer, Text, Value1, Value2);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+    }
 }
 
 bool UIDropdown(char* Text, bool& Control, color Color = White) {
@@ -479,8 +570,10 @@ bool UIDropdown(char* Text, bool& Control, color Color = White) {
         Control = !Control;
     }
 
-    game_font_id FontID = Font_Menlo_Regular_ID;
-    PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Element->Color, Points);
+    if (!Element->FirstFrame) {
+        game_font_id FontID = Font_Menlo_Regular_ID;
+        PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Element->Color, Points);
+    }
     return Control;
 }
 
@@ -495,9 +588,11 @@ bool UIButton(char* Text) {
         White
     );
 
-    color Color = Element->Hovered ? Yellow : White;
-    game_font_id FontID = Font_Menlo_Regular_ID;
-    PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Color, Points);
+    if (!Element->FirstFrame) {
+        color Color = Element->Hovered ? Yellow : White;
+        game_font_id FontID = Font_Menlo_Regular_ID;
+        PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Color, Points);
+    }
     return Element->Clicked;
 }
 
@@ -514,12 +609,14 @@ void UIDebugFillbar(char* Text, float Percent, color C = Red) {
     v2 Position = V2(Element->Rect.Left, Element->Rect.Top);
     rectangle Rect = Element->Rect;
 
-    PushFillBar(UI.Group, Rect, C, Percent);
-    PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, White, 8);
-    
-    char Buffer[8];
-    sprintf_s(Buffer, "%.02f%%", Percent * 100.0);
-    PushText(UI.Group, Position + V2(350.0f - 55.0, 15.0), Font_Menlo_Regular_ID, Buffer, White, 8);
+    if (!Element->FirstFrame) {
+        PushFillBar(UI.Group, Rect, C, Percent);
+        PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, White, 8);
+        
+        char Buffer[8];
+        sprintf_s(Buffer, "%.02f%%", Percent * 100.0);
+        PushText(UI.Group, Position + V2(350.0f - 55.0, 15.0), Font_Menlo_Regular_ID, Buffer, White, 8);
+    }
 }
 
 void UIDebugFillbar(char* Text, int Used, int Max, color C = Red) {
@@ -535,15 +632,17 @@ void UIDebugFillbar(char* Text, int Used, int Max, color C = Red) {
     v2 Position = V2(Element->Rect.Left, Element->Rect.Top);
     rectangle Rect = Element->Rect;
 
-    float Percent = (float)Used / (float)Max;
-    PushFillBar(UI.Group, Rect, C, Percent);
-    PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, White, 8);
-    
-    char Buffer[8];
-    sprintf_s(Buffer, "%d/%d", Used, Max);
-    ui_size TextSizes[2];
-    UISizeText(Buffer, 8, TextSizes);
-    PushText(UI.Group, Position + V2(350.0f - TextSizes[axis_x].Value, 15.0), Font_Menlo_Regular_ID, Buffer, White, 8);
+    if (!Element->FirstFrame) {
+        float Percent = (float)Used / (float)Max;
+        PushFillBar(UI.Group, Rect, C, Percent);
+        PushText(UI.Group, Position + V2(0, 15.0), Font_Menlo_Regular_ID, Text, White, 8);
+        
+        char Buffer[8];
+        sprintf_s(Buffer, "%d/%d", Used, Max);
+        ui_size TextSizes[2];
+        UISizeText(Buffer, 8, TextSizes);
+        PushText(UI.Group, Position + V2(350.0f - TextSizes[axis_x].Value, 15.0), Font_Menlo_Regular_ID, Buffer, White, 8);
+    }
 }
 
 void UIDebugArena(char* Text, memory_arena Arena, color C = Red) {

@@ -73,6 +73,27 @@ inline uint32 Clamp(uint32 Value, uint32 Min, uint32 Max) {
 	else return Value;
 }
 
+/* FNV-1a hash algorithm */
+inline uint32 Hash(void* Data, memory_index Size) {
+	uint8* Bytes = (uint8*)Data;
+	uint32 Hash = 2166136261u;
+    for (memory_index i = 0; i < Size; i++) {
+        Hash ^= Bytes[i];
+        Hash *= 16777619u;
+    }
+    return Hash;
+}
+
+/* FNV-1a hash algorithm */
+inline uint32 Hash(char* String) {
+	uint32 Hash = 2166136261u;
+    while (*String) {
+        Hash ^= static_cast<uint8>(*String++);
+        Hash *= 16777619u;
+    }
+    return Hash;
+}
+
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | 2D                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------+

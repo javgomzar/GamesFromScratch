@@ -950,7 +950,10 @@ void PushText(
     for (int i = 0; i < StringLength; i++) {
         char c = String[i];
 
-        if (c == '\0') break;
+        if (
+            c == '\0' || 
+            (c == '#' && String[i+1] == '#')
+        ) break;
 
         // Carriage returns
         if (c == '\n') {
