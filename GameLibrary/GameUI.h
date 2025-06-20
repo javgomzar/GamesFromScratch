@@ -658,6 +658,28 @@ void UIDebugArena(char* Text, memory_arena Arena, color C = Red) {
     UIDebugFillbar(Text, (float)Arena.Used / (float)Arena.Size, C);
 }
 
+void UIDebugTurn(turn Turn) {
+    char Buffer[64];
+    sprintf_s(Buffer, "Turn %d: ", Turn.Index);
+    strcat(Buffer, Turn.Attacker->Entity->Name);
+
+    ui_size Sizes[2];
+    UISizeText(Buffer, 10, Sizes);
+    ui_element* Element = PushUIElement(
+        "Turn ##", 
+        Sizes[axis_x], Sizes[axis_y],
+        ui_alignment_min, ui_alignment_center,
+        White
+    );
+    
+    v2 Position = V2(Element->Rect.Left, Element->Rect.Top) + V2(0,15);
+    rectangle Rect = Element->Rect;
+
+    if (!Element->FirstFrame) {
+        PushText(UI.Group, Position, Font_Menlo_Regular_ID, Buffer, White, 10);
+    }
+}
+
 void UpdateUI(
     game_memory* Memory,
     game_input* Input
@@ -707,18 +729,19 @@ void UpdateUI(
             UIButton("Items");
             UIButton("Flee");
         }
+        
+        { // Current turn menu
+            UIMenu TurnsMenu("Current turn menu", axis_y, ui_alignment_center, ui_alignment_min, 20.0f, 20.0f);
 
-        { // Turns menu
-            UIMenu TurnsMenu("Turns menu", axis_y, ui_alignment_max, ui_alignment_center, 20.0f, 20.0f);
+            UIDebugTurn(pGameState->Combat.Turn);
+        }
+        
+        { // Next turns menu
+            UIMenu TurnsMenu("Next turns menu", axis_y, ui_alignment_max, ui_alignment_center, 20.0f, 20.0f);
 
             const int TurnsShown = 8;
-            const int TurnUINamesSize = 16;
-            char TurnUINames[TurnsShown][TurnUINamesSize] = {};
-
             for (int i = 0; i < TurnsShown; i++) {
-                sprintf_s(TurnUINames[i], "Turn %d: ", i);
-                strcat(TurnUINames[i], pGameState->Combat.NextTurns[i].Attacker->Entity->Name);
-                UIText(TurnUINames[i]);
+                UIDebugTurn(pGameState->Combat.NextTurns[i]);
             }
         }
     }
@@ -771,7 +794,7 @@ void UpdateUI(
         UIDebugFloat("%.02f fps", DebugInfo.FPS, Color(White, DebugAlpha));
         UIDebugFloat("%.02f Mcycles/frame", DebugInfo.UsedMCyclesPerFrame, Color(White, DebugAlpha));
         UIDebugFloat("%.02f time (s)", pGameState->Time, Color(White, DebugAlpha));
-        UIDebugBool("In combat", pGameState->Combat.Active);
+        UIDebugBool("In combat", pGameState->Combat.Active, DebugAlpha);
 
         static bool DebugArenas = false;
         if (UIDropdown("Arenas", DebugArenas, Color(White, DebugAlpha))) {

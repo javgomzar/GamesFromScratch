@@ -490,7 +490,7 @@ enemy* AddEnemy(game_entity_list* List, v3 Position, int MaxHP) {
     pEnemy->Stats.Defense = 10;
     pEnemy->Stats.Intelligence = 10;
     pEnemy->Stats.Wisdom = 10;
-    pEnemy->Stats.Speed = 7;
+    pEnemy->Stats.Speed = 6;
     pEnemy->Stats.Precission = 10;
 
     char NameBuffer[32];
@@ -599,8 +599,8 @@ enum combatant_type {
 };
 
 struct combatant {
-    stats Stats;
     game_entity* Entity;
+    stats Stats;
     uint32 Index;
     float ATB;
     combatant_type Type;
@@ -633,12 +633,12 @@ void ReceiveDamage(combatant* Combatant, int Damage) {
 
 const int MAX_COMBATANTS = 32;
 struct turn {
-    combatant* Targets[MAX_COMBATANTS];
     combatant* Attacker;
-    float ATB[MAX_COMBATANTS];
-    float ATBCost;
     uint32 Index;
     uint32 nTargets;
+    combatant* Targets[MAX_COMBATANTS];
+    float ATB[MAX_COMBATANTS];
+    float ATBCost;
 };
 
 const int MAX_HISTORY_SIZE = 128;
@@ -653,7 +653,29 @@ struct game_combat {
     turn NextTurns[TURN_BUFFER_SIZE];
     turn Turn;
     bool Active;
+    
+    // Advances ATB of turn. If a new attacker is found, it is returned; returns NULL otherwise.
+    combatant* AdvanceTurnATB(turn& T) {
+        combatant* Result = NULL;
+        float MaxSpeed = 0.0f;
+        for (int i = 0; i < Combatants.Count; i++) {
+            combatant* Combatant = &Combatants.Content[i];
+            if (Combatant->Stats.HP > 0) {
+                T.ATB[i] += Combatant->Stats.Speed;
+                if (T.ATB[i] >= 100.0f) {
+                    if (
+                        Combatant->Stats.Speed > MaxSpeed || 
+                        // If current attacker's speed is equal to this potential attacker, flip a coin
+                        Combatant->Stats.Speed == MaxSpeed && Bernoulli()
+                    ) Result = Combatant;
+                }
+                T.ATB[i] = Clamp(T.ATB[i], 0.0f, 100.0f);
+            }
+        }
+        return Result;
+    }
 
+    // Applies ATB cost and advances turn ATB until new attacker is found.
     turn GetNextTurn(turn PreviousTurn) {
         turn Result = PreviousTurn;
         Result.Index++;
@@ -662,49 +684,14 @@ struct game_combat {
         for (int i = 0; i < Combatants.Count; i++) {
             Result.Targets[i] = 0;
         }
+
+        // Apply ATB Cost
+        Result.ATB[PreviousTurn.Attacker->Index] -= PreviousTurn.ATBCost;
+
         while (Result.Attacker == 0) {
-            float MaxSpeed = 0.0f;
-            for (int i = 0; i < Combatants.Count; i++) {
-                combatant* Combatant = &Combatants.Content[i];
-                if (Combatant->Stats.HP > 0) {
-                    Result.ATB[i] += Combatant->Stats.Speed;
-                    if (Result.ATB[i] >= 100) {
-                        Result.ATB[i] = 100;
-                        if (Combatant->Stats.Speed > MaxSpeed) {
-                            Result.Attacker = Combatant;
-                        }
-                        else if (Combatant->Stats.Speed == MaxSpeed) {
-                            float Random = (float)rand() / (float)RAND_MAX;
-                            if (Random >= 0.5f) {
-                                Result.Attacker = Combatant;
-                            }
-                        }
-                    }
-                }
-            }
+            Result.Attacker = AdvanceTurnATB(Result);
         }
         return Result;
-    }
-
-    void FillTurnBuffer() {
-        NextTurns[0] = GetNextTurn(Turn);
-        for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
-            NextTurns[i] = GetNextTurn(NextTurns[i-1]);
-        }
-    }
-
-    void EndTurn() {
-        Combatants.Content[Turn.Attacker->Index].ATB -= Turn.ATBCost;
-        for (int i = 0; i < Combatants.Count; i++) {
-            Turn.ATB[i] = Combatants.Content[i].ATB;
-        }
-        Append(&History, Turn);
-        Turn = NextTurns[0];
-        for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
-            NextTurns[i-1] = NextTurns[i];
-        }
-        turn LastKnown = NextTurns[TURN_BUFFER_SIZE - 1];
-        NextTurns[TURN_BUFFER_SIZE - 1] = GetNextTurn(LastKnown);
     }
 
     void Erase() {
@@ -720,11 +707,7 @@ struct game_combat {
         Erase();
         Active = true;
 
-        Turn.Index = 0;
-        Turn.ATBCost = 50.0f;
-        Turn.nTargets = 0;
-
-        // Add entities to struct
+        // Add entities to struct and compute first attacker
         float MaxSpeed = 0.0f;
         for (int i = 0; i < List->nEntities; i++) {
             game_entity* Entity = &List->Entities[i];
@@ -744,6 +727,7 @@ struct game_combat {
                 EntityCombatant.Index = Combatants.Count;
                 combatant* Combatant = &Combatants.Content[EntityCombatant.Index];
                 Append(&Combatants, EntityCombatant);
+                Turn.ATB[Combatant->Index] = Combatant->ATB;
 
                 if (EntityCombatant.Stats.Speed > MaxSpeed) {
                     Turn.Attacker = Combatant;
@@ -759,7 +743,25 @@ struct game_combat {
             }
         }
 
-        FillTurnBuffer();
+        Turn.Index = 0;
+        Turn.ATBCost = 50.0f;
+        Turn.nTargets = 0;
+
+        // Fill turn buffer
+        NextTurns[0] = GetNextTurn(Turn);
+        for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
+            NextTurns[i] = GetNextTurn(NextTurns[i-1]);
+        }
+    }
+
+    void EndTurn() {
+        Append(&History, Turn);
+        Turn = NextTurns[0];
+        for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
+            NextTurns[i-1] = NextTurns[i];
+        }
+        turn LastKnown = NextTurns[TURN_BUFFER_SIZE - 1];
+        NextTurns[TURN_BUFFER_SIZE - 1] = GetNextTurn(LastKnown);
     }
 
     void End() {
