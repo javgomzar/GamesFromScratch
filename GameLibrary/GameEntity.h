@@ -107,53 +107,10 @@ basis GetCameraBasis(float Angle, float Pitch) {
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Stats                                                                                                                                        |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-struct stats {
-    uint32 HP;
-    uint32 MaxHP;
-    uint32 Strength;
-    uint32 Defense;
-    uint32 Intelligence;
-    uint32 Wisdom;
-    float Speed;
-    float Precission;
-};
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Enemies                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct enemy {
-    stats Stats;
-    game_entity* Entity;
-};
-
-const int MAX_ENEMIES = 32;
-DefineEntityList(MAX_ENEMIES, enemy);
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Stats                                                                                                                                        |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-struct stats {
-    uint32 HP;
-    uint32 MaxHP;
-    uint32 Strength;
-    uint32 Defense;
-    uint32 Intelligence;
-    uint32 Wisdom;
-    float Speed;
-    float Precission;
-};
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Enemies                                                                                                                                      |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-struct enemy {
-    stats Stats;
     game_entity* Entity;
 };
 
@@ -209,7 +166,6 @@ enum character_class {
 
 struct character {
     armature Armature;
-    stats Stats;
     game_animator Animator;
     game_entity* Entity;
     weapon* LeftHand;
@@ -483,15 +439,6 @@ character* AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
     );
     pCharacter->Entity->Index = CharacterID;
 
-    pCharacter->Stats.MaxHP = 100;
-    pCharacter->Stats.HP = pCharacter->Stats.MaxHP;
-    pCharacter->Stats.Strength = 10;
-    pCharacter->Stats.Defense = 10;
-    pCharacter->Stats.Intelligence = 10;
-    pCharacter->Stats.Wisdom = 10;
-    pCharacter->Stats.Speed = 10;
-    pCharacter->Stats.Precission = 10;
-
     return pCharacter;
 }
 
@@ -507,15 +454,6 @@ enemy* AddEnemy(game_entity_list* List, v3 Position, int MaxHP) {
     else EnemyID = List->Enemies.Size++;
 
     enemy* pEnemy = &List->Enemies.List[EnemyID];
-    pEnemy->Stats.MaxHP = 50;
-    pEnemy->Stats.HP = pEnemy->Stats.MaxHP;
-    pEnemy->Stats.Strength = 5;
-    pEnemy->Stats.Defense = 10;
-    pEnemy->Stats.Intelligence = 10;
-    pEnemy->Stats.Wisdom = 10;
-    pEnemy->Stats.Speed = 6;
-    pEnemy->Stats.Precission = 10;
-
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Enemy %d", EnemyID);
 
@@ -603,240 +541,6 @@ weapon* AddWeapon(
     return pWeapon;
 }
 
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Combat                                                                                                                                       |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-enum combatant_type {
-    Combatant_Type_Player,
-    Combatant_Type_Enemy,
-};
-
-struct combatant {
-    game_entity* Entity;
-    stats Stats;
-    uint32 Index;
-    float ATB;
-    combatant_type Type;
-};
-
-combatant Combatant(character Character) {
-    combatant Result;
-    Result.Stats = Character.Stats;
-    Result.Entity = Character.Entity;
-    Result.ATB = 100.0f;
-    Result.Type = Combatant_Type_Player;
-    return Result;
-}
-
-combatant Combatant(enemy Enemy) {
-    combatant Result;
-    Result.Stats = Enemy.Stats;
-    Result.Entity = Enemy.Entity;
-    Result.ATB = 100.0f;
-    Result.Type = Combatant_Type_Enemy;
-    return Result;
-}
-
-bool IsAlive(combatant* Combatant) {
-    return Combatant->Stats.HP > 0;
-}
-
-void ReceiveDamage(combatant* Combatant, int Damage) {
-    if (Damage > Combatant->Stats.HP) {
-        Combatant->Stats.HP = 0;
-    }
-    else Combatant->Stats.HP -= Damage;
-}
-
-const int MAX_COMBATANTS = 32;
-struct turn {
-    combatant* Attacker;
-    uint32 Index;
-    uint32 nTargets;
-    combatant* Targets[MAX_COMBATANTS];
-    float ATB[MAX_COMBATANTS];
-    float ATBCost;
-    bool TargetsSelected;
-};
-
-ArrayDefinition(MAX_COMBATANTS, combatant);
-
-const int TURN_BUFFER_SIZE = 16;
-struct game_combat {
-    memory_arena* TurnsArena;
-    combatant_array Combatants;
-    turn NextTurns[TURN_BUFFER_SIZE];
-    turn Turn;
-    bool Active;
-    
-    // Advances ATB of turn. If a new attacker is found, it is returned; returns NULL otherwise.
-    combatant* AdvanceTurnATB(turn& T, int AttackerIndex = -1) {
-        combatant* Result = NULL;
-        float MaxSpeed = 0.0f;
-        for (int i = 0; i < Combatants.Count; i++) {
-            combatant* Combatant = &Combatants.Content[i];
-            if (IsAlive(Combatant)) {
-                if (AttackerIndex != i) T.ATB[i] += Combatant->Stats.Speed;
-                if (T.ATB[i] >= 100.0f) {
-                    if (
-                        Combatant->Stats.Speed > MaxSpeed || 
-                        // If current attacker's speed is equal to this potential attacker, flip a coin
-                        Combatant->Stats.Speed == MaxSpeed && Bernoulli()
-                    ) Result = Combatant;
-                }
-                T.ATB[i] = Clamp(T.ATB[i], 0.0f, 100.0f);
-            }
-        }
-        return Result;
-    }
-
-    // Applies ATB cost and advances turn ATB until new attacker is found.
-    turn GetNextTurn(turn PreviousTurn) {
-        turn Result = PreviousTurn;
-        Result.Index++;
-        Result.Attacker = 0;
-        Result.nTargets = 0;
-        for (int i = 0; i < Combatants.Count; i++) {
-            Result.Targets[i] = 0;
-        }
-
-        // Apply ATB Cost
-        Result.ATB[PreviousTurn.Attacker->Index] -= PreviousTurn.ATBCost;
-        Result.Attacker = AdvanceTurnATB(Result, PreviousTurn.Attacker->Index);
-
-        while (Result.Attacker == 0) {
-            Result.Attacker = AdvanceTurnATB(Result);
-        }
-        return Result;
-    }
-
-    void Erase() {
-        ClearArena(TurnsArena);
-        Clear(&Combatants);
-        Turn = {};
-        for (int i = 0; i < TURN_BUFFER_SIZE; i++) {
-            NextTurns[i] = {};
-        }
-    }
-
-    void FillTurnBuffer() {
-        NextTurns[0] = GetNextTurn(Turn);
-        for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
-            NextTurns[i] = GetNextTurn(NextTurns[i-1]);
-        }
-    }
-
-    void Start(game_entity_list* List) {
-        Erase();
-        Active = true;
-
-        // Add entities to struct and compute first attacker
-        float MaxSpeed = 0.0f;
-        for (int i = 0; i < List->nEntities; i++) {
-            game_entity* Entity = &List->Entities[i];
-            combatant EntityCombatant;
-            bool IsEnemy = Entity->Type == Entity_Type_Enemy;
-            bool IsCharacter = Entity->Type == Entity_Type_Character;
-            if (IsEnemy || IsCharacter) {
-                if (IsEnemy) {
-                    enemy Enemy = List->Enemies.List[Entity->Index];
-                    EntityCombatant = Combatant(Enemy);
-                }
-                else if (IsCharacter) {
-                    character Character = List->Characters.List[Entity->Index];
-                    EntityCombatant = Combatant(Character);
-                }
-
-                EntityCombatant.Index = Combatants.Count;
-                combatant* Combatant = &Combatants.Content[EntityCombatant.Index];
-                Append(&Combatants, EntityCombatant);
-                Turn.ATB[Combatant->Index] = Combatant->ATB;
-
-                if (EntityCombatant.Stats.Speed > MaxSpeed) {
-                    Turn.Attacker = Combatant;
-                    MaxSpeed = EntityCombatant.Stats.Speed;
-                }
-                else if (Combatant->Stats.Speed == MaxSpeed) {
-                    float Random = (float)rand() / (float)RAND_MAX;
-                    if (Random >= 0.5f) {
-                        Turn.Attacker = Combatant;
-                        MaxSpeed = EntityCombatant.Stats.Speed;
-                    }
-                }
-            }
-        }
-
-        Turn.Index = 0;
-        Turn.ATBCost = 50.0f;
-        Turn.nTargets = 1;
-        Turn.TargetsSelected = false;
-
-        FillTurnBuffer();
-    }
-
-    void EndTurn() {
-        bool UpdateTurnBuffer = false;
-        for (int i = 0; i < Turn.nTargets; i++) {
-            combatant* Target = Turn.Targets[i];
-            Target->Stats.HP -= Turn.Attacker->Stats.Strength;
-            Target->Stats.HP = max(Target->Stats.HP, 0);
-            // Someone died
-            if (Target->Entity->Active && Target->Stats.HP == 0) {
-                UpdateTurnBuffer = true;
-                Target->Entity->Active = false;
-            }
-        }
-
-        if (UpdateTurnBuffer) {
-            FillTurnBuffer();
-        }
-
-        turn* History = PushStruct(TurnsArena, turn);
-        *History = Turn;
-        Turn = NextTurns[0];
-        for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
-            NextTurns[i-1] = NextTurns[i];
-        }
-        turn LastKnown = NextTurns[TURN_BUFFER_SIZE - 1];
-        NextTurns[TURN_BUFFER_SIZE - 1] = GetNextTurn(LastKnown);
-    }
-
-    void End() {
-        Erase();
-        Active = false;
-    }
-
-    void Update(game_input* Input) {
-        Assert(Active);
-
-        combatant* Hot = NULL;
-        for (int i = 0; i < Combatants.Count; i++) {
-            combatant* Combatant = &Combatants.Content[i];
-            if (IsAlive(Combatant) && Combatant->Entity->Hovered) {
-                Hot = Combatant;
-            }
-        }
-
-        if (Hot != NULL && Input->Mouse.LeftClick.JustPressed && Hot->Type != Turn.Attacker->Type) {
-            Turn.nTargets = 1;
-            Turn.Targets[0] = Hot;
-            EndTurn();
-        }
-
-        bool CombatEnd = true;
-        for (int i = 0; i < Combatants.Count; i++) {
-            combatant* Enemy = &Combatants.Content[i];
-            if (Enemy->Type == Combatant_Type_Enemy) {
-                if (IsAlive(Enemy)) {
-                    CombatEnd = false;
-                    break;
-                }
-            }
-        }
-        if (CombatEnd) End();
-    }
-};
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Game state                                                                                                                                   |
@@ -844,7 +548,6 @@ struct game_combat {
 
 struct game_state {
     game_entity_list EntityList;
-    game_combat Combat;
     double dt;
     float Time;
     bool Exit;
@@ -853,17 +556,6 @@ struct game_state {
 void Update(camera** pActiveCamera, game_state* State, game_input* Input, float Width, float Height) {
     TIMED_BLOCK;
     game_entity_list* List = &State->EntityList;
-    game_combat* Combat = &State->Combat; 
-
-// Combat
-    if (!Combat->Active) {
-        if (Input->Keyboard.One.JustPressed) {
-            Combat->Start();
-        }
-    }
-    else {
-        Combat->Update(Input);
-    }
 
 // Cameras _________________________________________________________________________________________________________________________________
     camera* ActiveCamera = 0;

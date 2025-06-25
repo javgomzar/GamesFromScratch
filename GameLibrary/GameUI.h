@@ -658,28 +658,6 @@ void UIDebugArena(char* Text, memory_arena Arena, color C = Red) {
     UIDebugFillbar(Text, (float)Arena.Used / (float)Arena.Size, C);
 }
 
-void UIDebugTurn(turn Turn) {
-    char Buffer[64];
-    sprintf_s(Buffer, "Turn %d: ", Turn.Index);
-    strcat(Buffer, Turn.Attacker->Entity->Name);
-
-    ui_size Sizes[2];
-    UISizeText(Buffer, 10, Sizes);
-    ui_element* Element = PushUIElement(
-        "Turn ##", 
-        Sizes[axis_x], Sizes[axis_y],
-        ui_alignment_min, ui_alignment_center,
-        White
-    );
-    
-    v2 Position = V2(Element->Rect.Left, Element->Rect.Top) + V2(0,15);
-    rectangle Rect = Element->Rect;
-
-    if (!Element->FirstFrame) {
-        PushText(UI.Group, Position, Font_Menlo_Regular_ID, Buffer, White, 10);
-    }
-}
-
 void UpdateUI(
     game_memory* Memory,
     game_input* Input
@@ -687,7 +665,6 @@ void UpdateUI(
     render_group* Group = &Memory->RenderGroup;
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     float Time = pGameState->Time;
-    game_combat* Combat = &pGameState->Combat;
     debug_info DebugInfo = Memory->DebugInfo;
 
     BeginContext(Memory, Input);
@@ -717,53 +694,6 @@ void UpdateUI(
 
         if (UIButton("Exit")) {
             pGameState->Exit = true;
-        }
-    }
-
-    // Combat menu
-    if (pGameState->Combat.Active) {
-        static int Selected = 0;
-        v3 SelectorPosition = Combat->Turn.Attacker->Entity->Transform.Translation;
-        transform T = Transform(V3(SelectorPosition.X,5.5f+0.1f*sinf(5.0f*Time),SelectorPosition.Z), Quaternion(Time, V3(0,1,0)));
-        PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
-
-        { // Combat menu
-            UIMenu CombatMenu("Combat menu", axis_y, ui_alignment_min, ui_alignment_max, 80.0f, 20.0f);
-            if (UIButton("Attack")) {
-
-            }
-            UIButton("Magic");
-            UIButton("Items");
-            UIButton("Flee");
-        }
-        
-        { // Current turn menu
-            UIMenu TurnsMenu("Current turn menu", axis_y, ui_alignment_center, ui_alignment_min, 20.0f, 20.0f);
-
-            UIDebugTurn(pGameState->Combat.Turn);
-        }
-        
-        { // Next turns menu
-            UIMenu TurnsMenu("Next turns menu", axis_y, ui_alignment_max, ui_alignment_center, 20.0f, 20.0f);
-
-            const int TurnsShown = 8;
-            for (int i = 0; i < TurnsShown; i++) {
-                UIDebugTurn(pGameState->Combat.NextTurns[i]);
-            }
-        }
-
-        // YOU DIED
-        bool Alive = false;
-        for (int i = 0; i < Combat->Combatants.Count; i++) {
-            combatant* Combatant = &Combat->Combatants.Content[i];
-            if (Combatant->Type == Combatant_Type_Player && IsAlive(Combatant)) {
-                Alive = true;
-                break;
-            }
-        }
-
-        if (!Alive) {
-            UIText("YOU DIED", ui_alignment_center, ui_alignment_center, Red, 36);
         }
     }
 
@@ -815,14 +745,12 @@ void UpdateUI(
         UIDebugFloat("%.02f fps", DebugInfo.FPS, Color(White, DebugAlpha));
         UIDebugFloat("%.02f Mcycles/frame", DebugInfo.UsedMCyclesPerFrame, Color(White, DebugAlpha));
         UIDebugFloat("%.02f time (s)", pGameState->Time, Color(White, DebugAlpha));
-        UIDebugBool("In combat", pGameState->Combat.Active, DebugAlpha);
 
         static bool DebugArenas = false;
         if (UIDropdown("Arenas", DebugArenas, Color(White, DebugAlpha))) {
             UIDebugArena("Strings Arena", Memory->StringsArena, Color(Red, DebugAlpha));
             UIDebugArena("Transient Arena", Memory->TransientArena, Color(Red, DebugAlpha));
             UIDebugArena("General purpose Arena", Memory->GeneralPurposeArena, Color(Red, DebugAlpha));
-            UIDebugArena("Turns arena", Memory->TurnsArena, Color(Red, DebugAlpha));
             UIDebugArena("Vertex arena (vec3)", Group->VertexBuffer.VertexArena[0], Color(Red, DebugAlpha));
             UIDebugArena("Vertex arena (vec3, vec2)", Group->VertexBuffer.VertexArena[1], Color(Red, DebugAlpha));
             UIDebugArena("Vertex arena (vec3, vec2, vec3)", Group->VertexBuffer.VertexArena[2], Color(Red, DebugAlpha));
@@ -835,15 +763,6 @@ void UpdateUI(
             char* ActionNames[4] = { "Idle", "Walk", "Jump", "Attack" };
             UIText("Character Action:", ui_alignment_min, ui_alignment_center, Color(White, DebugAlpha));
             UIText(ActionNames[Character->Action.ID], ui_alignment_center, ui_alignment_center);
-            
-            if (pGameState->Combat.Active) {
-                for (int i = 0; i < pGameState->Combat.Combatants.Count; i++) {
-                    combatant* Combatant = &pGameState->Combat.Combatants.Content[i];
-                    if (IsAlive(Combatant)) {
-                        UIDebugFillbar(Combatant->Entity->Name, Combatant->Stats.HP, Combatant->Stats.MaxHP);
-                    }
-                }
-            }
         }
     }
 

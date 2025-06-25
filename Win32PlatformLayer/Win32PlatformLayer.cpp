@@ -645,10 +645,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     ArenaStart += GameMemory.StringsArena.Size;
     GameMemory.GeneralPurposeArena = MemoryArena(Megabytes(1), ArenaStart);
     ArenaStart += GameMemory.GeneralPurposeArena.Size;
-    GameMemory.TurnsArena = MemoryArena(Megabytes(8), ArenaStart);
-    ArenaStart += GameMemory.TurnsArena.Size;
-
-    pGameState->Combat.TurnsArena = &GameMemory.TurnsArena;
 
     // Input
     game_input Input = {};

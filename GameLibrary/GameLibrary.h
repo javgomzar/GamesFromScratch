@@ -48,7 +48,6 @@ struct game_memory {
     memory_arena StringsArena;
     memory_arena GeneralPurposeArena;
     memory_arena TransientArena;
-    memory_arena TurnsArena;
     debug_info DebugInfo;
     uint64 PermanentStorageSize;
     void* PermanentStorage;
