@@ -1,0 +1,43 @@
+#version 450
+precision highp float;
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(rgba32f, binding = 0) readonly uniform image2D source;
+layout(rgba32f, binding = 1) writeonly uniform image2D target;
+layout(binding = 2) uniform sampler2D attachment_texture;
+
+#ifdef VULKAN
+layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
+#else 
+layout(std140, binding = 0) uniform GlobalUniforms 
+#endif
+{
+	mat4 projection;
+	mat4 view;
+	vec2 resolution;
+	float time;
+} GlobalUBO;
+
+#ifdef VULKAN
+layout(std140, set = 1, binding = 4) uniform KernelUniforms 
+#else 
+layout(std140, binding = 6) uniform KernelUniforms 
+#endif
+{
+	mat3 kernel;
+} KernelUBO;
+
+void main() {
+	ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+	vec4 image_color = imageLoad(source, texelCoord);
+
+    vec4 color = vec4(0);
+    for (int j = 0; j < 3; ++j) {
+    for (int i = 0; i < 3; ++i) {
+        ivec2 p = texelCoord + ivec2(i-1,j-1);
+		vec4 value = imageLoad(source, p);
+        color += KernelUBO.kernel[j][i] * value;
+    }}
+
+	imageStore(target, texelCoord, color);
+}

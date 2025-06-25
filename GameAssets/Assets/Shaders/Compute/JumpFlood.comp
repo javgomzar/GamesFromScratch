@@ -1,0 +1,66 @@
+#version 450
+precision highp float;
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(rgba32f, binding = 0) readonly uniform image2D source;
+layout(rgba32f, binding = 1) writeonly uniform image2D target;
+layout(binding = 2) uniform sampler2D attachment_texture;
+
+#ifdef VULKAN
+layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
+#else 
+layout(std140, binding = 0) uniform GlobalUniforms 
+#endif
+{
+	mat4 projection;
+	mat4 view;
+	vec2 resolution;
+	float time;
+} GlobalUBO;
+
+#ifdef VULKAN
+layout (std140, set = 1, binding = 6) uniform OutlineUniforms 
+#else
+layout (std140, binding = 5) uniform OutlineUniforms
+#endif
+{
+	float width;
+    int level;
+} OutlineUBO;
+
+vec3 StepJFA(ivec2 p) {
+    vec3 closest = vec3(-1.0, 0.0, 0.0);
+    double closest_distance = 9999999.0;
+
+    for (int y = -1; y <= 1; ++y) {
+    for (int x = -1; x <= 1; ++x) {
+        ivec2 t = p + OutlineUBO.level * ivec2(x,y);
+        if (t.x >= 0. && t.y >= 0. && t.x <= GlobalUBO.resolution.x && t.y <= GlobalUBO.resolution.y) {
+            vec4 stored_color = imageLoad(source, t);
+            if (stored_color.b > 0.) { // skip computing for yet invalid seeds
+                vec2 stored_position = stored_color.rg;
+                double d = distance(p, stored_position);
+                if (closest_distance > d) {
+                    closest_distance = d;
+                    closest = stored_color.rgb;
+                }
+            }
+        }
+    }}
+
+    return closest;
+}
+
+void main() {
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    vec3 closest = StepJFA(texelCoord);
+    vec4 result;
+    if (closest.x < 0.) {
+        result = imageLoad(source, texelCoord);
+    }
+    else {
+        result = vec4(closest, 1.0);
+    }
+
+    imageStore(target, texelCoord, result);
+}

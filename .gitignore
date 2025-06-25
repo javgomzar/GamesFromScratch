@@ -1,0 +1,26 @@
+# Visual Studio
+.vs/
+.vscode/
+
+# Game assets
+GameAssets/Assets/Bitmaps/
+GameAssets/Assets/Models/
+GameAssets/Assets/Videos/
+GameAssets/Assets/Fonts/
+GameAssets/Assets/Sounds/
+GameAssets/Assets/Texts/
+GameAssets/Assets/Animations
+GameAssets/game_assets
+
+# Captures
+Captures/
+
+# Binaries
+bin/
+GameAssets/Assets/Shaders/*/*.spv
+
+# Linking
+Linking/
+
+# Environment
+bat/env.bat
