@@ -1508,9 +1508,12 @@ void PushEntities(render_group* Group, game_entity_list* List, game_input* Input
     TIMED_BLOCK;
     basis Basis = Group->Camera->Basis;
     ray Ray = MouseRay(Group->Width, Group->Height, Group->Camera->Position + Group->Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
-    for (int i = 0; i < List->nEntities; i++) {
-        game_entity* Entity = &List->Entities[i];
-        if (!Entity->Active) continue;
+    int i = 0;
+    int nEntities = 0;
+    while (nEntities < List->nEntities) {
+        game_entity* Entity = &List->Entities[i++];
+        if (Entity->Active) nEntities++;
+        else continue;
         collider Collider = Entity->Transform * Entity->Collider;
         Entity->Hovered = Raycast(Ray, Collider);
         switch(Entity->Type) {
