@@ -2165,7 +2165,7 @@ void WriteAssetsFile(const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Sounds\\16agosto.wav", Sound_Test_ID);
 
     // Meshes
-    PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Enemy.mdl", Mesh_Enemy_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Horns.mdl", Mesh_Enemy_ID);
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Sphere.mdl", Mesh_Sphere_ID);
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Body.mdl", Mesh_Body_ID);
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Sword.mdl", Mesh_Sword_ID);

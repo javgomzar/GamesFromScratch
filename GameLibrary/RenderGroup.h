@@ -1504,26 +1504,28 @@ void PushCollider(render_group* Group, game_entity* Entity, color Color) {
     }
 }
 
-void PushEntities(render_group* Group, game_entity_list* List, game_input* Input, float Time) {
+void PushEntities(render_group* Group, game_entity_state* State, game_input* Input, float Time) {
     TIMED_BLOCK;
     basis Basis = Group->Camera->Basis;
     ray Ray = MouseRay(Group->Width, Group->Height, Group->Camera->Position + Group->Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
     int i = 0;
-    int nEntities = 0;
-    while (nEntities < List->nEntities) {
-        game_entity* Entity = &List->Entities[i++];
-        if (Entity->Active) nEntities++;
+    int nEntities = State->Entities.Count;
+    while (nEntities > 0 && i < MAX_ENTITIES) {
+        game_entity* Entity = &State->Entities.List[i++];
+        
+        if (Entity->Active) nEntities--;
         else continue;
+
         collider Collider = Entity->Transform * Entity->Collider;
         Entity->Hovered = Raycast(Ray, Collider);
         switch(Entity->Type) {
             case Entity_Type_Character: {
-                character* pCharacter = &List->Characters.List[Entity->Index];
+                character* pCharacter = &State->Characters.List[Entity->Index];
                 PushMesh(
-                    Group, 
-                    Mesh_Body_ID, 
+                    Group,
+                    Mesh_Body_ID,
                     Entity->Transform,
-                    Shader_Pipeline_Mesh_Bones_ID, 
+                    Shader_Pipeline_Mesh_Bones_ID,
                     Bitmap_Empty_ID,
                     White,
                     &pCharacter->Armature,
@@ -1532,6 +1534,7 @@ void PushEntities(render_group* Group, game_entity_list* List, game_input* Input
             } break;
     
             case Entity_Type_Enemy: {
+                enemy* Enemy = &State->Enemies.List[Entity->Index];
                 PushMesh(
                     Group,
                     Mesh_Enemy_ID,
@@ -1544,7 +1547,7 @@ void PushEntities(render_group* Group, game_entity_list* List, game_input* Input
             } break;
 
             case Entity_Type_Prop: {
-                prop* pProp = &List->Props.List[Entity->Index];
+                prop* pProp = &State->Props.List[Entity->Index];
                 PushMesh(
                     Group,
                     pProp->MeshID,
@@ -1556,7 +1559,7 @@ void PushEntities(render_group* Group, game_entity_list* List, game_input* Input
             } break;
 
             case Entity_Type_Weapon: {
-                weapon* pWeapon = &List->Weapons.List[Entity->Index];
+                weapon* pWeapon = &State->Weapons.List[Entity->Index];
                 game_mesh_id MeshID;
                 switch(pWeapon->Type) {
                     case Weapon_Sword: MeshID = Mesh_Sword_ID; break;

@@ -85,9 +85,10 @@ struct camera {
     float Pitch;
     float Angle;
     matrix4 View;
+    bool OnAir;
 };
 
-const int MAX_CAMERAS = 10;
+const int MAX_CAMERAS = 16;
 DefineEntityList(MAX_CAMERAS, camera);
 
 basis GetCameraBasis(float Angle, float Pitch) {
@@ -273,7 +274,7 @@ void Equip(weapon* Weapon, character* Character) {
     }
 }
 
-const int MAX_CHARACTERS = 1;
+const int MAX_CHARACTERS = 8;
 DefineEntityList(MAX_CHARACTERS, character);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -296,12 +297,10 @@ DefineEntityList(MAX_PROPS, prop);
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int MAX_ENTITIES = MAX_CAMERAS + MAX_CHARACTERS + MAX_ENEMIES + MAX_PROPS;
-struct game_entity_list {
-    game_assets* Assets;
-    int nFreeIDs;
-    int FreeIDs[MAX_ENTITIES];
-    int nEntities;
-    game_entity Entities[MAX_ENTITIES];
+DefineEntityList(MAX_ENTITIES, game_entity);
+
+struct game_entity_state {
+    game_entity_list Entities;
     camera_list Cameras;
     character_list Characters;
     enemy_list Enemies;
@@ -310,7 +309,7 @@ struct game_entity_list {
 };
 
 game_entity* AddEntity(
-    game_entity_list* List,
+    game_entity_state* State,
     const char* Name,
     game_entity_type Type,
     collider Collider,
@@ -319,20 +318,20 @@ game_entity* AddEntity(
     scale S = Scale(),
     bool Active = true
 ) {
-    Assert(List->nEntities < MAX_ENTITIES);
+    Assert(State->Entities.Count < MAX_ENTITIES);
 
     // If any ID is free, use it
     int EntityID = -1;
-    if (List->nFreeIDs > 0) {
-        EntityID = List->FreeIDs[List->nFreeIDs - 1];
-        List->FreeIDs[List->nFreeIDs-- - 1] = -1;
-        List->nEntities++;
+    if (State->Entities.nFreeIDs > 0) {
+        EntityID = State->Entities.FreeIDs[State->Entities.nFreeIDs - 1];
+        State->Entities.FreeIDs[State->Entities.nFreeIDs-- - 1] = -1;
+        State->Entities.Count++;
     }
     else {
-        EntityID = List->nEntities++;
+        EntityID = State->Entities.Count++;
     }
 
-    game_entity* Entity = &List->Entities[EntityID];
+    game_entity* Entity = &State->Entities.List[EntityID];
     Entity->ID = EntityID;
     Entity->Type = Type;
     Entity->Transform = Transform(Position, Rotation, S);
@@ -344,43 +343,43 @@ game_entity* AddEntity(
     return Entity;
 }
 
-void RemoveEntity(game_entity_list* List, int EntityID) {
-    game_entity* Entity = &List->Entities[EntityID];
+void RemoveEntity(game_entity_state* State, int EntityID) {
+    game_entity* Entity = &State->Entities.List[EntityID];
     Assert(!Entity->Active);
 
     switch(Entity->Type) {
         case Entity_Type_Camera: {
-            Remove(&List->Cameras, Entity->Index);
+            Remove(&State->Cameras, Entity->Index);
         } break;
 
         case Entity_Type_Character: {
-            Remove(&List->Characters, Entity->Index);
+            Remove(&State->Characters, Entity->Index);
         } break;
 
         case Entity_Type_Enemy: {
-            Remove(&List->Enemies, Entity->Index);
+            Remove(&State->Enemies, Entity->Index);
         } break;
 
         case Entity_Type_Prop: {
-            Remove(&List->Props, Entity->Index);
+            Remove(&State->Props, Entity->Index);
         } break;
 
         case Entity_Type_Weapon: {
-            Remove(&List->Weapons, Entity->Index);
+            Remove(&State->Weapons, Entity->Index);
         } break;
 
         default: Raise("Invalid entity type.");
     }
 
     *Entity = {};
-    List->nEntities--;
-    List->FreeIDs[List->nFreeIDs] = EntityID;
-    List->nFreeIDs++;
+    State->Entities.Count--;
+    State->Entities.FreeIDs[State->Entities.nFreeIDs] = EntityID;
+    State->Entities.nFreeIDs++;
 }
 
-game_entity* QueryEntity(game_entity_list* List, game_entity_type Type, bool Active = true) {
-    for (int i = 0; i < List->nEntities; i++) {
-        game_entity* Entity = &List->Entities[i];
+game_entity* QueryEntity(game_entity_state* State, game_entity_type Type, bool Active = true) {
+    for (int i = 0; i < MAX_ENTITIES; i++) {
+        game_entity* Entity = &State->Entities.List[i];
         if (Entity->Type == Type && Entity->Active == Active) {
             return Entity;
         }
@@ -388,10 +387,10 @@ game_entity* QueryEntity(game_entity_list* List, game_entity_type Type, bool Act
     return 0;
 }
 
-int QueryEntityCount(game_entity_list* List, game_entity_type Type, bool Active = true) {
+int QueryEntityCount(game_entity_state* State, game_entity_type Type, bool Active = true) {
     int Result = 0;
-    for (int i = 0; i < List->nEntities; i++) {
-        game_entity* Entity = &List->Entities[i];
+    for (int i = 0; i < MAX_ENTITIES; i++) {
+        game_entity* Entity = &State->Entities.List[i];
         if (Entity->Type == Type && Entity->Active == Active) {
             Result++;
         }
@@ -402,22 +401,22 @@ int QueryEntityCount(game_entity_list* List, game_entity_type Type, bool Active 
 // Entity initialization ___________________________________________________________________________________________________________________
 
 camera* AddCamera(
-    game_entity_list* List,
+    game_entity_state* State,
     v3 Position,
     float Angle, float Pitch,
     float Distance = 9.0
 ) {
-    Assert(List->Cameras.Count < MAX_CAMERAS);
+    Assert(State->Cameras.Count < MAX_CAMERAS);
     // If any ID is free, use it
     int CameraID = -1;
-    if (List->Cameras.nFreeIDs > 0) {
-        CameraID = List->Cameras.FreeIDs[List->Cameras.nFreeIDs - 1];
-        List->FreeIDs[List->nFreeIDs-- - 1] = -1;
-        List->Cameras.Count++;
+    if (State->Cameras.nFreeIDs > 0) {
+        CameraID = State->Cameras.FreeIDs[State->Cameras.nFreeIDs - 1];
+        State->Cameras.FreeIDs[State->Cameras.nFreeIDs-- - 1] = -1;
+        State->Cameras.Count++;
     }
-    else CameraID = List->Cameras.Count++;
+    else CameraID = State->Cameras.Count++;
 
-    camera* Cam = &List->Cameras.List[CameraID];
+    camera* Cam = &State->Cameras.List[CameraID];
     Cam->Angle = Angle;
     Cam->Pitch = Pitch;
     Cam->Position = Position;
@@ -427,26 +426,26 @@ camera* AddCamera(
     sprintf_s(NameBuffer, "Camera %d", CameraID);
 
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
-    Cam->Entity = AddEntity(List, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), CameraID == 0);
+    Cam->Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), CameraID == 0);
     Cam->Entity->Index = CameraID;
     return Cam;
 }
 
-character* AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
-    Assert(List->Characters.Count < MAX_CHARACTERS);
+character* AddCharacter(game_assets* Assets, game_entity_state* State, v3 Position, int MaxHP) {
+    Assert(State->Characters.Count < MAX_CHARACTERS);
     // If any ID is free, use it
     int CharacterID = -1;
-    if (List->Characters.nFreeIDs > 0) {
-        CharacterID = List->Characters.FreeIDs[List->Characters.nFreeIDs - 1];
-        List->FreeIDs[List->nFreeIDs-- - 1] = -1;
-        List->Characters.Count++;
+    if (State->Characters.nFreeIDs > 0) {
+        CharacterID = State->Characters.FreeIDs[State->Characters.nFreeIDs - 1];
+        State->Characters.FreeIDs[State->Characters.nFreeIDs-- - 1] = -1;
+        State->Characters.Count++;
     }
-    else CharacterID = List->Characters.Count++;
+    else CharacterID = State->Characters.Count++;
 
-    character* pCharacter = &List->Characters.List[CharacterID];
+    character* pCharacter = &State->Characters.List[CharacterID];
     pCharacter->Animator.Active = false;
-    pCharacter->Animator.Animation = GetAsset(List->Assets, Animation_Walk_ID);
-    game_mesh* Mesh = GetAsset(List->Assets, Mesh_Body_ID);
+    pCharacter->Animator.Animation = GetAsset(Assets, Animation_Walk_ID);
+    game_mesh* Mesh = GetAsset(Assets, Mesh_Body_ID);
     pCharacter->Armature = Mesh->Armature;
     pCharacter->Animator.Armature = &pCharacter->Armature;
 
@@ -455,7 +454,7 @@ character* AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
 
     quaternion Rotation = Quaternion(1.5f * Pi, V3(0,1,0));
     pCharacter->Entity = AddEntity(
-        List, 
+        State, 
         NameBuffer, 
         Entity_Type_Character,
         CapsuleCollider(V3(0,0.6f,0), V3(0,3.0f,0), 0.8f),
@@ -468,29 +467,29 @@ character* AddCharacter(game_entity_list* List, v3 Position, int MaxHP) {
     return pCharacter;
 }
 
-enemy* AddEnemy(game_entity_list* List, v3 Position, int MaxHP) {
-    Assert(List->Characters.Count < MAX_ENEMIES);
+enemy* AddEnemy(game_entity_state* State, v3 Position) {
+    Assert(State->Characters.Count < MAX_ENEMIES);
     // If any ID is free, use it
     int EnemyID = -1;
-    if (List->Enemies.nFreeIDs > 0) {
-        EnemyID = List->Enemies.FreeIDs[List->Enemies.nFreeIDs - 1];
-        List->FreeIDs[List->nFreeIDs-- - 1] = -1;
-        List->Enemies.Count++;
+    if (State->Enemies.nFreeIDs > 0) {
+        EnemyID = State->Enemies.FreeIDs[State->Enemies.nFreeIDs - 1];
+        State->Enemies.FreeIDs[State->Enemies.nFreeIDs-- - 1] = -1;
+        State->Enemies.Count++;
     }
-    else EnemyID = List->Enemies.Count++;
+    else EnemyID = State->Enemies.Count++;
 
-    enemy* pEnemy = &List->Enemies.List[EnemyID];
+    enemy* pEnemy = &State->Enemies.List[EnemyID];
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Enemy %d", EnemyID);
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
-    pEnemy->Entity = AddEntity(List, NameBuffer, Entity_Type_Enemy, SphereCollider(V3(0,0,0), 1.5f), Position, Rotation, Scale());
+    pEnemy->Entity = AddEntity(State, NameBuffer, Entity_Type_Enemy, SphereCollider(V3(0,0,0), 1.5f), Position, Rotation, Scale());
     pEnemy->Entity->Index = EnemyID;
     return pEnemy;
 }
 
 prop* AddProp(
-    game_entity_list* List, 
+    game_entity_state* State, 
     game_mesh_id MeshID, 
     game_shader_pipeline_id Shader, 
     color Color = White,
@@ -498,17 +497,17 @@ prop* AddProp(
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
     scale S = Scale()
 ) {
-    Assert(List->Props.Count < MAX_PROPS);
+    Assert(State->Props.Count < MAX_PROPS);
     // If any ID is free, use it
     int PropID = -1;
-    if (List->Props.nFreeIDs > 0) {
-        PropID = List->Props.FreeIDs[List->Props.nFreeIDs - 1];
-        List->FreeIDs[List->nFreeIDs-- - 1] = -1;
-        List->Props.Count++;
+    if (State->Props.nFreeIDs > 0) {
+        PropID = State->Props.FreeIDs[State->Props.nFreeIDs - 1];
+        State->Props.FreeIDs[State->Props.nFreeIDs-- - 1] = -1;
+        State->Props.Count++;
     }
-    else PropID = List->Props.Count++;
+    else PropID = State->Props.Count++;
 
-    prop* pProp = &List->Props.List[PropID];
+    prop* pProp = &State->Props.List[PropID];
     pProp->MeshID = MeshID;
     pProp->Shader = Shader;
     pProp->Color = Color;
@@ -516,30 +515,30 @@ prop* AddProp(
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Prop %d", PropID);
 
-    pProp->Entity = AddEntity(List, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, S);
+    pProp->Entity = AddEntity(State, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, S);
     pProp->Entity->Index = PropID;
     return pProp;
 }
 
 weapon* AddWeapon(   
-    game_entity_list* List,
+    game_entity_state* State,
     weapon_type Type,
     color Color = White,
     v3 Position = V3(0,0,0),
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
     scale S = Scale()
 ) {
-    Assert(List->Weapons.Count < MAX_PROPS);
+    Assert(State->Weapons.Count < MAX_PROPS);
     // If any ID is free, use it
     int WeaponID = -1;
-    if (List->Weapons.nFreeIDs > 0) {
-        WeaponID = List->Weapons.FreeIDs[List->Weapons.nFreeIDs - 1];
-        List->FreeIDs[List->nFreeIDs-- - 1] = -1;
-        List->Weapons.Count++;
+    if (State->Weapons.nFreeIDs > 0) {
+        WeaponID = State->Weapons.FreeIDs[State->Weapons.nFreeIDs - 1];
+        State->Weapons.FreeIDs[State->Weapons.nFreeIDs-- - 1] = -1;
+        State->Weapons.Count++;
     }
-    else WeaponID = List->Weapons.Count++;
+    else WeaponID = State->Weapons.Count++;
 
-    weapon* pWeapon = &List->Weapons.List[WeaponID];
+    weapon* pWeapon = &State->Weapons.List[WeaponID];
     pWeapon->Type = Type;
     pWeapon->ParentBone = -1;
     pWeapon->Color = Color;
@@ -555,7 +554,7 @@ weapon* AddWeapon(
     }
 
     pWeapon->Entity = AddEntity(
-        List, 
+        State, 
         NameBuffer, 
         Entity_Type_Weapon,
         Collider,
@@ -573,76 +572,83 @@ weapon* AddWeapon(
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct game_state {
-    game_entity_list EntityList;
+    game_entity_state Entities;
     double dt;
     float Time;
     bool Exit;
 };
 
-void Update(camera** pActiveCamera, game_state* State, game_input* Input, float Width, float Height) {
+void Update(game_assets* Assets, game_state* State, game_input* Input, camera** pActiveCamera, float Width, float Height) {
     TIMED_BLOCK;
-    game_entity_list* List = &State->EntityList;
+    game_entity_state* EntityState = &State->Entities;
+    uint32 Index = 0;
 
 // Cameras _________________________________________________________________________________________________________________________________
-    camera* ActiveCamera = 0;
+    Index = 0;
+    uint32 nCameras = EntityState->Cameras.Count;
+    while(nCameras > 0) {
+        camera* Cam = &EntityState->Cameras.List[Index++];
 
-    for (int i = 0; i < List->Cameras.Count; i++) {
-        camera* Cam = &List->Cameras.List[i];
-        if (Cam->Entity->Active) {
-            *pActiveCamera = Cam;
-            ActiveCamera = Cam;
+        if (Cam->Entity != NULL) nCameras--;
+        else continue;
 
-        // Zoom
-            if (Input->Mode == Keyboard) {
-                if (Input->Mouse.Wheel > 0)      Cam->Distance /= 1.2;
-                else if (Input->Mouse.Wheel < 0) Cam->Distance *= 1.2;
-            }
+        if (Cam->OnAir) *pActiveCamera = Cam;
 
-        // Orbit around position
-            if (
-                Input->Mode == Keyboard && 
-                Input->Mouse.MiddleClick.IsDown && 
-                Input->Mouse.MiddleClick.WasDown &&
-                Input->Mouse.Cursor.X >= 0 && Input->Mouse.Cursor.X <= Width &&
-                Input->Mouse.Cursor.Y >= 0 && Input->Mouse.Cursor.Y <= Height
-            ) {
-                v2 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
-                double AngularVelocity = 0.5;
-
-                Cam->Angle -= AngularVelocity * Offset.X;
-                Cam->Pitch += AngularVelocity * Offset.Y;
-            }
-
-            if (Input->Mode == Controller) {
-                v2 Joystic = V2(Input->Controller.RightJoystick.X, Input->Controller.RightJoystick.Y);
-
-                if (modulus(Joystic) > 0.1) {
-                    Cam->Angle -= 3.0 * Joystic.X;
-                    Cam->Pitch -= 3.0 * Joystic.Y;
-                }
-            }
-
-        // Rotation
-            Cam->Basis = GetCameraBasis(Cam->Angle, Cam->Pitch);
-            quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(-1,0,0));
-            transform Test = Transform(Rotation);
-            matrix4 MatrixT = Matrix(Test);
-
-            break;
+    // Zoom
+        if (Input->Mode == Keyboard) {
+            if (Input->Mouse.Wheel > 0)      Cam->Distance /= 1.2;
+            else if (Input->Mouse.Wheel < 0) Cam->Distance *= 1.2;
         }
+
+    // Orbit around position
+        if (
+            Input->Mode == Keyboard && 
+            Input->Mouse.MiddleClick.IsDown && 
+            Input->Mouse.MiddleClick.WasDown &&
+            Input->Mouse.Cursor.X >= 0 && Input->Mouse.Cursor.X <= Width &&
+            Input->Mouse.Cursor.Y >= 0 && Input->Mouse.Cursor.Y <= Height
+        ) {
+            v2 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
+            double AngularVelocity = 0.5;
+
+            Cam->Angle -= AngularVelocity * Offset.X;
+            Cam->Pitch += AngularVelocity * Offset.Y;
+        }
+
+        if (Input->Mode == Controller) {
+            v2 Joystic = V2(Input->Controller.RightJoystick.X, Input->Controller.RightJoystick.Y);
+
+            if (modulus(Joystic) > 0.1) {
+                Cam->Angle -= 3.0 * Joystic.X;
+                Cam->Pitch -= 3.0 * Joystic.Y;
+            }
+        }
+
+    // Rotation
+        Cam->Basis = GetCameraBasis(Cam->Angle, Cam->Pitch);
+        quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(-1,0,0));
+        transform Test = Transform(Rotation);
+        matrix4 MatrixT = Matrix(Test);
+
+        break;
     }
+
+    camera* ActiveCamera = *pActiveCamera;
         
 // Characters ______________________________________________________________________________________________________________________________
     character* ControlledCharacter;
-    for (int i = 0; i < List->Characters.Count; i++) {
-        character* Character = &List->Characters.List[i];
+
+    Index = 0;
+    uint32 nCharacters = EntityState->Characters.Count;
+    for (int i = 0; i < EntityState->Characters.Count; i++) {
+        character* Character = &EntityState->Characters.List[i];
         
         Character->Entity->Velocity = V3(0, 0, 0);
 
         character_action_id PastAction = Character->Action.ID;
         Character->Action = GetCharacterAction(Character, Input);
         character_action_id NewAction = Character->Action.ID;
-        Character->Animator.Animation = GetAsset(List->Assets, Character->Action.AnimationID);
+        Character->Animator.Animation = GetAsset(Assets, Character->Action.AnimationID);
 
         if (PastAction == Character_Action_Jump_ID) {
             Character->Entity->Collider.Capsule.Segment.Head += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
@@ -704,8 +710,13 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
     ActiveCamera->Entity->Transform.Translation = V3(0,0,ActiveCamera->Distance) - ActiveCamera->Position * ActiveCamera->Basis;
 
 // Enemies _________________________________________________________________________________________________________________________________
-    for (int i = 0; i < List->Enemies.Count; i++) {
-        enemy* pEnemy = &List->Enemies.List[i];
+    Index = 0;
+    uint32 nEnemies = EntityState->Enemies.Count;
+    while (nEnemies > 0) {
+        enemy* pEnemy = &EntityState->Enemies.List[Index++];
+        if (pEnemy->Entity != NULL) nEnemies--;
+        else continue;
+        
         pEnemy->Entity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
         v3 FacingDirection = ControlledCharacter->Entity->Transform.Translation - pEnemy->Entity->Transform.Translation;
         float Angle = atan2f(FacingDirection.Z, FacingDirection.X);
@@ -713,8 +724,10 @@ void Update(camera** pActiveCamera, game_state* State, game_input* Input, float 
     }
 
 // Weapons _________________________________________________________________________________________________________________________________
-    for (int i = 0; i < List->Weapons.Count; i++) {
-        weapon* pWeapon = &List->Weapons.List[i];
+    Index = 0;
+    uint32 nWeapons = EntityState->Enemies.Count;
+    while (nEnemies > 0) {
+        weapon* pWeapon = &EntityState->Weapons.List[Index++];
         if (pWeapon->ParentBone == -1) {
             pWeapon->Entity->Transform.Rotation = Quaternion(State->Time, V3(0,1,0));
         }

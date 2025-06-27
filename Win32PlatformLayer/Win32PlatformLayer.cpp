@@ -622,8 +622,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     game_state* pGameState = (game_state*)GameMemory.PermanentStorage;
     render_group* Group = &GameMemory.RenderGroup;
 
-    pGameState->EntityList.Assets = &GameMemory.Assets;
-
     // Recording and playback
     record_and_playback RecordPlayback;
     RecordPlayback.PlaybackIndex = 0;

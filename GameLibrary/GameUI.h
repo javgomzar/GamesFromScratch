@@ -664,6 +664,7 @@ void UpdateUI(
 ) {
     render_group* Group = &Memory->RenderGroup;
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    game_entity_state* EntityState = &pGameState->Entities;
     float Time = pGameState->Time;
     debug_info DebugInfo = Memory->DebugInfo;
 
@@ -759,7 +760,7 @@ void UpdateUI(
 
         static bool DebugEntities = false;
         if (UIDropdown("Entities", DebugEntities, Color(White, DebugAlpha))) {
-            character* Character = &pGameState->EntityList.Characters.List[0];
+            character* Character = &EntityState->Characters.List[0];
             char* ActionNames[4] = { "Idle", "Walk", "Jump", "Attack" };
             UIText("Character Action:", ui_alignment_min, ui_alignment_center, Color(White, DebugAlpha));
             UIText(ActionNames[Character->Action.ID], ui_alignment_center, ui_alignment_center);

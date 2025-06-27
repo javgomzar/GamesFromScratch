@@ -56,7 +56,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
-    game_entity_list* EntityList = &pGameState->EntityList;
+    game_entity_state* EntityState = &pGameState->Entities;
     {
     TIMED_BLOCK;
 
@@ -70,13 +70,12 @@ extern "C" GAME_UPDATE(GameUpdate)
         //TestPerformance();
 
         // Initialize entities
-        game_entity_list* Entities = &pGameState->EntityList;
-        Group->Camera = AddCamera(Entities, V3(0, 3.2f, 0), -45.0f, 22.5f);
-        character* Character = AddCharacter(Entities, V3(0,0,0), 100);
-        prop* Prop = AddProp(Entities, Mesh_Sphere_ID, Shader_Pipeline_Sphere_ID, Red, V3(0,0,5), Quaternion(1.0), Scale(10,1,1));
-        enemy* Enemy = AddEnemy(Entities, V3(10,0,5), 30);
-        weapon* Sword = AddWeapon(Entities, Weapon_Sword, White, V3(-5,0,0));
-        weapon* Shield = AddWeapon(Entities, Weapon_Shield, White, V3(-10,0,0));
+        Group->Camera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
+        character* Character = AddCharacter(Assets, EntityState, V3(0,0,0), 100);
+        prop* Prop = AddProp(EntityState, Mesh_Sphere_ID, Shader_Pipeline_Sphere_ID, Red, V3(0,0,5), Quaternion(1.0), Scale(10,1,1));
+        enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));
+        weapon* Sword = AddWeapon(EntityState, Weapon_Sword, White, V3(-5,0,0));
+        weapon* Shield = AddWeapon(EntityState, Weapon_Shield, White, V3(-10,0,0));
         Equip(Sword, Character);
         Equip(Shield, Character);
 
@@ -90,13 +89,13 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Magenta, Target_PingPong);
     PushClear(Group, BackgroundBlue, Target_Output);
 
-    Update(&Group->Camera, pGameState, Input, Group->Width, Group->Height);
+    Update(Assets, pGameState, Input, &Group->Camera, Group->Width, Group->Height);
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
     
     UpdateUI(Memory, Input);
 
-    PushEntities(Group, &pGameState->EntityList, Input, Time);
+    PushEntities(Group, &pGameState->Entities, Input, Time);
 
     PushRenderTarget(Group, Target_World);
 
