@@ -45,7 +45,7 @@ char szTitle[MAX_LOADSTRING];                  // The title bar text
 char szWindowClass[MAX_LOADSTRING];            // the main window class name
 
 bool Running;
-game_memory GameMemory;
+game_memory Memory;
 
 // XInput
 #define XINPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
@@ -605,44 +605,44 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     game_code GameCode = { 0 };
     LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
     LPVOID BaseAddress = 0;
-    GameMemory.PermanentStorageSize = Megabytes(64);
-    void* GameMemoryBlock = VirtualAlloc(BaseAddress, GameMemory.PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    GameMemory.PermanentStorage = GameMemoryBlock;
+    Memory.PermanentStorageSize = Megabytes(64);
+    void* GameMemoryBlock = VirtualAlloc(BaseAddress, Memory.PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    Memory.PermanentStorage = GameMemoryBlock;
 
-    GameMemory.Platform.FreeFileMemory = PlatformFreeFileMemory;
-    GameMemory.Platform.ReadEntireFile = PlatformReadEntireFile;
-    GameMemory.Platform.WriteEntireFile = PlatformWriteEntireFile;
-    GameMemory.Platform.AppendToFile = PlatformAppendToFile;
+    Memory.Platform.FreeFileMemory = PlatformFreeFileMemory;
+    Memory.Platform.ReadEntireFile = PlatformReadEntireFile;
+    Memory.Platform.WriteEntireFile = PlatformWriteEntireFile;
+    Memory.Platform.AppendToFile = PlatformAppendToFile;
 
     // Assets
     const char* AssetsPath = "..\\GameAssets\\game_assets";
     WriteAssetsFile(AssetsPath);
-    LoadAssetsFromFile(GameMemory.Platform.ReadEntireFile, &GameMemory.Assets, AssetsPath);
+    LoadAssetsFromFile(Memory.Platform.ReadEntireFile, &Memory.Assets, AssetsPath);
 
-    game_state* pGameState = (game_state*)GameMemory.PermanentStorage;
-    render_group* Group = &GameMemory.RenderGroup;
+    game_state* pGameState = (game_state*)Memory.PermanentStorage;
+    render_group* Group = &Memory.RenderGroup;
 
     // Recording and playback
     record_and_playback RecordPlayback;
     RecordPlayback.PlaybackIndex = 0;
     RecordPlayback.RecordIndex = 0;
     RecordPlayback.GameMemoryBlock = GameMemoryBlock;
-    RecordPlayback.TotalSize = GameMemory.PermanentStorageSize;
+    RecordPlayback.TotalSize = Memory.PermanentStorageSize;
 
     memory_index MemoryUsed = InitializeRenderGroup(
-        &GameMemory.RenderGroup, 
-        &GameMemory.Assets, 
-        (uint8*)GameMemory.PermanentStorage + sizeof(game_state)
+        &Memory.RenderGroup, 
+        &Memory.Assets, 
+        (uint8*)Memory.PermanentStorage + sizeof(game_state)
     );
 
     // Memory arenas
-    uint8* ArenaStart = (uint8*)GameMemory.PermanentStorage + sizeof(game_state) + MemoryUsed;
-    GameMemory.TransientArena = MemoryArena(Megabytes(1), ArenaStart);
-    ArenaStart += GameMemory.TransientArena.Size;
-    GameMemory.StringsArena = MemoryArena(Kilobytes(1), ArenaStart);
-    ArenaStart += GameMemory.StringsArena.Size;
-    GameMemory.GeneralPurposeArena = MemoryArena(Megabytes(1), ArenaStart);
-    ArenaStart += GameMemory.GeneralPurposeArena.Size;
+    uint8* ArenaStart = (uint8*)Memory.PermanentStorage + sizeof(game_state) + MemoryUsed;
+    Memory.TransientArena = MemoryArena(Megabytes(1), ArenaStart);
+    ArenaStart += Memory.TransientArena.Size;
+    Memory.StringsArena = MemoryArena(Kilobytes(1), ArenaStart);
+    ArenaStart += Memory.StringsArena.Size;
+    Memory.GeneralPurposeArena = MemoryArena(Megabytes(1), ArenaStart);
+    ArenaStart += Memory.GeneralPurposeArena.Size;
 
     // Input
     game_input Input = {};
@@ -662,8 +662,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Initilize render API
     InitializeRenderer(
         &RendererContext,
-        &GameMemory.RenderGroup.VertexBuffer,
-        &GameMemory.Assets,
+        &Memory.RenderGroup.VertexBuffer,
+        &Memory.Assets,
         Window, 
         hInstance
     );
@@ -686,7 +686,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         // Clear transient memory
-        ClearArena(&GameMemory.TransientArena);
+        ClearArena(&Memory.TransientArena);
 
         // Previous input
         UpdatePreviousInput(&Input);
@@ -818,7 +818,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 int32 NewWidth = Rect.right - Rect.left;
                 int32 NewHeight = Rect.bottom - Rect.top;
 
-                if ((NewWidth != GameMemory.RenderGroup.Width || NewHeight != GameMemory.RenderGroup.Height)) {
+                if ((NewWidth != Memory.RenderGroup.Width || NewHeight != Memory.RenderGroup.Height)) {
                     Group->Width = NewWidth;
                     Group->Height = NewHeight;
                     ResizeWindow(&RendererContext, NewWidth, NewHeight);
@@ -829,7 +829,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 // Clear render group
                 ClearEntries(Group);
 
-                GameCode.Update(&GameMemory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], &Input);
+                GameCode.Update(&Memory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], &Input);
 
                 if (pGameState->Exit) {
                     Running = false; PostQuitMessage(0);
@@ -840,9 +840,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ScreenCapture(&RendererContext, Group->Width, Group->Height);
             }
 
-            LogDebugRecords(Group, &GameMemory.TransientArena);
+            LogDebugRecords(Group, &Memory.TransientArena);
             Render(Window, Group, &RendererContext, pGameState->Time);
-            ClearVertexBuffer(&GameMemory.RenderGroup.VertexBuffer);
+            ClearVertexBuffer(&Memory.RenderGroup.VertexBuffer);
         }
         else {
             Log(Error, "Could not update state due to invalid game code.");
@@ -860,14 +860,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             currentBuffer = (currentBuffer + 1) % nBuffers;
         }
 
+        debug_info* DebugInfo = &Memory.DebugInfo;
+        ClearDebugContext(DebugInfo);
+
         // Performance computations
         uint64 EndCycleCount = __rdtsc();
         uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
-        GameMemory.DebugInfo.UsedMCyclesPerFrame = CyclesElapsed / 1000000.0f;
+        float UsedMCyclesPerFrame = (float)CyclesElapsed / 1000000.0f;
+        DEBUG_VALUE(UsedMCyclesPerFrame, float);
 
         LARGE_INTEGER WorkCounter = GetWallClock();
         float WorkSecsElapsed = GetSecondsElapsed(LastCounter, WorkCounter);
-        GameMemory.DebugInfo.UsedTime = 1000.0f * WorkSecsElapsed;
+        float UsedTime = 1000.0f * WorkSecsElapsed;
+        DEBUG_VALUE(UsedTime, float);
 
         float SecsElapsedPerFrame = WorkSecsElapsed;
         if (SecsElapsedPerFrame < TargetSecondsPerFrame) {
@@ -883,8 +888,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         float ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
-        GameMemory.DebugInfo.BudgetTime = 1000.0f * ActualSecsElapsed; // (in ms)
-        GameMemory.DebugInfo.FPS = 1.0f / ActualSecsElapsed;
+        float BudgetTime = 1000.0f * ActualSecsElapsed; // (in ms)
+        DEBUG_VALUE(BudgetTime, float);
+        float FPS = 1.0f / ActualSecsElapsed;
+        DEBUG_VALUE(FPS, float);
 
         pGameState->dt = ActualSecsElapsed;
         pGameState->Time += ActualSecsElapsed;
@@ -1006,14 +1013,14 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(Window, &ps);
 
-            if (GameMemory.IsInitialized) {
+            if (Memory.IsInitialized) {
                 RECT Rect = { 0 };
                 GetClientRect(Window, &Rect);
 
                 int32 NewWidth = Rect.right - Rect.left;
                 int32 NewHeight = Rect.bottom - Rect.top;
 
-                render_group* Group = &GameMemory.RenderGroup;
+                render_group* Group = &Memory.RenderGroup;
 
                 if (NewWidth != Group->Width || NewHeight != Group->Height) {
                     Group->Width = NewWidth;
@@ -1059,24 +1066,23 @@ debug_record DebugRecordArray_Win32[__COUNTER__];
 void LogDebugRecords(render_group* Group, memory_arena* Arena) {
     char Buffer[512];
     int Height = 350;
-    game_font* Font = GetAsset(&GameMemory.Assets, Font_Cascadia_Mono_ID);
+    game_font* Font = GetAsset(&Memory.Assets, Font_Cascadia_Mono_ID);
     for (int i = 0; i < ArrayCount(DebugRecordArray_Win32); i++) {
         debug_record* DebugRecord = DebugRecordArray_Win32 + i;
 
         if (DebugRecord->HitCount) {
             if (DebugRecord->HitCount == 1) {
-                sprintf_s(Buffer, "%s: (%i hit) %.02f Mcycles (%s:%i).", 
+                sprintf_s(Buffer, "%s: (%d hit) %.2f Mcycles (%s:%d).", 
                     DebugRecord->FunctionName, DebugRecord->HitCount, 
                     DebugRecord->CycleCount / 1000000.0f, DebugRecord->FileName, DebugRecord->LineNumber);
             }
             else {
-                sprintf_s(Buffer, "%s: (%i hits) Total: %.02f Mcycles, Average: %.02f ms (%s:%i).", 
+                sprintf_s(Buffer, "%s: (%d hits) Total: %.2f Mcycles, Average: %.2f ms (%s:%d).", 
                     DebugRecord->FunctionName, DebugRecord->HitCount, 
                     DebugRecord->CycleCount / 1000000.0f, 
                     DebugRecord->CycleCount / (1000000.0f * DebugRecord->HitCount), 
                     DebugRecord->FileName, DebugRecord->LineNumber);
             }
-            string String = PushString(Arena, 512, Buffer);
             Log(Info, Buffer);
             Height += 18;
             DebugRecord->HitCount = 0;

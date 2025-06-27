@@ -750,6 +750,26 @@ game_font LoadFont(memory_arena* Arena, game_asset* Asset) {
     return Result;
 }
 
+float GetTextHeight(game_font* Font, int Points) {
+    return 0.05f * (float)Points * Font->Characters[0].Height;
+}
+
+void GetTextWidthAndHeight(const char* Text, game_font* Font, int Points, float* Width, float* Height) {
+    float Size = 0.05f * (float)Points;
+
+    *Height = GetTextHeight(Font, Points);
+    *Width = 0;
+    
+    int Length = strlen(Text);
+    for (int i = 0; i < Length; i++) {
+        char c = Text[i];
+        if (c == '#' && Text[i+1] == '#') break;
+        if (c == ' ')             *Width += Font->SpaceAdvance * Size;
+        if ('!' <= c && c <= '~') *Width += Font->Characters[c - '!'].Advance * Size;
+        if (c == '\n')            *Height += Font->LineJump * Size;
+    }
+}
+
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Video                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+

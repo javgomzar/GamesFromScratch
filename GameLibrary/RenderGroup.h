@@ -1042,19 +1042,6 @@ void PushText(
     delete [] Vertices;
 }
 
-void PushText(
-    render_group* Group,
-    v2 Position,
-    game_font_id FontID,
-    string String,
-    color Color = White,
-    float Points = 20.0f,
-    bool Wrapped = false,
-    float Order = SORT_ORDER_DEBUG_OVERLAY
-) {
-    PushText(Group, Position, FontID, String.Content, Color, Points, Wrapped, Order);
-}
-
 void PushFillBar(
     render_group* Group,
     rectangle Rect,
@@ -1120,7 +1107,7 @@ void PushCubeOutline(
 //         TIMED_BLOCK;
 //         Video->TimeElapsed += SecondsElapsed;
 //         char Text[256];
-//         sprintf_s(Text, "%.02f Time elapsed | %.02f Time played", Video->TimeElapsed, Video->VideoContext.PTS * Video->VideoContext.TimeBase);
+//         sprintf_s(Text, "%.2f Time elapsed | %.2f Time played", Video->TimeElapsed, Video->VideoContext.PTS * Video->VideoContext.TimeBase);
 //         Log(Info, Text);
 
 //         render_entry_rect* Entry = PushRenderElement(Group, render_entry_rect);
@@ -1580,6 +1567,70 @@ void PushEntities(render_group* Group, game_entity_state* State, game_input* Inp
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Debug                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+void PushDebugEntries(render_group* Group, debug_info* DebugInfo, v2 Position) {
+    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
+    char Buffer[128];
+    float X = Position.X;
+    float Y = Position.Y;
+    float Line = 20;
+    for (int i = 0; i < DebugInfo->nEntries; i++) {
+        debug_entry Entry = DebugInfo->Entries[i];
+        switch(Entry.Type) {
+            case Debug_Type_bool: {
+                bool Value = *(bool*)Entry.Value;
+                sprintf_s(Buffer, "%s: %s", Entry.Name, Value ? "true" : "false");
+                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
+            } break;
+
+            case Debug_Type_int: {
+                int Value = *(int*)Entry.Value;
+                sprintf_s(Buffer, "%s: %d", Entry.Name, Value);
+                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
+            } break;
+
+            case Debug_Type_int32:{
+                int32 Value = *(int32*)Entry.Value;
+                sprintf_s(Buffer, "%s: %d", Entry.Name, Value);
+                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
+            } break;
+
+            case Debug_Type_int64:{
+                int64 Value = *(int64*)Entry.Value;
+                sprintf_s(Buffer, "%s: %I64d", Entry.Name, Value);
+                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
+            } break;
+
+            case Debug_Type_uint32:{
+                uint32 Value = *(uint32*)Entry.Value;
+                sprintf_s(Buffer, "%s: %u", Entry.Name, Value);
+                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
+            } break;
+
+            case Debug_Type_uint64: {
+                uint64 Value = *(uint64*)Entry.Value;
+                sprintf_s(Buffer, "%s: %I64u", Entry.Name, Value);
+                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
+            } break;
+
+            case Debug_Type_float: {
+                float Value = *(float*)Entry.Value;
+                sprintf_s(Buffer, "%s: %.3f", Entry.Name, Value);
+                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
+            } break;
+
+            case Debug_Type_double: {
+                double Value = *(double*)Entry.Value;
+                sprintf_s(Buffer, "%s: %.3f", Entry.Name, Value);
+                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
+            } break;
+
+            default: Raise("Invalid debug type.");
+        }
+
+        Y += Line;
+    }
+}
 
 void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
     v2 Orthogonal = perp(normalize(V2(Vector.X, Vector.Y)));

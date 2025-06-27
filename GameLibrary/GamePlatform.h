@@ -15,12 +15,6 @@ typedef int64_t int64;
 
 typedef size_t memory_index;
 
-// Strings
-struct string {
-    int Length;
-    char* Content;
-};
-
 // Arrays
 #define ArrayStructDefinition(Capacity, Type) struct Type##_array { uint32 Size = Capacity; uint32 Count = 0; Type Content[Capacity]; }
 #define ArrayAppendDefinition(Capacity, Type) void Append(Type##_array* Array, Type Element) { Assert(Array->Count < Capacity); \
@@ -84,16 +78,8 @@ inline void* PopSize_(memory_arena* Arena, memory_index Size) {
     return Result;
 }
 
-inline string PushString(memory_arena* Arena, int Length, const char* Content) {
-    string String = { 0 };
-    String.Length = Length;
-    String.Content = PushArray(Arena, Length, char);
-
-    for (int i = 0; i < Length; i++) {
-        String.Content[i] = Content[i];
-    }
-
-    return String;
+inline char* PushString(memory_arena* Arena, const char* String) {
+    PushArray(Arena, strlen(String), char);
 }
 
 // Services that the platform layer provides for the game

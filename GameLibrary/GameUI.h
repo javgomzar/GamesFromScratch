@@ -119,32 +119,9 @@ struct ui_context {
 
 static ui_context UI;
 
-float GetTextHeight(game_font_id FontID, int Points) {
-    game_font* Font = GetAsset(UI.Group->Assets, Font_Menlo_Regular_ID);
-    return 0.05f * (float)Points * Font->Characters[0].Height;
-}
-
-rectangle GetTextRect(const char* Text, int Points) {
-    game_font* Font = GetAsset(UI.Group->Assets, Font_Menlo_Regular_ID);
-    float Size = 0.05f * (float)Points;
-
-    rectangle Result = {};
-    Result.Height = GetTextHeight(Font_Menlo_Regular_ID, Points);
-    
-    int Length = strlen(Text);
-    for (int i = 0; i < Length; i++) {
-        char c = Text[i];
-        if (c == '#' && Text[i+1] == '#') break;
-        if (c == ' ')             Result.Width += Font->SpaceAdvance * Size;
-        if ('!' <= c && c <= '~') Result.Width += Font->Characters[c - '!'].Advance * Size;
-        if (c == '\n')            Result.Height += Font->LineJump * Size;
-    }
-
-    return Result;
-}
-
 void UISizeText(char * Text, int Points, ui_size* Sizes) {
-    rectangle Rect = GetTextRect(Text, Points);
+    rectangle Rect;
+    GetTextWidthAndHeight(Text, GetAsset(UI.Group->Assets, Font_Menlo_Regular_ID), Points, &Rect.Width, &Rect.Height);
     Sizes[axis_x].Type = ui_size_text;
     Sizes[axis_x].Value = Rect.Width;
     Sizes[axis_y].Type = ui_size_text;
@@ -456,7 +433,8 @@ void UIText(
 
     if (!Element->FirstFrame) {
         game_font_id FontID = Font_Menlo_Regular_ID;
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Color, Points);
+        game_font* Font = GetAsset(UI.Group->Assets, FontID);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(Font, Points)), FontID, Text, Color, Points);
     }
 
 }
@@ -479,14 +457,15 @@ void UIDebugBool(char* Text, bool Value, float Alpha = 1.0f) {
 
     if (!Element->FirstFrame) {
         game_font_id FontID = Font_Menlo_Regular_ID;
+        game_font* Font = GetAsset(UI.Group->Assets, FontID);
         sprintf_s(Buffer, "%s: ", Text);
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color(White, Alpha), Points);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(Font, Points)), FontID, Buffer, Color(White, Alpha), Points);
 
         color BoolColor = Value ? Cyan : Red;
         UISizeText(Buffer, Points, Sizes);
         PushText(
             UI.Group, 
-            V2(Rect.Left + Sizes[axis_x].Value, Rect.Top + GetTextHeight(FontID, Points)), 
+            V2(Rect.Left + Sizes[axis_x].Value, Rect.Top + GetTextHeight(Font, Points)), 
             FontID, 
             BoolText, 
             Color(BoolColor, Alpha), 
@@ -509,9 +488,10 @@ void UIDebugFloat(char* Text, float Value, color Color = White) {
 
     if (!Element->FirstFrame) {
         game_font_id FontID = Font_Menlo_Regular_ID;
+        game_font* Font = GetAsset(UI.Group->Assets, FontID);
         char Buffer[128];
         sprintf_s(Buffer, Text, Value);
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(Font, Points)), FontID, Buffer, Color, Points);
     }
 }
 
@@ -529,9 +509,10 @@ void UIDebugInt(char* Text, int Value, color Color = White) {
 
     if (!Element->FirstFrame) {
         game_font_id FontID = Font_Menlo_Regular_ID;
+        game_font* Font = GetAsset(UI.Group->Assets, FontID);
         char Buffer[128];
         sprintf_s(Buffer, Text, Value);
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(Font, Points)), FontID, Buffer, Color, Points);
     }
 }
 
@@ -549,9 +530,10 @@ void UIDebugInt(char* Text, int Value1, int Value2, color Color = White) {
 
     if (!Element->FirstFrame) {
         game_font_id FontID = Font_Menlo_Regular_ID;
+        game_font* Font = GetAsset(UI.Group->Assets, FontID);
         char Buffer[128];
         sprintf_s(Buffer, Text, Value1, Value2);
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(FontID, Points)), FontID, Buffer, Color, Points);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(Font, Points)), FontID, Buffer, Color, Points);
     }
 }
 
@@ -579,7 +561,8 @@ bool UIDropdown(char* Text, bool& Control, color Color = White) {
 
     if (!Element->FirstFrame) {
         game_font_id FontID = Font_Menlo_Regular_ID;
-        PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Element->Color, Points);
+        game_font* Font = GetAsset(UI.Group->Assets, FontID);
+        PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(Font, Points)), FontID, Text, Element->Color, Points);
     }
     return Control;
 }
@@ -598,7 +581,8 @@ bool UIButton(char* Text) {
     if (!Element->FirstFrame) {
         color Color = Element->Hovered ? Yellow : White;
         game_font_id FontID = Font_Menlo_Regular_ID;
-        PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(FontID, Points)), FontID, Text, Color, Points);
+        game_font* Font = GetAsset(UI.Group->Assets, FontID);
+        PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(Font, Points)), FontID, Text, Color, Points);
     }
     return Element->Clicked;
 }
@@ -621,7 +605,7 @@ void UIDebugFillbar(char* Text, float Percent, color C = Red) {
         PushText(UI.Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Text, White, 8);
         
         char Buffer[8];
-        sprintf_s(Buffer, "%.02f%%", Percent * 100.0f);
+        sprintf_s(Buffer, "%.2f%%", Percent * 100.0f);
         ui_size TextSizes[2];
         UISizeText(Buffer, 8, TextSizes);
         PushText(UI.Group, Position + V2(350.0f - TextSizes[axis_x].Value - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
@@ -740,12 +724,6 @@ void UpdateUI(
 
         // Debug Framebuffer
         PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
-
-        UIDebugFloat("%.02f ms/frame", DebugInfo.BudgetTime, Color(White, DebugAlpha));
-        UIDebugFloat("%.02f ms used", DebugInfo.UsedTime, Color(White, DebugAlpha));
-        UIDebugFloat("%.02f fps", DebugInfo.FPS, Color(White, DebugAlpha));
-        UIDebugFloat("%.02f Mcycles/frame", DebugInfo.UsedMCyclesPerFrame, Color(White, DebugAlpha));
-        UIDebugFloat("%.02f time (s)", pGameState->Time, Color(White, DebugAlpha));
 
         static bool DebugArenas = false;
         if (UIDropdown("Arenas", DebugArenas, Color(White, DebugAlpha))) {

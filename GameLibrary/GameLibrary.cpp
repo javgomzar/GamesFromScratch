@@ -38,7 +38,7 @@ void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_
 }
 
 // Debug
-void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena);
+void LogGameDebugRecords(render_group* Group);
 
 void TestPerformance() {
     //TIMED_BLOCK;
@@ -57,6 +57,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
     game_entity_state* EntityState = &pGameState->Entities;
+    debug_info* DebugInfo = &Memory->DebugInfo;
     {
     TIMED_BLOCK;
 
@@ -96,6 +97,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     UpdateUI(Memory, Input);
 
     PushEntities(Group, &pGameState->Entities, Input, Time);
+    PushDebugEntries(Group, DebugInfo, V2(20,20));
 
     PushRenderTarget(Group, Target_World);
 
@@ -119,12 +121,12 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushRenderTarget(Group, Target_Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
     }
 
-    LogGameDebugRecords(Group, TransientArena);
+    LogGameDebugRecords(Group);
 }
 
 debug_record DebugRecordArray[__COUNTER__];
 
-void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
+void LogGameDebugRecords(render_group* Group) {
     char Buffer[512];
     int Height = Group->Height - 20;
     for (int i = 0; i < ArrayCount(DebugRecordArray); i++) {
@@ -132,16 +134,16 @@ void LogGameDebugRecords(render_group* Group, memory_arena* TransientArena) {
 
         if (DebugRecord->HitCount) {
             if (DebugRecord->HitCount == 1) {
-                sprintf_s(Buffer, "%s: (%i hit) %.02f Mcycles (%s:%i)\n", 
+                sprintf_s(Buffer, "%s: (%d hit) %.2f Mcycles (%s:%d)\n", 
                     DebugRecord->FunctionName, DebugRecord->HitCount, DebugRecord->CycleCount / 1000000.0f, DebugRecord->FileName, DebugRecord->LineNumber);
             }
             else {
-                sprintf_s(Buffer, "%s: (%i hits) Total: %.02f Mcycles, Average: %.02f (%s:%i)\n", 
+                sprintf_s(Buffer, "%s: (%d hits) Total: %.2f Mcycles, Average: %.2f (%s:%d)\n", 
                     DebugRecord->FunctionName, DebugRecord->HitCount, DebugRecord->CycleCount / 1000000.0f, 
                     (float)DebugRecord->CycleCount / (1000000.0f * (float)DebugRecord->HitCount), DebugRecord->FileName, DebugRecord->LineNumber);
             }
-            string String = PushString(TransientArena, 512, Buffer);
-            if (Group->Debug) PushText(Group, V2(250, Height), Font_Menlo_Regular_ID, String, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
+
+            if (Group->Debug) PushText(Group, V2(250, Height), Font_Menlo_Regular_ID, Buffer, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
             Height -= 17;
             DebugRecord->HitCount = 0;
             DebugRecord->CycleCount = 0;
