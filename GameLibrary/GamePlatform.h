@@ -79,7 +79,7 @@ inline void* PopSize_(memory_arena* Arena, memory_index Size) {
 }
 
 inline char* PushString(memory_arena* Arena, const char* String) {
-    PushArray(Arena, strlen(String), char);
+    return PushArray(Arena, strlen(String) + 1, char);
 }
 
 // Services that the platform layer provides for the game

@@ -1396,6 +1396,10 @@ bool IsIn(rectangle Rect, v2 Position) {
 		   Rect.Top  <= Position.Y && Position.Y <= Rect.Top+Rect.Height;
 }
 
+v2 LeftTop(rectangle Rect) {
+	return V2(Rect.Left, Rect.Top);
+}
+
 struct vector_plane {
 	v3 Normal;
 };

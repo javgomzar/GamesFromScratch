@@ -97,7 +97,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     UpdateUI(Memory, Input);
 
     PushEntities(Group, &pGameState->Entities, Input, Time);
-    PushDebugEntries(Group, DebugInfo, V2(20,20));
 
     PushRenderTarget(Group, Target_World);
 

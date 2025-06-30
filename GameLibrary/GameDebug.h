@@ -29,9 +29,11 @@ enum debug_type {
 struct debug_entry {
     char* Name;
     debug_type Type;
-    int Size;
     void* Value;
+    int Size;
     bool Editable;
+    char ValueString[16];
+    float Left, Top, Width, Height;
 };
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
@@ -50,7 +52,7 @@ void ClearDebugContext(debug_info* DebugInfo) {
 
 void _AddDebugEntry(debug_info* DebugInfo, char* Name, debug_type Type, int Size, void* Value, bool Editable) {
     DebugInfo->Entries[DebugInfo->nEntries++] = {
-        Name, Type, Size, Value, Editable
+        Name, Type, Value, Size, Editable
     };
 }
 

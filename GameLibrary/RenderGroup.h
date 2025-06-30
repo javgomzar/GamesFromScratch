@@ -827,7 +827,9 @@ void PushRectOutline(
         4,
         Vertices,
         0,
-        Order
+        Order,
+        0, 0, 0,
+        Thickness
     );
 }
 
@@ -1568,67 +1570,115 @@ void PushEntities(render_group* Group, game_entity_state* State, game_input* Inp
 // | Debug                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void PushDebugEntries(render_group* Group, debug_info* DebugInfo, v2 Position) {
+void ComputeDebugEntrySize(game_assets* Assets, debug_entry* Entry) {
+    game_font* Font = GetAsset(Assets, Font_Menlo_Regular_ID);
+    int Points = 8;
+    Entry->Height = GetCharMaxHeight(Font, Points);
+
+    float ValueWidth = 0, ValueHeight = 0;
+    switch(Entry->Type) {
+        case Debug_Type_color: {
+            Entry->ValueString[0] = '\0';
+            ValueWidth = 2.0f * Entry->Height;
+        } break;
+
+        case Debug_Type_bool: {
+            bool Value = *(bool*)Entry->Value;
+            sprintf_s(Entry->ValueString, "%s", Value ? "true" : "false");
+            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+        } break;
+
+        case Debug_Type_int: {
+            int Value = *(int*)Entry->Value;
+            sprintf_s(Entry->ValueString, "%d", Value);
+            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+        } break;
+
+        case Debug_Type_int32:{
+            int32 Value = *(int32*)Entry->Value;
+            sprintf_s(Entry->ValueString, "%d", Value);
+            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+        } break;
+
+        case Debug_Type_int64:{
+            int64 Value = *(int64*)Entry->Value;
+            sprintf_s(Entry->ValueString, "%I64d", Value);
+            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+        } break;
+
+        case Debug_Type_uint32:{
+            uint32 Value = *(uint32*)Entry->Value;
+            sprintf_s(Entry->ValueString, "%u", Value);
+            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+        } break;
+
+        case Debug_Type_uint64: {
+            uint64 Value = *(uint64*)Entry->Value;
+            sprintf_s(Entry->ValueString, "%I64u", Value);
+            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+        } break;
+
+        case Debug_Type_float: {
+            float Value = *(float*)Entry->Value;
+            sprintf_s(Entry->ValueString, "%.3f", Value);
+            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+        } break;
+
+        case Debug_Type_double: {
+            double Value = *(double*)Entry->Value;
+            sprintf_s(Entry->ValueString, "%.3f", Value);
+            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+        } break;
+        
+        default: Raise("Invalid debug type.");
+    }
+
+    float Width, Height;
+    GetTextWidthAndHeight(Entry->Name, Font, Points, &Width, &Height);
+    Entry->Width = Width;
+    GetTextWidthAndHeight(": ", Font, Points, &Width, &Height);
+    Entry->Width += Width;
+    Entry->Width += ValueWidth;
+}
+
+void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position) {
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
     char Buffer[128];
-    float X = Position.X;
-    float Y = Position.Y;
-    float Line = 20;
-    for (int i = 0; i < DebugInfo->nEntries; i++) {
-        debug_entry Entry = DebugInfo->Entries[i];
-        switch(Entry.Type) {
-            case Debug_Type_bool: {
-                bool Value = *(bool*)Entry.Value;
-                sprintf_s(Buffer, "%s: %s", Entry.Name, Value ? "true" : "false");
-                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
-            } break;
+    int Points = 8;
+    float LineHeight = GetCharMaxHeight(Font, Points);
 
-            case Debug_Type_int: {
-                int Value = *(int*)Entry.Value;
-                sprintf_s(Buffer, "%s: %d", Entry.Name, Value);
-                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
-            } break;
+    v2 TextCursor = Position + V2(0, LineHeight);
 
-            case Debug_Type_int32:{
-                int32 Value = *(int32*)Entry.Value;
-                sprintf_s(Buffer, "%s: %d", Entry.Name, Value);
-                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
-            } break;
+    sprintf_s(Buffer, "%s: ", Entry->Name);
+    PushText(Group, TextCursor, Font_Menlo_Regular_ID, Buffer, White, Points);
 
-            case Debug_Type_int64:{
-                int64 Value = *(int64*)Entry.Value;
-                sprintf_s(Buffer, "%s: %I64d", Entry.Name, Value);
-                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
-            } break;
+    float Width, Height;
+    GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
+    TextCursor.X += Width;
 
-            case Debug_Type_uint32:{
-                uint32 Value = *(uint32*)Entry.Value;
-                sprintf_s(Buffer, "%s: %u", Entry.Name, Value);
-                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
-            } break;
+    switch(Entry->Type) {
+        case Debug_Type_bool: {
+            bool Value = *(bool*)Entry->Value;
+            PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, Value? Cyan : Red, Points);
+        } break;
 
-            case Debug_Type_uint64: {
-                uint64 Value = *(uint64*)Entry.Value;
-                sprintf_s(Buffer, "%s: %I64u", Entry.Name, Value);
-                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
-            } break;
+        case Debug_Type_int:
+        case Debug_Type_int32:
+        case Debug_Type_int64:
+        case Debug_Type_uint32:
+        case Debug_Type_uint64:
+        case Debug_Type_float:
+        case Debug_Type_double:
+        {
+            PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
+        } break;
 
-            case Debug_Type_float: {
-                float Value = *(float*)Entry.Value;
-                sprintf_s(Buffer, "%s: %.3f", Entry.Name, Value);
-                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
-            } break;
-
-            case Debug_Type_double: {
-                double Value = *(double*)Entry.Value;
-                sprintf_s(Buffer, "%s: %.3f", Entry.Name, Value);
-                PushText(Group, V2(X, Y), Font_Menlo_Regular_ID, Buffer, White, 8);
-            } break;
-
-            default: Raise("Invalid debug type.");
+        case Debug_Type_color: {
+            rectangle Rect = { TextCursor.X, Position.Y, 2.0f * Entry->Height, Entry->Height };
+            color Color = *(color*)Entry->Value;
+            PushRect(Group, Rect, Color);
+            PushRectOutline(Group, Rect, Gray, 1.0f);
         }
-
-        Y += Line;
     }
 }
 

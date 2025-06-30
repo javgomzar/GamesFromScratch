@@ -867,12 +867,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         uint64 EndCycleCount = __rdtsc();
         uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
         float UsedMCyclesPerFrame = (float)CyclesElapsed / 1000000.0f;
-        DEBUG_VALUE(UsedMCyclesPerFrame, float);
 
         LARGE_INTEGER WorkCounter = GetWallClock();
         float WorkSecsElapsed = GetSecondsElapsed(LastCounter, WorkCounter);
         float UsedTime = 1000.0f * WorkSecsElapsed;
-        DEBUG_VALUE(UsedTime, float);
 
         float SecsElapsedPerFrame = WorkSecsElapsed;
         if (SecsElapsedPerFrame < TargetSecondsPerFrame) {
@@ -889,12 +887,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         float ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
         float BudgetTime = 1000.0f * ActualSecsElapsed; // (in ms)
-        DEBUG_VALUE(BudgetTime, float);
         float FPS = 1.0f / ActualSecsElapsed;
+        
         DEBUG_VALUE(FPS, float);
+        DEBUG_VALUE(BudgetTime, float);
+        DEBUG_VALUE(UsedTime, float);
+        DEBUG_VALUE(UsedMCyclesPerFrame, float);
 
         pGameState->dt = ActualSecsElapsed;
         pGameState->Time += ActualSecsElapsed;
+
+        float Time = pGameState->Time;
+        DEBUG_VALUE(Time, float);
 
         if (FirstFrame) {
             pSourceVoice->Start(0, 0);

@@ -750,14 +750,14 @@ game_font LoadFont(memory_arena* Arena, game_asset* Asset) {
     return Result;
 }
 
-float GetTextHeight(game_font* Font, int Points) {
+float GetCharMaxHeight(game_font* Font, int Points) {
     return 0.05f * (float)Points * Font->Characters[0].Height;
 }
 
 void GetTextWidthAndHeight(const char* Text, game_font* Font, int Points, float* Width, float* Height) {
     float Size = 0.05f * (float)Points;
 
-    *Height = GetTextHeight(Font, Points);
+    *Height = GetCharMaxHeight(Font, Points);
     *Width = 0;
     
     int Length = strlen(Text);

@@ -434,7 +434,7 @@ void UIText(
     if (!Element->FirstFrame) {
         game_font_id FontID = Font_Menlo_Regular_ID;
         game_font* Font = GetAsset(UI.Group->Assets, FontID);
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(Font, Points)), FontID, Text, Color, Points);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetCharMaxHeight(Font, Points)), FontID, Text, Color, Points);
     }
 
 }
@@ -459,13 +459,13 @@ void UIDebugBool(char* Text, bool Value, float Alpha = 1.0f) {
         game_font_id FontID = Font_Menlo_Regular_ID;
         game_font* Font = GetAsset(UI.Group->Assets, FontID);
         sprintf_s(Buffer, "%s: ", Text);
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(Font, Points)), FontID, Buffer, Color(White, Alpha), Points);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetCharMaxHeight(Font, Points)), FontID, Buffer, Color(White, Alpha), Points);
 
         color BoolColor = Value ? Cyan : Red;
         UISizeText(Buffer, Points, Sizes);
         PushText(
             UI.Group, 
-            V2(Rect.Left + Sizes[axis_x].Value, Rect.Top + GetTextHeight(Font, Points)), 
+            V2(Rect.Left + Sizes[axis_x].Value, Rect.Top + GetCharMaxHeight(Font, Points)), 
             FontID, 
             BoolText, 
             Color(BoolColor, Alpha), 
@@ -491,7 +491,7 @@ void UIDebugFloat(char* Text, float Value, color Color = White) {
         game_font* Font = GetAsset(UI.Group->Assets, FontID);
         char Buffer[128];
         sprintf_s(Buffer, Text, Value);
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(Font, Points)), FontID, Buffer, Color, Points);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetCharMaxHeight(Font, Points)), FontID, Buffer, Color, Points);
     }
 }
 
@@ -512,7 +512,7 @@ void UIDebugInt(char* Text, int Value, color Color = White) {
         game_font* Font = GetAsset(UI.Group->Assets, FontID);
         char Buffer[128];
         sprintf_s(Buffer, Text, Value);
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(Font, Points)), FontID, Buffer, Color, Points);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetCharMaxHeight(Font, Points)), FontID, Buffer, Color, Points);
     }
 }
 
@@ -533,7 +533,7 @@ void UIDebugInt(char* Text, int Value1, int Value2, color Color = White) {
         game_font* Font = GetAsset(UI.Group->Assets, FontID);
         char Buffer[128];
         sprintf_s(Buffer, Text, Value1, Value2);
-        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetTextHeight(Font, Points)), FontID, Buffer, Color, Points);
+        PushText(UI.Group, V2(Rect.Left, Rect.Top + GetCharMaxHeight(Font, Points)), FontID, Buffer, Color, Points);
     }
 }
 
@@ -562,7 +562,7 @@ bool UIDropdown(char* Text, bool& Control, color Color = White) {
     if (!Element->FirstFrame) {
         game_font_id FontID = Font_Menlo_Regular_ID;
         game_font* Font = GetAsset(UI.Group->Assets, FontID);
-        PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(Font, Points)), FontID, Text, Element->Color, Points);
+        PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetCharMaxHeight(Font, Points)), FontID, Text, Element->Color, Points);
     }
     return Control;
 }
@@ -582,7 +582,7 @@ bool UIButton(char* Text) {
         color Color = Element->Hovered ? Yellow : White;
         game_font_id FontID = Font_Menlo_Regular_ID;
         game_font* Font = GetAsset(UI.Group->Assets, FontID);
-        PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetTextHeight(Font, Points)), FontID, Text, Color, Points);
+        PushText(UI.Group, V2(Element->Rect.Left, Element->Rect.Top + GetCharMaxHeight(Font, Points)), FontID, Text, Color, Points);
     }
     return Element->Clicked;
 }
@@ -650,7 +650,7 @@ void UpdateUI(
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_entity_state* EntityState = &pGameState->Entities;
     float Time = pGameState->Time;
-    debug_info DebugInfo = Memory->DebugInfo;
+    debug_info* DebugInfo = &Memory->DebugInfo;
 
     BeginContext(Memory, Input);
 
@@ -700,13 +700,11 @@ void UpdateUI(
         }
         else DebugAlpha = 1.0;
 
-        if (Input->Keyboard.N.IsDown && !Input->Keyboard.N.WasDown) Group->DebugNormals = !Group->DebugNormals;
-        if (Input->Keyboard.B.IsDown && !Input->Keyboard.B.WasDown) Group->DebugBones = !Group->DebugBones;
-        if (Input->Keyboard.C.IsDown && !Input->Keyboard.C.WasDown) Group->DebugColliders = !Group->DebugColliders;
+        if (Input->Keyboard.N.JustPressed) Group->DebugNormals = !Group->DebugNormals;
+        if (Input->Keyboard.B.JustPressed) Group->DebugBones = !Group->DebugBones;
+        if (Input->Keyboard.C.JustPressed) Group->DebugColliders = !Group->DebugColliders;
         
         PushDebugGrid(Group, DebugAlpha);
-        
-        UIMenu DebugMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 10.0f, 10.0f, DebugAlpha);
 
         // Axes
         v2 XAxis = V2(cos(Group->Camera->Angle * Degrees), sin(Group->Camera->Angle * Degrees) * sin(Group->Camera->Pitch * Degrees));
@@ -721,9 +719,18 @@ void UpdateUI(
         // PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
         // PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
         // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
+        
+        ui_element* FirstDebugValue = 0;
+    {
+        UIMenu DebugMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 10.0f, 10.0f, DebugAlpha);
 
-        // Debug Framebuffer
-        PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
+        for (int i = 0; i < DebugInfo->nEntries; i++) {
+            debug_entry* Entry = &DebugInfo->Entries[i];
+            ComputeDebugEntrySize(Group->Assets, Entry);
+            ui_size Sizes[2] = { UISizePixels(Entry->Width), UISizePixels(Entry->Height)};
+            if (i == 0) FirstDebugValue = PushUIElement(Entry->Name, Sizes[0], Sizes[1], ui_alignment_min, ui_alignment_center);
+            else PushUIElement(Entry->Name, Sizes[0], Sizes[1], ui_alignment_min, ui_alignment_center);
+        }
 
         static bool DebugArenas = false;
         if (UIDropdown("Arenas", DebugArenas, Color(White, DebugAlpha))) {
@@ -743,6 +750,17 @@ void UpdateUI(
             UIText("Character Action:", ui_alignment_min, ui_alignment_center, Color(White, DebugAlpha));
             UIText(ActionNames[Character->Action.ID], ui_alignment_center, ui_alignment_center);
         }
+    }
+
+        ui_element* DebugValue = FirstDebugValue;
+        for (int i = 0; i < DebugInfo->nEntries; i++) {
+            debug_entry* Entry = &DebugInfo->Entries[i];
+            PushDebugEntry(Group, Entry, LeftTop(DebugValue->Rect));
+            DebugValue = DebugValue->Next;
+        }
+        
+        // Debug Framebuffer
+        PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
     }
 
     if (UI.Tree.Current) UI.Tree.Current->Next = 0;
