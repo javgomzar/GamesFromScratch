@@ -3,7 +3,6 @@
 
 #include "pch.h"
 #include "GameLibrary.h"
-#include "GameUI.h"
 
 //// This is an example of an exported variable
 //GAMELIBRARY_API int nGameLibrary=0;
@@ -72,6 +71,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         // Initialize entities
         Group->Camera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
+        Group->Camera->OnAir = true;
         character* Character = AddCharacter(Assets, EntityState, V3(0,0,0), 100);
         prop* Prop = AddProp(EntityState, Mesh_Sphere_ID, Shader_Pipeline_Sphere_ID, Red, V3(0,0,5), Quaternion(1.0), Scale(10,1,1));
         enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));

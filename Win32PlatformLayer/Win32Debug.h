@@ -1,7 +1,6 @@
 #if !defined(WIN32_DEBUG_H)
 
 #include <windows.h>
-#include <stdio.h>
 
 #include "GamePlatform.h"
 

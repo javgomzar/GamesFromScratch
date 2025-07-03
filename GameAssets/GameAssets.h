@@ -1612,15 +1612,15 @@ struct game_compute_shader {
 // | Game assets                                                                                                                                                      |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-const int ASSET_COUNT =
-game_text_id_count +
-game_sound_id_count +
-game_bitmap_id_count +
-game_heightmap_id_count +
-game_font_id_count +
-game_mesh_id_count +
-game_animation_id_count + 
-game_video_id_count;
+const uint32 ASSET_COUNT =
+    game_text_id_count +
+    game_sound_id_count +
+    game_bitmap_id_count +
+    game_heightmap_id_count +
+    game_font_id_count +
+    game_mesh_id_count +
+    game_animation_id_count + 
+    game_video_id_count;
 
 ArrayDefinition(ASSET_COUNT, game_asset)
 

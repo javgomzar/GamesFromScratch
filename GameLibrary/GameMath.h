@@ -7,7 +7,11 @@
 //#include "fftw3.h"
 //#pragma comment(lib, "libfftw3-3.lib")
 
-#include "../GameLibrary/GamePlatform.h"
+#include "GamePlatform.h"
+
+#ifndef INTROSPECT
+#define INTROSPECT
+#endif
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | Utility macros                                                                                                                         |

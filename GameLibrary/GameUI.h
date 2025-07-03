@@ -1,7 +1,6 @@
 #ifndef GAME_UI
 #define GAME_UI
 
-#include "GameLibrary.h"
 #include <vector>
 
 /*
@@ -76,7 +75,7 @@ ui_size UISizeSumChildren() {
 typedef uint32 ui_flags;
 
 enum {
-    DRAGGABLE_UI_FLAG = 1 << 2,
+    DRAGGABLE_UI_FLAG = 1,
 };
 
 const int UI_TEXT_LENGTH = 64;
@@ -724,12 +723,14 @@ void UpdateUI(
     {
         UIMenu DebugMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 10.0f, 10.0f, DebugAlpha);
 
+        char DebugValuesBuffer[128];
         for (int i = 0; i < DebugInfo->nEntries; i++) {
             debug_entry* Entry = &DebugInfo->Entries[i];
             ComputeDebugEntrySize(Group->Assets, Entry);
             ui_size Sizes[2] = { UISizePixels(Entry->Width), UISizePixels(Entry->Height)};
-            if (i == 0) FirstDebugValue = PushUIElement(Entry->Name, Sizes[0], Sizes[1], ui_alignment_min, ui_alignment_center);
-            else PushUIElement(Entry->Name, Sizes[0], Sizes[1], ui_alignment_min, ui_alignment_center);
+            sprintf_s(DebugValuesBuffer, "%s##", Entry->Name);
+            ui_element* Element = PushUIElement(DebugValuesBuffer, Sizes[0], Sizes[1], ui_alignment_min, ui_alignment_center);
+            if (i == 0) FirstDebugValue = Element;
         }
 
         static bool DebugArenas = false;
@@ -757,6 +758,7 @@ void UpdateUI(
             debug_entry* Entry = &DebugInfo->Entries[i];
             PushDebugEntry(Group, Entry, LeftTop(DebugValue->Rect));
             DebugValue = DebugValue->Next;
+            if (DebugValue == NULL) break;
         }
         
         // Debug Framebuffer

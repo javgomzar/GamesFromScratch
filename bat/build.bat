@@ -1,5 +1,8 @@
 @ECHO OFF
 
+@REM Metaprogramming preprocessor
+call bat\meta.bat
+
 @REM Environment variables
 call bat\env.bat
 

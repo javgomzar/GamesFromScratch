@@ -23,11 +23,17 @@ extern GAMELIBRARY_API int nGameLibrary;
 #define GAME_LIBRARY
 
 #pragma once
+
+#define INTROSPECT
+
 #include "GamePlatform.h"
 #include "GameMath.h"
 #include "GameInput.h"
 #include "GameAssets.h"
 #include "GameSound.h"
+#include "GameEntity.h"
+
+#include "GameDebug.h"
 
 #include "RenderGroup.h"
 
@@ -53,6 +59,8 @@ struct game_memory {
     void* PermanentStorage;
     bool IsInitialized;
 };
+
+#include "GameUI.h"
 
 #define GAME_UPDATE_INPUTS game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, game_input* Input
 #define GAME_UPDATE(name) GAMELIBRARY_API void name(GAME_UPDATE_INPUTS)

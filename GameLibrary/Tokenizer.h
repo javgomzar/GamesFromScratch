@@ -1,6 +1,8 @@
 #ifndef TOKENIZER_H
 #define TOKENIZER_H
 
+#include "GamePlatform.h"
+#include "GameMath.h"
 
 enum token_type {
     Token_Unknown,
@@ -205,7 +207,7 @@ token GetToken(tokenizer& Tokenizer) {
             Token.Type = Token_String;
             TokenStart = Tokenizer.At;
             AdvanceUntil(Tokenizer, '"');
-            Token.Length = Tokenizer.At - Token.Text;
+            Token.Length = Tokenizer.At - TokenStart;
             Advance(Tokenizer);
         } break;
 

@@ -296,7 +296,7 @@ DefineEntityList(MAX_PROPS, prop);
 // | Entity List                                                                                                                                  |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-const int MAX_ENTITIES = MAX_CAMERAS + MAX_CHARACTERS + MAX_ENEMIES + MAX_PROPS;
+const int32 MAX_ENTITIES = MAX_CAMERAS + MAX_CHARACTERS + MAX_ENEMIES + MAX_PROPS;
 DefineEntityList(MAX_ENTITIES, game_entity);
 
 struct game_entity_state {
@@ -306,6 +306,8 @@ struct game_entity_state {
     enemy_list Enemies;
     prop_list Props;
     weapon_list Weapons;
+    character* ControlledCharacter;
+    camera* ActiveCamera;
 };
 
 game_entity* AddEntity(
@@ -592,7 +594,10 @@ void Update(game_assets* Assets, game_state* State, game_input* Input, camera** 
         if (Cam->Entity != NULL) nCameras--;
         else continue;
 
-        if (Cam->OnAir) *pActiveCamera = Cam;
+        if (Cam->OnAir) {
+            *pActiveCamera = Cam;
+            EntityState->ActiveCamera = Cam;
+        }
 
     // Zoom
         if (Input->Mode == Keyboard) {
@@ -633,11 +638,9 @@ void Update(game_assets* Assets, game_state* State, game_input* Input, camera** 
         break;
     }
 
-    camera* ActiveCamera = *pActiveCamera;
-        
+    camera* ActiveCamera = EntityState->ActiveCamera;
+    
 // Characters ______________________________________________________________________________________________________________________________
-    character* ControlledCharacter;
-
     Index = 0;
     uint32 nCharacters = EntityState->Characters.Count;
     for (int i = 0; i < EntityState->Characters.Count; i++) {
@@ -694,10 +697,12 @@ void Update(game_assets* Assets, game_state* State, game_input* Input, camera** 
         Character->Entity->Collided = false;
         Character->Entity->Collider.Capsule.Segment = { V3(0,0.75f,0), V3(0,3.75f,0) };
 
-        ControlledCharacter = Character;
+        EntityState->ControlledCharacter = Character;
 
         Update(&Character->Animator);
     }
+
+    character* ControlledCharacter = EntityState->ControlledCharacter;
     
 // Autofollow player _______________________________________________________________________________________________________________________
     v3 Displacement = ControlledCharacter->Entity->Transform.Translation - ActiveCamera->Position;

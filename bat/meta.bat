@@ -1,8 +1,10 @@
-@ECHO ON
+@ECHO OFF
 
 @REM Environment variables
-call bat/env.bat
+call bat\env.bat
 
-%COMPILE% /Fo"bin\GameLibrary.obj" GameLibrary\Meta.cpp /link /OUT:"bin\Meta.exe"
+%COMPILE% /Fo"bin\Meta.obj" /Fd"bin\vc140.pdb" GameLibrary\Meta.cpp %DEBUG_FLAG% /link /OUT:"bin\Meta.exe" /DEBUG
 
-bin\Meta.exe
+cd bin
+Meta.exe
+cd ..

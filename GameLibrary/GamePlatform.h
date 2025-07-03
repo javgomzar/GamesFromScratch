@@ -1,7 +1,8 @@
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
 
-#include "GameDebug.h"
+#include "stdint.h"
+#include "string.h"
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -14,6 +15,13 @@ typedef int32_t int32;
 typedef int64_t int64;
 
 typedef size_t memory_index;
+
+inline void Assert(bool assertion, const char* Message = "") {
+    if (!assertion) {
+        int* i = 0;
+        int j = *i;
+    }
+}
 
 // Arrays
 #define ArrayStructDefinition(Capacity, Type) struct Type##_array { uint32 Size = Capacity; uint32 Count = 0; Type Content[Capacity]; }
@@ -170,8 +178,6 @@ typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
 
 #define PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)
 typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
-
-typedef void platform_opengl_render(struct render_group* Group);
 
 struct platform_api {
     platform_read_entire_file* ReadEntireFile;

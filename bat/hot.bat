@@ -1,6 +1,9 @@
 @REM Environment variables
 call bat\env.bat
 
+@REM Metaprogramming preprocessor
+call bat\meta.bat
+
 set /p N=<bin\PDBNumber.txt
 set /a N+=1
 echo %N% > bin\PDBNumber.txt
