@@ -10,6 +10,7 @@
 // | Entities                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
+INTROSPECT
 enum game_entity_type {
     Entity_Type_Character,
     Entity_Type_Enemy,
@@ -20,6 +21,7 @@ enum game_entity_type {
     game_entity_type_count
 };
 
+INTROSPECT
 struct game_entity {
     char Name[32];
     int ID;
@@ -144,6 +146,7 @@ DefineEntityList(MAX_WEAPONS, weapon);
 // | Character                                                                                                                                    |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
+INTROSPECT
 enum character_action_id {
     Character_Action_Idle_ID,
     Character_Action_Walk_ID,

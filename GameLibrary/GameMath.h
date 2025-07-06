@@ -1145,6 +1145,7 @@ inline bool operator!=(scale Scale1, scale Scale2) {
 	return Scale1.X != Scale2.X || Scale1.Y != Scale2.Y || Scale1.Z != Scale2.Z;
 }
 
+INTROSPECT
 struct transform {
 	v3 Translation;
 	scale Scale;

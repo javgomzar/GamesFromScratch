@@ -45,6 +45,7 @@ int main() {
         "uint16",
         "uint32",
         "uint64",
+        "memory_index",
         "float",
         "double",
         "v2",
@@ -53,7 +54,8 @@ int main() {
         "scale",
         "quaternion",
         "color",
-        "collider"
+        "collider",
+        "memory_arena"
     };
     int nPrimitiveTypes = ArrayCount(PrimitiveTypes);
 
@@ -68,6 +70,7 @@ int main() {
     std::vector<std::string> StructMembers = {};
 
     char* ProcessingFiles[] = {
+        "..\\GameLibrary\\GamePlatform.h",
         "..\\GameLibrary\\GameMath.h",
         "..\\GameAssets\\GameAssets.h",
         "..\\GameLibrary\\GameEntity.h",

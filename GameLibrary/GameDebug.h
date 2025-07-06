@@ -9,12 +9,11 @@
 
 struct debug_entry {
     char* Name;
-    debug_type Type;
-    void* Value;
-    bool Editable;
     debug_entry* Parent;
+    void* Value;
+    debug_type Type;
+    bool Editable;
     char ValueString[64];
-    float Width, Height;
 };
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
@@ -31,10 +30,10 @@ void ClearDebugContext(debug_info* DebugInfo) {
     DebugInfo->nEntries = 0;
 }
 
-void _AddDebugEntry(debug_info* DebugInfo, char* Name, debug_type Type, int Size, void* Value, bool Editable, debug_entry* Parent = 0) {
+debug_entry* _AddDebugEntry(debug_info* DebugInfo, char* Name, debug_type Type, int Size, void* Value, bool Editable, debug_entry* Parent = 0) {
     debug_entry* Entry = &DebugInfo->Entries[DebugInfo->nEntries++];
     *Entry = {
-        Name, Type, Value, Editable, Parent
+        Name, Parent, Value, Type, Editable
     };
     if (IsStructType(Type) && Value != NULL) {
         bool Found = false;
@@ -69,6 +68,8 @@ void _AddDebugEntry(debug_info* DebugInfo, char* Name, debug_type Type, int Size
             }
         }
     }
+
+    return Entry;
 }
 
 #define DEBUG_POINTER(Pointer, Type)     _AddDebugEntry(DebugInfo, #Pointer, Debug_Type_##Type, sizeof(Type), (void*)##Pointer,  false)
