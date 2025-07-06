@@ -626,7 +626,6 @@ void ComputeLayout() {
 void RenderUI() {
     game_font_id FontID = Font_Menlo_Regular_ID;
     game_font* Font = GetAsset(UI.Group->Assets, FontID);
-    float LineHeight = GetCharMaxHeight(Font, 8);
 
     ui_element* Element = UI.Tree.First;
     while (Element) {
@@ -636,7 +635,8 @@ void RenderUI() {
         }
         else {
             if (Element->Flags & RENDER_TEXT_UI_FLAG) {
-                PushText(UI.Group, Position + V2(0, LineHeight), FontID, Element->Name, Element->Color, Element->Points);
+                float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
+                PushText(UI.Group, Position + V2(0, OffsetHeight), FontID, Element->Name, Element->Color, Element->Points);
             }
 
             if (Element->Flags & RENDER_RECT_UI_FLAG) {
@@ -803,6 +803,7 @@ bool UIButton(char* Text) {
         ui_alignment_center, ui_alignment_center,
         RENDER_TEXT_UI_FLAG
     );
+    Element->Points = Points;
 
     bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
     if (Hovered) {
