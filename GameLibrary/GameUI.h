@@ -779,6 +779,7 @@ bool UIDropdown(char* Text, bool& Control) {
         ui_alignment_min, ui_alignment_min,
         RENDER_TEXT_UI_FLAG
     );
+    Element->Points = Points;
 
     bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
     if (Hovered) {
