@@ -854,6 +854,35 @@ inline matrix4 Matrix4(matrix3 Matrix) {
 	return Result;
 }
 
+matrix4 GetScreenProjectionMatrix(float Width, float Height) {
+	float a = 2.0f / Width;
+	float b = 2.0f / Height;
+
+	matrix4 Result = {
+		   a, 0.0f, 0.0f, 0.0f,
+		0.0f,   -b, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 0.0f,
+	   -1.0f, 1.0f, 0.0f, 1.0f,
+	};
+
+	return Result;
+}
+
+matrix4 GetWorldProjectionMatrix(float Width, float Height) {
+	float sX = 1.0;
+	float sY = Width / Height;
+	float sZ = 1.0;
+
+	matrix4 Result = {
+		  sX, 0.0f, 0.0f, 0.0f,
+		0.0f,   sY, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f,   sZ,
+		0.0f, 0.0f,-1.0f, 0.0f,
+	};
+	
+	return Result;
+}
+
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | Complex numbers                                                                                                                        |
 // +----------------------------------------------------------------------------------------------------------------------------------------+

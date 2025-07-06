@@ -804,6 +804,48 @@ void PushRect(
     );
 }
 
+void PushRect(
+    render_group* Group,
+    v3 LeftTop,
+    v3 WidthAxis,
+    v3 HeightAxis,
+    float Width,
+    float Height,
+    color Color,
+    float Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    WidthAxis = normalize(WidthAxis);
+    HeightAxis = normalize(HeightAxis);
+    
+    v3 RightTop = LeftTop + Width * WidthAxis;
+    v3 LeftBottom = LeftTop + Height * HeightAxis;
+    v3 RightBottom = RightTop + Height * HeightAxis;
+
+    float Vertices[12] = {
+        LeftTop.X,     LeftTop.Y,     LeftTop.Z,
+        RightTop.X,    RightTop.Y,    RightTop.Z,
+        LeftBottom.X,  LeftBottom.Y,  LeftBottom.Z,
+        RightBottom.X, RightBottom.Y, RightBottom.Z,
+    };
+
+    uint32 Elements[6] = { 0, 1, 2, 3, 2, 1 };
+
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
+    PushPrimitiveCommand(
+        Group,
+        Color,
+        render_primitive_triangle,
+        Shader,
+        vertex_layout_vec3_id,
+        4,
+        Vertices,
+        0,
+        Order,
+        6,
+        Elements
+    );
+}
+
 void PushRectOutline(
     render_group* Group,
     rectangle Rect,
@@ -1078,7 +1120,8 @@ void PushFillbar(
 ) {
     float FillPercentage = (float)Used / (float)Max;
     PushRect(Group, Rect, DarkGray);
-    Rect.Width *= FillPercentage;
+    rectangle SmallRect = Rect;
+    SmallRect.Width *= FillPercentage;
     PushRect(Group, Rect, Color);
 
     v2 Position = LeftTop(Rect);
@@ -1090,7 +1133,36 @@ void PushFillbar(
     char Buffer[16];
     sprintf_s(Buffer, "%d/%d", Used, Max);
     GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
-    PushText(Group, Position + V2(350.0f - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
+    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
+}
+
+void PushFillbar(
+    render_group* Group,
+    char* Description,
+    int Used,
+    int Max,
+    v3 LeftTop,
+    v3 WidthAxis,
+    v3 HeightAxis,
+    float Width,
+    float Height,
+    color Color = Red
+) {
+    float FillPercentage = (float)Used / (float)Max;
+    PushRect(Group, LeftTop, WidthAxis, HeightAxis, Width, Height, DarkGray);
+    float SmallWidth = FillPercentage * Width;
+    PushRect(Group, LeftTop, WidthAxis, HeightAxis, SmallWidth, Height, Red);
+
+    // v2 Position = LeftTop(Rect);
+    // PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 8);
+
+    // int Points = 8;
+    // float Width, Height;
+    // game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
+    // char Buffer[16];
+    // sprintf_s(Buffer, "%d/%d", Used, Max);
+    // GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
+    // PushText(Group, Position + V2(350.0f - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
 }
 
 void PushCubeOutline(

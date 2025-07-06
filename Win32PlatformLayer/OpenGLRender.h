@@ -352,16 +352,8 @@ void ScreenCapture(openGL* OpenGL, int Width, int Height) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 // Screen coordinates
-matrix4 GetScreenProjectionMatrix(float Width, float Height) {
-	float a = 2.0f / Width;
-	float b = 2.0f / Height;
-
-	matrix4 Result = {
-		   a, 0.0f, 0.0f, 0.0f,
-		0.0f,   -b, 0.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 0.0f,
-	   -1.0f, 1.0f, 0.0f, 1.0f,
-	};
+matrix4 OpenGLGetScreenProjectionMatrix(float Width, float Height) {
+	matrix4 Result = GetScreenProjectionMatrix(Width, Height);
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_ALWAYS);
@@ -369,17 +361,8 @@ matrix4 GetScreenProjectionMatrix(float Width, float Height) {
 }
 
 // 3D Coordinates
-matrix4 GetWorldProjectionMatrix(float Width, float Height) {
-	float sX = 1.0;
-	float sY = Width / Height;
-	float sZ = 1.0;
-
-	matrix4 Result = {
-		  sX, 0.0f, 0.0f, 0.0f,
-		0.0f,   sY, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,   sZ,
-		0.0f, 0.0f,-1.0f, 0.0f,
-	};
+matrix4 OpenGLGetWorldProjectionMatrix(float Width, float Height) {
+	matrix4 Result = GetWorldProjectionMatrix(Width, Height);
 
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
@@ -540,7 +523,7 @@ uint32 OpenGLLinkProgram(openGL* OpenGL, game_compute_shader* ComputeShader) {
 // Shader uniforms
 void SetGlobalUniforms(openGL* OpenGL, float Width, float Height, camera* Camera, float Time) {
 	global_uniforms GlobalUniforms;
-	GlobalUniforms.projection = GetWorldProjectionMatrix(Width, Height);
+	GlobalUniforms.projection = OpenGLGetWorldProjectionMatrix(Width, Height);
 	if (Camera) {
 		GlobalUniforms.view = GetViewMatrix(*Camera);
 	}
