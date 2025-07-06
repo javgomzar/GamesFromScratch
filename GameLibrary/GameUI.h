@@ -319,6 +319,7 @@ struct ui_element {
     rectangle Rect;
     float RelativePosition[2];
     float Margins[2];
+    int Points;
 
     uint32 ID;
     uint32 Index;
@@ -625,7 +626,6 @@ void ComputeLayout() {
 void RenderUI() {
     game_font_id FontID = Font_Menlo_Regular_ID;
     game_font* Font = GetAsset(UI.Group->Assets, FontID);
-    int Points = 8;
     float LineHeight = GetCharMaxHeight(Font, 8);
 
     ui_element* Element = UI.Tree.First;
@@ -636,7 +636,7 @@ void RenderUI() {
         }
         else {
             if (Element->Flags & RENDER_TEXT_UI_FLAG) {
-                PushText(UI.Group, Position + V2(0, LineHeight), FontID, Element->Name, Element->Color, Points);
+                PushText(UI.Group, Position + V2(0, LineHeight), FontID, Element->Name, Element->Color, Element->Points);
             }
 
             if (Element->Flags & RENDER_RECT_UI_FLAG) {
@@ -766,6 +766,7 @@ void UIText(
         RENDER_TEXT_UI_FLAG
     );
     Element->Color = Color;
+    Element->Points = Points;
 }
 
 bool UIDropdown(char* Text, bool& Control) {
