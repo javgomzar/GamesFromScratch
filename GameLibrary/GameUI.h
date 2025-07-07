@@ -648,32 +648,38 @@ void RenderUI() {
     }
 }
 
-void UIMenu(
-    char* Text,
-    ui_axis Stack = axis_y, 
-    ui_alignment AlignmentX = ui_alignment_center, 
-    ui_alignment AlignmentY = ui_alignment_center,
-    float MarginX = 10.0f,
-    float MarginY = 10.0f,
-    color C = Color(Black, 0.7f)
-) {
-    ui_axis NoStack = Stack == axis_x ? axis_y : axis_x;
-    ui_size Sizes[2];
-    Sizes[Stack] = UISizeSumChildren();
-    Sizes[NoStack] = UISizeMaxChildren();
-    ui_flags Flags = RENDER_RECT_UI_FLAG;
-    if (Stack == axis_x) {
-        Flags |= STACK_CHILDREN_X_UI_FLAG;
+struct UIMenu {
+    UIMenu(
+        char* Text,
+        ui_axis Stack = axis_y, 
+        ui_alignment AlignmentX = ui_alignment_center, 
+        ui_alignment AlignmentY = ui_alignment_center,
+        float MarginX = 10.0f,
+        float MarginY = 10.0f,
+        color C = Color(Black, 0.7f)
+    ) {
+        ui_axis NoStack = Stack == axis_x ? axis_y : axis_x;
+        ui_size Sizes[2];
+        Sizes[Stack] = UISizeSumChildren();
+        Sizes[NoStack] = UISizeMaxChildren();
+        ui_flags Flags = RENDER_RECT_UI_FLAG;
+        if (Stack == axis_x) {
+            Flags |= STACK_CHILDREN_X_UI_FLAG;
+        }
+        else {
+            Flags |= STACK_CHILDREN_Y_UI_FLAG;
+        }
+        ui_element* Element = PushUIElement(Text, Sizes[0], Sizes[1], AlignmentX, AlignmentY, Flags);
+        Element->Margins[axis_x] = MarginX;
+        Element->Margins[axis_y] = MarginY;
+        Element->Color = C;
+        PushParent(Element);
     }
-    else {
-        Flags |= STACK_CHILDREN_Y_UI_FLAG;
+
+    ~UIMenu() {
+        PopParent();
     }
-    ui_element* Element = PushUIElement(Text, Sizes[0], Sizes[1], AlignmentX, AlignmentY, Flags);
-    Element->Margins[axis_x] = MarginX;
-    Element->Margins[axis_y] = MarginY;
-    Element->Color = C;
-    PushParent(Element);
-}
+};
 
 void UIText(
     char* Text, 
@@ -743,9 +749,6 @@ void UIDebugValue(debug_entry* Entry) {
     ui_size Sizes[2];
     ComputeDebugEntrySize(Font, Entry, &Sizes[axis_x], &Sizes[axis_y]);
 
-    if (Entry->Parent != UI.Tree.Parent->DebugEntry) {
-
-    }
     ui_element* Element = PushUIElement(Entry->Name, Sizes[0], Sizes[1], ui_alignment_min, ui_alignment_center);
     Element->DebugEntry = Entry;
 }
@@ -772,7 +775,7 @@ void UpdateUI(
         ShowMainMenu = !ShowMainMenu;
     }
     if (ShowMainMenu) {
-        UIMenu("Main menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 30.0f);
+        UIMenu MainMenu = UIMenu("Main menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 30.0f);
 
         if (UIButton("Save game")) {
             // TODO: Save game
@@ -789,8 +792,6 @@ void UpdateUI(
         if (UIButton("Exit")) {
             pGameState->Exit = true;
         }
-
-        PopParent();
     }
 
     // Debug UI
@@ -831,7 +832,7 @@ void UpdateUI(
         // PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
         // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
         
-        UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 10.0f, 10.0f);
+        UIMenu DebugMenu = UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 10.0f, 10.0f);
 
         int i = 0;
         for (; i < DebugInfo->nEntries; i++) {
@@ -865,8 +866,6 @@ void UpdateUI(
                 UIDebugValue(Entry);
             }
         }
-
-        PopParent();
         
         // Debug Framebuffer
         PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
