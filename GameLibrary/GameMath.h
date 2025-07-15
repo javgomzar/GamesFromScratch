@@ -180,6 +180,30 @@ inline v2 operator*(v2 A, v2 B) {
 	return { A.X * B.X , A.Y * B.Y };
 }
 
+inline v2& operator+=(v2& A, v2 B) {
+	A.X += B.X;
+	A.Y += B.Y;
+	return A;
+}
+
+inline v2& operator/=(v2& A, float C) {
+	A.X /= C;
+	A.Y /= C;
+	return A;
+}
+
+inline v2& operator-=(v2& A, v2 B) {
+	A.X -= B.X;
+	A.Y -= B.Y;
+	return A;
+}
+
+inline v2& operator*=(v2& A, float C) {
+	A.X *= C;
+	A.Y *= C;
+	return A;
+}
+
 inline float dot(v2 A, v2 B) {
 	return A.X * B.X + A.Y * B.Y;
 }
@@ -545,6 +569,115 @@ inline float dot(v4 A, v4 B) {
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | Matrices                                                                                                                               |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
+
+union matrix2 {
+	struct {
+		float XX,XY,
+		      YX,YY;
+	};
+	float Array[4];
+	struct {
+		v2 Row[2];
+	};
+	struct {
+		v2 X, Y;;
+	};
+	struct {
+		float Element[2][2];
+	};
+};
+
+matrix2 Identity2 = {
+	1,0,
+	0,1
+};
+
+inline v2 col(matrix2 A, int i) {
+	switch(i) {
+		case 0: return V2(A.XX, A.YX); break;
+		case 1: return V2(A.XY, A.YY); break;
+		default: Assert(false); return V2(0,0);
+	};
+}
+
+inline matrix2 transpose(matrix2 A) {
+	matrix2 Result;
+	Result.X = col(A, 0);
+	Result.Y = col(A, 1);
+
+	return Result;
+}
+
+inline matrix2 operator*(float c, matrix2 A) {
+	matrix2 Result = A;
+	Result.X *= c;
+	Result.Y *= c;
+	return Result;
+}
+
+inline matrix2 operator-(matrix2 A) {
+	matrix2 Result = A;
+	Result.X = -Result.X;
+	Result.Y = -Result.Y;
+	return Result;
+}
+
+inline matrix2 operator*(matrix2 A, matrix2 B) {
+	matrix2 Result;
+	Result.XX = A.XX * B.XX + A.XY * B.YX;
+	Result.XY = A.XX * B.XY + A.XY * B.YY;
+	Result.YX = A.YX * B.XX + A.YY * B.YX;
+	Result.YY = A.YX * B.XY + A.YY * B.YY;
+	return Result;
+}
+
+inline v2 operator*(matrix2 A, v2 V) {
+	v2 Result;
+	Result.X = dot(A.X, V);
+	Result.Y = dot(A.Y, V);
+	return Result;
+}
+
+inline v2 operator*(v2 V, matrix2 A) {
+	v2 Result;
+	Result.X = dot(V, col(A, 0));
+	Result.Y = dot(V, col(A, 1));
+	return Result;
+}
+
+inline matrix2 operator/(matrix2 A, float c) {
+	matrix2 Result = A;
+	Result.X /= c;
+	Result.Y /= c;
+	return Result;
+}
+
+inline matrix2& operator*=(matrix2& A, float c) {
+	A.X *= c;
+	A.Y *= c;
+	return A;
+}
+
+inline bool operator==(matrix2 A, matrix2 B) {
+	for (int i = 0; i < 4; i++) {
+		if (fabs(A.Array[i] - B.Array[i]) > 0.001f) return false;
+	}
+	return true;
+}
+
+inline float det(matrix2 A) {
+	return A.XX * A.YY - A.XY * A.YX;
+}
+
+inline matrix2 inverse(matrix2 A) {
+	float D = det(A);
+	Assert(fabs(D) > 0.001f);
+	matrix2 Result = {
+		A.YY / D, -A.XY / D,
+		-A.YX / D, A.XX / D
+	};
+	return Result;
+}
 
 union matrix3 {
 	struct {
