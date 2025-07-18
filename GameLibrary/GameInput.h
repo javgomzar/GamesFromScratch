@@ -133,7 +133,7 @@ struct game_mouse_input {
     game_button_state RightClick;
     v2 Cursor;
     v2 LastCursor;
-    short Wheel;
+    int16 Wheel;
 };
 
 enum game_input_mode {

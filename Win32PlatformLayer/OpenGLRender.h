@@ -886,8 +886,8 @@ void InitializeRenderer(
 			uint32 EBO = OpenGL->MeshEBOs[i];
 
 			game_mesh* Mesh = &Assets->Mesh[i];
-			uint64 VerticesSize = GetMeshVerticesSize(Mesh->nVertices, Mesh->HasArmature);
-			uint64 FacesSize = GetMeshFacesSize(Mesh->nFaces);
+			uint64 VerticesSize = GetMeshVerticesSize(Mesh->nVertices, Mesh->Armature.nBones > 0);
+			uint64 FacesSize = 3 * sizeof(uint32) * Mesh->nFaces;
 
 			glNamedBufferStorage(VBO, VerticesSize, Mesh->Vertices, 0);
 			glNamedBufferStorage(EBO, FacesSize, Mesh->Faces, 0);

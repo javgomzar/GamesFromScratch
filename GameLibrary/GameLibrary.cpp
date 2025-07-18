@@ -98,6 +98,17 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     PushEntities(Group, &pGameState->Entities, Input, Time);
 
+    static float Points = 36.0f;
+
+    if (Input->Mouse.Wheel > 0) {
+        Points *= 1.5f;
+    }
+    else if (Input->Mouse.Wheel < 0) {
+        Points /= 1.5f;
+    }
+
+    PushText(Group, V2(200, 200), Font_Menlo_Regular_ID, "A\nB", White, Points);
+
     PushRenderTarget(Group, Target_World);
 
     static bool Screenshot = false;

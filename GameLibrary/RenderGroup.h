@@ -9,8 +9,8 @@
 // | Vertex buffer                                                                                                                                |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-const memory_index MAX_VERTEX_BUFFER_COUNT = Kilobytes(16);
-const memory_index MAX_ELEMENT_BUFFER_COUNT = Kilobytes(16);
+const memory_index MAX_VERTEX_BUFFER_COUNT = Kilobytes(8);
+const memory_index MAX_ELEMENT_BUFFER_COUNT = Kilobytes(8);
 
 struct vertex_buffer_entry {
     memory_index Offset;
@@ -971,6 +971,7 @@ void PushText(
     bool Wrapped = false,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
+
     uint32 nCharacters = 0;
     uint32 StringLength = strlen(String);
     for (int i = 0; i < StringLength; i++) {
@@ -979,10 +980,68 @@ void PushText(
     }
 
     game_font* Font = GetAsset(Group->Assets, FontID);
-
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_ID);
+    
     v2 Pen = Position;
-    float Size = 0.05f * (float)Points;
-    float LineJump = Font->LineJump * Size;
+    //PushPrimitiveCommand();
+    float Size = Points * (81 / 72.0f) / Font->UnitsPerEm;
+    float LineJump = 2 * Font->LineJump * Size;
+
+    for (int i = 0; i < StringLength; i++) {
+        char c = String[i];
+
+        if (
+            c == '\0' || 
+            (c == '#' && String[i+1] == '#')
+        ) break;
+
+        // Carriage returns
+        if (c == '\n') {
+            Pen.X = Position.X;
+            Pen.Y += LineJump;
+        }
+
+        // Space
+        else if (c == ' ') {
+            Pen.X += Font->SpaceAdvance * Size;
+        }
+
+        // Character
+        else if ('!' <= c && c <= '~') {
+            game_font_character* pCharacter = Font->Characters + (c - '!');
+            float HorizontalAdvance = pCharacter->Advance * Size;
+            if (Wrapped && (Pen.X + HorizontalAdvance > Group->Width)) {
+                Pen.X = Position.X;
+                Pen.Y += LineJump;
+            }
+
+            if (pCharacter->nContours > 0) {
+                uint16 LastEndPoint = 0;
+
+                for (int j = 0; j < pCharacter->nContours; j++) {
+                    uint16 EndPoint = pCharacter->EndPointsOfContours[j] + 1;
+                    uint16 nPoints = EndPoint - LastEndPoint;
+
+                    LastEndPoint = EndPoint;
+                    
+                    PushPrimitiveCommand(
+                        Group,
+                        Color,
+                        render_primitive_line_loop,
+                        Shader,
+                        vertex_layout_vec2_id,
+                        nPoints,
+                        (float*)pCharacter->Data + 2 * LastEndPoint + 1
+                    );
+                }
+            }
+
+            Pen.X += 10*pCharacter->Advance * Size;
+        }
+
+    }
+
+    /*
 
     float* Vertices = new float[4 * 5 * nCharacters];
     uint32* Elements = new uint32[6 * nCharacters];
@@ -1084,6 +1143,8 @@ void PushText(
 
     delete [] Elements;
     delete [] Vertices;
+
+    */
 }
 
 void PushFillbar(

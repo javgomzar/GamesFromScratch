@@ -14,9 +14,14 @@ layout(std140, binding = 0) uniform GlobalUniforms
 } GlobalUBO;
 
 layout(location = 0) in vec2 a_position;
+layout(location = 1) in vec2 a_texture;
+
 layout(location = 0) out vec3 v_position;
+layout(location = 1) out vec2 v_texture;
 
 void main() {
+	v_texture = a_texture;
+
 	vec2 result = (2 * vec2(a_position.x, -a_position.y) / GlobalUBO.resolution) + vec2(-1.0, 1.0);
 
 	v_position = vec3(result, 0);
