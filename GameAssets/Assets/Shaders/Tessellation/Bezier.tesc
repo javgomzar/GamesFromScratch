@@ -10,4 +10,3 @@ void main() {
         gl_TessLevelOuter[1] = 16;
     }
 }
-

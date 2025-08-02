@@ -18,4 +18,3 @@ void main() {
         gl_TessLevelInner[1] = 64;
     }
 }
-
