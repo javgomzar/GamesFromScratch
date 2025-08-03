@@ -6,7 +6,7 @@
         - `fractional_odd_spacing`: Odd number of subdivisions          .__._____.__.
         - `fractional_even_spacing`: Even number of subdivisions        ._.___.___._.
 */
-layout (quads, equal_spacing, ccw) in;
+layout (isolines, equal_spacing, ccw) in;
 
 #ifdef VULKAN
 layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
