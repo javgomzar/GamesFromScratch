@@ -74,12 +74,13 @@ enum game_font_id {
 };
 
 enum game_mesh_id {
-    Mesh_Enemy_ID,
+    Mesh_Horns_ID,
     Mesh_Sphere_ID,
     Mesh_Body_ID,
     Mesh_Shield_ID,
     Mesh_Sword_ID,
     Mesh_Selector_ID,
+    Mesh_Dog_ID,
     
     game_mesh_id_count
 };
@@ -3299,12 +3300,13 @@ void WriteAssetsFile(const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Sounds\\16agosto.wav", Sound_Test_ID);
 
     // Meshes
-    PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Horns.mdl", Mesh_Enemy_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Horns.mdl", Mesh_Horns_ID);
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Sphere.mdl", Mesh_Sphere_ID);
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Body.mdl", Mesh_Body_ID);
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Sword.mdl", Mesh_Sword_ID);
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Shield.mdl", Mesh_Shield_ID);
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Models\\Selector.mdl", Mesh_Selector_ID);
+    PushAsset(&Assets, "..\\GameAssets\\ASsets\\Models\\Dog.mdl", Mesh_Dog_ID);
 
     // Animation
     PushAsset(&Assets, "..\\GameAssets\\Assets\\Animations\\Idle.anim", Animation_Idle_ID);

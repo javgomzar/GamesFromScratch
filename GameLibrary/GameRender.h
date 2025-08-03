@@ -1671,7 +1671,7 @@ void PushEntities(render_group* Group, game_entity_state* State, game_input* Inp
     int nEntities = State->Entities.Count;
     while (nEntities > 0 && i < MAX_ENTITIES) {
         game_entity* Entity = &State->Entities.List[i++];
-        
+
         if (Entity->Active) nEntities--;
         else continue;
 
@@ -1690,18 +1690,43 @@ void PushEntities(render_group* Group, game_entity_state* State, game_input* Inp
                     &pCharacter->Armature,
                     Entity->Hovered
                 );
+
+                float HPBarWidth = 2.0f;
+                float HPBarHeight = 0.2f;
+                v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X + V3(0, 4.75f, 0);
+                PushFillbar(
+                    Group, 
+                    Entity->Name, 
+                    pCharacter->Stats.HP, pCharacter->Stats.MaxHP,
+                    Position, 
+                    Group->Camera->Basis.X, Group->Camera->Basis.Y,
+                    2.0f, 0.2f
+                );
             } break;
     
             case Entity_Type_Enemy: {
-                enemy* Enemy = &State->Enemies.List[Entity->Index];
+                enemy* pEnemy = &State->Enemies.List[Entity->Index];
                 PushMesh(
                     Group,
-                    Mesh_Enemy_ID,
+                    pEnemy->MeshID,
                     Entity->Transform,
                     Shader_Pipeline_Mesh_ID,
-                    Bitmap_Enemy_ID,
+                    pEnemy->TextureID,
                     White, 0,
                     Entity->Hovered
+                );
+
+                float HPBarWidth = 2.0f;
+                float HPBarHeight = 0.2f;
+                v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X;
+                Position.Y = 4.75f;
+                PushFillbar(
+                    Group, 
+                    Entity->Name, 
+                    pEnemy->Stats.HP, pEnemy->Stats.MaxHP,
+                    Position, 
+                    Group->Camera->Basis.X, Group->Camera->Basis.Y,
+                    2.0f, 0.2f
                 );
             } break;
 

@@ -753,7 +753,84 @@ void UIDebugValue(debug_entry* Entry) {
     Element->DebugEntry = Entry;
 }
 
-void UpdateUI(
+enum settings_section {
+    Graphics_Settings,
+    Audio_Settings,
+    Game_Settings,
+};
+
+void SettingsUI() {
+    UIMenu SettingsMenu = UIMenu("Settings menu", axis_y, ui_alignment_center, ui_alignment_center);
+    static settings_section ActiveSection = Graphics_Settings;
+    
+    {
+        UIMenu SectionTabs = UIMenu("Section tabs", axis_x, ui_alignment_center, ui_alignment_center);
+        
+        if (UIButton("Graphics")) {
+            ActiveSection = Graphics_Settings;
+        }
+        
+        if (UIButton("Audio")) {
+            ActiveSection = Audio_Settings;
+        }
+
+        if (UIButton("Game")) {
+            ActiveSection = Game_Settings;
+        }
+    }
+
+    switch(ActiveSection) {
+        case Graphics_Settings: {
+            UIText("GRAPHICS");
+        } break;
+
+        case Audio_Settings: {
+            UIText("AUDIO");
+        } break;
+
+        case Game_Settings: {
+            UIText("GAME");
+        } break;
+
+        default: Raise("Invalid settings section.");
+    }
+}
+
+void UpdateMainMenuUI(
+    game_memory* Memory,
+    game_input* Input
+) {
+    game_state* pGameState = (game_state*)Memory->PermanentStorage;
+
+    UIText("Untitled game", ui_alignment_center, ui_alignment_center, White, 72);
+    static bool Settings = false;
+    
+    {
+        UIMenu MainMenu = UIMenu("Main menu", axis_x, ui_alignment_center, ui_alignment_max, 50.0f, 20.0f);
+
+        if (UIButton("New game")) {
+
+        }
+        
+        if (UIButton("Continue")) {
+            Transition(pGameState, Game_State_Playing);
+        }
+        
+        if (UIButton("Settings")) {
+            Settings = !Settings;
+        }
+        
+        if (UIButton("Exit")) {
+            pGameState->Exit = true;
+        }
+    }
+
+    if (Settings) {
+        SettingsUI();
+    }
+}
+
+void UpdatePlayingUI(
     game_memory* Memory,
     game_input* Input
 ) {
@@ -761,20 +838,19 @@ void UpdateUI(
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
     game_entity_state* EntityState = &pGameState->Entities;
     float Time = pGameState->Time;
+    game_combat* Combat = &pGameState->Combat;
     debug_info* DebugInfo = &Memory->DebugInfo;
 
-    BeginContext(Memory, Input);
-
-    UI.Tree.First = 0;
-
     // Main menu
-    static bool ShowMainMenu = false;
-    bool MainMenuInput = Input->Mode == Keyboard && Input->Keyboard.Escape.JustPressed ||
-                         Input->Mode == Controller && Input->Controller.Start.JustPressed;
-    if (MainMenuInput) {
-        ShowMainMenu = !ShowMainMenu;
+    static bool ShowMenu = false;
+    bool MenuInput = Input->Mode == Keyboard && Input->Keyboard.Escape.JustPressed ||
+                     Input->Mode == Controller && Input->Controller.Start.JustPressed;
+    if (MenuInput) {
+        ShowMenu = !ShowMenu;
     }
-    if (ShowMainMenu) {
+    static bool Settings = false;
+
+    if (ShowMenu) {
         UIMenu MainMenu = UIMenu("Main menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 30.0f);
 
         if (UIButton("Save game")) {
@@ -786,12 +862,103 @@ void UpdateUI(
         }
 
         if (UIButton("Settings")) {
-            // TODO: Change settings
+            Settings = !Settings;
+        }
+        
+        if (UIButton("Main menu")) {
+            Transition(pGameState, Game_State_Main_Menu);
+            ShowMenu = false;
         }
 
         if (UIButton("Exit")) {
             pGameState->Exit = true;
         }
+    }
+
+    if (Settings) {
+        SettingsUI();
+
+        if (Input->Keyboard.Escape.JustPressed) {
+            Settings = false;
+        }
+    }
+
+    // Combat menu
+    if (pGameState->Combat.Active) {
+        static int Selected = 0;
+        v3 SelectorPosition = Combat->Turn.Attacker->Entity->Transform.Translation;
+        transform T = Transform(V3(SelectorPosition.X,5.5f+0.1f*sinf(5.0f*Time),SelectorPosition.Z), Quaternion(Time, V3(0,1,0)));
+        PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
+
+        // Combat menu
+        { 
+            UIMenu CombatMenu = UIMenu("Combat menu", axis_y, ui_alignment_min, ui_alignment_max, 80.0f, 20.0f);
+            if (UIButton("Attack")) {
+
+            }
+            UIButton("Magic");
+            UIButton("Items");
+            UIButton("Flee");
+        }
+        
+        // Next turns menu
+        {
+            UIMenu NextTurnsMenu = UIMenu("Next turns menu", axis_y, ui_alignment_max, ui_alignment_center, 20.0f, 20.0f);
+    
+            const int TurnsShown = 8;
+            char TurnBuffer[64];
+            v2 Position = V2(UI.Group->Width - 300.0f, 250.0f);
+            for (int i = 0; i < TurnsShown; i++) {
+                turn Turn = Combat->NextTurns[i];
+                sprintf_s(TurnBuffer, "Turn %d: %s", Turn.Index, Turn.Attacker->Entity->Name);
+                PushText(UI.Group, Position, Font_Menlo_Regular_ID, TurnBuffer, White, 10.0f);
+                Position.Y += 20.0f;
+            }
+        }
+
+        // YOU DIED
+        bool Alive = false;
+        for (int i = 0; i < Combat->Combatants.Count; i++) {
+            combatant* Combatant = &Combat->Combatants.Content[i];
+            if (Combatant->Type == Combatant_Type_Player && IsAlive(Combatant)) {
+                Alive = true;
+                break;
+            }
+        }
+
+        if (!Alive) {
+            UIText("YOU DIED", ui_alignment_center, ui_alignment_center, Red, 36);
+        }
+    }
+}
+
+void UpdateUI(
+    game_memory* Memory,
+    game_input* Input
+) {
+    render_group* Group = &Memory->RenderGroup;
+    game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    game_entity_state* EntityState = &pGameState->Entities;
+    float Time = pGameState->Time;
+    game_combat* Combat = &pGameState->Combat;
+    debug_info* DebugInfo = &Memory->DebugInfo;
+
+    BeginContext(Memory, Input);
+
+    UI.Tree.First = 0;
+
+    switch(pGameState->Type) {
+        case Game_State_Main_Menu: {
+            UpdateMainMenuUI(Memory, Input);
+        } break;
+
+        case Game_State_Playing: {
+            UpdatePlayingUI(Memory, Input);
+        } break;
+
+        case Game_State_Credits: {
+
+        } break;
     }
 
     // Debug UI
@@ -845,6 +1012,7 @@ void UpdateUI(
             DEBUG_VALUE(Memory->StringsArena, memory_arena);
             DEBUG_VALUE(Memory->TransientArena, memory_arena);
             DEBUG_VALUE(Memory->GeneralPurposeArena, memory_arena);
+            DEBUG_VALUE(Memory->TurnsArena, memory_arena);
 
             memory_arena* VertexArena = Group->VertexBuffer.VertexArena;
             DEBUG_VALUE(VertexArena[vertex_layout_vec2_id], memory_arena);
