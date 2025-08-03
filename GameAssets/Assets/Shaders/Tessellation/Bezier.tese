@@ -34,4 +34,3 @@ void main() {
     float u = 1.0 - t; // t backwards
     gl_Position = u * u * p0 + 2.0 * t * u * p1 + t * t * p2;
 }
-

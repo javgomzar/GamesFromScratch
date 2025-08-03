@@ -78,4 +78,3 @@ void main() {
 
     gl_Position = GlobalUBO.projection * GlobalUBO.view * ModelUBO.model * p;
 }
-
