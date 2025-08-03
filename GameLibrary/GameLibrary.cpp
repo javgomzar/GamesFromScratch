@@ -90,9 +90,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
-    // PushEntities(Group, &pGameState->Entities, Input, Time);
+    PushEntities(Group, &pGameState->Entities, Input, Time);
 
-    TestRendering(Group, Input);
+    // TestRendering(Group, Input);
 
     UpdateUI(Memory, Input);
 

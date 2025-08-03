@@ -802,7 +802,7 @@ void UpdateMainMenuUI(
 ) {
     game_state* pGameState = (game_state*)Memory->PermanentStorage;
 
-    UIText("Untitled game", ui_alignment_center, ui_alignment_center, White, 72);
+    UIText("Untitled game", ui_alignment_center, ui_alignment_center, White, 100);
     static bool Settings = false;
     
     {
