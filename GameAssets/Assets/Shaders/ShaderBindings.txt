@@ -8,6 +8,7 @@ Bindings:
     - (5) OutlineUBO: Outline uniforms: width, JFAlevel
     - (6) KernelUBO: Kernel matrix.
     - (7) AntialiasingUBO: Antialiasing uniforms.
+    - (8) TextUBO: DPI and points for text size.
 
 # VULKAN
 ______ Set = 0:
@@ -33,3 +34,4 @@ ______ Set = 2:
     Bindings:
     - (0) ColorSampler.
     - (1) AttachmentSampler (Depth & Stencil).
+    - (2) TextUBO: DPI and points for text size.

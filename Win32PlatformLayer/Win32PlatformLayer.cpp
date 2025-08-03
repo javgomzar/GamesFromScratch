@@ -659,14 +659,21 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     LARGE_INTEGER LastCounter = GetWallClock();
     uint64 LastCycleCount = __rdtsc();
 
+    HDC DeviceContext = GetDC(Window);
+
     // Initilize render API
     InitializeRenderer(
         &RendererContext,
         &Memory.RenderGroup.VertexBuffer,
         &Memory.Assets,
-        Window, 
+        Window,
+        DeviceContext,
         hInstance
     );
+
+    RendererContext.DPI = GetDeviceCaps(DeviceContext, LOGPIXELSX);
+
+    ReleaseDC(Window, DeviceContext);
 
     Running = true;
     bool FirstFrame = true;

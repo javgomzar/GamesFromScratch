@@ -33,11 +33,16 @@
 // | Constants                                                                                                                              |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-const double Pi = 3.1415926535897932;
-const double Tau = 6.2831853071795865;
-const double twroot = 1.0594630943592952646;
+const float Pi = 3.1415926535897932f;
+const float Tau = 6.2831853071795865f;
 
-const double Degrees = Pi / 180.0f;
+// Twelfth root of 2, important for music
+const float twroot = 1.0594630943592952646f;
+
+const float Degrees = Pi / 180.0f;
+
+// Smallest meaningful difference between floats, important for avoiding floating point rounding errors.
+const float Epsilon = 0.00001f;
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | Arithmetic                                                                                                                             |
@@ -180,6 +185,10 @@ inline v2 operator*(v2 A, v2 B) {
 	return { A.X * B.X , A.Y * B.Y };
 }
 
+inline bool operator==(v2 A, v2 B) {
+	return fabsf(A.X - B.X) < Epsilon && fabsf(A.Y - B.Y) < Epsilon;
+}
+
 inline v2& operator+=(v2& A, v2 B) {
 	A.X += B.X;
 	A.Y += B.Y;
@@ -208,17 +217,30 @@ inline float dot(v2 A, v2 B) {
 	return A.X * B.X + A.Y * B.Y;
 }
 
+inline float cross(v2 A, v2 B) {
+	return A.X * B.Y - A.Y * B.X;
+}
+
+inline bool AreParallel(v2 A, v2 B) {
+	float C = cross(A, B);
+	return fabsf(C) < Epsilon;
+}
+
 inline float modulus(v2 A) {
 	return sqrt(dot(A, A));
 }
 
 inline v2 normalize(v2 V) {
-	return (modulus(V) < 0.00001f) ? V : (1 / modulus(V)) * V;
+	return (modulus(V) < Epsilon) ? V2(0,0) : (1 / modulus(V)) * V;
 }
 
 inline v2 project(v2 A, v2 B) {
 	v2 N = normalize(B);
 	return (A * N) * N;
+}
+
+inline float distance(v2 A, v2 B) {
+	return modulus(A - B);
 }
  
 inline v2 perp(v2 A) {
@@ -374,11 +396,11 @@ inline v3& operator*=(v3& A, float C) {
 }
 
 inline bool operator==(v3 A, v3 B) {
-	return A.X == B.X && A.Y == B.Y && A.Z == B.Z;
+	return fabsf(A.X - B.X) < Epsilon && fabsf(A.Y - B.Y) < Epsilon && fabsf(A.Z - B.Z) < Epsilon;
 }
 
 inline bool operator!=(v3 A, v3 B) {
-	return A.X != B.X || A.Y != B.Y || A.Z != B.Z;
+	return fabsf(A.X - B.X) >= Epsilon || fabsf(A.Y - B.Y) >= Epsilon || fabsf(A.Z - B.Z) >= Epsilon;
 }
 
 inline float dot(v3 A, v3 B) {
@@ -402,7 +424,7 @@ inline float distance(v3 A, v3 B) {
 }
 
 inline v3 normalize(v3 V) {
-	return (modulus(V) < 0.00001) ? V : (1 / modulus(V)) * V;
+	return (modulus(V) < Epsilon) ? V3(0,0,0) : (1 / modulus(V)) * V;
 }
 
 inline v3 project(v3 A, v3 B) {
@@ -660,7 +682,7 @@ inline matrix2& operator*=(matrix2& A, float c) {
 
 inline bool operator==(matrix2 A, matrix2 B) {
 	for (int i = 0; i < 4; i++) {
-		if (fabs(A.Array[i] - B.Array[i]) > 0.001f) return false;
+		if (fabsf(A.Array[i] - B.Array[i]) > Epsilon) return false;
 	}
 	return true;
 }
@@ -671,7 +693,7 @@ inline float det(matrix2 A) {
 
 inline matrix2 inverse(matrix2 A) {
 	float D = det(A);
-	Assert(fabs(D) > 0.001f);
+	Assert(fabsf(D) > Epsilon);
 	matrix2 Result = {
 		A.YY / D, -A.XY / D,
 		-A.YX / D, A.XX / D
@@ -784,7 +806,7 @@ inline matrix3& operator*=(matrix3& A, float c) {
 
 inline bool operator==(matrix3 A, matrix3 B) {
 	for (int i = 0; i < 9; i++) {
-		if (fabs(A.Array[i] - B.Array[i]) > 0.001f) return false;
+		if (fabsf(A.Array[i] - B.Array[i]) >= Epsilon) return false;
 	}
 	return true;
 }
@@ -808,7 +830,7 @@ inline matrix3 adjugate(matrix3 A) {
 }
 
 inline matrix3 inverse(matrix3 A) {
-	Assert(fabs(det(A)) > 0.01);
+	Assert(fabsf(det(A)) > Epsilon);
 	return adjugate(A) / det(A);
 }
 
@@ -863,9 +885,9 @@ inline basis Complete(v3 X, v3 Y) {
 
 inline basis Complete(v3 X) {
 	v3 Y = cross(X, V3(1,0,0));
-	if (modulus(Y) < 0.01) {
+	if (modulus(Y) < Epsilon) {
 		Y = cross(X, V3(0,1,0));
-		if (modulus(Y) < 0.01) {
+		if (modulus(Y) < Epsilon) {
 			Y = cross(X, V3(0,0,1));
 		}
 	}
@@ -965,7 +987,7 @@ inline v4 operator*(matrix4 A, v4 V) {
 
 inline bool operator==(matrix4 A, matrix4 B) {
 	for (int i = 0; i < 16; i++) {
-		if (fabs(A.Element[i] - B.Element[i]) > 0.001f) return false;
+		if (fabsf(A.Element[i] - B.Element[i]) > Epsilon) return false;
 	}
 	return true;
 }
@@ -1366,76 +1388,60 @@ inline matrix4 Matrix(transform T) {
 // | Geometry                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-struct segment {
-	v3 Head;
-	v3 Tail;
+struct line2 {
+	v2 Point;
+	v2 Direction;
 };
 
-inline segment operator*(transform T, segment S) {
-	return { T * S.Head, T * S.Tail };
+line2 Line(v2 Point, v2 Direction) {
+	return { Point, normalize(Direction) };
 }
 
-/*
-	Returns the transform that moves the segment [origin, (0,L,0)] to the input segment, L being the length of this segment.
-*/
-inline transform SegmentTransform(segment Segment) {
-	transform Result;
-	Result.Translation = Segment.Head;
-	v3 V = Segment.Tail - Segment.Head;
-	float L = modulus(V);
-	float Angle = acosf(V.Y / L);
-	Result.Rotation = Quaternion(Angle, V3(-V.Z,0,V.X));
-	return Result;
+line2 LineFromPoints(v2 A, v2 B) {
+	return { A, normalize(B - A) };
 }
 
-inline v3 ClosestPoint(segment Segment, v3 Point) {
-	v3 V = Segment.Tail - Segment.Head;
-
-	float t = dot(V, Point);
-	if (t <= 0.0f) return Segment.Head;
-	float Denom = dot(V, V);
-	if (t >= Denom) return Segment.Tail;
-	else return Segment.Head + (t / Denom) * V;
+bool AreParallel(line2 L1, line2 L2) {
+	return AreParallel(L1.Direction, L2.Direction);
 }
 
-inline float SqDistance(segment Segment, v3 Point) {
-	v3 ab = Segment.Tail - Segment.Head;
-	v3 ac = Point - Segment.Head;
-	v3 bc = Point - Segment.Tail;
-	float e = dot(ac, ab);
-	// Handle cases where c projects outside ab
-	if (e <= 0.0f) return dot(ac, ac);
-	float f = dot(ab, ab);
-	if (e >= f) return dot(bc, bc);
-	// Handle cases where c projects onto ab
-	return dot(ac, ac) - e * e / f;
+struct line3 {
+	v3 Point;
+	v3 Direction;
+};
+
+line3 Line(v3 Point, v3 Direction) {
+	return { Point, normalize(Direction) };
 }
 
-inline float SqDistance(segment Segment1, segment Segment2) {
-	v3 d1 = Segment1.Tail - Segment1.Head;
-	v3 d2 = Segment2.Tail - Segment2.Head;
-	v3 r = Segment1.Head - Segment2.Head;
-	float a = dot(d1, d1);
-	float b = dot(d1, d2);
-	float c = dot(d2, d2);
-	float d = dot(d1, r);
-	float e = dot(d2, r);
-	float denom = a * c - b * b;
-	float s = 0.0f;
-	if (denom != 0.0f) s = Clamp((b * e - d * c) / denom, 0.0f, 1.0f);
-	float t = (b * s + e) / c;
-	if (t < 0.0f) {
-		t = 0.0f;
-		s = Clamp(-d / a, 0.0f, 1.0f);
+line3 LineFromPoints(v3 A, v3 B) {
+	return { A, normalize(B - A) };
+}
+
+inline v3 ClosestPoint(line3 Line, v3 Point) {
+	float t = dot(Line.Direction, Point - Line.Point);
+	return Point + t * Line.Direction;
+}
+
+inline float Distance(line3 Line, v3 Point) {
+	return dot(Line.Direction, Point - Line.Point);
+}
+
+inline float Distance(line3 Line1, line3 Line2) {
+	float a = dot(Line1.Direction, Line2.Direction);
+	if (a == 0.0) { // Lines are parallel
+		return Distance(Line1, Line2.Point);
 	}
-	else if (t > 1.0f) {
-		t = 1.0f;
-		s = Clamp((b - d) / a, 0.0f, 1.0f);
+	else {
+		v3 v = Line1.Point - Line2.Point;
+		float b1 = dot(Line1.Direction, v);
+		float b2 = dot(Line2.Direction, v);
+		float s = (a * b2 - b1) / a;
+		float t = (b2 - a * b1) / a;
+		v3 Point1 = Line1.Point + s * Line1.Point;
+		v3 Point2 = Line2.Point + t * Line2.Direction;
+		return modulus(Point1 - Point2);
 	}
-
-	v3 p1 = Segment1.Head + s * d1;
-	v3 p2 = Segment2.Head + t * d2;
-	return dot(p1 - p2, p1 - p2);
 }
 
 struct ray {
@@ -1467,7 +1473,190 @@ inline ray MouseRay(float Width, float Height, v3 CameraPosition, basis CameraBa
 	return Result;
 }
 
-inline float SqDistance(segment Segment, ray Ray) {
+struct segment2 {
+	v2 Head;
+	v2 Tail;
+};
+
+inline bool AreParallel(segment2 S1, segment2 S2) {
+	return AreParallel(S1.Tail - S1.Head, S2.Tail - S2.Head);
+}
+
+inline bool IsInside(segment2 S, v2 P) {
+	v2 u = S.Head - P;
+	v2 v = S.Tail - P;
+
+	return AreParallel(u,v) && dot(u,v) <= 0;
+}
+
+/*
+	Intersects two 2D segments. If result is 0, there is no intersection. If result is 1, the intersection is exactly one point,
+	which will be given in the `IntersectionPoint` parameter. If result is 2, the two segments overlap over another segment, which will
+	be given in the `IntersectionSegment` parameter.
+*/
+inline int Intersect(segment2 S1, segment2 S2, v2* IntersectionPoint, segment2* IntersectionSegment) {
+	if (AreParallel(S1, S2)) {
+		v2 u = S1.Tail - S1.Head;
+		v2 v = S2.Head - S1.Head;
+		if (AreParallel(u, v)) {
+			float R0 = dot(u, u);                 // Coordinates for S1.Tail
+			float R1 = dot(u, v);                 // Coordinates for S2.Head
+			float R2 = dot(u, S2.Tail - S1.Head); // Coordinates for S2.Tail
+
+			// Swap if segments point in opposite directions
+			bool Swap = R2 - R1 < 0;
+			if (Swap) {
+				float Temp = R1;
+				R1 = R2;
+				R2 = Temp;
+				v2 Temp2 = S2.Head;
+				S2.Head = S2.Tail;
+				S2.Tail = Temp2;
+			}
+
+			if (fabsf(R1) < Epsilon) {
+				if (R2 < Epsilon) {
+					*IntersectionPoint = S2.Head;
+					return 1;
+				}
+				else {
+					*IntersectionSegment = S2;
+					if (R2 > R0) {
+						IntersectionSegment->Tail = S1.Tail;
+					}
+					return 2;
+				}
+			}
+			else if (R1 < 0) {
+				if (fabsf(R2) < Epsilon) {
+					*IntersectionPoint = S2.Tail;
+					return 1;
+				}
+				else if (R2 < 0) {
+					return 0;
+				}
+				else {
+					*IntersectionSegment = S1;
+					if (R2 < R0) {
+						IntersectionSegment->Tail = S2.Tail;
+					}
+					return 2;
+				}
+			}
+			else {
+				if (fabsf(R1 - R0) < Epsilon) {
+					*IntersectionPoint = S2.Head;
+					return 1;
+				}
+				else if (R1 > R0) {
+					return 0;
+				}
+				else {
+					IntersectionSegment->Head = S2.Head;
+					IntersectionSegment->Tail = S1.Tail;
+					return 2;
+				}
+			}
+		}
+		return 0;
+	}
+	else {
+		v2 A = S1.Head;
+		v2 B = S1.Tail;
+		v2 C = S2.Head;
+		v2 D = S2.Tail;
+
+		float Orient1 = cross(B - A, C - A);
+		float Orient2 = cross(B - A, D - A);
+		float Orient3 = cross(D - C, A - C);
+		float Orient4 = cross(D - C, B - C);
+
+		if (Orient1 * Orient2 > 0 || Orient3 * Orient4 > 0) {
+			return 0;
+		}
+		else {
+			float t = - Orient1 / cross(B - A, D - C);
+			Assert(t >= 0 && t <= 1);
+			*IntersectionPoint = C + t * (D - C);
+			return 1;
+		}
+	}
+	return 0;
+}
+
+struct segment3 {
+	v3 Head;
+	v3 Tail;
+};
+
+inline segment3 operator*(transform T, segment3 S) {
+	return { T * S.Head, T * S.Tail };
+}
+
+/*
+	Returns the transform that moves the segment [origin, (0,L,0)] to the input segment, L being the length of this segment.
+*/
+inline transform SegmentTransform(segment3 Segment) {
+	transform Result;
+	Result.Translation = Segment.Head;
+	v3 V = Segment.Tail - Segment.Head;
+	float L = modulus(V);
+	float Angle = acosf(V.Y / L);
+	Result.Rotation = Quaternion(Angle, V3(-V.Z,0,V.X));
+	return Result;
+}
+
+inline v3 ClosestPoint(segment3 Segment, v3 Point) {
+	v3 V = Segment.Tail - Segment.Head;
+
+	float t = dot(V, Point);
+	if (t <= 0.0f) return Segment.Head;
+	float Denom = dot(V, V);
+	if (t >= Denom) return Segment.Tail;
+	else return Segment.Head + (t / Denom) * V;
+}
+
+inline float SqDistance(segment3 Segment, v3 Point) {
+	v3 ab = Segment.Tail - Segment.Head;
+	v3 ac = Point - Segment.Head;
+	v3 bc = Point - Segment.Tail;
+	float e = dot(ac, ab);
+	// Handle cases where c projects outside ab
+	if (e <= 0.0f) return dot(ac, ac);
+	float f = dot(ab, ab);
+	if (e >= f) return dot(bc, bc);
+	// Handle cases where c projects onto ab
+	return dot(ac, ac) - e * e / f;
+}
+
+inline float SqDistance(segment3 Segment1, segment3 Segment2) {
+	v3 d1 = Segment1.Tail - Segment1.Head;
+	v3 d2 = Segment2.Tail - Segment2.Head;
+	v3 r = Segment1.Head - Segment2.Head;
+	float a = dot(d1, d1);
+	float b = dot(d1, d2);
+	float c = dot(d2, d2);
+	float d = dot(d1, r);
+	float e = dot(d2, r);
+	float denom = a * c - b * b;
+	float s = 0.0f;
+	if (denom != 0.0f) s = Clamp((b * e - d * c) / denom, 0.0f, 1.0f);
+	float t = (b * s + e) / c;
+	if (t < 0.0f) {
+		t = 0.0f;
+		s = Clamp(-d / a, 0.0f, 1.0f);
+	}
+	else if (t > 1.0f) {
+		t = 1.0f;
+		s = Clamp((b - d) / a, 0.0f, 1.0f);
+	}
+
+	v3 p1 = Segment1.Head + s * d1;
+	v3 p2 = Segment2.Head + t * d2;
+	return dot(p1 - p2, p1 - p2);
+}
+
+inline float SqDistance(segment3 Segment, ray Ray) {
 	v3 SegmentDirection = Segment.Tail - Segment.Head;
 	v3 V = Ray.Point - Segment.Head;
 
@@ -1504,46 +1693,237 @@ inline float SqDistance(segment Segment, ray Ray) {
 	return modulus(D);
 }
 
-struct line {
-	v3 Point;
-	v3 Direction;
+struct triangle2 {
+	v2 Points[3];
+
+	v2 operator[](int i) const {
+		Assert(i >= 0 && i <= 2);
+		return Points[i];
+	}
+
+	v2& operator[](int i) {
+		Assert(i >= 0 && i <= 2);
+		return Points[i];
+	}
 };
 
-line Line(v3 Point, v3 Direction) {
-	return { Point, normalize(Direction) };
+inline float Area(triangle2 T) {
+	return 0.5f * cross(T[1] - T[0], T[2] - T[0]);
 }
 
-line LineFromPoints(v3 A, v3 B) {
-	return { A, normalize(B - A) };
-}
+inline bool IsInside(triangle2 T, v2 P) {
+	triangle2 U = { P, T[1], T[2] };
+	triangle2 V = { P, T[2], T[0] };
+	triangle2 W = { P, T[0], T[1] };
 
-inline v3 ClosestPoint(line Line, v3 Point) {
-	float t = dot(Line.Direction, Point - Line.Point);
-	return Point + t * Line.Direction;
-}
+	float Area0 = Area(U);
+	float Area1 = Area(V);
+	float Area2 = Area(W);
 
-inline float Distance(line Line, v3 Point) {
-	return dot(Line.Direction, Point - Line.Point);
-}
-
-inline float Distance(line Line1, line Line2) {
-	float a = dot(Line1.Direction, Line2.Direction);
-	if (a == 0.0) { // Lines are parallel
-		return Distance(Line1, Line2.Point);
+	if (Area0 * Area1 > 0 && Area1 * Area2 > 0) {
+		return true;
 	}
-	else {
-		v3 v = Line1.Point - Line2.Point;
-		float b1 = dot(Line1.Direction, v);
-		float b2 = dot(Line2.Direction, v);
-		float s = (a * b2 - b1) / a;
-		float t = (b2 - a * b1) / a;
-		v3 Point1 = Line1.Point + s * Line1.Point;
-		v3 Point2 = Line2.Point + t * Line2.Direction;
-		return modulus(Point1 - Point2);
-	}
+
+	segment2 S1 = { T[0], T[1] };
+	segment2 S2 = { T[1], T[2] };
+	segment2 S3 = { T[2], T[0] };
+
+	return IsInside(S1, P) || IsInside(S2, P) || IsInside(S3, P);
 }
 
-struct triangle {
+/* 
+	Computes the symmetric difference of two triangles, asuming the first vertex of both triangles is the same. 
+	The resulting number of triangles will be returned as an integer, and this number of triangles
+	will be stored in the `ResultTriangles` array parameter.
+*/
+inline int SymmetricDifference(triangle2 T1, triangle2 T2, triangle2 ResultTriangles[4]) {
+	Assert(T1[0].X == T2[0].X && T1[0].Y == T2[0].Y);
+
+	bool T1_1IsInside = IsInside(T2, T1[1]);
+	bool T1_2IsInside = IsInside(T2, T1[2]);
+	bool T2_1IsInside = IsInside(T1, T2[1]);
+	bool T2_2IsInside = IsInside(T1, T2[2]);
+
+	if (T1_1IsInside && T1_2IsInside && T2_1IsInside && T2_2IsInside) {
+		// Triangles are equal
+		return 0;
+	}
+
+	// Flip triangles so that both have positive orientation
+	float A1 = Area(T1);
+	if (A1 < 0) {
+		v2 Point = T1[1];
+		T1[1] = T1[2];
+		T1[2] = Point;
+	}
+
+	float A2 = Area(T2);
+	if (A2 < 0) {
+		v2 Point = T2[1];
+		T2[1] = T2[2];
+		T2[2] = Point;
+	}
+
+	// Flat triangles (not real triangles)
+	if (A1 == 0 && A2 == 0) {
+		return 0;
+	}
+	else if (A1 == 0) {
+		ResultTriangles[0] = T2;
+		return 1;
+	}
+	else if (A2 == 0) {
+		ResultTriangles[0] = T1;
+		return 1;
+	}
+
+	segment2 S1_0 = { T1[0], T1[1] };
+	segment2 S1_1 = { T1[1], T1[2] };
+	segment2 S1_2 = { T1[2], T1[0] };
+
+	segment2 S1[3] = { S1_0, S1_1, S1_2 };
+
+	segment2 S2_0 = { T2[0], T2[1] };
+	segment2 S2_1 = { T2[1], T2[2] };
+	segment2 S2_2 = { T2[2], T2[0] };
+
+	segment2 S2[3] = { S2_0, S2_1, S2_2 };
+
+	// All vertices outside each triangle
+	if (!T1_1IsInside && !T1_2IsInside && !T2_1IsInside && !T2_2IsInside) {
+		segment2 IntersectionSegment[6] = {};
+		v2 IntersectionPoint[6] = {};
+
+		int nIntersections[6] = {};
+		int TotalIntersections = 0;
+
+		for (int i = 0; i < 3; i++) {
+			nIntersections[i] = Intersect(S1_1, S2[i], &IntersectionPoint[i], &IntersectionSegment[i]);
+			TotalIntersections += nIntersections[i];
+
+			nIntersections[i+3] = Intersect(S2_1, S1[i], &IntersectionPoint[i+3], &IntersectionSegment[i+3]);
+			TotalIntersections += nIntersections[i+3];
+		}
+
+		if (TotalIntersections == 0) {
+			ResultTriangles[0] = T1;
+			ResultTriangles[1] = T2;
+			return 2;
+		}
+		else if (nIntersections[0] + nIntersections[1] + nIntersections[2] == 0) {
+			v2 LeftPoint = IntersectionPoint[3];
+			v2 RightPoint = IntersectionPoint[5];
+
+			ResultTriangles[0] = { T1[0], T2[1], LeftPoint };
+			ResultTriangles[1] = { T1[0], T2[2], RightPoint };
+			ResultTriangles[2] = { LeftPoint, T1[1], RightPoint };
+			ResultTriangles[3] = { RightPoint, T1[1], T1[2] };
+			return 4;
+		}
+		else if (nIntersections[3] + nIntersections[4] + nIntersections[5] == 0) {
+			v2 LeftPoint = IntersectionPoint[0];
+			v2 RightPoint = IntersectionPoint[2];
+
+			ResultTriangles[0] = { T1[0], T1[1], LeftPoint };
+			ResultTriangles[1] = { T1[0], T1[2], RightPoint };
+			ResultTriangles[2] = { LeftPoint, T2[1], RightPoint };
+			ResultTriangles[3] = { RightPoint, T2[1], T2[2] };
+			return 4;
+		}
+		else {
+			Assert(nIntersections[1] == 1 && nIntersections[4] == 1);
+			if (nIntersections[0] == 0) {
+				ResultTriangles[0] = { T2[0], T2[1], IntersectionPoint[3] };
+				ResultTriangles[1] = { IntersectionPoint[3], T1[1], IntersectionPoint[4] };
+				ResultTriangles[2] = { IntersectionPoint[4], T2[2], IntersectionPoint[2] };
+				ResultTriangles[3] = { T2[0], IntersectionPoint[2], T1[2] };
+			}
+			else {
+				ResultTriangles[0] = { T1[0], T1[1], IntersectionPoint[0] };
+				ResultTriangles[1] = { IntersectionPoint[0], T2[1], IntersectionPoint[1] };
+				ResultTriangles[2] = { IntersectionPoint[1], T1[2], IntersectionPoint[5] };
+				ResultTriangles[3] = { T1[0], IntersectionPoint[5], T2[2] };
+			}
+			return 4;
+		}
+	}
+
+	// Shared vertices
+	if (T1[1] == T2[2] || T1[2] == T2[1]) {
+		ResultTriangles[0] = T1;
+		ResultTriangles[1] = T2;
+		return 2;
+	}
+
+	if (T1[1] == T2[1] || T1[2] == T2[2]) {
+		int EqualVertex, OtherVertex;
+		if (T1[1] == T2[1]) { EqualVertex = 1; OtherVertex = 2; }
+		else                { EqualVertex = 2; OtherVertex = 1; }
+
+		if (T1_2IsInside || T2_2IsInside) {
+			triangle2 Inside;
+			triangle2 Outside;
+			
+			if (T1_2IsInside) { Inside = T1; Outside = T2; }
+			else              { Inside = T2; Outside = T1; }
+
+			// Other vertex is in edge
+			segment2 S1 = { Outside[0], Outside[OtherVertex] };
+			if (IsInside(S1, Inside[OtherVertex])) {
+				ResultTriangles[0] = { Inside[OtherVertex], Outside[EqualVertex], Outside[OtherVertex] };
+				return 1;
+			}
+			
+			segment2 S2 = { Outside[EqualVertex], Outside[OtherVertex] };
+			if (IsInside(S2, Inside[OtherVertex])) {
+				ResultTriangles[0] = { Outside[0], Inside[OtherVertex], Outside[OtherVertex] };
+				return 1;
+			}
+
+			ResultTriangles[0] = { Outside[0], Inside[OtherVertex], Outside[OtherVertex] };
+			ResultTriangles[1] = { Inside[OtherVertex], Outside[EqualVertex], Outside[OtherVertex] };
+			return 2;
+		}
+		else {
+
+		}
+	}
+	else if (T1[2] == T2[2]) {
+		if (T1_1IsInside) {
+
+		}
+		else if (T2_1IsInside) {
+
+		}
+	}
+
+	// One triangle strictly inside another
+	if (T1_1IsInside && T1_2IsInside || T2_1IsInside && T2_2IsInside) {
+		triangle2 Inside;
+		triangle2 Outside;
+		
+		if (T1_1IsInside) {	Inside  = T1; Outside = T2; }
+		else              { Outside = T1; Inside  = T2; }
+
+		ResultTriangles[0] = { T1[0], Outside[1], Inside[1] };
+		ResultTriangles[1] = { T1[0], Inside[2], Outside[2] };
+
+		triangle2 TestTriangle = { Inside[2], Inside[1], Outside[2] };
+		if (Area(TestTriangle) > 0) {
+			ResultTriangles[2] = TestTriangle;
+			ResultTriangles[3] = { Inside[1], Outside[1], Outside[2] };
+		}
+		else {
+			ResultTriangles[2] = { Inside[2], Inside[1], Outside[1] };
+			ResultTriangles[3] = { Inside[2], Outside[1], Outside[2] };
+		}
+		return 4;
+	}
+
+	return 0;
+}
+
+struct triangle3 {
 	v3 Points[3];
 };
 
@@ -1631,7 +2011,7 @@ struct collider {
 			float Radius;
 		} Sphere;
 		struct {
-			segment Segment;
+			segment3 Segment;
 			float Distance;
 		} Capsule;
 	};
@@ -1712,14 +2092,14 @@ inline collider operator*(transform T, collider C) {
 bool Collide(collider Collider, v3 Position) {
     switch(Collider.Type) {
         case Rect_Collider: {
-            return fabs(Position.X - Collider.Offset.X) <= Collider.Rect.HalfWidth &&
-                   fabs(Position.Y - Collider.Offset.Y) <= Collider.Rect.HalfHeight;
+            return fabsf(Position.X - Collider.Offset.X) <= Collider.Rect.HalfWidth &&
+                   fabsf(Position.Y - Collider.Offset.Y) <= Collider.Rect.HalfHeight;
         } break;
 
         case Cube_Collider: {
-            return fabs(Position.X - Collider.Offset.X) <= Collider.Cube.HalfWidth &&
-                   fabs(Position.Y - Collider.Offset.Y) <= Collider.Cube.HalfHeight &&
-                   fabs(Position.Z - Collider.Offset.Z) <= Collider.Cube.HalfDepth;
+            return fabsf(Position.X - Collider.Offset.X) <= Collider.Cube.HalfWidth &&
+                   fabsf(Position.Y - Collider.Offset.Y) <= Collider.Cube.HalfHeight &&
+                   fabsf(Position.Z - Collider.Offset.Z) <= Collider.Cube.HalfDepth;
         } break;
 
         case Sphere_Collider: {

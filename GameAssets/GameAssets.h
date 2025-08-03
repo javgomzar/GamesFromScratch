@@ -1,3 +1,5 @@
+#include <vector>
+
 // Freetype
 #include "ft2build.h"
 #include FT_FREETYPE_H
@@ -505,14 +507,14 @@ void SetPixel(game_bitmap* BMP, int X, int Y, uint32 Value) {
 struct game_heightmap {
     game_bitmap Bitmap;
     uint32 nVertices;
-    double* Vertices;
+    float* Vertices;
 };
 
 const int HEIGHTMAP_RESOLUTION = 20;
 
 uint64 ComputeNeededMemoryForHeightmap(read_file_result File) {
     uint64 BitmapSize = PreprocessBitmap((bitmap_header*)File.Content);
-    uint64 VerticesSize = HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 4 * 5 * sizeof(double);
+    uint64 VerticesSize = HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 4 * 5 * sizeof(float);
     return BitmapSize + VerticesSize;
 }
 
@@ -520,37 +522,37 @@ game_heightmap LoadHeightmap(memory_arena* Arena, game_asset* Asset) {
     game_heightmap Result = {};
 
     Result.Bitmap = LoadBitmapFile(Arena, Asset->File);
-    double Width = 10.0;
-    double Height = 10.0;
+    float Width = 10.0f;
+    float Height = 10.0f;
 
     Result.nVertices = HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 4;
-    Result.Vertices = (double*)PushSize(Arena, Result.nVertices * 5 * sizeof(double));
-    double* Pointer = Result.Vertices;
+    Result.Vertices = (float*)PushSize(Arena, Result.nVertices * 5 * sizeof(float));
+    float* Pointer = Result.Vertices;
     for (int i = 0; i < HEIGHTMAP_RESOLUTION; i++) {
         for (int j = 0; j < HEIGHTMAP_RESOLUTION; j++) {
-            *Pointer++ = Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
-            *Pointer++ = 0.0; // v.y
-            *Pointer++ = Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
-            *Pointer++ = (double)i / (double)HEIGHTMAP_RESOLUTION; // vt.x
-            *Pointer++ = (double)j / (double)HEIGHTMAP_RESOLUTION; // vt.y
+            *Pointer++ = Width * (float)i / (float)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = 0.0f; // v.y
+            *Pointer++ = Height * (float)j / (float)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = (float)i / (float)HEIGHTMAP_RESOLUTION; // vt.x
+            *Pointer++ = (float)j / (float)HEIGHTMAP_RESOLUTION; // vt.y
 
-            *Pointer++ = Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
-            *Pointer++ = 0.0; // v.y
-            *Pointer++ = Height * (double)j / (double)HEIGHTMAP_RESOLUTION; // v.z
-            *Pointer++ = (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.x
-            *Pointer++ = (double)j / (double)HEIGHTMAP_RESOLUTION; // vt.y
+            *Pointer++ = Width * (float)(i + 1) / (float)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = 0.0f; // v.y
+            *Pointer++ = Height * (float)j / (float)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = (float)(i + 1) / (float)HEIGHTMAP_RESOLUTION; // vt.x
+            *Pointer++ = (float)j / (float)HEIGHTMAP_RESOLUTION; // vt.y
 
-            *Pointer++ = Width * (double)i / (double)HEIGHTMAP_RESOLUTION; // v.x
-            *Pointer++ = 0.0; // v.y
-            *Pointer++ = Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
-            *Pointer++ = (double)i / (double)HEIGHTMAP_RESOLUTION; // vt.x
-            *Pointer++ = (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.y
+            *Pointer++ = Width * (float)i / (float)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = 0.0f; // v.y
+            *Pointer++ = Height * (float)(j + 1) / (float)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = (float)i / (float)HEIGHTMAP_RESOLUTION; // vt.x
+            *Pointer++ = (float)(j + 1) / (float)HEIGHTMAP_RESOLUTION; // vt.y
 
-            *Pointer++ = Width * (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // v.x
-            *Pointer++ = 0.0; // v.y
-            *Pointer++ = Height * (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // v.z
-            *Pointer++ = (double)(i + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.x
-            *Pointer++ = (double)(j + 1) / (double)HEIGHTMAP_RESOLUTION; // vt.y
+            *Pointer++ = Width * (float)(i + 1) / (float)HEIGHTMAP_RESOLUTION; // v.x
+            *Pointer++ = 0.0f; // v.y
+            *Pointer++ = Height * (float)(j + 1) / (float)HEIGHTMAP_RESOLUTION; // v.z
+            *Pointer++ = (float)(i + 1) / (float)HEIGHTMAP_RESOLUTION; // vt.x
+            *Pointer++ = (float)(j + 1) / (float)HEIGHTMAP_RESOLUTION; // vt.y
         }
     }
 
@@ -565,6 +567,13 @@ game_heightmap LoadHeightmap(memory_arena* Arena, game_asset* Asset) {
 const uint32 FONT_CHARACTERS_COUNT = '~' - ' ';
 const int LOAD_POINTS = 20;
 
+// Quantities in font design units
+typedef int16 FWORD;
+typedef uint16 UFWORD;
+
+// Decimal type for fonts
+typedef int16 F2DOT14;
+
 struct composite_glyph_record {
     matrix2 Transform;
     float X, Y;
@@ -573,11 +582,10 @@ struct composite_glyph_record {
 
 struct game_font_character {
     char Letter;
-    int32 Advance;
-    int32 Width;
-    int32 Height;
-    int Left;
-    int Top;
+    uint16 Width;
+    uint16 Height;
+    int16 Left;
+    int16 Top;
     int AtlasX;
     int AtlasY;
     int16 nContours;
@@ -594,11 +602,6 @@ struct game_font {
     game_font_character Characters[FONT_CHARACTERS_COUNT];
     //game_bitmap Bitmap;
 };
-
-// Quantities in font design units
-typedef int16 FWORD;
-typedef uint16 UFWORD;
-typedef int16 F2DOT14;
 
 float GetF2DOT14(F2DOT14 Number) {
     return Number / 16384.0f;
@@ -933,6 +936,50 @@ struct ttf_long_hor_metric {
     FWORD LeftSideBearing;
 };
 
+struct Version16Dot16 {
+    uint16 Major;
+    uint16 Minor;
+};
+
+struct ttf_vhead_table {
+    Version16Dot16 Version;
+    FWORD VertTypoAscender;
+    FWORD VertTypoDescender;
+    FWORD VertTypoLineGap;
+    UFWORD AdvanceHeightMax;
+    FWORD MinBottom;
+    FWORD YMaxExtent;
+    int16 CaretSlopeRise;
+    int16 CaretSlopeRun;
+    int16 CaretOffset;
+    int16 Reserved[4];
+    int16 MetricDataFormat;
+    uint16 NumOfLongVerMetrics;
+};
+
+ttf_vhead_table ParseVerticalHeadTable(uint8* Memory) {
+    ttf_vhead_table Result = *(ttf_vhead_table*)Memory;
+    Result.Version.Major = BigEndian(Result.Version.Major);
+    Result.Version.Minor = BigEndian(Result.Version.Minor);
+    Result.VertTypoAscender = BigEndian(Result.VertTypoAscender);
+    Result.VertTypoDescender = BigEndian(Result.VertTypoDescender);
+    Result.VertTypoLineGap = BigEndian(Result.VertTypoLineGap);
+    Result.AdvanceHeightMax = BigEndian(Result.AdvanceHeightMax);
+    Result.MinBottom = BigEndian(Result.MinBottom);
+    Result.YMaxExtent = BigEndian(Result.YMaxExtent);
+    Result.CaretSlopeRise = BigEndian(Result.CaretSlopeRise);
+    Result.CaretSlopeRun = BigEndian(Result.CaretSlopeRun);
+    Result.CaretOffset = BigEndian(Result.CaretOffset);
+    Result.MetricDataFormat = BigEndian(Result.MetricDataFormat);
+    Result.NumOfLongVerMetrics = BigEndian(Result.NumOfLongVerMetrics);
+    return Result;
+}
+
+struct ttf_vertical_metric {
+    UFWORD AdvanceHeight;
+    FWORD TopSideBearing;
+};
+
 enum ttf_simple_glyph_flag {
     ON_CURVE_POINT                       = 1 << 0,
     X_SHORT_VECTOR                       = 1 << 1,
@@ -960,19 +1007,22 @@ enum ttf_composite_glyph_flag {
 
 struct preprocessed_font {
     uint64 Size;
-    FWORD* LeftSideBearings;
     uint32 GlyphOffsets[FONT_CHARACTERS_COUNT];
     uint32 LocaOffset;
     uint32 GlyfOffset;
     uint16 nChildren[FONT_CHARACTERS_COUNT];
     uint16 GlyphIDs[FONT_CHARACTERS_COUNT];
     uint16 nPoints[FONT_CHARACTERS_COUNT];
+    std::vector<uint16> EndPtsOfContours[FONT_CHARACTERS_COUNT];
     uint16 nGlyphs;
     uint16 UnitsPerEm;
     uint16 LineJump;
     int16 IndexToLocFormat;
     UFWORD SpaceAdvance;
-    UFWORD Advances[FONT_CHARACTERS_COUNT];
+    UFWORD AdvanceWidths[FONT_CHARACTERS_COUNT];
+    FWORD LeftSideBearings[FONT_CHARACTERS_COUNT];
+    UFWORD AdvanceHeights[FONT_CHARACTERS_COUNT];
+    FWORD TopSideBearings[FONT_CHARACTERS_COUNT];
 };
 
 // void LoadFTBMP(FT_Bitmap* SourceBMP, game_bitmap* DestBMP) {
@@ -1089,8 +1139,9 @@ preprocessed_font PreprocessFont(read_file_result File) {
     Assert(Header.SFNTVersion == 0x00010000);
 
     ttf_long_hor_metric* HorizontalMetricsTable = 0;
+    ttf_vertical_metric* VerticalMetricsTable = 0;
     int16 IndexToLocFormat = 0;
-    uint16 nHMetrics = 0;
+    uint16 nHMetrics = 0, nVMetrics = 0;
 
     // CMap pointers
     uint16* StartCodes = 0;
@@ -1131,6 +1182,13 @@ preprocessed_font PreprocessFont(read_file_result File) {
         }
         else if (TagEquals(TableRecord.Tag, "hmtx")) {
             HorizontalMetricsTable = (ttf_long_hor_metric*)(FilePointer + TableRecord.Offset);
+        }
+        else if (TagEquals(TableRecord.Tag, "vhea")) {
+            ttf_vhead_table VHeadTable = ParseVerticalHeadTable(FilePointer + TableRecord.Offset);
+            nVMetrics = VHeadTable.NumOfLongVerMetrics;
+        }
+        else if (TagEquals(TableRecord.Tag, "vmtx")) {
+            VerticalMetricsTable = (ttf_vertical_metric*)(FilePointer + TableRecord.Offset);
         }
         else if (TagEquals(TableRecord.Tag, "OS/2")) {
             ttf_os2_table OS2 = ParseTTFOS2Table(FilePointer + TableRecord.Offset);
@@ -1174,8 +1232,6 @@ preprocessed_font PreprocessFont(read_file_result File) {
         Pointer += sizeof(ttf_table_record);
     }
 
-    Result.LeftSideBearings = (FWORD*)(HorizontalMetricsTable + nHMetrics);
-
     if (
         nGlyphs == 0 || 
         Result.LocaOffset == 0 ||
@@ -1184,6 +1240,12 @@ preprocessed_font PreprocessFont(read_file_result File) {
         HorizontalMetricsTable == 0
     ) {
         Raise("Some font table wasn't found");
+    }
+
+    FWORD* OtherLeftSideBearings = (FWORD*)(HorizontalMetricsTable + nHMetrics);
+    FWORD* OtherTopSideBearings = 0;
+    if (nVMetrics != 0 && VerticalMetricsTable != 0) {
+        OtherTopSideBearings = (FWORD*)(VerticalMetricsTable + nVMetrics);
     }
 
     // Locations of glyphs in file
@@ -1297,6 +1359,7 @@ preprocessed_font PreprocessFont(read_file_result File) {
             // Simple glyphs
             if (GlyphHeader.NumberOfContours > 0) {
                 TotalContours += GlyphHeader.NumberOfContours;
+                Result.EndPtsOfContours[c - '!'].resize(GlyphHeader.NumberOfContours);
 
                 uint16* EndPtsOfContours = (uint16*)(GlyphData);
                 uint16 CharacterDataPoints = BigEndian(EndPtsOfContours[GlyphHeader.NumberOfContours - 1]) + 1;
@@ -1307,29 +1370,39 @@ preprocessed_font PreprocessFont(read_file_result File) {
 
                 int j = 0;
                 uint16 CharacterPoints = 0;
-                for (int i = 0; i < GlyphHeader.NumberOfContours; i++) {
+                for (int k = 0; k < GlyphHeader.NumberOfContours; k++) {
                     uint16 nPoints = 0;
                     ttf_simple_glyph_flag Flag = (ttf_simple_glyph_flag)*pFlag;
                     Assert(Flag & ON_CURVE_POINT);
                     NextTTFGlyphFlag(pFlag);
                     j++;
                     bool PreviousOnCurve = true;
-                    int EndPoint = BigEndian(EndPtsOfContours[i]);
+                    int EndPoint = BigEndian(EndPtsOfContours[k]);
                     for (; j <= EndPoint; j++) {
                         Flag = (ttf_simple_glyph_flag)*pFlag;
                         bool OnCurve = Flag & ON_CURVE_POINT;
-                        if (OnCurve) {
-                            nPoints++;
+                        if (PreviousOnCurve == OnCurve) {
+                            nPoints += 3;
                         }
-                        else if (!PreviousOnCurve) {
-                            nPoints++;
+                        else if (OnCurve){
+                            nPoints += 1;
+                        }
+                        else {
+                            nPoints += 2;
                         }
                         PreviousOnCurve = OnCurve;
                         NextTTFGlyphFlag(pFlag);
                     }
                     // Last segment goes back to the beginning
-                    nPoints++;
+                    if (PreviousOnCurve) {
+                        nPoints += 3;
+                    }
+                    else {
+                        nPoints += 1;
+                    }
+                    Assert(nPoints % 3 == 0);
                     CharacterPoints += nPoints;
+                    Result.EndPtsOfContours[c - '!'][k] = (CharacterPoints / 3) - 1;
                 }
 
                 Result.nPoints[c - '!'] = CharacterPoints;
@@ -1344,15 +1417,35 @@ preprocessed_font PreprocessFont(read_file_result File) {
             Result.SpaceAdvance = BigEndian(HorizontalMetricsTable[GlyphID].AdvanceWidth);
         }
         else {
-            Result.Advances[c - '!'] = BigEndian(HorizontalMetricsTable[GlyphID].AdvanceWidth);
+            // Horizontal metrics
+            if (GlyphID < nHMetrics) {
+                Result.AdvanceWidths[c - '!']    = BigEndian(HorizontalMetricsTable[GlyphID].AdvanceWidth);
+                Result.LeftSideBearings[c - '!'] = BigEndian(HorizontalMetricsTable[GlyphID].LeftSideBearing);
+            }
+            else {
+                Result.AdvanceWidths[c - '!']    = BigEndian(HorizontalMetricsTable[nHMetrics-1].AdvanceWidth);
+                Result.LeftSideBearings[c - '!'] = BigEndian(OtherLeftSideBearings[GlyphID - nHMetrics]);
+            }
+
+            // Vertical metrics
+            if (VerticalMetricsTable) {
+                if (GlyphID < nVMetrics) {
+                    Result.AdvanceHeights[c - '!']  = BigEndian(VerticalMetricsTable[GlyphID].AdvanceHeight);
+                    Result.TopSideBearings[c - '!'] = BigEndian(VerticalMetricsTable[GlyphID].TopSideBearing);
+                }
+                else {
+                    Result.AdvanceHeights[c - '!'] = BigEndian(VerticalMetricsTable[nVMetrics - 1].AdvanceHeight);
+                    Result.TopSideBearings[c - '!'] = BigEndian(OtherTopSideBearings[GlyphID - nHMetrics]);
+                }
+            }
         }
     }
 
     delete [] GlyphOffsets;
 
     Result.Size = TotalContours * sizeof(uint16);
-    // For quadratic Bézier: three screen positions (v2); two on-curve points and one control point.
-    Result.Size += TotalPoints * 6 * sizeof(float);
+    // Each point is 2 floats
+    Result.Size += TotalPoints * 2 * sizeof(float);
     Result.Size += TotalCompositeRecords * sizeof(composite_glyph_record);
 
     return Result;
@@ -1403,7 +1496,10 @@ game_font LoadFont(memory_arena* Arena, game_asset* Asset, preprocessed_font* Fo
 
         game_font_character* Character = &Result.Characters[c - '!'];
         Character->Letter = c;
-        Character->Advance = Font->Advances[c - '!'];
+        Character->Width = Font->AdvanceWidths[c - '!'];
+        Character->Height = Font->AdvanceHeights[c - '!'];
+        Character->Left = Font->LeftSideBearings[c - '!'];
+        Character->Top = Font->TopSideBearings[c - '!'];
 
         // Composite glyphs
         if (GlyphHeader.NumberOfContours < 0) {
@@ -1514,7 +1610,7 @@ game_font LoadFont(memory_arena* Arena, game_asset* Asset, preprocessed_font* Fo
             uint16* EndPtsOfContours = (uint16*)GlyphData;
             Character->EndPointsOfContours = PushArray(Arena, Character->nContours, uint16);
             for (int i = 0; i < Character->nContours; i++) {
-                Character->EndPointsOfContours[i] = BigEndian(EndPtsOfContours[i]);
+                Character->EndPointsOfContours[i] = Font->EndPtsOfContours[c - '!'][i];
             }
     
             uint16 nPoints = BigEndian(EndPtsOfContours[GlyphHeader.NumberOfContours - 1]) + 1;
@@ -1578,7 +1674,7 @@ game_font LoadFont(memory_arena* Arena, game_asset* Asset, preprocessed_font* Fo
                             // When two on-curve points are together, you can use the middle point as the control point (straight line)
                             float* Result = PushArray(Arena, 6, float);
                             Result[0] = LastX;
-                            Result[1] = LastX;
+                            Result[1] = LastY;
                             Result[2] = MiddleX;
                             Result[3] = MiddleY;
                             Result[4] = X;
@@ -1631,7 +1727,7 @@ game_font LoadFont(memory_arena* Arena, game_asset* Asset, preprocessed_font* Fo
                     // When two on-curve points are together, you can use the middle point as the control point (straight line)
                     float* Result = PushArray(Arena, 6, float);
                     Result[0] = LastX;
-                    Result[1] = LastX;
+                    Result[1] = LastY;
                     Result[2] = MiddleX;
                     Result[3] = MiddleY;
                     Result[4] = FirstX;
@@ -1647,8 +1743,8 @@ game_font LoadFont(memory_arena* Arena, game_asset* Asset, preprocessed_font* Fo
                     nFloats += 2;
                 }
             }
-            Assert(nFloats == 6 * Font->nPoints[c - '!']);
-            Assert(Arena->Base + Arena->Used == MemoryLayoutStart + 6 * sizeof(float) * Font->nPoints[c - '!']);
+            Assert(nFloats == 2 * Font->nPoints[c - '!']);
+            Assert(Arena->Base + Arena->Used == MemoryLayoutStart + 2 * sizeof(float) * Font->nPoints[c - '!']);
         }
     }
     
@@ -1734,11 +1830,12 @@ game_font LoadFont(memory_arena* Arena, game_asset* Asset, preprocessed_font* Fo
 }
 
 float GetCharMaxHeight(game_font* Font, int Points) {
-    return 0.05f * (float)Points * Font->Characters[0].Height;
+    float PixelsPerEm = Points * (96.0f / 72.0f) / Font->UnitsPerEm;
+    return Font->LineJump * PixelsPerEm;
 }
 
 void GetTextWidthAndHeight(const char* Text, game_font* Font, int Points, float* Width, float* Height) {
-    float Size = 0.05f * (float)Points;
+    float PixelsPerEm = Points * (96.0f / 72.0f) / Font->UnitsPerEm;
 
     *Height = GetCharMaxHeight(Font, Points);
     *Width = 0;
@@ -1747,9 +1844,9 @@ void GetTextWidthAndHeight(const char* Text, game_font* Font, int Points, float*
     for (int i = 0; i < Length; i++) {
         char c = Text[i];
         if (c == '#' && Text[i+1] == '#') break;
-        if (c == ' ')             *Width += Font->SpaceAdvance * Size;
-        if ('!' <= c && c <= '~') *Width += Font->Characters[c - '!'].Advance * Size;
-        if (c == '\n')            *Height += Font->LineJump * Size;
+        if (c == ' ')             *Width += Font->SpaceAdvance * PixelsPerEm;
+        if ('!' <= c && c <= '~') *Width += Font->Characters[c - '!'].Width * PixelsPerEm;
+        if (c == '\n')            *Height += Font->LineJump * PixelsPerEm;
     }
 }
 
@@ -2399,6 +2496,7 @@ enum game_shader_id {
     Vertex_Shader_Screen_Texture_ID,
     Vertex_Shader_Perspective_ID,
     Vertex_Shader_Bones_ID,
+    Vertex_Shader_Text_ID,
 #if GAME_RENDER_API_VULKAN
     Vertex_Shader_Vulkan_Test_ID,
 #endif
@@ -2471,7 +2569,7 @@ struct shader_uniform_sampler {
     uint32 Binding;
 };
 
-const int SHADER_UNIFORM_BLOCKS = 8;
+const int SHADER_UNIFORM_BLOCKS = 9;
 
 struct alignas(16) global_uniforms {
     matrix4 projection;
@@ -2517,6 +2615,11 @@ struct alignas(16) antialiasing_uniforms {
     int samples;
 };
 
+struct alignas(16) text_uniforms {
+    float DPI;
+    float Points;
+};
+
 const int SHADER_SETS = 3;
 const int MAX_SHADER_SET_BINDINGS = 8;
 const int MAX_SHADER_UBOS = 8;
@@ -2550,7 +2653,7 @@ enum game_shader_pipeline_id {
     Shader_Pipeline_Outline_ID,
     Shader_Pipeline_Heightmap_ID,
     Shader_Pipeline_Trochoidal_ID,
-    Shader_Pipeline_Bezier_ID,
+    Shader_Pipeline_Text_ID,
     Shader_Pipeline_Debug_Normals_ID,
 #if GAME_RENDER_API_VULKAN
     Shader_Pipeline_Vulkan_Test_ID,
@@ -3092,22 +3195,22 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
                 game_heightmap* Heightmap = GetAsset(Assets, Asset.ID.Heightmap);
                 Heightmap->Bitmap.Content = (uint32*)(Assets->Memory + Asset.Offset);
                 uint64 BitmapSize = PreprocessBitmap(&Heightmap->Bitmap.Header);
-                Heightmap->Vertices = (double*)(Assets->Memory + Asset.Offset + BitmapSize);
+                Heightmap->Vertices = (float*)(Assets->Memory + Asset.Offset + BitmapSize);
             } break;
 
             case Asset_Type_Font: {
                 game_font* Font = GetAsset(Assets, Asset.ID.Font);
                 //Font->Bitmap.Content = (uint32*)(Assets->Memory + Asset.Offset);
                 uint8* Data = Assets->Memory + Asset.Offset;
-                for (int i = 0; i < FONT_CHARACTERS_COUNT; i++) {
-                    game_font_character* Character = &Font->Characters[i];
-                    if (Character->nContours == 0) Raise("Zero contours");
+                for (int j = 0; j < FONT_CHARACTERS_COUNT; j++) {
+                    game_font_character* Character = &Font->Characters[j];
+                    if (Character->nContours == 0) Raise("Font character has no contours.");
                     else if (Character->nContours > 0) {
                         Character->EndPointsOfContours = (uint16*)Data;
                         Data += Character->nContours * sizeof(uint16);
                         Character->Data = Data;
                         uint16 nPoints = Character->EndPointsOfContours[Character->nContours - 1] + 1;
-                        Data += nPoints * 2 * sizeof(float);
+                        Data += nPoints * 6 * sizeof(float);
                     }
                     else if (Character->nContours < 0) {
                         Character->EndPointsOfContours = 0;
@@ -3230,6 +3333,7 @@ void WriteAssetsFile(const char* Path) {
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\ScreenTexture.vert", Vertex_Shader_Screen_Texture_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Perspective.vert", Vertex_Shader_Perspective_ID);
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Bones.vert", Vertex_Shader_Bones_ID);
+    PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\Text.vert", Vertex_Shader_Text_ID);
 #if GAME_RENDER_API_VULKAN
     PushShader(&Assets, "..\\GameAssets\\Assets\\Shaders\\Vertex\\VulkanTest.vert", Vertex_Shader_Vulkan_Test_ID);
 #endif
@@ -3291,7 +3395,7 @@ void WriteAssetsFile(const char* Path) {
         TESE_Trochoidal_ID,
         Fragment_Shader_Sea_ID
     );
-    PushShaderPipeline(&Assets, Shader_Pipeline_Bezier_ID, 4,
+    PushShaderPipeline(&Assets, Shader_Pipeline_Text_ID, 4,
         Vertex_Shader_Screen_ID,
         TESC_Bezier_ID,
         TESE_Bezier_ID,

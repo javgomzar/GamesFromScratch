@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RenderGroup.h"
+#include "GameRender.h"
 
 void Clear(loaded_bmp* OutputTarget, color Color) {
     uint32 ColorBytes = GetColorBytes(Color);

@@ -19,14 +19,6 @@
 //    return;
 //}
 
-// Game logic
-bool Collision(rectangle Rect, v3 Cursor) {
-    return Cursor.X > Rect.Left &&
-        Cursor.X < Rect.Left + Rect.Width &&
-        Cursor.Y > Rect.Top &&
-        Cursor.Y < Rect.Top + Rect.Height;
-}
-
 // Sound
 void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
     
@@ -93,21 +85,12 @@ extern "C" GAME_UPDATE(GameUpdate)
     Update(Assets, pGameState, Input, &Group->Camera, Group->Width, Group->Height);
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
-    
+
+    // PushEntities(Group, &pGameState->Entities, Input, Time);
+
+    TestRendering(Group, Input);
+
     UpdateUI(Memory, Input);
-
-    PushEntities(Group, &pGameState->Entities, Input, Time);
-
-    static float Points = 36.0f;
-
-    if (Input->Mouse.Wheel > 0) {
-        Points *= 1.5f;
-    }
-    else if (Input->Mouse.Wheel < 0) {
-        Points /= 1.5f;
-    }
-
-    PushText(Group, V2(200, 200), Font_Menlo_Regular_ID, "A\nB", White, Points);
 
     PushRenderTarget(Group, Target_World);
 

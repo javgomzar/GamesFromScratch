@@ -847,6 +847,8 @@ void UpdateUI(
             DEBUG_VALUE(Memory->GeneralPurposeArena, memory_arena);
 
             memory_arena* VertexArena = Group->VertexBuffer.VertexArena;
+            DEBUG_VALUE(VertexArena[vertex_layout_vec2_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_vec2_vec2_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_vec3_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_vec3_vec2_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_vec3_vec2_vec3_id], memory_arena);
