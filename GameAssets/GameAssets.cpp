@@ -3,7 +3,7 @@
 #include "GameFont.cpp"
 #include "GameBitmap.cpp"
 #include "GameShader.cpp"
-
+#include "GameMesh.cpp"
 
 void LoadShaderPipelines(game_assets* Assets) {
     Assets->nSamplers = 0;

@@ -1537,8 +1537,8 @@ void PushMesh(
         for (int i = 0; i < Armature->nBones; i++) {
             bone Bone = Armature->Bones[i];
             transform BoneTransform = Bone.Transform;
-            Vertices[2*i] = BoneTransform * Transform * Bone.Head;
-            Vertices[2*i+1] = BoneTransform * Transform * Bone.Tail;
+            Vertices[2*i] = BoneTransform * Transform * Bone.Segment.Head;
+            Vertices[2*i+1] = BoneTransform * Transform * Bone.Segment.Tail;
         }
 
         game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
