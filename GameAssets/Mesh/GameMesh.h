@@ -21,8 +21,7 @@ const int BONE_NAME_LENGTH = 32;
 struct bone {
     int ID;
     char Name[BONE_NAME_LENGTH];
-    v3 Head;
-    v3 Tail;
+    segment3 Segment;
     transform Transform;
 };
 
@@ -43,9 +42,14 @@ struct game_mesh {
 };
 
 struct preprocessed_mesh {
+    read_file_result File;
     uint32 nVertices;
     uint32 nFaces;
     uint32 nBones;
 };
+
+preprocessed_mesh PreprocessMesh(read_file_result File);
+game_mesh LoadMesh(memory_arena* Arena, preprocessed_mesh* Preprocessed);
+uint32 GetMeshVerticesSize(uint32 nVertices, bool HasArmature);
 
 #endif
