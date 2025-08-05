@@ -745,7 +745,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Assets
     const char* AssetsPath = "..\\GameAssets\\game_assets";
-    WriteAssetsFile(AssetsPath);
+    WriteAssetsFile(&Memory.Platform, AssetsPath);
     LoadAssetsFromFile(Memory.Platform.ReadEntireFile, &Memory.Assets, AssetsPath);
 
     game_state* pGameState = (game_state*)Memory.PermanentStorage;
@@ -975,7 +975,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
 
             if (Input.Keyboard.F10.IsDown && !Input.Keyboard.F11.WasDown) {
-                ScreenCapture(&RendererContext, Group->Width, Group->Height);
+                ScreenCapture(&Memory.Platform, &RendererContext, Group->Width, Group->Height);
             }
 
             LogDebugRecords(Group, &Memory.TransientArena);

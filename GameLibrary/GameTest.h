@@ -34,65 +34,6 @@ void TestRendering(render_group* Group, game_input* Input) {
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n?!^/\\(){}[]'\"@#~€$%=+-.,:;*", 
     White, Points);
 
-    triangle2 TestTriangle1 = {
-        V2(300, 300),
-        V2(300, 400),
-        V2(400, 400)
-    };
-
-    static triangle2 TestTriangle2 = { V2(300, 300), V2(300, 400) };
-    static bool FollowingMouse = true;
-    static int ChangingVertex = 2;
-
-    if (Input->Mouse.RightClick.JustPressed) {
-        FollowingMouse = !FollowingMouse;
-    }
-
-    if (FollowingMouse) {
-        if (Input->Mouse.LeftClick.JustPressed) {
-            ChangingVertex = ChangingVertex == 1 ? 2 : 1;
-        }
-        TestTriangle2[ChangingVertex] = Input->Mouse.Cursor;
-    }
-
-    triangle2 Intersections[4] = {};
-
-    int nIntersections = SymmetricDifference(TestTriangle1, TestTriangle2, Intersections);
-
-    color Colors[4] = { Cyan, Magenta, Yellow, Orange };
-    for (int i = 0; i < nIntersections; i++) {
-        PushTriangle(Group, Intersections[i], Colors[i], SORT_ORDER_DEBUG_OVERLAY - 1);
-    }
-
-    char Buffer[16];
-    sprintf_s(Buffer, "%d", nIntersections);
-
-    PushText(Group, V2(600, 300), Font_Menlo_Regular_ID, Buffer, White);
-
-    PushTriangle(Group, TestTriangle2, Green);
-    PushTriangle(Group, TestTriangle1, Red);
-
-    // Bezier
-    // float BezierVertices[] = {
-    //     300, 300,
-    //     Input->Mouse.Cursor.X, Input->Mouse.Cursor.Y,
-    //     400, 400
-    // };
-    // render_primitive_options Options = {};
-    // Options.Color = White;
-    // Options.PatchParameter = 3;
-    // game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipe);
-    // PushPrimitiveCommand(
-    //     Group,
-    //     Options,
-    //     render_primitive_patches,
-    //     Shader,
-    //     vertex_layout_vec2_id,
-    //     3,
-    //     BezierVertices,
-    //     SORT_ORDER_DEBUG_OVERLAY
-    // );
-
 // 3D
     // Point
     // PushPoint(Group, V3(0,0,0), Red);

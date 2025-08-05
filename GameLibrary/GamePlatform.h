@@ -20,6 +20,43 @@ typedef int64_t int64;
 
 typedef size_t memory_index;
 
+uint16 BigEndian(uint16 LittleEndian) {
+    return (LittleEndian << 8) | (LittleEndian >> 8);
+}
+
+uint32 BigEndian(uint32 LittleEndian) {
+    return ((LittleEndian >> 24) & 0x000000FF) |
+           ((LittleEndian >> 8)  & 0x0000FF00) |
+           ((LittleEndian << 8)  & 0x00FF0000) |
+           ((LittleEndian << 24) & 0xFF000000);
+}
+
+uint64 BigEndian(uint64 LittleEndian) {
+    return ((LittleEndian >> 56) & 0x00000000000000FF) |
+           ((LittleEndian >> 40) & 0x000000000000FF00) |
+           ((LittleEndian >> 24) & 0x0000000000FF0000) |
+           ((LittleEndian >> 8)  & 0x00000000FF000000) |
+           ((LittleEndian << 8)  & 0x000000FF00000000) |
+           ((LittleEndian << 24) & 0x0000FF0000000000) |
+           ((LittleEndian << 40) & 0x00FF000000000000) |
+           ((LittleEndian << 56) & 0xFF00000000000000);
+}
+
+int16 BigEndian(int16 LittleEndian) {
+    uint16 Unsigned = BigEndian(*(uint16*)&LittleEndian);
+    return *(int16*)&Unsigned;
+}
+
+int32 BigEndian(int32 LittleEndian) {
+    uint32 Unsigned = BigEndian(*(uint32*)&LittleEndian);
+    return *(int32*)&Unsigned;
+}
+
+int64 BigEndian(int64 LittleEndian) {
+    uint64 Unsigned = BigEndian(*(uint64*)&LittleEndian);
+    return *(int64*)&Unsigned;
+}
+
 inline void Assert(bool assertion, const char* Message = "") {
     if (!assertion) {
         int* i = 0;
