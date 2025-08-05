@@ -30,11 +30,12 @@ extern GAMELIBRARY_API int nGameLibrary;
 #include "GameMath.h"
 #include "GameInput.h"
 #include "GameAssets.h"
-#include "GameSound.h"
 #include "GameEntity.h"
 #include "GameDebug.h"
 #include "GameRender.h"
 #include "GameTest.h"
+
+#include "GameAssets.cpp"
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
 // | Game memory                                                                                                                     |

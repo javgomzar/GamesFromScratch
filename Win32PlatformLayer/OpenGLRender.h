@@ -312,7 +312,7 @@ void ResizeWindow(openGL* OpenGL, int32 Width, int32 Height) {
 }
 
 // Print screen
-void ScreenCapture(openGL* OpenGL, int Width, int Height) {
+void ScreenCapture(platform_api* Platform, openGL* OpenGL, int Width, int Height) {
     game_bitmap BMP = {};
 
     // Bitmap header
@@ -341,7 +341,7 @@ void ScreenCapture(openGL* OpenGL, int Width, int Height) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glReadPixels(0, 0, Width, Height, GL_BGRA, GL_UNSIGNED_BYTE, (void*)BMP.Content);
 
-    SaveBMP(Filename, &BMP);
+    SaveBMP(Platform, Filename, &BMP);
     if (BMP.Content) {
         VirtualFree(BMP.Content, 0, MEM_RELEASE);
     }

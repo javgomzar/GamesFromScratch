@@ -3,13 +3,9 @@
 .vscode/
 
 # Game assets
-GameAssets/Assets/Bitmaps/
-GameAssets/Assets/Models/
-GameAssets/Assets/Videos/
-GameAssets/Assets/Fonts/
-GameAssets/Assets/Sounds/
-GameAssets/Assets/Texts/
-GameAssets/Assets/Animations
+GameAssets/*/Files
+!GameAssets/Shader/Files
+
 GameAssets/game_assets
 
 # Captures

@@ -2,7 +2,9 @@
 
 #include "GamePlatform.h"
 #include "GameMath.h"
-#include "GameAssets.h"
+
+#ifndef GAME_SOUND
+#define GAME_SOUND
 
 /*
     TODO:
@@ -11,6 +13,82 @@
         - Volume control
         - Implement circular buffer with VirtualAlloc2 and MapViewOfFile3
 */
+
+enum game_sound_id {
+    Sound_Test_ID,
+
+    game_sound_id_count
+};
+
+struct waveformat {
+    unsigned short    wFormatTag;        /* format type */
+    unsigned short    nChannels;         /* number of channels (i.e. mono, stereo...) */
+    unsigned long     nSamplesPerSec;    /* sample rate */
+    unsigned long     nAvgBytesPerSec;   /* for buffer estimation */
+    unsigned short    nBlockAlign;       /* block size of data */
+    unsigned short    wBitsPerSample;    /* Number of bits per sample of mono data */
+    unsigned short    cbSize;            /* The count in bytes of the size of extra information (after cbSize) */
+};
+
+struct game_sound {
+    game_sound_id ID;
+    waveformat WaveFormat;
+    uint32 SampleCount;
+    uint32 Played;
+    int16* SampleOut;
+};
+
+struct preprocessed_sound {
+    waveformat WaveFormat;
+    uint64 Size;
+    int16* Data;
+};
+
+preprocessed_sound PreprocessSound(read_file_result File) {
+    unsigned long* Pointer = (unsigned long*)File.Content;
+
+    unsigned long ChunkType = *Pointer++;
+    if (ChunkType != 'FFIR') {
+        Assert(false);
+    }
+
+    unsigned long RIFFChunkSize = *Pointer++;
+    unsigned long FileType = *Pointer++;
+    if (FileType != 'EVAW') {
+        Assert(false);
+    }
+
+    preprocessed_sound Result;
+    ChunkType = *Pointer++;
+    if (ChunkType != ' tmf') {
+        Assert(false);
+    }
+    unsigned long ChunkSize = *Pointer++;
+    Result.WaveFormat = *(waveformat*)Pointer;
+
+    Pointer += 4;
+    ChunkType = *Pointer++;
+    if (ChunkType != 'atad') {
+        Assert(false);
+    }
+    ChunkSize = *Pointer++;
+
+    Result.Size = ChunkSize;
+    Result.Data = (int16*)Pointer;
+
+    return Result;
+}
+
+game_sound LoadSound(memory_arena* Arena, preprocessed_sound* Sound) {
+    game_sound Result = {};
+    Result.SampleOut = (int16*)PushSize(Arena, Sound->Size);
+    Result.SampleCount = Sound->Size / 2;
+    Result.WaveFormat = Sound->WaveFormat;
+
+    memcpy(Result.SampleOut, Sound->Data, Sound->Size);
+
+    return Result;
+}
 
 struct game_sound_buffer {
     uint32 SamplesPerSecond;
@@ -95,7 +173,7 @@ void Silence(game_sound_buffer* pSoundBuffer) {
 //    }
 //}
 
-void PlaySound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
+void PlayGameSound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
     if (Sound->Played + pSoundBuffer->BufferSize > Sound->SampleCount) {
         Sound->Played = 0;
     }
@@ -110,3 +188,5 @@ void PlaySound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
 
     Sound->Played += 2 * pSoundBuffer->BufferSize;
 }
+
+#endif
