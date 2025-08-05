@@ -142,6 +142,135 @@ VOID DisplayBufferToWindow(
     vulkan RendererContext;
 #endif
 
+// Monitors
+struct monitor_manager {
+    monitor_info MonitorInfo[MAX_SUPPORTED_MONITORS];
+    uint8 nMonitors;
+};
+static monitor_manager MonitorManager = {};
+
+BOOL AddMonitorInfo(HMONITOR hMonitor, monitor_manager* Manager) {
+    if (0 <= Manager->nMonitors && Manager->nMonitors < MAX_SUPPORTED_MONITORS) {
+        MONITORINFOEX Info = {};
+        Info.cbSize = sizeof(MONITORINFOEX);
+
+        if (!GetMonitorInfo(hMonitor, &Info)) {
+            // Continue enumeration
+            return TRUE;
+        }
+
+        monitor_info Monitor = {};
+        strcpy_s(Monitor.DeviceName, Info.szDevice);
+        Monitor.MonitorRect = Info.rcMonitor;
+        Monitor.IsPrimary = (Info.dwFlags & MONITORINFOF_PRIMARY) != 0;
+        Monitor.ID = Manager->nMonitors;
+
+        Manager->MonitorInfo[Manager->nMonitors++] = Monitor;
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
+    return AddMonitorInfo(hMonitor, (monitor_manager*)dwData);
+}
+
+void RefreshMonitors() {
+    for (int i = 0; i < MonitorManager.nMonitors; i++) {
+        MonitorManager.MonitorInfo[i] = {};
+    }
+    MonitorManager.nMonitors = 0;
+
+    // EnumDisplayMonitors(NULL, NULL, MonitorEnumProc, (LPARAM)&MonitorManager);
+
+    UINT32 numPathArrayElements = 0;
+    UINT32 numModeInfoArrayElements = 0;
+    LONG ReturnCode = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &numPathArrayElements, &numModeInfoArrayElements);
+
+    std::vector<DISPLAYCONFIG_PATH_INFO> PathArray(numPathArrayElements);
+    std::vector<DISPLAYCONFIG_MODE_INFO> ModeArray(numModeInfoArrayElements);
+
+    ReturnCode = QueryDisplayConfig(
+        QDC_ONLY_ACTIVE_PATHS, 
+        &numPathArrayElements, PathArray.data(), 
+        &numModeInfoArrayElements, ModeArray.data(), 
+        NULL
+    );
+
+    std::vector<std::wstring> DeviceNames(numPathArrayElements);
+    std::vector<std::wstring> DisplayNames(numPathArrayElements);
+
+    for (int i = 0; i < numPathArrayElements; i++) {
+        DISPLAYCONFIG_PATH_INFO PathInfo = PathArray[i];
+
+        DISPLAYCONFIG_SOURCE_DEVICE_NAME SourceName = {};
+        SourceName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+        SourceName.header.size = sizeof(SourceName);
+        SourceName.header.adapterId = PathInfo.sourceInfo.adapterId;
+        SourceName.header.id = PathInfo.sourceInfo.id;
+        ReturnCode = DisplayConfigGetDeviceInfo(&SourceName.header);
+        if (ReturnCode == ERROR_SUCCESS) {
+            DeviceNames[i] = SourceName.viewGdiDeviceName;
+        }
+
+        DISPLAYCONFIG_TARGET_DEVICE_NAME TargetName = {};
+        TargetName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+        TargetName.header.size = sizeof(TargetName);
+        TargetName.header.adapterId = PathInfo.targetInfo.adapterId;
+        TargetName.header.id = PathInfo.targetInfo.id;
+        
+        if (DisplayConfigGetDeviceInfo(&TargetName.header) == ERROR_SUCCESS) {
+            DisplayNames[i] = TargetName.monitorFriendlyDeviceName;
+        }
+    }
+
+    DISPLAY_DEVICE DisplayDevice = {};
+    DisplayDevice.cb = sizeof(DISPLAY_DEVICE);
+    for (DWORD i = 0; EnumDisplayDevices(NULL, i, &DisplayDevice, 0); i++) {
+        if (DisplayDevice.StateFlags & DISPLAY_DEVICE_ACTIVE) {
+            DEVMODE dm = {};
+            dm.dmSize = sizeof(DEVMODE);
+
+            if (EnumDisplaySettings(DisplayDevice.DeviceName, ENUM_CURRENT_SETTINGS, &dm)) {
+                POINT pt = { dm.dmPosition.x + 1, dm.dmPosition.y + 1 };
+                HMONITOR hMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTONULL);
+
+                if (hMonitor) {
+                    MONITORINFOEX MonitorInfo = {};
+                    MonitorInfo.cbSize = sizeof(MONITORINFOEX);
+                    if (GetMonitorInfo(hMonitor, &MonitorInfo)) {
+                        for (int j = 0; j < numPathArrayElements; j++) {
+                            std::wstring DeviceName = DeviceNames[j];
+                            std::string MonitorDeviceName = MonitorInfo.szDevice;
+
+                            int SizeNeeded = MultiByteToWideChar(CP_UTF8, 0, &MonitorDeviceName[0], (int)MonitorDeviceName.size(), NULL, 0);
+                            std::wstring WideMonitorDeviceName(SizeNeeded, 0);
+                            MultiByteToWideChar(CP_UTF8, 0, &MonitorDeviceName[0], (int)MonitorDeviceName.size(), &WideMonitorDeviceName[0], SizeNeeded);
+
+                            if (DeviceName.compare(&WideMonitorDeviceName[0]) == 0) {
+                                monitor_info ResultInfo = {};
+                                ResultInfo.ID = MonitorManager.nMonitors;
+                                ResultInfo.MonitorRect = MonitorInfo.rcMonitor;
+                                ResultInfo.WorkArea = MonitorInfo.rcWork;
+                                strcpy_s(ResultInfo.DeviceName, MonitorInfo.szDevice);
+                                std::wstring DisplayName = DisplayNames[j];
+                                int Result = WideCharToMultiByte(
+                                    CP_UTF8, 0, &DisplayName[0], (int)DisplayName.size(), 
+                                    ResultInfo.DisplayName, 
+                                    sizeof(MonitorManager.MonitorInfo[i].DisplayName),
+                                    NULL, NULL
+                                );
+                                MonitorManager.MonitorInfo[MonitorManager.nMonitors++] = ResultInfo;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Full screen
 VOID ToggleFullScreen(HWND Window) {
     DWORD Style = GetWindowLong(Window, GWL_STYLE);
@@ -676,6 +805,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     );
 
     RendererContext.DPI = GetDeviceCaps(DeviceContext, LOGPIXELSX);
+
+    RefreshMonitors();
 
     ReleaseDC(Window, DeviceContext);
 
