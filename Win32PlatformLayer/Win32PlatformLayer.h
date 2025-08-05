@@ -101,3 +101,15 @@ struct record_and_playback {
     void* GameMemoryBlock;
     uint64 TotalSize;
 };
+
+// Monitors
+const uint8 MAX_SUPPORTED_MONITORS = 8;
+
+struct monitor_info {
+    uint8 ID;
+    char DeviceName[128];
+    char DisplayName[128];
+    RECT WorkArea;
+    RECT MonitorRect;
+    bool IsPrimary;
+};
