@@ -50,6 +50,36 @@ void TestRendering(render_group* Group, game_input* Input) {
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n?!^/\\(){}[]'\"@#~€$%=+-.,:;*", 
     White, Points);
 
+    triangle2 T1 = { 
+        V2(300, 300),
+        V2(300, 400),
+        V2(400, 400),
+    };
+
+    static triangle2 T2 = { 
+        V2(300, 300),
+        V2(250, 400),
+    };
+
+    static bool MoveVertex = true;
+
+    if (Input->Mouse.RightClick.JustPressed) {
+        MoveVertex = !MoveVertex;
+    }
+
+    if (MoveVertex) {
+        T2[2] = Input->Mouse.Cursor;
+    }
+
+    PushTriangle(Group, T1, Green);
+    PushTriangle(Group, T2, Red);
+
+    char Buffer[8];
+    sprintf_s(Buffer, "%d", Intersect(T1, T2));
+
+    PushText(Group, V2(500,500), Font_Menlo_Regular_ID, Buffer, White);
+
+
 // 3D
     // Point
     // PushPoint(Group, V3(0,0,0), Red);
