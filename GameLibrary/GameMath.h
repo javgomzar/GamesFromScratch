@@ -2,7 +2,9 @@
 #define GAME_MATH
 
 #pragma once
-#include "math.h"
+#include <math.h>
+#include <float.h>
+#include <stdlib.h>
 
 //#include "fftw3.h"
 //#pragma comment(lib, "libfftw3-3.lib")
@@ -189,6 +191,10 @@ inline bool operator==(v2 A, v2 B) {
 	return fabsf(A.X - B.X) < Epsilon && fabsf(A.Y - B.Y) < Epsilon;
 }
 
+inline bool operator!=(v2 A, v2 B) {
+	return fabsf(A.X - B.X) >= Epsilon || fabsf(A.Y - B.Y) >= Epsilon;
+}
+
 inline v2& operator+=(v2& A, v2 B) {
 	A.X += B.X;
 	A.Y += B.Y;
@@ -236,7 +242,7 @@ inline v2 normalize(v2 V) {
 
 inline v2 project(v2 A, v2 B) {
 	v2 N = normalize(B);
-	return (A * N) * N;
+	return dot(A, N) * N;
 }
 
 inline float distance(v2 A, v2 B) {
@@ -1584,6 +1590,33 @@ inline int Intersect(segment2 S1, segment2 S2, v2* IntersectionPoint, segment2* 
 	return 0;
 }
 
+inline v2 ClosestPoint(segment2 Segment, v2 Point) {
+	v2 V = Segment.Tail - Segment.Head;
+
+	float t = dot(V, Point);
+	if (t <= 0.0f) return Segment.Head;
+	float Denom = dot(V, V);
+	if (t >= Denom) return Segment.Tail;
+	else return Segment.Head + (t / Denom) * V;
+}
+
+inline float SqDistance(segment2 Segment, v2 Point) {
+	v2 V = Segment.Tail - Segment.Head;
+	v2 R = Point - Segment.Head;
+
+	R = project(R, V) - Point;
+	return dot(R,R);
+}
+
+inline float SqDistance(segment2 Segment1, segment2 Segment2) {
+	float d1 = SqDistance(Segment1, Segment2.Head);
+	float d2 = SqDistance(Segment1, Segment2.Tail);
+	float d3 = SqDistance(Segment2, Segment1.Head);
+	float d4 = SqDistance(Segment2, Segment2.Tail);
+
+	return min(d1, min(d2, min(d3, d4)));
+}
+
 struct segment3 {
 	v3 Head;
 	v3 Tail;
@@ -1705,6 +1738,27 @@ struct triangle2 {
 		Assert(i >= 0 && i <= 2);
 		return Points[i];
 	}
+
+	triangle2 Flip() {
+		return { Points[0], Points[2], Points[1] };
+	}
+
+	triangle2 Cycle() {
+		return { Points[1], Points[2], Points[0] };
+	}
+
+	bool operator==(triangle2 Other) {
+		for (int i = 0; i < 2; i++) {
+			for (int j = 0; j < 3; j++) {
+				if (Points[0] == Other[0] && Points[1] == Other[1] && Points[2] == Other[2]) {
+					return true;
+				}
+				Other = Other.Cycle();
+			}
+			Other = Other.Flip();
+		}
+		return false;
+	}
 };
 
 inline float Area(triangle2 T) {
@@ -1729,6 +1783,121 @@ inline bool IsInside(triangle2 T, v2 P) {
 	segment2 S3 = { T[2], T[0] };
 
 	return IsInside(S1, P) || IsInside(S2, P) || IsInside(S3, P);
+}
+
+triangle2 Flip(triangle2 T) {
+	return { T[0], T[2], T[1] };
+}
+
+triangle2 Cycle(triangle2 T) {
+	return { T[1], T[2], T[0] };
+}
+
+float SqDistance(triangle2 T, v2 P) {
+	segment2 E[3] = {
+		{ T[0], T[1] },
+		{ T[1], T[2] },
+		{ T[2], T[0] },
+	};
+
+	float d = FLT_MAX;
+	for (int i = 0; i < 3; i++) {
+		float new_d = SqDistance(E[i], P);
+		if (new_d < d) {
+			d = new_d;
+		}
+	}
+
+	return d;
+}
+
+float SqDistance(triangle2 T1, triangle2 T2) {
+	v2 Closest1 = {}, Closest2 = {};
+	v2 Last1    = {}, Last2    = {};
+	float d = FLT_MAX, last_d = FLT_MAX;
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 3; j++) {
+			float candidate = distance(T1[i], T2[j]);
+			if (candidate == 0) return 0;
+			if (candidate < d) {
+				Last1 = Closest1; Last2 = Closest2;
+				Closest1 = T1[i]; Closest2 = T2[j];
+				d = candidate; last_d = d;
+ 			}
+		}
+	}
+
+	segment2 S1 = { Closest1, Last1 };
+	segment2 S2 = { Closest2, Last2 };
+
+	return SqDistance(S1, S2);
+}
+
+/*
+	Intersects two triangles in the plane. Result is true if both triangles intersect in a region with some area.
+*/
+bool Intersect(triangle2 T1, triangle2 T2) {
+	float A1 = Area(T1);
+	if (fabsf(A1) < Epsilon) return false;
+	if (A1 < 0)         Flip(T1);
+
+	float A2 = Area(T2);
+	if (fabsf(A2) < Epsilon) return false;
+	if (A2 < 0)         Flip(T2);
+
+	float D = SqDistance(T1, T2);
+	if (D > Epsilon) {
+		return false;
+	}
+
+	v2 V[6] = {
+		perp(T1[0] - T1[1]),
+		perp(T1[1] - T1[2]),
+		perp(T1[2] - T1[0]),
+		perp(T2[0] - T2[1]),
+		perp(T2[1] - T2[2]),
+		perp(T2[2] - T2[0]),
+	};
+
+	// Apply separating hiperplane theorem
+	for (int i = 0; i < 6; i++) {
+		float c1[3] = {};
+		float c2[3] = {};
+
+		for (int j = 0; j < 3; j++) {
+			c1[j] = dot(V[i], T1[j]);
+			c2[j] = dot(V[i], T2[j]);
+		}
+
+		float d;
+		if (i < 3) d = c1[i];
+		else       d = c2[i-3];
+		for (int j = 0; j < 3; j++) {
+			c1[j] -= d;
+			c2[j] -= d;
+		}
+
+		if (
+			c2[0] * c2[1] >= 0 && c2[1] * c2[2] >= 0 && c2[2] * c2[0] >= 0 &&
+			c1[0] * c1[1] >= 0 && c1[1] * c1[2] >= 0 && c1[2] * c1[0] >= 0
+		) {
+			float OppositeVertex;
+			float* c_arr;
+			if (i < 3) { 
+				OppositeVertex = c1[(i + 2) % 3];
+				c_arr = c2;
+			}
+			else {
+				OppositeVertex = c2[(i + 2) % 3];
+				c_arr = c1;
+			}
+			if (OppositeVertex * c_arr[0] < 0 || OppositeVertex * c_arr[1] < 0 || OppositeVertex * c_arr[2] < 0) {
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 struct triangle3 {
