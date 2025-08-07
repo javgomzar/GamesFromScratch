@@ -57,6 +57,18 @@ int64 BigEndian(int64 LittleEndian) {
     return *(int64*)&Unsigned;
 }
 
+inline uint8 MSB64(uint32 X) {
+	unsigned long Result = 0;
+	_BitScanReverse(&Result, X);
+	return (uint32)Result;
+}
+
+inline uint8 MSB32(uint64 X) {
+	unsigned long Result = 0;
+	_BitScanReverse64(&Result, X);
+	return (uint32)Result;
+}
+
 inline void Assert(bool assertion, const char* Message = "") {
     if (!assertion) {
         int* i = 0;
@@ -130,6 +142,81 @@ inline void* PopSize_(memory_arena* Arena, memory_index Size) {
 inline char* PushString(memory_arena* Arena, const char* String) {
     return PushArray(Arena, strlen(String) + 1, char);
 }
+
+// Naive implementation of exponential array (see https://www.youtube.com/watch?v=i-h95QIGchY)
+
+const int MAX_XARRAY_CHUNKS = 32;
+
+struct xarray_meta {
+    uint8 Shift;          // Exponent for size of first chunk
+    uint8 nChunks;
+    uint32 ElementSize;
+};
+
+struct xarray_header {
+    uint64 n;
+    uint8* Chunks[];
+};
+
+static inline void* xar_get(xarray_header* Xar, xarray_meta Meta, uint64 i) {
+    uint32 ChunkIndex = 0;
+    uint64 ChunkSize = 1 << Meta.Shift;
+    uint64 Element = i;
+
+    uint64 nShifts = i >> Meta.Shift;
+    if (nShifts > 0) {
+        ChunkIndex = MSB64(nShifts);
+        Element -= ChunkSize << ChunkIndex;
+        ChunkIndex++;
+    }
+
+    return Xar->Chunks[ChunkIndex] + Element * Meta.ElementSize; 
+}
+
+template <typename T> class xarray {
+private:
+    xarray_meta Meta;
+    xarray_header* Header;
+
+    T* ptr(T* P) { return P};
+
+    void NewChunk(uint64 Size) {
+        Header->Chunks[Meta.nChunks++] = (uint8*)VirtualAlloc(0, Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    }
+
+public:
+    xarray() {
+        Meta = { 4, 0, sizeof(T) };
+        Header = (xarray_header*)VirtualAlloc(0, MAX_XARRAY_CHUNKS * sizeof(uint8*), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        NewChunk(1 << Meta.Shift);
+    }
+
+    ~xarray() {
+        for (int i = 0; i < Meta.nChunks; i++) {
+            VirtualFree(Header->Chunks[i], 0, MEM_RELEASE);
+        }
+
+        VirtualFree(Header, 0, MEM_RELEASE);
+    }
+
+    const T& operator[] (uint64 i) const {
+        Assert(0 <= i && i < Header->n, "Index out of range.");
+        return *(T*)xar_get(Header, Meta, i);
+    }
+
+    T* Insert(const T& Element) {
+        uint64 TotalSize = 1 << (Meta.Shift + Meta.nChunks - 1);
+        uint64 NewIndex = Header->n++;
+        if (NewIndex >= TotalSize) {
+            NewChunk(TotalSize);
+        }
+
+        T* Pointer = (T*)xar_get(Header, Meta, NewIndex);
+        //T* Pointer = (T*)ElementMemory;
+        *Pointer = Element;
+        return Pointer;
+    }
+};
 
 // Services that the platform layer provides for the game
 struct read_file_result {
