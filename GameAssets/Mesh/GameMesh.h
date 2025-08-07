@@ -6,7 +6,8 @@
 #define GAME_MESH
 
 enum game_mesh_id {
-    Mesh_Enemy_ID,
+    Mesh_Horns_ID,
+    Mesh_Dog_ID,
     Mesh_Sphere_ID,
     Mesh_Body_ID,
     Mesh_Shield_ID,
