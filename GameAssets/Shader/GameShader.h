@@ -14,7 +14,6 @@ enum game_shader_id {
     Vertex_Shader_Screen_Texture_ID,
     Vertex_Shader_Perspective_ID,
     Vertex_Shader_Bones_ID,
-    Vertex_Shader_Text_ID,
 #if GAME_RENDER_API_VULKAN
     Vertex_Shader_Vulkan_Test_ID,
 #endif
