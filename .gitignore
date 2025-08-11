@@ -5,6 +5,7 @@
 # Game assets
 GameAssets/*/Files
 !GameAssets/Shader/Files
+**/*.spv
 
 GameAssets/game_assets
 
