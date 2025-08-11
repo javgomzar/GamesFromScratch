@@ -143,6 +143,117 @@ inline char* PushString(memory_arena* Arena, const char* String) {
     return PushArray(Arena, strlen(String) + 1, char);
 }
 
+// +------------------------------------------------------------------------------------------------------------------------------------------+
+// | Data structures                                                                                                                          |
+// +------------------------------------------------------------------------------------------------------------------------------------------+
+
+/*
+    Stack. Memory for elements must be previously allocated.
+*/
+
+template <typename T> class stack {
+private:
+    T* Top;
+public:
+    uint64 n;
+    uint64 Capacity;
+
+    stack(uint64 MaxSize, T* Memory) {
+        n = 0;
+        Top = Memory;
+        Capacity = MaxSize;
+    }
+
+    void Push(T Element) {
+        if (n < Capacity) {
+            *Top++ = Element;
+            n++;
+        }
+        else Assert(false, "Stack is full.");
+    }
+
+    T Pop() {
+        if (n > 0) {
+            Top--;
+            T Result = *Top;
+            *Top = {};
+            n--;
+            return Result;
+        }
+        return NULL;
+    }
+
+    void Clear() {
+        ZeroSize(n * sizeof(T), Top - n);
+        Top = Top - n;
+        n = 0;
+    }
+};
+
+struct link {
+    link* Previous;
+    link* Next;
+    void* Data;
+};
+
+void Attach(link* Link1, link* Link2) {
+    Assert(Link1 != NULL || Link2 != NULL, "Two empty links tried to be linked.");
+    if (Link1 != NULL) {
+        Link1->Next = Link2;
+    }
+    if (Link2 != NULL) {
+        Link2->Previous = Link2;
+    }
+}
+
+void Delete(link* ThisLink) {
+    if (ThisLink->Previous == ThisLink->Next && ThisLink->Next == ThisLink) {
+        ThisLink->Previous = NULL;
+        ThisLink->Next = NULL;
+    }
+    else Attach(ThisLink->Previous, ThisLink->Next);
+}
+
+/*
+    Doubly-linked list. All links must have been allocated somewhere previously.
+*/
+struct linked_list {
+    link* First;
+    link* Last;
+
+    void PushBack(link* Element) {
+        if (First == NULL || Last == NULL) {
+            First = Element;
+        }
+        else {
+            Attach(Last, Element);
+        }
+        Last = Element;
+    }
+
+    void PushFront(link* Element) {
+        if (First == NULL || Last == NULL) {
+            First = Element;
+            Last = Element;
+        }
+        Attach(First, Element);
+    }
+
+    void CloseCircle() {
+        Attach(Last, First);
+    }
+
+    void Break(link* Link) {
+        Delete(Link);
+        if (First == Link) First = Link->Next;
+        if (Last == Link)  Last  = Link->Previous;
+    }
+
+    bool IsEmpty() {
+        return First == NULL && Last == NULL;
+    }
+};
+
 // Naive implementation of exponential array (see https://www.youtube.com/watch?v=i-h95QIGchY)
 
 const int MAX_XARRAY_CHUNKS = 32;
@@ -163,6 +274,11 @@ static inline void* xar_get(xarray_header* Xar, xarray_meta Meta, uint64 i) {
     uint64 ChunkSize = 1 << Meta.Shift;
     uint64 Element = i;
 
+    if (i == 426) {
+        char X = 'A';
+        Assert(X == 'A'); 
+    }
+
     uint64 nShifts = i >> Meta.Shift;
     if (nShifts > 0) {
         ChunkIndex = MSB64(nShifts);
@@ -178,9 +294,10 @@ private:
     xarray_meta Meta;
     xarray_header* Header;
 
-    T* ptr(T* P) { return P};
-
     void NewChunk(uint64 Size) {
+        if (Meta.nChunks >= MAX_XARRAY_CHUNKS) {
+            Assert(false, "Xarray chunk index overflow.");
+        }
         Header->Chunks[Meta.nChunks++] = (uint8*)VirtualAlloc(0, Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     }
 
@@ -188,7 +305,7 @@ public:
     xarray() {
         Meta = { 4, 0, sizeof(T) };
         Header = (xarray_header*)VirtualAlloc(0, MAX_XARRAY_CHUNKS * sizeof(uint8*), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-        NewChunk(1 << Meta.Shift);
+        NewChunk(Meta.ElementSize * (1 << Meta.Shift));
     }
 
     ~xarray() {
@@ -204,10 +321,10 @@ public:
         return *(T*)xar_get(Header, Meta, i);
     }
 
-    T* Insert(const T& Element) {
-        uint64 TotalSize = 1 << (Meta.Shift + Meta.nChunks - 1);
+    T* Insert(const T& Element = {}) {
+        uint64 TotalSize = Meta.ElementSize * (1 << (Meta.Shift + Meta.nChunks - 1));
         uint64 NewIndex = Header->n++;
-        if (NewIndex >= TotalSize) {
+        if (NewIndex * sizeof(T) >= TotalSize) {
             NewChunk(TotalSize);
         }
 

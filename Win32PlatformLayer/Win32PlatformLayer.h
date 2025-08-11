@@ -6,6 +6,11 @@
 #include "Win32Debug.h"
 
 // Platform services for the game
+inline memory_arena AllocateMemoryArena(memory_index Size) {
+    uint8* Base = (uint8*)VirtualAlloc(0, Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    return MemoryArena(Size, Base);
+}
+
 PLATFORM_FREE_FILE_MEMORY(PlatformFreeFileMemory) {
     if (Memory) {
         VirtualFree(Memory, 0, MEM_RELEASE);

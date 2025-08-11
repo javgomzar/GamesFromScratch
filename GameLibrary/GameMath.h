@@ -1839,34 +1839,31 @@ float SqDistance(triangle2 T1, triangle2 T2) {
 bool Intersect(triangle2 T1, triangle2 T2) {
 	float A1 = Area(T1);
 	if (fabsf(A1) < Epsilon) return false;
-	if (A1 < 0)         Flip(T1);
 
 	float A2 = Area(T2);
 	if (fabsf(A2) < Epsilon) return false;
-	if (A2 < 0)         Flip(T2);
 
 	float D = SqDistance(T1, T2);
 	if (D > Epsilon) {
 		return false;
 	}
 
-	v2 V[6] = {
-		perp(T1[0] - T1[1]),
-		perp(T1[1] - T1[2]),
-		perp(T1[2] - T1[0]),
-		perp(T2[0] - T2[1]),
-		perp(T2[1] - T2[2]),
-		perp(T2[2] - T2[0]),
-	};
-
 	// Apply separating hiperplane theorem
 	for (int i = 0; i < 6; i++) {
+		v2 V;
+		if (i < 3) {
+			V = perp(T1[i] - T1[(i+1)%3]);
+		}
+		else {
+			V = perp(T2[i-3] - T2[(i-2)%3]);
+		}
+
 		float c1[3] = {};
 		float c2[3] = {};
 
 		for (int j = 0; j < 3; j++) {
-			c1[j] = dot(V[i], T1[j]);
-			c2[j] = dot(V[i], T2[j]);
+			c1[j] = dot(V, T1[j]);
+			c2[j] = dot(V, T2[j]);
 		}
 
 		float d;
@@ -1898,6 +1895,112 @@ bool Intersect(triangle2 T1, triangle2 T2) {
 	}
 
 	return true;
+}
+
+struct polygon {
+	linked_list Vertices;
+};
+
+uint64 CountVertices(polygon P) {
+	link* Link = P.Vertices.First;
+	uint64 Result = 0;
+	while (Link) {
+		Result++;
+		if (Link == P.Vertices.Last) {
+			break;
+		}
+		Link = Link->Next;
+	}
+	return Result;
+}
+
+float Area(polygon Polygon) {
+	link* Link = Polygon.Vertices.First;
+	v2 O = *(v2*)Link->Data;
+	float Result = 0;
+	while (Link && Link != Polygon.Vertices.Last) {
+		v2 P = *(v2*)Link->Data;
+		v2 Q = *(v2*)Link->Next->Data;
+
+		triangle2 T = { O, P, Q };
+		Result += Area(T);
+
+		Link = Link->Next;
+	}
+	return Result;
+}
+
+float Length(polygon Polygon) {
+	link* Link = Polygon.Vertices.First;
+	float Result = 0;
+	while (Link && Link != Polygon.Vertices.Last) {
+		v2 P = *(v2*)Link->Data;
+		v2 Q = *(v2*)Link->Next->Data;
+	
+		Result += distance(P, Q);
+
+		Link = Link->Next;
+	}
+	return Result;
+}
+
+bool IsConvex(polygon Polygon) {
+	link* Link = Polygon.Vertices.First;
+	v2 A = *(v2*)Polygon.Vertices.Last->Data;
+	v2 B = *(v2*)Link->Data;
+	v2 C = *(v2*)Link->Next->Data;
+	triangle2 T = { A, B, C };
+	float TArea = Area(T);
+	while (Link && Link != Polygon.Vertices.Last) {
+		A = *(v2*)Link->Data;
+		B = *(v2*)Link->Next->Data;
+		C = *(v2*)Link->Next->Next->Data;
+
+		triangle2 T = { A, B, C };
+		if (TArea*Area(T) < 0) return false;
+
+		Link = Link->Next;
+	}
+	return true;
+}
+
+float SqDistance(polygon P, v2 Q) {
+	link* Link = P.Vertices.First;
+	v2 A = *(v2*)Link->Data;
+	v2 B = *(v2*)Link->Next->Data;
+	segment2 S = {A, B};
+	float Result = SqDistance(S, Q);
+	Link = Link->Next;
+	while (Link) {
+		B = *(v2*)Link->Data;
+		S.Head = S.Tail;
+		S.Tail = B;
+		float D = SqDistance(S, Q);
+		if (D < Result) Result = D;
+		if (Link == P.Vertices.Last) break;
+		Link = Link->Next;
+	}
+	Link = P.Vertices.First;
+	S.Head = S.Tail;
+	S.Tail = *(v2*)Link->Data;
+	float D = SqDistance(S, Q);
+	if (D < Result) Result = D;
+
+	return Result;
+}
+
+bool Intersect(polygon P1, polygon P2) {
+	// float A1 = Area(P1);
+	// if (fabsf(A1) < Epsilon) return false;
+
+	// float A2 = Area(P2);
+	// if (fabsf(A2) < Epsilon) return false;
+
+	// float D = SqDistance(P1, P2);
+	// if (D > Epsilon) {
+	// 	return false;
+	// }
+	return false;
 }
 
 struct triangle3 {
