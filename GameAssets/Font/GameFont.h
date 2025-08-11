@@ -33,18 +33,25 @@ struct composite_glyph_record {
     char Child;
 };
 
+struct glyph_contour {
+    uint16 Endpoint;
+    uint16 nPoints;
+    bool IsConvex;
+    bool Clockwise;
+    bool OnCurve[];
+};
+
 struct game_font_character {
     char Letter;
-    uint16 Width;
-    uint16 Height;
+    int16 nContours;
+    int16 nPoints;
+    uint16 nChildren;
+    void* Contours;
+    void* Data;
     int16 Left;
     int16 Top;
-    int AtlasX;
-    int AtlasY;
-    int16 nContours;
-    uint16* EndPointsOfContours;
-    uint16 nChildren;
-    void* Data;
+    uint16 Width;
+    uint16 Height;
 };
 
 struct preprocessed_font {
@@ -56,7 +63,7 @@ struct preprocessed_font {
     uint16 nChildren[FONT_CHARACTERS_COUNT];
     uint16 GlyphIDs[FONT_CHARACTERS_COUNT];
     uint16 nPoints[FONT_CHARACTERS_COUNT];
-    std::vector<uint16> EndPtsOfContours[FONT_CHARACTERS_COUNT];
+    std::vector<glyph_contour> Contours[FONT_CHARACTERS_COUNT];
     uint16 nGlyphs;
     uint16 UnitsPerEm;
     uint16 LineJump;
@@ -331,6 +338,10 @@ glyph_header ParseTTFGlyphHeader(uint8* Memory) {
     Result.MaxX = BigEndian(Result.MaxX);
     Result.MaxY = BigEndian(Result.MaxY);
     return Result;
+}
+
+uint32 SizeOf(glyph_contour Contour) {
+    return sizeof(glyph_contour) + Contour.nPoints * sizeof(bool);
 }
 
 struct hhead_table {

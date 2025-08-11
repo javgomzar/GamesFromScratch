@@ -112,7 +112,6 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\ScreenTexture.vert", Vertex_Shader_Screen_Texture_ID);
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Perspective.vert", Vertex_Shader_Perspective_ID);
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Bones.vert", Vertex_Shader_Bones_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Text.vert", Vertex_Shader_Text_ID);
 #if GAME_RENDER_API_VULKAN
     PushShader(&Assets, "..\\GameAssets\\Shaders\\Vertex\\VulkanTest.vert", Vertex_Shader_Vulkan_Test_ID);
 #endif
@@ -262,14 +261,12 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
                     game_font_character* Character = &Font->Characters[j];
                     if (Character->nContours == 0) Raise("Font character has no contours.");
                     else if (Character->nContours > 0) {
-                        Character->EndPointsOfContours = (uint16*)Data;
-                        Data += Character->nContours * sizeof(uint16);
-                        Character->Data = Data;
-                        uint16 nPoints = Character->EndPointsOfContours[Character->nContours - 1] + 1;
-                        Data += nPoints * 6 * sizeof(float);
+                        Character->Contours = Data;
+                        uint64 ContourHeadersSize = Character->nContours * sizeof(glyph_contour) + Character->nPoints * sizeof(bool);
+                        Character->Data = (Data += ContourHeadersSize);
+                        Data += Character->nPoints * sizeof(v2);
                     }
                     else if (Character->nContours < 0) {
-                        Character->EndPointsOfContours = 0;
                         Character->Data = Data;
                         Data += Character->nChildren * sizeof(composite_glyph_record);
                     }

@@ -364,7 +364,7 @@ preprocessed_font PreprocessFont(read_file_result File) {
             // Simple glyphs
             if (GlyphHeader.NumberOfContours > 0) {
                 TotalContours += GlyphHeader.NumberOfContours;
-                Result.EndPtsOfContours[c - '!'].resize(GlyphHeader.NumberOfContours);
+                Result.Contours[c - '!'].resize(GlyphHeader.NumberOfContours);
 
                 uint16* EndPtsOfContours = (uint16*)(GlyphData);
                 uint16 CharacterDataPoints = BigEndian(EndPtsOfContours[GlyphHeader.NumberOfContours - 1]) + 1;
@@ -379,35 +379,22 @@ preprocessed_font PreprocessFont(read_file_result File) {
                     uint16 nPoints = 0;
                     simple_glyph_flag Flag = (simple_glyph_flag)*pFlag;
                     Assert(Flag & ON_CURVE_POINT);
-                    NextTTFGlyphFlag(pFlag);
-                    j++;
-                    bool PreviousOnCurve = true;
-                    int EndPoint = BigEndian(EndPtsOfContours[k]);
-                    for (; j <= EndPoint; j++) {
+                    bool PreviousOnCurve = false;
+                    int Endpoint = BigEndian(EndPtsOfContours[k]);
+                    for (; j <= Endpoint; j++) {
                         Flag = (simple_glyph_flag)*pFlag;
                         bool OnCurve = Flag & ON_CURVE_POINT;
-                        if (PreviousOnCurve == OnCurve) {
-                            nPoints += 3;
-                        }
-                        else if (OnCurve){
+                        if (!PreviousOnCurve && !OnCurve) {
                             nPoints += 1;
                         }
-                        else {
-                            nPoints += 2;
-                        }
+                        nPoints += 1;
                         PreviousOnCurve = OnCurve;
                         NextTTFGlyphFlag(pFlag);
                     }
-                    // Last segment goes back to the beginning
-                    if (PreviousOnCurve) {
-                        nPoints += 3;
-                    }
-                    else {
-                        nPoints += 1;
-                    }
-                    Assert(nPoints % 3 == 0);
                     CharacterPoints += nPoints;
-                    Result.EndPtsOfContours[c - '!'][k] = (CharacterPoints / 3) - 1;
+                    glyph_contour* Contour = &Result.Contours[c - '!'][k];
+                    Contour->nPoints = nPoints;
+                    Contour->Endpoint = CharacterPoints - 1;
                 }
 
                 Result.nPoints[c - '!'] = CharacterPoints;
@@ -448,9 +435,9 @@ preprocessed_font PreprocessFont(read_file_result File) {
 
     delete [] GlyphOffsets;
 
-    Result.Size = TotalContours * sizeof(uint16);
-    // Each point is 2 floats
-    Result.Size += TotalPoints * 2 * sizeof(float);
+    Result.Size = TotalContours * sizeof(glyph_contour);
+    // Each point is 2 floats + 1 bool (on-off curve)
+    Result.Size += TotalPoints * (2 * sizeof(float) + sizeof(bool));
     Result.Size += TotalCompositeRecords * sizeof(composite_glyph_record);
 
     return Result;
@@ -486,11 +473,12 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
         GlyphData += sizeof(glyph_header);
 
         game_font_character* Character = &Result.Characters[c - '!'];
-        Character->Letter = c;
-        Character->Width = Font->AdvanceWidths[c - '!'];
-        Character->Height = Font->AdvanceHeights[c - '!'];
-        Character->Left = Font->LeftSideBearings[c - '!'];
-        Character->Top = Font->TopSideBearings[c - '!'];
+        Character->Letter    = c;
+        Character->Width     = Font->AdvanceWidths[c - '!'];
+        Character->Height    = Font->AdvanceHeights[c - '!'];
+        Character->Left      = Font->LeftSideBearings[c - '!'];
+        Character->Top       = Font->TopSideBearings[c - '!'];
+        Character->nPoints   = Font->nPoints[c - '!'];
 
         // Composite glyphs
         if (GlyphHeader.NumberOfContours < 0) {
@@ -590,22 +578,28 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                     Record->Transform = Transform;
                 }
             } while(Flags & MORE_COMPONENTS);
-
         }
-        
+
+        // Sets the subglyph number of contours if glyph is composite with only one children
         Character->nContours = GlyphHeader.NumberOfContours;
 
         // Simple glyphs
         if (GlyphHeader.NumberOfContours > 0) {
-            Character->nContours = GlyphHeader.NumberOfContours;
             uint16* EndPtsOfContours = (uint16*)GlyphData;
-            Character->EndPointsOfContours = PushArray(Arena, Character->nContours, uint16);
-            for (int i = 0; i < Character->nContours; i++) {
-                Character->EndPointsOfContours[i] = Font->EndPtsOfContours[c - '!'][i];
+            Character->Contours = PushArray(Arena, Character->nContours, glyph_contour);
+            PushArray(Arena, Character->nPoints, bool);
+            
+            uint8* Pointer = (uint8*)Character->Contours;
+            xarray<glyph_contour*> Contours = {};
+            for (int i = 0; i < GlyphHeader.NumberOfContours; i++) {
+                glyph_contour* ContourStart = (glyph_contour*)Pointer;
+                *ContourStart = Font->Contours[c - '!'][i];
+                Contours.Insert(ContourStart);
+                Pointer += sizeof(glyph_contour) + ContourStart->nPoints * sizeof(bool);
             }
     
             uint16 nPoints = BigEndian(EndPtsOfContours[GlyphHeader.NumberOfContours - 1]) + 1;
-            Character->Data = Arena->Base;
+            Character->Data = Arena->Base + Arena->Used;
     
             uint16 InstructionLength = BigEndian(*(EndPtsOfContours + GlyphHeader.NumberOfContours));
             uint8* Instructions = (uint8*)(EndPtsOfContours + GlyphHeader.NumberOfContours + 1);
@@ -641,6 +635,7 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                 int16 FirstX = 0;
                 int16 FirstY = 0;
 
+                int PointIndex = 0;
                 do {
                     Flag = (simple_glyph_flag)*pFlag;
                     bool XIsShort = Flag & X_SHORT_VECTOR;
@@ -652,57 +647,26 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                     int16 X = GetTTFCoordinate(XIsShort, RepeatX, LastX, Xs);
                     int16 Y = GetTTFCoordinate(YIsShort, RepeatY, LastY, Ys);
 
-                    if (Start) {
-                        Start = false;
-                        FirstX = X;
-                        FirstY = Y;
-                    }
-                    else if (PreviousOnCurve == OnCurve) {
+                    if (!PreviousOnCurve && !OnCurve) {
                         float MiddleX = 0.5f * (X + LastX);
                         float MiddleY = 0.5f * (Y + LastY);
+                        float* Result = PushArray(Arena, 4, float);
+                        Result[0] = MiddleX;
+                        Result[1] = MiddleY;
+                        Contours[i]->OnCurve[PointIndex++] = true;
+                        Result[2] = X;
+                        Result[3] = Y;
+                        Contours[i]->OnCurve[PointIndex++] = false;
 
-                        if (OnCurve) {
-                            // When two on-curve points are together, you can use the middle point as the control point (straight line)
-                            float* Result = PushArray(Arena, 6, float);
-                            Result[0] = LastX;
-                            Result[1] = LastY;
-                            Result[2] = MiddleX;
-                            Result[3] = MiddleY;
-                            Result[4] = X;
-                            Result[5] = Y;
-
-                            nFloats += 6;
-                        }
-                        else {
-                            // When two control points are together, it means "use the middle point as the on-curve point"
-                            float* Result = PushArray(Arena, 6, float);
-                            Result[0] = MiddleX;
-                            Result[1] = MiddleY;
-                            Result[2] = MiddleX;
-                            Result[3] = MiddleY;
-                            Result[4] = X;
-                            Result[5] = Y;
-
-                            nFloats += 6;
-                        }
+                        nFloats += 4;
                     }
-                    else if (OnCurve){
-                        // If this point is on-curve and the previous one wasn't, end previous point
+                    else {
                         float* Result = PushArray(Arena, 2, float);
                         Result[0] = X;
                         Result[1] = Y;
+                        Contours[i]->OnCurve[PointIndex++] = OnCurve;
 
                         nFloats += 2;
-                    }
-                    else {
-                        // If this point isn't on-curve and the previous one was, start point
-                        float* Result = PushArray(Arena, 4, float);
-                        Result[0] = LastX;
-                        Result[1] = LastY;
-                        Result[2] = X;
-                        Result[3] = Y;
-
-                        nFloats += 4;
                     }
                     
                     PreviousOnCurve = OnCurve;
@@ -710,29 +674,6 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                     LastY = Y;
                     NextTTFGlyphFlag(pFlag);
                 } while (++j <= EndPoint);
-
-                if (PreviousOnCurve) {
-                    float MiddleX = 0.5f * (FirstX + LastX);
-                    float MiddleY = 0.5f * (FirstY + LastY);
-
-                    // When two on-curve points are together, you can use the middle point as the control point (straight line)
-                    float* Result = PushArray(Arena, 6, float);
-                    Result[0] = LastX;
-                    Result[1] = LastY;
-                    Result[2] = MiddleX;
-                    Result[3] = MiddleY;
-                    Result[4] = FirstX;
-                    Result[5] = FirstY;
-
-                    nFloats += 6;
-                }
-                else {
-                    float* Result = PushArray(Arena, 2, float);
-                    Result[0] = FirstX;
-                    Result[1] = FirstY;
-
-                    nFloats += 2;
-                }
             }
             Assert(nFloats == 2 * Font->nPoints[c - '!']);
             Assert(Arena->Base + Arena->Used == MemoryLayoutStart + 2 * sizeof(float) * Font->nPoints[c - '!']);

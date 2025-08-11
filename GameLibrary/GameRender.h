@@ -3,7 +3,6 @@
 
 #pragma once
 #include "GameAssets.h"
-#include "GameEntity.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Vertex buffer                                                                                                                                |
@@ -91,6 +90,38 @@ void ClearVertexBuffer(vertex_buffer* Buffer) {
     }
     ClearArena(&Buffer->ElementArena);
     Buffer->ElementCount = 0;
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Camera                                                                                                                                       |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct camera {
+    basis Basis;
+    void* Entity;
+    v3 Position;
+    float Distance;
+    float Pitch;
+    float Angle;
+    matrix4 View;
+    bool OnAir;
+};
+
+basis GetCameraBasis(float Angle, float Pitch) {
+    float cosA = cosf(Angle * Degrees);
+    float sinA = sinf(Angle * Degrees);
+    float cosP = cosf(Pitch * Degrees);
+    float sinP = sinf(Pitch * Degrees);
+
+    v3 X = V3(        cosA,  0.0,         sinA);
+    v3 Y = V3(-sinA * sinP, cosP,  cosA * sinP);
+    v3 Z = V3( sinA * cosP, sinP, -cosA * cosP);
+
+    basis Result;
+    Result.X = X;
+    Result.Y = Y;
+    Result.Z = Z;
+    return Result;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -987,20 +1018,69 @@ void PushText(
             }
 
             if (pCharacter->nContours > 0) {
-                uint16 LastEndPoint = 0;
-
+                uint8* Pointer = (uint8*)pCharacter->Contours;
+                v2* PointData = (v2*)pCharacter->Data;
                 for (int j = 0; j < pCharacter->nContours; j++) {
-                    uint16 EndPoint = pCharacter->EndPointsOfContours[j] + 1;
-                    uint16 nPoints = EndPoint - LastEndPoint;
+                    glyph_contour* Contour = (glyph_contour*)Pointer;
 
-                    float* Vertices = new float[6 * nPoints];
-
-                    float* Pointer = (float*)pCharacter->Data + 6 * LastEndPoint;
-
-                    for (int j = 0; j < 3 * nPoints; j++) {
-                        Vertices[2*j]   = Pen.X + ((*Pointer++) - pCharacter->Left) * Size;
-                        Vertices[2*j+1] = Pen.Y - (*Pointer++) * Size;
+                    uint32 nOnCurvePoints = 0;
+                    for (int k = 0; k < Contour->nPoints; k++) {
+                        if (Contour->OnCurve[k]) {
+                            nOnCurvePoints += 1;
+                        }
                     }
+
+                    float* Vertices = new float[6 * (nOnCurvePoints + 1)];
+
+                    float* OutVertices  = Vertices;
+                    int    PointIndex   = 0;
+                    v2     ContourStart = *PointData;
+                    for (int k = 0; k < nOnCurvePoints; k++) {
+                        v2 First = PointData[PointIndex];
+                        bool OnCurve = Contour->OnCurve[PointIndex];
+                        Assert(OnCurve);
+
+                        v2 Second = {}, Third = {};
+                        if (k < nOnCurvePoints - 1) {
+                            Second = PointData[PointIndex+1];
+                            bool NextOnCurve = Contour->OnCurve[PointIndex+1];
+                            if (NextOnCurve) {
+                                Third = Second;
+                                Second = 0.5f * (First + Third);
+                                PointIndex += 1;
+                            }
+                            else {
+                                Third = PointData[PointIndex+2];
+                                PointIndex += 2;
+                            }
+                        }
+                        else {
+                            // Last segment goes back to start, closing the loop
+                            bool NextOnCurve = Contour->OnCurve[Contour->nPoints-1];
+                            Third = ContourStart;
+                            if (NextOnCurve) {
+                                Second = 0.5f * (First + Third);
+                                PointIndex += 1;
+                            }
+                            else {
+                                Second = PointData[PointIndex+1];
+                            }
+                        }
+
+                        *OutVertices++ = Pen.X + ((First.X) - pCharacter->Left) * Size;
+                        *OutVertices++ = Pen.Y - First.Y * Size;
+                        *OutVertices++ = Pen.X + ((Second.X) - pCharacter->Left) * Size;
+                        *OutVertices++ = Pen.Y - Second.Y * Size;
+                        *OutVertices++ = Pen.X + ((Third.X) - pCharacter->Left) * Size;
+                        *OutVertices++ = Pen.Y - Third.Y * Size;
+                    }
+
+                    // *OutVertices++ = Pen.X + ((.X) - pCharacter->Left) * Size;
+                    // *OutVertices++ = Pen.Y - First.Y * Size;
+                    // *OutVertices++ = Pen.X + ((Second.X) - pCharacter->Left) * Size;
+                    // *OutVertices++ = Pen.Y - Second.Y * Size;
+                    // *OutVertices++ = Pen.X + ((Third.X) - pCharacter->Left) * Size;
+                    // *OutVertices++ = Pen.Y - Third.Y * Size;
 
                     render_primitive_options Options = {};
                     Options.Color = Color;
@@ -1013,13 +1093,14 @@ void PushText(
                         render_primitive_patches,
                         Shader,
                         vertex_layout_vec2_id,
-                        3 * nPoints,
+                        3 * nOnCurvePoints,
                         Vertices
                     );
 
                     delete [] Vertices;
 
-                    LastEndPoint = EndPoint;
+                    Pointer += sizeof(glyph_contour) + Contour->nPoints * sizeof(bool);
+                    PointData += Contour->nPoints;
                 }
             }
 
@@ -1599,9 +1680,8 @@ void PushHeightmap(
 // | Entities                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void PushCollider(render_group* Group, game_entity* Entity, color Color) {
-    collider Collider = Entity->Collider;
-    v3 Position = Entity->Transform.Translation + Collider.Offset;
+void PushCollider(render_group* Group, collider Collider, transform T, color Color) {
+    v3 Position = T.Translation + Collider.Offset;
     switch (Collider.Type) {
         case Rect_Collider: {
             PushRectOutline(Group, Rectangle(Collider), Color);
@@ -1618,12 +1698,12 @@ void PushCollider(render_group* Group, game_entity* Entity, color Color) {
         } break;
 
         case Capsule_Collider: {
-            v3 Head = Entity->Transform * Collider.Capsule.Segment.Head;
-            v3 Tail = Entity->Transform * Collider.Capsule.Segment.Tail;
+            v3 Head = T * Collider.Capsule.Segment.Head;
+            v3 Tail = T * Collider.Capsule.Segment.Tail;
 
             segment3 TransformedSegment = { Head, Tail };
-            transform T = SegmentTransform(TransformedSegment);
-            basis Basis = T * Identity3;
+            transform ST = SegmentTransform(TransformedSegment);
+            basis Basis = ST * Identity3;
             v3 D = normalize(Tail - Head);
 
             // Top part
@@ -1647,7 +1727,7 @@ void PushCollider(render_group* Group, game_entity* Entity, color Color) {
 
             // Bottom part
             PushCircunference(Group, Head, D, Collider.Capsule.Distance, Color);
-            Basis = T * Identity3;
+            Basis = ST * Identity3;
             Basis.X = -Basis.X;
             Basis.Y = -Basis.Y;
             PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color);
@@ -1656,359 +1736,11 @@ void PushCollider(render_group* Group, game_entity* Entity, color Color) {
             Basis.Z = Temp;
             PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color);
 
-            Collider.Capsule.Segment = Entity->Transform * Collider.Capsule.Segment;
+            Collider.Capsule.Segment = T * Collider.Capsule.Segment;
         } break;
 
         default: Assert(false);
     }
-}
-
-void PushEntities(render_group* Group, game_entity_state* State, game_input* Input, float Time) {
-    TIMED_BLOCK;
-    basis Basis = Group->Camera->Basis;
-    ray Ray = MouseRay(Group->Width, Group->Height, Group->Camera->Position + Group->Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
-    int i = 0;
-    int nEntities = State->Entities.Count;
-    while (nEntities > 0 && i < MAX_ENTITIES) {
-        game_entity* Entity = &State->Entities.List[i++];
-        
-        if (Entity->Active) nEntities--;
-        else continue;
-
-        collider Collider = Entity->Transform * Entity->Collider;
-        Entity->Hovered = Raycast(Ray, Collider);
-        switch(Entity->Type) {
-            case Entity_Type_Character: {
-                character* pCharacter = &State->Characters.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    Mesh_Body_ID,
-                    Entity->Transform,
-                    Shader_Pipeline_Mesh_Bones_ID,
-                    Bitmap_Empty_ID,
-                    White,
-                    &pCharacter->Armature,
-                    Entity->Hovered
-                );
-            } break;
-    
-            case Entity_Type_Enemy: {
-                enemy* Enemy = &State->Enemies.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    Mesh_Enemy_ID,
-                    Entity->Transform,
-                    Shader_Pipeline_Mesh_ID,
-                    Bitmap_Enemy_ID,
-                    White, 0,
-                    Entity->Hovered
-                );
-            } break;
-
-            case Entity_Type_Prop: {
-                prop* pProp = &State->Props.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    pProp->MeshID,
-                    Entity->Transform,
-                    pProp->Shader,
-                    Bitmap_Empty_ID,
-                    pProp->Color
-                );
-            } break;
-
-            case Entity_Type_Weapon: {
-                weapon* pWeapon = &State->Weapons.List[Entity->Index];
-                game_mesh_id MeshID;
-                switch(pWeapon->Type) {
-                    case Weapon_Sword: MeshID = Mesh_Sword_ID; break;
-                    case Weapon_Shield: MeshID = Mesh_Shield_ID; break;
-                    default: Assert(false);
-                }
-
-                PushMesh(Group, MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
-            } break;
-        }
-
-        if (Group->Debug && Group->DebugColliders && Entity->Type != Entity_Type_Camera) {
-            PushCollider(Group, Entity, Entity->Collided ? Red : Yellow);
-        }
-    }
-}
-
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-// | Debug                                                                                                                                                            |
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position) {
-    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    char Buffer[128];
-    int Points = 8;
-    float LineHeight = GetCharMaxHeight(Font, Points);
-
-    v2 TextCursor = Position + V2(0, LineHeight);
-    debug_entry* Parent = Entry->Parent;
-    while (Parent) {
-        TextCursor.X += 20.0f;
-        Parent = Parent->Parent;
-    }
-
-    sprintf_s(Buffer, "%s: ", Entry->Name);
-    if (Entry->Type != Debug_Type_memory_arena) {
-        PushText(Group, TextCursor, Font_Menlo_Regular_ID, Buffer, White, Points);
-    }
-
-    float Width, Height;
-    GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
-    TextCursor.X += Width;
-
-    switch(Entry->Type) {
-        case Debug_Type_bool: {
-            bool Value = *(bool*)Entry->Value;
-            PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, Value? Cyan : Red, Points);
-        } break;
-
-        case Debug_Type_char:
-        case Debug_Type_string:
-        case Debug_Type_int8:
-        case Debug_Type_int16:
-        case Debug_Type_int:
-        case Debug_Type_int32:
-        case Debug_Type_int64:
-        case Debug_Type_uint8:
-        case Debug_Type_uint16:
-        case Debug_Type_uint32:
-        case Debug_Type_uint64:
-        case Debug_Type_memory_index:
-        case Debug_Type_float:
-        case Debug_Type_double:
-        case Debug_Type_v2:
-        case Debug_Type_v3:
-        case Debug_Type_v4:
-        case Debug_Type_scale:
-        case Debug_Type_quaternion:
-        case Debug_Type_collider:
-        {
-            PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
-        } break;
-
-        case Debug_Type_color: {
-            rectangle Rect = { TextCursor.X, Position.Y, 2.0f * LineHeight, LineHeight };
-            color Color = *(color*)Entry->Value;
-            PushRect(Group, Rect, Color);
-            PushRectOutline(Group, Rect, Gray, 1.0f);
-        } break;
-
-        case Debug_Type_memory_arena: {
-            tokenizer Tokenizer = InitTokenizer(Entry->ValueString);
-            float Percentage = ParseFloat(Tokenizer);
-            rectangle Rect = Rectangle(Position.X, Position.Y, 450.0f, 20.0f);
-            PushFillbar(Group, Entry->Name, Percentage, Rect);
-        } break;
-
-        default: {
-            if (IsEnumType(Entry->Type)) {
-                PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
-            }
-        }
-    }
-}
-
-void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
-    v2 Orthogonal = perp(normalize(V2(Vector.X, Vector.Y)));
-    float OrthogonalLength = 0.005333f * Group->Height;
-
-    int Thickness = max(1.0f, 0.0025f * Group->Height);
-    PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, SORT_ORDER_DEBUG_OVERLAY);
-    triangle2 Arrowhead1 = {
-        Position + Vector,
-        Position + 0.875 * Vector,
-        Position + 0.8 * Vector - OrthogonalLength * Orthogonal
-    };
-    PushTriangle(
-        Group,
-        Arrowhead1,
-        Color, 
-        SORT_ORDER_DEBUG_OVERLAY
-    );
-    triangle2 Arrowhead2 = {
-        Position + Vector,
-        Position + 0.875 * Vector,
-        Position + 0.8 * Vector + OrthogonalLength * Orthogonal,
-    };
-    PushTriangle(
-        Group,
-        Arrowhead2,
-        Color, 
-        SORT_ORDER_DEBUG_OVERLAY
-    );
-}
-
-void PushDebugVector(render_group* Group, v3 Vector, v3 Position, color Color) {
-    float Height = Group->Height;
-
-    v2 CameraCoordinates = perp(V2(dot(Vector, Group->Camera->Basis.X), dot(Vector, Group->Camera->Basis.Y)));
-    v3 Orthogonal = normalize(CameraCoordinates.X * Group->Camera->Basis.X + CameraCoordinates.Y * Group->Camera->Basis.Y);
-    float OrthogonalLength = (modulus(Vector) / 15.0f);
-
-    int Thickness = max(1.0, 0.0025 * Height);
-    PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, SORT_ORDER_MESHES);
-    triangle3 Triangle = {
-        Position + Vector,
-        Position + 0.875 * Vector,
-        Position + 0.8 * Vector - OrthogonalLength * Orthogonal,
-    };
-    PushTriangle(Group, Triangle, Color, SORT_ORDER_MESHES);
-    Triangle = {
-        Position + Vector,
-        Position + 0.875 * Vector,
-        Position + 0.8 * Vector + OrthogonalLength * Orthogonal,
-    };
-    PushTriangle(Group, Triangle, Color, SORT_ORDER_MESHES);
-}
-
-void PushDebugFustrum(
-    render_group* Group,
-    v3 Position,
-    double Angle, double Pitch,
-    double l, double r, double b, double t, double n, double f
-) {
-    basis B = GetCameraBasis(Angle, Pitch);
-
-    v3 nv = -n * B.Z;
-    v3 rv = r * B.X;
-    v3 lv = -l * B.X;
-    v3 tv = t * B.Y * ((double)Group->Height / (double)Group->Width);
-    v3 bv = -b * B.Y * ((double)Group->Height / (double)Group->Width);
-    v3 fv = -f * B.Z;
-
-    v3 l_ = f * lv;
-    v3 r_ = f * rv;
-    v3 t_ = f * tv;
-    v3 b_ = f * bv;
-
-    v3 Vertices[9] = {
-        Position,
-        Position + l_ + t_ + fv,
-        Position + r_ + t_ + fv,
-        Position + l_ + b_ + fv,
-        Position + r_ + b_ + fv,
-        Position + rv + bv + nv,
-        Position + rv + tv + nv,
-        Position + lv + bv + nv,
-        Position + lv + tv + nv
-    };
-
-    uint32 Elements[24] = { 0, 1, 0, 2, 0, 3, 0, 4, 4, 3, 2, 1, 4, 2, 3, 1, 5, 7, 6, 8, 5, 6, 7, 8 };
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    PushPrimitiveCommand(
-        Group,
-        { White, DEPTH_TEST_RENDER_FLAG },
-        render_primitive_line,
-        Shader,
-        vertex_layout_vec3_vec2_id,
-        9,
-        (float*)Vertices,
-        SORT_ORDER_DEBUG_OVERLAY,
-        24,
-        Elements
-    );
-}
-
-void PushDebugGrid(render_group* Group, float Alpha) {
-    const int nVertices = 404;
-    v3 Vertices[nVertices];
-
-    for (int i = 0; i <= 100; i++) {
-        Vertices[4*i  ] = V3(50-i, 0, -50);
-        Vertices[4*i+1] = V3(50-i, 0, 50);
-        Vertices[4*i+2] = V3(-50, 0, 50-i);
-        Vertices[4*i+3] = V3(50, 0, 50-i);
-    }
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    render_primitive_options Options = {};
-    Options.Color = Color(White, 0.5f);
-    Options.Thickness = 1.0f;
-    Options.Flags = DEPTH_TEST_RENDER_FLAG;
-    PushPrimitiveCommand(
-        Group,
-        Options,
-        render_primitive_line,
-        Shader,
-        vertex_layout_vec3_id,
-        nVertices,
-        (float*)Vertices,
-        SORT_ORDER_DEBUG_OVERLAY-2.0f
-    );
-}
-
-void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, bool Attachment = false) {
-    render_command Command;
-    Command.Index = Group->nTargets;
-    Command.Priority = SORT_ORDER_PUSH_RENDER_TARGETS - 0.1f;
-    Command.Type = render_target;
-
-    PushCommand(Group, Command);
-
-    render_target_command TargetCommand = {};
-    TargetCommand.Source = Framebuffer;
-    TargetCommand.Target = Target_Output;
-    TargetCommand.DebugAttachment = Attachment;
-    
-    if (Framebuffer == Target_World || Framebuffer == Target_Outline) {
-        TargetCommand.Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Antialiasing_ID);
-    }
-    else {
-        TargetCommand.Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Framebuffer_ID);
-    }
-
-    float Vertices[30] = {
-        0.5f, -1.0f, 0.0f, 0.0f, 0.0f,
-        1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        1.0f, -0.5f, 0.0f, 1.0f, 1.0f,
-        0.5f, -1.0f, 0.0f, 0.0f, 0.0f,
-        1.0f, -0.5f, 0.0f, 1.0f, 1.0f,
-        0.5f, -0.5f, 0.0f, 0.0f, 1.0f
-    };
-    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id, Vertices);
-
-    Group->TargetCommands[Group->nTargets++] = TargetCommand;
-}
-
-void PushDebugPlot(
-    render_group* Group,
-    int N,
-    float* Data,
-    v2 Position,
-    int dx,
-    color Color = White,
-    float Thickness = 2.0f,
-    float Order = SORT_ORDER_DEBUG_OVERLAY
-) {
-    v2* Vertices = new v2[N];
-    float X = 0;
-    for (int i = 0; i < N; i++) {
-        Vertices[N] = Position + V2(X, -Data[i]);
-        X += dx;
-    }
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-    render_primitive_options Options = {};
-    Options.Color = Color;
-    Options.Thickness = Thickness;
-    PushPrimitiveCommand(
-        Group,
-        Options,
-        render_primitive_line_strip,
-        Shader,
-        vertex_layout_vec2_id,
-        N,
-        (float*)Vertices,
-        Order
-    );
-
-    delete [] Vertices;
 }
 
 #endif
