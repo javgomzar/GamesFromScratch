@@ -992,10 +992,10 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 				glUseProgram(ProgramID);
 
 				SetColorUniform(OpenGL, DrawCommand.Options.Color);
-				// if (DrawCommand.Flags & DEPTH_TEST_RENDER_FLAG) {
-				// 	glDepthFunc(GL_LESS);
-				// }
-				// else glDepthFunc(GL_ALWAYS);
+				if (DrawCommand.Options.Flags & DEPTH_TEST_RENDER_FLAG) {
+					glDepthFunc(GL_LESS);
+				}
+				else glDepthFunc(GL_ALWAYS);
 
 				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
@@ -1178,6 +1178,7 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 				glBindVertexArray(OpenGL->VAOs[TargetCommand.VertexEntry.LayoutID]);
 				glDrawArrays(GL_TRIANGLES, TargetCommand.VertexEntry.Offset, TargetCommand.VertexEntry.Count);
 
+				glEnable(GL_DEPTH_TEST);
 				glDepthFunc(GL_LESS);
 			} break;
 
