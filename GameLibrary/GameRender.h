@@ -165,8 +165,8 @@ enum render_primitive {
 
 typedef uint64 render_flags;
 enum {
-    DEPTH_TEST_RENDER_FLAG   = 1,
-    STENCIL_TEST_RENDER_FLAG = 2,
+    DEPTH_TEST_RENDER_FLAG      = 1 << 0,
+    STENCIL_TEST_RENDER_FLAG    = 1 << 1,
 };
 
 struct render_primitive_options {
@@ -300,6 +300,14 @@ memory_index InitializeRenderGroup(render_group* Group, game_assets* Assets, uin
     return MemoryUsed;
 }
 
+// Render entries sorting
+float SORT_ORDER_CLEAR = 0.0f;
+float SORT_ORDER_MESHES = 100.0f;
+float SORT_ORDER_OUTLINED_MESHES = 150.0f;
+float SORT_ORDER_DEBUG_OVERLAY = 200.0f;
+float SORT_ORDER_SHADER_PASSES = 8000.0f;
+float SORT_ORDER_PUSH_RENDER_TARGETS = 9000.0f;
+
 void Swap(render_group* Group, int i, int j) {
     render_command Entry = Group->Entries[i];
     Group->Entries[i] = Group->Entries[j];
@@ -377,14 +385,6 @@ void ClearEntries(render_group* Group) {
     Group->nTargets = 0;
     Group->EntryCount = 0;
 }
-
-// Render entries sorting
-float SORT_ORDER_CLEAR = 0.0;
-float SORT_ORDER_MESHES = 100.0;
-float SORT_ORDER_OUTLINED_MESHES = 150.0;
-float SORT_ORDER_DEBUG_OVERLAY = 200.0;
-float SORT_ORDER_SHADER_PASSES = 8000.0;
-float SORT_ORDER_PUSH_RENDER_TARGETS = 9000.0;
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Push methods                                                                                                                                                     |
@@ -1025,7 +1025,7 @@ void PushText(
 
                     uint32 nOnCurvePoints = 0;
                     for (int k = 0; k < Contour->nPoints; k++) {
-                        if (Contour->OnCurve[k]) {
+                        if (Contour->IsOnCurve[k]) {
                             nOnCurvePoints += 1;
                         }
                     }
@@ -1037,13 +1037,13 @@ void PushText(
                     v2     ContourStart = *PointData;
                     for (int k = 0; k < nOnCurvePoints; k++) {
                         v2 First = PointData[PointIndex];
-                        bool OnCurve = Contour->OnCurve[PointIndex];
+                        bool OnCurve = Contour->IsOnCurve[PointIndex];
                         Assert(OnCurve);
 
                         v2 Second = {}, Third = {};
                         if (k < nOnCurvePoints - 1) {
                             Second = PointData[PointIndex+1];
-                            bool NextOnCurve = Contour->OnCurve[PointIndex+1];
+                            bool NextOnCurve = Contour->IsOnCurve[PointIndex+1];
                             if (NextOnCurve) {
                                 Third = Second;
                                 Second = 0.5f * (First + Third);
@@ -1056,7 +1056,7 @@ void PushText(
                         }
                         else {
                             // Last segment goes back to start, closing the loop
-                            bool NextOnCurve = Contour->OnCurve[Contour->nPoints-1];
+                            bool NextOnCurve = Contour->IsOnCurve[Contour->nPoints-1];
                             Third = ContourStart;
                             if (NextOnCurve) {
                                 Second = 0.5f * (First + Third);
@@ -1075,13 +1075,6 @@ void PushText(
                         *OutVertices++ = Pen.Y - Third.Y * Size;
                     }
 
-                    // *OutVertices++ = Pen.X + ((.X) - pCharacter->Left) * Size;
-                    // *OutVertices++ = Pen.Y - First.Y * Size;
-                    // *OutVertices++ = Pen.X + ((Second.X) - pCharacter->Left) * Size;
-                    // *OutVertices++ = Pen.Y - Second.Y * Size;
-                    // *OutVertices++ = Pen.X + ((Third.X) - pCharacter->Left) * Size;
-                    // *OutVertices++ = Pen.Y - Third.Y * Size;
-
                     render_primitive_options Options = {};
                     Options.Color = Color;
                     Options.Points = Points;
@@ -1094,7 +1087,8 @@ void PushText(
                         Shader,
                         vertex_layout_vec2_id,
                         3 * nOnCurvePoints,
-                        Vertices
+                        Vertices,
+                        SORT_ORDER_DEBUG_OVERLAY
                     );
 
                     delete [] Vertices;
@@ -1651,6 +1645,7 @@ void PushHeightmap(
     Options.Color = White;
     Options.Texture = &Heightmap->Bitmap;
     Options.PatchParameter = 4;
+    Options.Flags = DEPTH_TEST_RENDER_FLAG;
 
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, ShaderID);
 
