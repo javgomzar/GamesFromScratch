@@ -37,8 +37,8 @@ struct glyph_contour {
     uint16 Endpoint;
     uint16 nPoints;
     bool IsConvex;
-    bool Clockwise;
-    bool OnCurve[];
+    bool IsExterior;
+    bool IsOnCurve[];
 };
 
 struct game_font_character {

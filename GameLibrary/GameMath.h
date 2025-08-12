@@ -1949,15 +1949,31 @@ bool IsConvex(polygon Polygon) {
 	v2 A = *(v2*)Polygon.Vertices.Last->Data;
 	v2 B = *(v2*)Link->Data;
 	v2 C = *(v2*)Link->Next->Data;
-	triangle2 T = { A, B, C };
-	float TArea = Area(T);
+	triangle2 FirstT = { A, B, C };
+	float FirstArea = Area(FirstT);
+
+	// In case first triangle is flat
+	while (fabsf(FirstArea) <= Epsilon) {
+		A = *(v2*)Link->Data;
+		B = *(v2*)Link->Next->Data;
+		C = *(v2*)Link->Next->Next->Data;
+
+		FirstT = { A, B, C };
+		FirstArea = Area(FirstT);
+
+		if (fabsf(FirstArea) > Epsilon) {
+			Link = Polygon.Vertices.First;
+		}
+	}
+
+	// If the curve bends in different directions -> not convex
 	while (Link && Link != Polygon.Vertices.Last) {
 		A = *(v2*)Link->Data;
 		B = *(v2*)Link->Next->Data;
 		C = *(v2*)Link->Next->Next->Data;
 
 		triangle2 T = { A, B, C };
-		if (TArea*Area(T) < 0) return false;
+		if (FirstArea*Area(T) < 0) return false;
 
 		Link = Link->Next;
 	}

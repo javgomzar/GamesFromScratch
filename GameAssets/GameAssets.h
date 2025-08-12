@@ -81,11 +81,11 @@ struct color {
     float Alpha;
 };
 
-color Color(float R, float G, float B, float Alpha = 1.0f) {
+color GetColor(float R, float G, float B, float Alpha = 1.0f) {
     return { R, G, B, Alpha };
 }
 
-color Color(color Color, float Alpha) {
+color ChangeAlpha(color Color, float Alpha) {
     return { Color.R, Color.G, Color.B, Alpha };
 }
 
@@ -98,17 +98,18 @@ color operator*(float Luminosity, color Color) {
     };
 }
 
-static color Black = { 0.0f, 0.0f, 0.0f, 1.0f };
-static color White = { 1.0f, 1.0f, 1.0f, 1.0f };
-static color Gray = { 0.5f, 0.5f, 0.5f, 1.0f };
-static color DarkGray = { 0.1f, 0.1f, 0.1f, 1.0f };
-static color Red = { 1.0f, 0.0f, 0.0f, 1.0f };
-static color Green = { 0.0f, 1.0f, 0.0f, 1.0f };
-static color Blue = { 0.0f, 0.0f, 1.0f, 1.0f };
-static color Magenta = { 1.0f, 0.0f, 1.0f, 1.0f };
-static color Yellow = { 1.0f, 1.0f, 0.0f, 1.0f };
-static color Cyan = { 0.0f, 1.0f, 1.0f, 1.0f };
-static color Orange = { 1.0f, 0.63f, 0.0f, 1.0f };
+static color Black          = { 0.0f, 0.0f, 0.0f, 1.0f };
+static color White          = { 1.0f, 1.0f, 1.0f, 1.0f };
+static color Gray           = { 0.5f, 0.5f, 0.5f, 1.0f };
+static color DarkGray       = { 0.1f, 0.1f, 0.1f, 1.0f };
+static color Red            = { 1.0f, 0.0f, 0.0f, 1.0f };
+static color Green          = { 0.0f, 1.0f, 0.0f, 1.0f };
+static color Blue           = { 0.0f, 0.0f, 1.0f, 1.0f };
+static color Magenta        = { 1.0f, 0.0f, 1.0f, 1.0f };
+static color Yellow         = { 1.0f, 1.0f, 0.0f, 1.0f };
+static color Cyan           = { 0.0f, 1.0f, 1.0f, 1.0f };
+static color Orange         = { 1.0f, 0.63f, 0.0f, 1.0f };
+static color Purple         = { 0.5f, 0.0f, 0.6f, 1.0f};
 static color BackgroundBlue = { 0.4f, 0.4f, 0.8f, 1.0f };
 
 uint32 GetColorBytes(color Color) {
@@ -140,7 +141,7 @@ uint32 GetColorBytes(color Color) {
 //}
 
 color operator+(color Color1, color Color2) {
-    return Color(
+    return GetColor(
         Color1.R + Color2.R,
         Color1.G + Color2.G,
         Color1.B + Color2.B

@@ -94,8 +94,8 @@ inline void Assert(bool assertion, const char* Message = "") {
 // Memory Arenas
 struct memory_arena {
     memory_index Size;
-    uint8* Base;
     memory_index Used;
+    uint8* Base;
 };
 
 inline memory_arena MemoryArena(memory_index Size, uint8* Base) {

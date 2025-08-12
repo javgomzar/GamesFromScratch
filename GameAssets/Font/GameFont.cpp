@@ -1,4 +1,5 @@
 #include "GameFont.h"
+#include "Win32PlatformLayer.h"
 
 // +------------------------------------------------------------------------------------------------------------------------------------------+
 // | Utilities for TTF file parsing                                                                                                           |
@@ -461,6 +462,8 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
     uint32* LocationsTable = (uint32*)(FilePointer + Font->LocaOffset);
     FillGlyphOffsets(GlyphOffsets, LocationsTable, Font->IndexToLocFormat, Font->nGlyphs);
 
+    memory_arena TempArena = AllocateMemoryArena(Kilobytes(32));
+
     // Getting glyph data
     uint8* GlyfTable = FilePointer + Font->GlyfOffset;
     for (char c = '!'; c <= '~'; c++) {
@@ -622,21 +625,20 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
             uint8* Ys = Xs + nXBytes;
             int16 LastX = 0;
             int16 LastY = 0;
-            int j = 0;
+            int FontPointIndex = 0;
             uint8* MemoryLayoutStart = Arena->Base + Arena->Used;
             int nFloats = 0;
             for (int i = 0; i < GlyphHeader.NumberOfContours; i++) {
                 simple_glyph_flag Flag = (simple_glyph_flag)*pFlag;
                 Assert(Flag & ON_CURVE_POINT);
                 bool PreviousOnCurve = false;
-                int EndPoint = BigEndian(EndPtsOfContours[i]);
+                int Endpoint = BigEndian(EndPtsOfContours[i]);
 
                 bool Start = true;
-                int16 FirstX = 0;
-                int16 FirstY = 0;
+                int OutPointIndex = 0;
+                linked_list OnCurvePoints = {};
 
-                int PointIndex = 0;
-                do {
+                for (; FontPointIndex <= Endpoint; FontPointIndex++) {
                     Flag = (simple_glyph_flag)*pFlag;
                     bool XIsShort = Flag & X_SHORT_VECTOR;
                     bool YIsShort = Flag & Y_SHORT_VECTOR;
@@ -653,10 +655,14 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                         float* Result = PushArray(Arena, 4, float);
                         Result[0] = MiddleX;
                         Result[1] = MiddleY;
-                        Contours[i]->OnCurve[PointIndex++] = true;
+                        link* Link = PushStruct(&TempArena, link);
+                        Link->Data = Result;
+                        OnCurvePoints.PushBack(Link);
+
+                        Contours[i]->IsOnCurve[OutPointIndex++] = true;
                         Result[2] = X;
                         Result[3] = Y;
-                        Contours[i]->OnCurve[PointIndex++] = false;
+                        Contours[i]->IsOnCurve[OutPointIndex++] = false;
 
                         nFloats += 4;
                     }
@@ -664,7 +670,13 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                         float* Result = PushArray(Arena, 2, float);
                         Result[0] = X;
                         Result[1] = Y;
-                        Contours[i]->OnCurve[PointIndex++] = OnCurve;
+                        Contours[i]->IsOnCurve[OutPointIndex++] = OnCurve;
+
+                        if (OnCurve) {
+                            link* Link = PushStruct(&TempArena, link);
+                            Link->Data = Result;
+                            OnCurvePoints.PushBack(Link);
+                        }
 
                         nFloats += 2;
                     }
@@ -673,12 +685,22 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                     LastX = X;
                     LastY = Y;
                     NextTTFGlyphFlag(pFlag);
-                } while (++j <= EndPoint);
+                }
+                OnCurvePoints.CloseCircle();
+
+                // Post processing
+                polygon Polygon = { OnCurvePoints };
+                Contours[i]->IsConvex   = IsConvex(Polygon);
+                Contours[i]->IsExterior = Area(Polygon) > 0;
+
+                ClearArena(&TempArena);
             }
             Assert(nFloats == 2 * Font->nPoints[c - '!']);
             Assert(Arena->Base + Arena->Used == MemoryLayoutStart + 2 * sizeof(float) * Font->nPoints[c - '!']);
         }
     }
+
+    FreeMemoryArena(&TempArena);
     
     // FT_Library FTLibrary;
     // FT_Face Font;

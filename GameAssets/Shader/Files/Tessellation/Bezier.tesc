@@ -17,8 +17,15 @@ void main() {
 
     if (gl_InvocationID == 0) {
         gl_TessLevelOuter[0] = 1;
+        
+        vec4 Middle = 0.5 * (gl_in[0].gl_Position + gl_in[2].gl_Position);
+        float D = length(Middle - gl_in[1].gl_Position);
+        
         int Level = 4;
-        if (TextUBO.Points > 80) {
+        if (D < 0.0001) {
+            Level = 1;
+        }
+        else if (TextUBO.Points > 80) {
             Level = 8;
         }
         gl_TessLevelOuter[1] = Level;
