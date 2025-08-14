@@ -98,6 +98,10 @@ struct memory_arena {
     uint8* Base;
 };
 
+inline void ZeroSize(memory_index Size, void* Memory) {
+    memset(Memory, 0, Size);
+}
+
 inline memory_arena MemoryArena(memory_index Size, uint8* Base) {
     memory_arena Result;
     Result.Size = Size;
@@ -106,11 +110,14 @@ inline memory_arena MemoryArena(memory_index Size, uint8* Base) {
     return Result;
 }
 
-inline void ZeroSize(memory_index Size, void* Ptr) {
-    uint8* Byte = (uint8*)Ptr;
-    while (Size--) {
-        *Byte++ = 0;
-    }
+inline memory_arena AllocateMemoryArena(memory_index Size) {
+    uint8* Base = (uint8*)calloc(1, Size);
+    return MemoryArena(Size, Base);
+}
+
+inline void FreeMemoryArena(memory_arena* Arena) {
+    free(Arena->Base);
+    Arena = {};
 }
 
 inline void ClearArena(memory_arena* Arena) {
@@ -202,16 +209,14 @@ void Attach(link* Link1, link* Link2) {
         Link1->Next = Link2;
     }
     if (Link2 != NULL) {
-        Link2->Previous = Link2;
+        Link2->Previous = Link1;
     }
 }
 
 void Delete(link* ThisLink) {
-    if (ThisLink->Previous == ThisLink->Next && ThisLink->Next == ThisLink) {
-        ThisLink->Previous = NULL;
-        ThisLink->Next = NULL;
-    }
-    else Attach(ThisLink->Previous, ThisLink->Next);
+    Attach(ThisLink->Previous, ThisLink->Next);
+    ThisLink->Previous = NULL;
+    ThisLink->Next = NULL;
 }
 
 /*
@@ -233,10 +238,12 @@ struct linked_list {
 
     void PushFront(link* Element) {
         if (First == NULL || Last == NULL) {
-            First = Element;
             Last = Element;
         }
-        Attach(First, Element);
+        else {
+            Attach(Element, First);
+        }
+        First = Element;
     }
 
     void CloseCircle() {
@@ -244,15 +251,28 @@ struct linked_list {
     }
 
     void Break(link* Link) {
-        Delete(Link);
         if (First == Link) First = Link->Next;
         if (Last == Link)  Last  = Link->Previous;
+        Delete(Link);
     }
 
     bool IsEmpty() {
         return First == NULL && Last == NULL;
     }
 };
+
+uint64 GetLength(linked_list List) {
+	link* Link = List.First;
+	uint64 Result = 0;
+	while (Link) {
+		Result++;
+		if (Link == List.Last) {
+			break;
+		}
+		Link = Link->Next;
+	}
+	return Result;
+}
 
 // Naive implementation of exponential array (see https://www.youtube.com/watch?v=i-h95QIGchY)
 
@@ -274,11 +294,6 @@ static inline void* xar_get(xarray_header* Xar, xarray_meta Meta, uint64 i) {
     uint64 ChunkSize = 1 << Meta.Shift;
     uint64 Element = i;
 
-    if (i == 426) {
-        char X = 'A';
-        Assert(X == 'A'); 
-    }
-
     uint64 nShifts = i >> Meta.Shift;
     if (nShifts > 0) {
         ChunkIndex = MSB64(nShifts);
@@ -294,26 +309,26 @@ private:
     xarray_meta Meta;
     xarray_header* Header;
 
-    void NewChunk(uint64 Size) {
+    void NewChunk(memory_index Size) {
         if (Meta.nChunks >= MAX_XARRAY_CHUNKS) {
             Assert(false, "Xarray chunk index overflow.");
         }
-        Header->Chunks[Meta.nChunks++] = (uint8*)VirtualAlloc(0, Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        Header->Chunks[Meta.nChunks++] = (uint8*)malloc(Size);
     }
 
 public:
     xarray() {
         Meta = { 4, 0, sizeof(T) };
-        Header = (xarray_header*)VirtualAlloc(0, MAX_XARRAY_CHUNKS * sizeof(uint8*), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        Header = (xarray_header*)calloc(MAX_XARRAY_CHUNKS + 1, sizeof(uint64));
         NewChunk(Meta.ElementSize * (1 << Meta.Shift));
     }
 
     ~xarray() {
         for (int i = 0; i < Meta.nChunks; i++) {
-            VirtualFree(Header->Chunks[i], 0, MEM_RELEASE);
+            free(Header->Chunks[i]);
         }
 
-        VirtualFree(Header, 0, MEM_RELEASE);
+        free(Header);
     }
 
     const T& operator[] (uint64 i) const {
@@ -332,6 +347,10 @@ public:
         //T* Pointer = (T*)ElementMemory;
         *Pointer = Element;
         return Pointer;
+    }
+
+    uint64 Size() {
+        return Header->n;
     }
 };
 
