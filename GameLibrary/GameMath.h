@@ -1761,7 +1761,7 @@ struct triangle2 {
 	}
 };
 
-inline float Area(triangle2 T) {
+inline float GetArea(triangle2 T) {
 	return 0.5f * cross(T[2] - T[0], T[1] - T[0]);
 }
 
@@ -1770,9 +1770,9 @@ inline bool IsInside(triangle2 T, v2 P) {
 	triangle2 V = { P, T[2], T[0] };
 	triangle2 W = { P, T[0], T[1] };
 
-	float Area0 = Area(U);
-	float Area1 = Area(V);
-	float Area2 = Area(W);
+	float Area0 = GetArea(U);
+	float Area1 = GetArea(V);
+	float Area2 = GetArea(W);
 
 	if (Area0 * Area1 > 0 && Area1 * Area2 > 0) {
 		return true;
@@ -1811,42 +1811,16 @@ float SqDistance(triangle2 T, v2 P) {
 	return d;
 }
 
-float SqDistance(triangle2 T1, triangle2 T2) {
-	v2 Closest1 = {}, Closest2 = {};
-	v2 Last1    = {}, Last2    = {};
-	float d = FLT_MAX, last_d = FLT_MAX;
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 3; j++) {
-			float candidate = distance(T1[i], T2[j]);
-			if (candidate == 0) return 0;
-			if (candidate < d) {
-				Last1 = Closest1; Last2 = Closest2;
-				Closest1 = T1[i]; Closest2 = T2[j];
-				d = candidate; last_d = d;
- 			}
-		}
-	}
-
-	segment2 S1 = { Closest1, Last1 };
-	segment2 S2 = { Closest2, Last2 };
-
-	return SqDistance(S1, S2);
-}
 
 /*
 	Intersects two triangles in the plane. Result is true if both triangles intersect in a region with some area.
 */
 bool Intersect(triangle2 T1, triangle2 T2) {
-	float A1 = Area(T1);
+	float A1 = GetArea(T1);
 	if (fabsf(A1) < Epsilon) return false;
 
-	float A2 = Area(T2);
+	float A2 = GetArea(T2);
 	if (fabsf(A2) < Epsilon) return false;
-
-	float D = SqDistance(T1, T2);
-	if (D > Epsilon) {
-		return false;
-	}
 
 	// Apply separating hiperplane theorem
 	for (int i = 0; i < 6; i++) {
@@ -1902,19 +1876,10 @@ struct polygon {
 };
 
 uint64 CountVertices(polygon P) {
-	link* Link = P.Vertices.First;
-	uint64 Result = 0;
-	while (Link) {
-		Result++;
-		if (Link == P.Vertices.Last) {
-			break;
-		}
-		Link = Link->Next;
-	}
-	return Result;
+	return GetLength(P.Vertices);
 }
 
-float Area(polygon Polygon) {
+float GetArea(polygon Polygon) {
 	link* Link = Polygon.Vertices.First;
 	v2 O = *(v2*)Link->Data;
 	float Result = 0;
@@ -1923,7 +1888,7 @@ float Area(polygon Polygon) {
 		v2 Q = *(v2*)Link->Next->Data;
 
 		triangle2 T = { O, P, Q };
-		Result += Area(T);
+		Result += GetArea(T);
 
 		Link = Link->Next;
 	}
@@ -1950,16 +1915,18 @@ bool IsConvex(polygon Polygon) {
 	v2 B = *(v2*)Link->Data;
 	v2 C = *(v2*)Link->Next->Data;
 	triangle2 FirstT = { A, B, C };
-	float FirstArea = Area(FirstT);
+	float FirstArea = GetArea(FirstT);
 
 	// In case first triangle is flat
-	while (fabsf(FirstArea) <= Epsilon) {
+	uint32 n = CountVertices(Polygon);
+	uint32 i = 0;
+	while (fabsf(FirstArea) <= Epsilon && i++ < n) {
 		A = *(v2*)Link->Data;
 		B = *(v2*)Link->Next->Data;
 		C = *(v2*)Link->Next->Next->Data;
 
 		FirstT = { A, B, C };
-		FirstArea = Area(FirstT);
+		FirstArea = GetArea(FirstT);
 
 		if (fabsf(FirstArea) > Epsilon) {
 			Link = Polygon.Vertices.First;
@@ -1973,7 +1940,7 @@ bool IsConvex(polygon Polygon) {
 		C = *(v2*)Link->Next->Next->Data;
 
 		triangle2 T = { A, B, C };
-		if (FirstArea*Area(T) < 0) return false;
+		if (FirstArea*GetArea(T) < 0) return false;
 
 		Link = Link->Next;
 	}
