@@ -56,5 +56,6 @@ echo 0 > bin\PDBNumber.txt
  avformat.lib^
  avutil.lib^
  swscale.lib^
+ psapi.lib^
  %RENDER_LIBS%^
  Win32PlatformLayer\Win32PlatformLayer.res /MACHINE:X64

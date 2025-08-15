@@ -13,8 +13,6 @@
 
 #pragma comment(lib, "xaudio2.lib")
 
-#include "Tokenizer.h"
-
 /* TODO:
     - Saved game locations
     - Getting a handle to our own executable file
@@ -999,7 +997,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         debug_info* DebugInfo = &Memory.DebugInfo;
-        ClearDebugContext(DebugInfo);
+        *DebugInfo = {};
+
+        PROCESS_MEMORY_COUNTERS_EX PMC = {};
+        uint64 UsedMemory = 0;
+        if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&PMC, sizeof(PMC))) {
+            UsedMemory = PMC.WorkingSetSize / Megabytes(1);
+        }
+        DebugInfo->UsedMemory = UsedMemory;
+        DEBUG_VALUE(UsedMemory, uint64);
 
         // Performance computations
         uint64 EndCycleCount = __rdtsc();
@@ -1027,6 +1033,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         float BudgetTime = 1000.0f * ActualSecsElapsed; // (in ms)
         float FPS = 1.0f / ActualSecsElapsed;
         
+        DebugInfo->FPS                 = FPS;
+        DebugInfo->BudgetTime          = BudgetTime;
+        DebugInfo->UsedTime            = UsedTime;
+        DebugInfo->UsedMCyclesPerFrame = UsedMCyclesPerFrame;
+
         DEBUG_VALUE(FPS, float);
         DEBUG_VALUE(BudgetTime, float);
         DEBUG_VALUE(UsedTime, float);

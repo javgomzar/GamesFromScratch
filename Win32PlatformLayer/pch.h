@@ -9,6 +9,7 @@
 
 // add headers that you want to pre-compile here
 #include "windows.h"
+#include <psapi.h>
 
 #include "resource.h"
 #include "framework.h"
