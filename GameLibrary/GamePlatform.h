@@ -352,6 +352,10 @@ public:
     uint64 Size() {
         return Header->n;
     }
+
+    void Clear() {
+        Header->n = 0;
+    }
 };
 
 // Services that the platform layer provides for the game

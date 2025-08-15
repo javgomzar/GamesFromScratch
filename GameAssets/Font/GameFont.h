@@ -33,12 +33,19 @@ struct composite_glyph_record {
     char Child;
 };
 
+struct glyph_contour_point {
+    uint32 Index;
+    float X;
+    float Y;
+    bool OnCurve;
+};
+
 struct glyph_contour {
+    glyph_contour_point* Points;
     uint16 Endpoint;
     uint16 nPoints;
     bool IsConvex;
     bool IsExterior;
-    bool IsOnCurve[];
 };
 
 struct game_font_character {
@@ -46,8 +53,10 @@ struct game_font_character {
     int16 nContours;
     int16 nPoints;
     uint16 nChildren;
-    void* Contours;
+    glyph_contour* Contours;
     void* Data;
+    uint64 VerticesOffset;
+    uint64 ElementsOffset;
     int16 Left;
     int16 Top;
     uint16 Width;
@@ -81,7 +90,6 @@ struct game_font {
     uint16 LineJump;
     float UnitsPerEm;
     game_font_character Characters[FONT_CHARACTERS_COUNT];
-    //game_bitmap Bitmap;
 };
 
 float GetF2DOT14(F2DOT14 Number) {
@@ -340,10 +348,6 @@ glyph_header ParseTTFGlyphHeader(uint8* Memory) {
     return Result;
 }
 
-uint32 SizeOf(glyph_contour Contour) {
-    return sizeof(glyph_contour) + Contour.nPoints * sizeof(bool);
-}
-
 struct hhead_table {
     uint16 MajorVersion;
     uint16 MinorVersion;
@@ -461,6 +465,7 @@ const float DPI = 96.0f;
 
 preprocessed_font PreprocessFont(read_file_result File);
 game_font LoadFont(memory_arena* Arena, preprocessed_font* Font);
+void ComputeTriangulation(memory_arena* Arena, game_font* Font);
 
 float GetCharMaxHeight(game_font* Font, int Points) {
     float PixelsPerEm = Points * (DPI / 72.0f) / Font->UnitsPerEm;

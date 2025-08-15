@@ -90,6 +90,11 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     TestRendering(Group, Input);
 
+    //TestXArray();
+    TestTriangleIntersection(Group, Input);
+
+    TestTriangulations(Group, Input);
+    
     UpdateUI(Memory, Input);
 
     PushRenderTarget(Group, Target_World);
@@ -108,7 +113,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
         else {
             rectangle ScreenRect = { 0, 0, (float)Group->Width, (float)Group->Height };
-            PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
+            PushRect(Group, ScreenRect, ChangeAlpha(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
     PushRenderTarget(Group, Target_Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);

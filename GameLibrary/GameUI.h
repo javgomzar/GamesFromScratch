@@ -634,13 +634,20 @@ void RenderUI() {
             PushDebugEntry(UI.Group, Element->DebugEntry, Position);
         }
         else {
-            if (Element->Flags & RENDER_TEXT_UI_FLAG) {
-                float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
-                PushText(UI.Group, Position + V2(0, OffsetHeight), FontID, Element->Name, Element->Color, Element->Points);
-            }
-
             if (Element->Flags & RENDER_RECT_UI_FLAG) {
                 PushRect(UI.Group, Element->Rect, Element->Color);
+            }
+
+            if (Element->Flags & RENDER_TEXT_UI_FLAG) {
+                float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
+                PushText(
+                    UI.Group,
+                    Position + V2(0, OffsetHeight), 
+                    FontID, 
+                    Element->Name,
+                    Element->Color,
+                    Element->Points
+                );
             }
         }
 
@@ -656,7 +663,7 @@ struct UIMenu {
         ui_alignment AlignmentY = ui_alignment_center,
         float MarginX = 10.0f,
         float MarginY = 10.0f,
-        color C = Color(Black, 0.7f)
+        color C = ChangeAlpha(Black, 0.7f)
     ) {
         ui_axis NoStack = Stack == axis_x ? axis_y : axis_x;
         ui_size Sizes[2];
@@ -823,9 +830,9 @@ void UpdateUI(
         v2 YAxis = V2(0.0, -cos(Group->Camera->Pitch * Degrees));
         v2 ZAxis = V2(-sin(Group->Camera->Angle * Degrees), sin(Group->Camera->Pitch * Degrees) * cos(Group->Camera->Angle * Degrees));
         v2 AxisOrigin = V2(Group->Width - 0.08 * (float)Group->Height - 10.0, 0.1 * (float)Group->Height);
-        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Color(Red, DebugAlpha));
-        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Color(Green, DebugAlpha));
-        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Color(Blue, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, ChangeAlpha(Red, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, ChangeAlpha(Green, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, ChangeAlpha(Blue, DebugAlpha));
 
         // Debug camera basis
         // PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
