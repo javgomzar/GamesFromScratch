@@ -236,6 +236,17 @@ inline float modulus(v2 A) {
 	return sqrt(dot(A, A));
 }
 
+inline float GetAngle(v2 A, v2 B) {
+	float mA = modulus(A);
+	float mB = modulus(B);
+	if (mA < Epsilon || mB < Epsilon) {
+		return 0;
+	}
+	float s = cross(A, B) / mA / mB;
+	float c = dot(A, B) / mA / mB;
+	return atan2f(s, c);
+}
+
 inline v2 normalize(v2 V) {
 	return (modulus(V) < Epsilon) ? V2(0,0) : (1 / modulus(V)) * V;
 }
@@ -1972,18 +1983,25 @@ float SqDistance(polygon P, v2 Q) {
 	return Result;
 }
 
-bool Intersect(polygon P1, polygon P2) {
-	// float A1 = Area(P1);
-	// if (fabsf(A1) < Epsilon) return false;
+float GetWindingNumber(polygon P, v2 Q) {
+	float Result = 0;
+	uint64 n = CountVertices(P);
+	link* Link = P.Vertices.First;
+	do {
+		v2 A = *(v2*)Link->Data;
+		v2 B = *(v2*)Link->Next->Data;
 
-	// float A2 = Area(P2);
-	// if (fabsf(A2) < Epsilon) return false;
+		Result += GetAngle(A - Q, B - Q);
+		Link = Link->Next;
+	}
+	while (Link && Link != P.Vertices.First);
+	
+    return Result;
+}
 
-	// float D = SqDistance(P1, P2);
-	// if (D > Epsilon) {
-	// 	return false;
-	// }
-	return false;
+bool IsInside(polygon P, v2 Q) {
+	float Winding = GetWindingNumber(P, Q);
+	return fabsf(Winding) > 0.1;
 }
 
 struct triangle3 {

@@ -781,67 +781,130 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
 
     // delete [] Buffer;
 
-    // delete [] GlyphOffsets;
+    delete [] GlyphOffsets;
 
     return Result;
 }
 
 void ComputeTriangulation(memory_arena* Arena, game_font* Font) {
-    /*
     memory_arena TempArena = AllocateMemoryArena(Kilobytes(32));
 
-    xarray<triangle2> VoidTriangles;
-    for (int c = '!'; c <= '~'; c++) {
+    for (int c = '!'; c <= '!'; c++) {
         game_font_character* Character = &Font->Characters[c - '!'];
-        polygon Polygon = {};
-        glyph_contour_point* PointData = (glyph_contour_point*)Character->Data;
 
-        uint8* Contours = (uint8*)Character->Contours;
         for (int i = 0; i < Character->nContours; i++) {
-            glyph_contour* Contour = (glyph_contour*)Contours;
-            Contours += sizeof(glyph_contour) + Contour->nPoints * sizeof(bool);
+            glyph_contour Contour = Character->Contours[i];
             
-            v2* ContourPoints = PointData;
-            for (int j = 0; j < Contour->nPoints; j++) {
-                bool OnCurve = Contour->IsOnCurve[j];
-                if (!OnCurve) {
-                    v2 A = ContourPoints[j-1];
-                    v2 B = ContourPoints[j];
-                    v2 C = {};
-                    if (i == Character->nContours - 1 && j == Contour->nPoints - 1) {
-                        C = *(v2*)Character->Data;
-                    }
-                    else {
-                        C = ContourPoints[j+1];
+            if (Contour.IsExterior) {
+                xarray<triangle2> VoidTriangles;
+                polygon Polygon = {};
+
+                // Add points in contour to the polygon
+                for (int j = 0; j < Contour.nPoints; j++) {
+                    glyph_contour_point* Point = &Contour.Points[j];
+                    if (!Point->OnCurve) {
+                        v2 A = V2(Contour.Points[j-1].X, Contour.Points[j-1].Y);
+                        v2 B = V2(Point->X, Point->Y);
+                        v2 C = V2(Contour.Points[(j+1)%Contour.nPoints].X, Contour.Points[(j+1)%Contour.nPoints].Y);
+
+                        triangle2 T = { A, B, C };
+                        float Area = GetArea(T);
+                        if (Area < 0) {
+                            VoidTriangles.Insert(T);
+                        }
+                        else {
+                            continue;
+                        }
                     }
 
-                    triangle2 T = { A, B, C };
-                    float Area = GetArea(T);
-                    if (Area < 0) {
-                        VoidTriangles.Insert(T);
-                    }
-                    else {
-                        PointData++;
-                        continue;
+                    link* Link = PushStruct(&TempArena, link);
+                    Link->Data = &Point->X;
+                    Polygon.Vertices.PushBack(Link);
+                }
+
+                // We also need to add the interior contour points
+                for (int j = 0; j < Character->nContours; j++) {
+                    glyph_contour InteriorContour = Character->Contours[j];
+
+                    if (!InteriorContour.IsExterior) {
+                        v2 Point = V2(InteriorContour.Points[0].X, InteriorContour.Points[0].Y);
+                        if (IsInside(Polygon, Point)) {
+                            for (int k = 0; k < InteriorContour.nPoints; k++) {
+                                link* Link = PushStruct(&TempArena, link);
+                                Link->Data = &InteriorContour.Points[k].X;
+                                Polygon.Vertices.PushBack(Link);
+                                v2 A = V2(
+                                    InteriorContour.Points[(j+InteriorContour.nPoints-1)%InteriorContour.nPoints].X, 
+                                    InteriorContour.Points[(j+InteriorContour.nPoints-1)%InteriorContour.nPoints].Y
+                                );
+                                v2 B = V2(Point.X, Point.Y);
+                                v2 C = V2(
+                                    InteriorContour.Points[(j+1)%InteriorContour.nPoints].X, 
+                                    InteriorContour.Points[(j+1)%InteriorContour.nPoints].Y
+                                );
+                                triangle2 T = {A,B,C};
+                                VoidTriangles.Insert(T);
+                            }
+                        }
+                        link* Link = PushStruct(&TempArena, link);
+                        Link->Data = &InteriorContour.Points[0].X;
+                        Polygon.Vertices.PushBack(Link);
                     }
                 }
 
-                link* Link = PushStruct(&TempArena, link);
-                Link->Data = PointData;
-                Polygon.Vertices.PushBack(Link);
-                
-                PointData++;
-            }
+                Polygon.Vertices.CloseCircle();
+                uint64 VertexCount = CountVertices(Polygon);
+                link* Vertex = Polygon.Vertices.First;
+                for (int i = 0; i < VertexCount - 2; i++) {
+                    v2 A = {}, B = {}, C = {}; 
+                    triangle2 T = {};
+                    while (true) {
+                        A = *(v2*)Vertex->Previous->Data;
+                        B = *(v2*)Vertex->Data;
+                        C = *(v2*)Vertex->Next->Data;
 
-            link* Link = PushStruct(&TempArena, link);
-            Link->Data = ContourPoints;
-            Polygon.Vertices.PushBack(Link);
+                        T = { A, B, C };
+                        float Area = GetArea(T);
+                        
+                        if (Area > 0) {
+                            bool Valid = true;
+                            for (int j = 0; j < VoidTriangles.Size(); j++) {
+                                triangle2 Void = VoidTriangles[j];
+
+                                if (Intersect(Void, T)) {
+                                    Valid = false;
+                                    break;
+                                }
+                            }
+
+                            if (Valid) break;
+                        }
+
+                        Vertex = Vertex->Next;
+                    }
+
+                    A.X =  0.4f * A.X + 501.0f;
+                    A.Y = -0.4f * A.Y + 600.0f;
+                    B.X =  0.4f * B.X + 501.0f;
+                    B.Y = -0.4f * B.Y + 600.0f;
+                    C.X =  0.4f * C.X + 501.0f;
+                    C.Y = -0.4f * C.Y + 600.0f;
+
+                    T = { A, B, C };
+                    triangle2* Result = PushStruct(Arena, triangle2);
+                    *Result = T;
+                    
+                    link* Next = Vertex->Next;
+                    Polygon.Vertices.Break(Vertex);
+                    Vertex = Next;
+                }
+
+                VoidTriangles.Clear();
+                ClearArena(&TempArena);
+            }
         }
 
-        VoidTriangles.Clear();
     }
 
     FreeMemoryArena(&TempArena);
-
-    */
 }

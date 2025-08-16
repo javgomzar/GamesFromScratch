@@ -51,7 +51,59 @@ void TestTriangleIntersection(render_group* Group, game_input* Input) {
     PushTriangle(Group, T2, Intersect(T1, T2) ? Green : Magenta);
 }
 
+// void TestPointInPolygon(render_group* Group, game_input* Input) {
+//     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
+//     game_font_character* Character = &Font->Characters['A' - '!'];
+
+//     memory_arena Arena = AllocateMemoryArena(Kilobytes(32));
+//     glyph_contour Contour = Character->Contours[1];
+
+//     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
+//     v2* Vertices = (v2*)PushPrimitiveCommand(
+//         Group, { White }, render_primitive_line_loop, Shader, vertex_layout_vec2_id, Contour.nPoints, SORT_ORDER_DEBUG_OVERLAY
+//     ).Vertices;
+    
+//     float Winding = 0;
+//     linked_list List = {};
+//     for (int i = 0; i < Contour.nPoints; i++) {
+//         glyph_contour_point First = Contour.Points[i];
+//         v2 Point = 0.3f * V2(First.X, -First.Y) + V2(100, 500);
+//         Vertices[i] = Point;
+
+//         link* Link = PushStruct(&Arena, link);
+//         Link->Data = &Vertices[i];
+//         List.PushBack(Link);
+//     }
+//     List.CloseCircle();
+//     polygon P = {List};
+
+//     char Buffer[128] = {};
+//     sprintf_s(Buffer, "%.2f", GetWindingNumber(P, Input->Mouse.Cursor));
+//     PushText(Group, V2(100, 500), Font_Menlo_Regular_ID, Buffer);
+// }
+
 void TestTriangulations(render_group* Group, game_input* Input) {
+    memory_arena TempArena = AllocateMemoryArena(Kilobytes(32));
+
+    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
+    ComputeTriangulation(&TempArena, Font);
+
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
+    v2* Vertices = (v2*)PushPrimitiveCommand(
+        Group,
+        { White },
+        render_primitive_triangle,
+        Shader,
+        vertex_layout_vec2_id,
+        TempArena.Used / sizeof(v2),
+        SORT_ORDER_DEBUG_OVERLAY
+    ).Vertices;
+
+    for (int i = 0; i < 18; i++) {
+        Vertices[i] = ((v2*)TempArena.Base)[i];
+    }
+
+    FreeMemoryArena(&TempArena);
     /*
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
     char TestChar = 'e';

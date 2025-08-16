@@ -90,7 +90,6 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     TestRendering(Group, Input);
 
-    //TestXArray();
     TestTriangleIntersection(Group, Input);
 
     TestTriangulations(Group, Input);
