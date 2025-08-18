@@ -146,6 +146,13 @@ inline void* PopSize_(memory_arena* Arena, memory_index Size) {
     return Result;
 }
 
+inline memory_arena SuballocateMemoryArena(memory_arena* Arena, memory_index Size) {
+    memory_arena Result = {};
+    Result.Base = (uint8*)PushSize(Arena, Size);
+    Result.Size = Size;
+    return Result;
+}
+
 inline char* PushString(memory_arena* Arena, const char* String) {
     return PushArray(Arena, strlen(String) + 1, char);
 }
@@ -246,7 +253,7 @@ struct linked_list {
         First = Element;
     }
 
-    void CloseCircle() {
+    void MakeCircular() {
         Attach(Last, First);
     }
 
@@ -261,16 +268,21 @@ struct linked_list {
     }
 };
 
+inline linked_list Concatenate(linked_list L1, linked_list L2) {
+    linked_list Result = {};
+    Result.First = L1.First;
+    Attach(L1.Last, L2.First);
+    Result.Last = L2.Last;
+    return Result;
+}
+
 uint64 GetLength(linked_list List) {
 	link* Link = List.First;
 	uint64 Result = 0;
-	while (Link) {
-		Result++;
-		if (Link == List.Last) {
-			break;
-		}
+    do {
 		Link = Link->Next;
-	}
+        Result++;
+    } while (Link && Link != List.First);
 	return Result;
 }
 
@@ -344,7 +356,6 @@ public:
         }
 
         T* Pointer = (T*)xar_get(Header, Meta, NewIndex);
-        //T* Pointer = (T*)ElementMemory;
         *Pointer = Element;
         return Pointer;
     }
