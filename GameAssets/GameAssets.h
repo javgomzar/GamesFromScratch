@@ -120,6 +120,13 @@ uint32 GetColorBytes(color Color) {
     return (Alpha << 24) | (R << 16) | (G << 8) | B;
 }
 
+color HSV2RGB(float H, float S, float V, float Alpha = 1.0f) {
+    float R = (1.0f-S) + S*Clamp(fabsf(fmodf(H + 1.0f, 1.0f)      * 6.0f - 3.0f) - 1.0f, 0.0f, 1.0f);
+    float G = (1.0f-S) + S*Clamp(fabsf(fmodf(H + 2.0f/3.0f, 1.0f) * 6.0f - 3.0f) - 1.0f, 0.0f, 1.0f);
+    float B = (1.0f-S) + S*Clamp(fabsf(fmodf(H + 1.0f/3.0f, 1.0f) * 6.0f - 3.0f) - 1.0f, 0.0f, 1.0f);
+    return V * GetColor(R, G, B, Alpha);
+}
+
 //color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) {
 //    uint32 AlphaMask = ~(RedMask | GreenMask | BlueMask);
 //    
