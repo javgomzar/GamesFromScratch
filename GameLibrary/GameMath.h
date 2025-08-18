@@ -1835,7 +1835,7 @@ bool Intersect(triangle2 T1, triangle2 T2) {
 
 	// Apply separating hiperplane theorem
 	for (int i = 0; i < 6; i++) {
-		v2 V;
+		v2 V = {};
 		if (i < 3) {
 			V = perp(T1[i] - T1[(i+1)%3]);
 		}
@@ -1851,12 +1851,18 @@ bool Intersect(triangle2 T1, triangle2 T2) {
 			c2[j] = dot(V, T2[j]);
 		}
 
-		float d;
+		float d = 0;
 		if (i < 3) d = c1[i];
 		else       d = c2[i-3];
 		for (int j = 0; j < 3; j++) {
 			c1[j] -= d;
+			if (fabsf(c1[j]) < 1) {
+				c1[j] = 0;
+			}
 			c2[j] -= d;
+			if (fabsf(c2[j]) < 1) {
+				c2[j] = 0;
+			}
 		}
 
 		if (
@@ -1886,6 +1892,78 @@ struct polygon {
 	linked_list Vertices;
 };
 
+polygon GetPolygon(memory_arena* Arena, int N, v2* Points) {
+	polygon Result = {};
+	for (int i = 0; i < N; i++) {
+		link* Link = PushStruct(Arena, link);
+		Link->Data = Points + i;
+		Result.Vertices.PushBack(Link);
+	}
+	Result.Vertices.MakeCircular();
+	return Result;
+}
+
+void ClosestPoints(polygon P, polygon Q, link** OutP, link** OutQ) {
+	link* PVertex = P.Vertices.First;
+	link* QVertex = Q.Vertices.First;
+	float D = FLT_MAX;
+	link* ResultP = NULL;
+	link* ResultQ = NULL;
+	do {
+		do {
+			v2 PPoint = *(v2*)PVertex->Data;
+			v2 QPoint = *(v2*)QVertex->Data;
+
+			float Candidate = distance(PPoint, QPoint);
+			if (Candidate < D) {
+				ResultP = PVertex;
+				ResultQ = QVertex;
+				D = Candidate;
+			}
+
+			QVertex = QVertex->Next;
+		}
+		while (QVertex && QVertex != Q.Vertices.First);
+		PVertex = PVertex->Next;
+	} while(PVertex && PVertex != P.Vertices.First);
+
+	*OutP = ResultP;
+	*OutQ = ResultQ;
+}
+
+/*
+	Concatenates two polygons by their closest points: 
+	Suppose a polygon `P` given by vertices `v_1, v_2, ..., v_m` and `Q` given by vertices `w_1, w_2, ..., w_n`. 
+	Suppose `v_i` is the closest vertex in `P` to `Q` and `w_j` is the closest point in `Q` to `P`. 
+	Then, the output of this function will be the polygon given by vertices 
+	`v_j, ..., v_m, v_1, ..., v_j, w_i, ..., w_n, w_1, ..., w_i`.
+*/
+polygon Concatenate(memory_arena* Arena, polygon P, polygon Q) {
+	polygon Result = {};
+
+	link* V = NULL;
+	link* W = NULL;
+	ClosestPoints(P, Q, &V, &W);
+
+	Result.Vertices.First = V;
+	Result.Vertices.Last = V->Previous;
+
+	link* Link = PushStruct(Arena, link);
+	Link->Data = Result.Vertices.First->Data;
+	Result.Vertices.PushBack(Link);
+	
+	link* Previous = W->Previous;
+	Result.Vertices.PushBack(W);
+	
+	Link = PushStruct(Arena, link);
+	Link->Data = W->Data;
+	Result.Vertices.Last = Previous;
+	Result.Vertices.PushBack(Link);
+	
+	Result.Vertices.MakeCircular();
+	return Result;
+}
+
 uint64 CountVertices(polygon P) {
 	return GetLength(P.Vertices);
 }
@@ -1894,15 +1972,14 @@ float GetArea(polygon Polygon) {
 	link* Link = Polygon.Vertices.First;
 	v2 O = *(v2*)Link->Data;
 	float Result = 0;
-	while (Link && Link != Polygon.Vertices.Last) {
+	do {
 		v2 P = *(v2*)Link->Data;
 		v2 Q = *(v2*)Link->Next->Data;
 
-		triangle2 T = { O, P, Q };
-		Result += GetArea(T);
+		Result += Q.X * P.Y - P.X * Q.Y;
 
 		Link = Link->Next;
-	}
+	} while (Link && Link != Polygon.Vertices.First);
 	return Result;
 }
 
