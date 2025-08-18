@@ -15,10 +15,6 @@ layout (location = 0) out vec4 frag_color;
 
 void main() {
 	float f = 0.5 * barycentric.x + barycentric.y;
-    if (f * f > barycentric.y) {
-        frag_color = ColorUBO.color;
-    }
-    else {
-        frag_color = vec4(0);
-    }
+    float s = smoothstep(-0.01, 0.01, f*f - barycentric.y);
+    frag_color = s * ColorUBO.color;
 }
