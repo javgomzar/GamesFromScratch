@@ -765,7 +765,7 @@ void UpdateUI(
     game_input* Input
 ) {
     render_group* Group = &Memory->RenderGroup;
-    game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    game_state* pGameState = (game_state*)Memory->Permanent.Base;
     game_entity_state* EntityState = &pGameState->Entities;
     float Time = pGameState->Time;
     debug_info* DebugInfo = &Memory->DebugInfo;
@@ -849,11 +849,10 @@ void UpdateUI(
 
         static bool DebugArenas = false;
         if (UIDropdown("Arenas", DebugArenas)) {
-            DEBUG_VALUE(Memory->StringsArena, memory_arena);
-            DEBUG_VALUE(Memory->TransientArena, memory_arena);
-            DEBUG_VALUE(Memory->GeneralPurposeArena, memory_arena);
+            DEBUG_VALUE(Memory->Transient, memory_arena);
+            DEBUG_VALUE(Memory->Permanent, memory_arena);
 
-            memory_arena* VertexArena = Group->VertexBuffer.VertexArena;
+            memory_arena* VertexArena = Group->VertexBuffer.Vertices;
             DEBUG_VALUE(VertexArena[vertex_layout_vec2_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_vec2_vec2_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_vec3_id], memory_arena);

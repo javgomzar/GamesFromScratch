@@ -732,44 +732,39 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     game_code GameCode = { 0 };
     LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
     LPVOID BaseAddress = 0;
-    Memory.PermanentStorageSize = Megabytes(64);
-    void* GameMemoryBlock = VirtualAlloc(BaseAddress, Memory.PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    Memory.PermanentStorage = GameMemoryBlock;
+    memory_index PermanentStorageSize = Megabytes(64);
+    void* GameMemoryBlock = VirtualAlloc(BaseAddress, PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    Memory.Permanent = MemoryArena(PermanentStorageSize, (uint8*)GameMemoryBlock);
 
     Memory.Platform.FreeFileMemory = PlatformFreeFileMemory;
     Memory.Platform.ReadEntireFile = PlatformReadEntireFile;
     Memory.Platform.WriteEntireFile = PlatformWriteEntireFile;
     Memory.Platform.AppendToFile = PlatformAppendToFile;
 
+    game_state* pGameState = PushStruct(&Memory.Permanent, game_state);
+    Memory.GameState = pGameState;
+
     // Assets
     const char* AssetsPath = "..\\GameAssets\\game_assets";
     WriteAssetsFile(&Memory.Platform, AssetsPath);
     LoadAssetsFromFile(Memory.Platform.ReadEntireFile, &Memory.Assets, AssetsPath);
-
-    game_state* pGameState = (game_state*)Memory.PermanentStorage;
-    render_group* Group = &Memory.RenderGroup;
 
     // Recording and playback
     record_and_playback RecordPlayback;
     RecordPlayback.PlaybackIndex = 0;
     RecordPlayback.RecordIndex = 0;
     RecordPlayback.GameMemoryBlock = GameMemoryBlock;
-    RecordPlayback.TotalSize = Memory.PermanentStorageSize;
-
-    memory_index MemoryUsed = InitializeRenderGroup(
-        &Memory.RenderGroup, 
-        &Memory.Assets, 
-        (uint8*)Memory.PermanentStorage + sizeof(game_state)
+    RecordPlayback.TotalSize = PermanentStorageSize;
+    
+    render_group* Group = &Memory.RenderGroup;
+    InitializeRenderGroup(
+        &Memory.Permanent,
+        Group,
+        &Memory.Assets
     );
 
     // Memory arenas
-    uint8* ArenaStart = (uint8*)Memory.PermanentStorage + sizeof(game_state) + MemoryUsed;
-    Memory.TransientArena = MemoryArena(Megabytes(1), ArenaStart);
-    ArenaStart += Memory.TransientArena.Size;
-    Memory.StringsArena = MemoryArena(Kilobytes(1), ArenaStart);
-    ArenaStart += Memory.StringsArena.Size;
-    Memory.GeneralPurposeArena = MemoryArena(Megabytes(1), ArenaStart);
-    ArenaStart += Memory.GeneralPurposeArena.Size;
+    Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
 
     // Input
     game_input Input = {};
@@ -822,7 +817,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         // Clear transient memory
-        ClearArena(&Memory.TransientArena);
+        ClearArena(&Memory.Transient);
 
         // Previous input
         UpdatePreviousInput(&Input);
@@ -976,7 +971,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ScreenCapture(&Memory.Platform, &RendererContext, Group->Width, Group->Height);
             }
 
-            LogDebugRecords(Group, &Memory.TransientArena);
+            LogDebugRecords(Group, &Memory.Transient);
             Render(Window, Group, &RendererContext, pGameState->Time);
             ClearVertexBuffer(&Memory.RenderGroup.VertexBuffer);
         }

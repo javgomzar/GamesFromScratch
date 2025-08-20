@@ -51,12 +51,10 @@ struct game_memory {
     game_assets Assets;
     platform_api Platform;
     render_group RenderGroup;
-    memory_arena StringsArena;
-    memory_arena GeneralPurposeArena;
-    memory_arena TransientArena;
+    game_state* GameState;
+    memory_arena Permanent;
+    memory_arena Transient;
     debug_info DebugInfo;
-    uint64 PermanentStorageSize;
-    void* PermanentStorage;
     bool IsInitialized;
 };
 

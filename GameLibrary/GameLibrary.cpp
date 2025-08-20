@@ -39,12 +39,8 @@ void TestPerformance() {
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
 {
-    memory_arena* StringsArena = &Memory->StringsArena;
-    memory_arena* TransientArena = &Memory->TransientArena;
-    memory_arena* GeneralPurposeArena = &Memory->GeneralPurposeArena;
-
     render_group* Group = &Memory->RenderGroup;
-    game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    game_state* pGameState = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
     game_entity_state* EntityState = &pGameState->Entities;
@@ -89,7 +85,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     // PushEntities(Group, &pGameState->Entities, Input, Time);
 
     TestRendering(Group, Input);
-    TestTriangulations(Group, Input);
+    // TestTriangulations(Group, Input);
     
     UpdateUI(Memory, Input);
 
