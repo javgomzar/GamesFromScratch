@@ -27,17 +27,29 @@ struct openGL_framebuffer {
 	bool Multisampling;
 };
 
+struct openGL_mesh_buffer {
+	uint32 VAO;
+	uint32 VBO;
+	uint32 EBO;
+};
+
+struct openGL_font_buffer {
+	memory_index Size;
+	uint32 VAO;
+	uint32 VBO;
+	uint32 EBO;
+};
+
 struct openGL {
 	openGL_framebuffer Targets[render_group_target_count];
+	openGL_mesh_buffer MeshBuffers[game_mesh_id_count];
+	openGL_font_buffer FontBuffers[game_font_id_count];
 	uint32 ShaderIDs[game_shader_id_count];
 	uint32 ProgramIDs[game_shader_pipeline_id_count];
 	uint32 ComputeShaderIDs[game_compute_shader_id_count];
 	uint32 ComputeProgramIDs[game_compute_shader_id_count];
 	uint32 VAOs[vertex_layout_id_count];
-	uint32 MeshVAOs[game_mesh_id_count];
 	uint32 VBOs[vertex_layout_id_count];
-	uint32 MeshVBOs[game_mesh_id_count];
-	uint32 MeshEBOs[game_mesh_id_count];
 	uint32 EBO;
 	uint32 UBOs[SHADER_UNIFORM_BLOCKS];
 	int MaxPatchParameter;
@@ -840,24 +852,23 @@ void InitializeRenderer(
 		}
 
 	// Vertex buffers
-		glCreateVertexArrays(vertex_layout_id_count + game_mesh_id_count, OpenGL->VAOs);
+		glCreateVertexArrays(vertex_layout_id_count, OpenGL->VAOs);
 		glCreateBuffers(
-			vertex_layout_id_count +     // One vertex buffer by vertex_layout
-			2 * game_mesh_id_count +     // One VBO, one EBO by mesh
-			SHADER_UNIFORM_BLOCKS +      // One UBO per uniform type
-			1,                           // 1 EBO for non mesh entries
+			vertex_layout_id_count + // One VBO per vertex layout
+			SHADER_UNIFORM_BLOCKS +  // One UBO per uniform type
+			1,                       // 1 EBO for transient entries
 			OpenGL->VBOs
 		);
 	
 		// Per vertex layout buffers
-		memory_index EBOSize = MAX_VERTEX_BUFFER_COUNT * sizeof(uint32);
+		memory_index EBOSize = ELEMENT_BUFFER_SIZE;
 		glNamedBufferStorage(OpenGL->EBO, EBOSize, 0, GL_DYNAMIC_STORAGE_BIT);
 		for (int i = 0; i < vertex_layout_id_count; i++) {
 			uint32 VAO = OpenGL->VAOs[i];
 			uint32 VBO = OpenGL->VBOs[i];
 			
 			vertex_layout Layout = Assets->VertexLayouts[i];
-			memory_index Size = MAX_VERTEX_BUFFER_COUNT * Layout.Stride;
+			memory_index Size = VERTEX_BUFFER_SIZE;
 			
 			glNamedBufferStorage(VBO, Size, 0, GL_DYNAMIC_STORAGE_BIT);
 
@@ -865,23 +876,24 @@ void InitializeRenderer(
 			glVertexArrayElementBuffer(VAO, OpenGL->EBO);
 		}
 
-		// Creating mesh vertex buffers
+		// Mesh vertex buffers
 		for (int i = 0; i < game_mesh_id_count; i++) {
-			uint32 VAO = OpenGL->MeshVAOs[i];
-			uint32 VBO = OpenGL->MeshVBOs[i];
-			uint32 EBO = OpenGL->MeshEBOs[i];
+			openGL_mesh_buffer* MeshBuffer = &OpenGL->MeshBuffers[i];
+			glCreateVertexArrays(1, &MeshBuffer->VAO);
+			glCreateBuffers(1, &MeshBuffer->VBO);
+			glCreateBuffers(1, &MeshBuffer->EBO);
 
 			game_mesh* Mesh = &Assets->Mesh[i];
 			uint64 VerticesSize = GetMeshVerticesSize(Mesh->nVertices, Mesh->Armature.nBones > 0);
 			uint64 FacesSize = 3 * sizeof(uint32) * Mesh->nFaces;
 
-			glNamedBufferStorage(VBO, VerticesSize, Mesh->Vertices, 0);
-			glNamedBufferStorage(EBO, FacesSize, Mesh->Faces, 0);
+			glNamedBufferStorage(MeshBuffer->VBO, VerticesSize, Mesh->Vertices, 0);
+			glNamedBufferStorage(MeshBuffer->EBO, FacesSize, Mesh->Faces, 0);
 
 			vertex_layout Layout = Assets->VertexLayouts[Mesh->LayoutID];
 
-			EnableVertexLayout(VAO, VBO, Layout);
-			glVertexArrayElementBuffer(VAO, EBO);
+			EnableVertexLayout(MeshBuffer->VAO, MeshBuffer->VBO, Layout);
+			glVertexArrayElementBuffer(MeshBuffer->VAO, MeshBuffer->EBO);
 
 			GLint size, type, normalized, stride, bufferBinding;
 			GLvoid* pointer;
@@ -906,6 +918,40 @@ void InitializeRenderer(
 				glGetVertexAttribPointerv(j, GL_VERTEX_ATTRIB_ARRAY_POINTER, &pointer);
 			}
 		}
+
+		// Font vertex buffers
+		/*
+		for (int i = 0; i < game_font_id_count; i++) {
+			openGL_font_buffer* FontBuffer = &OpenGL->FontBuffers[i];
+			glCreateVertexArrays(1, &FontBuffer->VAO);
+			glCreateBuffers(1, &FontBuffer->VBO);
+			glCreateBuffers(1, &FontBuffer->EBO);
+
+			game_font* Font = &Assets->Font[i];
+			uint64 VerticesSize = 0;
+			uint64 ElementsSize = 0;
+			for (int j = 0; j < FONT_CHARACTERS_COUNT; j++) {
+				game_font_character* Character = &Font->Characters[j];
+				VerticesSize += 2 * sizeof(float) * 2 * Character->nOnCurvePoints;
+				// EBO will have outline
+				ElementsSize += 3 * sizeof(uint32) * Character->nOnCurvePoints;
+				// and triangulation
+				ElementsSize += 3 * sizeof(uint32) * (
+					Character->Triangulation.nSolid + 
+					Character->Triangulation.nInterior + 
+					Character->Triangulation.nExterior
+				);
+			}
+
+			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, 0);
+			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, 0);
+
+			vertex_layout Layout = Assets->VertexLayouts[vertex_layout_vec2_id];
+
+			EnableVertexLayout(FontBuffer->VAO, FontBuffer->VBO, Layout);
+			glVertexArrayElementBuffer(FontBuffer->VAO, FontBuffer->EBO);
+		}
+			*/
 
 		// Compiling & attaching shaders
 		for (int i = 0; i < game_shader_id_count; i++) {
@@ -952,9 +998,10 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 	TIMED_BLOCK;
 
 	for (int i = 0; i < vertex_layout_id_count; i++) {
-		glNamedBufferSubData(OpenGL->VBOs[i], 0, Group->VertexBuffer.VertexArena[i].Used, Group->VertexBuffer.VertexArena[i].Base);
+		memory_arena* Arena = &Group->VertexBuffer.Vertices[i];
+		glNamedBufferSubData(OpenGL->VBOs[i], 0, Arena->Used, Arena->Base);
 	}
-	glNamedBufferSubData(OpenGL->EBO, 0, Group->VertexBuffer.ElementArena.Used, Group->VertexBuffer.ElementArena.Base);
+	glNamedBufferSubData(OpenGL->EBO, 0, Group->VertexBuffer.Elements.Used, Group->VertexBuffer.Elements.Base);
 
 	if (!OpenGL->Initialized) {
 		Raise("OpenGL render called before OpenGL context is initialized.");
@@ -967,6 +1014,9 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 	SetGlobalUniforms(OpenGL, Width, Height, Group->Camera, Time);
 	SetLightUniforms(OpenGL, Group->Light);
 	SetModelUniforms(OpenGL, Identity4);
+
+	float CurrentLineWidth = 2.0f;
+	glLineWidth(CurrentLineWidth);
 
 // Render entries
 	for (int i = 0; i < Group->EntryCount; i++) {
@@ -985,13 +1035,33 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 
 			case render_draw_primitive: {
 				render_primitive_command DrawCommand = Group->PrimitiveCommands[Command.Index];
+				render_primitive_options Options = DrawCommand.Options;
 
-				glBindFramebuffer(GL_FRAMEBUFFER, OpenGL->Targets[Target_World].Framebuffer);
+				BindTarget(OpenGL, Target_World);
 
 				uint32 ProgramID = OpenGL->ProgramIDs[DrawCommand.Shader->ID];
 				glUseProgram(ProgramID);
 
-				SetColorUniform(OpenGL, DrawCommand.Options.Color);
+				// Uniforms
+				SetColorUniform(OpenGL, DrawCommand.Color);
+				if (Options.Texture != NULL) BindTexture(ProgramID, Options.Texture, 0);
+				if (Options.Thickness != CurrentLineWidth) {
+					CurrentLineWidth = Options.Thickness;
+					glLineWidth(Options.Thickness);
+				}
+
+				if (Options.Mesh != NULL) {
+					matrix4 Model = Matrix(Options.Transform);
+					SetModelUniforms(OpenGL, Model);
+
+					if (Options.Armature != NULL) SetBoneUniforms(OpenGL, Options.Armature);
+				}
+
+				if (Options.Font != NULL) {
+					SetTextUniforms(OpenGL, Options.Points);
+				}
+
+				// Depth testing and alpha blending
 				if (DrawCommand.Options.Flags & DEPTH_TEST_RENDER_FLAG) {
 					glDepthFunc(GL_LESS);
 				}
@@ -999,19 +1069,17 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 
 				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
-				if (DrawCommand.Options.Texture) BindTexture(ProgramID, DrawCommand.Options.Texture, 0);
-				if (DrawCommand.Options.Thickness) glLineWidth(DrawCommand.Options.Thickness);
-
+				// Vertices and elements
 				GLenum Primitive = GetRenderPrimitive(DrawCommand.Primitive);
 				vertex_buffer_entry VertexEntry = DrawCommand.VertexEntry;
 				element_buffer_entry ElementEntry = DrawCommand.ElementEntry;
 
-				vertex_layout DebugLayout = Group->Assets->VertexLayouts[VertexEntry.LayoutID];
-				float DebugVertices[100];
-				memcpy(DebugVertices, (float*)(Group->VertexBuffer.VertexArena[VertexEntry.LayoutID].Base) + VertexEntry.Offset * DebugLayout.Stride, 100*sizeof(float));
+				// vertex_layout DebugLayout = Group->Assets->VertexLayouts[VertexEntry.LayoutID];
+				// float DebugVertices[100];
+				// memcpy(DebugVertices, (float*)(Group->VertexBuffer.Vertices[VertexEntry.LayoutID].Base) + VertexEntry.Offset * DebugLayout.Stride, 100*sizeof(float));
 
-				uint32 DebugElements[100];
-				memcpy(DebugElements, (uint32*)(Group->VertexBuffer.ElementArena.Base) + ElementEntry.Offset, 100*sizeof(uint32));
+				// uint32 DebugElements[100];
+				// memcpy(DebugElements, (uint32*)(Group->VertexBuffer.Elements.Base) + ElementEntry.Offset, 100*sizeof(uint32));
 
 				if (DrawCommand.Primitive == render_primitive_patches) {
 					if (DrawCommand.Options.PatchParameter > OpenGL->MaxPatchParameter) {
@@ -1020,11 +1088,14 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 					glPatchParameteri(GL_PATCH_VERTICES, DrawCommand.Options.PatchParameter);
 				}
 
-				if (DrawCommand.Options.Points > 0) {
-					SetTextUniforms(OpenGL, DrawCommand.Options.Points);
+				uint32 VAO = 0;
+				if (Options.Mesh != NULL) {
+					VAO = OpenGL->MeshBuffers[Options.Mesh->ID].VAO;
+				}
+				else {
+					VAO = OpenGL->VAOs[VertexEntry.LayoutID];
 				}
 
-				uint32 VAO = OpenGL->VAOs[VertexEntry.LayoutID];
 				glBindVertexArray(VAO);
 				if (ElementEntry.Count > 0) {
 					void* ByteOffset = (void*)((ElementEntry.Offset) * sizeof(uint32));
@@ -1033,46 +1104,27 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 				else {
 					glDrawArrays(Primitive, VertexEntry.Offset, VertexEntry.Count);
 				}
-			} break;
 
-			case render_draw_mesh: {
-				render_mesh_command DrawCommand = Group->MeshCommands[Command.Index];
-
-				BindTarget(OpenGL, Target_World);
-
-				uint32 ProgramID = OpenGL->ProgramIDs[DrawCommand.Shader->ID];
-				glUseProgram(ProgramID);
-				matrix4 Model = Matrix(DrawCommand.Transform);
-				SetColorUniform(OpenGL, DrawCommand.Color);
-				SetModelUniforms(OpenGL, Model);
-				if (DrawCommand.Armature) SetBoneUniforms(OpenGL, DrawCommand.Armature);
-				if (DrawCommand.Texture) BindTexture(ProgramID, DrawCommand.Texture, 0);
-
-				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-				uint32 VAO = OpenGL->MeshVAOs[DrawCommand.Mesh->ID];
-				glBindVertexArray(VAO);
-				glDrawElements(GL_TRIANGLES, 3 * DrawCommand.Mesh->nFaces, GL_UNSIGNED_INT, 0);
-
-				if (Group->Debug) {
-					if (Group->DebugNormals) {
+				if (Options.Mesh != NULL) {
+					if (Group->Debug && Group->DebugNormals) {
 						SetColorUniform(OpenGL, Yellow);
 
 						glUseProgram(OpenGL->ProgramIDs[Shader_Pipeline_Debug_Normals_ID]);
 						glLineWidth(1.0f);
-						glDrawArrays(GL_POINTS, 0, DrawCommand.Mesh->nVertices);
+						CurrentLineWidth = 1.0f;
+						glDrawArrays(GL_POINTS, 0, Options.Mesh->nVertices);
 					}
-				}
 
-				if (DrawCommand.Outline) {
-					glUseProgram(OpenGL->ProgramIDs[Shader_Pipeline_Bones_Single_Color_ID]);
-					SetColorUniform(OpenGL, White);
-					BindTarget(OpenGL, Target_Outline);
-					glDrawElements(GL_TRIANGLES, 3 * DrawCommand.Mesh->nFaces, GL_UNSIGNED_INT, 0);
-				}
+					if (Options.Outline) {
+						glUseProgram(OpenGL->ProgramIDs[Shader_Pipeline_Bones_Single_Color_ID]);
+						SetColorUniform(OpenGL, White);
+						BindTarget(OpenGL, Target_Outline);
+						glDrawElements(GL_TRIANGLES, ElementEntry.Count, GL_UNSIGNED_INT, 0);
+					}
 
-				ClearBoneUniforms(OpenGL);
-				ClearModelUniforms(OpenGL);
+					ClearBoneUniforms(OpenGL);
+					ClearModelUniforms(OpenGL);
+				}
 			} break;
 
 			case render_shader_pass: {

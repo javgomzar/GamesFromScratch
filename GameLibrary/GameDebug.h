@@ -216,15 +216,18 @@ void PushDebugFustrum(
     double l, double r, double b, double t, double n, double f
 ) {
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    render_primitive_command_return Result = PushPrimitiveCommand(
+    render_primitive_options Options = {};
+    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    render_primitive_command* Result = PushPrimitiveCommand(
         Group,
-        { White, DEPTH_TEST_RENDER_FLAG },
         render_primitive_line,
+        White,
         Shader,
         vertex_layout_vec3_vec2_id,
         9,
+        24,
         SORT_ORDER_DEBUG_OVERLAY,
-        24
+        Options
     );
 
     basis B = GetCameraBasis(Angle, Pitch);
@@ -241,7 +244,7 @@ void PushDebugFustrum(
     v3 t_ = f * tv;
     v3 b_ = f * bv;
 
-    v3* Vertices = (v3*)Result.Vertices;
+    v3* Vertices = (v3*)Result->Vertices;
     Vertices[0] = Position;
     Vertices[1] = Position + l_ + t_ + fv;
     Vertices[2] = Position + r_ + t_ + fv;
@@ -252,7 +255,7 @@ void PushDebugFustrum(
     Vertices[7] = Position + lv + bv + nv;
     Vertices[8] = Position + lv + tv + nv;
 
-    uint32* Elements = Result.Elements;
+    uint32* Elements = Result->ElementEntry.Pointer;
     Elements[0]  = 0;
     Elements[1]  = 1;
     Elements[2]  = 0;
@@ -284,18 +287,19 @@ void PushDebugGrid(render_group* Group, float Alpha) {
     
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
     render_primitive_options Options = {};
-    Options.Color = ChangeAlpha(White, 0.5f);
     Options.Thickness = 1.0f;
     Options.Flags = DEPTH_TEST_RENDER_FLAG;
     v3* Vertices = (v3*)PushPrimitiveCommand(
         Group,
-        Options,
         render_primitive_line,
+        ChangeAlpha(White, 0.5f),
         Shader,
         vertex_layout_vec3_id,
         nVertices,
-        SORT_ORDER_DEBUG_OVERLAY-2.0f
-    ).Vertices;
+        0,
+        SORT_ORDER_DEBUG_OVERLAY-2.0f,
+        Options
+    )->Vertices;
 
     for (int i = 0; i <= 100; i++) {
         Vertices[4*i  ] = V3(50-i, 0, -50);
@@ -350,17 +354,18 @@ void PushDebugPlot(
 ) {
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
     render_primitive_options Options = {};
-    Options.Color = Color;
     Options.Thickness = Thickness;
     v2* Vertices = (v2*)PushPrimitiveCommand(
         Group,
-        Options,
         render_primitive_line_strip,
+        Color,
         Shader,
         vertex_layout_vec2_id,
         N,
-        Order
-    ).Vertices;
+        0,
+        Order,
+        Options
+    )->Vertices;
 
     float X = 0;
     for (int i = 0; i < N; i++) {
