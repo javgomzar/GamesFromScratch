@@ -669,6 +669,6 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
 }
 
 void WriteAssetsFile(platform_api* Platform, const char* Path);
-void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, const char* Path);
+void LoadAssetsFromFile(memory_arena* FontsArena, platform_read_entire_file Read, game_assets* Assets, const char* Path);
 
 #endif

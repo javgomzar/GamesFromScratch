@@ -1,293 +1,90 @@
 #include "GamePlatform.h"
 #include "GameRender.h"
 
-void TestXArray() {
-    xarray<float> TestArray;
-    
-    for (int i = 0; i < 10000; i++) {
-        float TestElement = i;
-        TestArray.Insert(TestElement);
-        float TestRead = TestArray[i];
-        Assert(TestRead == (float)i);
-    }
-
-    float FinalXarTest = TestArray[426];
-    Assert(FinalXarTest == 426.0f);
-    Log(Info, "Test");
-}
-
-void TestStack() {
-    float TestStack[64] = {};
-    stack<float> Stack(64, TestStack);
-    Stack.Push(1.0f);
-    Stack.Push(-1.0f);
-    Stack.Push(3.1415f);
-    Stack.Push(69.0f);
-    Stack.Push(420.0f);
-    Stack.Push(42.0f);
-
-    float F1 = Stack.Pop();
-    float F2 = Stack.Pop();
-    Stack.Push(-5);
-    Stack.Push(-6);
-    float F3 = Stack.Pop();
-}
-
-void TestTriangleIntersection(render_group* Group, game_input* Input) {
-    triangle2 T1 = { V2(300, 300), V2(300, 400), V2(400, 400) };
-    static triangle2 T2 = { V2(200, 200), V2(200, 400), V2(400, 400) };
-
-    static bool MoveVertex = false;
-
-    if (Input->Mouse.RightClick.JustPressed) {
-        MoveVertex = !MoveVertex;
-    }
-
-    if (MoveVertex) {
-        T2[2] = Input->Mouse.Cursor;
-    }
-
-    PushTriangle(Group, T1, Red);
-    PushTriangle(Group, T2, Intersect(T1, T2) ? Green : Magenta);
-}
-
-// void TestPointInPolygon(render_group* Group, game_input* Input) {
-//     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-//     game_font_character* Character = &Font->Characters['A' - '!'];
-
-//     memory_arena Arena = AllocateMemoryArena(Kilobytes(32));
-//     glyph_contour Contour = Character->Contours[1];
-
-//     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-//     v2* Vertices = (v2*)PushPrimitiveCommand(
-//         Group, { White }, render_primitive_line_loop, Shader, vertex_layout_vec2_id, Contour.nPoints, SORT_ORDER_DEBUG_OVERLAY
-//     ).Vertices;
-    
-//     float Winding = 0;
-//     linked_list List = {};
-//     for (int i = 0; i < Contour.nPoints; i++) {
-//         glyph_contour_point First = Contour.Points[i];
-//         v2 Point = 0.3f * V2(First.X, -First.Y) + V2(100, 500);
-//         Vertices[i] = Point;
-
-//         link* Link = PushStruct(&Arena, link);
-//         Link->Data = &Vertices[i];
-//         List.PushBack(Link);
-//     }
-//     List.CloseCircle();
-//     polygon P = {List};
-
-//     char Buffer[128] = {};
-//     sprintf_s(Buffer, "%.2f", GetWindingNumber(P, Input->Mouse.Cursor));
-//     PushText(Group, V2(100, 500), Font_Menlo_Regular_ID, Buffer);
-// }
-
+/*
 void TestTriangulations(render_group* Group, game_input* Input) {
-    memory_arena TempArena = AllocateMemoryArena(Kilobytes(32));
+    memory_arena SolidArena = AllocateMemoryArena(Kilobytes(32));
+    memory_arena InteriorArena = AllocateMemoryArena(Kilobytes(32));
+    memory_arena ExteriorArena = AllocateMemoryArena(Kilobytes(32));
+    memory_arena VoidArena = AllocateMemoryArena(Kilobytes(32));
+    memory_arena TrialArena = AllocateMemoryArena(Kilobytes(32));
 
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    ComputeTriangulation(&TempArena, Font);
+    // glyph_triangulation Triangulation = ComputeTriangulation(&SolidArena, &InteriorArena, &ExteriorArena, &VoidArena, &TrialArena, Font);
 
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
     v2* Vertices = (v2*)PushPrimitiveCommand(
         Group,
-        { White },
         render_primitive_triangle,
+        White,
         Shader,
         vertex_layout_vec2_id,
-        TempArena.Used / sizeof(v2),
+        3 * Triangulation.nSolid,
+        0,
         SORT_ORDER_DEBUG_OVERLAY
-    ).Vertices;
+    )->Vertices;
 
-    for (int i = 0; i < 18; i++) {
-        Vertices[i] = ((v2*)TempArena.Base)[i];
-    }
+    memcpy(Vertices, SolidArena.Base, SolidArena.Used);
 
-    FreeMemoryArena(&TempArena);
-    /*
-    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    char TestChar = 'e';
-    game_font_character* Character = &Font->Characters[TestChar - '!'];
+    // float* VoidTriangles = PushPrimitiveCommand(
+    //     Group, { ChangeAlpha(Black, 0.5f) },
+    //     render_primitive_triangle,
+    //     Shader,
+    //     vertex_layout_vec2_id,
+    //     3 * Triangulation.nVoid,
+    //     SORT_ORDER_DEBUG_OVERLAY
+    // ).Vertices;
 
-    uint64 Size = Kilobytes(32);
-    uint8* Base = (uint8*)VirtualAlloc(0, Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    memory_arena Arena = MemoryArena(Size, Base);
+    // memcpy(VoidTriangles, VoidArena.Base, VoidArena.Used);
 
-    // Text
-    static float Points = 615.093750;
+    game_shader_pipeline* InteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Interior_ID);
+    float* InteriorTriangles = PushPrimitiveCommand(
+        Group, 
+        render_primitive_triangle,
+        White,
+        InteriorShader,
+        vertex_layout_vec2_vec2_id,
+        3 * Triangulation.nInterior,
+        0,
+        SORT_ORDER_DEBUG_OVERLAY
+    )->Vertices;
 
-    const int nColors = 9;
-    color Colors[nColors] = { Red, Orange, Yellow, Green, Cyan, Blue, Purple, Magenta, White };
+    memcpy(InteriorTriangles, InteriorArena.Base, InteriorArena.Used);
 
-    if (Input->Mouse.Wheel > 0)      Points *= 1.5f;
-    else if (Input->Mouse.Wheel < 0) Points /= 1.5f;
+    game_shader_pipeline* ExteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Exterior_ID);
+    float* ExteriorTriangles = PushPrimitiveCommand(
+        Group, 
+        render_primitive_triangle,
+        White,
+        ExteriorShader,
+        vertex_layout_vec2_vec2_id,
+        3 * Triangulation.nExterior,
+        0,
+        SORT_ORDER_DEBUG_OVERLAY
+    )->Vertices;
 
-    polygon Polygon = {};
-    xarray<triangle2> VoidTriangles;
-    bool* Convex = new bool[Character->nContours];
-    bool* IsExterior = new bool[Character->nContours];
-    // uint64 ContourHeadersSize = sizeof(glyph_contour) + Character->nPoints * sizeof(bool);
-    for (int i = 0; i < Character->nContours; i++) {
-        glyph_contour* Contour = &;
-        Contours += sizeof(glyph_contour) + Contour->nPoints * sizeof(bool);
-        
-        for (int j = 0; j < Contour->nPoints; j++) {
-            bool OnCurve = Contour->IsOnCurve[j];
-            if (!OnCurve) {
-                v2 A = ContourPoints[j-1];
-                v2 B = ContourPoints[j];
-                v2 C = {};
-                if (i == Character->nContours - 1 && j == Contour->nPoints - 1) {
-                    C = *(v2*)Character->Data;
-                }
-                else {
-                    C = ContourPoints[j+1];
-                }
+    memcpy(ExteriorTriangles, ExteriorArena.Base, ExteriorArena.Used);
 
-                triangle2 T = { A, B, C };
-                float Area = GetArea(T);
-                if (Area < 0) {
-                    VoidTriangles.Insert(T);
-                    T[0].X =  0.4f * T[0].X + 501.0f;
-                    T[0].Y = -0.4f * T[0].Y + 600.0f;
-                    T[1].X =  0.4f * T[1].X + 501.0f;
-                    T[1].Y = -0.4f * T[1].Y + 600.0f;
-                    T[2].X =  0.4f * T[2].X + 501.0f;
-                    T[2].Y = -0.4f * T[2].Y + 600.0f;   
-                }
-                else {
-                    if (j == Contour->nPoints-1) {
-                        T[2] = ContourPoints[0];
-                    }
-                    T[0].X =  0.4f * T[0].X + 501.0f;
-                    T[0].Y = -0.4f * T[0].Y + 600.0f;
-                    T[1].X =  0.4f * T[1].X + 501.0f;
-                    T[1].Y = -0.4f * T[1].Y + 600.0f;
-                    T[2].X =  0.4f * T[2].X + 501.0f;
-                    T[2].Y = -0.4f * T[2].Y + 600.0f;
-                    float Vertices[15] = {
-                        T[0].X, T[0].Y, 0, 0,
-                        T[1].X, T[1].Y, 1, 0,
-                        T[2].X, T[2].Y, 0, 1
-                    };
+    // uint32 nTrials = TrialArena.Used / sizeof(v2);
+    // for (int i = 0; i < nTrials; i++) {
+    //     v2* Trial = (v2*)PushPrimitiveCommand(
+    //         Group, { HSV2RGB((float)i/(float)nTrials, 1.0f, 1.0f) },
+    //         render_primitive_point,
+    //         Shader,
+    //         vertex_layout_vec2_id,
+    //         1,
+    //         SORT_ORDER_DEBUG_OVERLAY
+    //     ).Vertices;
+    //     *Trial = ((v2*)TrialArena.Base)[i];
+    // }
 
-                    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Exterior_ID);
-                    PushPrimitiveCommand(
-                        Group,
-                        { ChangeAlpha(Cyan, 0.8f) },
-                        render_primitive_triangle,
-                        Shader,
-                        vertex_layout_vec2_vec2_id,
-                        3,
-                        Vertices,
-                        SORT_ORDER_DEBUG_OVERLAY
-                    );
-
-                    PointData++;
-                    continue;
-                }
-            }
-
-            link* Link = PushStruct(&Arena, link);
-            Link->Data = PointData;
-            Polygon.Vertices.PushBack(Link);
-            
-            PointData++;
-        }
-
-        link* Link = PushStruct(&Arena, link);
-        Link->Data = ContourPoints;
-        Polygon.Vertices.PushBack(Link);
-
-        Convex[i] = Contour->IsConvex;
-        IsExterior[i] = Contour->IsExterior;        
-    }
-
-    for (int i = 0; i < VoidTriangles.Size(); i++) {
-        triangle2 T = VoidTriangles[i];
-        T[0].X =  0.4f * T[0].X + 501.0f;
-        T[0].Y = -0.4f * T[0].Y + 600.0f;
-        T[1].X =  0.4f * T[1].X + 501.0f;
-        T[1].Y = -0.4f * T[1].Y + 600.0f;
-        T[2].X =  0.4f * T[2].X + 501.0f;
-        T[2].Y = -0.4f * T[2].Y + 600.0f;
-        float Vertices[15] = {
-            T[0].X, T[0].Y, 0, 0,
-            T[1].X, T[1].Y, 1, 0,
-            T[2].X, T[2].Y, 0, 1
-        };
-
-        game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Interior_ID);
-        PushPrimitiveCommand(
-            Group,
-            { ChangeAlpha(Cyan, 0.8f) },
-            render_primitive_triangle,
-            Shader,
-            vertex_layout_vec2_vec2_id,
-            3,
-            Vertices,
-            SORT_ORDER_DEBUG_OVERLAY
-        );
-    }
-
-    Polygon.Vertices.CloseCircle();
-    link* Vertex = Polygon.Vertices.First;
-    uint8 RenderedTriangles = 0;
-    uint64 VertexCount = CountVertices(Polygon);
-    for (int i = 0; i < VertexCount - 2; i++) {
-        v2 A = {}, B = {}, C = {}; 
-        triangle2 T = {};
-        while (true) {
-            A = *(v2*)Vertex->Previous->Data;
-            B = *(v2*)Vertex->Data;
-            C = *(v2*)Vertex->Next->Data;
-
-            T = { A, B, C };
-            float Area = GetArea(T);
-            
-            if (Area > 0) {
-                bool Valid = true;
-                for (int j = 0; j < VoidTriangles.Size(); j++) {
-                    triangle2 Void = VoidTriangles[j];
-
-                    if (Intersect(Void, T)) {
-                        Valid = false;
-                        break;
-                    }
-                }
-
-                if (Valid) break;
-            }
-
-            Vertex = Vertex->Next;
-        }
-
-        A.X =  0.4f * A.X + 501.0f;
-        A.Y = -0.4f * A.Y + 600.0f;
-        B.X =  0.4f * B.X + 501.0f;
-        B.Y = -0.4f * B.Y + 600.0f;
-        C.X =  0.4f * C.X + 501.0f;
-        C.Y = -0.4f * C.Y + 600.0f;
-
-        T = { A, B, C };
-        color Color = Colors[i % nColors];
-        PushTriangle(Group, T, ChangeAlpha(Cyan, 0.8f));
-        //PushPoint(Group, B, Color);
-        
-        link* Next = Vertex->Next;
-        Polygon.Vertices.Break(Vertex);
-        Vertex = Next;
-    }
-
-    delete [] Convex;
-    delete [] IsExterior;
-
-    char Buffer[2] = { TestChar };
-    PushText(Group, V2(550,600), Font_Menlo_Regular_ID, Buffer, 
-    Cyan, Points);
-
-    */
+    FreeMemoryArena(&SolidArena);
+    FreeMemoryArena(&InteriorArena);
+    FreeMemoryArena(&ExteriorArena);
+    FreeMemoryArena(&VoidArena);
+    FreeMemoryArena(&TrialArena);
 }
+*/
 
 void TestRendering(render_group* Group, game_input* Input) {
 // 2D

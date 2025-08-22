@@ -6,8 +6,8 @@ layout(std140, set = 2, binding = 2) uniform TextUniforms
 layout(std140, binding = 8) uniform TextUniforms 
 #endif
 {
-	float DPI;
-    float Points;
+    vec2 Pen;
+	float Size;
 } TextUBO;
 
 layout(vertices = 3) out;
@@ -25,7 +25,7 @@ void main() {
         if (D < 0.0001) {
             Level = 1;
         }
-        else if (TextUBO.Points > 80) {
+        else if (TextUBO.Size > 0.1) {
             Level = 8;
         }
         gl_TessLevelOuter[1] = Level;

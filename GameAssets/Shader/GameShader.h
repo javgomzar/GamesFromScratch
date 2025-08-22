@@ -333,8 +333,8 @@ struct alignas(16) antialiasing_uniforms {
 };
 
 struct alignas(16) text_uniforms {
-    float DPI;
-    float Points;
+    v2 Pen;
+    float Size;
 };
 
 // +-------------------------------------------------------------------------------------------------------------------------------------------+

@@ -602,10 +602,10 @@ void SetAntialiasingUniforms(openGL* OpenGL, int Samples) {
 	SetUBO(Samples, 7);
 }
 
-void SetTextUniforms(openGL* OpenGL, float Points) {
-	text_uniforms TextUniforms = {
-		OpenGL->DPI, Points
-	};
+void SetTextUniforms(openGL* OpenGL, float Size, v2 Pen) {
+	text_uniforms TextUniforms = {};
+	TextUniforms.Pen = Pen;
+	TextUniforms.Size = Size;
 	SetUBO(TextUniforms, 8);
 }
 
@@ -920,7 +920,6 @@ void InitializeRenderer(
 		}
 
 		// Font vertex buffers
-		/*
 		for (int i = 0; i < game_font_id_count; i++) {
 			openGL_font_buffer* FontBuffer = &OpenGL->FontBuffers[i];
 			glCreateVertexArrays(1, &FontBuffer->VAO);
@@ -928,30 +927,17 @@ void InitializeRenderer(
 			glCreateBuffers(1, &FontBuffer->EBO);
 
 			game_font* Font = &Assets->Font[i];
-			uint64 VerticesSize = 0;
-			uint64 ElementsSize = 0;
-			for (int j = 0; j < FONT_CHARACTERS_COUNT; j++) {
-				game_font_character* Character = &Font->Characters[j];
-				VerticesSize += 2 * sizeof(float) * 2 * Character->nOnCurvePoints;
-				// EBO will have outline
-				ElementsSize += 3 * sizeof(uint32) * Character->nOnCurvePoints;
-				// and triangulation
-				ElementsSize += 3 * sizeof(uint32) * (
-					Character->Triangulation.nSolid + 
-					Character->Triangulation.nInterior + 
-					Character->Triangulation.nExterior
-				);
-			}
+			uint64 VerticesSize = 4 * sizeof(float) * 3 * Font->nOnCurve;
+			uint64 ElementsSize = 3 * sizeof(uint32) * (Font->nPoints - Font->nOnCurve);
 
 			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, 0);
 			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, 0);
 
-			vertex_layout Layout = Assets->VertexLayouts[vertex_layout_vec2_id];
+			vertex_layout Layout = Assets->VertexLayouts[vertex_layout_vec2_vec2_id];
 
 			EnableVertexLayout(FontBuffer->VAO, FontBuffer->VBO, Layout);
 			glVertexArrayElementBuffer(FontBuffer->VAO, FontBuffer->EBO);
 		}
-			*/
 
 		// Compiling & attaching shaders
 		for (int i = 0; i < game_shader_id_count; i++) {
@@ -1058,7 +1044,7 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 				}
 
 				if (Options.Font != NULL) {
-					SetTextUniforms(OpenGL, Options.Points);
+					SetTextUniforms(OpenGL, Options.TextSize, Options.Pen);
 				}
 
 				// Depth testing and alpha blending
@@ -1091,6 +1077,9 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 				uint32 VAO = 0;
 				if (Options.Mesh != NULL) {
 					VAO = OpenGL->MeshBuffers[Options.Mesh->ID].VAO;
+				}
+				else if (Options.Font != NULL) {
+					VAO = OpenGL->FontBuffers[Options.Font->ID].VAO;
 				}
 				else {
 					VAO = OpenGL->VAOs[VertexEntry.LayoutID];

@@ -53,10 +53,16 @@ struct game_font_character {
     int16 nContours;
     int16 nPoints;
     uint16 nChildren;
+    uint16 nOnCurve;
+    uint16 nInteriorCurves;
+    uint16 nExteriorCurves;
     glyph_contour* Contours;
     void* Data;
-    uint64 VerticesOffset;
-    uint64 ElementsOffset;
+    uint32 VertexOffset;
+    uint32 OutlineOffset;
+    uint32 InteriorCurvesOffset;
+    uint32 ExteriorCurvesOffset;
+    uint32 SolidTrianglesOffset;
     int16 Left;
     int16 Top;
     uint16 Width;
@@ -72,6 +78,9 @@ struct preprocessed_font {
     uint16 nChildren[FONT_CHARACTERS_COUNT];
     uint16 GlyphIDs[FONT_CHARACTERS_COUNT];
     uint16 nPoints[FONT_CHARACTERS_COUNT];
+    uint16 nOnCurvePoints[FONT_CHARACTERS_COUNT];
+    uint32 nOnCurve;
+    uint32 nTotalPoints;
     std::vector<glyph_contour> Contours[FONT_CHARACTERS_COUNT];
     uint16 nGlyphs;
     uint16 UnitsPerEm;
@@ -90,6 +99,10 @@ struct game_font {
     uint16 LineJump;
     float UnitsPerEm;
     game_font_character Characters[FONT_CHARACTERS_COUNT];
+    uint32 nOnCurve;
+    uint32 nPoints;
+    float* Vertices;
+    uint32* Elements;
 };
 
 float GetF2DOT14(F2DOT14 Number) {
@@ -465,7 +478,7 @@ const float DPI = 96.0f;
 
 preprocessed_font PreprocessFont(read_file_result File);
 game_font LoadFont(memory_arena* Arena, preprocessed_font* Font);
-void ComputeTriangulation(memory_arena* Arena, game_font* Font);
+//glyph_triangulation ComputeTriangulation(memory_arena* Arena, game_font* Font);
 
 float GetCharMaxHeight(game_font* Font, int Points) {
     float PixelsPerEm = Points * (DPI / 72.0f) / Font->UnitsPerEm;

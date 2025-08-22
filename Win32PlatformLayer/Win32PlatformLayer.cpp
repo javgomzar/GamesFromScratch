@@ -744,10 +744,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     game_state* pGameState = PushStruct(&Memory.Permanent, game_state);
     Memory.GameState = pGameState;
 
+    // Memory arenas
+    Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
+    memory_arena FontsArena = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
+
     // Assets
     const char* AssetsPath = "..\\GameAssets\\game_assets";
     WriteAssetsFile(&Memory.Platform, AssetsPath);
-    LoadAssetsFromFile(Memory.Platform.ReadEntireFile, &Memory.Assets, AssetsPath);
+    LoadAssetsFromFile(&FontsArena, Memory.Platform.ReadEntireFile, &Memory.Assets, AssetsPath);
 
     // Recording and playback
     record_and_playback RecordPlayback;
@@ -762,9 +766,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Group,
         &Memory.Assets
     );
-
-    // Memory arenas
-    Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
 
     // Input
     game_input Input = {};

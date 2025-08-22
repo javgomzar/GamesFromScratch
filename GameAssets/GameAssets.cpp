@@ -227,7 +227,12 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     VirtualFree(FileMemory, 0, MEM_RELEASE);
 }
 
-void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, const char* Path) {
+void LoadAssetsFromFile(
+    memory_arena* FontsArena,
+    platform_read_entire_file Read, 
+    game_assets* Assets, 
+    const char* Path
+) {
     read_file_result AssetsFile = Read(Path);
 
     *Assets = *(game_assets*)AssetsFile.Content;
@@ -278,6 +283,10 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
                         Data += Character->nChildren * sizeof(composite_glyph_record);
                     }
                 }
+
+                WriteFontVertices(FontsArena, Font);
+                WriteOutlineElements(FontsArena, Font);
+                WriteFontCurveTriangles(FontsArena, Font);
             } break;
 
             case Asset_Type_Mesh: {

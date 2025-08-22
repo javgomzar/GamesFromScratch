@@ -8,7 +8,7 @@
 // | Vertex buffer                                                                                                                                |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-const memory_index VERTEX_BUFFER_SIZE = Kilobytes(256);
+const memory_index VERTEX_BUFFER_SIZE = Kilobytes(64);
 const memory_index ELEMENT_BUFFER_SIZE = Kilobytes(8);
 
 struct vertex_buffer_entry {
@@ -182,8 +182,9 @@ struct render_primitive_options {
     game_mesh* Mesh = NULL;
     game_font* Font = NULL;
     armature* Armature = NULL;
+    v2 Pen;
     int PatchParameter = 4;
-    float Points = 0;
+    float TextSize = 0;
     bool Outline = false;
 };
 
@@ -426,7 +427,7 @@ render_primitive_command* PushPrimitiveCommand(
     PrimitiveCommand->Color = Color;
 
     if (nVertices > 0) {
-        if (Options.Mesh != NULL) {
+        if (Options.Mesh != NULL || Options.Font != NULL) {
             PrimitiveCommand->VertexEntry.Count = nVertices;
             PrimitiveCommand->VertexEntry.LayoutID = LayoutID;
         }
@@ -437,7 +438,7 @@ render_primitive_command* PushPrimitiveCommand(
     }
 
     if (nElements > 0) {
-        if (Options.Mesh != NULL) {
+        if (Options.Mesh != NULL || Options.Font != NULL) {
             PrimitiveCommand->ElementEntry.Count = nElements;
         }
         else {
@@ -1034,7 +1035,9 @@ void PushText(
     }
 
     game_font* Font = GetAsset(Group->Assets, FontID);
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Text_Outline_ID);
+    game_shader_pipeline* OutlineShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Text_Outline_ID);
+    game_shader_pipeline* InteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Interior_ID);
+    game_shader_pipeline* ExteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Exterior_ID);
     
     v2 Pen = Position;
     float DPI = 96;
@@ -1072,63 +1075,88 @@ void PushText(
             if (pCharacter->nContours > 0) {
                 render_primitive_options Options = {};
                 Options.Font = Font;
-                Options.Points = Points;
+                Options.TextSize = Size;
                 Options.PatchParameter = 3;
                 Options.Outline = Outline;
-                
-                for (int j = 0; j < pCharacter->nContours; j++) {
-                    glyph_contour Contour = pCharacter->Contours[j];
-                    
-                    uint32 nOnCurvePoints = 0;
-                    for (int k = 0; k < Contour.nPoints; k++) {
-                        if (Contour.Points[k].OnCurve) {
-                            nOnCurvePoints += 1;
-                        }
-                    }
+                Options.Pen = Pen;
 
-                    float* Vertices = PushPrimitiveCommand(
+                if (true) {
+                    render_primitive_command* Command = PushPrimitiveCommand(
                         Group,
                         render_primitive_patches,
                         Color,
-                        Shader,
-                        vertex_layout_vec2_id,
-                        3 * nOnCurvePoints,
+                        OutlineShader,
+                        vertex_layout_vec2_vec2_id,
+                        3 * pCharacter->nOnCurve,
                         0,
                         SORT_ORDER_DEBUG_OVERLAY,
                         Options
-                    )->Vertices;
+                    );
 
-                    glyph_contour_point Last = Contour.Points[Contour.nPoints-1];
-                    for (int k = 0; k < Contour.nPoints; k++) {
-                        glyph_contour_point First = Contour.Points[k];
-                        if (First.OnCurve) {
-                            glyph_contour_point Second = {}, Third = {};
-                            Second = Contour.Points[(k + 1) % Contour.nPoints];
-                            if (Second.OnCurve) {
-                                Third = Second;
-                                Second.X = 0.5f * (First.X + Third.X);
-                                Second.Y = 0.5f * (First.Y + Third.Y);
-                            }
-                            else {
-                                Third = Contour.Points[(k + 2) % Contour.nPoints];
-                            }
-
-                            *Vertices++ = Pen.X + ((First.X) - pCharacter->Left) * Size;
-                            *Vertices++ = Pen.Y - First.Y * Size;
-                            *Vertices++ = Pen.X + ((Second.X) - pCharacter->Left) * Size;
-                            *Vertices++ = Pen.Y - Second.Y * Size;
-                            *Vertices++ = Pen.X + ((Third.X) - pCharacter->Left) * Size;
-                            *Vertices++ = Pen.Y - Third.Y * Size;
-                        }
-                    }
+                    Command->VertexEntry.Offset = pCharacter->VertexOffset;
                 }
+
+                if (pCharacter->nInteriorCurves > 0) {
+                    render_primitive_command* Command = PushPrimitiveCommand(
+                        Group,
+                        render_primitive_triangle,
+                        Color,
+                        InteriorShader,
+                        vertex_layout_vec2_vec2_id,
+                        0,
+                        3 * pCharacter->nInteriorCurves,
+                        SORT_ORDER_DEBUG_OVERLAY,
+                        Options
+                    );
+
+                    Command->ElementEntry.Offset = pCharacter->InteriorCurvesOffset;
+                }
+
+                if (pCharacter->nExteriorCurves > 0) {
+                    render_primitive_command* Command = PushPrimitiveCommand(
+                        Group,
+                        render_primitive_triangle,
+                        Color,
+                        ExteriorShader,
+                        vertex_layout_vec2_id,
+                        0,
+                        3 * pCharacter->nExteriorCurves,
+                        SORT_ORDER_DEBUG_OVERLAY,
+                        Options
+                    );
+    
+                    Command->ElementEntry.Offset = pCharacter->ExteriorCurvesOffset;
+                }
+
+
+                // glyph_contour_point Last = Contour.Points[Contour.nPoints-1];
+                // for (int k = 0; k < Contour.nPoints; k++) {
+                //     glyph_contour_point First = Contour.Points[k];
+                //     if (First.OnCurve) {
+                //         glyph_contour_point Second = {}, Third = {};
+                //         Second = Contour.Points[(k + 1) % Contour.nPoints];
+                //         if (Second.OnCurve) {
+                //             Third = Second;
+                //             Second.X = 0.5f * (First.X + Third.X);
+                //             Second.Y = 0.5f * (First.Y + Third.Y);
+                //         }
+                //         else {
+                //             Third = Contour.Points[(k + 2) % Contour.nPoints];
+                //         }
+
+                //         *Vertices++ = Pen.X + ((First.X) - pCharacter->Left) * Size;
+                //         *Vertices++ = Pen.Y - First.Y * Size;
+                //         *Vertices++ = Pen.X + ((Second.X) - pCharacter->Left) * Size;
+                //         *Vertices++ = Pen.Y - Second.Y * Size;
+                //         *Vertices++ = Pen.X + ((Third.X) - pCharacter->Left) * Size;
+                //         *Vertices++ = Pen.Y - Third.Y * Size;
+                //     }
+                // }
             }
 
             Pen.X += pCharacter->Width * Size;
         }
     }
-
-    OutputDebugStringA("A");
 
     /*
 
