@@ -13,8 +13,6 @@
 
 #pragma comment(lib, "xaudio2.lib")
 
-#include "Tokenizer.h"
-
 /* TODO:
     - Saved game locations
     - Getting a handle to our own executable file
@@ -734,48 +732,40 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     game_code GameCode = { 0 };
     LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
     LPVOID BaseAddress = 0;
-    Memory.PermanentStorageSize = Megabytes(64);
-    void* GameMemoryBlock = VirtualAlloc(BaseAddress, Memory.PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-    Memory.PermanentStorage = GameMemoryBlock;
+    memory_index PermanentStorageSize = Megabytes(64);
+    void* GameMemoryBlock = VirtualAlloc(BaseAddress, PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    Memory.Permanent = MemoryArena(PermanentStorageSize, (uint8*)GameMemoryBlock);
 
     Memory.Platform.FreeFileMemory = PlatformFreeFileMemory;
     Memory.Platform.ReadEntireFile = PlatformReadEntireFile;
     Memory.Platform.WriteEntireFile = PlatformWriteEntireFile;
     Memory.Platform.AppendToFile = PlatformAppendToFile;
 
+    game_state* pGameState = PushStruct(&Memory.Permanent, game_state);
+    Memory.GameState = pGameState;
+
+    // Memory arenas
+    Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
+    memory_arena FontsArena = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
+
     // Assets
     const char* AssetsPath = "..\\GameAssets\\game_assets";
     WriteAssetsFile(&Memory.Platform, AssetsPath);
-    LoadAssetsFromFile(Memory.Platform.ReadEntireFile, &Memory.Assets, AssetsPath);
-
-    game_state* pGameState = (game_state*)Memory.PermanentStorage;
-    render_group* Group = &Memory.RenderGroup;
+    LoadAssetsFromFile(&FontsArena, Memory.Platform.ReadEntireFile, &Memory.Assets, AssetsPath);
 
     // Recording and playback
     record_and_playback RecordPlayback;
     RecordPlayback.PlaybackIndex = 0;
     RecordPlayback.RecordIndex = 0;
     RecordPlayback.GameMemoryBlock = GameMemoryBlock;
-    RecordPlayback.TotalSize = Memory.PermanentStorageSize;
-
-    memory_index MemoryUsed = InitializeRenderGroup(
-        &Memory.RenderGroup, 
-        &Memory.Assets, 
-        (uint8*)Memory.PermanentStorage + sizeof(game_state)
+    RecordPlayback.TotalSize = PermanentStorageSize;
+    
+    render_group* Group = &Memory.RenderGroup;
+    InitializeRenderGroup(
+        &Memory.Permanent,
+        Group,
+        &Memory.Assets
     );
-
-    // Memory arenas
-    uint8* ArenaStart = (uint8*)Memory.PermanentStorage + sizeof(game_state) + MemoryUsed;
-    Memory.TransientArena = MemoryArena(Megabytes(1), ArenaStart);
-    ArenaStart += Memory.TransientArena.Size;
-    Memory.StringsArena = MemoryArena(Kilobytes(1), ArenaStart);
-    ArenaStart += Memory.StringsArena.Size;
-    Memory.GeneralPurposeArena = MemoryArena(Megabytes(1), ArenaStart);
-    ArenaStart += Memory.GeneralPurposeArena.Size;
-    Memory.TurnsArena = MemoryArena(Megabytes(8), ArenaStart);
-    ArenaStart += Memory.TurnsArena.Size;
-
-    pGameState->Combat.TurnsArena = &Memory.TurnsArena;
 
     // Input
     game_input Input = {};
@@ -828,7 +818,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         // Clear transient memory
-        ClearArena(&Memory.TransientArena);
+        ClearArena(&Memory.Transient);
 
         // Previous input
         UpdatePreviousInput(&Input);
@@ -982,7 +972,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ScreenCapture(&Memory.Platform, &RendererContext, Group->Width, Group->Height);
             }
 
-            LogDebugRecords(Group, &Memory.TransientArena);
+            LogDebugRecords(Group, &Memory.Transient);
             Render(Window, Group, &RendererContext, pGameState->Time);
             ClearVertexBuffer(&Memory.RenderGroup.VertexBuffer);
         }
@@ -1003,7 +993,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         debug_info* DebugInfo = &Memory.DebugInfo;
-        ClearDebugContext(DebugInfo);
+        *DebugInfo = {};
+
+        PROCESS_MEMORY_COUNTERS_EX PMC = {};
+        uint64 UsedMemory = 0;
+        if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&PMC, sizeof(PMC))) {
+            UsedMemory = PMC.WorkingSetSize / Megabytes(1);
+        }
+        DebugInfo->UsedMemory = UsedMemory;
+        DEBUG_VALUE(UsedMemory, uint64);
 
         // Performance computations
         uint64 EndCycleCount = __rdtsc();
@@ -1031,6 +1029,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         float BudgetTime = 1000.0f * ActualSecsElapsed; // (in ms)
         float FPS = 1.0f / ActualSecsElapsed;
         
+        DebugInfo->FPS                 = FPS;
+        DebugInfo->BudgetTime          = BudgetTime;
+        DebugInfo->UsedTime            = UsedTime;
+        DebugInfo->UsedMCyclesPerFrame = UsedMCyclesPerFrame;
+
         DEBUG_VALUE(FPS, float);
         DEBUG_VALUE(BudgetTime, float);
         DEBUG_VALUE(UsedTime, float);
@@ -1212,7 +1215,7 @@ debug_record DebugRecordArray_Win32[__COUNTER__];
 void LogDebugRecords(render_group* Group, memory_arena* Arena) {
     char Buffer[512];
     int Height = 350;
-    game_font* Font = GetAsset(&Memory.Assets, Font_Cascadia_Mono_ID);
+    game_font* Font = GetAsset(&Memory.Assets, Font_Menlo_Regular_ID);
     for (int i = 0; i < ArrayCount(DebugRecordArray_Win32); i++) {
         debug_record* DebugRecord = DebugRecordArray_Win32 + i;
 

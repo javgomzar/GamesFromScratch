@@ -30,9 +30,9 @@ extern GAMELIBRARY_API int nGameLibrary;
 #include "GameMath.h"
 #include "GameInput.h"
 #include "GameAssets.h"
+#include "GameRender.h"
 #include "GameEntity.h"
 #include "GameDebug.h"
-#include "GameRender.h"
 #include "GameTest.h"
 
 #include "GameAssets.cpp"
@@ -51,13 +51,11 @@ struct game_memory {
     game_assets Assets;
     platform_api Platform;
     render_group RenderGroup;
-    memory_arena StringsArena;
-    memory_arena GeneralPurposeArena;
-    memory_arena TransientArena;
+    game_state* GameState;
+    memory_arena Permanent;
+    memory_arena Transient;
     memory_arena TurnsArena;
     debug_info DebugInfo;
-    uint64 PermanentStorageSize;
-    void* PermanentStorage;
     bool IsInitialized;
 };
 

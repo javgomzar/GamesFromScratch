@@ -81,11 +81,11 @@ struct color {
     float Alpha;
 };
 
-color Color(float R, float G, float B, float Alpha = 1.0f) {
+color GetColor(float R, float G, float B, float Alpha = 1.0f) {
     return { R, G, B, Alpha };
 }
 
-color Color(color Color, float Alpha) {
+color ChangeAlpha(color Color, float Alpha) {
     return { Color.R, Color.G, Color.B, Alpha };
 }
 
@@ -98,17 +98,18 @@ color operator*(float Luminosity, color Color) {
     };
 }
 
-static color Black = { 0.0f, 0.0f, 0.0f, 1.0f };
-static color White = { 1.0f, 1.0f, 1.0f, 1.0f };
-static color Gray = { 0.5f, 0.5f, 0.5f, 1.0f };
-static color DarkGray = { 0.1f, 0.1f, 0.1f, 1.0f };
-static color Red = { 1.0f, 0.0f, 0.0f, 1.0f };
-static color Green = { 0.0f, 1.0f, 0.0f, 1.0f };
-static color Blue = { 0.0f, 0.0f, 1.0f, 1.0f };
-static color Magenta = { 1.0f, 0.0f, 1.0f, 1.0f };
-static color Yellow = { 1.0f, 1.0f, 0.0f, 1.0f };
-static color Cyan = { 0.0f, 1.0f, 1.0f, 1.0f };
-static color Orange = { 1.0f, 0.63f, 0.0f, 1.0f };
+static color Black          = { 0.0f, 0.0f, 0.0f, 1.0f };
+static color White          = { 1.0f, 1.0f, 1.0f, 1.0f };
+static color Gray           = { 0.5f, 0.5f, 0.5f, 1.0f };
+static color DarkGray       = { 0.1f, 0.1f, 0.1f, 1.0f };
+static color Red            = { 1.0f, 0.0f, 0.0f, 1.0f };
+static color Green          = { 0.0f, 1.0f, 0.0f, 1.0f };
+static color Blue           = { 0.0f, 0.0f, 1.0f, 1.0f };
+static color Magenta        = { 1.0f, 0.0f, 1.0f, 1.0f };
+static color Yellow         = { 1.0f, 1.0f, 0.0f, 1.0f };
+static color Cyan           = { 0.0f, 1.0f, 1.0f, 1.0f };
+static color Orange         = { 1.0f, 0.63f, 0.0f, 1.0f };
+static color Purple         = { 0.5f, 0.0f, 0.6f, 1.0f};
 static color BackgroundBlue = { 0.4f, 0.4f, 0.8f, 1.0f };
 
 uint32 GetColorBytes(color Color) {
@@ -117,6 +118,13 @@ uint32 GetColorBytes(color Color) {
     uint8 G = Color.G * 255.0f;
     uint8 B = Color.B * 255.0f;
     return (Alpha << 24) | (R << 16) | (G << 8) | B;
+}
+
+color HSV2RGB(float H, float S, float V, float Alpha = 1.0f) {
+    float R = (1.0f-S) + S*Clamp(fabsf(fmodf(H + 1.0f, 1.0f)      * 6.0f - 3.0f) - 1.0f, 0.0f, 1.0f);
+    float G = (1.0f-S) + S*Clamp(fabsf(fmodf(H + 2.0f/3.0f, 1.0f) * 6.0f - 3.0f) - 1.0f, 0.0f, 1.0f);
+    float B = (1.0f-S) + S*Clamp(fabsf(fmodf(H + 1.0f/3.0f, 1.0f) * 6.0f - 3.0f) - 1.0f, 0.0f, 1.0f);
+    return V * GetColor(R, G, B, Alpha);
 }
 
 //color GetColor(uint32 Bytes, uint32 RedMask, uint32 GreenMask, uint32 BlueMask) {
@@ -140,7 +148,7 @@ uint32 GetColorBytes(color Color) {
 //}
 
 color operator+(color Color1, color Color2) {
-    return Color(
+    return GetColor(
         Color1.R + Color2.R,
         Color1.G + Color2.G,
         Color1.B + Color2.B
@@ -564,7 +572,8 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
     }
 
     Log(Info, LogBuffer);
-    Assert(Asset->MemoryNeeded == Arena->Used - Asset->Offset);
+    uint64 UsedMemory = Arena->Used - Asset->Offset;
+    Assert(Asset->MemoryNeeded == UsedMemory);
     Assets->Platform->FreeFileMemory(Asset->File.Content);
     Asset->File.Content = 0;
 }
@@ -660,6 +669,6 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
 }
 
 void WriteAssetsFile(platform_api* Platform, const char* Path);
-void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, const char* Path);
+void LoadAssetsFromFile(memory_arena* FontsArena, platform_read_entire_file Read, game_assets* Assets, const char* Path);
 
 #endif

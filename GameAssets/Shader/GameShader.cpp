@@ -32,50 +32,52 @@ void LoadShader(platform_api* Platform, memory_arena* Arena, game_shader* Shader
 
         // Uniforms
         if (Token == "VULKAN") {
-            Token = RequireToken(Tokenizer, "layout");
+            Token = GetToken(Tokenizer);
 
-            shader_uniform_block UBO = {};
-            shader_uniform_sampler Sampler = {};
+            if (Token == "layout") {
+                shader_uniform_block UBO = {};
+                shader_uniform_sampler Sampler = {};
 
-            Token = RequireToken(Tokenizer, Token_OpenParen);
-            Token = RequireToken(Tokenizer, Token_Identifier);
-            while (Token.Type != Token_CloseParen && Token.Type != Token_End) {
-                if (Token == "set") {
-                    Token = RequireToken(Tokenizer, Token_Equal);
-                    UBO.Set = Parseuint32(Tokenizer);
-                    Sampler.Set = UBO.Set;
-                }
-                else if (Token == "binding") {
-                    Token = RequireToken(Tokenizer, Token_Equal);
-                    UBO.Binding = Parseuint32(Tokenizer);
-                    Sampler.Binding = UBO.Binding;
-                }
-                Token = GetToken(Tokenizer);
-            }
-
-            if (Token.Type == Token_End) {
-                break;
-            }
-
-            Token = RequireToken(Tokenizer, Token_Identifier);
-            if (Token == "uniform") {
-                Token = GetToken(Tokenizer);
-                if (Token == "sampler2D" || Token == "sampler2DMS") {
-                    Assert(Sampler.Set == 2);
-                    Shader->Sampler[Shader->nSamplers++] = Sampler;
-                }
-                else {
-                    AdvanceUntil(Tokenizer, '{');
-                    Token = RequireToken(Tokenizer, Token_OpenBrace);
-                    Token = GetToken(Tokenizer);
-                    while (Token.Type != Token_CloseBrace && Token.Type != Token_End) {
-                        shader_type Type = GetShaderType(Token);
-                        AdvanceUntil(Tokenizer, ';');
-                        Token = GetToken(Tokenizer);
-                        Token = GetToken(Tokenizer);
-                        UBO.Member[UBO.nMembers++] = Type;
+                Token = RequireToken(Tokenizer, Token_OpenParen);
+                Token = RequireToken(Tokenizer, Token_Identifier);
+                while (Token.Type != Token_CloseParen && Token.Type != Token_End) {
+                    if (Token == "set") {
+                        Token = RequireToken(Tokenizer, Token_Equal);
+                        UBO.Set = Parseuint32(Tokenizer);
+                        Sampler.Set = UBO.Set;
                     }
-                    Shader->UBO[Shader->nUBOs++] = UBO;
+                    else if (Token == "binding") {
+                        Token = RequireToken(Tokenizer, Token_Equal);
+                        UBO.Binding = Parseuint32(Tokenizer);
+                        Sampler.Binding = UBO.Binding;
+                    }
+                    Token = GetToken(Tokenizer);
+                }
+
+                if (Token.Type == Token_End) {
+                    break;
+                }
+
+                Token = RequireToken(Tokenizer, Token_Identifier);
+                if (Token == "uniform") {
+                    Token = GetToken(Tokenizer);
+                    if (Token == "sampler2D" || Token == "sampler2DMS") {
+                        Assert(Sampler.Set == 2);
+                        Shader->Sampler[Shader->nSamplers++] = Sampler;
+                    }
+                    else {
+                        AdvanceUntil(Tokenizer, '{');
+                        Token = RequireToken(Tokenizer, Token_OpenBrace);
+                        Token = GetToken(Tokenizer);
+                        while (Token.Type != Token_CloseBrace && Token.Type != Token_End) {
+                            shader_type Type = GetShaderType(Token);
+                            AdvanceUntil(Tokenizer, ';');
+                            Token = GetToken(Tokenizer);
+                            Token = GetToken(Tokenizer);
+                            UBO.Member[UBO.nMembers++] = Type;
+                        }
+                        Shader->UBO[Shader->nUBOs++] = UBO;
+                    }
                 }
             }
         }

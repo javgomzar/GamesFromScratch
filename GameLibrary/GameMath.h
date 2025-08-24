@@ -5,6 +5,9 @@
 #include <math.h>
 #include <float.h>
 #include <stdlib.h>
+#include <math.h>
+#include <float.h>
+#include <stdlib.h>
 
 //#include "fftw3.h"
 //#pragma comment(lib, "libfftw3-3.lib")
@@ -234,6 +237,17 @@ inline bool AreParallel(v2 A, v2 B) {
 
 inline float modulus(v2 A) {
 	return sqrt(dot(A, A));
+}
+
+inline float GetAngle(v2 A, v2 B) {
+	float mA = modulus(A);
+	float mB = modulus(B);
+	if (mA < Epsilon || mB < Epsilon) {
+		return 0;
+	}
+	float s = cross(A, B) / mA / mB;
+	float c = dot(A, B) / mA / mB;
+	return atan2f(s, c);
 }
 
 inline v2 normalize(v2 V) {
@@ -1761,7 +1775,7 @@ struct triangle2 {
 	}
 };
 
-inline float Area(triangle2 T) {
+inline float GetArea(triangle2 T) {
 	return 0.5f * cross(T[2] - T[0], T[1] - T[0]);
 }
 
@@ -1770,9 +1784,9 @@ inline bool IsInside(triangle2 T, v2 P) {
 	triangle2 V = { P, T[2], T[0] };
 	triangle2 W = { P, T[0], T[1] };
 
-	float Area0 = Area(U);
-	float Area1 = Area(V);
-	float Area2 = Area(W);
+	float Area0 = GetArea(U);
+	float Area1 = GetArea(V);
+	float Area2 = GetArea(W);
 
 	if (Area0 * Area1 > 0 && Area1 * Area2 > 0) {
 		return true;
@@ -1811,70 +1825,47 @@ float SqDistance(triangle2 T, v2 P) {
 	return d;
 }
 
-float SqDistance(triangle2 T1, triangle2 T2) {
-	v2 Closest1 = {}, Closest2 = {};
-	v2 Last1    = {}, Last2    = {};
-	float d = FLT_MAX, last_d = FLT_MAX;
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 3; j++) {
-			float candidate = distance(T1[i], T2[j]);
-			if (candidate == 0) return 0;
-			if (candidate < d) {
-				Last1 = Closest1; Last2 = Closest2;
-				Closest1 = T1[i]; Closest2 = T2[j];
-				d = candidate; last_d = d;
- 			}
-		}
-	}
-
-	segment2 S1 = { Closest1, Last1 };
-	segment2 S2 = { Closest2, Last2 };
-
-	return SqDistance(S1, S2);
-}
 
 /*
 	Intersects two triangles in the plane. Result is true if both triangles intersect in a region with some area.
 */
 bool Intersect(triangle2 T1, triangle2 T2) {
-	float A1 = Area(T1);
+	float A1 = GetArea(T1);
 	if (fabsf(A1) < Epsilon) return false;
-	if (A1 < 0)         Flip(T1);
 
-	float A2 = Area(T2);
+	float A2 = GetArea(T2);
 	if (fabsf(A2) < Epsilon) return false;
-	if (A2 < 0)         Flip(T2);
-
-	float D = SqDistance(T1, T2);
-	if (D > Epsilon) {
-		return false;
-	}
-
-	v2 V[6] = {
-		perp(T1[0] - T1[1]),
-		perp(T1[1] - T1[2]),
-		perp(T1[2] - T1[0]),
-		perp(T2[0] - T2[1]),
-		perp(T2[1] - T2[2]),
-		perp(T2[2] - T2[0]),
-	};
 
 	// Apply separating hiperplane theorem
 	for (int i = 0; i < 6; i++) {
+		v2 V = {};
+		if (i < 3) {
+			V = perp(T1[i] - T1[(i+1)%3]);
+		}
+		else {
+			V = perp(T2[i-3] - T2[(i-2)%3]);
+		}
+
 		float c1[3] = {};
 		float c2[3] = {};
 
 		for (int j = 0; j < 3; j++) {
-			c1[j] = dot(V[i], T1[j]);
-			c2[j] = dot(V[i], T2[j]);
+			c1[j] = dot(V, T1[j]);
+			c2[j] = dot(V, T2[j]);
 		}
 
-		float d;
+		float d = 0;
 		if (i < 3) d = c1[i];
 		else       d = c2[i-3];
 		for (int j = 0; j < 3; j++) {
 			c1[j] -= d;
+			if (fabsf(c1[j]) < 1) {
+				c1[j] = 0;
+			}
 			c2[j] -= d;
+			if (fabsf(c2[j]) < 1) {
+				c2[j] = 0;
+			}
 		}
 
 		if (

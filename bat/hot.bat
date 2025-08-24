@@ -18,7 +18,6 @@ echo %N% > bin\PDBNumber.txt
  /Fd"bin\vc140.pdb"^
  /Yu"pch.h" /Fp"bin\pch.pch"^
  /link^
- freetype.lib^
  avcodec.lib^
  avformat.lib^
  avutil.lib^

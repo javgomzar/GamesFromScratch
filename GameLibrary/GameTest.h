@@ -1,3 +1,4 @@
+#include "GamePlatform.h"
 #include "GameRender.h"
 
 void TestXArray(uint8* Memory) {
@@ -20,65 +21,42 @@ void TestRendering(render_group* Group, game_input* Input) {
 // 2D
     // Rects
     rectangle Rect = { 20, 20, 100, 100 };
-    PushRectOutline(Group, Rect, White, 2.0f);
     PushRect(Group, Rect, Red);
+    PushRectOutline(Group, Rect, White, 2.0f);
 
     // Circles
-    PushCircunference(Group, V2(200, 70), 50.0f, White);
     PushCircle(Group, V2(200, 70), 50.0f, Red);
+    PushCircunference(Group, V2(200, 70), 50.0f, White, 2.0f);
 
     // Triangles
     triangle2 Triangle2 = { V2(320, 20), V2(270, 120), V2(370, 120) };
-    PushLine(Group, Triangle2.Points[0], Triangle2.Points[1], White);
-    PushLine(Group, Triangle2.Points[1], Triangle2.Points[2], White);
-    PushLine(Group, Triangle2.Points[2], Triangle2.Points[0], White);
     color TriangleColor = Red;
     if (IsInside(Triangle2, Input->Mouse.Cursor)) TriangleColor = Green;
     PushTriangle(Group, Triangle2, TriangleColor);
+    PushLine(Group, Triangle2.Points[0], Triangle2.Points[1], White);
+    PushLine(Group, Triangle2.Points[1], Triangle2.Points[2], White);
+    PushLine(Group, Triangle2.Points[2], Triangle2.Points[0], White);
 
     // Bitmap
     rectangle BitmapRect = { 20, 140, 100, 200 };
     PushBitmap(Group, Bitmap_Player_ID, BitmapRect);
 
-    // Text
-    static float Points = 36.0f;
-
-    if (Input->Mouse.Wheel > 0)      Points *= 1.5f;
-    else if (Input->Mouse.Wheel < 0) Points /= 1.5f;
-
-    PushText(Group, V2(100, 100), Font_Menlo_Regular_ID, 
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n?!^/\\(){}[]'\"@#~€$%=+-.,:;*", 
-    White, Points);
-
-    triangle2 T1 = { 
-        V2(300, 300),
-        V2(300, 400),
-        V2(400, 400),
-    };
-
-    static triangle2 T2 = { 
-        V2(300, 300),
-        V2(250, 400),
-    };
-
-    static bool MoveVertex = true;
-
-    if (Input->Mouse.RightClick.JustPressed) {
-        MoveVertex = !MoveVertex;
+    static float Points = 42;
+    if (Input->Mouse.Wheel > 0) {
+        Points *= 1.25f;
+    }
+    else if (Input->Mouse.Wheel < 0) {
+        Points *= 0.8f;
     }
 
-    if (MoveVertex) {
-        T2[2] = Input->Mouse.Cursor;
-    }
+    render_text_options Options = {};
+    Options.Outline = true;
+    Options.OutlineWidth = 1.5f;
 
-    PushTriangle(Group, T1, Green);
-    PushTriangle(Group, T2, Red);
+    const char* TestString = "!\"#$%&'()*+,-./0123456789:;<=>?@\nABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\nabcdefghijklmnopqrstuvwxyz{|}~";
 
-    char Buffer[8];
-    sprintf_s(Buffer, "%d", Intersect(T1, T2));
-
-    PushText(Group, V2(500,500), Font_Menlo_Regular_ID, Buffer, White);
-
+    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
+    PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), Font_Menlo_Regular_ID, TestString, White, Points, Options);
 
 // 3D
     // Point

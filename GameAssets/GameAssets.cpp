@@ -58,7 +58,6 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
 
 // Assets
     // Fonts
-    PushAsset(&Assets, "..\\GameAssets\\Font\\Files\\CascadiaMono.ttf", Font_Cascadia_Mono_ID);
     PushAsset(&Assets, "..\\GameAssets\\Font\\Files\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
 
     // Text
@@ -113,7 +112,7 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\ScreenTexture.vert", Vertex_Shader_Screen_Texture_ID);
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Perspective.vert", Vertex_Shader_Perspective_ID);
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Bones.vert", Vertex_Shader_Bones_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Text.vert", Vertex_Shader_Text_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Barycentric.vert", Vertex_Shader_Barycentric_ID);
 #if GAME_RENDER_API_VULKAN
     PushShader(&Assets, "..\\GameAssets\\Shaders\\Vertex\\VulkanTest.vert", Vertex_Shader_Vulkan_Test_ID);
 #endif
@@ -141,6 +140,8 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\JumpFlood.frag", Fragment_Shader_Jump_Flood_ID);
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Heightmap.frag", Fragment_Shader_Heightmap_ID);
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Sea.frag", Fragment_Shader_Sea_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\BezierExterior.frag", Fragment_Shader_Bezier_Exterior_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\BezierInterior.frag", Fragment_Shader_Bezier_Interior_ID);
 #if GAME_RENDER_API_VULKAN
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\VulkanTest.frag", Fragment_Shader_Vulkan_Test_ID);
 #endif
@@ -156,6 +157,9 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushShaderPipeline(&Assets, Shader_Pipeline_Screen_Single_Color_ID, 2, Vertex_Shader_Screen_ID,         Fragment_Shader_Single_Color_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Bones_Single_Color_ID,  2, Vertex_Shader_Bones_ID,          Fragment_Shader_Single_Color_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Outline_ID,             2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Outline_ID);
+    PushShaderPipeline(&Assets, Shader_Pipeline_Bezier_Exterior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Exterior_ID);
+    PushShaderPipeline(&Assets, Shader_Pipeline_Bezier_Interior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Interior_ID);
+    PushShaderPipeline(&Assets, Shader_Pipeline_Solid_Text_ID,          2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Single_Color_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Jump_Flood_ID,          2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Jump_Flood_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Debug_Normals_ID,       3,
         Vertex_Shader_Bones_ID,
@@ -175,12 +179,13 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
         TESE_Trochoidal_ID,
         Fragment_Shader_Sea_ID
     );
-    PushShaderPipeline(&Assets, Shader_Pipeline_Text_ID, 4,
-        Vertex_Shader_Screen_ID,
+    PushShaderPipeline(&Assets, Shader_Pipeline_Text_Outline_ID, 4,
+        Vertex_Shader_Barycentric_ID,
         TESC_Bezier_ID,
         TESE_Bezier_ID,
         Fragment_Shader_Single_Color_ID
     );
+
 #if GAME_RENDER_API_VULKAN
     PushShaderPipeline(&Assets, Shader_Pipeline_Vulkan_Test_ID, 2, Vertex_Shader_Vulkan_Test_ID, Fragment_Shader_Vulkan_Test_ID);
 #endif
@@ -223,7 +228,12 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     VirtualFree(FileMemory, 0, MEM_RELEASE);
 }
 
-void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, const char* Path) {
+void LoadAssetsFromFile(
+    memory_arena* FontsArena,
+    platform_read_entire_file Read, 
+    game_assets* Assets, 
+    const char* Path
+) {
     read_file_result AssetsFile = Read(Path);
 
     *Assets = *(game_assets*)AssetsFile.Content;
@@ -257,24 +267,27 @@ void LoadAssetsFromFile(platform_read_entire_file Read, game_assets* Assets, con
 
             case Asset_Type_Font: {
                 game_font* Font = GetAsset(Assets, Asset.ID.Font);
-                //Font->Bitmap.Content = (uint32*)(Assets->Memory + Asset.Offset);
                 uint8* Data = Assets->Memory + Asset.Offset;
                 for (int j = 0; j < FONT_CHARACTERS_COUNT; j++) {
                     game_font_character* Character = &Font->Characters[j];
                     if (Character->nContours == 0) Raise("Font character has no contours.");
                     else if (Character->nContours > 0) {
-                        Character->EndPointsOfContours = (uint16*)Data;
-                        Data += Character->nContours * sizeof(uint16);
-                        Character->Data = Data;
-                        uint16 nPoints = Character->EndPointsOfContours[Character->nContours - 1] + 1;
-                        Data += nPoints * 6 * sizeof(float);
+                        Character->Contours = (glyph_contour*)Data;
+                        Character->Data = (Data += Character->nContours * sizeof(glyph_contour));
+                        for (int k = 0; k < Character->nContours; k++) {
+                            Character->Contours[k].Points = (glyph_contour_point*)Data;
+                            Data += Character->Contours[k].nPoints * sizeof(glyph_contour_point);
+                        }
                     }
                     else if (Character->nContours < 0) {
-                        Character->EndPointsOfContours = 0;
                         Character->Data = Data;
                         Data += Character->nChildren * sizeof(composite_glyph_record);
                     }
                 }
+
+                WriteFontVertices(FontsArena, Font);
+                WriteFontCurveTriangles(FontsArena, Font);
+                WriteFontSolidTriangles(FontsArena, Font);
             } break;
 
             case Asset_Type_Mesh: {

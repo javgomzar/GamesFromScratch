@@ -5,6 +5,7 @@
 #include "GamePlatform.h"
 #include "GameAssets.h"
 #include "GameInput.h"
+#include "GameRender.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Entities                                                                                                                                     |
@@ -79,36 +80,8 @@ bool Collide(game_entity* Entity1, game_entity* Entity2) {
 // | Camera                                                                                                                                       |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-struct camera {
-    basis Basis;
-    v3 Position;
-    game_entity* Entity;
-    float Distance;
-    float Pitch;
-    float Angle;
-    matrix4 View;
-    bool OnAir;
-};
-
 const int MAX_CAMERAS = 16;
 DefineEntityList(MAX_CAMERAS, camera);
-
-basis GetCameraBasis(float Angle, float Pitch) {
-    float cosA = cosf(Angle * Degrees);
-    float sinA = sinf(Angle * Degrees);
-    float cosP = cosf(Pitch * Degrees);
-    float sinP = sinf(Pitch * Degrees);
-
-    v3 X = V3(        cosA,  0.0,         sinA);
-    v3 Y = V3(-sinA * sinP, cosP,  cosA * sinP);
-    v3 Z = V3( sinA * cosP, sinP, -cosA * cosP);
-
-    basis Result;
-    Result.X = X;
-    Result.Y = Y;
-    Result.Z = Z;
-    return Result;
-}
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Stats                                                                                                                                        |
@@ -490,8 +463,10 @@ camera* AddCamera(
     sprintf_s(NameBuffer, "Camera %d", CameraID);
 
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
-    Cam->Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), CameraID == 0);
-    Cam->Entity->Index = CameraID;
+    game_entity* Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), CameraID == 0);
+    Entity->Index = CameraID;
+    Cam->Entity = (void*)Entity;
+
     return Cam;
 }
 
@@ -641,6 +616,104 @@ weapon* AddWeapon(
     );
     pWeapon->Entity->Index = WeaponID;
     return pWeapon;
+}
+
+void PushEntities(render_group* Group, game_entity_state* State, game_input* Input, float Time) {
+    TIMED_BLOCK;
+    basis Basis = Group->Camera->Basis;
+    ray Ray = MouseRay(Group->Width, Group->Height, Group->Camera->Position + Group->Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
+    int i = 0;
+    int nEntities = State->Entities.Count;
+    while (nEntities > 0 && i < MAX_ENTITIES) {
+        game_entity* Entity = &State->Entities.List[i++];
+
+        if (Entity->Active) nEntities--;
+        else continue;
+
+        collider Collider = Entity->Transform * Entity->Collider;
+        Entity->Hovered = Raycast(Ray, Collider);
+        switch(Entity->Type) {
+            case Entity_Type_Character: {
+                character* pCharacter = &State->Characters.List[Entity->Index];
+                PushMesh(
+                    Group,
+                    Mesh_Body_ID,
+                    Entity->Transform,
+                    Shader_Pipeline_Mesh_Bones_ID,
+                    Bitmap_Empty_ID,
+                    White,
+                    &pCharacter->Armature,
+                    Entity->Hovered
+                );
+
+                float HPBarWidth = 2.0f;
+                float HPBarHeight = 0.2f;
+                v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X + V3(0, 4.75f, 0);
+                PushFillbar(
+                    Group, 
+                    Entity->Name, 
+                    pCharacter->Stats.HP, pCharacter->Stats.MaxHP,
+                    Position, 
+                    Group->Camera->Basis.X, Group->Camera->Basis.Y,
+                    2.0f, 0.2f
+                );
+            } break;
+    
+            case Entity_Type_Enemy: {
+                enemy* pEnemy = &State->Enemies.List[Entity->Index];
+                PushMesh(
+                    Group,
+                    pEnemy->MeshID,
+                    Entity->Transform,
+                    Shader_Pipeline_Mesh_ID,
+                    pEnemy->TextureID,
+                    White, 0,
+                    Entity->Hovered
+                );
+
+                float HPBarWidth = 2.0f;
+                float HPBarHeight = 0.2f;
+                v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X;
+                Position.Y = 4.75f;
+                PushFillbar(
+                    Group, 
+                    Entity->Name, 
+                    pEnemy->Stats.HP, pEnemy->Stats.MaxHP,
+                    Position, 
+                    Group->Camera->Basis.X, Group->Camera->Basis.Y,
+                    2.0f, 0.2f
+                );
+            } break;
+
+            case Entity_Type_Prop: {
+                prop* pProp = &State->Props.List[Entity->Index];
+                PushMesh(
+                    Group,
+                    pProp->MeshID,
+                    Entity->Transform,
+                    pProp->Shader,
+                    Bitmap_Empty_ID,
+                    pProp->Color
+                );
+            } break;
+
+            case Entity_Type_Weapon: {
+                weapon* pWeapon = &State->Weapons.List[Entity->Index];
+                game_mesh_id MeshID;
+                switch(pWeapon->Type) {
+                    case Weapon_Sword: MeshID = Mesh_Sword_ID; break;
+                    case Weapon_Shield: MeshID = Mesh_Shield_ID; break;
+                    default: Assert(false);
+                }
+
+                PushMesh(Group, MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
+            } break;
+        }
+
+        if (Group->Debug && Group->DebugColliders && Entity->Type != Entity_Type_Camera) {
+            PushCollider(Group, Entity->Collider, Entity->Transform, Entity->Collided ? Red : Yellow);
+        }
+    }
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -923,9 +996,7 @@ void Update(game_assets* Assets, game_state* State, game_input* Input, camera** 
     uint32 nCameras = EntityState->Cameras.Count;
     while(nCameras > 0) {
         camera* Cam = &EntityState->Cameras.List[Index++];
-
-        if (Cam->Entity != NULL) nCameras--;
-        else continue;
+        game_entity* Entity = (game_entity*)Cam->Entity;
 
         if (Cam->OnAir) {
             *pActiveCamera = Cam;
@@ -1045,7 +1116,8 @@ void Update(game_assets* Assets, game_state* State, game_input* Input, camera** 
     float MinDistance = .01f;
     if (Distance >= MinDistance) Velocity = 20.0f * (Distance - MinDistance) * normalize(Displacement);
     ActiveCamera->Position += State->dt * Velocity;
-    ActiveCamera->Entity->Transform.Translation = V3(0,0,ActiveCamera->Distance) - ActiveCamera->Position * ActiveCamera->Basis;
+    game_entity* ActiveCameraEntity = (game_entity*)ActiveCamera->Entity;
+    ActiveCameraEntity->Transform.Translation = V3(0,0,ActiveCamera->Distance) - ActiveCamera->Position * ActiveCamera->Basis;
 
 // Enemies _________________________________________________________________________________________________________________________________
     Index = 0;

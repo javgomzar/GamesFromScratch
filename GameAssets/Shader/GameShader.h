@@ -14,7 +14,7 @@ enum game_shader_id {
     Vertex_Shader_Screen_Texture_ID,
     Vertex_Shader_Perspective_ID,
     Vertex_Shader_Bones_ID,
-    Vertex_Shader_Text_ID,
+    Vertex_Shader_Barycentric_ID,
 #if GAME_RENDER_API_VULKAN
     Vertex_Shader_Vulkan_Test_ID,
 #endif
@@ -44,6 +44,8 @@ enum game_shader_id {
     Fragment_Shader_Jump_Flood_ID,
     Fragment_Shader_Heightmap_ID,
     Fragment_Shader_Sea_ID,
+    Fragment_Shader_Bezier_Exterior_ID,
+    Fragment_Shader_Bezier_Interior_ID,
 #if GAME_RENDER_API_VULKAN
     Fragment_Shader_Vulkan_Test_ID,
 #endif
@@ -65,8 +67,11 @@ enum game_shader_pipeline_id {
     Shader_Pipeline_Outline_ID,
     Shader_Pipeline_Heightmap_ID,
     Shader_Pipeline_Trochoidal_ID,
-    Shader_Pipeline_Text_ID,
+    Shader_Pipeline_Text_Outline_ID,
     Shader_Pipeline_Debug_Normals_ID,
+    Shader_Pipeline_Bezier_Exterior_ID,
+    Shader_Pipeline_Bezier_Interior_ID,
+    Shader_Pipeline_Solid_Text_ID,
 #if GAME_RENDER_API_VULKAN
     Shader_Pipeline_Vulkan_Test_ID,
 #endif
@@ -329,8 +334,8 @@ struct alignas(16) antialiasing_uniforms {
 };
 
 struct alignas(16) text_uniforms {
-    float DPI;
-    float Points;
+    v2 Pen;
+    float Size;
 };
 
 // +-------------------------------------------------------------------------------------------------------------------------------------------+

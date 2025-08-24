@@ -39,12 +39,8 @@ void TestPerformance() {
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
 {
-    memory_arena* StringsArena = &Memory->StringsArena;
-    memory_arena* TransientArena = &Memory->TransientArena;
-    memory_arena* GeneralPurposeArena = &Memory->GeneralPurposeArena;
-
     render_group* Group = &Memory->RenderGroup;
-    game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    game_state* pGameState = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
     game_entity_state* EntityState = &pGameState->Entities;
@@ -112,7 +108,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
         else {
             rectangle ScreenRect = { 0, 0, (float)Group->Width, (float)Group->Height };
-            PushRect(Group, ScreenRect, Color(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
+            PushRect(Group, ScreenRect, ChangeAlpha(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
     PushRenderTarget(Group, Target_Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
@@ -140,7 +136,7 @@ void LogGameDebugRecords(render_group* Group) {
                     (float)DebugRecord->CycleCount / (1000000.0f * (float)DebugRecord->HitCount), DebugRecord->FileName, DebugRecord->LineNumber);
             }
 
-            if (Group->Debug) PushText(Group, V2(250, Height), Font_Menlo_Regular_ID, Buffer, White, 8, false, SORT_ORDER_DEBUG_OVERLAY);
+            if (Group->Debug) PushText(Group, V2(250, Height), Font_Menlo_Regular_ID, Buffer, White, 10);
             Height -= 17;
             DebugRecord->HitCount = 0;
             DebugRecord->CycleCount = 0;

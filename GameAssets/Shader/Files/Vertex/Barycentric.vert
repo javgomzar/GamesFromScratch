@@ -19,17 +19,21 @@ layout(std140, set = 2, binding = 2) uniform TextUniforms
 layout(std140, binding = 8) uniform TextUniforms 
 #endif
 {
-	float DPI;
-    float Points;
+    vec2 Pen;
+	float Size;
 } TextUBO;
 
 layout(location = 0) in vec2 a_position;
-layout(location = 0) out vec3 v_position;
+layout(location = 1) in vec2 a_barycentric;
+
+layout(location = 0) out vec2 barycentric;
 
 void main() {
-	vec2 result = (2 * vec2(a_position.x, a_position.y) / GlobalUBO.resolution) + vec2(-1.0, 1.0);
-    result *= TextUBO.Points * TextUBO.DPI / 72.0;
+    barycentric = a_barycentric;
 
-	v_position = vec3(result, 0);
+	vec2 sized = TextUBO.Pen + TextUBO.Size * a_position;
+    vec2 result = (2 * vec2(sized.x, -sized.y) / GlobalUBO.resolution) + vec2(-1.0, 1.0);
+
 	gl_Position = vec4(result, 0, 1.0);
+	gl_PointSize = 10.0f;
 }

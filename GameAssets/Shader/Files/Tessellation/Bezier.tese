@@ -10,14 +10,14 @@ layout (isolines, equal_spacing, ccw) in;
 
 #ifdef VULKAN
 layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
-#else
-layout(std140, binding = 0) uniform GlobalUniforms
+#else 
+layout(std140, binding = 0) uniform GlobalUniforms 
 #endif
 {
 	mat4 projection;
 	mat4 view;
-    vec2 resolution;
-    float time;
+	vec2 resolution;
+	float time;
 } GlobalUBO;
 
 layout (location = 0) out float t;
@@ -26,11 +26,13 @@ void main() {
     t = gl_TessCoord.x;
 
     // Control point position coordinates
-    vec4 p0 = gl_in[0].gl_Position;
-    vec4 p1 = gl_in[1].gl_Position;
-    vec4 p2 = gl_in[2].gl_Position;
+    vec2 p0 = gl_in[0].gl_Position.xy;
+    vec2 p1 = gl_in[1].gl_Position.xy;
+    vec2 p2 = gl_in[2].gl_Position.xy;
 
     // Quadratic interpolation
     float u = 1.0 - t; // t backwards
-    gl_Position = u * u * p0 + 2.0 * t * u * p1 + t * t * p2;
+    vec2 interpolation = u * u * p0 + 2.0 * t * u * p1 + t * t * p2;
+
+    gl_Position = vec4(interpolation, 0.0, 1.0);
 }

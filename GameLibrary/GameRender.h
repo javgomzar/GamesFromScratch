@@ -3,58 +3,65 @@
 
 #pragma once
 #include "GameAssets.h"
-#include "GameEntity.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Vertex buffer                                                                                                                                |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-const memory_index MAX_VERTEX_BUFFER_COUNT = Kilobytes(64);
-const memory_index MAX_ELEMENT_BUFFER_COUNT = Kilobytes(8);
+const memory_index VERTEX_BUFFER_SIZE = Kilobytes(64);
+const memory_index ELEMENT_BUFFER_SIZE = Kilobytes(8);
 
 struct vertex_buffer_entry {
-    memory_index Offset;
-    uint64 Count;
+    uint32 Offset;
+    uint32 Count;
     vertex_layout_id LayoutID;
     void* Pointer;
 };
 
 struct element_buffer_entry {
     memory_index Offset;
-    uint64 Count;
+    uint32 Count;
     uint32* Pointer;
 };
 
 struct vertex_buffer {
     vertex_layout Layouts[vertex_layout_id_count];
-    memory_arena VertexArena[vertex_layout_id_count];
-    memory_arena ElementArena;
-    uint64 VertexCount[vertex_layout_id_count];
-    uint64 ElementCount;
+    memory_arena Vertices[vertex_layout_id_count];
+    memory_arena Elements;
+    uint32 VertexCount[vertex_layout_id_count];
+    uint32 ElementCount;
 };
 
-/* Initializes a vertex and element buffer. Returns total size used.*/
-memory_index InitializeVertexBuffer(vertex_layout* Layouts, vertex_buffer* Buffer, uint8* Start) {
+/* Initializes several vertex buffers and element buffers. Returns total memory used.*/
+inline memory_index InitializeVertexBuffer(
+    memory_arena* Arena,
+    game_assets* Assets, 
+    vertex_buffer* Buffer
+) {
     memory_index TotalSize = 0;
-
     memory_index Size = 0;
-    for (int i=0; i < vertex_layout_id_count; i++) {
-        Buffer->Layouts[i] = Layouts[i];
+
+    // Vertex buffers (one per layout)
+    for (int i = 0; i < vertex_layout_id_count; i++) {
+        Buffer->Layouts[i] = Assets->VertexLayouts[i];
         Buffer->VertexCount[i] = 0;
-        Size = MAX_VERTEX_BUFFER_COUNT * Layouts[i].Stride;
-        Buffer->VertexArena[i] = MemoryArena(Size, Start);
-        Start += Size;
+        Size = VERTEX_BUFFER_SIZE;
+        Buffer->Vertices[i] = SuballocateMemoryArena(Arena, Size);
+
         TotalSize += Size;
     }
+
+    // Element buffers
     Buffer->ElementCount = 0;
-    Size = MAX_ELEMENT_BUFFER_COUNT * sizeof(uint32);
-    Buffer->ElementArena = MemoryArena(Size, Start);
+    Size = ELEMENT_BUFFER_SIZE;
+    Buffer->Elements = SuballocateMemoryArena(Arena, Size);
     TotalSize += Size;
+
     return TotalSize;
 }
 
-vertex_buffer_entry PushVertexEntry(vertex_buffer* VertexBuffer, uint64 VertexCount, vertex_layout_id VertexLayoutID, void* Data) {
-    memory_arena* Arena = &VertexBuffer->VertexArena[VertexLayoutID];
+vertex_buffer_entry PushVertexEntry(vertex_buffer* VertexBuffer, uint64 VertexCount, vertex_layout_id VertexLayoutID) {
+    memory_arena* Arena = &VertexBuffer->Vertices[VertexLayoutID];
     
     vertex_buffer_entry Entry;
     Entry.Count = VertexCount;
@@ -63,21 +70,19 @@ vertex_buffer_entry PushVertexEntry(vertex_buffer* VertexBuffer, uint64 VertexCo
     
     memory_index Size = VertexCount * VertexBuffer->Layouts[VertexLayoutID].Stride;
     void* Destination = PushSize(Arena, Size);
-    memcpy(Destination, Data, Size);
     Entry.Pointer = Destination;
 
     VertexBuffer->VertexCount[VertexLayoutID] += VertexCount;
     return Entry;
 }
 
-element_buffer_entry PushElementEntry(vertex_buffer* VertexBuffer, uint64 ElementCount, void* Data) {
+element_buffer_entry PushElementEntry(vertex_buffer* VertexBuffer, uint64 ElementCount) {
     element_buffer_entry Entry;
     Entry.Count = ElementCount;
     Entry.Offset = VertexBuffer->ElementCount;
 
     memory_index Size = ElementCount * sizeof(uint32);
-    void* Destination = PushSize(&VertexBuffer->ElementArena, Size);
-    memcpy(Destination, Data, Size);
+    void* Destination = PushSize(&VertexBuffer->Elements, Size);
     Entry.Pointer = (uint32*)Destination;
 
     VertexBuffer->ElementCount += ElementCount;
@@ -86,11 +91,43 @@ element_buffer_entry PushElementEntry(vertex_buffer* VertexBuffer, uint64 Elemen
 
 void ClearVertexBuffer(vertex_buffer* Buffer) {
     for (int i = 0; i < vertex_layout_id_count; i++) {
-        ClearArena(&Buffer->VertexArena[i]);
+        ClearArena(&Buffer->Vertices[i]);
         Buffer->VertexCount[i] = 0;
     }
-    ClearArena(&Buffer->ElementArena);
+    ClearArena(&Buffer->Elements);
     Buffer->ElementCount = 0;
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Camera                                                                                                                                       |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct camera {
+    basis Basis;
+    void* Entity;
+    v3 Position;
+    float Distance;
+    float Pitch;
+    float Angle;
+    matrix4 View;
+    bool OnAir;
+};
+
+basis GetCameraBasis(float Angle, float Pitch) {
+    float cosA = cosf(Angle * Degrees);
+    float sinA = sinf(Angle * Degrees);
+    float cosP = cosf(Pitch * Degrees);
+    float sinP = sinf(Pitch * Degrees);
+
+    v3 X = V3(        cosA,  0.0,         sinA);
+    v3 Y = V3(-sinA * sinP, cosP,  cosA * sinP);
+    v3 Z = V3( sinA * cosP, sinP, -cosA * cosP);
+
+    basis Result;
+    Result.X = X;
+    Result.Y = Y;
+    Result.Z = Z;
+    return Result;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -102,7 +139,6 @@ const int MAX_RENDER_ENTRIES = 16384;
 enum render_command_type {
     render_clear,
     render_draw_primitive,
-    render_draw_mesh,
     render_shader_pass,
     render_compute_shader_pass,
     render_target,
@@ -134,35 +170,32 @@ enum render_primitive {
 
 typedef uint64 render_flags;
 enum {
-    DEPTH_TEST_RENDER_FLAG   = 1,
-    STENCIL_TEST_RENDER_FLAG = 2,
+    DEPTH_TEST_RENDER_FLAG   = 1 << 0,
+    STENCIL_TEST_RENDER_FLAG = 1 << 1,
 };
 
 struct render_primitive_options {
-    color Color = White;
     render_flags Flags = 0;
     float Thickness = 2.0f;
-    game_bitmap* Texture = 0;
+    transform Transform = IdentityTransform;
+    game_bitmap* Texture = NULL;
+    game_mesh* Mesh = NULL;
+    game_font* Font = NULL;
+    armature* Armature = NULL;
+    v2 Pen;
     int PatchParameter = 4;
-    float Points = 0;
+    float TextSize = 0;
+    bool Outline = false;
 };
 
 struct render_primitive_command {
     render_primitive Primitive = render_primitive_point;
     render_primitive_options Options;
+    color Color;
     vertex_buffer_entry VertexEntry = {0};
+    float* Vertices = 0;
     element_buffer_entry ElementEntry = {0};
     game_shader_pipeline* Shader = 0;
-};
-
-struct render_mesh_command {
-    color Color;
-    transform Transform;
-    game_shader_pipeline* Shader;
-    game_mesh* Mesh;
-    game_bitmap* Texture;
-    armature* Armature;
-    bool Outline;
 };
 
 enum render_group_target {
@@ -222,7 +255,7 @@ light Light(v3 Direction, color Color = White, float Ambient = 0.5f, float Diffu
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int MAX_FRAMEBUFFER_COUNT = 8;
-const int MAX_PRIMITIVE_COMMANDS = 2048;
+const int MAX_PRIMITIVE_COMMANDS = 4096;
 const int MAX_MESH_COMMANDS = 64;
 const int MAX_HEIGHTMAP_COMMANDS = 8;
 const int MAX_SHADER_PASS_COMMANDS = 32;
@@ -233,7 +266,6 @@ struct render_group {
     render_command Entries[MAX_RENDER_ENTRIES];
     render_clear_command Clears[render_group_target_count];
     render_primitive_command PrimitiveCommands[MAX_PRIMITIVE_COMMANDS];
-    render_mesh_command MeshCommands[MAX_MESH_COMMANDS];
     render_shader_pass_command ShaderPassCommands[MAX_SHADER_PASS_COMMANDS];
     render_compute_shader_pass_command ComputeShaderPassCommands[MAX_COMPUTE_SHADER_PASS_COMMANDS];
     render_target_command TargetCommands[MAX_RENDER_TARGET_COMMANDS];
@@ -245,8 +277,6 @@ struct render_group {
     int32 Height;
     uint32 EntryCount;
     uint32 nPrimitiveCommands;
-    uint32 nMeshCommands;
-    uint32 nHeightmapCommands;
     uint32 nShaderPassCommands;
     uint32 nComputeShaderPassCommands;
     uint32 nTargets;
@@ -257,17 +287,27 @@ struct render_group {
     bool PushOutline;
 };
 
-memory_index InitializeRenderGroup(render_group* Group, game_assets* Assets, uint8* VertexBufferStart) {
+void InitializeRenderGroup(
+    memory_arena* Arena,
+    render_group* Group, 
+    game_assets* Assets
+) {
     Group->Assets = Assets;
 
     // Lighting
     Group->Light = Light(V3(-0.5, -1, 1), White);
 
     // Vertex & element buffers
-    memory_index MemoryUsed = InitializeVertexBuffer(Assets->VertexLayouts, &Group->VertexBuffer, VertexBufferStart);
-
-    return MemoryUsed;
+    InitializeVertexBuffer(Arena, Assets, &Group->VertexBuffer);
 }
+
+// Render entries sorting
+float SORT_ORDER_CLEAR = 0.0f;
+float SORT_ORDER_MESHES = 100.0f;
+float SORT_ORDER_OUTLINED_MESHES = 150.0f;
+float SORT_ORDER_DEBUG_OVERLAY = 200.0f;
+float SORT_ORDER_SHADER_PASSES = 8000.0f;
+float SORT_ORDER_PUSH_RENDER_TARGETS = 9000.0f;
 
 void Swap(render_group* Group, int i, int j) {
     render_command Entry = Group->Entries[i];
@@ -286,11 +326,6 @@ void PushCommand(render_group* Group, render_command Command) {
         case render_draw_primitive: {
             if (Command.Index >= MAX_PRIMITIVE_COMMANDS) {
                 Raise("Primitive draw command overflow.");
-            }
-        } break;
-        case render_draw_mesh: {
-            if (Command.Index >= MAX_MESH_COMMANDS) {
-                Raise("Mesh draw command overflow.");
             }
         } break;
         case render_shader_pass: {
@@ -334,26 +369,15 @@ void ClearEntries(render_group* Group) {
     ZeroSize(Group->EntryCount * sizeof(render_command), Group->Entries);
     ZeroSize(render_group_target_count * sizeof(render_clear_command), Group->Clears);
     ZeroSize(Group->nPrimitiveCommands * sizeof(render_primitive_command), Group->PrimitiveCommands);
-    ZeroSize(Group->nMeshCommands * sizeof(render_mesh_command), Group->MeshCommands);
     ZeroSize(Group->nShaderPassCommands * sizeof(render_shader_pass_command), Group->ShaderPassCommands);
     ZeroSize(Group->nComputeShaderPassCommands * sizeof(render_compute_shader_pass_command), Group->ComputeShaderPassCommands);
     ZeroSize(Group->nTargets * sizeof(render_target_command), Group->TargetCommands);
     Group->nPrimitiveCommands = 0;
-    Group->nMeshCommands = 0;
-    Group->nHeightmapCommands = 0;
     Group->nShaderPassCommands = 0;
     Group->nComputeShaderPassCommands = 0;
     Group->nTargets = 0;
     Group->EntryCount = 0;
 }
-
-// Render entries sorting
-float SORT_ORDER_CLEAR = 0.0;
-float SORT_ORDER_MESHES = 100.0;
-float SORT_ORDER_OUTLINED_MESHES = 150.0;
-float SORT_ORDER_DEBUG_OVERLAY = 200.0;
-float SORT_ORDER_SHADER_PASSES = 8000.0;
-float SORT_ORDER_PUSH_RENDER_TARGETS = 9000.0;
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Push methods                                                                                                                                                     |
@@ -371,17 +395,21 @@ void PushClear(render_group* Group, color Color, render_group_target Target = Ta
     Group->Clears[Target] = Clear;
 }
 
-void PushPrimitiveCommand(
+/*
+    Pushes a primitive rendering command to the queue and returns a `float` pointer to which to write vertex data.
+    If `nElements > 0`, it will also return a `uint32` pointer to which to write element data. In this case, the `VertexOffset`
+    unsigned integer should be added to the element data. This return member will be valid even if `nElements == 0`.
+*/
+render_primitive_command* PushPrimitiveCommand(
     render_group* Group,
-    render_primitive_options Options,
     render_primitive Primitive,
+    color Color,
     game_shader_pipeline* Shader,
     vertex_layout_id LayoutID,
     uint32 nVertices,
-    float* Vertices,
-    float Order = 0.0,
     uint32 nElements = 0,
-    uint32* Elements = 0
+    float Order = 0.0,
+    render_primitive_options Options = {}
 ) {
     TIMED_BLOCK;
     render_command Command;
@@ -391,52 +419,67 @@ void PushPrimitiveCommand(
 
     PushCommand(Group, Command);
 
-    render_primitive_command PrimitiveCommand;
-    PrimitiveCommand.Options = Options;
-    PrimitiveCommand.Primitive = Primitive;
-    PrimitiveCommand.Shader = Shader;
-    
-    PrimitiveCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, nVertices, LayoutID, Vertices);
-    uint32 VertexOffset = PrimitiveCommand.VertexEntry.Offset;
+    render_primitive_command* PrimitiveCommand = &Group->PrimitiveCommands[Group->nPrimitiveCommands++];
+    *PrimitiveCommand = {};
+    PrimitiveCommand->Options = Options;
+    PrimitiveCommand->Primitive = Primitive;
+    PrimitiveCommand->Shader = Shader;
+    PrimitiveCommand->Color = Color;
 
-    if (nElements > 0) {
-        for (int i = 0; i < nElements; i++) {
-            Elements[i] = VertexOffset + Elements[i];
+    if (nVertices > 0) {
+        if (Options.Mesh != NULL || Options.Font != NULL) {
+            PrimitiveCommand->VertexEntry.Count = nVertices;
+            PrimitiveCommand->VertexEntry.LayoutID = LayoutID;
         }
-        PrimitiveCommand.ElementEntry = PushElementEntry(&Group->VertexBuffer, nElements, Elements);
+        else {
+            PrimitiveCommand->VertexEntry = PushVertexEntry(&Group->VertexBuffer, nVertices, LayoutID);
+            PrimitiveCommand->Vertices = (float*)PrimitiveCommand->VertexEntry.Pointer;
+        }
     }
 
-    Group->PrimitiveCommands[Group->nPrimitiveCommands++] = PrimitiveCommand;
+    if (nElements > 0) {
+        if (Options.Mesh != NULL || Options.Font != NULL) {
+            PrimitiveCommand->ElementEntry.Count = nElements;
+        }
+        else {
+            PrimitiveCommand->ElementEntry = PushElementEntry(&Group->VertexBuffer, nElements);
+        }
+    }
+
+    return PrimitiveCommand;
 }
 
 void PushPoint(render_group* Group, v2 Point, color Color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-    float Vertices[2] = { Point.X, Point.Y };
-    PushPrimitiveCommand(
-        Group, 
-        { Color }, 
+    float* Vertices = (float*)PushPrimitiveCommand(
+        Group,
         render_primitive_point, 
+        Color, 
         Shader, 
         vertex_layout_vec2_id, 
-        1, 
-        Vertices,
+        1,
+        0,
         Order
-    );
+    )->VertexEntry.Pointer;
+    Vertices[0] = Point.X;
+    Vertices[1] = Point.Y;
 }
 
 void PushPoint(render_group* Group, v3 Point, color Color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    float Vertices[3] = { Point.X, Point.Y, Point.Z };
-    PushPrimitiveCommand(
+    float* Vertices = PushPrimitiveCommand(
         Group, 
-        { Color }, 
-        render_primitive_point, 
+        render_primitive_point,
+        Color,
         Shader, 
         vertex_layout_vec3_id, 
-        1, 
-        Vertices,
+        1,
+        0,
         Order
-    );
+    )->Vertices;
+    Vertices[0] = Point.X;
+    Vertices[1] = Point.Y;
+    Vertices[2] = Point.Z;
 }
 
 void PushLine(
@@ -448,17 +491,23 @@ void PushLine(
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-    float Data[4] = { Start.X, Start.Y, End.X, End.Y };
-    PushPrimitiveCommand(
-        Group, 
-        { Color, 0, Thickness }, 
+    render_primitive_options Options = {};
+    Options.Thickness = Thickness;
+    float* Vertices = PushPrimitiveCommand(
+        Group,
         render_primitive_line,
+        Color,
         Shader,
         vertex_layout_vec2_id,
         2,
-        Data,
-        Order
-    );
+        0,
+        Order,
+        Options
+    )->Vertices;
+    Vertices[0] = Start.X;
+    Vertices[1] = Start.Y;
+    Vertices[2] = End.X;
+    Vertices[3] = End.Y;
 }
 
 void PushLine(
@@ -470,17 +519,25 @@ void PushLine(
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {    
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    float Data[6] = { Start.X, Start.Y, Start.Z, End.X, End.Y, End.Z };
-    PushPrimitiveCommand(
-        Group, 
-        { Color, DEPTH_TEST_RENDER_FLAG, Thickness},
+    render_primitive_options Options = {};
+    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    Options.Thickness = Thickness;
+    float* Vertices = PushPrimitiveCommand(
+        Group,
         render_primitive_line,
+        Color,
         Shader,
         vertex_layout_vec3_id,
         2,
-        Data,
+        0,
         Order
-    );
+    )->Vertices;
+    Vertices[0] = {Start.X};
+    Vertices[1] = {Start.Y};
+    Vertices[2] = {Start.Z};
+    Vertices[3] = {End.X};
+    Vertices[4] = {End.Y};
+    Vertices[5] = {End.Z};
 }
 
 void PushRay(
@@ -504,21 +561,28 @@ void PushTriangle(
     float Order = SORT_ORDER_MESHES
 ) {
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    float Data[9] = { 
-        Triangle.Points[0].X, Triangle.Points[0].Y, Triangle.Points[0].Z,
-        Triangle.Points[1].X, Triangle.Points[1].Y, Triangle.Points[1].Z,
-        Triangle.Points[2].X, Triangle.Points[2].Y, Triangle.Points[2].Z
-    };
-    PushPrimitiveCommand(
+    render_primitive_options Options = {};
+    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    float* Vertices = PushPrimitiveCommand(
         Group, 
-        { Color, DEPTH_TEST_RENDER_FLAG }, 
         render_primitive_triangle,
+        Color,
         Shader,
         vertex_layout_vec3_id,
         3,
-        Data,
-        Order
-    );
+        0,
+        Order,
+        Options
+    )->Vertices;
+    Vertices[0] = Triangle.Points[0].X;
+    Vertices[1] = Triangle.Points[0].Y;
+    Vertices[2] = Triangle.Points[0].Z;
+    Vertices[3] = Triangle.Points[1].X;
+    Vertices[4] = Triangle.Points[1].Y;
+    Vertices[5] = Triangle.Points[1].Z;
+    Vertices[6] = Triangle.Points[2].X;
+    Vertices[7] = Triangle.Points[2].Y;
+    Vertices[8] = Triangle.Points[2].Z;
 }
 
 void PushTriangle(
@@ -528,22 +592,23 @@ void PushTriangle(
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-    float Data[6] = { 
-        Triangle.Points[0].X, Triangle.Points[0].Y,
-        Triangle.Points[1].X, Triangle.Points[1].Y,
-        Triangle.Points[2].X, Triangle.Points[2].Y,
-    };
-    render_primitive_options Options = { Color };
-    PushPrimitiveCommand(
-        Group, 
-        { Color }, 
+    float* Vertices = PushPrimitiveCommand(
+        Group,
         render_primitive_triangle,
+        Color,
         Shader,
         vertex_layout_vec2_id,
         3,
-        Data,
+        0,
         Order
-    );
+    )->Vertices;
+
+    Vertices[0] = Triangle.Points[0].X;
+    Vertices[1] = Triangle.Points[0].Y;
+    Vertices[2] = Triangle.Points[1].X;
+    Vertices[3] = Triangle.Points[1].Y;
+    Vertices[4] = Triangle.Points[2].X;
+    Vertices[5] = Triangle.Points[2].Y;
 }
 
 void PushCircle(
@@ -556,7 +621,19 @@ void PushCircle(
 ) {
     int MAX_N = 62;
     int N = Clamp(nVertices, 14, MAX_N);
-    float* Data = new float[2*(N+2)];
+
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
+    float* Data = PushPrimitiveCommand(
+        Group,
+        render_primitive_triangle_fan,
+        Color,
+        Shader,
+        vertex_layout_vec2_id,
+        N+2,
+        0,
+        Order
+    )->Vertices;
+
     v2* Vertices = (v2*)Data;
 
     double dTheta = Tau / N;
@@ -569,20 +646,6 @@ void PushCircle(
         Theta += dTheta;
     }
     Vertices[N+1] = Vertices[1];
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-    PushPrimitiveCommand(
-        Group,
-        { Color },
-        render_primitive_triangle_fan,
-        Shader,
-        vertex_layout_vec2_id,
-        N+2,
-        Data,
-        Order
-    );
-
-    delete [] Data;
 }
 
 void PushCircle(
@@ -597,8 +660,22 @@ void PushCircle(
     int MAX_N = 62;
     int N = Clamp(nVertices, 14, MAX_N);
     basis Basis = Complete(Normal);
+
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
+    render_primitive_options Options = {};
+    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    float* Data = (float*)PushPrimitiveCommand(
+        Group,
+        render_primitive_triangle_fan,
+        Color,
+        Shader,
+        vertex_layout_vec3_id,
+        N+2,
+        0,
+        Order,
+        Options
+    )->VertexEntry.Pointer;
     
-    float* Data = new float[3*(N+2)];
     v3* Vertices = (v3*)Data;
 
     double dTheta = Tau / N;
@@ -610,20 +687,6 @@ void PushCircle(
         Theta += dTheta;
     }
     Vertices[N+1] = Vertices[1];
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    PushPrimitiveCommand(
-        Group,
-        { Color, DEPTH_TEST_RENDER_FLAG },
-        render_primitive_triangle_fan,
-        Shader,
-        vertex_layout_vec3_id,
-        N+2,
-        Data,
-        Order
-    );
-
-    delete [] Data;
 }
 
 void PushCircunference(
@@ -637,7 +700,22 @@ void PushCircunference(
 ) {
     int MAX_N = 64;
     int N = Clamp(nVertices, 16, MAX_N);
-    float* Data = new float[2*N];
+
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
+    render_primitive_options Options = {};
+    Options.Thickness = Thickness;
+    float* Data = PushPrimitiveCommand(
+        Group,
+        render_primitive_line_loop,
+        Color,
+        Shader,
+        vertex_layout_vec2_id,
+        N,
+        0,
+        Order,
+        Options
+    )->Vertices;
+
     v2* Vertices = (v2*)Data;
 
     double dTheta = Tau / N;
@@ -648,20 +726,6 @@ void PushCircunference(
         Vertices[i].Y = Center.Y - Radius * cos(Theta);
         Theta += dTheta;
     }
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-    PushPrimitiveCommand(
-        Group,
-        { Color, 0, Thickness },
-        render_primitive_line_loop,
-        Shader,
-        vertex_layout_vec2_id,
-        N,
-        Data,
-        Order
-    );
-
-    delete [] Data;
 }
 
 void PushCircunference(
@@ -676,7 +740,23 @@ void PushCircunference(
 ) {
     int MAX_N = 64;
     int N = Clamp(nVertices, 16, MAX_N);
-    float* Data = new float[3*N];
+
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
+    render_primitive_options Options = {};
+    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    Options.Thickness = Thickness;
+    float* Data = PushPrimitiveCommand(
+        Group,
+        render_primitive_line_loop,
+        Color,
+        Shader,
+        vertex_layout_vec3_id,
+        N,
+        0,
+        Order,
+        Options
+    )->Vertices;
+
     v3* Vertices = (v3*)Data;
 
     basis Basis = Complete(Normal);
@@ -690,20 +770,6 @@ void PushCircunference(
         Vertices[i] = Center + Radius * (sin(Theta) * Basis.X - cos(Theta) * Basis.Y);
         Theta += dTheta;
     }
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    PushPrimitiveCommand(
-        Group,
-        { Color, DEPTH_TEST_RENDER_FLAG, Thickness },
-        render_primitive_line_loop,
-        Shader,
-        vertex_layout_vec3_id,
-        N,
-        Data,
-        Order
-    );
-
-    delete [] Data;
 }
 
 /*
@@ -723,7 +789,23 @@ void PushArc(
 ) {
     int MAX_N = 64;
     int N = Clamp(nVertices, 16, MAX_N);
-    float* Data = new float[3*N];
+
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
+    render_primitive_options Options = {};
+    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    Options.Thickness = Thickness;
+    float* Data = PushPrimitiveCommand(
+        Group,
+        render_primitive_line_strip,
+        Color,
+        Shader,
+        vertex_layout_vec3_id,
+        N,
+        0,
+        Order,
+        Options
+    )->Vertices;
+
     v3* Vertices = (v3*)Data;
 
     double dTheta = Angle * Degrees / (N-1);
@@ -733,20 +815,6 @@ void PushArc(
         Vertices[i] = Center + Radius * (cos(Theta) * Basis.X + sin(Theta) * Basis.Y);
         Theta += dTheta;
     }
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    PushPrimitiveCommand(
-        Group,
-        { Color, DEPTH_TEST_RENDER_FLAG, Thickness },
-        render_primitive_line_strip,
-        Shader,
-        vertex_layout_vec3_id,
-        N,
-        Data,
-        Order
-    );
-
-    delete [] Data;
 }
 
 void PushRect(
@@ -755,28 +823,33 @@ void PushRect(
     color Color,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
-    float Vertices[8] = {
-        Rect.Left             , Rect.Top              ,
-        Rect.Left + Rect.Width, Rect.Top              ,
-        Rect.Left             , Rect.Top + Rect.Height,
-        Rect.Left + Rect.Width, Rect.Top + Rect.Height,
-    };
-
-    uint32 Elements[6] = { 0, 1, 2, 3, 2, 1 };
-
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-    PushPrimitiveCommand(
+    render_primitive_command* Result = PushPrimitiveCommand(
         Group,
-        { Color },
         render_primitive_triangle,
+        Color,
         Shader,
         vertex_layout_vec2_id,
         4,
-        Vertices,
-        Order,
         6,
-        Elements
+        Order
     );
+
+    v2* Vertices = (v2*)Result->Vertices;
+    uint32* Elements = Result->ElementEntry.Pointer;
+    uint32 Offset = (uint32)Result->VertexEntry.Offset;
+
+    Vertices[0] = { Rect.Left             , Rect.Top               };
+    Vertices[1] = { Rect.Left + Rect.Width, Rect.Top               };
+    Vertices[2] = { Rect.Left             , Rect.Top + Rect.Height };
+    Vertices[3] = { Rect.Left + Rect.Width, Rect.Top + Rect.Height };
+
+    Elements[0] = Offset + 0;
+    Elements[1] = Offset + 1;
+    Elements[2] = Offset + 2;
+    Elements[3] = Offset + 3;
+    Elements[4] = Offset + 2;
+    Elements[5] = Offset + 1;
 }
 
 void PushRect(
@@ -789,6 +862,18 @@ void PushRect(
     color Color,
     float Order = SORT_ORDER_MESHES
 ) {
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
+    render_primitive_command* Result = PushPrimitiveCommand(
+        Group,
+        render_primitive_triangle,
+        Color,
+        Shader,
+        vertex_layout_vec3_id,
+        4,
+        6,
+        Order
+    );
+
     WidthAxis = normalize(WidthAxis);
     HeightAxis = normalize(HeightAxis);
     
@@ -796,28 +881,21 @@ void PushRect(
     v3 LeftBottom = LeftTop + Height * HeightAxis;
     v3 RightBottom = RightTop + Height * HeightAxis;
 
-    float Vertices[12] = {
-        LeftTop.X,     LeftTop.Y,     LeftTop.Z,
-        RightTop.X,    RightTop.Y,    RightTop.Z,
-        LeftBottom.X,  LeftBottom.Y,  LeftBottom.Z,
-        RightBottom.X, RightBottom.Y, RightBottom.Z,
-    };
+    v3* Vertices = (v3*)Result->Vertices;
+    Vertices[0] = { LeftTop.X,     LeftTop.Y,     LeftTop.Z };
+    Vertices[1] = { RightTop.X,    RightTop.Y,    RightTop.Z };
+    Vertices[2] = { LeftBottom.X,  LeftBottom.Y,  LeftBottom.Z };
+    Vertices[3] = { RightBottom.X, RightBottom.Y, RightBottom.Z };
 
-    uint32 Elements[6] = { 0, 1, 2, 3, 2, 1 };
+    uint32 VertexOffset = Result->VertexEntry.Offset;
 
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    PushPrimitiveCommand(
-        Group,
-        { Color },
-        render_primitive_triangle,
-        Shader,
-        vertex_layout_vec3_id,
-        4,
-        Vertices,
-        Order,
-        6,
-        Elements
-    );
+    uint32* Elements = Result->ElementEntry.Pointer;
+    Elements[0] = VertexOffset + 0;
+    Elements[1] = VertexOffset + 1;
+    Elements[2] = VertexOffset + 2;
+    Elements[3] = VertexOffset + 3;
+    Elements[4] = VertexOffset + 2;
+    Elements[5] = VertexOffset + 1;
 }
 
 void PushRectOutline(
@@ -827,23 +905,24 @@ void PushRectOutline(
     float Thickness = 2.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
-    float Vertices[8] = {
-        Rect.Left             , Rect.Top              ,
-        Rect.Left + Rect.Width, Rect.Top              ,
-        Rect.Left + Rect.Width, Rect.Top + Rect.Height,
-        Rect.Left             , Rect.Top + Rect.Height,
-    };
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-    PushPrimitiveCommand(
+    render_primitive_options Options = {};
+    Options.Thickness = Thickness;
+    v2* Vertices = (v2*)PushPrimitiveCommand(
         Group,
-        { Color, 0, Thickness },
         render_primitive_line_loop,
+        Color,
         Shader,
         vertex_layout_vec2_id,
         4,
-        Vertices,
+        0,
         Order
-    );
+    )->Vertices;
+    
+    Vertices[0] = { Rect.Left             , Rect.Top               };
+    Vertices[1] = { Rect.Left + Rect.Width, Rect.Top               };
+    Vertices[2] = { Rect.Left + Rect.Width, Rect.Top + Rect.Height };
+    Vertices[3] = { Rect.Left             , Rect.Top + Rect.Height };
 }
 
 void PushBitmap(
@@ -856,6 +935,21 @@ void PushBitmap(
     v2 Offset = V2(0.0f , 0.0f),
     bool Refresh = false
 ) {
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Texture_ID);
+    render_primitive_options Options = {};
+    Options.Texture = Bitmap;
+    render_primitive_command* Result = PushPrimitiveCommand(
+        Group,
+        render_primitive_triangle,
+        White,
+        Shader,
+        vertex_layout_vec2_vec2_id,
+        4,
+        6,
+        Order,
+        Options
+    );
+
     int Width = Bitmap->Header.Width;
     int Height = Bitmap->Header.Height;
     float MinTexX = 0.0f;
@@ -882,10 +976,10 @@ void PushBitmap(
         } break;
 
         case Wrap_Repeat: {
-            double MinX = 0.0;
-            double MinY = -Rect.Height / (Size.Y * Height);
-            double MaxX = Rect.Width / (Size.X * Width);
-            double MaxY = 1.0;
+            float MinX = 0.0;
+            float MinY = -Rect.Height / (Size.Y * Height);
+            float MaxX = Rect.Width / (Size.X * Width);
+            float MaxY = 1.0;
             MinTexX = Size.X < 0 ? MaxX : MinX;
             MaxTexX = Size.X < 0 ? MinX : MaxX;
             MinTexY = Size.Y ? MaxY : MinY;
@@ -895,29 +989,19 @@ void PushBitmap(
         default: { Assert(false); }
     }
     
-    float Vertices[16] = {
-        Rect.Left             , Rect.Top              , MinTexX, MaxTexY,
-        Rect.Left + Rect.Width, Rect.Top              , MaxTexX, MaxTexY,
-        Rect.Left             , Rect.Top + Rect.Height, MinTexX, MinTexY,
-        Rect.Left + Rect.Width, Rect.Top + Rect.Height, MaxTexX, MinTexY
-    };
-    uint32 Elements[6] = { 0, 1, 2, 3, 2, 1 };
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Texture_ID);
-    render_primitive_options Options = {};
-    Options.Color = White;
-    Options.Texture = Bitmap;
-    PushPrimitiveCommand(
-        Group,
-        Options,
-        render_primitive_triangle,
-        Shader,
-        vertex_layout_vec2_vec2_id,
-        4,
-        Vertices,
-        Order,
-        6,
-        Elements
-    );
+    v4* Vertices = (v4*)Result->Vertices;
+    Vertices[0] = { Rect.Left             , Rect.Top              , MinTexX, MaxTexY };
+    Vertices[1] = { Rect.Left + Rect.Width, Rect.Top              , MaxTexX, MaxTexY };
+    Vertices[2] = { Rect.Left             , Rect.Top + Rect.Height, MinTexX, MinTexY };
+    Vertices[3] = { Rect.Left + Rect.Width, Rect.Top + Rect.Height, MaxTexX, MinTexY };
+
+    uint32* Elements = Result->ElementEntry.Pointer;
+    Elements[0] = 0;
+    Elements[1] = 1;
+    Elements[2] = 2;
+    Elements[3] = 3;
+    Elements[4] = 2;
+    Elements[5] = 1;
 }
 
 void PushBitmap(
@@ -933,6 +1017,13 @@ void PushBitmap(
     PushBitmap(Group, Bitmap, Rect, Order, Mode, Size, Offset, false);
 }
 
+struct render_text_options {
+    color OutlineColor = Black;
+    float OutlineWidth = 2.0f;
+    bool Wrapped = false;
+    bool Outline = false;
+};
+
 void PushText(
     render_group* Group,
     v2 Position,
@@ -940,7 +1031,7 @@ void PushText(
     const char* String,
     color Color = White,
     float Points = 20.0f,
-    bool Wrapped = false,
+    render_text_options Options = {},
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     uint32 nCharacters = 0;
@@ -951,12 +1042,15 @@ void PushText(
     }
 
     game_font* Font = GetAsset(Group->Assets, FontID);
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Text_ID);
+    game_shader_pipeline* OutlineShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Text_Outline_ID);
+    game_shader_pipeline* InteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Interior_ID);
+    game_shader_pipeline* ExteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Exterior_ID);
+    game_shader_pipeline* SolidShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Solid_Text_ID);
     
     v2 Pen = Position;
     float DPI = 96;
     float Size = Points * (DPI / 72.0f) / Font->UnitsPerEm;
-    float LineJump = 2 * Font->LineJump * Size;
+    float LineJump = Font->LineJump * Size;
 
     for (int i = 0; i < StringLength; i++) {
         char c = String[i];
@@ -981,156 +1075,86 @@ void PushText(
         else if ('!' <= c && c <= '~') {
             game_font_character* pCharacter = Font->Characters + (c - '!');
             float HorizontalAdvance = pCharacter->Width * Size;
-            if (Wrapped && (Pen.X + HorizontalAdvance > Group->Width)) {
+            if (Options.Wrapped && (Pen.X + HorizontalAdvance > Group->Width)) {
                 Pen.X = Position.X;
                 Pen.Y += LineJump;
             }
 
             if (pCharacter->nContours > 0) {
-                uint16 LastEndPoint = 0;
+                render_primitive_options PrimitiveOptions = {};
+                PrimitiveOptions.Font = Font;
+                PrimitiveOptions.TextSize = Size;
+                PrimitiveOptions.PatchParameter = 3;
+                PrimitiveOptions.Outline = Options.Outline;
+                PrimitiveOptions.Pen = Pen;
+                PrimitiveOptions.Thickness = Options.OutlineWidth;
 
-                for (int j = 0; j < pCharacter->nContours; j++) {
-                    uint16 EndPoint = pCharacter->EndPointsOfContours[j] + 1;
-                    uint16 nPoints = EndPoint - LastEndPoint;
-
-                    float* Vertices = new float[6 * nPoints];
-
-                    float* Pointer = (float*)pCharacter->Data + 6 * LastEndPoint;
-
-                    for (int j = 0; j < 3 * nPoints; j++) {
-                        Vertices[2*j]   = Pen.X + ((*Pointer++) - pCharacter->Left) * Size;
-                        Vertices[2*j+1] = Pen.Y - (*Pointer++) * Size;
-                    }
-
-                    render_primitive_options Options = {};
-                    Options.Color = Color;
-                    Options.Points = Points;
-                    Options.PatchParameter = 3;
-                    
-                    PushPrimitiveCommand(
+                if (pCharacter->nInteriorCurves > 0) {
+                    render_primitive_command* Command = PushPrimitiveCommand(
                         Group,
-                        Options,
-                        render_primitive_patches,
-                        Shader,
-                        vertex_layout_vec2_id,
-                        3 * nPoints,
-                        Vertices
+                        render_primitive_triangle,
+                        Color,
+                        InteriorShader,
+                        vertex_layout_vec2_vec2_id,
+                        0,
+                        3 * pCharacter->nInteriorCurves,
+                        SORT_ORDER_DEBUG_OVERLAY,
+                        PrimitiveOptions
                     );
 
-                    delete [] Vertices;
+                    Command->ElementEntry.Offset = pCharacter->InteriorCurvesOffset;
+                }
 
-                    LastEndPoint = EndPoint;
+                if (pCharacter->nExteriorCurves > 0) {
+                    render_primitive_command* Command = PushPrimitiveCommand(
+                        Group,
+                        render_primitive_triangle,
+                        Color,
+                        ExteriorShader,
+                        vertex_layout_vec2_vec2_id,
+                        0,
+                        3 * pCharacter->nExteriorCurves,
+                        SORT_ORDER_DEBUG_OVERLAY,
+                        PrimitiveOptions
+                    );
+    
+                    Command->ElementEntry.Offset = pCharacter->ExteriorCurvesOffset;
+                }
+
+                render_primitive_command* Command = PushPrimitiveCommand(
+                    Group,
+                    render_primitive_triangle,
+                    Color,
+                    SolidShader,
+                    vertex_layout_vec2_vec2_id,
+                    0,
+                    3 * pCharacter->nSolidTriangles,
+                    SORT_ORDER_DEBUG_OVERLAY,
+                    PrimitiveOptions
+                );
+    
+                Command->ElementEntry.Offset = pCharacter->SolidTrianglesOffset;
+
+                if (Options.Outline) {
+                    render_primitive_command* Command = PushPrimitiveCommand(
+                        Group,
+                        render_primitive_patches,
+                        Options.OutlineColor,
+                        OutlineShader,
+                        vertex_layout_vec2_vec2_id,
+                        3 * pCharacter->nOnCurve,
+                        0,
+                        SORT_ORDER_DEBUG_OVERLAY,
+                        PrimitiveOptions
+                    );
+
+                    Command->VertexEntry.Offset = pCharacter->VertexOffset;
                 }
             }
 
             Pen.X += pCharacter->Width * Size;
         }
     }
-
-    /*
-
-    float* Vertices = new float[4 * 5 * nCharacters];
-    uint32* Elements = new uint32[6 * nCharacters];
-
-    uint32 nVertices = 0;
-    uint32 nElements = 0;
-
-    for (int i = 0; i < StringLength; i++) {
-        char c = String[i];
-
-        if (
-            c == '\0' || 
-            (c == '#' && String[i+1] == '#')
-        ) break;
-
-        // Carriage returns
-        if (c == '\n') {
-            Pen.X = Position.X;
-            Pen.Y += LineJump;
-        }
-
-        // Space
-        else if (c == ' ') {
-            Pen.X += Font->SpaceAdvance * Size;
-        }
-
-        // Character
-        else if ('!' <= c && c <= '~') {
-            game_font_character* pCharacter = Font->Characters + (c - '!');
-            float HorizontalAdvance = pCharacter->Advance * Size;
-            if (Wrapped && (Pen.X + HorizontalAdvance > Group->Width)) {
-                Pen.X = Position.X;
-                Pen.Y += LineJump;
-            }
-
-            float Left = Pen.X + pCharacter->Left * Size;
-            float Top = Pen.Y - pCharacter->Top * Size;
-            float CharWidth = pCharacter->Width * Size;
-            float CharHeight = pCharacter->Height * Size;
-
-            float MinTexX = (float)(pCharacter->AtlasX) / (float)(Font->Bitmap.Header.Width);
-            float MaxTexX = (float)(pCharacter->AtlasX + pCharacter->Width) / (float)(Font->Bitmap.Header.Width);
-            float MinTexY = 1.0f - (float)(pCharacter->AtlasY + pCharacter->Height) / (float)(Font->Bitmap.Header.Height);
-            float MaxTexY = 1.0f - (float)(pCharacter->AtlasY) / (float)(Font->Bitmap.Header.Height);
-
-            Vertices[20*nVertices]   = Left;
-            Vertices[20*nVertices+1] = Top;
-            Vertices[20*nVertices+2] = 0;
-            Vertices[20*nVertices+3] = MinTexX;
-            Vertices[20*nVertices+4] = MaxTexY;
-
-            Vertices[20*nVertices+5] = Left + CharWidth;
-            Vertices[20*nVertices+6] = Top;
-            Vertices[20*nVertices+7] = 0;
-            Vertices[20*nVertices+8] = MaxTexX;
-            Vertices[20*nVertices+9] = MaxTexY;
-
-            Vertices[20*nVertices+10] = Left;
-            Vertices[20*nVertices+11] = Top + CharHeight;
-            Vertices[20*nVertices+12] = 0;
-            Vertices[20*nVertices+13] = MinTexX;
-            Vertices[20*nVertices+14] = MinTexY;
-
-            Vertices[20*nVertices+15] = Left + CharWidth;
-            Vertices[20*nVertices+16] = Top + CharHeight;
-            Vertices[20*nVertices+17] = 0;
-            Vertices[20*nVertices+18] = MaxTexX;
-            Vertices[20*nVertices+19] = MinTexY;
-
-            Elements[6*nElements]   = 4*nVertices;
-            Elements[6*nElements+1] = 4*nVertices + 1;
-            Elements[6*nElements+2] = 4*nVertices + 2;
-            Elements[6*nElements+3] = 4*nVertices + 3;
-            Elements[6*nElements+4] = 4*nVertices + 2;
-            Elements[6*nElements+5] = 4*nVertices + 1;
-
-            nVertices++;
-            nElements++;
-
-            Pen.X += pCharacter->Advance * Size;
-        }
-    }
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Texture_ID);
-    PushPrimitiveCommand(
-        Group,
-        Color,
-        render_primitive_triangle,
-        Shader,
-        vertex_layout_vec3_vec2_id,
-        4 * nCharacters,
-        Vertices,
-        0,
-        Order,
-        6 * nCharacters,
-        Elements,
-        &Font->Bitmap
-    );
-
-    delete [] Elements;
-    delete [] Vertices;
-
-    */
 }
 
 void PushFillbar(
@@ -1146,7 +1170,7 @@ void PushFillbar(
     PushRect(Group, SmallRect, Color);
 
     v2 Position = LeftTop(Rect);
-    PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 8);
+    PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 10);
 
     int Points = 8;
     float Width, Height;
@@ -1199,17 +1223,6 @@ void PushFillbar(
     PushRect(Group, LeftTop, WidthAxis, HeightAxis, Width, Height, DarkGray);
     float SmallWidth = FillPercentage * Width;
     PushRect(Group, LeftTop, WidthAxis, HeightAxis, SmallWidth, Height, Red);
-
-    // v2 Position = LeftTop(Rect);
-    // PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 8);
-
-    // int Points = 8;
-    // float Width, Height;
-    // game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    // char Buffer[16];
-    // sprintf_s(Buffer, "%d/%d", Used, Max);
-    // GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
-    // PushText(Group, Position + V2(350.0f - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
 }
 
 void PushCubeOutline(
@@ -1219,32 +1232,58 @@ void PushCubeOutline(
     color Color = White,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
-    v3 Vertices[8] = {
-        Position + V3(0.0, Size.Y, Size.Z),
-        Position + V3(Size.X, Size.Y, Size.Z),
-        Position + V3(0.0, 0.0, Size.Z),
-        Position + V3(Size.X, 0.0, Size.Z),
-        Position + V3(Size.X, 0.0, 0.0),
-        Position + V3(Size.X, Size.Y, 0.0),
-        Position + V3(0.0, Size.Y, 0.0),
-        Position + V3(0.0, 0.0, 0.0)
-    };
-
-    uint32 Elements[24] = { 0, 1, 0, 2, 0, 6, 5, 6, 1, 5, 1, 3, 4, 5, 2, 7, 2, 3, 3, 4, 4, 7, 6, 7 };
-    
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    PushPrimitiveCommand(
+    render_primitive_options Options = {};
+    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    render_primitive_command* Result = PushPrimitiveCommand(
         Group,
-        { Color, DEPTH_TEST_RENDER_FLAG },
         render_primitive_line,
+        Color,
         Shader,
         vertex_layout_vec3_id,
         8,
-        (float*)Vertices,
-        Order,
         24,
-        Elements
+        Order,
+        Options
     );
+
+    v3* Vertices = (v3*)Result->Vertices;
+    Vertices[0] = Position + V3(0.0, Size.Y, Size.Z);
+    Vertices[1] = Position + V3(Size.X, Size.Y, Size.Z);
+    Vertices[2] = Position + V3(0.0, 0.0, Size.Z);
+    Vertices[3] = Position + V3(Size.X, 0.0, Size.Z);
+    Vertices[4] = Position + V3(Size.X, 0.0, 0.0);
+    Vertices[5] = Position + V3(Size.X, Size.Y, 0.0);
+    Vertices[6] = Position + V3(0.0, Size.Y, 0.0);
+    Vertices[7] = Position + V3(0.0, 0.0, 0.0);
+
+    uint32 VertexOffset = Result->VertexEntry.Offset;
+
+    uint32* Elements = Result->ElementEntry.Pointer;
+    Elements[0]  = VertexOffset + 0;
+    Elements[1]  = VertexOffset + 1;
+    Elements[2]  = VertexOffset + 0;
+    Elements[3]  = VertexOffset + 2;
+    Elements[4]  = VertexOffset + 0;
+    Elements[5]  = VertexOffset + 6;
+    Elements[6]  = VertexOffset + 5;
+    Elements[7]  = VertexOffset + 6;
+    Elements[8]  = VertexOffset + 1;
+    Elements[9]  = VertexOffset + 5;
+    Elements[10] = VertexOffset + 1;
+    Elements[11] = VertexOffset + 3;
+    Elements[12] = VertexOffset + 4;
+    Elements[13] = VertexOffset + 5;
+    Elements[14] = VertexOffset + 2;
+    Elements[15] = VertexOffset + 7;
+    Elements[16] = VertexOffset + 2;
+    Elements[17] = VertexOffset + 3;
+    Elements[18] = VertexOffset + 3;
+    Elements[19] = VertexOffset + 4;
+    Elements[20] = VertexOffset + 4;
+    Elements[21] = VertexOffset + 7;
+    Elements[22] = VertexOffset + 6;
+    Elements[23] = VertexOffset + 7;
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1371,15 +1410,15 @@ void PushRenderTarget(
     else if (Target == Target_Output) TargetCommand.Target = Target_None;
     else Raise("Target shouldn't be rendered out.");
 
-    float Data[30] = {
-       -1.0f,-1.0f, 0.0f, 0.0f, 0.0f,
-        1.0f,-1.0f, 0.0f, 1.0f, 0.0f,
-        1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-       -1.0f,-1.0f, 0.0f, 0.0f, 0.0f,
-        1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-       -1.0f, 1.0f, 0.0f, 0.0f, 1.0f
-    };
-    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id, Data);
+    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
+    float* Data = (float*)TargetCommand.VertexEntry.Pointer;
+    
+    Data[0] = -1.0f;  Data[1] = -1.0f;  Data[2] = 0.0f;  Data[3] = 0.0f;  Data[4] = 0.0f;
+    Data[5] = 1.0f;   Data[6] = -1.0f;  Data[7] = 0.0f;  Data[8] = 1.0f;  Data[9] = 0.0f;
+    Data[10] = 1.0;   Data[11] = 1.0f;  Data[12] = 0.0f; Data[13] = 1.0f; Data[14] = 1.0f;
+    Data[15] = -1.0f; Data[16] = -1.0f; Data[17] = 0.0f; Data[18] = 0.0f; Data[19] = 0.0f;
+    Data[20] = 1.0f;  Data[21] = 1.0f;  Data[22] = 0.0f; Data[23] = 1.0f; Data[24] = 1.0f;
+    Data[25] = -1.0f; Data[26] = 1.0f;  Data[27] = 0.0f; Data[28] = 0.0f; Data[29] = 1.0f;
 
     Group->TargetCommands[Group->nTargets++] = TargetCommand;
 }
@@ -1406,17 +1445,17 @@ void PushShaderPass(
     ShaderCommand.Target = Target;
     ShaderCommand.Width = Width;
     ShaderCommand.Level = Level;
+    
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
 
-    float Data[30] = {
-       -1.0f,-1.0f, 0.0f, 0.0f, 0.0f,
-        1.0f,-1.0f, 0.0f, 1.0f, 0.0f,
-        1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-       -1.0f,-1.0f, 0.0f, 0.0f, 0.0f,
-        1.0f, 1.0f, 0.0f, 1.0f, 1.0f,
-       -1.0f, 1.0f, 0.0f, 0.0f, 1.0f
-    };
-    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id, Data);
-
+    float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
+    Data[0] = -1.0f;  Data[1] = -1.0f;  Data[2] = 0.0f;  Data[3] = 0.0f;  Data[4] = 0.0f;
+    Data[5] = 1.0f;   Data[6] = -1.0f;  Data[7] = 0.0f;  Data[8] = 1.0f;  Data[9] = 0.0f;
+    Data[10] = 1.0;   Data[11] = 1.0f;  Data[12] = 0.0f; Data[13] = 1.0f; Data[14] = 1.0f;
+    Data[15] = -1.0f; Data[16] = -1.0f; Data[17] = 0.0f; Data[18] = 0.0f; Data[19] = 0.0f;
+    Data[20] = 1.0f;  Data[21] = 1.0f;  Data[22] = 0.0f; Data[23] = 1.0f; Data[24] = 1.0f;
+    Data[25] = -1.0f; Data[26] = 1.0f;  Data[27] = 0.0f; Data[28] = 0.0f; Data[29] = 1.0f;
+    
     Group->ShaderPassCommands[Group->nShaderPassCommands++] = ShaderCommand;
 }
 
@@ -1488,29 +1527,32 @@ void PushMesh(
     game_shader_pipeline_id ShaderID,
     game_bitmap_id TextureID = Bitmap_Empty_ID,
     color Color = White,
-    armature* Armature = 0,
-    bool Outlined = false,
+    armature* Armature = NULL,
+    bool Outline = false,
     float Order = SORT_ORDER_MESHES
 ) {
-    render_command Command;
-    Command.Index = Group->nMeshCommands;
-    Command.Priority = Order;
-    Command.Type = render_draw_mesh;
+    game_mesh* Mesh = GetAsset(Group->Assets, MeshID);
+    render_primitive_options Options = {};
+    Options.Mesh = Mesh;
+    Options.Armature = Armature;
+    Options.Texture = GetAsset(Group->Assets, TextureID);
+    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    Options.Outline = Outline;
+    
+    PushPrimitiveCommand(
+        Group,
+        render_primitive_triangle,
+        Color,
+        GetShaderPipeline(Group->Assets, ShaderID),
+        Armature != NULL ? vertex_layout_vec3_vec2_vec3_id : vertex_layout_bones_id,
+        Mesh->nVertices,
+        3 * Mesh->nFaces,
+        SORT_ORDER_MESHES,
+        Options
+    );
 
-    PushCommand(Group, Command);
-
-    render_mesh_command MeshCommand;
-    MeshCommand.Mesh = GetAsset(Group->Assets, MeshID);
-    MeshCommand.Transform = Transform;
-    MeshCommand.Color = Color;
-    MeshCommand.Texture = GetAsset(Group->Assets, TextureID);
-    MeshCommand.Shader = GetShaderPipeline(Group->Assets, ShaderID);
-    MeshCommand.Armature = Armature;
-    MeshCommand.Outline = Outlined;
-
-    Group->MeshCommands[Group->nMeshCommands++] = MeshCommand;
-
-    if (Outlined && !Group->PushOutline) {
+    // Deal with outlines: Add necessary shader passes
+    if (Outline && !Group->PushOutline) {
         PushRenderTarget(Group, Target_Outline, SORT_ORDER_SHADER_PASSES - 10.0f);
         PushShaderPass(Group, Compute_Shader_Outline_Init_ID, Target_Postprocessing_Outline, Target_Postprocessing_Outline, SORT_ORDER_SHADER_PASSES);
 
@@ -1531,8 +1573,22 @@ void PushMesh(
         Group->PushOutline = true;
     }
 
-    if (Group->Debug && Group->DebugBones && Armature) {
-        v3* Vertices = new v3[2 * Armature->nBones];
+    // Debug bones rendering
+    if (Group->Debug && Group->DebugBones && Armature != NULL) {
+        game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
+        Options = {};
+        Options.Thickness = 2.5f;
+        v3* Vertices = (v3*)PushPrimitiveCommand(
+            Group, 
+            render_primitive_line,
+            Black,
+            Shader,
+            vertex_layout_vec3_id,
+            2 * Armature->nBones,
+            0,
+            SORT_ORDER_DEBUG_OVERLAY,
+            Options
+        )->Vertices;
 
         for (int i = 0; i < Armature->nBones; i++) {
             bone Bone = Armature->Bones[i];
@@ -1540,23 +1596,6 @@ void PushMesh(
             Vertices[2*i] = BoneTransform * Transform * Bone.Segment.Head;
             Vertices[2*i+1] = BoneTransform * Transform * Bone.Segment.Tail;
         }
-
-        game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-        render_primitive_options Options = {};
-        Options.Color = Black;
-        Options.Thickness = 2.5f;
-        PushPrimitiveCommand(
-            Group, 
-            Options, 
-            render_primitive_line,
-            Shader,
-            vertex_layout_vec3_id,
-            2 * Armature->nBones,
-            (float*)Vertices,
-            SORT_ORDER_DEBUG_OVERLAY
-        );
-
-        delete [] Vertices;
     }
 }
 
@@ -1567,22 +1606,27 @@ void PushHeightmap(
     float Order = SORT_ORDER_MESHES
 ) {
     render_primitive_options Options = {};
-    Options.Color = White;
     Options.Texture = &Heightmap->Bitmap;
     Options.PatchParameter = 4;
+    Options.Flags = DEPTH_TEST_RENDER_FLAG;
 
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, ShaderID);
 
-    PushPrimitiveCommand(
+    // TODO: Render heightmaps with elements
+
+    float* Vertices = PushPrimitiveCommand(
         Group, 
-        Options, 
-        render_primitive_patches, 
+        render_primitive_patches,
+        White,
         Shader, 
         vertex_layout_vec3_vec2_id, 
         Heightmap->nVertices,
-        Heightmap->Vertices,
-        Order
-    );
+        0,
+        Order,
+        Options
+    )->Vertices;
+
+    memcpy(Vertices, Heightmap->Vertices, Heightmap->nVertices * 5 * sizeof(float));
 }
 
 void PushHeightmap(
@@ -1599,9 +1643,8 @@ void PushHeightmap(
 // | Entities                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void PushCollider(render_group* Group, game_entity* Entity, color Color) {
-    collider Collider = Entity->Collider;
-    v3 Position = Entity->Transform.Translation + Collider.Offset;
+void PushCollider(render_group* Group, collider Collider, transform T, color Color) {
+    v3 Position = T.Translation + Collider.Offset;
     switch (Collider.Type) {
         case Rect_Collider: {
             PushRectOutline(Group, Rectangle(Collider), Color);
@@ -1618,12 +1661,12 @@ void PushCollider(render_group* Group, game_entity* Entity, color Color) {
         } break;
 
         case Capsule_Collider: {
-            v3 Head = Entity->Transform * Collider.Capsule.Segment.Head;
-            v3 Tail = Entity->Transform * Collider.Capsule.Segment.Tail;
+            v3 Head = T * Collider.Capsule.Segment.Head;
+            v3 Tail = T * Collider.Capsule.Segment.Tail;
 
             segment3 TransformedSegment = { Head, Tail };
-            transform T = SegmentTransform(TransformedSegment);
-            basis Basis = T * Identity3;
+            transform ST = SegmentTransform(TransformedSegment);
+            basis Basis = ST * Identity3;
             v3 D = normalize(Tail - Head);
 
             // Top part
@@ -1647,7 +1690,7 @@ void PushCollider(render_group* Group, game_entity* Entity, color Color) {
 
             // Bottom part
             PushCircunference(Group, Head, D, Collider.Capsule.Distance, Color);
-            Basis = T * Identity3;
+            Basis = ST * Identity3;
             Basis.X = -Basis.X;
             Basis.Y = -Basis.Y;
             PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color);
@@ -1656,384 +1699,11 @@ void PushCollider(render_group* Group, game_entity* Entity, color Color) {
             Basis.Z = Temp;
             PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color);
 
-            Collider.Capsule.Segment = Entity->Transform * Collider.Capsule.Segment;
+            Collider.Capsule.Segment = T * Collider.Capsule.Segment;
         } break;
 
         default: Assert(false);
     }
-}
-
-void PushEntities(render_group* Group, game_entity_state* State, game_input* Input, float Time) {
-    TIMED_BLOCK;
-    basis Basis = Group->Camera->Basis;
-    ray Ray = MouseRay(Group->Width, Group->Height, Group->Camera->Position + Group->Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
-    int i = 0;
-    int nEntities = State->Entities.Count;
-    while (nEntities > 0 && i < MAX_ENTITIES) {
-        game_entity* Entity = &State->Entities.List[i++];
-
-        if (Entity->Active) nEntities--;
-        else continue;
-
-        collider Collider = Entity->Transform * Entity->Collider;
-        Entity->Hovered = Raycast(Ray, Collider);
-        switch(Entity->Type) {
-            case Entity_Type_Character: {
-                character* pCharacter = &State->Characters.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    Mesh_Body_ID,
-                    Entity->Transform,
-                    Shader_Pipeline_Mesh_Bones_ID,
-                    Bitmap_Empty_ID,
-                    White,
-                    &pCharacter->Armature,
-                    Entity->Hovered
-                );
-
-                float HPBarWidth = 2.0f;
-                float HPBarHeight = 0.2f;
-                v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X + V3(0, 4.75f, 0);
-                PushFillbar(
-                    Group, 
-                    Entity->Name, 
-                    pCharacter->Stats.HP, pCharacter->Stats.MaxHP,
-                    Position, 
-                    Group->Camera->Basis.X, Group->Camera->Basis.Y,
-                    2.0f, 0.2f
-                );
-            } break;
-    
-            case Entity_Type_Enemy: {
-                enemy* pEnemy = &State->Enemies.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    pEnemy->MeshID,
-                    Entity->Transform,
-                    Shader_Pipeline_Mesh_ID,
-                    pEnemy->TextureID,
-                    White, 0,
-                    Entity->Hovered
-                );
-
-                float HPBarWidth = 2.0f;
-                float HPBarHeight = 0.2f;
-                v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X;
-                Position.Y = 4.75f;
-                PushFillbar(
-                    Group, 
-                    Entity->Name, 
-                    pEnemy->Stats.HP, pEnemy->Stats.MaxHP,
-                    Position, 
-                    Group->Camera->Basis.X, Group->Camera->Basis.Y,
-                    2.0f, 0.2f
-                );
-            } break;
-
-            case Entity_Type_Prop: {
-                prop* pProp = &State->Props.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    pProp->MeshID,
-                    Entity->Transform,
-                    pProp->Shader,
-                    Bitmap_Empty_ID,
-                    pProp->Color
-                );
-            } break;
-
-            case Entity_Type_Weapon: {
-                weapon* pWeapon = &State->Weapons.List[Entity->Index];
-                game_mesh_id MeshID;
-                switch(pWeapon->Type) {
-                    case Weapon_Sword: MeshID = Mesh_Sword_ID; break;
-                    case Weapon_Shield: MeshID = Mesh_Shield_ID; break;
-                    default: Assert(false);
-                }
-
-                PushMesh(Group, MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
-            } break;
-        }
-
-        if (Group->Debug && Group->DebugColliders && Entity->Type != Entity_Type_Camera) {
-            PushCollider(Group, Entity, Entity->Collided ? Red : Yellow);
-        }
-    }
-}
-
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-// | Debug                                                                                                                                                            |
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position) {
-    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    char Buffer[128];
-    int Points = 8;
-    float LineHeight = GetCharMaxHeight(Font, Points);
-
-    v2 TextCursor = Position + V2(0, LineHeight);
-    debug_entry* Parent = Entry->Parent;
-    while (Parent) {
-        TextCursor.X += 20.0f;
-        Parent = Parent->Parent;
-    }
-
-    sprintf_s(Buffer, "%s: ", Entry->Name);
-    if (Entry->Type != Debug_Type_memory_arena) {
-        PushText(Group, TextCursor, Font_Menlo_Regular_ID, Buffer, White, Points);
-    }
-
-    float Width, Height;
-    GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
-    TextCursor.X += Width;
-
-    switch(Entry->Type) {
-        case Debug_Type_bool: {
-            bool Value = *(bool*)Entry->Value;
-            PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, Value? Cyan : Red, Points);
-        } break;
-
-        case Debug_Type_char:
-        case Debug_Type_string:
-        case Debug_Type_int8:
-        case Debug_Type_int16:
-        case Debug_Type_int:
-        case Debug_Type_int32:
-        case Debug_Type_int64:
-        case Debug_Type_uint8:
-        case Debug_Type_uint16:
-        case Debug_Type_uint32:
-        case Debug_Type_uint64:
-        case Debug_Type_memory_index:
-        case Debug_Type_float:
-        case Debug_Type_double:
-        case Debug_Type_v2:
-        case Debug_Type_v3:
-        case Debug_Type_v4:
-        case Debug_Type_scale:
-        case Debug_Type_quaternion:
-        case Debug_Type_collider:
-        {
-            PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
-        } break;
-
-        case Debug_Type_color: {
-            rectangle Rect = { TextCursor.X, Position.Y, 2.0f * LineHeight, LineHeight };
-            color Color = *(color*)Entry->Value;
-            PushRect(Group, Rect, Color);
-            PushRectOutline(Group, Rect, Gray, 1.0f);
-        } break;
-
-        case Debug_Type_memory_arena: {
-            tokenizer Tokenizer = InitTokenizer(Entry->ValueString);
-            float Percentage = ParseFloat(Tokenizer);
-            rectangle Rect = Rectangle(Position.X, Position.Y, 450.0f, 20.0f);
-            PushFillbar(Group, Entry->Name, Percentage, Rect);
-        } break;
-
-        default: {
-            if (IsEnumType(Entry->Type)) {
-                PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
-            }
-        }
-    }
-}
-
-void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
-    v2 Orthogonal = perp(normalize(V2(Vector.X, Vector.Y)));
-    float OrthogonalLength = 0.005333f * Group->Height;
-
-    int Thickness = max(1.0f, 0.0025f * Group->Height);
-    PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, SORT_ORDER_DEBUG_OVERLAY);
-    triangle2 Arrowhead1 = {
-        Position + Vector,
-        Position + 0.875 * Vector,
-        Position + 0.8 * Vector - OrthogonalLength * Orthogonal
-    };
-    PushTriangle(
-        Group,
-        Arrowhead1,
-        Color, 
-        SORT_ORDER_DEBUG_OVERLAY
-    );
-    triangle2 Arrowhead2 = {
-        Position + Vector,
-        Position + 0.875 * Vector,
-        Position + 0.8 * Vector + OrthogonalLength * Orthogonal,
-    };
-    PushTriangle(
-        Group,
-        Arrowhead2,
-        Color, 
-        SORT_ORDER_DEBUG_OVERLAY
-    );
-}
-
-void PushDebugVector(render_group* Group, v3 Vector, v3 Position, color Color) {
-    float Height = Group->Height;
-
-    v2 CameraCoordinates = perp(V2(dot(Vector, Group->Camera->Basis.X), dot(Vector, Group->Camera->Basis.Y)));
-    v3 Orthogonal = normalize(CameraCoordinates.X * Group->Camera->Basis.X + CameraCoordinates.Y * Group->Camera->Basis.Y);
-    float OrthogonalLength = (modulus(Vector) / 15.0f);
-
-    int Thickness = max(1.0, 0.0025 * Height);
-    PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, SORT_ORDER_MESHES);
-    triangle3 Triangle = {
-        Position + Vector,
-        Position + 0.875 * Vector,
-        Position + 0.8 * Vector - OrthogonalLength * Orthogonal,
-    };
-    PushTriangle(Group, Triangle, Color, SORT_ORDER_MESHES);
-    Triangle = {
-        Position + Vector,
-        Position + 0.875 * Vector,
-        Position + 0.8 * Vector + OrthogonalLength * Orthogonal,
-    };
-    PushTriangle(Group, Triangle, Color, SORT_ORDER_MESHES);
-}
-
-void PushDebugFustrum(
-    render_group* Group,
-    v3 Position,
-    double Angle, double Pitch,
-    double l, double r, double b, double t, double n, double f
-) {
-    basis B = GetCameraBasis(Angle, Pitch);
-
-    v3 nv = -n * B.Z;
-    v3 rv = r * B.X;
-    v3 lv = -l * B.X;
-    v3 tv = t * B.Y * ((double)Group->Height / (double)Group->Width);
-    v3 bv = -b * B.Y * ((double)Group->Height / (double)Group->Width);
-    v3 fv = -f * B.Z;
-
-    v3 l_ = f * lv;
-    v3 r_ = f * rv;
-    v3 t_ = f * tv;
-    v3 b_ = f * bv;
-
-    v3 Vertices[9] = {
-        Position,
-        Position + l_ + t_ + fv,
-        Position + r_ + t_ + fv,
-        Position + l_ + b_ + fv,
-        Position + r_ + b_ + fv,
-        Position + rv + bv + nv,
-        Position + rv + tv + nv,
-        Position + lv + bv + nv,
-        Position + lv + tv + nv
-    };
-
-    uint32 Elements[24] = { 0, 1, 0, 2, 0, 3, 0, 4, 4, 3, 2, 1, 4, 2, 3, 1, 5, 7, 6, 8, 5, 6, 7, 8 };
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    PushPrimitiveCommand(
-        Group,
-        { White, DEPTH_TEST_RENDER_FLAG },
-        render_primitive_line,
-        Shader,
-        vertex_layout_vec3_vec2_id,
-        9,
-        (float*)Vertices,
-        SORT_ORDER_DEBUG_OVERLAY,
-        24,
-        Elements
-    );
-}
-
-void PushDebugGrid(render_group* Group, float Alpha) {
-    const int nVertices = 404;
-    v3 Vertices[nVertices];
-
-    for (int i = 0; i <= 100; i++) {
-        Vertices[4*i  ] = V3(50-i, 0, -50);
-        Vertices[4*i+1] = V3(50-i, 0, 50);
-        Vertices[4*i+2] = V3(-50, 0, 50-i);
-        Vertices[4*i+3] = V3(50, 0, 50-i);
-    }
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
-    render_primitive_options Options = {};
-    Options.Color = Color(White, 0.5f);
-    Options.Thickness = 1.0f;
-    Options.Flags = DEPTH_TEST_RENDER_FLAG;
-    PushPrimitiveCommand(
-        Group,
-        Options,
-        render_primitive_line,
-        Shader,
-        vertex_layout_vec3_id,
-        nVertices,
-        (float*)Vertices,
-        SORT_ORDER_DEBUG_OVERLAY-2.0f
-    );
-}
-
-void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, bool Attachment = false) {
-    render_command Command;
-    Command.Index = Group->nTargets;
-    Command.Priority = SORT_ORDER_PUSH_RENDER_TARGETS - 0.1f;
-    Command.Type = render_target;
-
-    PushCommand(Group, Command);
-
-    render_target_command TargetCommand = {};
-    TargetCommand.Source = Framebuffer;
-    TargetCommand.Target = Target_Output;
-    TargetCommand.DebugAttachment = Attachment;
-    
-    if (Framebuffer == Target_World || Framebuffer == Target_Outline) {
-        TargetCommand.Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Antialiasing_ID);
-    }
-    else {
-        TargetCommand.Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Framebuffer_ID);
-    }
-
-    float Vertices[30] = {
-        0.5f, -1.0f, 0.0f, 0.0f, 0.0f,
-        1.0f, -1.0f, 0.0f, 1.0f, 0.0f,
-        1.0f, -0.5f, 0.0f, 1.0f, 1.0f,
-        0.5f, -1.0f, 0.0f, 0.0f, 0.0f,
-        1.0f, -0.5f, 0.0f, 1.0f, 1.0f,
-        0.5f, -0.5f, 0.0f, 0.0f, 1.0f
-    };
-    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id, Vertices);
-
-    Group->TargetCommands[Group->nTargets++] = TargetCommand;
-}
-
-void PushDebugPlot(
-    render_group* Group,
-    int N,
-    float* Data,
-    v2 Position,
-    int dx,
-    color Color = White,
-    float Thickness = 2.0f,
-    float Order = SORT_ORDER_DEBUG_OVERLAY
-) {
-    v2* Vertices = new v2[N];
-    float X = 0;
-    for (int i = 0; i < N; i++) {
-        Vertices[N] = Position + V2(X, -Data[i]);
-        X += dx;
-    }
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-    render_primitive_options Options = {};
-    Options.Color = Color;
-    Options.Thickness = Thickness;
-    PushPrimitiveCommand(
-        Group,
-        Options,
-        render_primitive_line_strip,
-        Shader,
-        vertex_layout_vec2_id,
-        N,
-        (float*)Vertices,
-        Order
-    );
-
-    delete [] Vertices;
 }
 
 #endif

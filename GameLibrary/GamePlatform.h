@@ -94,9 +94,13 @@ inline void Assert(bool assertion, const char* Message = "") {
 // Memory Arenas
 struct memory_arena {
     memory_index Size;
-    uint8* Base;
     memory_index Used;
+    uint8* Base;
 };
+
+inline void ZeroSize(memory_index Size, void* Memory) {
+    memset(Memory, 0, Size);
+}
 
 inline memory_arena MemoryArena(memory_index Size, uint8* Base) {
     memory_arena Result;
@@ -106,11 +110,14 @@ inline memory_arena MemoryArena(memory_index Size, uint8* Base) {
     return Result;
 }
 
-inline void ZeroSize(memory_index Size, void* Ptr) {
-    uint8* Byte = (uint8*)Ptr;
-    while (Size--) {
-        *Byte++ = 0;
-    }
+inline memory_arena AllocateMemoryArena(memory_index Size) {
+    uint8* Base = (uint8*)calloc(1, Size);
+    return MemoryArena(Size, Base);
+}
+
+inline void FreeMemoryArena(memory_arena* Arena) {
+    free(Arena->Base);
+    Arena = {};
 }
 
 inline void ClearArena(memory_arena* Arena) {
@@ -139,8 +146,144 @@ inline void* PopSize_(memory_arena* Arena, memory_index Size) {
     return Result;
 }
 
+inline memory_arena SuballocateMemoryArena(memory_arena* Arena, memory_index Size) {
+    memory_arena Result = {};
+    Result.Base = (uint8*)PushSize(Arena, Size);
+    Result.Size = Size;
+    return Result;
+}
+
 inline char* PushString(memory_arena* Arena, const char* String) {
     return PushArray(Arena, strlen(String) + 1, char);
+}
+
+// +------------------------------------------------------------------------------------------------------------------------------------------+
+// | Data structures                                                                                                                          |
+// +------------------------------------------------------------------------------------------------------------------------------------------+
+
+/*
+    Stack. Memory for elements must be previously allocated.
+*/
+
+template <typename T> class stack {
+private:
+    T* Top;
+public:
+    uint64 n;
+    uint64 Capacity;
+
+    stack(uint64 MaxSize, T* Memory) {
+        n = 0;
+        Top = Memory;
+        Capacity = MaxSize;
+    }
+
+    void Push(T Element) {
+        if (n < Capacity) {
+            *Top++ = Element;
+            n++;
+        }
+        else Assert(false, "Stack is full.");
+    }
+
+    T Pop() {
+        if (n > 0) {
+            Top--;
+            T Result = *Top;
+            *Top = {};
+            n--;
+            return Result;
+        }
+        return NULL;
+    }
+
+    void Clear() {
+        ZeroSize(n * sizeof(T), Top - n);
+        Top = Top - n;
+        n = 0;
+    }
+};
+
+struct link {
+    link* Previous;
+    link* Next;
+    void* Data;
+};
+
+void Attach(link* Link1, link* Link2) {
+    Assert(Link1 != NULL || Link2 != NULL, "Two empty links tried to be linked.");
+    if (Link1 != NULL) {
+        Link1->Next = Link2;
+    }
+    if (Link2 != NULL) {
+        Link2->Previous = Link1;
+    }
+}
+
+void Delete(link* ThisLink) {
+    Attach(ThisLink->Previous, ThisLink->Next);
+    ThisLink->Previous = NULL;
+    ThisLink->Next = NULL;
+}
+
+/*
+    Doubly-linked list. All links must have been allocated somewhere previously.
+*/
+struct linked_list {
+    link* First;
+    link* Last;
+
+    void PushBack(link* Element) {
+        if (First == NULL || Last == NULL) {
+            First = Element;
+        }
+        else {
+            Attach(Last, Element);
+        }
+        Last = Element;
+    }
+
+    void PushFront(link* Element) {
+        if (First == NULL || Last == NULL) {
+            Last = Element;
+        }
+        else {
+            Attach(Element, First);
+        }
+        First = Element;
+    }
+
+    void MakeCircular() {
+        Attach(Last, First);
+    }
+
+    void Break(link* Link) {
+        if (First == Link) First = Link->Next;
+        if (Last == Link)  Last  = Link->Previous;
+        Delete(Link);
+    }
+
+    bool IsEmpty() {
+        return First == NULL && Last == NULL;
+    }
+};
+
+inline linked_list Concatenate(linked_list L1, linked_list L2) {
+    linked_list Result = {};
+    Result.First = L1.First;
+    Attach(L1.Last, L2.First);
+    Result.Last = L2.Last;
+    return Result;
+}
+
+uint64 GetLength(linked_list List) {
+	link* Link = List.First;
+	uint64 Result = 0;
+    do {
+		Link = Link->Next;
+        Result++;
+    } while (Link && Link != List.First);
+	return Result;
 }
 
 // Naive implementation of exponential array (see https://www.youtube.com/watch?v=i-h95QIGchY)
@@ -178,25 +321,26 @@ private:
     xarray_meta Meta;
     xarray_header* Header;
 
-    T* ptr(T* P) { return P};
-
-    void NewChunk(uint64 Size) {
-        Header->Chunks[Meta.nChunks++] = (uint8*)VirtualAlloc(0, Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    void NewChunk(memory_index Size) {
+        if (Meta.nChunks >= MAX_XARRAY_CHUNKS) {
+            Assert(false, "Xarray chunk index overflow.");
+        }
+        Header->Chunks[Meta.nChunks++] = (uint8*)malloc(Size);
     }
 
 public:
     xarray() {
         Meta = { 4, 0, sizeof(T) };
-        Header = (xarray_header*)VirtualAlloc(0, MAX_XARRAY_CHUNKS * sizeof(uint8*), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-        NewChunk(1 << Meta.Shift);
+        Header = (xarray_header*)calloc(MAX_XARRAY_CHUNKS + 1, sizeof(uint64));
+        NewChunk(Meta.ElementSize * (1 << Meta.Shift));
     }
 
     ~xarray() {
         for (int i = 0; i < Meta.nChunks; i++) {
-            VirtualFree(Header->Chunks[i], 0, MEM_RELEASE);
+            free(Header->Chunks[i]);
         }
 
-        VirtualFree(Header, 0, MEM_RELEASE);
+        free(Header);
     }
 
     const T& operator[] (uint64 i) const {
@@ -204,17 +348,24 @@ public:
         return *(T*)xar_get(Header, Meta, i);
     }
 
-    T* Insert(const T& Element) {
-        uint64 TotalSize = 1 << (Meta.Shift + Meta.nChunks - 1);
+    T* Insert(const T& Element = {}) {
+        uint64 TotalSize = Meta.ElementSize * (1 << (Meta.Shift + Meta.nChunks - 1));
         uint64 NewIndex = Header->n++;
-        if (NewIndex >= TotalSize) {
+        if (NewIndex * sizeof(T) >= TotalSize) {
             NewChunk(TotalSize);
         }
 
         T* Pointer = (T*)xar_get(Header, Meta, NewIndex);
-        //T* Pointer = (T*)ElementMemory;
         *Pointer = Element;
         return Pointer;
+    }
+
+    uint64 Size() {
+        return Header->n;
+    }
+
+    void Clear() {
+        Header->n = 0;
     }
 };
 

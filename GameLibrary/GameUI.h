@@ -73,7 +73,7 @@ ui_size UISizeSumChildren() {
 }
 
 void ComputeDebugEntrySize(game_font* Font, debug_entry* Entry, ui_size* SizeX, ui_size* SizeY) {
-    int Points = 8;
+    float Points = DEBUG_ENTRIES_TEXT_POINTS;
 
     SizeX->Type = ui_size_pixels;
     SizeY->Type = ui_size_pixels;
@@ -634,13 +634,20 @@ void RenderUI() {
             PushDebugEntry(UI.Group, Element->DebugEntry, Position);
         }
         else {
-            if (Element->Flags & RENDER_TEXT_UI_FLAG) {
-                float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
-                PushText(UI.Group, Position + V2(0, OffsetHeight), FontID, Element->Name, Element->Color, Element->Points);
-            }
-
             if (Element->Flags & RENDER_RECT_UI_FLAG) {
                 PushRect(UI.Group, Element->Rect, Element->Color);
+            }
+
+            if (Element->Flags & RENDER_TEXT_UI_FLAG) {
+                float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
+                PushText(
+                    UI.Group,
+                    Position + V2(0, OffsetHeight), 
+                    FontID, 
+                    Element->Name,
+                    Element->Color,
+                    Element->Points
+                );
             }
         }
 
@@ -656,7 +663,7 @@ struct UIMenu {
         ui_alignment AlignmentY = ui_alignment_center,
         float MarginX = 10.0f,
         float MarginY = 10.0f,
-        color C = Color(Black, 0.7f)
+        color C = ChangeAlpha(Black, 0.7f)
     ) {
         ui_axis NoStack = Stack == axis_x ? axis_y : axis_x;
         ui_size Sizes[2];
@@ -700,7 +707,7 @@ void UIText(
 }
 
 bool UIDropdown(char* Text, bool& Control) {
-    int Points = 10;
+    int Points = 12;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
     ui_element* Element = PushUIElement(
@@ -724,7 +731,7 @@ bool UIDropdown(char* Text, bool& Control) {
 }
 
 bool UIButton(char* Text) {
-    int Points = 10;
+    float Points = 20.0f;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
     ui_element* Element = PushUIElement(
@@ -800,7 +807,7 @@ void UpdateMainMenuUI(
     game_memory* Memory,
     game_input* Input
 ) {
-    game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    game_state* pGameState = Memory->GameState;
 
     UIText("Untitled game", ui_alignment_center, ui_alignment_center, White, 100);
     static bool Settings = false;
@@ -835,7 +842,7 @@ void UpdatePlayingUI(
     game_input* Input
 ) {
     render_group* Group = &Memory->RenderGroup;
-    game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    game_state* pGameState = (game_state*)Memory->Permanent.Base;
     game_entity_state* EntityState = &pGameState->Entities;
     float Time = pGameState->Time;
     game_combat* Combat = &pGameState->Combat;
@@ -848,10 +855,10 @@ void UpdatePlayingUI(
     if (MenuInput) {
         ShowMenu = !ShowMenu;
     }
+    
     static bool Settings = false;
-
     if (ShowMenu) {
-        UIMenu MainMenu = UIMenu("Main menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 30.0f);
+        UIMenu MainMenu = UIMenu("Main menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 20.0f);
 
         if (UIButton("Save game")) {
             // TODO: Save game
@@ -937,7 +944,7 @@ void UpdateUI(
     game_input* Input
 ) {
     render_group* Group = &Memory->RenderGroup;
-    game_state* pGameState = (game_state*)Memory->PermanentStorage;
+    game_state* pGameState = Memory->GameState;
     game_entity_state* EntityState = &pGameState->Entities;
     float Time = pGameState->Time;
     game_combat* Combat = &pGameState->Combat;
@@ -990,16 +997,16 @@ void UpdateUI(
         v2 YAxis = V2(0.0, -cos(Group->Camera->Pitch * Degrees));
         v2 ZAxis = V2(-sin(Group->Camera->Angle * Degrees), sin(Group->Camera->Pitch * Degrees) * cos(Group->Camera->Angle * Degrees));
         v2 AxisOrigin = V2(Group->Width - 0.08 * (float)Group->Height - 10.0, 0.1 * (float)Group->Height);
-        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, Color(Red, DebugAlpha));
-        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, Color(Green, DebugAlpha));
-        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, Color(Blue, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, ChangeAlpha(Red, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, ChangeAlpha(Green, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, ChangeAlpha(Blue, DebugAlpha));
 
         // Debug camera basis
         // PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
         // PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
         // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
         
-        UIMenu DebugMenu = UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 10.0f, 10.0f);
+        UIMenu DebugMenu = UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 5.0f, 0.0f);
 
         int i = 0;
         for (; i < DebugInfo->nEntries; i++) {
@@ -1009,12 +1016,10 @@ void UpdateUI(
 
         static bool DebugArenas = false;
         if (UIDropdown("Arenas", DebugArenas)) {
-            DEBUG_VALUE(Memory->StringsArena, memory_arena);
-            DEBUG_VALUE(Memory->TransientArena, memory_arena);
-            DEBUG_VALUE(Memory->GeneralPurposeArena, memory_arena);
-            DEBUG_VALUE(Memory->TurnsArena, memory_arena);
+            DEBUG_VALUE(Memory->Transient, memory_arena);
+            DEBUG_VALUE(Memory->Permanent, memory_arena);
 
-            memory_arena* VertexArena = Group->VertexBuffer.VertexArena;
+            memory_arena* VertexArena = Group->VertexBuffer.Vertices;
             DEBUG_VALUE(VertexArena[vertex_layout_vec2_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_vec2_vec2_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_vec3_id], memory_arena);
