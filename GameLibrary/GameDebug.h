@@ -85,6 +85,8 @@ debug_entry* _AddDebugEntry(debug_info* DebugInfo, char* Name, debug_type Type, 
 const float DEBUG_ENTRIES_TEXT_POINTS = 10.0f;
 
 void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position) {
+    TIMED_BLOCK;
+    
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
     char Buffer[128];
     float Points = DEBUG_ENTRIES_TEXT_POINTS;

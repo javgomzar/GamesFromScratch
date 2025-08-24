@@ -1211,14 +1211,14 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
-debug_record DebugRecordArray_Win32[__COUNTER__];
+time_record TimeRecordArray[__COUNTER__];
 
 void LogDebugRecords(render_group* Group, memory_arena* Arena) {
     char Buffer[512];
     int Height = 350;
     game_font* Font = GetAsset(&Memory.Assets, Font_Menlo_Regular_ID);
-    for (int i = 0; i < ArrayCount(DebugRecordArray_Win32); i++) {
-        debug_record* DebugRecord = DebugRecordArray_Win32 + i;
+    for (int i = 0; i < ArrayCount(TimeRecordArray); i++) {
+        time_record* DebugRecord = TimeRecordArray + i;
 
         if (DebugRecord->HitCount) {
             if (DebugRecord->HitCount == 1) {

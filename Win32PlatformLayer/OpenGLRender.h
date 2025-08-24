@@ -794,7 +794,7 @@ void InitializeRenderer(
 			Square += n;
 			n += 2;
 		}
-		int MSAASamples = min(Square, 9);
+		int MSAASamples = min(Square, 16);
 
 		// World
 		openGL_framebuffer* WorldTarget = &OpenGL->Targets[Target_World];

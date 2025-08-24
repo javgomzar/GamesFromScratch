@@ -82,7 +82,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Magenta, Target_PingPong);
     PushClear(Group, BackgroundBlue, Target_Output);
 
-    Update(Assets, pGameState, Input, &Group->Camera, Group->Width, Group->Height);
+    UpdateGameState(Assets, pGameState, Input, &Group->Camera, Group->Width, Group->Height);
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
@@ -117,29 +117,130 @@ extern "C" GAME_UPDATE(GameUpdate)
     LogGameDebugRecords(Group);
 }
 
-debug_record DebugRecordArray[__COUNTER__];
+time_record TimeRecordArray[__COUNTER__];
 
 void LogGameDebugRecords(render_group* Group) {
-    char Buffer[512];
-    int Height = Group->Height - 20;
-    for (int i = 0; i < ArrayCount(DebugRecordArray); i++) {
-        debug_record* DebugRecord = DebugRecordArray + i;
+    if (Group->Debug) {
+        char Buffer[512];
+        const float Points = DEBUG_ENTRIES_TEXT_POINTS;
+        game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
 
-        if (DebugRecord->HitCount) {
-            if (DebugRecord->HitCount == 1) {
-                sprintf_s(Buffer, "%s: (%d hit) %.2f Mcycles (%s:%d)\n", 
-                    DebugRecord->FunctionName, DebugRecord->HitCount, DebugRecord->CycleCount / 1000000.0f, DebugRecord->FileName, DebugRecord->LineNumber);
-            }
-            else {
-                sprintf_s(Buffer, "%s: (%d hits) Total: %.2f Mcycles, Average: %.2f (%s:%d)\n", 
-                    DebugRecord->FunctionName, DebugRecord->HitCount, DebugRecord->CycleCount / 1000000.0f, 
-                    (float)DebugRecord->CycleCount / (1000000.0f * (float)DebugRecord->HitCount), DebugRecord->FileName, DebugRecord->LineNumber);
-            }
+        float Width = 0, Height = 0;
+        GetTextWidthAndHeight("Function", Font, Points, &Width, &Height);
+        float FunctionHeaderWidth = Width;
+        float FunctionColWidth = Width;
+        GetTextWidthAndHeight("Hits", Font, Points, &Width, &Height);
+        float HitsHeaderWidth = Width;
+        float HitsColWidth = Width;
+        GetTextWidthAndHeight("MCycles", Font, Points, &Width, &Height);
+        float MCyclesHeaderWidth = Width;
+        float MCyclesColWidth = Width;
+        GetTextWidthAndHeight("File", Font, Points, &Width, &Height);
+        float FileHeaderWidth = Width;
+        float FileColWidth = Width;
 
-            if (Group->Debug) PushText(Group, V2(250, Height), Font_Menlo_Regular_ID, Buffer, White, 10);
-            Height -= 17;
-            DebugRecord->HitCount = 0;
-            DebugRecord->CycleCount = 0;
+        uint32 nTimeRecords = 0;
+        uint32 TimeRecordArrayLength = ArrayCount(TimeRecordArray);
+
+        for (int i = 0; i < TimeRecordArrayLength; i++) {
+            time_record* Record = TimeRecordArray + i;
+            if (Record->HitCount > 0) {
+                nTimeRecords += 1;
+                GetTextWidthAndHeight(Record->FunctionName, Font, Points, &Width, &Height);
+                if (Width > FunctionColWidth) FunctionColWidth = Width;
+                sprintf_s(Buffer, "%d", Record->HitCount);
+                GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
+                if (Width > HitsColWidth) HitsColWidth = Width;
+                sprintf_s(Buffer, "%.2f", Record->CycleCount / 1000000.0f);
+                GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
+                if (Width > MCyclesColWidth) MCyclesColWidth = Width;
+                sprintf_s(Buffer, "%s:%d", Record->FileName, Record->LineNumber);
+                GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
+                if (Width > FileColWidth) FileColWidth = Width;
+            }
+        }
+
+        float HMargin = 10.0f;
+        float VMargin = 10.0f;
+
+        float TotalWidth = FunctionColWidth + HitsColWidth + MCyclesColWidth + FileColWidth + 5 * HMargin;
+        float RecordHeight = GetCharMaxHeight(Font, Points);
+        float TotalHeight = RecordHeight * (nTimeRecords + 1) + 2 * VMargin;
+
+        PushRect(Group, { 0, Group->Height - TotalHeight, TotalWidth, TotalHeight }, ChangeAlpha(Black, 0.7f));
+
+        float RecordX = HMargin;
+        float RecordY = Group->Height - TotalHeight + RecordHeight + 0.5f * VMargin;
+
+        PushText(
+            Group, 
+            V2(RecordX + 0.5f * (FunctionColWidth - FunctionHeaderWidth), RecordY), 
+            Font_Menlo_Regular_ID,
+            "Function",
+            White,
+            Points
+        );
+        RecordX += FunctionColWidth + HMargin;
+
+        PushText(
+            Group, 
+            V2(RecordX + 0.5f * (HitsColWidth - HitsHeaderWidth), RecordY), 
+            Font_Menlo_Regular_ID,
+            "Hits",
+            White,
+            Points
+        );
+        RecordX += HitsColWidth + HMargin;
+
+        PushText(
+            Group, 
+            V2(RecordX + 0.5f * (MCyclesColWidth - MCyclesHeaderWidth), RecordY), 
+            Font_Menlo_Regular_ID,
+            "MCycles",
+            White,
+            Points
+        );
+        RecordX += MCyclesColWidth + HMargin;
+
+        PushText(
+            Group, 
+            V2(RecordX + 0.5f * (FileColWidth - FileHeaderWidth), RecordY), 
+            Font_Menlo_Regular_ID,
+            "File",
+            White,
+            Points
+        );
+
+        RecordX = HMargin;
+        RecordY += RecordHeight + 0.5f * VMargin;
+
+        for (int i = 0; i < TimeRecordArrayLength; i++) {
+            time_record* Record = TimeRecordArray + i;
+
+            if (Record->HitCount > 0) {
+                PushText(Group, V2(RecordX, RecordY), Font_Menlo_Regular_ID, Record->FunctionName, White, Points);
+                RecordX += FunctionColWidth + HMargin;
+                sprintf_s(Buffer, "%d", Record->HitCount);
+                PushText(Group, V2(RecordX, RecordY), Font_Menlo_Regular_ID, Buffer, White, Points);
+                RecordX += HitsColWidth + HMargin;
+                sprintf_s(Buffer, "%.2f", Record->CycleCount / 1000000.0f);
+                PushText(Group, V2(RecordX, RecordY), Font_Menlo_Regular_ID, Buffer, White, Points);
+                RecordX += MCyclesColWidth + HMargin;
+                sprintf_s(Buffer, "%s:%d", Record->FileName, Record->LineNumber);
+                PushText(Group, V2(RecordX, RecordY), Font_Menlo_Regular_ID, Buffer, White, Points);
+                RecordX = HMargin;
+
+                RecordY += RecordHeight;
+
+                Record->HitCount = 0;
+                Record->CycleCount = 0;
+            }
+        }
+    }
+    else {
+        for (int i = 0; i < ArrayCount(TimeRecordArray); i++) {
+            time_record* DebugRecord = TimeRecordArray + i;
+            *DebugRecord = {};
         }
     }
 }

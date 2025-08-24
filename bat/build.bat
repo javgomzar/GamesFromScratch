@@ -13,7 +13,6 @@ echo 0 > bin\PDBNumber.txt
 @REM Compile GameLibrary
 %COMPILE%^
  /D GAMELIBRARY_EXPORTS^
- /D DebugRecordArray=DebugRecordArray_GameLibrary^
  GameLibrary\GameLibrary.cpp^
  %DEBUG_FLAG%^
  /Fo"bin\GameLibrary.obj"^
@@ -37,7 +36,6 @@ echo 0 > bin\PDBNumber.txt
  Win32PlatformLayer\Win32PlatformLayer.cpp^
  bin\pch.obj^
  /D GAME_RENDER_API_%RENDER_API%^
- /D DebugRecordArray=DebugRecordArray_Win32^
  %DEBUG_FLAG%^
  /Fe".\bin\Win32PlatformLayer.exe"^
  /Fo".\bin\Win32PlatformLayer.obj"^

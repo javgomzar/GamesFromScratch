@@ -50,7 +50,7 @@ void TestRendering(render_group* Group, game_input* Input) {
     }
 
     render_text_options Options = {};
-    Options.Outline = true;
+    Options.Outline = false;
     Options.OutlineWidth = 1.5f;
 
     const char* TestString = "!\"#$%&'()*+,-./0123456789:;<=>?@\nABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\nabcdefghijklmnopqrstuvwxyz{|}~";
