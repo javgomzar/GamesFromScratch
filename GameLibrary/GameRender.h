@@ -1538,6 +1538,7 @@ void PushMesh(
     Options.Texture = GetAsset(Group->Assets, TextureID);
     Options.Flags = DEPTH_TEST_RENDER_FLAG;
     Options.Outline = Outline;
+    Options.Transform = Transform;
     
     PushPrimitiveCommand(
         Group,
