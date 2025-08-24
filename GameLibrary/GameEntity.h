@@ -780,7 +780,7 @@ struct game_combat {
     combatant_array Combatants;
     turn NextTurns[TURN_BUFFER_SIZE];
     turn Turn;
-    memory_arena* TurnsArena;
+    memory_arena TurnsArena;
     game_entity_state* State;
     bool Active;
     
@@ -826,7 +826,7 @@ struct game_combat {
     }
 
     void Erase() {
-        ClearArena(TurnsArena);
+        ClearArena(&TurnsArena);
         Clear(&Combatants);
         Turn = {};
         for (int i = 0; i < TURN_BUFFER_SIZE; i++) {
@@ -906,7 +906,7 @@ struct game_combat {
             FillTurnBuffer();
         }
 
-        turn* History = PushStruct(TurnsArena, turn);
+        turn* History = PushStruct(&TurnsArena, turn);
         *History = Turn;
         Turn = NextTurns[0];
         for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
@@ -970,6 +970,10 @@ struct game_state {
     game_state_type Type;
     bool Exit;
 };
+
+void Initialize(game_state* State) {
+    State->Combat.TurnsArena = AllocateMemoryArena(Kilobytes(64));
+}
 
 void Transition(game_state* State, game_state_type Type) {
     State->Type = Type;
@@ -1109,15 +1113,17 @@ void Update(game_assets* Assets, game_state* State, game_input* Input, camera** 
     character* ControlledCharacter = EntityState->ControlledCharacter;
     
 // Autofollow player _______________________________________________________________________________________________________________________
-    v3 Displacement = ControlledCharacter->Entity->Transform.Translation - ActiveCamera->Position;
-    Displacement.Y = 0;
-    float Distance = modulus(Displacement);
-    v3 Velocity = V3(0,0,0);
-    float MinDistance = .01f;
-    if (Distance >= MinDistance) Velocity = 20.0f * (Distance - MinDistance) * normalize(Displacement);
-    ActiveCamera->Position += State->dt * Velocity;
-    game_entity* ActiveCameraEntity = (game_entity*)ActiveCamera->Entity;
-    ActiveCameraEntity->Transform.Translation = V3(0,0,ActiveCamera->Distance) - ActiveCamera->Position * ActiveCamera->Basis;
+    if (ControlledCharacter != NULL && ControlledCharacter->Entity != NULL) {
+        v3 Displacement = ControlledCharacter->Entity->Transform.Translation - ActiveCamera->Position;
+        Displacement.Y = 0;
+        float Distance = modulus(Displacement);
+        v3 Velocity = V3(0,0,0);
+        float MinDistance = .01f;
+        if (Distance >= MinDistance) Velocity = 20.0f * (Distance - MinDistance) * normalize(Displacement);
+        ActiveCamera->Position += State->dt * Velocity;
+        game_entity* ActiveCameraEntity = (game_entity*)ActiveCamera->Entity;
+        ActiveCameraEntity->Transform.Translation = V3(0,0,ActiveCamera->Distance) - ActiveCamera->Position * ActiveCamera->Basis;
+    }
 
 // Enemies _________________________________________________________________________________________________________________________________
     Index = 0;
@@ -1131,7 +1137,10 @@ void Update(game_assets* Assets, game_state* State, game_input* Input, camera** 
             pEnemy->Entity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
         }
 
-        v3 FacingDirection = ControlledCharacter->Entity->Transform.Translation - pEnemy->Entity->Transform.Translation;
+        v3 FacingDirection = V3(0,0,1);
+        if (ControlledCharacter != NULL && ControlledCharacter->Entity != NULL) {
+            FacingDirection = ControlledCharacter->Entity->Transform.Translation - pEnemy->Entity->Transform.Translation;
+        }
         float Angle = atan2f(FacingDirection.Z, FacingDirection.X);
         pEnemy->Entity->Transform.Rotation = Quaternion(Angle, V3(0,1,0));
     }
@@ -1150,31 +1159,33 @@ void Update(game_assets* Assets, game_state* State, game_input* Input, camera** 
 
         pWeapon->Entity->Collided = false;
 
-        bool Collision = Collide(pWeapon->Entity, ControlledCharacter->Entity);
-        if (pWeapon->Entity->Parent == NULL && Collision) {
-            ControlledCharacter->Entity->Collided = true;
-            pWeapon->Entity->Collided = true;
-            Equip(pWeapon, ControlledCharacter);
-        }
-
-        if (pWeapon->ParentBone > 0) {
-            bone Bone = ControlledCharacter->Armature.Bones[pWeapon->ParentBone];
-            transform ModelTransform;
-            if (pWeapon->Type == Weapon_Sword) {
-                ModelTransform = Transform(
-                    V3(0.5f,2.0f,0),
-                    Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0)),
-                    pWeapon->Entity->Transform.Scale
-                );
+        if (ControlledCharacter != NULL && ControlledCharacter->Entity != NULL) {
+            bool Collision = Collide(pWeapon->Entity, ControlledCharacter->Entity);
+            if (pWeapon->Entity->Parent == NULL && Collision) {
+                ControlledCharacter->Entity->Collided = true;
+                pWeapon->Entity->Collided = true;
+                Equip(pWeapon, ControlledCharacter);
             }
-            else if (pWeapon->Type == Weapon_Shield) {
-                ModelTransform = Transform(
-                    V3(-0.7f,2.2f,0),
-                    Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0)),
-                    pWeapon->Entity->Transform.Scale
-                );
+    
+            if (pWeapon->ParentBone > 0) {
+                bone Bone = ControlledCharacter->Armature.Bones[pWeapon->ParentBone];
+                transform ModelTransform;
+                if (pWeapon->Type == Weapon_Sword) {
+                    ModelTransform = Transform(
+                        V3(0.5f,2.0f,0),
+                        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0)),
+                        pWeapon->Entity->Transform.Scale
+                    );
+                }
+                else if (pWeapon->Type == Weapon_Shield) {
+                    ModelTransform = Transform(
+                        V3(-0.7f,2.2f,0),
+                        Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0)),
+                        pWeapon->Entity->Transform.Scale
+                    );
+                }
+                pWeapon->Entity->Transform = ModelTransform * Bone.Transform * ControlledCharacter->Entity->Transform;
             }
-            pWeapon->Entity->Transform = ModelTransform * Bone.Transform * ControlledCharacter->Entity->Transform;
         }
     }
 }

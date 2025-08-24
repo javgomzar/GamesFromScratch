@@ -743,6 +743,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     game_state* pGameState = PushStruct(&Memory.Permanent, game_state);
     Memory.GameState = pGameState;
+    Initialize(pGameState);
 
     // Memory arenas
     Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));

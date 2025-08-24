@@ -934,7 +934,7 @@ void UpdatePlayingUI(
         }
 
         if (!Alive) {
-            UIText("YOU DIED", ui_alignment_center, ui_alignment_center, Red, 36);
+            UIText("YOU DIED", ui_alignment_center, ui_alignment_center, Red, 120);
         }
     }
 }
