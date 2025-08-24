@@ -105,7 +105,7 @@ void Raise(const char* ErrorMessage) {
 #define TIMED_BLOCK_(Line) TIMED_BLOCK__(Line);
 #define TIMED_BLOCK TIMED_BLOCK_(__LINE__)
 
-struct debug_record {
+struct time_record {
     uint64 CycleCount;
     
     char* FileName;
@@ -115,14 +115,14 @@ struct debug_record {
     int HitCount;
 };
 
-debug_record DebugRecordArray[];
+time_record TimeRecordArray[];
 
 struct timed_block {
-    debug_record* Record;
+    time_record* Record;
     uint64 StartCycles;
 
     timed_block(int Counter, char* FileName, int LineNumber, char* FunctionName) {
-        Record = DebugRecordArray + Counter;
+        Record = TimeRecordArray + Counter;
         Record->FileName = FileName;
         Record->FunctionName = FunctionName;
         Record->LineNumber = LineNumber;

@@ -489,6 +489,7 @@ void BeginContext(game_memory* Memory, game_input* Input) {
 }
 
 void ComputeSizes() {
+    TIMED_BLOCK;
     ui_element* Element = UI.Tree.First;
     if (Element == NULL) return;
 
@@ -568,9 +569,8 @@ void ComputeSizes() {
     }
 }
 
-void ComputeLayout() {   
-    // Computing widths and heights
-    ComputeSizes();
+void ComputeLayout() {
+    TIMED_BLOCK;
 
     // Compute relative positions
     ui_element* Element = UI.Tree.First;
@@ -624,6 +624,8 @@ void ComputeLayout() {
 }
 
 void RenderUI() {
+    TIMED_BLOCK;
+    
     game_font_id FontID = Font_Menlo_Regular_ID;
     game_font* Font = GetAsset(UI.Group->Assets, FontID);
 
@@ -764,6 +766,8 @@ void UpdateUI(
     game_memory* Memory,
     game_input* Input
 ) {
+    TIMED_BLOCK;
+
     render_group* Group = &Memory->RenderGroup;
     game_state* pGameState = (game_state*)Memory->Permanent.Base;
     game_entity_state* EntityState = &pGameState->Entities;
@@ -882,6 +886,7 @@ void UpdateUI(
     if (UI.Tree.Current) UI.Tree.Current->Next = 0;
     UI.Tree.Last = UI.Tree.Current;
 
+    ComputeSizes();
     ComputeLayout();
     RenderUI();
 
