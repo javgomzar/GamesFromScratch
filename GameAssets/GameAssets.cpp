@@ -58,7 +58,6 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
 
 // Assets
     // Fonts
-    PushAsset(&Assets, "..\\GameAssets\\Font\\Files\\CascadiaMono.ttf", Font_Cascadia_Mono_ID);
     PushAsset(&Assets, "..\\GameAssets\\Font\\Files\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
 
     // Text
@@ -159,6 +158,7 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushShaderPipeline(&Assets, Shader_Pipeline_Outline_ID,             2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Outline_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Bezier_Exterior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Exterior_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Bezier_Interior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Interior_ID);
+    PushShaderPipeline(&Assets, Shader_Pipeline_Solid_Text_ID,          2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Single_Color_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Jump_Flood_ID,          2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Jump_Flood_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Debug_Normals_ID,       3,
         Vertex_Shader_Bones_ID,
@@ -285,8 +285,8 @@ void LoadAssetsFromFile(
                 }
 
                 WriteFontVertices(FontsArena, Font);
-                WriteOutlineElements(FontsArena, Font);
                 WriteFontCurveTriangles(FontsArena, Font);
+                WriteFontSolidTriangles(FontsArena, Font);
             } break;
 
             case Asset_Type_Mesh: {

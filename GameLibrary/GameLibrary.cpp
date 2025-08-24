@@ -85,7 +85,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     // PushEntities(Group, &pGameState->Entities, Input, Time);
 
     TestRendering(Group, Input);
-    // TestTriangulations(Group, Input);
+    TestTriangulations(Group, Input);
     
     UpdateUI(Memory, Input);
 

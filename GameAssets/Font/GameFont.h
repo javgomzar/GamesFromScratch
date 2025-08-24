@@ -11,7 +11,6 @@
 #include <vector>
 
 enum game_font_id {
-    Font_Cascadia_Mono_ID,
     Font_Menlo_Regular_ID,
 
     game_font_id_count
@@ -40,6 +39,10 @@ struct glyph_contour_point {
     bool OnCurve;
 };
 
+v2 GetContourPointV2(glyph_contour_point* ContourPoint) {
+    return V2(ContourPoint->X, ContourPoint->Y);
+}
+
 struct glyph_contour {
     glyph_contour_point* Points;
     uint16 Endpoint;
@@ -56,6 +59,7 @@ struct game_font_character {
     uint16 nOnCurve;
     uint16 nInteriorCurves;
     uint16 nExteriorCurves;
+    uint16 nSolidTriangles;
     glyph_contour* Contours;
     void* Data;
     uint32 VertexOffset;
@@ -471,6 +475,190 @@ enum composite_glyph_flag {
     SCALED_COMPONENT_OFFSET   = 1 << 11,
     UNSCALED_COMPONENT_OFFSET = 1 << 12,
 };
+
+struct glyph_polygon {
+	linked_list Vertices;
+};
+
+void ClosestPoints(glyph_polygon P, glyph_polygon Q, link** OutP, link** OutQ) {
+	link* PVertex = P.Vertices.First;
+	link* QVertex = Q.Vertices.First;
+	float D = FLT_MAX;
+	link* ResultP = NULL;
+	link* ResultQ = NULL;
+	do {
+		do {
+            v2 PPoint = GetContourPointV2((glyph_contour_point*)PVertex->Data);
+            v2 QPoint = GetContourPointV2((glyph_contour_point*)QVertex->Data);
+
+			float Candidate = distance(PPoint, QPoint);
+			if (Candidate < D) {
+				ResultP = PVertex;
+				ResultQ = QVertex;
+				D = Candidate;
+			}
+
+			QVertex = QVertex->Next;
+		}
+		while (QVertex && QVertex != Q.Vertices.First);
+		PVertex = PVertex->Next;
+	} while(PVertex && PVertex != P.Vertices.First);
+
+	*OutP = ResultP;
+	*OutQ = ResultQ;
+}
+
+/*
+	Concatenates two polygons by their closest points: 
+	Suppose a polygon `P` given by vertices `v_1, v_2, ..., v_m` and `Q` given by vertices `w_1, w_2, ..., w_n`. 
+	Suppose `v_i` is the closest vertex in `P` to `Q` and `w_j` is the closest point in `Q` to `P`. 
+	Then, the output of this function will be the polygon given by vertices 
+	`v_j, ..., v_m, v_1, ..., v_j, w_i, ..., w_n, w_1, ..., w_i`.
+*/
+glyph_polygon Concatenate(memory_arena* Arena, glyph_polygon P, glyph_polygon Q) {
+	glyph_polygon Result = {};
+
+	link* V = NULL;
+	link* W = NULL;
+	ClosestPoints(P, Q, &V, &W);
+
+	Result.Vertices.First = V;
+	Result.Vertices.Last = V->Previous;
+
+	link* Link = PushStruct(Arena, link);
+	Link->Data = Result.Vertices.First->Data;
+	Result.Vertices.PushBack(Link);
+	
+	link* Previous = W->Previous;
+	Result.Vertices.PushBack(W);
+	
+	Link = PushStruct(Arena, link);
+	Link->Data = W->Data;
+	Result.Vertices.Last = Previous;
+	Result.Vertices.PushBack(Link);
+	
+	Result.Vertices.MakeCircular();
+	return Result;
+}
+
+uint64 CountVertices(glyph_polygon P) {
+	return GetLength(P.Vertices);
+}
+
+float GetArea(glyph_polygon Polygon) {
+	link* Link = Polygon.Vertices.First;
+    glyph_contour_point OPoint = *(glyph_contour_point*)Link->Data;
+	v2 O = V2(OPoint.X, OPoint.Y);
+	float Result = 0;
+	do {
+		v2 P = GetContourPointV2((glyph_contour_point*)Link->Data);
+		v2 Q = GetContourPointV2((glyph_contour_point*)Link->Next->Data);
+
+		Result += Q.X * P.Y - P.X * Q.Y;
+
+		Link = Link->Next;
+	} while (Link && Link != Polygon.Vertices.First);
+	return Result;
+}
+
+float Length(glyph_polygon Polygon) {
+	link* Link = Polygon.Vertices.First;
+	float Result = 0;
+	while (Link && Link != Polygon.Vertices.Last) {
+		v2 P = GetContourPointV2((glyph_contour_point*)Link->Data);
+		v2 Q = GetContourPointV2((glyph_contour_point*)Link->Next->Data);
+	
+		Result += distance(P, Q);
+
+		Link = Link->Next;
+	}
+	return Result;
+}
+
+bool IsConvex(glyph_polygon Polygon) {
+	link* Link = Polygon.Vertices.First;
+
+	v2 A = GetContourPointV2((glyph_contour_point*)Polygon.Vertices.Last->Data);
+	v2 B = GetContourPointV2((glyph_contour_point*)Link->Data);
+	v2 C = GetContourPointV2((glyph_contour_point*)Link->Next->Data);
+	triangle2 FirstT = { A, B, C };
+	float FirstArea = GetArea(FirstT);
+
+	// In case first triangle is flat
+	uint32 n = CountVertices(Polygon);
+	uint32 i = 0;
+	while (fabsf(FirstArea) <= Epsilon && i++ < n) {
+		A = GetContourPointV2((glyph_contour_point*)Link->Data);
+		B = GetContourPointV2((glyph_contour_point*)Link->Next->Data);
+		C = GetContourPointV2((glyph_contour_point*)Link->Next->Next->Data);
+
+		FirstT = { A, B, C };
+		FirstArea = GetArea(FirstT);
+
+		if (fabsf(FirstArea) > Epsilon) {
+			Link = Polygon.Vertices.First;
+		}
+	}
+
+	// If the curve bends in different directions -> not convex
+	while (Link && Link != Polygon.Vertices.Last) {
+		A = GetContourPointV2((glyph_contour_point*)Link->Data);
+		B = GetContourPointV2((glyph_contour_point*)Link->Next->Data);
+		C = GetContourPointV2((glyph_contour_point*)Link->Next->Next->Data);
+
+		triangle2 T = { A, B, C };
+		if (FirstArea*GetArea(T) < 0) return false;
+
+		Link = Link->Next;
+	}
+	return true;
+}
+
+float SqDistance(glyph_polygon P, v2 Q) {
+	link* Link = P.Vertices.First;
+	v2 A = GetContourPointV2((glyph_contour_point*)Link->Data);
+	v2 B = GetContourPointV2((glyph_contour_point*)Link->Next->Data);
+	segment2 S = {A, B};
+	float Result = SqDistance(S, Q);
+	Link = Link->Next;
+	while (Link) {
+		B = GetContourPointV2((glyph_contour_point*)Link->Data);
+		S.Head = S.Tail;
+		S.Tail = B;
+		float D = SqDistance(S, Q);
+		if (D < Result) Result = D;
+		if (Link == P.Vertices.Last) break;
+		Link = Link->Next;
+	}
+	Link = P.Vertices.First;
+	S.Head = S.Tail;
+	S.Tail = GetContourPointV2((glyph_contour_point*)Link->Data);
+	float D = SqDistance(S, Q);
+	if (D < Result) Result = D;
+
+	return Result;
+}
+
+float GetWindingNumber(glyph_polygon P, v2 Q) {
+	float Result = 0;
+	uint64 n = CountVertices(P);
+	link* Link = P.Vertices.First;
+	do {
+		v2 A = GetContourPointV2((glyph_contour_point*)Link->Data);
+		v2 B = GetContourPointV2((glyph_contour_point*)Link->Next->Data);
+
+		Result += GetAngle(A - Q, B - Q);
+		Link = Link->Next;
+	}
+	while (Link && Link != P.Vertices.First);
+	
+    return Result;
+}
+
+bool IsInside(glyph_polygon P, v2 Q) {
+	float Winding = GetWindingNumber(P, Q);
+	return fabsf(Winding) > 0.1;
+}
 
 }
 

@@ -71,6 +71,7 @@ enum game_shader_pipeline_id {
     Shader_Pipeline_Debug_Normals_ID,
     Shader_Pipeline_Bezier_Exterior_ID,
     Shader_Pipeline_Bezier_Interior_ID,
+    Shader_Pipeline_Solid_Text_ID,
 #if GAME_RENDER_API_VULKAN
     Shader_Pipeline_Vulkan_Test_ID,
 #endif

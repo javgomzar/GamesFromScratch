@@ -1,90 +1,54 @@
 #include "GamePlatform.h"
 #include "GameRender.h"
 
-/*
+// void TestTriangleIntersection(render_group* Group, game_input* Input) {
+//     triangle2 Test1 = {
+//         V2(300, 300),
+//         V2(300, 400),
+//         V2(400, 200)
+//     };
+
+//     triangle2 Test2 = {
+//         V2(300, 300),
+//         V2(300, 400),
+//         Input->Mouse.Cursor
+//     };
+
+//     PushTriangle(Group, Test1, Green);
+//     PushTriangle(Group, Test2, Intersect(Test1, Test2) ? Magenta : Red);
+// }
+
 void TestTriangulations(render_group* Group, game_input* Input) {
-    memory_arena SolidArena = AllocateMemoryArena(Kilobytes(32));
-    memory_arena InteriorArena = AllocateMemoryArena(Kilobytes(32));
-    memory_arena ExteriorArena = AllocateMemoryArena(Kilobytes(32));
-    memory_arena VoidArena = AllocateMemoryArena(Kilobytes(32));
-    memory_arena TrialArena = AllocateMemoryArena(Kilobytes(32));
-
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    // glyph_triangulation Triangulation = ComputeTriangulation(&SolidArena, &InteriorArena, &ExteriorArena, &VoidArena, &TrialArena, Font);
+    game_font_character* Character = &Font->Characters['c' - '!'];
+    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Solid_Text_ID);
 
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Screen_Single_Color_ID);
-    v2* Vertices = (v2*)PushPrimitiveCommand(
+    render_primitive_options Options = {};
+    Options.Font = Font;
+    Options.Pen = V2(500, 500);
+    Options.TextSize = 0.1;
+
+    color Color = ChangeAlpha(Red, 0.5f);
+    uint32 Offset = Character->SolidTrianglesOffset;
+
+    render_primitive_command* Command = PushPrimitiveCommand(
         Group,
         render_primitive_triangle,
-        White,
+        Color,
         Shader,
-        vertex_layout_vec2_id,
-        3 * Triangulation.nSolid,
-        0,
-        SORT_ORDER_DEBUG_OVERLAY
-    )->Vertices;
-
-    memcpy(Vertices, SolidArena.Base, SolidArena.Used);
-
-    // float* VoidTriangles = PushPrimitiveCommand(
-    //     Group, { ChangeAlpha(Black, 0.5f) },
-    //     render_primitive_triangle,
-    //     Shader,
-    //     vertex_layout_vec2_id,
-    //     3 * Triangulation.nVoid,
-    //     SORT_ORDER_DEBUG_OVERLAY
-    // ).Vertices;
-
-    // memcpy(VoidTriangles, VoidArena.Base, VoidArena.Used);
-
-    game_shader_pipeline* InteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Interior_ID);
-    float* InteriorTriangles = PushPrimitiveCommand(
-        Group, 
-        render_primitive_triangle,
-        White,
-        InteriorShader,
         vertex_layout_vec2_vec2_id,
-        3 * Triangulation.nInterior,
         0,
-        SORT_ORDER_DEBUG_OVERLAY
-    )->Vertices;
+        3 * Character->nSolidTriangles,
+        SORT_ORDER_DEBUG_OVERLAY,
+        Options
+    );
 
-    memcpy(InteriorTriangles, InteriorArena.Base, InteriorArena.Used);
+    Command->ElementEntry.Offset = Character->SolidTrianglesOffset;
 
-    game_shader_pipeline* ExteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Exterior_ID);
-    float* ExteriorTriangles = PushPrimitiveCommand(
-        Group, 
-        render_primitive_triangle,
-        White,
-        ExteriorShader,
-        vertex_layout_vec2_vec2_id,
-        3 * Triangulation.nExterior,
-        0,
-        SORT_ORDER_DEBUG_OVERLAY
-    )->Vertices;
-
-    memcpy(ExteriorTriangles, ExteriorArena.Base, ExteriorArena.Used);
-
-    // uint32 nTrials = TrialArena.Used / sizeof(v2);
-    // for (int i = 0; i < nTrials; i++) {
-    //     v2* Trial = (v2*)PushPrimitiveCommand(
-    //         Group, { HSV2RGB((float)i/(float)nTrials, 1.0f, 1.0f) },
-    //         render_primitive_point,
-    //         Shader,
-    //         vertex_layout_vec2_id,
-    //         1,
-    //         SORT_ORDER_DEBUG_OVERLAY
-    //     ).Vertices;
-    //     *Trial = ((v2*)TrialArena.Base)[i];
-    // }
-
-    FreeMemoryArena(&SolidArena);
-    FreeMemoryArena(&InteriorArena);
-    FreeMemoryArena(&ExteriorArena);
-    FreeMemoryArena(&VoidArena);
-    FreeMemoryArena(&TrialArena);
+    for (int i = 0; i < Character->nPoints; i++) {
+        PushPoint(Group, V2(500, 500) + 0.1 * GetContourPointV2(&Character->Contours[0].Points[i]), HSV2RGB(((float)i)/Character->nPoints, 1.0f, 1.0f));
+    }
 }
-*/
 
 void TestRendering(render_group* Group, game_input* Input) {
 // 2D
@@ -110,9 +74,9 @@ void TestRendering(render_group* Group, game_input* Input) {
     rectangle BitmapRect = { 20, 140, 100, 200 };
     PushBitmap(Group, Bitmap_Player_ID, BitmapRect);
 
-    PushText(Group, V2(150, 200), Font_Menlo_Regular_ID, 
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n?!^/\\(){}[]'\"@#~€$%=+-.,:;*", 
-    White, 50);
+    // PushText(Group, V2(150, 200), Font_Menlo_Regular_ID, 
+    // "ABCDEFGHIJKLMNOPQRSTUVWXYZ\nabcdefghijklmnopqrstuvwxyz\n?!^/\\(){}[]'\"@#~€$%=+-.,:;*", 
+    // White, 50);
 
 // 3D
     // Point

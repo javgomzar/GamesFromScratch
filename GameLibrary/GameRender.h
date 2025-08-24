@@ -458,6 +458,7 @@ void PushPoint(render_group* Group, v2 Point, color Color, float Order = SORT_OR
         Shader, 
         vertex_layout_vec2_id, 
         1,
+        0,
         Order
     )->VertexEntry.Pointer;
     Vertices[0] = Point.X;
@@ -1038,6 +1039,7 @@ void PushText(
     game_shader_pipeline* OutlineShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Text_Outline_ID);
     game_shader_pipeline* InteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Interior_ID);
     game_shader_pipeline* ExteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Exterior_ID);
+    game_shader_pipeline* SolidShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Solid_Text_ID);
     
     v2 Pen = Position;
     float DPI = 96;
@@ -1080,7 +1082,7 @@ void PushText(
                 Options.Outline = Outline;
                 Options.Pen = Pen;
 
-                if (true) {
+                if (Outline) {
                     render_primitive_command* Command = PushPrimitiveCommand(
                         Group,
                         render_primitive_patches,
@@ -1118,7 +1120,7 @@ void PushText(
                         render_primitive_triangle,
                         Color,
                         ExteriorShader,
-                        vertex_layout_vec2_id,
+                        vertex_layout_vec2_vec2_id,
                         0,
                         3 * pCharacter->nExteriorCurves,
                         SORT_ORDER_DEBUG_OVERLAY,
@@ -1128,6 +1130,19 @@ void PushText(
                     Command->ElementEntry.Offset = pCharacter->ExteriorCurvesOffset;
                 }
 
+                render_primitive_command* Command = PushPrimitiveCommand(
+                    Group,
+                    render_primitive_triangle,
+                    Color,
+                    SolidShader,
+                    vertex_layout_vec2_vec2_id,
+                    0,
+                    3 * pCharacter->nSolidTriangles,
+                    SORT_ORDER_DEBUG_OVERLAY,
+                    Options
+                );
+    
+                Command->ElementEntry.Offset = pCharacter->SolidTrianglesOffset;
 
                 // glyph_contour_point Last = Contour.Points[Contour.nPoints-1];
                 // for (int k = 0; k < Contour.nPoints; k++) {

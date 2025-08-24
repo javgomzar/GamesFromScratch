@@ -1215,7 +1215,7 @@ debug_record DebugRecordArray_Win32[__COUNTER__];
 void LogDebugRecords(render_group* Group, memory_arena* Arena) {
     char Buffer[512];
     int Height = 350;
-    game_font* Font = GetAsset(&Memory.Assets, Font_Cascadia_Mono_ID);
+    game_font* Font = GetAsset(&Memory.Assets, Font_Menlo_Regular_ID);
     for (int i = 0; i < ArrayCount(DebugRecordArray_Win32); i++) {
         debug_record* DebugRecord = DebugRecordArray_Win32 + i;
 

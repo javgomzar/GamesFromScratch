@@ -929,6 +929,10 @@ void InitializeRenderer(
 			game_font* Font = &Assets->Font[i];
 			uint64 VerticesSize = 4 * sizeof(float) * 3 * Font->nOnCurve;
 			uint64 ElementsSize = 3 * sizeof(uint32) * (Font->nPoints - Font->nOnCurve);
+			for (int j = 0; j < FONT_CHARACTERS_COUNT; j++) {
+				game_font_character* Character = &Font->Characters[j];
+				ElementsSize += 3 * sizeof(uint32) * Character->nSolidTriangles;
+			}
 
 			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, 0);
 			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, 0);
