@@ -1,10 +1,6 @@
 #include "GamePlatform.h"
 #include "GameMath.h"
 
-// Freetype
-// #include "ft2build.h"
-// #include FT_FREETYPE_H
-
 #ifndef GAME_FONTS
 #define GAME_FONTS
 
@@ -95,12 +91,20 @@ struct preprocessed_font {
     FWORD LeftSideBearings[FONT_CHARACTERS_COUNT];
     UFWORD AdvanceHeights[FONT_CHARACTERS_COUNT];
     FWORD TopSideBearings[FONT_CHARACTERS_COUNT];
+    int16 MinX;
+    int16 MaxX;
+    int16 MinY;
+    int16 MaxY;
 };
 
 struct game_font {
     game_font_id ID;
     uint16 SpaceAdvance;
     uint16 LineJump;
+    int16 MinX;
+    int16 MaxX;
+    int16 MinY;
+    int16 MaxY;
     float UnitsPerEm;
     game_font_character Characters[FONT_CHARACTERS_COUNT];
     uint32 nOnCurve;
@@ -207,6 +211,19 @@ maxp_table ParseTTFMaxProfileTable(uint8* Memory) {
     Result.NumGlyphs = BigEndian(Result.NumGlyphs);
     return Result;
 }
+
+enum fsSelection_flags {
+    FS_ITALIC             = 1 << 0,
+    FS_UNDERSCORE         = 1 << 1,
+    FS_NEGATIVE           = 1 << 2,
+    FS_OUTLINED           = 1 << 3,
+    FS_STRIKEOUT          = 1 << 4,
+    FS_BOLD               = 1 << 5,
+    FS_REGULAR            = 1 << 6,
+    FS_USE_TYPO_METRICS   = 1 << 7,
+    FS_WEIGHT_WIDTH_SLOPE = 1 << 8,
+    FS_OBLIQUE            = 1 << 9,
+};
 
 struct os2_table {
     uint16	version;
@@ -668,25 +685,43 @@ preprocessed_font PreprocessFont(read_file_result File);
 game_font LoadFont(memory_arena* Arena, preprocessed_font* Font);
 //glyph_triangulation ComputeTriangulation(memory_arena* Arena, game_font* Font);
 
-float GetCharMaxHeight(game_font* Font, int Points) {
+float GetCharMaxHeight(game_font* Font, float Points) {
     float PixelsPerEm = Points * (DPI / 72.0f) / Font->UnitsPerEm;
-    return Font->LineJump * PixelsPerEm;
+    return Font->MaxY * PixelsPerEm;
 }
 
-void GetTextWidthAndHeight(const char* Text, game_font* Font, int Points, float* Width, float* Height) {
+void GetTextWidthAndHeight(const char* Text, game_font* Font, float Points, float* Width, float* Height) {
     float PixelsPerEm = Points * (DPI / 72.0f) / Font->UnitsPerEm;
 
-    *Height = GetCharMaxHeight(Font, Points);
-    *Width = 0;
+    float ResultWidth = 0;
+    float ResultHeight = GetCharMaxHeight(Font, Points);
     
     int Length = strlen(Text);
+    float LineWidth = 0;
     for (int i = 0; i < Length; i++) {
         char c = Text[i];
         if (c == '#' && Text[i+1] == '#') break;
-        if (c == ' ')             *Width += Font->SpaceAdvance * PixelsPerEm;
-        if ('!' <= c && c <= '~') *Width += Font->Characters[c - '!'].Width * PixelsPerEm;
-        if (c == '\n')            *Height += Font->LineJump * PixelsPerEm;
+        if (c == ' ') {
+            LineWidth += Font->SpaceAdvance * PixelsPerEm;
+        }
+        if ('!' <= c && c <= '~') {
+            LineWidth += Font->Characters[c - '!'].Width * PixelsPerEm;
+        }
+        if (c == '\n') {
+            ResultHeight += Font->LineJump * PixelsPerEm;
+            if (LineWidth > ResultWidth) ResultWidth = LineWidth;
+            LineWidth = 0;
+        }
     }
+
+    if (ResultWidth == 0) {
+        ResultWidth = LineWidth;
+    }
+
+    ResultHeight -= Font->MinY * PixelsPerEm;
+
+    *Width  = ResultWidth;
+    *Height = ResultHeight;
 }
 
 #endif

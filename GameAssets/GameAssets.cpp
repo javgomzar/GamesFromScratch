@@ -179,7 +179,7 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
         Fragment_Shader_Sea_ID
     );
     PushShaderPipeline(&Assets, Shader_Pipeline_Text_Outline_ID, 4,
-        Vertex_Shader_Screen_ID,
+        Vertex_Shader_Barycentric_ID,
         TESC_Bezier_ID,
         TESE_Bezier_ID,
         Fragment_Shader_Single_Color_ID

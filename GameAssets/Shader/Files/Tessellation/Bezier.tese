@@ -20,16 +20,6 @@ layout(std140, binding = 0) uniform GlobalUniforms
 	float time;
 } GlobalUBO;
 
-#ifdef VULKAN
-layout(std140, set = 2, binding = 2) uniform TextUniforms 
-#else 
-layout(std140, binding = 8) uniform TextUniforms 
-#endif
-{
-    vec2 Pen;
-	float Size;
-} TextUBO;
-
 layout (location = 0) out float t;
 
 void main() {
@@ -44,7 +34,5 @@ void main() {
     float u = 1.0 - t; // t backwards
     vec2 interpolation = u * u * p0 + 2.0 * t * u * p1 + t * t * p2;
 
-    vec2 normalized_pen = (2 * vec2(TextUBO.Pen.x, -TextUBO.Pen.y) / GlobalUBO.resolution) + vec2(-1.0, 1.0);
-
-    gl_Position = vec4(normalized_pen + TextUBO.Size * interpolation, 0.0, 1.0);
+    gl_Position = vec4(interpolation, 0.0, 1.0);
 }

@@ -255,7 +255,7 @@ light Light(v3 Direction, color Color = White, float Ambient = 0.5f, float Diffu
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int MAX_FRAMEBUFFER_COUNT = 8;
-const int MAX_PRIMITIVE_COMMANDS = 2048;
+const int MAX_PRIMITIVE_COMMANDS = 4096;
 const int MAX_MESH_COMMANDS = 64;
 const int MAX_HEIGHTMAP_COMMANDS = 8;
 const int MAX_SHADER_PASS_COMMANDS = 32;
@@ -1017,6 +1017,13 @@ void PushBitmap(
     PushBitmap(Group, Bitmap, Rect, Order, Mode, Size, Offset, false);
 }
 
+struct render_text_options {
+    color OutlineColor = Black;
+    float OutlineWidth = 2.0f;
+    bool Wrapped = false;
+    bool Outline = false;
+};
+
 void PushText(
     render_group* Group,
     v2 Position,
@@ -1024,8 +1031,7 @@ void PushText(
     const char* String,
     color Color = White,
     float Points = 20.0f,
-    bool Wrapped = false,
-    bool Outline = false,
+    render_text_options Options = {},
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     uint32 nCharacters = 0;
@@ -1044,7 +1050,7 @@ void PushText(
     v2 Pen = Position;
     float DPI = 96;
     float Size = Points * (DPI / 72.0f) / Font->UnitsPerEm;
-    float LineJump = 2 * Font->LineJump * Size;
+    float LineJump = Font->LineJump * Size;
 
     for (int i = 0; i < StringLength; i++) {
         char c = String[i];
@@ -1069,34 +1075,19 @@ void PushText(
         else if ('!' <= c && c <= '~') {
             game_font_character* pCharacter = Font->Characters + (c - '!');
             float HorizontalAdvance = pCharacter->Width * Size;
-            if (Wrapped && (Pen.X + HorizontalAdvance > Group->Width)) {
+            if (Options.Wrapped && (Pen.X + HorizontalAdvance > Group->Width)) {
                 Pen.X = Position.X;
                 Pen.Y += LineJump;
             }
 
             if (pCharacter->nContours > 0) {
-                render_primitive_options Options = {};
-                Options.Font = Font;
-                Options.TextSize = Size;
-                Options.PatchParameter = 3;
-                Options.Outline = Outline;
-                Options.Pen = Pen;
-
-                if (Outline) {
-                    render_primitive_command* Command = PushPrimitiveCommand(
-                        Group,
-                        render_primitive_patches,
-                        Color,
-                        OutlineShader,
-                        vertex_layout_vec2_vec2_id,
-                        3 * pCharacter->nOnCurve,
-                        0,
-                        SORT_ORDER_DEBUG_OVERLAY,
-                        Options
-                    );
-
-                    Command->VertexEntry.Offset = pCharacter->VertexOffset;
-                }
+                render_primitive_options PrimitiveOptions = {};
+                PrimitiveOptions.Font = Font;
+                PrimitiveOptions.TextSize = Size;
+                PrimitiveOptions.PatchParameter = 3;
+                PrimitiveOptions.Outline = Options.Outline;
+                PrimitiveOptions.Pen = Pen;
+                PrimitiveOptions.Thickness = Options.OutlineWidth;
 
                 if (pCharacter->nInteriorCurves > 0) {
                     render_primitive_command* Command = PushPrimitiveCommand(
@@ -1108,7 +1099,7 @@ void PushText(
                         0,
                         3 * pCharacter->nInteriorCurves,
                         SORT_ORDER_DEBUG_OVERLAY,
-                        Options
+                        PrimitiveOptions
                     );
 
                     Command->ElementEntry.Offset = pCharacter->InteriorCurvesOffset;
@@ -1124,7 +1115,7 @@ void PushText(
                         0,
                         3 * pCharacter->nExteriorCurves,
                         SORT_ORDER_DEBUG_OVERLAY,
-                        Options
+                        PrimitiveOptions
                     );
     
                     Command->ElementEntry.Offset = pCharacter->ExteriorCurvesOffset;
@@ -1139,144 +1130,31 @@ void PushText(
                     0,
                     3 * pCharacter->nSolidTriangles,
                     SORT_ORDER_DEBUG_OVERLAY,
-                    Options
+                    PrimitiveOptions
                 );
     
                 Command->ElementEntry.Offset = pCharacter->SolidTrianglesOffset;
 
-                // glyph_contour_point Last = Contour.Points[Contour.nPoints-1];
-                // for (int k = 0; k < Contour.nPoints; k++) {
-                //     glyph_contour_point First = Contour.Points[k];
-                //     if (First.OnCurve) {
-                //         glyph_contour_point Second = {}, Third = {};
-                //         Second = Contour.Points[(k + 1) % Contour.nPoints];
-                //         if (Second.OnCurve) {
-                //             Third = Second;
-                //             Second.X = 0.5f * (First.X + Third.X);
-                //             Second.Y = 0.5f * (First.Y + Third.Y);
-                //         }
-                //         else {
-                //             Third = Contour.Points[(k + 2) % Contour.nPoints];
-                //         }
+                if (Options.Outline) {
+                    render_primitive_command* Command = PushPrimitiveCommand(
+                        Group,
+                        render_primitive_patches,
+                        Options.OutlineColor,
+                        OutlineShader,
+                        vertex_layout_vec2_vec2_id,
+                        3 * pCharacter->nOnCurve,
+                        0,
+                        SORT_ORDER_DEBUG_OVERLAY,
+                        PrimitiveOptions
+                    );
 
-                //         *Vertices++ = Pen.X + ((First.X) - pCharacter->Left) * Size;
-                //         *Vertices++ = Pen.Y - First.Y * Size;
-                //         *Vertices++ = Pen.X + ((Second.X) - pCharacter->Left) * Size;
-                //         *Vertices++ = Pen.Y - Second.Y * Size;
-                //         *Vertices++ = Pen.X + ((Third.X) - pCharacter->Left) * Size;
-                //         *Vertices++ = Pen.Y - Third.Y * Size;
-                //     }
-                // }
+                    Command->VertexEntry.Offset = pCharacter->VertexOffset;
+                }
             }
 
             Pen.X += pCharacter->Width * Size;
         }
     }
-
-    /*
-
-    float* Vertices = new float[4 * 5 * nCharacters];
-    uint32* Elements = new uint32[6 * nCharacters];
-
-    uint32 nVertices = 0;
-    uint32 nElements = 0;
-
-    for (int i = 0; i < StringLength; i++) {
-        char c = String[i];
-
-        if (
-            c == '\0' || 
-            (c == '#' && String[i+1] == '#')
-        ) break;
-
-        // Carriage returns
-        if (c == '\n') {
-            Pen.X = Position.X;
-            Pen.Y += LineJump;
-        }
-
-        // Space
-        else if (c == ' ') {
-            Pen.X += Font->SpaceAdvance * Size;
-        }
-
-        // Character
-        else if ('!' <= c && c <= '~') {
-            game_font_character* pCharacter = Font->Characters + (c - '!');
-            float HorizontalAdvance = pCharacter->Advance * Size;
-            if (Wrapped && (Pen.X + HorizontalAdvance > Group->Width)) {
-                Pen.X = Position.X;
-                Pen.Y += LineJump;
-            }
-
-            float Left = Pen.X + pCharacter->Left * Size;
-            float Top = Pen.Y - pCharacter->Top * Size;
-            float CharWidth = pCharacter->Width * Size;
-            float CharHeight = pCharacter->Height * Size;
-
-            float MinTexX = (float)(pCharacter->AtlasX) / (float)(Font->Bitmap.Header.Width);
-            float MaxTexX = (float)(pCharacter->AtlasX + pCharacter->Width) / (float)(Font->Bitmap.Header.Width);
-            float MinTexY = 1.0f - (float)(pCharacter->AtlasY + pCharacter->Height) / (float)(Font->Bitmap.Header.Height);
-            float MaxTexY = 1.0f - (float)(pCharacter->AtlasY) / (float)(Font->Bitmap.Header.Height);
-
-            Vertices[20*nVertices]   = Left;
-            Vertices[20*nVertices+1] = Top;
-            Vertices[20*nVertices+2] = 0;
-            Vertices[20*nVertices+3] = MinTexX;
-            Vertices[20*nVertices+4] = MaxTexY;
-
-            Vertices[20*nVertices+5] = Left + CharWidth;
-            Vertices[20*nVertices+6] = Top;
-            Vertices[20*nVertices+7] = 0;
-            Vertices[20*nVertices+8] = MaxTexX;
-            Vertices[20*nVertices+9] = MaxTexY;
-
-            Vertices[20*nVertices+10] = Left;
-            Vertices[20*nVertices+11] = Top + CharHeight;
-            Vertices[20*nVertices+12] = 0;
-            Vertices[20*nVertices+13] = MinTexX;
-            Vertices[20*nVertices+14] = MinTexY;
-
-            Vertices[20*nVertices+15] = Left + CharWidth;
-            Vertices[20*nVertices+16] = Top + CharHeight;
-            Vertices[20*nVertices+17] = 0;
-            Vertices[20*nVertices+18] = MaxTexX;
-            Vertices[20*nVertices+19] = MinTexY;
-
-            Elements[6*nElements]   = 4*nVertices;
-            Elements[6*nElements+1] = 4*nVertices + 1;
-            Elements[6*nElements+2] = 4*nVertices + 2;
-            Elements[6*nElements+3] = 4*nVertices + 3;
-            Elements[6*nElements+4] = 4*nVertices + 2;
-            Elements[6*nElements+5] = 4*nVertices + 1;
-
-            nVertices++;
-            nElements++;
-
-            Pen.X += pCharacter->Advance * Size;
-        }
-    }
-
-    game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Texture_ID);
-    PushPrimitiveCommand(
-        Group,
-        Color,
-        render_primitive_triangle,
-        Shader,
-        vertex_layout_vec3_vec2_id,
-        4 * nCharacters,
-        Vertices,
-        0,
-        Order,
-        6 * nCharacters,
-        Elements,
-        &Font->Bitmap
-    );
-
-    delete [] Elements;
-    delete [] Vertices;
-
-    */
 }
 
 void PushFillbar(
@@ -1292,7 +1170,7 @@ void PushFillbar(
     PushRect(Group, SmallRect, Color);
 
     v2 Position = LeftTop(Rect);
-    PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 8);
+    PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 10);
 
     int Points = 8;
     float Width, Height;
@@ -1345,17 +1223,6 @@ void PushFillbar(
     PushRect(Group, LeftTop, WidthAxis, HeightAxis, Width, Height, DarkGray);
     float SmallWidth = FillPercentage * Width;
     PushRect(Group, LeftTop, WidthAxis, HeightAxis, SmallWidth, Height, Red);
-
-    // v2 Position = LeftTop(Rect);
-    // PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 8);
-
-    // int Points = 8;
-    // float Width, Height;
-    // game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    // char Buffer[16];
-    // sprintf_s(Buffer, "%d/%d", Used, Max);
-    // GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
-    // PushText(Group, Position + V2(350.0f - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
 }
 
 void PushCubeOutline(

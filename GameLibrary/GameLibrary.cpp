@@ -85,7 +85,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     // PushEntities(Group, &pGameState->Entities, Input, Time);
 
     TestRendering(Group, Input);
-    TestTriangulations(Group, Input);
     
     UpdateUI(Memory, Input);
 
@@ -133,7 +132,7 @@ void LogGameDebugRecords(render_group* Group) {
                     (float)DebugRecord->CycleCount / (1000000.0f * (float)DebugRecord->HitCount), DebugRecord->FileName, DebugRecord->LineNumber);
             }
 
-            if (Group->Debug) PushText(Group, V2(250, Height), Font_Menlo_Regular_ID, Buffer, White, 8, false, false, SORT_ORDER_DEBUG_OVERLAY);
+            if (Group->Debug) PushText(Group, V2(250, Height), Font_Menlo_Regular_ID, Buffer, White, 10);
             Height -= 17;
             DebugRecord->HitCount = 0;
             DebugRecord->CycleCount = 0;

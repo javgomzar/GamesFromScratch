@@ -73,7 +73,7 @@ ui_size UISizeSumChildren() {
 }
 
 void ComputeDebugEntrySize(game_font* Font, debug_entry* Entry, ui_size* SizeX, ui_size* SizeY) {
-    int Points = 8;
+    float Points = DEBUG_ENTRIES_TEXT_POINTS;
 
     SizeX->Type = ui_size_pixels;
     SizeY->Type = ui_size_pixels;
@@ -707,7 +707,7 @@ void UIText(
 }
 
 bool UIDropdown(char* Text, bool& Control) {
-    int Points = 10;
+    int Points = 12;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
     ui_element* Element = PushUIElement(
@@ -731,7 +731,7 @@ bool UIDropdown(char* Text, bool& Control) {
 }
 
 bool UIButton(char* Text) {
-    int Points = 10;
+    float Points = 20.0f;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
     ui_element* Element = PushUIElement(
@@ -782,7 +782,7 @@ void UpdateUI(
         ShowMainMenu = !ShowMainMenu;
     }
     if (ShowMainMenu) {
-        UIMenu MainMenu = UIMenu("Main menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 30.0f);
+        UIMenu MainMenu = UIMenu("Main menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 20.0f);
 
         if (UIButton("Save game")) {
             // TODO: Save game
@@ -839,7 +839,7 @@ void UpdateUI(
         // PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
         // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
         
-        UIMenu DebugMenu = UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 10.0f, 10.0f);
+        UIMenu DebugMenu = UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 5.0f, 0.0f);
 
         int i = 0;
         for (; i < DebugInfo->nEntries; i++) {

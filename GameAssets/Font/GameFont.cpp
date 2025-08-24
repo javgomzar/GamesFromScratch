@@ -63,72 +63,6 @@ int16 GetTTFCoordinate(bool IsShort, bool RepeatOrPositive, int16 Last, uint8*& 
     return Result;
 }
 
-// void LoadFTBMP(FT_Bitmap* SourceBMP, game_bitmap* DestBMP) {
-//     DestBMP->Header.Width = SourceBMP->width;
-//     DestBMP->Header.Height = SourceBMP->rows;
-//     uint32* DestRow = DestBMP->Content + DestBMP->Header.Width * (DestBMP->Header.Height - 1);
-//     uint8* Source = SourceBMP->buffer;
-//     for (int Y = 0; Y < SourceBMP->rows; Y++) {
-//         uint32* Pixel = DestRow;
-//         for (int X = 0; X < SourceBMP->width; X++) {
-//             // FreeType BMPs come with only one byte representing alpha. We load it as a white BMP so changing
-//             // the color is easier with OpenGL.
-//             *Pixel++ = (*Source++ << 24) | 0x00ffffff;
-//         }
-//         DestRow -= SourceBMP->pitch;
-//     }
-// }
-
-// void GetFontBMPWidthAndHeight(FT_Face Font, uint32* Width, uint32* Height) {
-//     uint32 ResultWidth = 0, ResultHeight = 0, RowWidth = 0, MaxHeight = 0;
-//     FT_Error FTError = FT_Set_Char_Size(Font, 0, LOAD_POINTS*64, 128, 128);
-//     if (FTError) Assert(false);
-
-//     char Starts[3] = {'!', 'A', 'a'};
-//     char Ends[3] = {'@', '`', '~'};
-
-//     for (int i = 0; i < 3; i++) {
-//         for (unsigned char c = Starts[i]; c <= Ends[i]; c++) {
-//             FTError = FT_Load_Char(Font, c, FT_LOAD_RENDER);
-//             if (FTError) Assert(false);
-
-//             FT_GlyphSlot Slot = Font->glyph;
-//             FT_Bitmap FTBMP = Slot->bitmap;
-
-//             RowWidth += FTBMP.width;
-//             if (MaxHeight < FTBMP.rows) MaxHeight = FTBMP.rows;
-//         }
-
-//         if (RowWidth > ResultWidth) ResultWidth = RowWidth;
-//         RowWidth = 0;
-
-//         ResultHeight += MaxHeight;
-//         MaxHeight = 0;
-//     }
-
-//     *Width = ResultWidth;
-//     *Height = ResultHeight;
-// }
-
-// uint64 ComputeNeededMemoryForFont(const char* Path) {
-//     FT_Library FTLibrary;
-//     FT_Face Font;
-//     FT_Error error = FT_Init_FreeType(&FTLibrary);
-//     if (error) Assert(false);
-
-//     error = FT_New_Face(FTLibrary, Path, 0, &Font);
-//     if (error == FT_Err_Unknown_File_Format) Raise("Freetype error: Unknown file format.");
-//     else if (error) Assert(false);
-    
-//     uint32 Width = 0, Height = 0;
-//     GetFontBMPWidthAndHeight(Font, &Width, &Height);
-
-//     FT_Done_Face(Font);
-//     FT_Done_FreeType(FTLibrary);
-
-//     return 4 * Width * Height;
-// }
-
 // +------------------------------------------------------------------------------------------------------------------------------------------+
 // | Font preprocessing                                                                                                                       |
 // +------------------------------------------------------------------------------------------------------------------------------------------+
@@ -147,9 +81,12 @@ preprocessed_font PreprocessFont(read_file_result File) {
     long_hor_metric* HorizontalMetricsTable = 0;
     vertical_metric* VerticalMetricsTable = 0;
     int16 IndexToLocFormat = 0;
-    uint16 nHMetrics = 0, nVMetrics = 0;
 
-    // CMap pointers
+    // hhea values
+    uint16 nHMetrics = 0, nVMetrics = 0;
+    FWORD HheaLineJump = 0;
+
+    // cmap pointers
     uint16* StartCodes = 0;
     uint16* EndCodes = 0;
     int16* IDDeltas = 0;
@@ -169,6 +106,10 @@ preprocessed_font PreprocessFont(read_file_result File) {
             IndexToLocFormat = Head.IndexToLocFormat;
             Result.IndexToLocFormat = Head.IndexToLocFormat;
             Result.UnitsPerEm = Head.UnitsPerEm;
+            Result.MinX = Head.MinX;
+            Result.MaxX = Head.MaxX;
+            Result.MinY = Head.MinY;
+            Result.MaxY = Head.MaxY;
         }
         else if (TagEquals(TableRecord.Tag, "maxp")) {
             maxp_table MaxP = ParseTTFMaxProfileTable(FilePointer + TableRecord.Offset);
@@ -185,6 +126,7 @@ preprocessed_font PreprocessFont(read_file_result File) {
         else if (TagEquals(TableRecord.Tag, "hhea")) {
             hhead_table HHeadTable = ParseHorizontalHeadTable(FilePointer + TableRecord.Offset);
             nHMetrics = HHeadTable.NumberOfHMetrics;
+            HheaLineJump = HHeadTable.Ascender - HHeadTable.Descender + HHeadTable.LineGap;
         }
         else if (TagEquals(TableRecord.Tag, "hmtx")) {
             HorizontalMetricsTable = (long_hor_metric*)(FilePointer + TableRecord.Offset);
@@ -199,7 +141,10 @@ preprocessed_font PreprocessFont(read_file_result File) {
         else if (TagEquals(TableRecord.Tag, "OS/2")) {
             os2_table OS2 = ParseTTFOS2Table(FilePointer + TableRecord.Offset);
             Assert(OS2.version >= 2);
-            Result.LineJump = OS2.sTypoAscender - OS2.sTypoDescender + OS2.sTypoLineGap;
+            fsSelection_flags Flags = (fsSelection_flags)OS2.fsSelection;
+            if (Flags & FS_USE_TYPO_METRICS) {
+                Result.LineJump = OS2.sTypoAscender - OS2.sTypoDescender + OS2.sTypoLineGap;
+            }
         }
         else if (TagEquals(TableRecord.Tag, "cmap")) {
             uint8* CMapPointer = FilePointer + TableRecord.Offset;
@@ -246,6 +191,10 @@ preprocessed_font PreprocessFont(read_file_result File) {
         HorizontalMetricsTable == 0
     ) {
         Raise("Some font table wasn't found");
+    }
+
+    if (Result.LineJump == 0) {
+        Result.LineJump = HheaLineJump;
     }
 
     FWORD* OtherLeftSideBearings = (FWORD*)(HorizontalMetricsTable + nHMetrics);
@@ -471,6 +420,10 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
     Result.LineJump = Font->LineJump;
     Result.nOnCurve = Font->nOnCurve;
     Result.nPoints = Font->nTotalPoints;
+    Result.MinX = Font->MinX;
+    Result.MaxX = Font->MaxX;
+    Result.MinY = Font->MinY;
+    Result.MaxY = Font->MaxY;
 
     uint8* FilePointer = (uint8*)Font->File.Content;
 
@@ -494,9 +447,9 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
         game_font_character* Character = &Result.Characters[c - '!'];
         Character->Letter   = c;
         Character->Width    = Font->AdvanceWidths[c - '!'];
-        Character->Height   = Font->AdvanceHeights[c - '!'];
+        Character->Height   = GlyphHeader.MaxY - GlyphHeader.MinY;
         Character->Left     = Font->LeftSideBearings[c - '!'];
-        Character->Top      = Font->TopSideBearings[c - '!'];
+        Character->Top      = GlyphHeader.MaxY;
         Character->nPoints  = Font->nPoints[c - '!'];
         Character->nOnCurve = Font->nOnCurvePoints[c - '!'];
 
@@ -721,82 +674,6 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
     }
 
     FreeMemoryArena(&TempArena);
-    
-    // FT_Library FTLibrary;
-    // FT_Face Font;
-    // FT_Error error = FT_Init_FreeType(&FTLibrary);
-    // if (error) Assert(false);
-
-    // error = FT_New_Face(FTLibrary, Asset->File.Path, 0, &Font);
-    // if (error == FT_Err_Unknown_File_Format) Raise("Freetype error: Unknown file format.");
-    // else if (error) Assert(false);
-        
-    // // Initializing char bitmaps
-    // error = FT_Set_Char_Size(Font, 0, LOAD_POINTS * 64, 128, 128);
-    // if (error) Assert(false);
-
-    // error = FT_Load_Char(Font, ' ', FT_LOAD_RENDER);
-    // if (error) Assert(false);
-    // Result.SpaceAdvance = Font->glyph->advance.x >> 6;
-
-    // uint32 Width = 0, Height = 0;
-    // GetFontBMPWidthAndHeight(Font, &Width, &Height);
-
-    // Result.Bitmap = MakeEmptyBitmap(Arena, Width, Height, true);
-
-    // uint32* Buffer = new uint32[3686400];
-    // memory_arena BufferArena = MemoryArena(3686400, (uint8*)Buffer);
-
-    // unsigned char c = '!';
-    // int X = 0;
-    // int Y = 0;
-    // int MaxHeight = 0;
-    // for (int i = 0; i < FONT_CHARACTERS_COUNT; i++) {
-    //     game_font_character* pCharacter = &Result.Characters[i];
-    //     error = FT_Load_Char(Font, c, FT_LOAD_RENDER);
-    //     if (error) Assert(false);
-        
-    //     FT_GlyphSlot Slot = Font->glyph;
-    //     FT_Bitmap FTBMP = Slot->bitmap;
-    //     game_bitmap Test = MakeEmptyBitmap(&BufferArena, FTBMP.width, FTBMP.rows, true);
-    //     LoadFTBMP(&FTBMP, &Test);
-
-    //     pCharacter->Letter = c;
-    //     pCharacter->Advance = Slot->advance.x >> 6;
-    //     pCharacter->Left = Slot->bitmap_left;
-    //     pCharacter->Top = Slot->bitmap_top;
-    //     pCharacter->Height = FTBMP.rows;
-    //     pCharacter->Width = FTBMP.width;
-
-    //     for (int Row = 0; Row <= FTBMP.rows; Row++) {
-    //         for (int Col = 0; Col <= FTBMP.width; Col++) {
-    //             uint32* PixelAddress = GetPixelAddress(&Result.Bitmap, X + Col, Y + Row);
-    //             *PixelAddress = GetPixel(&Test, Col, Row);
-    //         }
-    //     }
-
-    //     pCharacter->AtlasX = X;
-    //     pCharacter->AtlasY = Y;
-
-    //     PopSize(&BufferArena, FTBMP.width * FTBMP.rows * 4);
-
-    //     if (FTBMP.rows > MaxHeight) MaxHeight = FTBMP.rows;
-    //     X += FTBMP.width;
-    //     if (c == '@' || c == '`') {
-    //         X = 0;
-    //         Y += MaxHeight;
-    //         MaxHeight = 0;
-    //     }
-
-    //     c++;
-    //}
-
-    // Result.LineJump = Result.Characters[0].Height * 3 / 2;
-
-    // FT_Done_Face(Font);
-    // FT_Done_FreeType(FTLibrary);
-
-    // delete [] Buffer;
 
     delete [] GlyphOffsets;
 
@@ -1044,8 +921,36 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                             }
 
                             if (Valid)  {
-                                Found = true;
-                                break;
+                                // Test no other points of the contour are in the borders of the triangles: this can
+                                // cause some triangles to be invalid later
+                                link* TestVertex = Polygon.Vertices.First;
+
+                                segment2 Segments[3] = {
+                                    {A, B},
+                                    {B, C},
+                                    {C, A}
+                                };
+                                do {
+                                    glyph_contour_point* ContourPoint = (glyph_contour_point*)TestVertex->Data;
+                                    if (
+                                        ContourPoint->Index != First.Index && 
+                                        ContourPoint->Index != Second.Index && 
+                                        ContourPoint->Index != Third.Index
+                                    ) {
+                                        v2 P = GetContourPointV2(ContourPoint);
+                                        if (IsInside(Segments[0], P) || IsInside(Segments[1], P) || IsInside(Segments[2], P)) {
+                                            Valid = false;
+                                            break;
+                                        }
+                                    }
+
+                                    TestVertex = TestVertex->Next;
+                                } while (TestVertex && TestVertex != Polygon.Vertices.First);
+
+                                if (Valid) {
+                                    Found = true;
+                                    break;
+                                }
                             }
                         }
 
@@ -1053,56 +958,7 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                     } while (Vertex && Vertex != Polygon.Vertices.First);
 
                     if (!Found) {
-                        // Sometimes, colinear vertices prevent ear clipping from working.
-                        // To solve this we can brute force the triangle search
-                        link* Vertex1 = Polygon.Vertices.First->Previous;
-                        link* Vertex2 = Polygon.Vertices.First;
-                        link* Vertex3 = Polygon.Vertices.First->Next;
-                        
-                        do {
-                            do {
-                                do {
-                                    if (Vertex1 != Vertex2 && Vertex2 != Vertex3 && Vertex3 != Vertex1) {
-                                        v2 A = GetContourPointV2((glyph_contour_point*)Vertex1->Data);
-                                        v2 B = GetContourPointV2((glyph_contour_point*)Vertex2->Data);
-                                        v2 C = GetContourPointV2((glyph_contour_point*)Vertex3->Data);
-
-                                        triangle2 T = { A, B, C };
-                                        float Area = GetArea(T);
-
-                                        if (Area > 0) {
-                                            bool Valid = true;
-                                            for (int k = 0; k < VoidTriangles.Size(); k++) {
-                                                triangle2 Void = VoidTriangles[k];
-
-                                                if (Intersect(Void, T)) {
-                                                    Valid = false;
-                                                    break;
-                                                }
-                                            }
-
-                                            if (Valid)  {
-                                                Found = true;
-                                                First  = *(glyph_contour_point*)Vertex1->Data;
-                                                Second = *(glyph_contour_point*)Vertex2->Data;
-                                                Third  = *(glyph_contour_point*)Vertex3->Data;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    if (Found) break;
-                                    else       Vertex3 = Vertex3->Next;
-                                } while(Vertex3 && Vertex3 != Polygon.Vertices.First);
-                                if (Found) break;
-                                else       Vertex2 = Vertex2->Next;
-                            } while(Vertex2 && Vertex2 != Polygon.Vertices.First);
-                            if (Found) break;
-                            else       Vertex1 = Vertex1->Next;
-                        } while (Vertex1 && Vertex1 != Polygon.Vertices.First->Previous);
-
-                        Vertex = Vertex2;
-                        
-                        if (!Found) break;
+                        Raise("Glyph triangle not found!.");
                     }
 
                     uint32* Out = PushArray(Arena, 3, uint32);
