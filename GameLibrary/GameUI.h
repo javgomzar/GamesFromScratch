@@ -272,7 +272,13 @@ void ComputeDebugEntrySize(game_font* Font, debug_entry* Entry, ui_size* SizeX, 
                         }
                     }
                 }
-                else if (IsStructType(Entry->Type)) {}
+                else if (IsStructType(Entry->Type)) {
+                    void* Pointer = *(void**)Entry->Value;
+                    if (Pointer == 0) {
+                        sprintf_s(Entry->ValueString, "NULL");
+                        GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                    }
+                }
                 else Raise("Invalid debug type.");
             }
         }

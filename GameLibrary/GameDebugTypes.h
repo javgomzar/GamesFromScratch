@@ -26,10 +26,11 @@ enum debug_type {
     Debug_Type_character_action_id,
     Debug_Type_transform,
     Debug_Type_game_entity,
+    Debug_Type_enemy,
 };
 
 bool IsEnumType(debug_type Type) { return Type > 22 && Type < 25; }
-bool IsStructType(debug_type Type) { return Type > 24 && Type < 27; }
+bool IsStructType(debug_type Type) { return Type > 24 && Type < 28; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -61,7 +62,7 @@ struct debug_struct_member {
     bool IsPointer;
 };
 
-const int STRUCT_MEMBERS_SIZE = 14;
+const int STRUCT_MEMBERS_SIZE = 15;
 debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Translation", Debug_Type_transform, Debug_Type_v3, sizeof(v3), (uint64)(&((transform*)0)->Translation),0, false},
     {"Scale", Debug_Type_transform, Debug_Type_scale, sizeof(scale), (uint64)(&((transform*)0)->Scale),0, false},
@@ -77,4 +78,5 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Collided", Debug_Type_game_entity, Debug_Type_bool, sizeof(bool), (uint64)(&((game_entity*)0)->Collided),0, false},
     {"Active", Debug_Type_game_entity, Debug_Type_bool, sizeof(bool), (uint64)(&((game_entity*)0)->Active),0, false},
     {"Hovered", Debug_Type_game_entity, Debug_Type_bool, sizeof(bool), (uint64)(&((game_entity*)0)->Hovered),0, false},
+    {"Entity", Debug_Type_enemy, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((enemy*)0)->Entity),0, true},
 };
