@@ -108,8 +108,19 @@ inline uint32 Hash(char* String) {
     return Hash;
 }
 
+// Random functions
+
 inline bool Bernoulli(float p = 0.5f) {
 	return (float)rand() / (float)RAND_MAX >= p;
+}
+
+inline float RandFloat(float Min = 0.0f, float Max = 1.0f) {
+	Assert(Min <= Max);
+	return ((float)rand() / (float)RAND_MAX) * (Max - Min) + Min;
+}
+
+inline int RandInt(int Min, int Max) {
+	return RandFloat() * (Max - Min) + Min;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
