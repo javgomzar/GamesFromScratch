@@ -111,6 +111,7 @@ stats Stats(uint32 MaxHP, uint32 Strength, uint32 Defense, uint32 Intelligence, 
 enum enemy_type {
     Enemy_Type_Horns,
     Enemy_Type_Dog,
+    Enemy_Type_Dyno,
 
     enemy_type_count
 };
@@ -125,33 +126,46 @@ struct enemy {
 
 enemy EnemyTemplates[enemy_type_count] = {
     {
-        0,
+        NULL,
         Stats(50, 7, 10, 5, 5, 6, 10),
         Enemy_Type_Horns,
         Mesh_Horns_ID,
         Bitmap_Enemy_ID,
     },
     {
-        0,
-        Stats(20, 2, 8, 2, 6, 7, 10),
+        NULL,
+        Stats(20, 2, 8, 2, 6, 10, 10),
         Enemy_Type_Dog,
         Mesh_Dog_ID,
+        Bitmap_Empty_ID,
+    },
+    {
+        NULL,
+        Stats(100, 10, 8, 1, 3, 5, 10),
+        Enemy_Type_Dyno,
+        Mesh_Dyno_ID,
         Bitmap_Empty_ID,
     },
 };
 
 v3 EnemyColliderOffset[enemy_type_count] = {
     V3(0,0,0),
-    V3(0,1,0)
+    V3(0,1,0),
+    V3(0,2,0)
 };
 
 char* EnemyNames[enemy_type_count] = {
     "Horns",
-    "Dog"
+    "Dog",
+    "Dyno"
 };
 
 enemy Enemy(enemy_type Type) {
     return EnemyTemplates[Type];
+}
+
+enemy RandomEnemy() {
+    return Enemy((enemy_type)RandInt(0, enemy_type_count));
 }
 
 const int MAX_ENEMIES = 32;

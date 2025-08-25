@@ -13,6 +13,7 @@ enum game_mesh_id {
     Mesh_Shield_ID,
     Mesh_Sword_ID,
     Mesh_Selector_ID,
+    Mesh_Dyno_ID,
     
     game_mesh_id_count
 };
