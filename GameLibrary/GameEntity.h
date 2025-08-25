@@ -87,6 +87,7 @@ DefineEntityList(MAX_CAMERAS, camera);
 // | Stats                                                                                                                                        |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
+INTROSPECT
 struct stats {
     uint32 HP;
     uint32 MaxHP;
@@ -108,6 +109,7 @@ stats Stats(uint32 MaxHP, uint32 Strength, uint32 Defense, uint32 Intelligence, 
 // | Enemies                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
+INTROSPECT
 enum enemy_type {
     Enemy_Type_Horns,
     Enemy_Type_Dog,
@@ -116,6 +118,7 @@ enum enemy_type {
     enemy_type_count
 };
 
+INTROSPECT
 struct enemy {
     game_entity* Entity;
     stats Stats;

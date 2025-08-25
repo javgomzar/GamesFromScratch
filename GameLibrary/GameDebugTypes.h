@@ -22,15 +22,19 @@ enum debug_type {
     Debug_Type_color,
     Debug_Type_collider,
     Debug_Type_memory_arena,
+    Debug_Type_game_mesh_id,
+    Debug_Type_game_bitmap_id,
     Debug_Type_game_entity_type,
+    Debug_Type_enemy_type,
     Debug_Type_character_action_id,
     Debug_Type_transform,
     Debug_Type_game_entity,
+    Debug_Type_stats,
     Debug_Type_enemy,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 25; }
-bool IsStructType(debug_type Type) { return Type > 24 && Type < 28; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 28; }
+bool IsStructType(debug_type Type) { return Type > 27 && Type < 32; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -38,14 +42,33 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 10;
+const int ENUM_VALUES_SIZE = 29;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
+    {Debug_Type_game_mesh_id, "Mesh_Horns_ID", 0},
+    {Debug_Type_game_mesh_id, "Mesh_Dog_ID", 1},
+    {Debug_Type_game_mesh_id, "Mesh_Sphere_ID", 2},
+    {Debug_Type_game_mesh_id, "Mesh_Body_ID", 3},
+    {Debug_Type_game_mesh_id, "Mesh_Shield_ID", 4},
+    {Debug_Type_game_mesh_id, "Mesh_Sword_ID", 5},
+    {Debug_Type_game_mesh_id, "Mesh_Selector_ID", 6},
+    {Debug_Type_game_mesh_id, "Mesh_Dyno_ID", 7},
+    {Debug_Type_game_mesh_id, "game_mesh_id_count", 8},
+    {Debug_Type_game_bitmap_id, "Bitmap_Background_ID", 0},
+    {Debug_Type_game_bitmap_id, "Bitmap_Button_ID", 1},
+    {Debug_Type_game_bitmap_id, "Bitmap_Empty_ID", 2},
+    {Debug_Type_game_bitmap_id, "Bitmap_Enemy_ID", 3},
+    {Debug_Type_game_bitmap_id, "Bitmap_Player_ID", 4},
+    {Debug_Type_game_bitmap_id, "game_bitmap_id_count", 5},
     {Debug_Type_game_entity_type, "Entity_Type_Character", 0},
     {Debug_Type_game_entity_type, "Entity_Type_Enemy", 1},
     {Debug_Type_game_entity_type, "Entity_Type_Camera", 2},
     {Debug_Type_game_entity_type, "Entity_Type_Prop", 3},
     {Debug_Type_game_entity_type, "Entity_Type_Weapon", 4},
     {Debug_Type_game_entity_type, "game_entity_type_count", 5},
+    {Debug_Type_enemy_type, "Enemy_Type_Horns", 0},
+    {Debug_Type_enemy_type, "Enemy_Type_Dog", 1},
+    {Debug_Type_enemy_type, "Enemy_Type_Dyno", 2},
+    {Debug_Type_enemy_type, "enemy_type_count", 3},
     {Debug_Type_character_action_id, "Character_Action_Idle_ID", 0},
     {Debug_Type_character_action_id, "Character_Action_Walk_ID", 1},
     {Debug_Type_character_action_id, "Character_Action_Jump_ID", 2},
@@ -62,7 +85,7 @@ struct debug_struct_member {
     bool IsPointer;
 };
 
-const int STRUCT_MEMBERS_SIZE = 15;
+const int STRUCT_MEMBERS_SIZE = 27;
 debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Translation", Debug_Type_transform, Debug_Type_v3, sizeof(v3), (uint64)(&((transform*)0)->Translation),0, false},
     {"Scale", Debug_Type_transform, Debug_Type_scale, sizeof(scale), (uint64)(&((transform*)0)->Scale),0, false},
@@ -78,5 +101,17 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Collided", Debug_Type_game_entity, Debug_Type_bool, sizeof(bool), (uint64)(&((game_entity*)0)->Collided),0, false},
     {"Active", Debug_Type_game_entity, Debug_Type_bool, sizeof(bool), (uint64)(&((game_entity*)0)->Active),0, false},
     {"Hovered", Debug_Type_game_entity, Debug_Type_bool, sizeof(bool), (uint64)(&((game_entity*)0)->Hovered),0, false},
+    {"HP", Debug_Type_stats, Debug_Type_uint32, sizeof(uint32), (uint64)(&((stats*)0)->HP),0, false},
+    {"MaxHP", Debug_Type_stats, Debug_Type_uint32, sizeof(uint32), (uint64)(&((stats*)0)->MaxHP),0, false},
+    {"Strength", Debug_Type_stats, Debug_Type_uint32, sizeof(uint32), (uint64)(&((stats*)0)->Strength),0, false},
+    {"Defense", Debug_Type_stats, Debug_Type_uint32, sizeof(uint32), (uint64)(&((stats*)0)->Defense),0, false},
+    {"Intelligence", Debug_Type_stats, Debug_Type_uint32, sizeof(uint32), (uint64)(&((stats*)0)->Intelligence),0, false},
+    {"Wisdom", Debug_Type_stats, Debug_Type_uint32, sizeof(uint32), (uint64)(&((stats*)0)->Wisdom),0, false},
+    {"Speed", Debug_Type_stats, Debug_Type_float, sizeof(float), (uint64)(&((stats*)0)->Speed),0, false},
+    {"Precission", Debug_Type_stats, Debug_Type_float, sizeof(float), (uint64)(&((stats*)0)->Precission),0, false},
     {"Entity", Debug_Type_enemy, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((enemy*)0)->Entity),0, true},
+    {"Stats", Debug_Type_enemy, Debug_Type_stats, sizeof(stats), (uint64)(&((enemy*)0)->Stats),0, false},
+    {"Type", Debug_Type_enemy, Debug_Type_enemy_type, sizeof(enemy_type), (uint64)(&((enemy*)0)->Type),0, false},
+    {"MeshID", Debug_Type_enemy, Debug_Type_game_mesh_id, sizeof(game_mesh_id), (uint64)(&((enemy*)0)->MeshID),0, false},
+    {"TextureID", Debug_Type_enemy, Debug_Type_game_bitmap_id, sizeof(game_bitmap_id), (uint64)(&((enemy*)0)->TextureID),0, false},
 };

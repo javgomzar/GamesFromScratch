@@ -339,7 +339,7 @@ struct ui_element {
     bool Dragged;
 };
 
-const int MAX_UI_ELEMENTS = 64;
+const int MAX_UI_ELEMENTS = 128;
 struct ui_hierarchy {
     ui_element Elements[MAX_UI_ELEMENTS];
     ui_element* Parent;
@@ -1045,7 +1045,7 @@ void UpdateUI(
         static bool DebugEntities = false;
         if (UIDropdown("Entities", DebugEntities)) {
             character* Character = &EntityState->Characters.List[0];
-            DEBUG_VALUE(Character->Action.ID, character_action_id);
+            DEBUG_ARRAY(EntityState->Enemies.List, EntityState->Enemies.Count, enemy);
             for (; i < DebugInfo->nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];
                 UIDebugValue(Entry);

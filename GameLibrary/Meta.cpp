@@ -73,6 +73,8 @@ int main() {
         "..\\GameLibrary\\GamePlatform.h",
         "..\\GameLibrary\\GameMath.h",
         "..\\GameAssets\\GameAssets.h",
+        "..\\GameAssets\\Mesh\\GameMesh.h",
+        "..\\GameAssets\\Bitmap\\GameBitmap.h",
         "..\\GameLibrary\\GameEntity.h",
     };
 

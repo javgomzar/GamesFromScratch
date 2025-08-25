@@ -5,6 +5,7 @@
 #ifndef GAME_MESH
 #define GAME_MESH
 
+INTROSPECT
 enum game_mesh_id {
     Mesh_Horns_ID,
     Mesh_Dog_ID,

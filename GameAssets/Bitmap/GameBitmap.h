@@ -3,6 +3,7 @@
 #ifndef GAME_BITMAP
 #define GAME_BITMAP
 
+INTROSPECT
 enum game_bitmap_id {
     Bitmap_Background_ID,
     Bitmap_Button_ID,
