@@ -9,7 +9,7 @@
 #include "GameRender.h"
 
 struct debug_entry {
-    char* Name;
+    char Name[64];
     debug_entry* Parent;
     void* Value;
     debug_type Type;
@@ -35,8 +35,9 @@ struct debug_info {
 debug_entry* _AddDebugEntry(debug_info* DebugInfo, char* Name, debug_type Type, int Size, void* Value, bool Editable, debug_entry* Parent = 0) {
     debug_entry* Entry = &DebugInfo->Entries[DebugInfo->nEntries++];
     *Entry = {
-        Name, Parent, Value, Type, Editable
+        {}, Parent, Value, Type, Editable
     };
+    strcpy_s(Entry->Name, Name);
     if (IsStructType(Type) && Value != NULL) {
         bool Found = false;
         for (int i = 0; i < STRUCT_MEMBERS_SIZE; i++) {
@@ -74,9 +75,24 @@ debug_entry* _AddDebugEntry(debug_info* DebugInfo, char* Name, debug_type Type, 
     return Entry;
 }
 
-#define DEBUG_POINTER(Pointer, Type)     _AddDebugEntry(DebugInfo, #Pointer, Debug_Type_##Type, sizeof(Type), (void*)##Pointer,  false)
-#define DEBUG_VALUE(Variable, Type)      _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &##Variable, false)
-#define DEBUG_EDIT_VALUE(Variable, Type) _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &##Variable, true)
+debug_entry* _AddDebugArray(debug_info* DebugInfo, char* Name, debug_type Type, int Size, void* Value, uint32 Count) {
+    uint8* Memory = (uint8*)Value;
+    char Buffer[64];
+    debug_entry* Result = 0;
+    for (int i = 0; i < Count; i++) {
+        sprintf_s(Buffer, "%s[%d]", Name, i);
+        
+        if (i == 0) Result = _AddDebugEntry(DebugInfo, Buffer, Type, Size, Memory, false);
+        else        _AddDebugEntry(DebugInfo, Buffer, Type, Size, Memory, false);
+        Memory += Size;
+    }
+    return Result;
+}
+
+#define DEBUG_ARRAY(Pointer, Count, Type) _AddDebugArray(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)Pointer, Count)
+#define DEBUG_POINTER(Pointer, Type)      _AddDebugEntry(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)##Pointer,  false)
+#define DEBUG_VALUE(Variable, Type)       _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &##Variable, false)
+#define DEBUG_EDIT_VALUE(Variable, Type)  _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &##Variable, true)
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Debug                                                                                                                                                            |
@@ -154,6 +170,9 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position) {
 
         default: {
             if (IsEnumType(Entry->Type)) {
+                PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
+            }
+            else if (IsStructType(Entry->Type)) {
                 PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
             }
         }
