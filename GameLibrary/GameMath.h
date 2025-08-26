@@ -5,9 +5,6 @@
 #include <math.h>
 #include <float.h>
 #include <stdlib.h>
-#include <math.h>
-#include <float.h>
-#include <stdlib.h>
 
 //#include "fftw3.h"
 //#pragma comment(lib, "libfftw3-3.lib")

@@ -801,6 +801,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     ReleaseDC(Window, DeviceContext);
 
+    uint32 Seed = clock();
+    srand(Seed);
+
     Running = true;
     bool FirstFrame = true;
     // Main message loop:

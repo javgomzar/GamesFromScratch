@@ -118,6 +118,10 @@ enum enemy_type {
     enemy_type_count
 };
 
+inline enemy_type RandomEnemyType() {
+    return (enemy_type)RandInt(0, enemy_type_count);
+}
+
 INTROSPECT
 struct enemy {
     game_entity* Entity;
@@ -163,12 +167,8 @@ char* EnemyNames[enemy_type_count] = {
     "Dyno"
 };
 
-enemy Enemy(enemy_type Type) {
+enemy NewEnemy(enemy_type Type) {
     return EnemyTemplates[Type];
-}
-
-enemy RandomEnemy() {
-    return Enemy((enemy_type)RandInt(0, enemy_type_count));
 }
 
 const int MAX_ENEMIES = 32;
@@ -551,7 +551,7 @@ enemy* AddEnemy(game_entity_state* State, v3 Position, enemy_type Type) {
     else EnemyID = State->Enemies.Count++;
 
     enemy* pEnemy = &State->Enemies.List[EnemyID];
-    *pEnemy = Enemy(Type);
+    *pEnemy = NewEnemy(Type);
 
     char NameBuffer[32];
     sprintf_s(NameBuffer, "%s %d", EnemyNames[Type], EnemyQuantities[Type]++);
@@ -639,104 +639,6 @@ weapon* AddWeapon(
     );
     pWeapon->Entity->Index = WeaponID;
     return pWeapon;
-}
-
-void PushEntities(render_group* Group, game_entity_state* State, game_input* Input, float Time) {
-    TIMED_BLOCK;
-    basis Basis = Group->Camera->Basis;
-    ray Ray = MouseRay(Group->Width, Group->Height, Group->Camera->Position + Group->Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
-    int i = 0;
-    int nEntities = State->Entities.Count;
-    while (nEntities > 0 && i < MAX_ENTITIES) {
-        game_entity* Entity = &State->Entities.List[i++];
-
-        if (Entity->Active) nEntities--;
-        else continue;
-
-        collider Collider = Entity->Transform * Entity->Collider;
-        Entity->Hovered = Raycast(Ray, Collider);
-        switch(Entity->Type) {
-            case Entity_Type_Character: {
-                character* pCharacter = &State->Characters.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    Mesh_Body_ID,
-                    Entity->Transform,
-                    Shader_Pipeline_Mesh_Bones_ID,
-                    Bitmap_Empty_ID,
-                    White,
-                    &pCharacter->Armature,
-                    Entity->Hovered
-                );
-
-                float HPBarWidth = 2.0f;
-                float HPBarHeight = 0.2f;
-                v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X + V3(0, 4.75f, 0);
-                PushFillbar(
-                    Group, 
-                    Entity->Name, 
-                    pCharacter->Stats.HP, pCharacter->Stats.MaxHP,
-                    Position, 
-                    Group->Camera->Basis.X, Group->Camera->Basis.Y,
-                    2.0f, 0.2f
-                );
-            } break;
-    
-            case Entity_Type_Enemy: {
-                enemy* pEnemy = &State->Enemies.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    pEnemy->MeshID,
-                    Entity->Transform,
-                    Shader_Pipeline_Mesh_ID,
-                    pEnemy->TextureID,
-                    White, 0,
-                    Entity->Hovered
-                );
-
-                float HPBarWidth = 2.0f;
-                float HPBarHeight = 0.2f;
-                v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X;
-                Position.Y = 4.75f;
-                PushFillbar(
-                    Group, 
-                    Entity->Name, 
-                    pEnemy->Stats.HP, pEnemy->Stats.MaxHP,
-                    Position, 
-                    Group->Camera->Basis.X, Group->Camera->Basis.Y,
-                    2.0f, 0.2f
-                );
-            } break;
-
-            case Entity_Type_Prop: {
-                prop* pProp = &State->Props.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    pProp->MeshID,
-                    Entity->Transform,
-                    pProp->Shader,
-                    Bitmap_Empty_ID,
-                    pProp->Color
-                );
-            } break;
-
-            case Entity_Type_Weapon: {
-                weapon* pWeapon = &State->Weapons.List[Entity->Index];
-                game_mesh_id MeshID;
-                switch(pWeapon->Type) {
-                    case Weapon_Sword: MeshID = Mesh_Sword_ID; break;
-                    case Weapon_Shield: MeshID = Mesh_Shield_ID; break;
-                    default: Assert(false);
-                }
-
-                PushMesh(Group, MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
-            } break;
-        }
-
-        if (Group->Debug && Group->DebugColliders && Entity->Type != Entity_Type_Camera) {
-            PushCollider(Group, Entity->Collider, Entity->Transform, Entity->Collided ? Red : Yellow);
-        }
-    }
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1011,6 +913,12 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
 // Combat
     if (!Combat->Active) {
         if (Input->Keyboard.One.JustPressed) {
+            uint32 nEnemies = 3;
+            v3 Position = V3(10, 0, -5 * ((nEnemies - 1) / 2.0f));
+            for (int i = 0; i < nEnemies; i++) {
+                AddEnemy(EntityState, Position, RandomEnemyType());
+                Position.Z += 5.0f;
+            }
             Combat->Start();
         }
     }
@@ -1209,6 +1117,112 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
                 }
                 pWeapon->Entity->Transform = ModelTransform * Bone.Transform * ControlledCharacter->Entity->Transform;
             }
+        }
+    }
+}
+
+void PushEntities(render_group* Group, game_state* GameState, game_input* Input, float Time) {
+    TIMED_BLOCK;
+
+    game_combat* Combat = &GameState->Combat;
+    game_entity_state* State = &GameState->Entities;
+
+    basis Basis = Group->Camera->Basis;
+    ray Ray = MouseRay(Group->Width, Group->Height, Group->Camera->Position + Group->Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
+    int i = 0;
+    int nEntities = State->Entities.Count;
+    while (nEntities > 0 && i < MAX_ENTITIES) {
+        game_entity* Entity = &State->Entities.List[i++];
+
+        if (Entity->Active) nEntities--;
+        else continue;
+
+        collider Collider = Entity->Transform * Entity->Collider;
+        Entity->Hovered = Raycast(Ray, Collider);
+        switch(Entity->Type) {
+            case Entity_Type_Character: {
+                character* pCharacter = &State->Characters.List[Entity->Index];
+                PushMesh(
+                    Group,
+                    Mesh_Body_ID,
+                    Entity->Transform,
+                    Shader_Pipeline_Mesh_Bones_ID,
+                    Bitmap_Empty_ID,
+                    White,
+                    &pCharacter->Armature,
+                    Entity->Hovered
+                );
+
+                if (Combat->Active) {
+                    float HPBarWidth = 2.0f;
+                    float HPBarHeight = 0.2f;
+                    v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X + V3(0, 4.75f, 0);
+                    PushFillbar(
+                        Group, 
+                        Entity->Name, 
+                        pCharacter->Stats.HP, pCharacter->Stats.MaxHP,
+                        Position, 
+                        Group->Camera->Basis.X, Group->Camera->Basis.Y,
+                        2.0f, 0.2f
+                    );
+                }
+            } break;
+    
+            case Entity_Type_Enemy: {
+                enemy* pEnemy = &State->Enemies.List[Entity->Index];
+                PushMesh(
+                    Group,
+                    pEnemy->MeshID,
+                    Entity->Transform,
+                    Shader_Pipeline_Mesh_ID,
+                    pEnemy->TextureID,
+                    White, 0,
+                    Entity->Hovered
+                );
+
+                if (Combat->Active) {
+                    float HPBarWidth = 2.0f;
+                    float HPBarHeight = 0.2f;
+                    v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X;
+                    Position.Y = 4.75f;
+                    PushFillbar(
+                        Group, 
+                        Entity->Name, 
+                        pEnemy->Stats.HP, pEnemy->Stats.MaxHP,
+                        Position, 
+                        Group->Camera->Basis.X, Group->Camera->Basis.Y,
+                        2.0f, 0.2f
+                    );
+                }
+            } break;
+
+            case Entity_Type_Prop: {
+                prop* pProp = &State->Props.List[Entity->Index];
+                PushMesh(
+                    Group,
+                    pProp->MeshID,
+                    Entity->Transform,
+                    pProp->Shader,
+                    Bitmap_Empty_ID,
+                    pProp->Color
+                );
+            } break;
+
+            case Entity_Type_Weapon: {
+                weapon* pWeapon = &State->Weapons.List[Entity->Index];
+                game_mesh_id MeshID;
+                switch(pWeapon->Type) {
+                    case Weapon_Sword: MeshID = Mesh_Sword_ID; break;
+                    case Weapon_Shield: MeshID = Mesh_Shield_ID; break;
+                    default: Assert(false);
+                }
+
+                PushMesh(Group, MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
+            } break;
+        }
+
+        if (Group->Debug && Group->DebugColliders && Entity->Type != Entity_Type_Camera) {
+            PushCollider(Group, Entity->Collider, Entity->Transform, Entity->Collided ? Red : Yellow);
         }
     }
 }

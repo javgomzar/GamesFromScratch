@@ -64,9 +64,6 @@ extern "C" GAME_UPDATE(GameUpdate)
         Group->Camera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
         Group->Camera->OnAir = true;
         character* Character = AddCharacter(Assets, EntityState, V3(0,0,0), 100);
-        enemy* Enemy1 = AddEnemy(EntityState, V3(10,0,5), Enemy_Type_Horns);
-        enemy* Enemy2 = AddEnemy(EntityState, V3(10,0,0), Enemy_Type_Dog);
-        enemy* Enemy3 = AddEnemy(EntityState, V3(10,0,-5), Enemy_Type_Horns);
         weapon* Sword = AddWeapon(EntityState, Weapon_Sword, White, V3(-5,0,0));
         weapon* Shield = AddWeapon(EntityState, Weapon_Shield, White, V3(-10,0,0));
         Equip(Sword, Character);
@@ -86,7 +83,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
-    PushEntities(Group, &pGameState->Entities, Input, Time);
+    PushEntities(Group, pGameState, Input, Time);
 
     // TestRendering(Group, Input);
 
