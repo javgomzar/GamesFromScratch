@@ -1068,7 +1068,7 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
             pEnemy->Entity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
         }
 
-        v3 FacingDirection = V3(0,0,1);
+        v3 FacingDirection = V3(-1,0,0);
         if (ControlledCharacter != NULL && ControlledCharacter->Entity != NULL) {
             FacingDirection = ControlledCharacter->Entity->Transform.Translation - pEnemy->Entity->Transform.Translation;
         }
