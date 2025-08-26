@@ -217,12 +217,19 @@ void LogGameDebugRecords(render_group* Group) {
             if (Record->HitCount > 0) {
                 PushText(Group, V2(RecordX, RecordY), Font_Menlo_Regular_ID, Record->FunctionName, White, Points);
                 RecordX += FunctionColWidth + HMargin;
+
                 sprintf_s(Buffer, "%d", Record->HitCount);
+                GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
+                RecordX += HitsColWidth - Width;
                 PushText(Group, V2(RecordX, RecordY), Font_Menlo_Regular_ID, Buffer, White, Points);
-                RecordX += HitsColWidth + HMargin;
+                RecordX += Width + HMargin;
+                
                 sprintf_s(Buffer, "%.2f", Record->CycleCount / 1000000.0f);
+                GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
+                RecordX += MCyclesColWidth - Width;
                 PushText(Group, V2(RecordX, RecordY), Font_Menlo_Regular_ID, Buffer, White, Points);
-                RecordX += MCyclesColWidth + HMargin;
+                RecordX += Width + HMargin;
+
                 sprintf_s(Buffer, "%s:%d", Record->FileName, Record->LineNumber);
                 PushText(Group, V2(RecordX, RecordY), Font_Menlo_Regular_ID, Buffer, White, Points);
                 RecordX = HMargin;
