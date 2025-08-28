@@ -34,43 +34,11 @@ struct debug_info {
 
 debug_entry* _AddDebugEntry(debug_info* DebugInfo, char* Name, debug_type Type, int Size, void* Value, bool Editable, debug_entry* Parent = 0) {
     debug_entry* Entry = &DebugInfo->Entries[DebugInfo->nEntries++];
-    *Entry = {
-        {}, Parent, Value, Type, Editable
-    };
     strcpy_s(Entry->Name, Name);
-    if (IsStructType(Type) && Value != NULL) {
-        bool Found = false;
-        for (int i = 0; i < STRUCT_MEMBERS_SIZE; i++) {
-            debug_struct_member Member = StructMembers[i];
-            if (Member.StructType == Type) {
-                if (!Found) Found = true;
-                while (Member.StructType == Type) {
-                    uint8* Pointer = (uint8*)Value + Member.Offset;
-                    if (Member.IsPointer) {
-                        if (Pointer) {
-                            _AddDebugEntry(DebugInfo, Member.Name, Member.MemberType, Member.Size, *(void**)Pointer, Editable, Entry);
-                        }
-                        else {
-                            _AddDebugEntry(DebugInfo, Member.Name, Member.MemberType, Member.Size, 0, Editable, Entry);
-                        }
-                    }
-                    else if (Member.ArraySize > 0) {
-                        for (int j = 0; j < Member.ArraySize; j++) {
-                            _AddDebugEntry(DebugInfo, Member.Name, Member.MemberType, Member.Size, (void*)Pointer, Editable, Entry);
-                            Pointer += Member.Size;
-                        }
-                    }
-                    else {
-                        _AddDebugEntry(DebugInfo, Member.Name, Member.MemberType, Member.Size, (void*)Pointer, Editable, Entry);
-                    }
-                    i++;
-                    if (i < STRUCT_MEMBERS_SIZE) Member = StructMembers[i];
-                    else break;
-                }
-                break;
-            }
-        }
-    }
+    Entry->Parent = Parent;
+    Entry->Value = Value;
+    Entry->Type = Type;
+    Entry->Editable = Editable;
 
     return Entry;
 }
@@ -90,9 +58,9 @@ debug_entry* _AddDebugArray(debug_info* DebugInfo, char* Name, debug_type Type, 
 }
 
 #define DEBUG_ARRAY(Pointer, Count, Type) _AddDebugArray(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)Pointer, Count)
-#define DEBUG_POINTER(Pointer, Type)      _AddDebugEntry(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)##Pointer,  false)
-#define DEBUG_VALUE(Variable, Type)       _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &##Variable, false)
-#define DEBUG_EDIT_VALUE(Variable, Type)  _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &##Variable, true)
+#define DEBUG_POINTER(Pointer, Type)      _AddDebugEntry(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)Pointer, false)
+#define DEBUG_VALUE(Variable, Type)       _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &(Variable), false)
+#define DEBUG_EDIT_VALUE(Variable, Type)  _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &(Variable), true)
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Debug                                                                                                                                                            |
@@ -100,7 +68,7 @@ debug_entry* _AddDebugArray(debug_info* DebugInfo, char* Name, debug_type Type, 
 
 const float DEBUG_ENTRIES_TEXT_POINTS = 10.0f;
 
-void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position) {
+void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color Color) {
     TIMED_BLOCK;
     
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
@@ -117,7 +85,7 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position) {
 
     sprintf_s(Buffer, "%s: ", Entry->Name);
     if (Entry->Type != Debug_Type_memory_arena) {
-        PushText(Group, TextCursor, Font_Menlo_Regular_ID, Buffer, White, Points);
+        PushText(Group, TextCursor, Font_Menlo_Regular_ID, Buffer, Color, Points);
     }
 
     float Width, Height;

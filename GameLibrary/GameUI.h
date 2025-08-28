@@ -273,9 +273,12 @@ void ComputeDebugEntrySize(game_font* Font, debug_entry* Entry, ui_size* SizeX, 
                     }
                 }
                 else if (IsStructType(Entry->Type)) {
-                    void* Pointer = *(void**)Entry->Value;
-                    if (Pointer == 0) {
+                    if (Entry->Value == 0) {
                         sprintf_s(Entry->ValueString, "NULL");
+                        GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                    }
+                    else {
+                        sprintf_s(Entry->ValueString, "0x%016llx", (uint64)Entry->Value);
                         GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
                     }
                 }
@@ -337,6 +340,7 @@ struct ui_element {
     bool Hovered;
     bool Clicked;
     bool Dragged;
+    bool Expand;
 };
 
 const int MAX_UI_ELEMENTS = 64;
@@ -353,6 +357,7 @@ struct ui_context {
     ui_hierarchy Tree;
     render_group* Group;
     game_input* Input;
+    debug_info* DebugInfo;
     std::vector<uint32> IDStack;
     uint32 CurrentIndex;
 };
@@ -492,6 +497,7 @@ ui_element* PushUIElement(
 void BeginContext(game_memory* Memory, game_input* Input) {
     UI.Group = &Memory->RenderGroup;
     UI.Input = Input;
+    UI.DebugInfo = &Memory->DebugInfo;
 }
 
 void ComputeSizes() {
@@ -639,7 +645,7 @@ void RenderUI() {
     while (Element) {
         v2 Position = LeftTop(Element->Rect);
         if (Element->DebugEntry) {
-            PushDebugEntry(UI.Group, Element->DebugEntry, Position);
+            PushDebugEntry(UI.Group, Element->DebugEntry, Position, Element->Color);
         }
         else {
             if (Element->Flags & RENDER_RECT_UI_FLAG) {
@@ -714,7 +720,7 @@ void UIText(
     Element->Points = Points;
 }
 
-bool UIDropdown(char* Text, bool& Control) {
+bool UIDropdown(char* Text) {
     int Points = 12;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
@@ -733,9 +739,9 @@ bool UIDropdown(char* Text, bool& Control) {
 
     bool Clicked = Hovered && UI.Input->Mouse.LeftClick.JustPressed;
     if (Clicked) {
-        Control = !Control;
+        Element->Expand = !Element->Expand;
     }
-    return Control;
+    return Element->Expand;
 }
 
 bool UIButton(char* Text) {
@@ -766,6 +772,68 @@ void UIDebugValue(debug_entry* Entry) {
 
     ui_element* Element = PushUIElement(Entry->Name, Sizes[0], Sizes[1], ui_alignment_min, ui_alignment_center);
     Element->DebugEntry = Entry;
+    if (IsStructType(Entry->Type)) {
+        if (Element->Hovered) Element->Color = Yellow;
+        if (Entry->Value != NULL && Element->Clicked) {
+            Element->Expand = !Element->Expand;
+        }
+        if (Element->Expand) {
+            // Add members
+            bool Found = false;
+            for (int i = 0; i < STRUCT_MEMBERS_SIZE; i++) {
+                debug_struct_member Member = StructMembers[i];
+                if (Member.StructType == Entry->Type) {
+                    if (!Found) Found = true;
+                    while (Member.StructType == Entry->Type) {
+                        uint8* Pointer = (uint8*)Entry->Value + Member.Offset;
+                        if (Member.IsPointer) {
+                            debug_entry* ChildEntry = _AddDebugEntry(
+                                UI.DebugInfo, 
+                                Member.Name, 
+                                Member.MemberType, 
+                                Member.Size, 
+                                Pointer ? *(void**)Pointer : NULL, 
+                                Entry->Editable, 
+                                Entry
+                            );
+                            UIDebugValue(ChildEntry);
+                        }
+                        else if (Member.ArraySize > 0) {
+                            for (int j = 0; j < Member.ArraySize; j++) {
+                                debug_entry* ChildEntry = _AddDebugEntry(
+                                    UI.DebugInfo, 
+                                    Member.Name, 
+                                    Member.MemberType, 
+                                    Member.Size, 
+                                    Pointer, 
+                                    Entry->Editable, 
+                                    Entry
+                                );
+                                Pointer += Member.Size;
+                                UIDebugValue(ChildEntry);
+                            }
+                        }
+                        else {
+                            debug_entry* ChildEntry = _AddDebugEntry(
+                                UI.DebugInfo, 
+                                Member.Name, 
+                                Member.MemberType, 
+                                Member.Size, 
+                                (void*)Pointer, 
+                                Entry->Editable, 
+                                Entry
+                            );
+                            UIDebugValue(ChildEntry);
+                        }
+                        i++;
+                        if (i < STRUCT_MEMBERS_SIZE) Member = StructMembers[i];
+                        else break;
+                    }
+                    break;
+                }
+            }
+        }
+    }
 }
 
 void UpdateUI(
@@ -852,13 +920,13 @@ void UpdateUI(
         UIMenu DebugMenu = UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 5.0f, 0.0f);
 
         int i = 0;
-        for (; i < DebugInfo->nEntries; i++) {
+        int nEntries = DebugInfo->nEntries;
+        for (; i < nEntries; i++) {
             debug_entry* Entry = &DebugInfo->Entries[i];
             UIDebugValue(Entry);
         }
 
-        static bool DebugArenas = false;
-        if (UIDropdown("Arenas", DebugArenas)) {
+        if (UIDropdown("Arenas")) {
             DEBUG_VALUE(Memory->Transient, memory_arena);
             DEBUG_VALUE(Memory->Permanent, memory_arena);
 
@@ -869,17 +937,18 @@ void UpdateUI(
             DEBUG_VALUE(VertexArena[vertex_layout_vec3_vec2_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_vec3_vec2_vec3_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_bones_id], memory_arena);
-            for (; i < DebugInfo->nEntries; i++) {
+            nEntries = DebugInfo->nEntries;
+            for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];
                 UIDebugValue(Entry);
             }
         }
 
-        static bool DebugEntities = false;
-        if (UIDropdown("Entities", DebugEntities)) {
+        if (UIDropdown("Entities")) {
             character* Character = &EntityState->Characters.List[0];
-            DEBUG_VALUE(Character->Action.ID, character_action_id);
-            for (; i < DebugInfo->nEntries; i++) {
+            DEBUG_POINTER(Character->Entity, game_entity);
+            nEntries = DebugInfo->nEntries;
+            for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];
                 UIDebugValue(Entry);
             }
