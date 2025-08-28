@@ -323,12 +323,12 @@ void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, 
     TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
 
     float* Vertices = (float*)TargetCommand.VertexEntry.Pointer;
-    Vertices[0]  = 0.5f; Vertices[1]  = -1.0f; Vertices[2]  = 0.0f; Vertices[3]  = 0.0f; Vertices[4]  = 0.0f,
-    Vertices[5]  = 1.0f; Vertices[6]  = -1.0f; Vertices[7]  = 0.0f; Vertices[8]  = 1.0f; Vertices[9]  = 0.0f;
-    Vertices[10] = 1.0f; Vertices[11] = -0.5f; Vertices[12] = 0.0f; Vertices[13] = 1.0f; Vertices[14] = 1.0f;
-    Vertices[15] = 0.5f; Vertices[16] = -1.0f; Vertices[17] = 0.0f; Vertices[18] = 0.0f; Vertices[19] = 0.0f;
-    Vertices[20] = 1.0f; Vertices[21] = -0.5f; Vertices[22] = 0.0f; Vertices[23] = 1.0f; Vertices[24] = 1.0f;
-    Vertices[25] = 0.5f; Vertices[26] = -0.5f; Vertices[27] = 0.0f; Vertices[28] = 0.0f; Vertices[29] = 1.0f;
+    Vertices[0]  = -1.0f; Vertices[1]  = -1.0f; Vertices[2]  = 0.0f; Vertices[3]  = 0.0f; Vertices[4]  = 0.0f,
+    Vertices[5]  = -0.5f; Vertices[6]  = -1.0f; Vertices[7]  = 0.0f; Vertices[8]  = 1.0f; Vertices[9]  = 0.0f;
+    Vertices[10] = -0.5f; Vertices[11] = -0.5f; Vertices[12] = 0.0f; Vertices[13] = 1.0f; Vertices[14] = 1.0f;
+    Vertices[15] = -1.0f; Vertices[16] = -1.0f; Vertices[17] = 0.0f; Vertices[18] = 0.0f; Vertices[19] = 0.0f;
+    Vertices[20] = -0.5f; Vertices[21] = -0.5f; Vertices[22] = 0.0f; Vertices[23] = 1.0f; Vertices[24] = 1.0f;
+    Vertices[25] = -1.0f; Vertices[26] = -0.5f; Vertices[27] = 0.0f; Vertices[28] = 0.0f; Vertices[29] = 1.0f;
 
     Group->TargetCommands[Group->nTargets++] = TargetCommand;
 }

@@ -632,7 +632,6 @@ struct game_state {
 };
 
 void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, camera** pActiveCamera, float Width, float Height) {
-    TIMED_BLOCK;
     game_entity_state* EntityState = &State->Entities;
     uint32 Index = 0;
 

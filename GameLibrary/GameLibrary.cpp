@@ -163,9 +163,9 @@ void LogGameDebugRecords(render_group* Group) {
         float RecordHeight = GetCharMaxHeight(Font, Points);
         float TotalHeight = RecordHeight * (nTimeRecords + 1) + 2 * VMargin;
 
-        PushRect(Group, { 0, Group->Height - TotalHeight, TotalWidth, TotalHeight }, ChangeAlpha(Black, 0.7f));
+        PushRect(Group, { Group->Width - TotalWidth, Group->Height - TotalHeight, TotalWidth, TotalHeight }, ChangeAlpha(Black, 0.7f));
 
-        float RecordX = HMargin;
+        float RecordX = Group->Width - TotalWidth + HMargin;
         float RecordY = Group->Height - TotalHeight + RecordHeight + 0.5f * VMargin;
 
         PushText(
@@ -207,7 +207,7 @@ void LogGameDebugRecords(render_group* Group) {
             Points
         );
 
-        RecordX = HMargin;
+        RecordX = Group->Width - TotalWidth + HMargin;
         RecordY += RecordHeight + 0.5f * VMargin;
 
         for (int i = 0; i < TimeRecordArrayLength; i++) {
@@ -231,7 +231,7 @@ void LogGameDebugRecords(render_group* Group) {
 
                 sprintf_s(Buffer, "%s:%d", Record->FileName, Record->LineNumber);
                 PushText(Group, V2(RecordX, RecordY), Font_Menlo_Regular_ID, Buffer, White, Points);
-                RecordX = HMargin;
+                RecordX = Group->Width - TotalWidth + HMargin;
 
                 RecordY += RecordHeight;
 

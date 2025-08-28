@@ -501,7 +501,6 @@ void BeginContext(game_memory* Memory, game_input* Input) {
 }
 
 void ComputeSizes() {
-    TIMED_BLOCK;
     ui_element* Element = UI.Tree.First;
     if (Element == NULL) return;
 
@@ -582,8 +581,6 @@ void ComputeSizes() {
 }
 
 void ComputeLayout() {
-    TIMED_BLOCK;
-
     // Compute relative positions
     ui_element* Element = UI.Tree.First;
     if (Element == NULL) return;
@@ -840,8 +837,6 @@ void UpdateUI(
     game_memory* Memory,
     game_input* Input
 ) {
-    TIMED_BLOCK;
-
     render_group* Group = &Memory->RenderGroup;
     game_state* pGameState = (game_state*)Memory->Permanent.Base;
     game_entity_state* EntityState = &pGameState->Entities;
