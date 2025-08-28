@@ -743,11 +743,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     game_state* pGameState = PushStruct(&Memory.Permanent, game_state);
     Memory.GameState = pGameState;
-    Initialize(pGameState);
-
+    
     // Memory arenas
-    Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
     memory_arena FontsArena = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
+    pGameState->Combat.TurnsArena = SuballocateMemoryArena(&Memory.Permanent, Kilobytes(64));
+    Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
 
     // Assets
     const char* AssetsPath = "..\\GameAssets\\game_assets";

@@ -1029,6 +1029,8 @@ void UpdateUI(
             DEBUG_VALUE(Memory->Transient, memory_arena);
             DEBUG_VALUE(Memory->Permanent, memory_arena);
 
+            DEBUG_VALUE(Combat->TurnsArena, memory_arena);
+
             memory_arena* VertexArena = Group->VertexBuffer.Vertices;
             DEBUG_VALUE(VertexArena[vertex_layout_vec2_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_vec2_vec2_id], memory_arena);
@@ -1045,6 +1047,7 @@ void UpdateUI(
         static bool DebugEntities = false;
         if (UIDropdown("Entities", DebugEntities)) {
             character* Character = &EntityState->Characters.List[0];
+            DEBUG_VALUE(Character, character);
             DEBUG_ARRAY(EntityState->Enemies.List, EntityState->Enemies.Count, enemy);
             for (; i < DebugInfo->nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];

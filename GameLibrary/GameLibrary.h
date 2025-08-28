@@ -54,7 +54,6 @@ struct game_memory {
     game_state* GameState;
     memory_arena Permanent;
     memory_arena Transient;
-    memory_arena TurnsArena;
     debug_info DebugInfo;
     bool IsInitialized;
 };

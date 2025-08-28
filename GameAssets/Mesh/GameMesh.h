@@ -21,6 +21,7 @@ enum game_mesh_id {
 
 const int BONE_NAME_LENGTH = 32;
 
+INTROSPECT
 struct bone {
     int ID;
     char Name[BONE_NAME_LENGTH];
@@ -29,6 +30,7 @@ struct bone {
 };
 
 const int MAX_ARMATURE_BONES = 32;
+INTROSPECT
 struct armature {
     uint32 nBones;
     bone Bones[MAX_ARMATURE_BONES];

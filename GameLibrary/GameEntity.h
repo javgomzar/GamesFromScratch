@@ -178,6 +178,7 @@ DefineEntityList(MAX_ENEMIES, enemy);
 // | Weapons                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
+INTROSPECT
 enum weapon_type {
     Weapon_Sword,
     Weapon_Shield,
@@ -185,6 +186,7 @@ enum weapon_type {
     weapon_type_count
 };
 
+INTROSPECT
 struct weapon {
     weapon_type Type;
     color Color;
@@ -207,6 +209,7 @@ enum character_action_id {
     Character_Action_Attack_ID
 };
 
+INTROSPECT
 struct character_action {
     character_action_id ID;
     game_animation_id AnimationID;
@@ -222,6 +225,7 @@ enum character_class {
     Priest_Class
 };
 
+INTROSPECT
 struct character {
     armature Armature;
     stats Stats;
@@ -687,6 +691,14 @@ void ReceiveDamage(combatant* Combatant, int Damage) {
     else Combatant->Stats->HP -= Damage;
 }
 
+enum combatant_action {
+    combatant_empty_action,
+    combatant_attack_action,
+    combatant_magic_action,
+    combatant_items_action,
+    combatant_flee_action,
+};
+
 const int MAX_COMBATANTS = 32;
 struct turn {
     combatant* Attacker;
@@ -695,6 +707,7 @@ struct turn {
     combatant* Targets[MAX_COMBATANTS];
     float ATB[MAX_COMBATANTS];
     float ATBCost;
+    combatant_action Action;
     bool TargetsSelected;
 };
 
@@ -736,6 +749,7 @@ struct game_combat {
         Result.Index++;
         Result.Attacker = 0;
         Result.nTargets = 0;
+        Result.Action = combatant_empty_action;
         for (int i = 0; i < Combatants.Count; i++) {
             Result.Targets[i] = 0;
         }
@@ -895,10 +909,6 @@ struct game_state {
     game_state_type Type;
     bool Exit;
 };
-
-void Initialize(game_state* State) {
-    State->Combat.TurnsArena = AllocateMemoryArena(Kilobytes(64));
-}
 
 void Transition(game_state* State, game_state_type Type) {
     State->Type = Type;

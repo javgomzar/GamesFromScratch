@@ -22,19 +22,29 @@ enum debug_type {
     Debug_Type_color,
     Debug_Type_collider,
     Debug_Type_memory_arena,
+    Debug_Type_game_animation_id,
     Debug_Type_game_mesh_id,
     Debug_Type_game_bitmap_id,
     Debug_Type_game_entity_type,
     Debug_Type_enemy_type,
+    Debug_Type_weapon_type,
     Debug_Type_character_action_id,
     Debug_Type_transform,
+    Debug_Type_segment3,
+    Debug_Type_game_animation,
+    Debug_Type_game_animator,
+    Debug_Type_bone,
+    Debug_Type_armature,
     Debug_Type_game_entity,
     Debug_Type_stats,
     Debug_Type_enemy,
+    Debug_Type_weapon,
+    Debug_Type_character_action,
+    Debug_Type_character,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 28; }
-bool IsStructType(debug_type Type) { return Type > 27 && Type < 32; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 30; }
+bool IsStructType(debug_type Type) { return Type > 29 && Type < 42; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -42,8 +52,13 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 29;
+const int ENUM_VALUES_SIZE = 37;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
+    {Debug_Type_game_animation_id, "Animation_Idle_ID", 0},
+    {Debug_Type_game_animation_id, "Animation_Walk_ID", 1},
+    {Debug_Type_game_animation_id, "Animation_Jump_ID", 2},
+    {Debug_Type_game_animation_id, "Animation_Attack_ID", 3},
+    {Debug_Type_game_animation_id, "game_animation_id_count", 4},
     {Debug_Type_game_mesh_id, "Mesh_Horns_ID", 0},
     {Debug_Type_game_mesh_id, "Mesh_Dog_ID", 1},
     {Debug_Type_game_mesh_id, "Mesh_Sphere_ID", 2},
@@ -69,6 +84,9 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_enemy_type, "Enemy_Type_Dog", 1},
     {Debug_Type_enemy_type, "Enemy_Type_Dyno", 2},
     {Debug_Type_enemy_type, "enemy_type_count", 3},
+    {Debug_Type_weapon_type, "Weapon_Sword", 0},
+    {Debug_Type_weapon_type, "Weapon_Shield", 1},
+    {Debug_Type_weapon_type, "weapon_type_count", 2},
     {Debug_Type_character_action_id, "Character_Action_Idle_ID", 0},
     {Debug_Type_character_action_id, "Character_Action_Walk_ID", 1},
     {Debug_Type_character_action_id, "Character_Action_Jump_ID", 2},
@@ -85,11 +103,28 @@ struct debug_struct_member {
     bool IsPointer;
 };
 
-const int STRUCT_MEMBERS_SIZE = 27;
+const int STRUCT_MEMBERS_SIZE = 58;
 debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Translation", Debug_Type_transform, Debug_Type_v3, sizeof(v3), (uint64)(&((transform*)0)->Translation),0, false},
     {"Scale", Debug_Type_transform, Debug_Type_scale, sizeof(scale), (uint64)(&((transform*)0)->Scale),0, false},
     {"Rotation", Debug_Type_transform, Debug_Type_quaternion, sizeof(quaternion), (uint64)(&((transform*)0)->Rotation),0, false},
+    {"Head", Debug_Type_segment3, Debug_Type_v3, sizeof(v3), (uint64)(&((segment3*)0)->Head),0, false},
+    {"Tail", Debug_Type_segment3, Debug_Type_v3, sizeof(v3), (uint64)(&((segment3*)0)->Tail),0, false},
+    {"ID", Debug_Type_game_animation, Debug_Type_game_animation_id, sizeof(game_animation_id), (uint64)(&((game_animation*)0)->ID),0, false},
+    {"nFrames", Debug_Type_game_animation, Debug_Type_uint32, sizeof(uint32), (uint64)(&((game_animation*)0)->nFrames),0, false},
+    {"nBones", Debug_Type_game_animation, Debug_Type_uint32, sizeof(uint32), (uint64)(&((game_animation*)0)->nBones),0, false},
+    {"Content", Debug_Type_game_animation, Debug_Type_float, sizeof(float), (uint64)(&((game_animation*)0)->Content),0, true},
+    {"Animation", Debug_Type_game_animator, Debug_Type_game_animation, sizeof(game_animation), (uint64)(&((game_animator*)0)->Animation),0, true},
+    {"Armature", Debug_Type_game_animator, Debug_Type_armature, sizeof(armature), (uint64)(&((game_animator*)0)->Armature),0, true},
+    {"CurrentFrame", Debug_Type_game_animator, Debug_Type_uint32, sizeof(uint32), (uint64)(&((game_animator*)0)->CurrentFrame),0, false},
+    {"Active", Debug_Type_game_animator, Debug_Type_bool, sizeof(bool), (uint64)(&((game_animator*)0)->Active),0, false},
+    {"Loop", Debug_Type_game_animator, Debug_Type_bool, sizeof(bool), (uint64)(&((game_animator*)0)->Loop),0, false},
+    {"ID", Debug_Type_bone, Debug_Type_int, sizeof(int), (uint64)(&((bone*)0)->ID),0, false},
+    {"Name", Debug_Type_bone, Debug_Type_string, sizeof(char), (uint64)(&((bone*)0)->Name),0, false},
+    {"Segment", Debug_Type_bone, Debug_Type_segment3, sizeof(segment3), (uint64)(&((bone*)0)->Segment),0, false},
+    {"Transform", Debug_Type_bone, Debug_Type_transform, sizeof(transform), (uint64)(&((bone*)0)->Transform),0, false},
+    {"nBones", Debug_Type_armature, Debug_Type_uint32, sizeof(uint32), (uint64)(&((armature*)0)->nBones),0, false},
+    {"Bones", Debug_Type_armature, Debug_Type_bone, sizeof(bone), (uint64)(&((armature*)0)->Bones),32, false},
     {"Name", Debug_Type_game_entity, Debug_Type_string, sizeof(char), (uint64)(&((game_entity*)0)->Name),0, false},
     {"ID", Debug_Type_game_entity, Debug_Type_int, sizeof(int), (uint64)(&((game_entity*)0)->ID),0, false},
     {"Parent", Debug_Type_game_entity, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((game_entity*)0)->Parent),0, true},
@@ -114,4 +149,18 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Type", Debug_Type_enemy, Debug_Type_enemy_type, sizeof(enemy_type), (uint64)(&((enemy*)0)->Type),0, false},
     {"MeshID", Debug_Type_enemy, Debug_Type_game_mesh_id, sizeof(game_mesh_id), (uint64)(&((enemy*)0)->MeshID),0, false},
     {"TextureID", Debug_Type_enemy, Debug_Type_game_bitmap_id, sizeof(game_bitmap_id), (uint64)(&((enemy*)0)->TextureID),0, false},
+    {"Type", Debug_Type_weapon, Debug_Type_weapon_type, sizeof(weapon_type), (uint64)(&((weapon*)0)->Type),0, false},
+    {"Color", Debug_Type_weapon, Debug_Type_color, sizeof(color), (uint64)(&((weapon*)0)->Color),0, false},
+    {"Entity", Debug_Type_weapon, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((weapon*)0)->Entity),0, true},
+    {"ParentBone", Debug_Type_weapon, Debug_Type_int, sizeof(int), (uint64)(&((weapon*)0)->ParentBone),0, false},
+    {"ID", Debug_Type_character_action, Debug_Type_character_action_id, sizeof(character_action_id), (uint64)(&((character_action*)0)->ID),0, false},
+    {"AnimationID", Debug_Type_character_action, Debug_Type_game_animation_id, sizeof(game_animation_id), (uint64)(&((character_action*)0)->AnimationID),0, false},
+    {"Loop", Debug_Type_character_action, Debug_Type_bool, sizeof(bool), (uint64)(&((character_action*)0)->Loop),0, false},
+    {"Armature", Debug_Type_character, Debug_Type_armature, sizeof(armature), (uint64)(&((character*)0)->Armature),0, false},
+    {"Stats", Debug_Type_character, Debug_Type_stats, sizeof(stats), (uint64)(&((character*)0)->Stats),0, false},
+    {"Animator", Debug_Type_character, Debug_Type_game_animator, sizeof(game_animator), (uint64)(&((character*)0)->Animator),0, false},
+    {"Entity", Debug_Type_character, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((character*)0)->Entity),0, true},
+    {"LeftHand", Debug_Type_character, Debug_Type_weapon, sizeof(weapon), (uint64)(&((character*)0)->LeftHand),0, true},
+    {"RightHand", Debug_Type_character, Debug_Type_weapon, sizeof(weapon), (uint64)(&((character*)0)->RightHand),0, true},
+    {"Action", Debug_Type_character, Debug_Type_character_action, sizeof(character_action), (uint64)(&((character*)0)->Action),0, false},
 };

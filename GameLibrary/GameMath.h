@@ -1639,6 +1639,7 @@ inline float SqDistance(segment2 Segment1, segment2 Segment2) {
 	return min(d1, min(d2, min(d3, d4)));
 }
 
+INTROSPECT
 struct segment3 {
 	v3 Head;
 	v3 Tail;

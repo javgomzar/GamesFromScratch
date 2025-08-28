@@ -42,6 +42,7 @@ enum game_heightmap_id {
     game_heightmap_id_count
 };
 
+INTROSPECT
 enum game_animation_id {
     Animation_Idle_ID,
     Animation_Walk_ID,
@@ -228,6 +229,7 @@ game_heightmap LoadHeightmap(memory_arena* Arena, game_asset* Asset) {
 // | Animation                                                                                                                                                        |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+INTROSPECT
 struct game_animation {
     game_animation_id ID;
     uint32 nFrames;
@@ -235,6 +237,7 @@ struct game_animation {
     float* Content;
 };
 
+INTROSPECT
 struct game_animator {
     game_animation* Animation;
     armature* Armature;
