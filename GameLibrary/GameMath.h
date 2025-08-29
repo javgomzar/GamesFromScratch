@@ -96,7 +96,7 @@ inline uint32 Hash(void* Data, memory_index Size) {
 }
 
 /* FNV-1a hash algorithm */
-inline uint32 Hash(char* String) {
+inline uint32 Hash(const char* String) {
 	uint32 Hash = 2166136261u;
     while (*String) {
         Hash ^= static_cast<uint8>(*String++);
@@ -2160,7 +2160,7 @@ bool HitBoundingBox(float minB[3], float maxB[3], float origin[3], float dir[3],
 {
     bool inside = true;
     char quadrant[3];
-    register int i;
+    int i;
     int whichPlane;
     float maxT[3];
     float candidatePlane[3];

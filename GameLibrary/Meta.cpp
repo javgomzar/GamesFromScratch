@@ -200,7 +200,7 @@ int main() {
     fprintf(DebugTypesFile,
     "struct debug_enum_value {\n"
     "    debug_type EnumType;\n"
-    "    char* Identifier;\n"
+    "    const char* Identifier;\n"
     "    int Value;\n"
     "};\n\n");
 
@@ -220,7 +220,7 @@ int main() {
 
     fprintf(DebugTypesFile,
     "struct debug_struct_member {\n"
-    "    char* Name;\n"
+    "    const char* Name;\n"
     "    debug_type StructType;\n"
     "    debug_type MemberType;\n"
     "    uint64 Size;\n"

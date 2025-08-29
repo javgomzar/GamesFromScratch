@@ -1010,7 +1010,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         LARGE_INTEGER WorkCounter = GetWallClock();
         float WorkSecsElapsed = GetSecondsElapsed(LastCounter, WorkCounter);
-        float UsedTime = 1000.0f * WorkSecsElapsed;
+        float UsedTime_ms = 1000.0f * WorkSecsElapsed;
 
         float SecsElapsedPerFrame = WorkSecsElapsed;
         if (SecsElapsedPerFrame < TargetSecondsPerFrame) {
@@ -1026,17 +1026,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         float ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
-        float BudgetTime = 1000.0f * ActualSecsElapsed; // (in ms)
+        float BudgetTime_ms = 1000.0f * TargetSecondsPerFrame;
         float FPS = 1.0f / ActualSecsElapsed;
         
         DebugInfo->FPS                 = FPS;
-        DebugInfo->BudgetTime          = BudgetTime;
-        DebugInfo->UsedTime            = UsedTime;
+        DebugInfo->BudgetTime          = BudgetTime_ms;
+        DebugInfo->UsedTime            = UsedTime_ms;
         DebugInfo->UsedMCyclesPerFrame = UsedMCyclesPerFrame;
 
         DEBUG_VALUE(FPS, float);
-        DEBUG_VALUE(BudgetTime, float);
-        DEBUG_VALUE(UsedTime, float);
+        DEBUG_VALUE(BudgetTime_ms, float);
+        DEBUG_VALUE(UsedTime_ms, float);
         DEBUG_VALUE(UsedMCyclesPerFrame, float);
 
         pGameState->dt = ActualSecsElapsed;

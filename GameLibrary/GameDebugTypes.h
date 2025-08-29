@@ -33,7 +33,7 @@ bool IsStructType(debug_type Type) { return Type > 24 && Type < 27; }
 
 struct debug_enum_value {
     debug_type EnumType;
-    char* Identifier;
+    const char* Identifier;
     int Value;
 };
 
@@ -52,7 +52,7 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
 };
 
 struct debug_struct_member {
-    char* Name;
+    const char* Name;
     debug_type StructType;
     debug_type MemberType;
     uint64 Size;

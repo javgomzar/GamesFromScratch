@@ -12,6 +12,7 @@ echo 0 > bin\PDBNumber.txt
 
 @REM Compile GameLibrary
 %COMPILE%^
+ /std:c++20^
  /D GAMELIBRARY_EXPORTS^
  GameLibrary\GameLibrary.cpp^
  %DEBUG_FLAG%^
@@ -33,6 +34,7 @@ echo 0 > bin\PDBNumber.txt
 
 @REM Compile Win32PlatformLayer
 %COMPILE%^
+ /std:c++20^
  Win32PlatformLayer\Win32PlatformLayer.cpp^
  bin\pch.obj^
  /D GAME_RENDER_API_%RENDER_API%^
