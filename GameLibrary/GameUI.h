@@ -777,7 +777,7 @@ void UpdateMainMenuUI(
     static bool Settings = false;
     
     {
-        UIMenu MainMenu = UIMenu("Main menu", axis_x, ui_alignment_center, ui_alignment_max, 50.0f, 20.0f);
+        UIMenu MainMenu = UIMenu("Main menu", axis_x, ui_alignment_center, ui_alignment_max, 50.0f, 20.0f, UISizeSumChildren(), UISizeMaxChildren());
 
         if (UIButton("New game")) {
 
