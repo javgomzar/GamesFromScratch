@@ -1,23 +1,17 @@
 #ifndef GAME_UI
 #define GAME_UI
 
-#include <vector>
-
-/*
-    TODO:
-        - Save game state in files.
-        - Load game state from files.
-        - Debug fps graphs.
-        - Log debug records as a table.
-        - Debug entities.
-*/
-
 enum ui_axis {
     axis_x,
     axis_y
 };
 
+ui_axis Opposite(ui_axis Axis) {
+    return Axis == axis_x ? axis_y : axis_x;
+}
+
 enum ui_alignment {
+    ui_alignment_free,
     ui_alignment_center,
     ui_alignment_min,
     ui_alignment_max
@@ -54,8 +48,9 @@ struct ui_size {
     float Max = FLT_MAX;
 };
 
-ui_size UISizeNull() {
-    return { ui_size_null, 0.0f };
+// This size will be skipped when computing children dependent sizes and layout
+ui_size UISizeNull(float Value = 0.0f) {
+    return { ui_size_null, Value };
 }
 
 ui_size UISizePixels(float Value) {
@@ -77,10 +72,10 @@ ui_size UISizeSumChildren(float InitialValue = 0.0f, float Max = FLT_MAX) {
 typedef uint32 ui_flags;
 
 enum {
-    RENDER_TEXT_UI_FLAG      = 1 << 0,
-    RENDER_RECT_UI_FLAG      = 1 << 1,
-    STACK_CHILDREN_X_UI_FLAG = 1 << 2,
-    STACK_CHILDREN_Y_UI_FLAG = 1 << 3,
+    RENDER_TEXT_UI_FLAG        = 1 << 0,
+    RENDER_RECT_UI_FLAG        = 1 << 1,
+    STACK_CHILDREN_X_UI_FLAG   = 1 << 2,
+    STACK_CHILDREN_Y_UI_FLAG   = 1 << 3,
 };
 
 struct ui_element {
@@ -95,6 +90,7 @@ struct ui_element {
     float RelativePosition[2];
     float Margins[2];
     float Points;
+    float Scroll;
 
     uint32 ID;
     uint32 Index;
@@ -124,11 +120,11 @@ struct ui_context {
     render_group* Group;
     game_input* Input;
     debug_info* DebugInfo;
-    std::vector<uint32> IDStack;
+    stack<uint32> IDStack;
     uint32 CurrentIndex;
 };
 
-static ui_context UI;
+static ui_context UI = {};
 
 void UISizeText(const char * Text, int Points, ui_size* Sizes) {
     rectangle Rect;
@@ -140,7 +136,7 @@ void UISizeText(const char * Text, int Points, ui_size* Sizes) {
 }
 
 void PushID(uint32 ID) {
-    UI.IDStack.push_back(ID);
+    UI.IDStack.Push(ID);
     UI.CurrentIndex = 0;
 }
 
@@ -149,7 +145,7 @@ void PushID(char* String) {
 }
 
 void PopID() {
-    UI.IDStack.pop_back();
+    UI.IDStack.Pop();
     UI.CurrentIndex = 0;
 }
 
@@ -166,7 +162,8 @@ uint32 GetID(const char* String) {
     }
 
     uint32 StackHash = 2166136261u;
-    for (uint32 ID : UI.IDStack) {
+    for (int j = 0; j < UI.IDStack.n; j++) {
+        uint32 ID = UI.IDStack[j];
         StackHash ^= ID;
         StackHash *= 16777619u;
     }
@@ -197,6 +194,7 @@ ui_element* NewUIElement(uint32 ID) {
     ui_element* Result = &UI.Tree.Elements[UI.Tree.Count++];
     Result->ID = ID;
     Result->Index = UI.CurrentIndex;
+    Result->Scroll = 0;
     return Result;
 }
 
@@ -231,10 +229,6 @@ ui_element* PushUIElement(
         switch(Sizes[i].Type) {
             case ui_size_null:
             case ui_size_percent_of_parent:
-            {
-                Element->Size[i].Value = 0.0f;
-            } break;
-
             case ui_size_sum_of_children:
             case ui_size_max_of_children: break;
 
@@ -255,6 +249,16 @@ ui_element* PushUIElement(
     Element->Flags = Flags;
     Element->Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
     Element->Clicked = Element->Hovered && UI.Input->Mouse.LeftClick.JustPressed;
+
+    if (Element->Clicked) {
+        Element->Dragged = true;
+    }
+
+    if (Element->Dragged) {
+        if (UI.Input->Mouse.LeftClick.JustLifted) {
+            Element->Dragged = false;
+        }
+    }
 
     if (UI.Tree.Current) UI.Tree.Current->Next = Element;
     Element->Previous = UI.Tree.Current;
@@ -325,12 +329,14 @@ void ComputeSizes() {
         ui_element* Parent = Element->Parent;
         if (Parent) {
             for (int i = 0; i < 2; i++) {
-                if (Parent->Size[i].Type == ui_size_max_of_children) {
-                    float ChildValue = Element->Size[i].Value + 2.0f * Parent->Margins[i];
-                    if (ChildValue > Parent->Size[i].Value) Parent->Size[i].Value = ChildValue;
-                }
-                else if (Parent->Size[i].Type == ui_size_sum_of_children) {
-                    Parent->Size[i].Value += Element->Size[i].Value + Parent->Margins[i];
+                if (Element->Size[i].Type != ui_size_null) {
+                    if (Parent->Size[i].Type == ui_size_max_of_children) {
+                        float ChildValue = Element->Size[i].Value + 2.0f * Parent->Margins[i];
+                        if (ChildValue > Parent->Size[i].Value) Parent->Size[i].Value = ChildValue;
+                    }
+                    else if (Parent->Size[i].Type == ui_size_sum_of_children) {
+                        Parent->Size[i].Value += Element->Size[i].Value + Parent->Margins[i];
+                    }
                 }
             }
             Parent->Rect.Width = Parent->Size[axis_x].Value;
@@ -350,9 +356,11 @@ void ComputeSizes() {
             if (Element->Size[i].Type == ui_size_percent_of_parent) {
                 ui_element* Parent = Element->Parent;
                 float ParentSize = Parent ? Parent->Size[i].Value : GroupSizes[i];
-                if (i == axis_x) Element->Rect.Width  = Element->Size[i].Value * ParentSize - 2.0f * Parent->Margins[i];
-                else             Element->Rect.Height = Element->Size[i].Value * ParentSize - 2.0f * Parent->Margins[i];
+                Element->Size[i].Value = Element->Size[i].Value * ParentSize - 2.0f * Parent->Margins[i];
             }
+
+            if (i == axis_x) Element->Rect.Width  = Element->Size[i].Value;
+            else             Element->Rect.Height = Element->Size[i].Value;
         }
         
         if (Element->Next == NULL) break;
@@ -369,39 +377,50 @@ void ComputeLayout() {
         float ParentWidth = UI.Group->Width;
         float ParentHeight = UI.Group->Height;
         float MarginX = 0.0f, MarginY = 0.0f;
-        if (Element->Parent != NULL) {
+
+        if (Element->Parent == NULL) {
+            Element->Rect.Left = Element->RelativePosition[axis_x];
+            ui_alignment AlignmentX = Element->Alignment[axis_x];
+            if (AlignmentX != ui_alignment_free)
+                Element->Rect.Left += Align(AlignmentX, ParentWidth, Element->Rect.Width, MarginX);
+            
+            Element->Rect.Top = Element->RelativePosition[axis_y];
+            ui_alignment AlignmentY = Element->Alignment[axis_y];
+            if (AlignmentY != ui_alignment_free)
+                Element->Rect.Top += Align(AlignmentY, ParentHeight, Element->Rect.Height, MarginY);
+        }
+        else {
             ParentWidth = Element->Parent->Rect.Width;
             ParentHeight = Element->Parent->Rect.Height;
             MarginX = Element->Parent->Margins[axis_x];
             MarginY = Element->Parent->Margins[axis_y];
         }
-
-        if (Element->Parent == NULL) {
-            Element->Rect.Left = Align(Element->Alignment[axis_x], ParentWidth, Element->Rect.Width, MarginX) + Element->RelativePosition[axis_x];
-            Element->Rect.Top = Align(Element->Alignment[axis_y], ParentHeight, Element->Rect.Height, MarginY) + Element->RelativePosition[axis_y];
-        }
         
         // Layout that depends on parents
         if (Element->Flags & (STACK_CHILDREN_X_UI_FLAG | STACK_CHILDREN_Y_UI_FLAG)) {
             ui_axis StackAxis = (Element->Flags & STACK_CHILDREN_X_UI_FLAG) ? axis_x : axis_y;
-            ui_axis NoStackAxis = StackAxis == axis_x ? axis_y : axis_x;
+            ui_axis NoStackAxis = Opposite(StackAxis);
 
             float NextValue = Element->Margins[StackAxis] + Element->Size[StackAxis].Min;
             ui_element* Child = Element->Next;
             while (Child) {
                 if (Child->Parent == Element) {
-                    Child->RelativePosition[StackAxis] = NextValue;
-                    Child->RelativePosition[NoStackAxis] = Align(
-                        Child->Alignment[NoStackAxis], 
-                        Element->Size[NoStackAxis].Value, 
-                        Child->Size[NoStackAxis].Value, 
-                        Element->Margins[NoStackAxis]
-                    );
+                    if (Child->Size[StackAxis].Type != ui_size_null) {
+                        Child->RelativePosition[StackAxis] = NextValue;
+                        NextValue += Element->Margins[StackAxis] + Child->Size[StackAxis].Value;
+                    }
+
+                    if (Child->Size[NoStackAxis].Type != ui_size_null) {
+                        Child->RelativePosition[NoStackAxis] = Align(
+                            Child->Alignment[NoStackAxis], 
+                            Element->Size[NoStackAxis].Value, 
+                            Child->Size[NoStackAxis].Value, 
+                            Element->Margins[NoStackAxis]
+                        );
+                    }
                     
                     Child->Rect.Left = Element->Rect.Left + Child->RelativePosition[axis_x];
                     Child->Rect.Top  = Element->Rect.Top + Child->RelativePosition[axis_y];
-
-                    NextValue += Element->Margins[StackAxis] + Child->Size[StackAxis].Value;
                 }
 
                 Child = Child->Next;
@@ -418,27 +437,31 @@ void RenderUI() {
     game_font_id FontID = Font_Menlo_Regular_ID;
     game_font* Font = GetAsset(UI.Group->Assets, FontID);
 
+    rectangle Screen = {0, 0, (float)UI.Group->Width, (float)UI.Group->Height};
+
     ui_element* Element = UI.Tree.First;
     while (Element) {
         v2 Position = LeftTop(Element->Rect);
-        if (Element->DebugEntry) {
-            PushDebugEntry(UI.Group, Element->DebugEntry, Position, Element->Color);
-        }
-        else {
-            if (Element->Flags & RENDER_RECT_UI_FLAG) {
-                PushRect(UI.Group, Element->Rect, Element->Color);
+        if (Intersect(Screen, Element->Rect)) {
+            if (Element->DebugEntry) {
+                PushDebugEntry(UI.Group, Element->DebugEntry, Position, Element->Color);
             }
-
-            if (Element->Flags & RENDER_TEXT_UI_FLAG) {
-                float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
-                PushText(
-                    UI.Group,
-                    Position + V2(0, OffsetHeight), 
-                    FontID, 
-                    Element->Name,
-                    Element->Color,
-                    Element->Points
-                );
+            else {
+                if (Element->Flags & RENDER_RECT_UI_FLAG) {
+                    PushRect(UI.Group, Element->Rect, Element->Color);
+                }
+    
+                if (Element->Flags & RENDER_TEXT_UI_FLAG) {
+                    float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
+                    PushText(
+                        UI.Group,
+                        Position + V2(0, OffsetHeight), 
+                        FontID, 
+                        Element->Name,
+                        Element->Color,
+                        Element->Points
+                    );
+                }
             }
         }
 
@@ -446,7 +469,58 @@ void RenderUI() {
     }
 }
 
+const float SIDEBAR_WIDTH = 10.0f;
+void UISidebar(ui_axis Axis) {
+    Assert(UI.Tree.Parent != NULL);
+    ui_axis OppositeAxis = Opposite(Axis);
+
+    ui_alignment Alignments[2];
+    Alignments[Axis] = ui_alignment_free;
+    Alignments[OppositeAxis] = ui_alignment_max;
+
+    float ParentsSize[2]       = { UI.Tree.Parent->Rect.Width, UI.Tree.Parent->Rect.Height };
+    float ParentsParentSize[2] = { (float)UI.Group->Width, (float)UI.Group->Height };
+    if (UI.Tree.Parent->Parent != NULL) {
+        ParentsSize[0] = UI.Tree.Parent->Parent->Rect.Width;
+        ParentsSize[1] = UI.Tree.Parent->Parent->Rect.Height;
+    }
+    
+    float SideBarSize = ParentsParentSize[Axis] / ParentsSize[Axis] * ParentsParentSize[Axis];
+    ui_size Size[2] = {};
+    Size[Axis] = UISizeNull(SideBarSize);
+    Size[OppositeAxis] = UISizePixels(SIDEBAR_WIDTH);
+    ui_element* Element = PushUIElement(
+        "Sidebar",
+        Size[axis_x],
+        Size[axis_y],
+        ui_alignment_max,
+        ui_alignment_free,
+        RENDER_RECT_UI_FLAG
+    );
+
+    if (Element->Parent->Hovered && UI.Input->Mouse.Wheel != 0) {
+        float Increment = (UI.Input->Mouse.Wheel > 0 ? -20.0f : 20.0f) / (ParentsParentSize[Axis] - SideBarSize);
+        Element->Scroll = Clamp(Element->Scroll + Increment, 0.0f, 1.0f);
+    }
+
+    float Alpha = Element->Hovered ? 0.75f : 0.5f;
+    if (Element->Dragged) {
+        float Delta;
+        if (Axis == axis_x) Delta = UI.Input->Mouse.Cursor.X - UI.Input->Mouse.LastCursor.X;
+        else                Delta = UI.Input->Mouse.Cursor.Y - UI.Input->Mouse.LastCursor.Y;
+        Element->Scroll = Clamp(Element->Scroll + Delta / (ParentsParentSize[Axis] - SideBarSize), 0.0f, 1.0f);
+        Alpha = 0.75f;
+    }
+
+    Element->Color = ChangeAlpha(White, Alpha);
+
+    Element->Parent->RelativePosition[Axis] = Element->Scroll * (ParentsParentSize[Axis] - ParentsSize[Axis]);
+    Element->RelativePosition[Axis] = -Element->Parent->RelativePosition[Axis] + Element->Scroll * (ParentsParentSize[Axis] - SideBarSize);
+}
+
 struct UIMenu {
+    ui_element* Element;
+
     UIMenu(
         const char* Text,
         ui_axis Stack = axis_y, 
@@ -456,10 +530,10 @@ struct UIMenu {
         float MarginY = 10.0f,
         color C = ChangeAlpha(Black, 0.7f)
     ) {
-        ui_axis NoStack = Stack == axis_x ? axis_y : axis_x;
+        ui_axis NoStack = Opposite(Stack);
         ui_size Sizes[2];
-        Sizes[Stack] = UISizeSumChildren();
-        Sizes[NoStack] = UISizeMaxChildren();
+        Sizes[Stack] = UISizeSumChildren(0);
+        Sizes[NoStack] = UISizeMaxChildren(0);
         ui_flags Flags = RENDER_RECT_UI_FLAG;
         if (Stack == axis_x) {
             Flags |= STACK_CHILDREN_X_UI_FLAG;
@@ -467,7 +541,7 @@ struct UIMenu {
         else {
             Flags |= STACK_CHILDREN_Y_UI_FLAG;
         }
-        ui_element* Element = PushUIElement(Text, Sizes[0], Sizes[1], AlignmentX, AlignmentY, Flags);
+        Element = PushUIElement(Text, Sizes[0], Sizes[1], AlignmentX, AlignmentY, Flags);
         Element->Margins[axis_x] = MarginX;
         Element->Margins[axis_y] = MarginY;
         Element->Color = C;
@@ -475,6 +549,14 @@ struct UIMenu {
     }
 
     ~UIMenu() {
+        float ParentHeight = UI.Group->Height;
+        if (Element->Parent != NULL) {
+            ParentHeight = Element->Parent->Rect.Height;
+        }
+        if (Element->Rect.Height > ParentHeight) {
+            UISidebar(axis_y);
+            Element->Alignment[axis_y] = ui_alignment_free;
+        }
         PopParent();
     }
 };
@@ -770,8 +852,10 @@ void UpdateUI(
     ComputeLayout();
     RenderUI();
 
-    UI.Tree.Current = 0;
-    UI.Tree.Parent = 0;
+    UI.Tree.Current = NULL;
+    UI.Tree.Parent = NULL;
+
+    Assert(UI.IDStack.n == 0);
 }
 
 #endif

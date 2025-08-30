@@ -6,7 +6,7 @@
 #include <vector>
 #include <string>
 
-FILE* OpenFile(char* Path, char* Permissions) {
+FILE* OpenFile(const char* Path, const char* Permissions) {
     FILE* File = fopen(Path, Permissions);
     if (File == NULL) {
         perror("Failed to open file");
@@ -16,7 +16,7 @@ FILE* OpenFile(char* Path, char* Permissions) {
     return File;
 }
 
-char* ReadFile(char* Path) {
+char* ReadFile(const char* Path) {
     FILE* File = OpenFile(Path, "r");
 
     fseek(File, 0, SEEK_END);
@@ -32,7 +32,7 @@ char* ReadFile(char* Path) {
 int main() {
     FILE* DebugTypesFile = OpenFile("..\\GameLibrary\\GameDebugTypes.h", "w");
 
-    char* PrimitiveTypes[] = {
+    const char* PrimitiveTypes[] = {
         "bool",
         "char",
         "string",
@@ -69,7 +69,7 @@ int main() {
     std::vector<std::string> StructDebugTypes = {};
     std::vector<std::string> StructMembers = {};
 
-    char* ProcessingFiles[] = {
+    const char* ProcessingFiles[] = {
         "..\\GameLibrary\\GamePlatform.h",
         "..\\GameLibrary\\GameMath.h",
         "..\\GameAssets\\GameAssets.h",
@@ -143,7 +143,7 @@ int main() {
                             Token = RequireToken(Tokenizer, Token_CloseBracket);
                             Token = RequireToken(Tokenizer, Token_Semicolon);
                         }
-                        char* MemberTypeText = MemberType.Text;
+                        const char* MemberTypeText = MemberType.Text;
                         if (MemberType == "char" && (ArraySize > 0 || IsPointer)) {
                             MemberTypeText = "string";
                             ArraySize = 0;

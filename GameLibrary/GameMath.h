@@ -1923,6 +1923,17 @@ v2 LeftTop(rectangle Rect) {
 	return V2(Rect.Left, Rect.Top);
 }
 
+v2 Center(rectangle Rect) {
+	return V2(Rect.Left + 0.5f * Rect.Width, Rect.Top  + 0.5f * Rect.Height);
+}
+
+bool Intersect(rectangle Rect1, rectangle Rect2) {
+	v2 C1 = Center(Rect1);
+	v2 C2 = Center(Rect2);
+	return fabsf(C1.X - C2.X) < 0.5f * (Rect1.Width  + Rect2.Width) && 
+	       fabsf(C1.Y - C2.Y) < 0.5f * (Rect1.Height + Rect2.Height);
+}
+
 struct vector_plane {
 	v3 Normal;
 };
@@ -2085,15 +2096,7 @@ bool Collide(collider Collider1, collider Collider2) {
 	if (Collider1.Type == Collider2.Type) {
 		switch(Collider1.Type) {
 			case Rect_Collider: {
-				float Left   = Collider1.Offset.X - Collider1.Rect.HalfWidth;
-				float Right  = Collider1.Offset.X + Collider1.Rect.HalfWidth;
-				float Top    = Collider1.Offset.Y - Collider1.Rect.HalfHeight;
-				float Bottom = Collider1.Offset.Y + Collider1.Rect.HalfHeight;
-				v2 Points[4] = { V2(Left, Top), V2(Left, Bottom), V2(Right, Top), V2(Right, Bottom) };
-				for (int i = 0; i < 4; i++) {
-					if (Collide(Collider2, V3(Points[i], 0))) return true;
-				}
-				return false;
+				return Intersect(Rectangle(Collider1), Rectangle(Collider2));
 			} break;
 			case Cube_Collider: {
 				float X[2] = { Collider1.Offset.X - Collider1.Cube.HalfWidth,  Collider1.Offset.X + Collider1.Cube.HalfWidth };

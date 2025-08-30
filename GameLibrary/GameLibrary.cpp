@@ -68,6 +68,9 @@ extern "C" GAME_UPDATE(GameUpdate)
         Equip(Sword, Character);
         Equip(Shield, Character);
 
+        uint32 MaxUIIDStack = 32;
+        uint32* StackMemory = PushArray(&Memory->Permanent, MaxUIIDStack, uint32);
+
         Memory->IsInitialized = true;
     }
 
