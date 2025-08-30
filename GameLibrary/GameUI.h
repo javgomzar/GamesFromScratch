@@ -1001,8 +1001,14 @@ void UpdateUI(
         }
 
         if (UIDropdown(Entities)) {
-            game_entity* Entities = EntityState->Entities.List;
-            DEBUG_ARRAY(Entities, EntityState->Entities.Count, game_entity);
+            character* Character = &EntityState->Characters.List[0];
+            DEBUG_POINTER(Character, character);
+
+            if (EntityState->Enemies.Count > 0) {
+                enemy* Enemy = EntityState->Enemies.List;
+                DEBUG_ARRAY(Enemy, EntityState->Enemies.Count, enemy);
+            }
+
             nEntries = DebugInfo->nEntries;
             for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];
