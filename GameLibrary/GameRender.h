@@ -255,7 +255,7 @@ light Light(v3 Direction, color Color = White, float Ambient = 0.5f, float Diffu
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int MAX_FRAMEBUFFER_COUNT = 8;
-const int MAX_PRIMITIVE_COMMANDS = 4096;
+const int MAX_PRIMITIVE_COMMANDS = Kilobytes(8);
 const int MAX_MESH_COMMANDS = 64;
 const int MAX_HEIGHTMAP_COMMANDS = 8;
 const int MAX_SHADER_PASS_COMMANDS = 32;

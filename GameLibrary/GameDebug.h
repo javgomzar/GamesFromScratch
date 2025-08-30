@@ -32,50 +32,33 @@ struct debug_info {
     float UsedMemory;
 };
 
-debug_entry* _AddDebugEntry(debug_info* DebugInfo, char* Name, debug_type Type, int Size, void* Value, bool Editable, debug_entry* Parent = 0) {
+debug_entry* _AddDebugEntry(
+    debug_info* DebugInfo, 
+    const char* Name, 
+    debug_type Type, 
+    int Size, 
+    void* Value, 
+    bool Editable, 
+    debug_entry* Parent = NULL
+) {
     debug_entry* Entry = &DebugInfo->Entries[DebugInfo->nEntries++];
-    *Entry = {
-        {}, Parent, Value, Type, Editable
-    };
     strcpy_s(Entry->Name, Name);
-    if (IsStructType(Type) && Value != NULL) {
-        bool Found = false;
-        for (int i = 0; i < STRUCT_MEMBERS_SIZE; i++) {
-            debug_struct_member Member = StructMembers[i];
-            if (Member.StructType == Type) {
-                if (!Found) Found = true;
-                while (Member.StructType == Type) {
-                    uint8* Pointer = (uint8*)Value + Member.Offset;
-                    if (Member.IsPointer) {
-                        if (Pointer) {
-                            _AddDebugEntry(DebugInfo, Member.Name, Member.MemberType, Member.Size, *(void**)Pointer, Editable, Entry);
-                        }
-                        else {
-                            _AddDebugEntry(DebugInfo, Member.Name, Member.MemberType, Member.Size, 0, Editable, Entry);
-                        }
-                    }
-                    else if (Member.ArraySize > 0) {
-                        for (int j = 0; j < Member.ArraySize; j++) {
-                            _AddDebugEntry(DebugInfo, Member.Name, Member.MemberType, Member.Size, (void*)Pointer, Editable, Entry);
-                            Pointer += Member.Size;
-                        }
-                    }
-                    else {
-                        _AddDebugEntry(DebugInfo, Member.Name, Member.MemberType, Member.Size, (void*)Pointer, Editable, Entry);
-                    }
-                    i++;
-                    if (i < STRUCT_MEMBERS_SIZE) Member = StructMembers[i];
-                    else break;
-                }
-                break;
-            }
-        }
-    }
+    Entry->Parent = Parent;
+    Entry->Value = Value;
+    Entry->Type = Type;
+    Entry->Editable = Editable;
 
     return Entry;
 }
 
-debug_entry* _AddDebugArray(debug_info* DebugInfo, char* Name, debug_type Type, int Size, void* Value, uint32 Count) {
+debug_entry* _AddDebugArray(
+    debug_info* DebugInfo, 
+    const char* Name, 
+    debug_type Type, 
+    int Size, 
+    void* Value, 
+    uint32 Count
+) {
     uint8* Memory = (uint8*)Value;
     char Buffer[64];
     debug_entry* Result = 0;
@@ -90,9 +73,9 @@ debug_entry* _AddDebugArray(debug_info* DebugInfo, char* Name, debug_type Type, 
 }
 
 #define DEBUG_ARRAY(Pointer, Count, Type) _AddDebugArray(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)Pointer, Count)
-#define DEBUG_POINTER(Pointer, Type)      _AddDebugEntry(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)##Pointer,  false)
-#define DEBUG_VALUE(Variable, Type)       _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &##Variable, false)
-#define DEBUG_EDIT_VALUE(Variable, Type)  _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &##Variable, true)
+#define DEBUG_POINTER(Pointer, Type)      _AddDebugEntry(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)Pointer, false)
+#define DEBUG_VALUE(Variable, Type)       _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &(Variable), false)
+#define DEBUG_EDIT_VALUE(Variable, Type)  _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &(Variable), true)
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Debug                                                                                                                                                            |
@@ -100,7 +83,7 @@ debug_entry* _AddDebugArray(debug_info* DebugInfo, char* Name, debug_type Type, 
 
 const float DEBUG_ENTRIES_TEXT_POINTS = 10.0f;
 
-void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position) {
+void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color Color) {
     TIMED_BLOCK;
     
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
@@ -117,7 +100,7 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position) {
 
     sprintf_s(Buffer, "%s: ", Entry->Name);
     if (Entry->Type != Debug_Type_memory_arena) {
-        PushText(Group, TextCursor, Font_Menlo_Regular_ID, Buffer, White, Points);
+        PushText(Group, TextCursor, Font_Menlo_Regular_ID, Buffer, Color, Points);
     }
 
     float Width, Height;
@@ -355,14 +338,247 @@ void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, 
     TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
 
     float* Vertices = (float*)TargetCommand.VertexEntry.Pointer;
-    Vertices[0]  = 0.5f; Vertices[1]  = -1.0f; Vertices[2]  = 0.0f; Vertices[3]  = 0.0f; Vertices[4]  = 0.0f,
-    Vertices[5]  = 1.0f; Vertices[6]  = -1.0f; Vertices[7]  = 0.0f; Vertices[8]  = 1.0f; Vertices[9]  = 0.0f;
-    Vertices[10] = 1.0f; Vertices[11] = -0.5f; Vertices[12] = 0.0f; Vertices[13] = 1.0f; Vertices[14] = 1.0f;
-    Vertices[15] = 0.5f; Vertices[16] = -1.0f; Vertices[17] = 0.0f; Vertices[18] = 0.0f; Vertices[19] = 0.0f;
-    Vertices[20] = 1.0f; Vertices[21] = -0.5f; Vertices[22] = 0.0f; Vertices[23] = 1.0f; Vertices[24] = 1.0f;
-    Vertices[25] = 0.5f; Vertices[26] = -0.5f; Vertices[27] = 0.0f; Vertices[28] = 0.0f; Vertices[29] = 1.0f;
+    Vertices[0]  = -1.0f; Vertices[1]  = -1.0f; Vertices[2]  = 0.0f; Vertices[3]  = 0.0f; Vertices[4]  = 0.0f,
+    Vertices[5]  = -0.5f; Vertices[6]  = -1.0f; Vertices[7]  = 0.0f; Vertices[8]  = 1.0f; Vertices[9]  = 0.0f;
+    Vertices[10] = -0.5f; Vertices[11] = -0.5f; Vertices[12] = 0.0f; Vertices[13] = 1.0f; Vertices[14] = 1.0f;
+    Vertices[15] = -1.0f; Vertices[16] = -1.0f; Vertices[17] = 0.0f; Vertices[18] = 0.0f; Vertices[19] = 0.0f;
+    Vertices[20] = -0.5f; Vertices[21] = -0.5f; Vertices[22] = 0.0f; Vertices[23] = 1.0f; Vertices[24] = 1.0f;
+    Vertices[25] = -1.0f; Vertices[26] = -0.5f; Vertices[27] = 0.0f; Vertices[28] = 0.0f; Vertices[29] = 1.0f;
 
     Group->TargetCommands[Group->nTargets++] = TargetCommand;
+}
+
+void UpdateAndSizeDebugEntry(game_font* Font, debug_entry* Entry, float* OutWidth, float* OutHeight) {
+    float Points = DEBUG_ENTRIES_TEXT_POINTS;
+
+    float ValueWidth = 0, ValueHeight = 0;
+    if (Entry->Value) {
+        switch(Entry->Type) {
+            case Debug_Type_bool: {
+                bool Value = *(bool*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%s", Value ? "true" : "false");
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_char: {
+                char Value = *(char*)Entry->Value;
+                switch (Value) {
+                    case '\a': { strcpy_s(Entry->ValueString, "\'\\a\'"); } break;
+                    case '\b': { strcpy_s(Entry->ValueString, "\'\\b\'"); } break;
+                    case '\f': { strcpy_s(Entry->ValueString, "\'\\f\'"); } break;
+                    case '\n': { strcpy_s(Entry->ValueString, "\'\\n\'"); } break;
+                    case '\r': { strcpy_s(Entry->ValueString, "\'\\r\'"); } break;
+                    case '\t': { strcpy_s(Entry->ValueString, "\'\\t\'"); } break;
+                    case '\v': { strcpy_s(Entry->ValueString, "\'\\v\'"); } break;
+                    case '\\': { strcpy_s(Entry->ValueString, "\'\\\\\'"); } break;
+                    case '\'': { strcpy_s(Entry->ValueString, "\'\\'\'"); } break;
+                    case '\"': { strcpy_s(Entry->ValueString, "\'\\\"\'"); } break;
+                    case '\0': { strcpy_s(Entry->ValueString, "\'\\0\'"); } break;
+                    default: {
+                        if (Value >= ' ' && Value <= '~') {
+                            Entry->ValueString[0] = '\'';
+                            Entry->ValueString[1] = Value;
+                            Entry->ValueString[2] = '\'';
+                            Entry->ValueString[3] = '\0';
+                        } else {
+                            sprintf_s(Entry->ValueString, "\'\\x%02x\'", (unsigned char)Value);
+                        }
+                    }
+                }
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_string: {
+                sprintf_s(Entry->ValueString, "\"%s\"", (char*)Entry->Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_int8: {
+                int8 Value = *(int8*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%d", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_int16: {
+                int16 Value = *(int16*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%d", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_int: {
+                int Value = *(int*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%d", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_int32:{
+                int32 Value = *(int32*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%d", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_int64:{
+                int64 Value = *(int64*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%I64d", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_uint8:{
+                uint8 Value = *(uint8*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%u", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_uint16:{
+                uint16 Value = *(uint16*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%u", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_uint32:{
+                uint32 Value = *(uint32*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%u", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_uint64: {
+                uint64 Value = *(uint64*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%I64u", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_memory_index: {
+                memory_index Value = *(memory_index*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%I64u", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_float: {
+                float Value = *(float*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%.3f", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_double: {
+                double Value = *(double*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%.3f", Value);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_v2: {
+                v2 Value = *(v2*)Entry->Value;
+                sprintf_s(Entry->ValueString, "V2(%.3f, %.3f)", Value.X, Value.Y);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_v3: {
+                v3 Value = *(v3*)Entry->Value;
+                sprintf_s(Entry->ValueString, "V3(%.3f, %.3f, %.3f)", Value.X, Value.Y, Value.Z);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_v4: {
+                v4 Value = *(v4*)Entry->Value;
+                sprintf_s(Entry->ValueString, "V4(%.3f, %.3f, %.3f, %.3f)", Value.X, Value.Y, Value.Z, Value.W);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_scale: {
+                scale Value = *(scale*)Entry->Value;
+                sprintf_s(Entry->ValueString, "Scale(%.3f, %.3f, %.3f)", Value.X, Value.Y, Value.Z);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_quaternion: {
+                quaternion Value = *(quaternion*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%.3f + %.3fi + %.3fj + %.3fk", Value.c, Value.i, Value.j, Value.k);
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_color: {
+                Entry->ValueString[0] = '\0';
+                ValueWidth = 2.0f * GetCharMaxHeight(Font, Points);
+            } break;
+
+            case Debug_Type_collider: {
+                collider Value = *(collider*)Entry->Value;
+                switch(Value.Type) {
+                    case Rect_Collider: {
+                        sprintf_s(Entry->ValueString, "(Rect) %.3f x %.3f", Value.Rect.HalfWidth, Value.Rect.HalfHeight);
+                    } break;
+
+                    case Cube_Collider: {
+                        sprintf_s(Entry->ValueString, "(Cube) %.3f x %.3f x %.3f", Value.Cube.HalfWidth, Value.Cube.HalfHeight, Value.Cube.HalfDepth);
+                    } break;
+
+                    case Sphere_Collider: {
+                        sprintf_s(Entry->ValueString, "(Sphere) Radius=%.3f", Value.Sphere.Radius);
+                    } break;
+
+                    case Capsule_Collider: {
+                        sprintf_s(Entry->ValueString, "(Capsule) Radius=%.3f", Value.Capsule.Distance);
+                    } break;
+
+                    default: Raise("Invalid collider type");
+                }
+
+                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            } break;
+
+            case Debug_Type_memory_arena: {
+                memory_arena Arena = *(memory_arena*)Entry->Value;
+                sprintf_s(Entry->ValueString, "%.3f", (float)Arena.Used / (float)Arena.Size);
+                *OutWidth = 450.0f;
+                *OutHeight = 20.0f;
+                return;
+            } break;
+            
+            default: {
+                if (IsEnumType(Entry->Type)) {
+                    for (int i = 0; i < ENUM_VALUES_SIZE; i++) {
+                        debug_enum_value EnumValue = EnumValues[i];
+                        int Value = *(int*)Entry->Value;
+                        if (EnumValue.EnumType == Entry->Type && EnumValue.Value == Value) {
+                            sprintf_s(Entry->ValueString, "%s (%d)", EnumValue.Identifier, Value);
+                            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                            break;
+                        }
+                    }
+                }
+                else if (IsStructType(Entry->Type)) {
+                    if (Entry->Value == 0) {
+                        sprintf_s(Entry->ValueString, "NULL");
+                        GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                    }
+                    else {
+                        sprintf_s(Entry->ValueString, "0x%016llx", (uint64)Entry->Value);
+                        GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                    }
+                }
+                else Raise("Invalid debug type.");
+            }
+        }
+    }
+    else {
+        sprintf_s(Entry->ValueString, "NULL");
+        GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+    }
+
+    float Width = 0,     Height = GetCharMaxHeight(Font, Points), 
+      NameWidth = 0, NameHeight = 0;
+    GetTextWidthAndHeight(Entry->Name, Font, Points, &Width, &Height);
+    GetTextWidthAndHeight(": ", Font, Points, &NameWidth, &NameHeight);
+    Width += NameWidth + ValueWidth;
+    Height = max(Height, ValueHeight);
+
+    debug_entry* Parent = Entry->Parent;
+    while (Parent) {
+        Width += 20.0f;
+        Parent = Parent->Parent;
+    }
+
+    *OutWidth = Width;
+    *OutHeight = Height;
 }
 
 void PushDebugPlot(

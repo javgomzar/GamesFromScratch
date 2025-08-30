@@ -108,8 +108,8 @@ void Raise(const char* ErrorMessage) {
 struct time_record {
     uint64 CycleCount;
     
-    char* FileName;
-    char* FunctionName;
+    const char* FileName;
+    const char* FunctionName;
     
     int LineNumber;
     int HitCount;
@@ -121,7 +121,7 @@ struct timed_block {
     time_record* Record;
     uint64 StartCycles;
 
-    timed_block(int Counter, char* FileName, int LineNumber, char* FunctionName) {
+    timed_block(int Counter, const char* FileName, int LineNumber, const char* FunctionName) {
         Record = TimeRecordArray + Counter;
         Record->FileName = FileName;
         Record->FunctionName = FunctionName;

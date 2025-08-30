@@ -10,6 +10,7 @@ echo %N% > bin\PDBNumber.txt
 
 @REM Compile GameLibrary
 %COMPILE%^
+ /std:c++20^
  /D GAMELIBRARY_EXPORTS^
  /D DebugRecordArray=DebugRecordArray_GameLibrary^
  GameLibrary\GameLibrary.cpp^

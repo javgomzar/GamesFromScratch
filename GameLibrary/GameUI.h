@@ -1,23 +1,17 @@
 #ifndef GAME_UI
 #define GAME_UI
 
-#include <vector>
-
-/*
-    TODO:
-        - Save game state in files.
-        - Load game state from files.
-        - Debug fps graphs.
-        - Log debug records as a table.
-        - Debug entities.
-*/
-
 enum ui_axis {
     axis_x,
     axis_y
 };
 
+ui_axis Opposite(ui_axis Axis) {
+    return Axis == axis_x ? axis_y : axis_x;
+}
+
 enum ui_alignment {
+    ui_alignment_free,
     ui_alignment_center,
     ui_alignment_min,
     ui_alignment_max
@@ -50,268 +44,38 @@ enum ui_size_type {
 struct ui_size {
     ui_size_type Type;
     float Value;
+    float Min = 0;
+    float Max = FLT_MAX;
 };
 
-ui_size UISizeNull() {
-    return { ui_size_null, 0.0f };
+// This size will be skipped when computing children dependent sizes and layout
+ui_size UISizeNull(float Value = 0.0f) {
+    return { ui_size_null, Value };
 }
 
 ui_size UISizePixels(float Value) {
-    return { ui_size_pixels, Value };
+    return { ui_size_pixels, Value, Value, Value };
 }
 
-ui_size UISizePercentParent(float Value) {
-    return { ui_size_percent_of_parent, Value };
+ui_size UISizePercentParent(float Value, float Min = 0.0f, float Max = FLT_MAX) {
+    return { ui_size_percent_of_parent, Value, Min, Max };
 }
 
-ui_size UISizeMaxChildren() {
-    return { ui_size_max_of_children, 0.0f };
+ui_size UISizeMaxChildren(float Min = 0.0f, float Max = FLT_MAX) {
+    return { ui_size_max_of_children, Min, Min, Max };
 }
 
-ui_size UISizeSumChildren() {
-    return { ui_size_sum_of_children, 0.0f };
-}
-
-void ComputeDebugEntrySize(game_font* Font, debug_entry* Entry, ui_size* SizeX, ui_size* SizeY) {
-    float Points = DEBUG_ENTRIES_TEXT_POINTS;
-
-    SizeX->Type = ui_size_pixels;
-    SizeY->Type = ui_size_pixels;
-
-    float ValueWidth = 0, ValueHeight = 0;
-    if (Entry->Value) {
-        switch(Entry->Type) {
-            case Debug_Type_bool: {
-                bool Value = *(bool*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%s", Value ? "true" : "false");
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_char: {
-                char Value = *(char*)Entry->Value;
-                switch (Value) {
-                    case '\a': { strcpy_s(Entry->ValueString, "\'\\a\'"); } break;
-                    case '\b': { strcpy_s(Entry->ValueString, "\'\\b\'"); } break;
-                    case '\f': { strcpy_s(Entry->ValueString, "\'\\f\'"); } break;
-                    case '\n': { strcpy_s(Entry->ValueString, "\'\\n\'"); } break;
-                    case '\r': { strcpy_s(Entry->ValueString, "\'\\r\'"); } break;
-                    case '\t': { strcpy_s(Entry->ValueString, "\'\\t\'"); } break;
-                    case '\v': { strcpy_s(Entry->ValueString, "\'\\v\'"); } break;
-                    case '\\': { strcpy_s(Entry->ValueString, "\'\\\\\'"); } break;
-                    case '\'': { strcpy_s(Entry->ValueString, "\'\\'\'"); } break;
-                    case '\"': { strcpy_s(Entry->ValueString, "\'\\\"\'"); } break;
-                    case '\0': { strcpy_s(Entry->ValueString, "\'\\0\'"); } break;
-                    default: {
-                        if (Value >= ' ' && Value <= '~') {
-                            Entry->ValueString[0] = '\'';
-                            Entry->ValueString[1] = Value;
-                            Entry->ValueString[2] = '\'';
-                            Entry->ValueString[3] = '\0';
-                        } else {
-                            sprintf_s(Entry->ValueString, "\'\\x%02x\'", (unsigned char)Value);
-                        }
-                    }
-                }
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_string: {
-                sprintf_s(Entry->ValueString, "\"%s\"", (char*)Entry->Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_int8: {
-                int8 Value = *(int8*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%d", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_int16: {
-                int16 Value = *(int16*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%d", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_int: {
-                int Value = *(int*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%d", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_int32:{
-                int32 Value = *(int32*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%d", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_int64:{
-                int64 Value = *(int64*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%I64d", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_uint8:{
-                uint8 Value = *(uint8*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%u", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_uint16:{
-                uint16 Value = *(uint16*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%u", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_uint32:{
-                uint32 Value = *(uint32*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%u", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_uint64: {
-                uint64 Value = *(uint64*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%I64u", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_memory_index: {
-                memory_index Value = *(memory_index*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%I64u", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_float: {
-                float Value = *(float*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%.3f", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_double: {
-                double Value = *(double*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%.3f", Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_v2: {
-                v2 Value = *(v2*)Entry->Value;
-                sprintf_s(Entry->ValueString, "V2(%.3f, %.3f)", Value.X, Value.Y);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_v3: {
-                v3 Value = *(v3*)Entry->Value;
-                sprintf_s(Entry->ValueString, "V3(%.3f, %.3f, %.3f)", Value.X, Value.Y, Value.Z);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_v4: {
-                v4 Value = *(v4*)Entry->Value;
-                sprintf_s(Entry->ValueString, "V4(%.3f, %.3f, %.3f, %.3f)", Value.X, Value.Y, Value.Z, Value.W);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_scale: {
-                scale Value = *(scale*)Entry->Value;
-                sprintf_s(Entry->ValueString, "Scale(%.3f, %.3f, %.3f)", Value.X, Value.Y, Value.Z);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_quaternion: {
-                quaternion Value = *(quaternion*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%.3f + %.3fi + %.3fj + %.3fk", Value.c, Value.i, Value.j, Value.k);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_color: {
-                Entry->ValueString[0] = '\0';
-                ValueWidth = 2.0f * GetCharMaxHeight(Font, Points);
-            } break;
-
-            case Debug_Type_collider: {
-                collider Value = *(collider*)Entry->Value;
-                switch(Value.Type) {
-                    case Rect_Collider: {
-                        sprintf_s(Entry->ValueString, "(Rect) %.3f x %.3f", Value.Rect.HalfWidth, Value.Rect.HalfHeight);
-                    } break;
-
-                    case Cube_Collider: {
-                        sprintf_s(Entry->ValueString, "(Cube) %.3f x %.3f x %.3f", Value.Cube.HalfWidth, Value.Cube.HalfHeight, Value.Cube.HalfDepth);
-                    } break;
-
-                    case Sphere_Collider: {
-                        sprintf_s(Entry->ValueString, "(Sphere) Radius=%.3f", Value.Sphere.Radius);
-                    } break;
-
-                    case Capsule_Collider: {
-                        sprintf_s(Entry->ValueString, "(Capsule) Radius=%.3f", Value.Capsule.Distance);
-                    } break;
-
-                    default: Raise("Invalid collider type");
-                }
-
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-            } break;
-
-            case Debug_Type_memory_arena: {
-                memory_arena Arena = *(memory_arena*)Entry->Value;
-                sprintf_s(Entry->ValueString, "%.3f", (float)Arena.Used / (float)Arena.Size);
-                SizeX->Value = 450.0f;
-                SizeY->Value = 20.0f;
-                return;
-            } break;
-            
-            default: {
-                if (IsEnumType(Entry->Type)) {
-                    for (int i = 0; i < ENUM_VALUES_SIZE; i++) {
-                        debug_enum_value EnumValue = EnumValues[i];
-                        int Value = *(int*)Entry->Value;
-                        if (EnumValue.EnumType == Entry->Type && EnumValue.Value == Value) {
-                            sprintf_s(Entry->ValueString, "%s (%d)", EnumValue.Identifier, Value);
-                            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-                            break;
-                        }
-                    }
-                }
-                else if (IsStructType(Entry->Type)) {
-                    void* Pointer = *(void**)Entry->Value;
-                    if (Pointer == 0) {
-                        sprintf_s(Entry->ValueString, "NULL");
-                        GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-                    }
-                }
-                else Raise("Invalid debug type.");
-            }
-        }
-    }
-    else {
-        sprintf_s(Entry->ValueString, "NULL");
-        GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
-    }
-
-    float Width = 0,     Height = GetCharMaxHeight(Font, Points), 
-      NameWidth = 0, NameHeight = 0;
-    GetTextWidthAndHeight(Entry->Name, Font, Points, &Width, &Height);
-    GetTextWidthAndHeight(": ", Font, Points, &NameWidth, &NameHeight);
-    Width += NameWidth + ValueWidth;
-    Height = max(Height, ValueHeight);
-
-    debug_entry* Parent = Entry->Parent;
-    while (Parent) {
-        Width += 20.0f;
-        Parent = Parent->Parent;
-    }
-
-    SizeX->Value = Width;
-    SizeY->Value = Height;
+ui_size UISizeSumChildren(float InitialValue = 0.0f, float Max = FLT_MAX) {
+    return { ui_size_sum_of_children, InitialValue, InitialValue, Max };
 }
 
 typedef uint32 ui_flags;
 
 enum {
-    RENDER_TEXT_UI_FLAG      = 1 << 0,
-    RENDER_RECT_UI_FLAG      = 1 << 1,
-    STACK_CHILDREN_X_UI_FLAG = 1 << 2,
-    STACK_CHILDREN_Y_UI_FLAG = 1 << 3,
+    RENDER_TEXT_UI_FLAG        = 1 << 0,
+    RENDER_RECT_UI_FLAG        = 1 << 1,
+    STACK_CHILDREN_X_UI_FLAG   = 1 << 2,
+    STACK_CHILDREN_Y_UI_FLAG   = 1 << 3,
 };
 
 struct ui_element {
@@ -325,7 +89,8 @@ struct ui_element {
     rectangle Rect;
     float RelativePosition[2];
     float Margins[2];
-    int Points;
+    float Points;
+    float Scroll;
 
     uint32 ID;
     uint32 Index;
@@ -337,9 +102,10 @@ struct ui_element {
     bool Hovered;
     bool Clicked;
     bool Dragged;
+    bool Expand;
 };
 
-const int MAX_UI_ELEMENTS = 128;
+const int MAX_UI_ELEMENTS = 256;
 struct ui_hierarchy {
     ui_element Elements[MAX_UI_ELEMENTS];
     ui_element* Parent;
@@ -353,13 +119,14 @@ struct ui_context {
     ui_hierarchy Tree;
     render_group* Group;
     game_input* Input;
-    std::vector<uint32> IDStack;
+    debug_info* DebugInfo;
+    stack<uint32> IDStack;
     uint32 CurrentIndex;
 };
 
-static ui_context UI;
+static ui_context UI = {};
 
-void UISizeText(char * Text, int Points, ui_size* Sizes) {
+void UISizeText(const char * Text, int Points, ui_size* Sizes) {
     rectangle Rect;
     GetTextWidthAndHeight(Text, GetAsset(UI.Group->Assets, Font_Menlo_Regular_ID), Points, &Rect.Width, &Rect.Height);
     Sizes[axis_x].Type = ui_size_text;
@@ -369,7 +136,7 @@ void UISizeText(char * Text, int Points, ui_size* Sizes) {
 }
 
 void PushID(uint32 ID) {
-    UI.IDStack.push_back(ID);
+    UI.IDStack.Push(ID);
     UI.CurrentIndex = 0;
 }
 
@@ -378,11 +145,11 @@ void PushID(char* String) {
 }
 
 void PopID() {
-    UI.IDStack.pop_back();
+    UI.IDStack.Pop();
     UI.CurrentIndex = 0;
 }
 
-uint32 GetID(char* String) {
+uint32 GetID(const char* String) {
     uint32 i = 0;
     bool UseIndex = false;
     while (String[i]) {
@@ -395,7 +162,8 @@ uint32 GetID(char* String) {
     }
 
     uint32 StackHash = 2166136261u;
-    for (uint32 ID : UI.IDStack) {
+    for (int j = 0; j < UI.IDStack.n; j++) {
+        uint32 ID = UI.IDStack[j];
         StackHash ^= ID;
         StackHash *= 16777619u;
     }
@@ -426,11 +194,12 @@ ui_element* NewUIElement(uint32 ID) {
     ui_element* Result = &UI.Tree.Elements[UI.Tree.Count++];
     Result->ID = ID;
     Result->Index = UI.CurrentIndex;
+    Result->Scroll = 0;
     return Result;
 }
 
 ui_element* PushUIElement(
-    char* Name,
+    const char* Name,
     ui_size SizeX,
     ui_size SizeY,
     ui_alignment AlignmentX,
@@ -461,9 +230,8 @@ ui_element* PushUIElement(
             case ui_size_null:
             case ui_size_percent_of_parent:
             case ui_size_sum_of_children:
-            case ui_size_max_of_children: {
-                Element->Size[i].Value = 0.0f;
-            } break;
+            case ui_size_max_of_children: break;
+
             case ui_size_text:
             case ui_size_pixels: {
                 Element->Size[i].Value = Sizes[i].Value;
@@ -482,6 +250,16 @@ ui_element* PushUIElement(
     Element->Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
     Element->Clicked = Element->Hovered && UI.Input->Mouse.LeftClick.JustPressed;
 
+    if (Element->Clicked) {
+        Element->Dragged = true;
+    }
+
+    if (Element->Dragged) {
+        if (UI.Input->Mouse.LeftClick.JustLifted) {
+            Element->Dragged = false;
+        }
+    }
+
     if (UI.Tree.Current) UI.Tree.Current->Next = Element;
     Element->Previous = UI.Tree.Current;
     UI.Tree.Current = Element;
@@ -492,10 +270,10 @@ ui_element* PushUIElement(
 void BeginContext(game_memory* Memory, game_input* Input) {
     UI.Group = &Memory->RenderGroup;
     UI.Input = Input;
+    UI.DebugInfo = &Memory->DebugInfo;
 }
 
 void ComputeSizes() {
-    TIMED_BLOCK;
     ui_element* Element = UI.Tree.First;
     if (Element == NULL) return;
 
@@ -505,7 +283,11 @@ void ComputeSizes() {
     while (Element) {
         for (int i = 0; i < 2; i++) {
             switch(Element->Size[i].Type) {
-                case ui_size_null:
+                case ui_size_null: {
+                    if (i == axis_x) Element->Rect.Width = 0;
+                    else             Element->Rect.Height = 0;
+                } break;
+
                 case ui_size_pixels:
                 case ui_size_text: {
                     if (i == axis_x) Element->Rect.Width = Element->Size[i].Value;
@@ -520,12 +302,19 @@ void ComputeSizes() {
                     }
                 } break;
 
-                case ui_size_max_of_children: break;
+                case ui_size_max_of_children: 
                 case ui_size_sum_of_children: { 
-                    Element->Size[i].Value = Element->Margins[i];
+                    Element->Size[i].Value += Element->Margins[i];
                 } break;
                 
                 default: Raise("Invalid size type.");
+            }
+
+            if (Element->Size[i].Value > Element->Size[i].Max) {
+                Element->Size[i].Value = Element->Size[i].Max;
+            }
+            if (Element->Size[i].Value < Element->Size[i].Min) {
+                Element->Size[i].Value = Element->Size[i].Min;
             }
         }
 
@@ -540,12 +329,14 @@ void ComputeSizes() {
         ui_element* Parent = Element->Parent;
         if (Parent) {
             for (int i = 0; i < 2; i++) {
-                if (Parent->Size[i].Type == ui_size_max_of_children) {
-                    float ChildValue = Element->Size[i].Value + 2.0f * Parent->Margins[i];
-                    if (ChildValue > Parent->Size[i].Value) Parent->Size[i].Value = ChildValue;
-                }
-                else if (Parent->Size[i].Type == ui_size_sum_of_children) {
-                    Parent->Size[i].Value += Element->Size[i].Value + Parent->Margins[i];
+                if (Element->Size[i].Type != ui_size_null) {
+                    if (Parent->Size[i].Type == ui_size_max_of_children) {
+                        float ChildValue = Element->Size[i].Value + 2.0f * Parent->Margins[i];
+                        if (ChildValue > Parent->Size[i].Value) Parent->Size[i].Value = ChildValue;
+                    }
+                    else if (Parent->Size[i].Type == ui_size_sum_of_children) {
+                        Parent->Size[i].Value += Element->Size[i].Value + Parent->Margins[i];
+                    }
                 }
             }
             Parent->Rect.Width = Parent->Size[axis_x].Value;
@@ -565,9 +356,11 @@ void ComputeSizes() {
             if (Element->Size[i].Type == ui_size_percent_of_parent) {
                 ui_element* Parent = Element->Parent;
                 float ParentSize = Parent ? Parent->Size[i].Value : GroupSizes[i];
-                if (i == axis_x) Element->Rect.Width  = Element->Size[i].Value * ParentSize - 2.0f * Parent->Margins[i];
-                else             Element->Rect.Height = Element->Size[i].Value * ParentSize - 2.0f * Parent->Margins[i];
+                Element->Size[i].Value = Element->Size[i].Value * ParentSize - 2.0f * Parent->Margins[i];
             }
+
+            if (i == axis_x) Element->Rect.Width  = Element->Size[i].Value;
+            else             Element->Rect.Height = Element->Size[i].Value;
         }
         
         if (Element->Next == NULL) break;
@@ -576,8 +369,6 @@ void ComputeSizes() {
 }
 
 void ComputeLayout() {
-    TIMED_BLOCK;
-
     // Compute relative positions
     ui_element* Element = UI.Tree.First;
     if (Element == NULL) return;
@@ -586,39 +377,50 @@ void ComputeLayout() {
         float ParentWidth = UI.Group->Width;
         float ParentHeight = UI.Group->Height;
         float MarginX = 0.0f, MarginY = 0.0f;
-        if (Element->Parent != NULL) {
+
+        if (Element->Parent == NULL) {
+            Element->Rect.Left = Element->RelativePosition[axis_x];
+            ui_alignment AlignmentX = Element->Alignment[axis_x];
+            if (AlignmentX != ui_alignment_free)
+                Element->Rect.Left += Align(AlignmentX, ParentWidth, Element->Rect.Width, MarginX);
+            
+            Element->Rect.Top = Element->RelativePosition[axis_y];
+            ui_alignment AlignmentY = Element->Alignment[axis_y];
+            if (AlignmentY != ui_alignment_free)
+                Element->Rect.Top += Align(AlignmentY, ParentHeight, Element->Rect.Height, MarginY);
+        }
+        else {
             ParentWidth = Element->Parent->Rect.Width;
             ParentHeight = Element->Parent->Rect.Height;
             MarginX = Element->Parent->Margins[axis_x];
             MarginY = Element->Parent->Margins[axis_y];
         }
-
-        if (Element->Parent == NULL) {
-            Element->Rect.Left = Align(Element->Alignment[axis_x], ParentWidth, Element->Rect.Width, MarginX) + Element->RelativePosition[axis_x];
-            Element->Rect.Top = Align(Element->Alignment[axis_y], ParentHeight, Element->Rect.Height, MarginY) + Element->RelativePosition[axis_y];
-        }
         
         // Layout that depends on parents
         if (Element->Flags & (STACK_CHILDREN_X_UI_FLAG | STACK_CHILDREN_Y_UI_FLAG)) {
             ui_axis StackAxis = (Element->Flags & STACK_CHILDREN_X_UI_FLAG) ? axis_x : axis_y;
-            ui_axis NoStackAxis = StackAxis == axis_x ? axis_y : axis_x;
+            ui_axis NoStackAxis = Opposite(StackAxis);
 
-            float NextValue = Element->Margins[StackAxis];
+            float NextValue = Element->Margins[StackAxis] + Element->Size[StackAxis].Min;
             ui_element* Child = Element->Next;
             while (Child) {
                 if (Child->Parent == Element) {
-                    Child->RelativePosition[StackAxis] = NextValue;
-                    Child->RelativePosition[NoStackAxis] = Align(
-                        Child->Alignment[NoStackAxis], 
-                        Element->Size[NoStackAxis].Value, 
-                        Child->Size[NoStackAxis].Value, 
-                        Element->Margins[NoStackAxis]
-                    );
+                    if (Child->Size[StackAxis].Type != ui_size_null) {
+                        Child->RelativePosition[StackAxis] = NextValue;
+                        NextValue += Element->Margins[StackAxis] + Child->Size[StackAxis].Value;
+                    }
+
+                    if (Child->Size[NoStackAxis].Type != ui_size_null) {
+                        Child->RelativePosition[NoStackAxis] = Align(
+                            Child->Alignment[NoStackAxis], 
+                            Element->Size[NoStackAxis].Value, 
+                            Child->Size[NoStackAxis].Value, 
+                            Element->Margins[NoStackAxis]
+                        );
+                    }
                     
                     Child->Rect.Left = Element->Rect.Left + Child->RelativePosition[axis_x];
                     Child->Rect.Top  = Element->Rect.Top + Child->RelativePosition[axis_y];
-
-                    NextValue += Element->Margins[StackAxis] + Child->Size[StackAxis].Value;
                 }
 
                 Child = Child->Next;
@@ -635,27 +437,31 @@ void RenderUI() {
     game_font_id FontID = Font_Menlo_Regular_ID;
     game_font* Font = GetAsset(UI.Group->Assets, FontID);
 
+    rectangle Screen = {0, 0, (float)UI.Group->Width, (float)UI.Group->Height};
+
     ui_element* Element = UI.Tree.First;
     while (Element) {
         v2 Position = LeftTop(Element->Rect);
-        if (Element->DebugEntry) {
-            PushDebugEntry(UI.Group, Element->DebugEntry, Position);
-        }
-        else {
-            if (Element->Flags & RENDER_RECT_UI_FLAG) {
-                PushRect(UI.Group, Element->Rect, Element->Color);
+        if (Intersect(Screen, Element->Rect)) {
+            if (Element->DebugEntry) {
+                PushDebugEntry(UI.Group, Element->DebugEntry, Position, Element->Color);
             }
-
-            if (Element->Flags & RENDER_TEXT_UI_FLAG) {
-                float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
-                PushText(
-                    UI.Group,
-                    Position + V2(0, OffsetHeight), 
-                    FontID, 
-                    Element->Name,
-                    Element->Color,
-                    Element->Points
-                );
+            else {
+                if (Element->Flags & RENDER_RECT_UI_FLAG) {
+                    PushRect(UI.Group, Element->Rect, Element->Color);
+                }
+    
+                if (Element->Flags & RENDER_TEXT_UI_FLAG) {
+                    float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
+                    PushText(
+                        UI.Group,
+                        Position + V2(0, OffsetHeight), 
+                        FontID, 
+                        Element->Name,
+                        Element->Color,
+                        Element->Points
+                    );
+                }
             }
         }
 
@@ -663,9 +469,60 @@ void RenderUI() {
     }
 }
 
+const float SIDEBAR_WIDTH = 10.0f;
+void UISidebar(ui_axis Axis) {
+    Assert(UI.Tree.Parent != NULL);
+    ui_axis OppositeAxis = Opposite(Axis);
+
+    ui_alignment Alignments[2];
+    Alignments[Axis] = ui_alignment_free;
+    Alignments[OppositeAxis] = ui_alignment_max;
+
+    float ParentsSize[2]       = { UI.Tree.Parent->Rect.Width, UI.Tree.Parent->Rect.Height };
+    float ParentsParentSize[2] = { (float)UI.Group->Width, (float)UI.Group->Height };
+    if (UI.Tree.Parent->Parent != NULL) {
+        ParentsSize[0] = UI.Tree.Parent->Parent->Rect.Width;
+        ParentsSize[1] = UI.Tree.Parent->Parent->Rect.Height;
+    }
+    
+    float SideBarSize = ParentsParentSize[Axis] / ParentsSize[Axis] * ParentsParentSize[Axis];
+    ui_size Size[2] = {};
+    Size[Axis] = UISizeNull(SideBarSize);
+    Size[OppositeAxis] = UISizePixels(SIDEBAR_WIDTH);
+    ui_element* Element = PushUIElement(
+        "Sidebar",
+        Size[axis_x],
+        Size[axis_y],
+        ui_alignment_max,
+        ui_alignment_free,
+        RENDER_RECT_UI_FLAG
+    );
+
+    if (Element->Parent->Hovered && UI.Input->Mouse.Wheel != 0) {
+        float Increment = (UI.Input->Mouse.Wheel > 0 ? -20.0f : 20.0f) / (ParentsParentSize[Axis] - SideBarSize);
+        Element->Scroll = Clamp(Element->Scroll + Increment, 0.0f, 1.0f);
+    }
+
+    float Alpha = Element->Hovered ? 0.75f : 0.5f;
+    if (Element->Dragged) {
+        float Delta;
+        if (Axis == axis_x) Delta = UI.Input->Mouse.Cursor.X - UI.Input->Mouse.LastCursor.X;
+        else                Delta = UI.Input->Mouse.Cursor.Y - UI.Input->Mouse.LastCursor.Y;
+        Element->Scroll = Clamp(Element->Scroll + Delta / (ParentsParentSize[Axis] - SideBarSize), 0.0f, 1.0f);
+        Alpha = 0.75f;
+    }
+
+    Element->Color = ChangeAlpha(White, Alpha);
+
+    Element->Parent->RelativePosition[Axis] = Element->Scroll * (ParentsParentSize[Axis] - ParentsSize[Axis]);
+    Element->RelativePosition[Axis] = -Element->Parent->RelativePosition[Axis] + Element->Scroll * (ParentsParentSize[Axis] - SideBarSize);
+}
+
 struct UIMenu {
+    ui_element* Element;
+
     UIMenu(
-        char* Text,
+        const char* Text,
         ui_axis Stack = axis_y, 
         ui_alignment AlignmentX = ui_alignment_center, 
         ui_alignment AlignmentY = ui_alignment_center,
@@ -673,10 +530,10 @@ struct UIMenu {
         float MarginY = 10.0f,
         color C = ChangeAlpha(Black, 0.7f)
     ) {
-        ui_axis NoStack = Stack == axis_x ? axis_y : axis_x;
+        ui_axis NoStack = Opposite(Stack);
         ui_size Sizes[2];
-        Sizes[Stack] = UISizeSumChildren();
-        Sizes[NoStack] = UISizeMaxChildren();
+        Sizes[Stack] = UISizeSumChildren(0);
+        Sizes[NoStack] = UISizeMaxChildren(0);
         ui_flags Flags = RENDER_RECT_UI_FLAG;
         if (Stack == axis_x) {
             Flags |= STACK_CHILDREN_X_UI_FLAG;
@@ -684,7 +541,7 @@ struct UIMenu {
         else {
             Flags |= STACK_CHILDREN_Y_UI_FLAG;
         }
-        ui_element* Element = PushUIElement(Text, Sizes[0], Sizes[1], AlignmentX, AlignmentY, Flags);
+        Element = PushUIElement(Text, Sizes[0], Sizes[1], AlignmentX, AlignmentY, Flags);
         Element->Margins[axis_x] = MarginX;
         Element->Margins[axis_y] = MarginY;
         Element->Color = C;
@@ -692,12 +549,66 @@ struct UIMenu {
     }
 
     ~UIMenu() {
+        float ParentHeight = UI.Group->Height;
+        if (Element->Parent != NULL) {
+            ParentHeight = Element->Parent->Rect.Height;
+        }
+        if (Element->Rect.Height > ParentHeight) {
+            UISidebar(axis_y);
+            Element->Alignment[axis_y] = ui_alignment_free;
+        }
         PopParent();
     }
 };
 
+struct _UIDropdown {
+    bool Expand;
+
+    _UIDropdown(const char* Text) {
+        game_font* Font = GetAsset(UI.Group->Assets, Font_Menlo_Regular_ID);
+        int Points = 12;
+        float Width = 0, Height = 0;
+        GetTextWidthAndHeight(Text, Font, Points, &Width, &Height);
+        ui_size Sizes[2] = {
+            UISizeMaxChildren(Width),
+            UISizeSumChildren(Height)
+        };
+        
+        ui_element* Element = PushUIElement(
+            Text, 
+            Sizes[axis_x], Sizes[axis_y], 
+            ui_alignment_min, ui_alignment_min,
+            RENDER_TEXT_UI_FLAG | STACK_CHILDREN_Y_UI_FLAG
+        );
+        Element->Points = Points;
+        Element->Rect.Width = Width;
+        Element->Rect.Height = Height;
+
+        bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
+        if (Hovered) {
+            Element->Color = Yellow;
+        }
+
+        if (Hovered && UI.Input->Mouse.LeftClick.JustPressed) {
+            Element->Expand = !Element->Expand;
+        }
+
+        Expand = Element->Expand;
+
+        PushParent(Element);
+    }
+
+    ~_UIDropdown() {
+        PopParent();
+    }
+
+    operator bool() const { return Expand; }
+};
+
+#define UIDropdown(Name) _UIDropdown _##Name(#Name); _##Name
+
 void UIText(
-    char* Text, 
+    const char* Text, 
     ui_alignment AlignmentX = ui_alignment_center, ui_alignment AlignmentY = ui_alignment_center, 
     color Color = White,
     int Points = 10
@@ -714,31 +625,7 @@ void UIText(
     Element->Points = Points;
 }
 
-bool UIDropdown(char* Text, bool& Control) {
-    int Points = 12;
-    ui_size Sizes[2];
-    UISizeText(Text, Points, Sizes);
-    ui_element* Element = PushUIElement(
-        Text, 
-        Sizes[axis_x], Sizes[axis_y], 
-        ui_alignment_min, ui_alignment_min,
-        RENDER_TEXT_UI_FLAG
-    );
-    Element->Points = Points;
-
-    bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
-    if (Hovered) {
-        Element->Color = Yellow;
-    }
-
-    bool Clicked = Hovered && UI.Input->Mouse.LeftClick.JustPressed;
-    if (Clicked) {
-        Control = !Control;
-    }
-    return Control;
-}
-
-bool UIButton(char* Text) {
+bool UIButton(const char* Text) {
     float Points = 20.0f;
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
@@ -761,11 +648,81 @@ bool UIButton(char* Text) {
 void UIDebugValue(debug_entry* Entry) {
     game_font_id FontID = Font_Menlo_Regular_ID;
     game_font* Font = GetAsset(UI.Group->Assets, FontID);
-    ui_size Sizes[2];
-    ComputeDebugEntrySize(Font, Entry, &Sizes[axis_x], &Sizes[axis_y]);
+    ui_size Sizes[2] = {
+        {ui_size_pixels, 0},
+        {ui_size_pixels, 0},
+    };
+    UpdateAndSizeDebugEntry(Font, Entry, &Sizes[axis_x].Value, &Sizes[axis_y].Value);
 
     ui_element* Element = PushUIElement(Entry->Name, Sizes[0], Sizes[1], ui_alignment_min, ui_alignment_center);
     Element->DebugEntry = Entry;
+    if (IsStructType(Entry->Type)) {
+        Element->Size[axis_x] = UISizeMaxChildren(Sizes[axis_x].Value);
+        Element->Size[axis_y] = UISizeSumChildren(Sizes[axis_y].Value);
+        Element->Flags = STACK_CHILDREN_Y_UI_FLAG;
+        if (Element->Hovered) Element->Color = Yellow;
+        if (Entry->Value != NULL && Element->Clicked) {
+            Element->Expand = !Element->Expand;
+        }
+        if (Element->Expand) {
+            PushParent(Element);
+            // Add members
+            bool Found = false;
+            for (int i = 0; i < STRUCT_MEMBERS_SIZE; i++) {
+                debug_struct_member Member = StructMembers[i];
+                if (Member.StructType == Entry->Type) {
+                    if (!Found) Found = true;
+                    while (Member.StructType == Entry->Type) {
+                        uint8* Pointer = (uint8*)Entry->Value + Member.Offset;
+                        if (Member.IsPointer) {
+                            debug_entry* ChildEntry = _AddDebugEntry(
+                                UI.DebugInfo, 
+                                Member.Name, 
+                                Member.MemberType, 
+                                Member.Size, 
+                                Pointer ? *(void**)Pointer : NULL, 
+                                Entry->Editable, 
+                                Entry
+                            );
+                            UIDebugValue(ChildEntry);
+                        }
+                        else if (Member.ArraySize > 0) {
+                            for (int j = 0; j < Member.ArraySize; j++) {
+                                debug_entry* ChildEntry = _AddDebugEntry(
+                                    UI.DebugInfo, 
+                                    Member.Name, 
+                                    Member.MemberType, 
+                                    Member.Size, 
+                                    Pointer, 
+                                    Entry->Editable, 
+                                    Entry
+                                );
+                                Pointer += Member.Size;
+                                UIDebugValue(ChildEntry);
+                            }
+                        }
+                        else {
+                            debug_entry* ChildEntry = _AddDebugEntry(
+                                UI.DebugInfo, 
+                                Member.Name, 
+                                Member.MemberType, 
+                                Member.Size, 
+                                (void*)Pointer, 
+                                Entry->Editable, 
+                                Entry
+                            );
+                            UIDebugValue(ChildEntry);
+                        }
+                        i++;
+                        if (i < STRUCT_MEMBERS_SIZE) Member = StructMembers[i];
+                        else break;
+                    }
+                    break;
+                }
+            }
+            PopParent();
+        }
+    }
 }
 
 enum settings_section {
@@ -849,8 +806,6 @@ void UpdatePlayingUI(
     game_memory* Memory,
     game_input* Input
 ) {
-    TIMED_BLOCK;
-
     render_group* Group = &Memory->RenderGroup;
     game_state* pGameState = (game_state*)Memory->Permanent.Base;
     game_entity_state* EntityState = &pGameState->Entities;
@@ -1019,13 +974,13 @@ void UpdateUI(
         UIMenu DebugMenu = UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 5.0f, 0.0f);
 
         int i = 0;
-        for (; i < DebugInfo->nEntries; i++) {
+        int nEntries = DebugInfo->nEntries;
+        for (; i < nEntries; i++) {
             debug_entry* Entry = &DebugInfo->Entries[i];
             UIDebugValue(Entry);
         }
 
-        static bool DebugArenas = false;
-        if (UIDropdown("Arenas", DebugArenas)) {
+        if (UIDropdown(Arenas)) {
             DEBUG_VALUE(Memory->Transient, memory_arena);
             DEBUG_VALUE(Memory->Permanent, memory_arena);
 
@@ -1038,18 +993,18 @@ void UpdateUI(
             DEBUG_VALUE(VertexArena[vertex_layout_vec3_vec2_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_vec3_vec2_vec3_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_bones_id], memory_arena);
-            for (; i < DebugInfo->nEntries; i++) {
+            nEntries = DebugInfo->nEntries;
+            for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];
                 UIDebugValue(Entry);
             }
         }
 
-        static bool DebugEntities = false;
-        if (UIDropdown("Entities", DebugEntities)) {
-            character* Character = &EntityState->Characters.List[0];
-            DEBUG_VALUE(Character, character);
-            DEBUG_ARRAY(EntityState->Enemies.List, EntityState->Enemies.Count, enemy);
-            for (; i < DebugInfo->nEntries; i++) {
+        if (UIDropdown(Entities)) {
+            game_entity* Entities = EntityState->Entities.List;
+            DEBUG_ARRAY(Entities, EntityState->Entities.Count, game_entity);
+            nEntries = DebugInfo->nEntries;
+            for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];
                 UIDebugValue(Entry);
             }
@@ -1066,8 +1021,10 @@ void UpdateUI(
     ComputeLayout();
     RenderUI();
 
-    UI.Tree.Current = 0;
-    UI.Tree.Parent = 0;
+    UI.Tree.Current = NULL;
+    UI.Tree.Parent = NULL;
+
+    Assert(UI.IDStack.n == 0);
 }
 
 #endif

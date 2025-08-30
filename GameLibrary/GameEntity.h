@@ -161,7 +161,7 @@ v3 EnemyColliderOffset[enemy_type_count] = {
     V3(0,2,0)
 };
 
-char* EnemyNames[enemy_type_count] = {
+const char* EnemyNames[enemy_type_count] = {
     "Horns",
     "Dog",
     "Dyno"
@@ -915,7 +915,6 @@ void Transition(game_state* State, game_state_type Type) {
 }
 
 void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, camera** pActiveCamera, float Width, float Height) {
-    TIMED_BLOCK;
     game_entity_state* EntityState = &State->Entities;
     game_combat* Combat = &State->Combat;
     uint32 Index = 0;

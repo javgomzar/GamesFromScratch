@@ -168,14 +168,23 @@ inline char* PushString(memory_arena* Arena, const char* String) {
 template <typename T> class stack {
 private:
     T* Top;
+    T* Base;
 public:
     uint64 n;
     uint64 Capacity;
 
-    stack(uint64 MaxSize, T* Memory) {
+    stack(uint64 MaxSize = 32) {
         n = 0;
+        T* Memory = (T*)calloc(32, sizeof(T));
         Top = Memory;
+        Base = Memory;
         Capacity = MaxSize;
+    }
+
+    ~stack() {
+        free(Top);
+        n = 0;
+        Capacity = 0;
     }
 
     void Push(T Element) {
@@ -201,6 +210,11 @@ public:
         ZeroSize(n * sizeof(T), Top - n);
         Top = Top - n;
         n = 0;
+    }
+
+    const T& operator[](uint32 i) const {
+        Assert(0 <= i && i < n);
+        return Base[i];
     }
 };
 
