@@ -1750,47 +1750,41 @@ inline float SqDistance(segment3 Segment, ray Ray) {
 
 struct triangle2 {
 	v2 Points[3];
-
-	v2 operator[](int i) const {
-		Assert(i >= 0 && i <= 2);
-		return Points[i];
-	}
-
-	v2& operator[](int i) {
-		Assert(i >= 0 && i <= 2);
-		return Points[i];
-	}
-
-	triangle2 Flip() {
-		return { Points[0], Points[2], Points[1] };
-	}
-
-	triangle2 Cycle() {
-		return { Points[1], Points[2], Points[0] };
-	}
-
-	bool operator==(triangle2 Other) {
-		for (int i = 0; i < 2; i++) {
-			for (int j = 0; j < 3; j++) {
-				if (Points[0] == Other[0] && Points[1] == Other[1] && Points[2] == Other[2]) {
-					return true;
-				}
-				Other = Other.Cycle();
-			}
-			Other = Other.Flip();
-		}
-		return false;
-	}
 };
 
+triangle2 Flip(triangle2 T) {
+	return { T.Points[0], T.Points[2], T.Points[1] };
+}
+
+triangle2 Cycle(triangle2 T) {
+	return { T.Points[1], T.Points[2], T.Points[0] };
+}
+
+bool operator==(triangle2 First, triangle2 Second) {
+	for (int i = 0; i < 2; i++) {
+		for (int j = 0; j < 3; j++) {
+			if (
+				First.Points[0] == Second.Points[0] && 
+				First.Points[1] == Second.Points[1] && 
+				First.Points[2] == Second.Points[2]
+			) {
+				return true;
+			}
+			Second = Cycle(Second);
+		}
+		Second = Flip(Second);
+	}
+	return false;
+}
+
 inline float GetArea(triangle2 T) {
-	return 0.5f * cross(T[2] - T[0], T[1] - T[0]);
+	return 0.5f * cross(T.Points[2] - T.Points[0], T.Points[1] - T.Points[0]);
 }
 
 inline bool IsInside(triangle2 T, v2 P) {
-	triangle2 U = { P, T[1], T[2] };
-	triangle2 V = { P, T[2], T[0] };
-	triangle2 W = { P, T[0], T[1] };
+	triangle2 U = { P, T.Points[1], T.Points[2] };
+	triangle2 V = { P, T.Points[2], T.Points[0] };
+	triangle2 W = { P, T.Points[0], T.Points[1] };
 
 	float Area0 = GetArea(U);
 	float Area1 = GetArea(V);
@@ -1800,26 +1794,18 @@ inline bool IsInside(triangle2 T, v2 P) {
 		return true;
 	}
 
-	segment2 S1 = { T[0], T[1] };
-	segment2 S2 = { T[1], T[2] };
-	segment2 S3 = { T[2], T[0] };
+	segment2 S1 = { T.Points[0], T.Points[1] };
+	segment2 S2 = { T.Points[1], T.Points[2] };
+	segment2 S3 = { T.Points[2], T.Points[0] };
 
 	return IsInside(S1, P) || IsInside(S2, P) || IsInside(S3, P);
 }
 
-triangle2 Flip(triangle2 T) {
-	return { T[0], T[2], T[1] };
-}
-
-triangle2 Cycle(triangle2 T) {
-	return { T[1], T[2], T[0] };
-}
-
 float SqDistance(triangle2 T, v2 P) {
 	segment2 E[3] = {
-		{ T[0], T[1] },
-		{ T[1], T[2] },
-		{ T[2], T[0] },
+		{ T.Points[0], T.Points[1] },
+		{ T.Points[1], T.Points[2] },
+		{ T.Points[2], T.Points[0] },
 	};
 
 	float d = FLT_MAX;
@@ -1848,18 +1834,18 @@ bool Intersect(triangle2 T1, triangle2 T2) {
 	for (int i = 0; i < 6; i++) {
 		v2 V = {};
 		if (i < 3) {
-			V = perp(T1[i] - T1[(i+1)%3]);
+			V = perp(T1.Points[i] - T1.Points[(i+1)%3]);
 		}
 		else {
-			V = perp(T2[i-3] - T2[(i-2)%3]);
+			V = perp(T2.Points[i-3] - T2.Points[(i-2)%3]);
 		}
 
 		float c1[3] = {};
 		float c2[3] = {};
 
 		for (int j = 0; j < 3; j++) {
-			c1[j] = dot(V, T1[j]);
-			c2[j] = dot(V, T2[j]);
+			c1[j] = dot(V, T1.Points[j]);
+			c2[j] = dot(V, T2.Points[j]);
 		}
 
 		float d = 0;
