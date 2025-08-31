@@ -32,6 +32,7 @@ struct game_entity {
     transform Transform;
     v3 Velocity;
     collider Collider;
+    triangle2 Triangle;
     bool Collided;
     bool Active;
     bool Hovered;

@@ -52,12 +52,13 @@ debug_entry* _AddDebugEntry(
 }
 
 debug_entry* _AddDebugArray(
-    debug_info* DebugInfo, 
-    const char* Name, 
-    debug_type Type, 
-    int Size, 
-    void* Value, 
-    uint32 Count
+    debug_info* DebugInfo,
+    const char* Name,
+    debug_type Type,
+    int Size,
+    void* Value,
+    uint32 Count,
+    debug_entry* Parent = NULL
 ) {
     uint8* Memory = (uint8*)Value;
     char Buffer[64];
@@ -65,8 +66,8 @@ debug_entry* _AddDebugArray(
     for (int i = 0; i < Count; i++) {
         sprintf_s(Buffer, "%s[%d]", Name, i);
         
-        if (i == 0) Result = _AddDebugEntry(DebugInfo, Buffer, Type, Size, Memory, false);
-        else        _AddDebugEntry(DebugInfo, Buffer, Type, Size, Memory, false);
+        if (i == 0) Result = _AddDebugEntry(DebugInfo, Buffer, Type, Size, Memory, false, Parent);
+        else        _AddDebugEntry(DebugInfo, Buffer, Type, Size, Memory, false, Parent);
         Memory += Size;
     }
     return Result;
