@@ -486,8 +486,8 @@ void UISidebar(ui_axis Axis) {
         "Sidebar",
         Size[axis_x],
         Size[axis_y],
-        ui_alignment_max,
-        ui_alignment_free,
+        Alignments[0],
+        Alignments[1],
         RENDER_RECT_UI_FLAG
     );
 
@@ -514,6 +514,7 @@ void UISidebar(ui_axis Axis) {
 struct UIMenu {
     ui_element* Element;
     ui_alignment Alignment;
+    ui_axis StackAxis;
 
     UIMenu(
         const char* Text,
@@ -522,20 +523,24 @@ struct UIMenu {
         ui_alignment AlignmentY = ui_alignment_center,
         float MarginX = 10.0f,
         float MarginY = 10.0f,
-        ui_size SizeX = UISizeMaxChildren(),
-        ui_size SizeY = UISizeSumChildren(),
         color C = ChangeAlpha(Black, 0.7f)
     ) {
+        StackAxis = Stack;
         Alignment = Stack == axis_x ? AlignmentX : AlignmentY;
         ui_axis NoStack = Opposite(Stack);
         ui_flags Flags = RENDER_RECT_UI_FLAG;
+        ui_size Sizes[2] = {};
         if (Stack == axis_x) {
             Flags |= STACK_CHILDREN_X_UI_FLAG;
+            Sizes[axis_x] = UISizeSumChildren();
+            Sizes[axis_y] = UISizeMaxChildren();
         }
         else {
             Flags |= STACK_CHILDREN_Y_UI_FLAG;
+            Sizes[axis_x] = UISizeMaxChildren();
+            Sizes[axis_y] = UISizeSumChildren();
         }
-        Element = PushUIElement(Text, SizeX, SizeY, AlignmentX, AlignmentY, Flags);
+        Element = PushUIElement(Text, Sizes[0], Sizes[1], AlignmentX, AlignmentY, Flags);
         Element->Margins[axis_x] = MarginX;
         Element->Margins[axis_y] = MarginY;
         Element->Color = C;
@@ -543,16 +548,18 @@ struct UIMenu {
     }
 
     ~UIMenu() {
-        float ParentHeight = UI.Group->Height;
+        float ParentSize = StackAxis == axis_x ? UI.Group->Width : UI.Group->Height;
         if (Element->Parent != NULL) {
-            ParentHeight = Element->Parent->Rect.Height;
+            ParentSize = axis_x ? Element->Parent->Rect.Width : Element->Parent->Rect.Height;
         }
-        if (Element->Rect.Height > ParentHeight) {
-            UISidebar(axis_y);
-            Element->Alignment[axis_y] = ui_alignment_free;
+        float ElementSize = StackAxis == axis_x ? Element->Rect.Width : Element->Rect.Height;
+        if (ElementSize > ParentSize) {
+            UISidebar(StackAxis);
+            Element->Alignment[StackAxis] = ui_alignment_free;
         }
         else {
-            Element->Alignment[axis_y] = Alignment;
+            Element->Alignment[StackAxis] = Alignment;
+            Element->Scroll = 0;
             Element->RelativePosition[0] = 0;
             Element->RelativePosition[1] = 0;
         }
@@ -631,9 +638,18 @@ bool UIButton(const char* Text) {
     ui_element* Element = PushUIElement(
         Text, 
         Sizes[axis_x], Sizes[axis_y], 
-        ui_alignment_center, ui_alignment_free,
+        ui_alignment_center, 
+        ui_alignment_center,
         RENDER_TEXT_UI_FLAG
     );
+    if (Element->Parent != NULL) {
+        if (Element->Parent->Flags & STACK_CHILDREN_X_UI_FLAG) {
+            Element->Alignment[0] = ui_alignment_free;
+        }
+        if (Element->Parent->Flags & STACK_CHILDREN_Y_UI_FLAG) {
+            Element->Alignment[1] = ui_alignment_free;
+        }
+    }
     Element->Points = Points;
 
     bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
@@ -803,13 +819,7 @@ void UpdateUI(
         // PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
         // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
         
-        UIMenu DebugMenu = UIMenu(
-            "Debug Menu", 
-            axis_y, 
-            ui_alignment_min,    ui_alignment_min, 
-            5.0f,                0.0f, 
-            UISizeMaxChildren(), UISizeSumChildren()
-        );
+        UIMenu DebugMenu = UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 5.0f, 0.0f);
 
         int i = 0;
         int nEntries = DebugInfo->nEntries;
