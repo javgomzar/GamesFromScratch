@@ -31,6 +31,7 @@ enum debug_type {
     Debug_Type_character_action_id,
     Debug_Type_transform,
     Debug_Type_segment3,
+    Debug_Type_triangle2,
     Debug_Type_game_animation,
     Debug_Type_game_animator,
     Debug_Type_bone,
@@ -44,7 +45,7 @@ enum debug_type {
 };
 
 bool IsEnumType(debug_type Type) { return Type > 22 && Type < 30; }
-bool IsStructType(debug_type Type) { return Type > 29 && Type < 42; }
+bool IsStructType(debug_type Type) { return Type > 29 && Type < 43; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -103,13 +104,14 @@ struct debug_struct_member {
     bool IsPointer;
 };
 
-const int STRUCT_MEMBERS_SIZE = 58;
+const int STRUCT_MEMBERS_SIZE = 60;
 debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Translation", Debug_Type_transform, Debug_Type_v3, sizeof(v3), (uint64)(&((transform*)0)->Translation),0, false},
     {"Scale", Debug_Type_transform, Debug_Type_scale, sizeof(scale), (uint64)(&((transform*)0)->Scale),0, false},
     {"Rotation", Debug_Type_transform, Debug_Type_quaternion, sizeof(quaternion), (uint64)(&((transform*)0)->Rotation),0, false},
     {"Head", Debug_Type_segment3, Debug_Type_v3, sizeof(v3), (uint64)(&((segment3*)0)->Head),0, false},
     {"Tail", Debug_Type_segment3, Debug_Type_v3, sizeof(v3), (uint64)(&((segment3*)0)->Tail),0, false},
+    {"Points", Debug_Type_triangle2, Debug_Type_v2, sizeof(v2), (uint64)(&((triangle2*)0)->Points),3, false},
     {"ID", Debug_Type_game_animation, Debug_Type_game_animation_id, sizeof(game_animation_id), (uint64)(&((game_animation*)0)->ID),0, false},
     {"nFrames", Debug_Type_game_animation, Debug_Type_uint32, sizeof(uint32), (uint64)(&((game_animation*)0)->nFrames),0, false},
     {"nBones", Debug_Type_game_animation, Debug_Type_uint32, sizeof(uint32), (uint64)(&((game_animation*)0)->nBones),0, false},
@@ -133,6 +135,7 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Transform", Debug_Type_game_entity, Debug_Type_transform, sizeof(transform), (uint64)(&((game_entity*)0)->Transform),0, false},
     {"Velocity", Debug_Type_game_entity, Debug_Type_v3, sizeof(v3), (uint64)(&((game_entity*)0)->Velocity),0, false},
     {"Collider", Debug_Type_game_entity, Debug_Type_collider, sizeof(collider), (uint64)(&((game_entity*)0)->Collider),0, false},
+    {"Triangle", Debug_Type_game_entity, Debug_Type_triangle2, sizeof(triangle2), (uint64)(&((game_entity*)0)->Triangle),0, false},
     {"Collided", Debug_Type_game_entity, Debug_Type_bool, sizeof(bool), (uint64)(&((game_entity*)0)->Collided),0, false},
     {"Active", Debug_Type_game_entity, Debug_Type_bool, sizeof(bool), (uint64)(&((game_entity*)0)->Active),0, false},
     {"Hovered", Debug_Type_game_entity, Debug_Type_bool, sizeof(bool), (uint64)(&((game_entity*)0)->Hovered),0, false},

@@ -1749,6 +1749,7 @@ inline float SqDistance(segment3 Segment, ray Ray) {
 	return modulus(D);
 }
 
+INTROSPECT
 struct triangle2 {
 	v2 Points[3];
 };
