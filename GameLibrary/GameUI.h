@@ -702,18 +702,9 @@ void UIDebugValue(debug_entry* Entry) {
                             UIDebugValue(ChildEntry);
                         }
                         else if (Member.ArraySize > 0) {
+                            debug_entry* ChildEntries = _AddDebugArray(UI.DebugInfo, Member.Name, Member.MemberType, Member.Size, Pointer, Member.ArraySize);
                             for (int j = 0; j < Member.ArraySize; j++) {
-                                debug_entry* ChildEntry = _AddDebugEntry(
-                                    UI.DebugInfo, 
-                                    Member.Name, 
-                                    Member.MemberType, 
-                                    Member.Size, 
-                                    Pointer, 
-                                    Entry->Editable, 
-                                    Entry
-                                );
-                                Pointer += Member.Size;
-                                UIDebugValue(ChildEntry);
+                                UIDebugValue(&ChildEntries[j]);
                             }
                         }
                         else {
