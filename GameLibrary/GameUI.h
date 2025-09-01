@@ -676,7 +676,10 @@ void UIDebugValue(debug_entry* Entry) {
         Element->Size[axis_y] = UISizeSumChildren(Sizes[axis_y].Value);
         Element->Flags = STACK_CHILDREN_Y_UI_FLAG;
         if (Element->Hovered) Element->Color = Yellow;
-        if (Entry->Value != NULL && Element->Clicked) {
+        if (Entry->Value == NULL) {
+            Element->Expand = false;
+        }
+        else if (Element->Clicked) {
             Element->Expand = !Element->Expand;
         }
         if (Element->Expand) {
