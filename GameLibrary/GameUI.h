@@ -746,11 +746,9 @@ enum settings_section {
 };
 
 void SettingsUI() {
-    UIMenu SettingsMenu = UIMenu("Settings menu", axis_y, ui_alignment_center, ui_alignment_center);
     static settings_section ActiveSection = Graphics_Settings;
-    
     {
-        UIMenu SectionTabs = UIMenu("Section tabs", axis_x, ui_alignment_center, ui_alignment_center);
+        UIMenu SectionTabs = UIMenu("Section tabs", axis_x, ui_alignment_center, ui_alignment_min);
         
         if (UIButton("Graphics")) {
             ActiveSection = Graphics_Settings;
@@ -765,6 +763,8 @@ void SettingsUI() {
         }
     }
 
+    UIMenu SettingsMenu = UIMenu("Settings menu", axis_y, ui_alignment_center, ui_alignment_center);
+    
     switch(ActiveSection) {
         case Graphics_Settings: {
             UIText("GRAPHICS");
@@ -792,7 +792,7 @@ void UpdateMainMenuUI(
     static bool Settings = false;
     
     {
-        UIMenu MainMenu = UIMenu("Main menu", axis_x, ui_alignment_center, ui_alignment_max, 50.0f, 20.0f);
+        UIMenu StartMenu = UIMenu("Start menu", axis_x, ui_alignment_center, ui_alignment_max, 50.0f, 20.0f);
 
         if (UIButton("New game")) {
 
