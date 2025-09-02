@@ -73,15 +73,13 @@ bool Collide(game_entity* Entity1, game_entity* Entity2) {
     return false;
 }
 
-#define DefineEntityListRemove(type) void Remove(type##_list* List, int Index) { Assert(List->Count > 0); List->Count--; List->List[Index] = {}; List->FreeIDs[List->nFreeIDs++] = Index;}
-#define DefineEntityList(maxNumber, type) struct type##_list {int nFreeIDs; int FreeIDs[maxNumber]; int Count; type List[maxNumber];}; DefineEntityListRemove(type)
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Camera                                                                                                                                       |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int MAX_CAMERAS = 16;
-DefineEntityList(MAX_CAMERAS, camera);
+DefineFreeList(MAX_CAMERAS, camera);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Enemies                                                                                                                                      |
@@ -92,7 +90,7 @@ struct enemy {
 };
 
 const int MAX_ENEMIES = 32;
-DefineEntityList(MAX_ENEMIES, enemy);
+DefineFreeList(MAX_ENEMIES, enemy);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Weapons                                                                                                                                      |
@@ -113,7 +111,7 @@ struct weapon {
 };
 
 const int MAX_WEAPONS = 32;
-DefineEntityList(MAX_WEAPONS, weapon);
+DefineFreeList(MAX_WEAPONS, weapon);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Character                                                                                                                                    |
@@ -251,7 +249,7 @@ void Equip(weapon* Weapon, character* Character) {
 }
 
 const int MAX_CHARACTERS = 8;
-DefineEntityList(MAX_CHARACTERS, character);
+DefineFreeList(MAX_CHARACTERS, character);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Props                                                                                                                                        |
@@ -266,14 +264,14 @@ struct prop {
 };
 
 const int MAX_PROPS = 32;
-DefineEntityList(MAX_PROPS, prop);
+DefineFreeList(MAX_PROPS, prop);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Entity List                                                                                                                                  |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int32 MAX_ENTITIES = MAX_CAMERAS + MAX_CHARACTERS + MAX_ENEMIES + MAX_PROPS;
-DefineEntityList(MAX_ENTITIES, game_entity);
+DefineFreeList(MAX_ENTITIES, game_entity);
 
 struct game_entity_state {
     game_entity_list Entities;
