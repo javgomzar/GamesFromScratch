@@ -849,8 +849,16 @@ void UpdateUI(
         }
 
         if (UIDropdown(Entities)) {
-            game_entity* Entities = EntityState->Entities.List;
-            DEBUG_ARRAY(Entities, EntityState->Entities.Count, game_entity);
+            game_entity* Entities[MAX_ENTITIES] = {};
+            uint32 nEntities = 0;
+            uint32 Index = 0;
+            while (nEntities < EntityState->Entities.Count && Index < MAX_ENTITIES) {
+                game_entity* Entity = &EntityState->Entities.List[Index++];
+                if (Entity->Active) {
+                    Entities[nEntities++] = Entity;
+                }
+            }
+            DEBUG_POINTER_ARRAY(Entities, EntityState->Entities.Count, game_entity);
             nEntries = DebugInfo->nEntries;
             for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];
