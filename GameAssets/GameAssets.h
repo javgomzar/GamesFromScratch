@@ -98,19 +98,19 @@ color operator*(float Luminosity, color Color) {
     };
 }
 
-static color Black          = { 0.0f, 0.0f, 0.0f, 1.0f };
-static color White          = { 1.0f, 1.0f, 1.0f, 1.0f };
-static color Gray           = { 0.5f, 0.5f, 0.5f, 1.0f };
-static color DarkGray       = { 0.1f, 0.1f, 0.1f, 1.0f };
-static color Red            = { 1.0f, 0.0f, 0.0f, 1.0f };
-static color Green          = { 0.0f, 1.0f, 0.0f, 1.0f };
-static color Blue           = { 0.0f, 0.0f, 1.0f, 1.0f };
-static color Magenta        = { 1.0f, 0.0f, 1.0f, 1.0f };
-static color Yellow         = { 1.0f, 1.0f, 0.0f, 1.0f };
-static color Cyan           = { 0.0f, 1.0f, 1.0f, 1.0f };
-static color Orange         = { 1.0f, 0.63f, 0.0f, 1.0f };
-static color Purple         = { 0.5f, 0.0f, 0.6f, 1.0f};
-static color BackgroundBlue = { 0.4f, 0.4f, 0.8f, 1.0f };
+color Black          = { 0.0f, 0.0f, 0.0f, 1.0f };
+color White          = { 1.0f, 1.0f, 1.0f, 1.0f };
+color Gray           = { 0.5f, 0.5f, 0.5f, 1.0f };
+color DarkGray       = { 0.1f, 0.1f, 0.1f, 1.0f };
+color Red            = { 1.0f, 0.0f, 0.0f, 1.0f };
+color Green          = { 0.0f, 1.0f, 0.0f, 1.0f };
+color Blue           = { 0.0f, 0.0f, 1.0f, 1.0f };
+color Magenta        = { 1.0f, 0.0f, 1.0f, 1.0f };
+color Yellow         = { 1.0f, 1.0f, 0.0f, 1.0f };
+color Cyan           = { 0.0f, 1.0f, 1.0f, 1.0f };
+color Orange         = { 1.0f, 0.63f, 0.0f, 1.0f };
+color Purple         = { 0.5f, 0.0f, 0.6f, 1.0f};
+color BackgroundBlue = { 0.4f, 0.4f, 0.8f, 1.0f };
 
 uint32 GetColorBytes(color Color) {
     uint8 Alpha = Color.Alpha * 255.0f;
