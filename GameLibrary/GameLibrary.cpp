@@ -63,7 +63,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         pGameState->Combat.State = EntityState;
         Group->Camera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
         Group->Camera->OnAir = true;
-        character* Character = AddCharacter(Assets, EntityState, V3(0,0,0), 100);
+        character* Character = AddCharacter(Assets, EntityState, V3(0,0,0), 500);
         weapon* Sword = AddWeapon(EntityState, Weapon_Sword, White, V3(-5,0,0));
         weapon* Shield = AddWeapon(EntityState, Weapon_Shield, White, V3(-10,0,0));
         Equip(Sword, Character);

@@ -529,8 +529,8 @@ character* AddCharacter(game_assets* Assets, game_entity_state* State, v3 Positi
     );
     pCharacter->Entity->Index = CharacterID;
 
-    pCharacter->Stats.MaxHP = 100;
-    pCharacter->Stats.HP = pCharacter->Stats.MaxHP;
+    pCharacter->Stats.MaxHP = MaxHP;
+    pCharacter->Stats.HP = MaxHP;
     pCharacter->Stats.Strength = 10;
     pCharacter->Stats.Defense = 10;
     pCharacter->Stats.Intelligence = 10;
@@ -648,6 +648,26 @@ weapon* AddWeapon(
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Combat                                                                                                                                       |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct damage_animation {
+    int Damage;
+    float t;
+};
+
+struct combat_animations {
+    uint32 Count;
+    damage_animation DamageAnimations[16];
+};
+
+damage_animation* AddDamageAnimation(combat_animations* CombatAnimations, int Damage) {
+    damage_animation* Result = &CombatAnimations->DamageAnimations[CombatAnimations->Count++];
+    *Result = { Damage, 0.0f };
+    return Result;
+}
+
+void Update(combat_animations* CombatAnimations) {
+
+}
 
 enum combatant_type {
     Combatant_Type_Player,
