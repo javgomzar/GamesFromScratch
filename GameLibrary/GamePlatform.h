@@ -76,21 +76,6 @@ inline void Assert(bool assertion, const char* Message = "") {
     }
 }
 
-// Arrays
-#define ArrayStructDefinition(Capacity, Type) struct Type##_array { uint32 Size = Capacity; uint32 Count = 0; Type Content[Capacity]; }
-#define ArrayAppendDefinition(Capacity, Type) void Append(Type##_array* Array, Type Element) { Assert(Array->Count < Capacity); \
-    Array->Content[Array->Count++] = Element; }
-#define ArrayPopDefinition(Capacity, Type) Type Pop(Type##_array* Array) { Assert(Array->Count > 0); \
-    Type Result = Array->Content[Array->Count]; Array->Content[Array->Count--] = {}; return Result; }
-#define ArrayClearDefinition(Type) void Clear(Type##_array* Array) { for(int i = 0; i < Array->Count; i++) Array->Content[i] = {}; Array->Count = 0; }
-#define ArrayDefinition(Capacity, Type) \
-    ArrayStructDefinition(Capacity, Type); \
-    ArrayAppendDefinition(Capacity, Type); \
-    ArrayPopDefinition(Capacity, Type); \
-    ArrayClearDefinition(Type)
-
-#define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
-
 // Memory Arenas
 struct memory_arena {
     memory_index Size;
@@ -299,6 +284,28 @@ uint64 GetLength(linked_list List) {
     } while (Link && Link != List.First);
 	return Result;
 }
+
+// Fixed length arrays
+
+#define ArrayStructDefinition(Capacity, Type) struct Type##_array { uint32 Size = Capacity; uint32 Count = 0; Type Content[Capacity]; }
+#define ArrayAppendDefinition(Capacity, Type) void Append(Type##_array* Array, Type Element) { Assert(Array->Count < Capacity); \
+    Array->Content[Array->Count++] = Element; }
+#define ArrayPopDefinition(Capacity, Type) Type Pop(Type##_array* Array) { Assert(Array->Count > 0); \
+    Type Result = Array->Content[Array->Count]; Array->Content[Array->Count--] = {}; return Result; }
+#define ArrayClearDefinition(Type) void Clear(Type##_array* Array) { for(int i = 0; i < Array->Count; i++) Array->Content[i] = {}; Array->Count = 0; }
+#define ArrayDefinition(Capacity, Type) \
+    ArrayStructDefinition(Capacity, Type); \
+    ArrayAppendDefinition(Capacity, Type); \
+    ArrayPopDefinition(Capacity, Type); \
+    ArrayClearDefinition(Type)
+
+#define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
+
+
+// Fixed length lists that track available slots
+
+#define DefineFreeListRemove(type) void Remove(type##_list* List, int Index) { Assert(List->Count > 0); List->Count--; List->List[Index] = {}; List->FreeIDs[List->nFreeIDs++] = Index;}
+#define DefineFreeList(maxNumber, type) struct type##_list {int nFreeIDs; int FreeIDs[maxNumber]; int Count; type List[maxNumber];}; DefineFreeListRemove(type)
 
 // Naive implementation of exponential array (see https://www.youtube.com/watch?v=i-h95QIGchY)
 
