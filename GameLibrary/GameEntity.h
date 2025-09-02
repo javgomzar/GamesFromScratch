@@ -1113,15 +1113,13 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
                 if (pWeapon->Type == Weapon_Sword) {
                     ModelTransform = Transform(
                         V3(0.5f,2.0f,0),
-                        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0)),
-                        pWeapon->Entity->Transform.Scale
+                        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
                     );
                 }
                 else if (pWeapon->Type == Weapon_Shield) {
                     ModelTransform = Transform(
                         V3(-0.7f,2.2f,0),
-                        Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0)),
-                        pWeapon->Entity->Transform.Scale
+                        Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0))
                     );
                 }
                 pWeapon->Entity->Transform = ModelTransform * Bone.Transform * ControlledCharacter->Entity->Transform;
