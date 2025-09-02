@@ -162,7 +162,7 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color 
         } break;
 
         case Debug_Type_color: {
-            rectangle Rect = { TextCursor.X, Position.Y, 2.0f * LineHeight, LineHeight };
+            rectangle Rect = { TextCursor.X, Position.Y + 3.0f, 2.0f * LineHeight, LineHeight };
             color Color = *(color*)Entry->Value;
             PushRect(Group, Rect, Color);
             PushRectOutline(Group, Rect, Gray, 1.0f);
