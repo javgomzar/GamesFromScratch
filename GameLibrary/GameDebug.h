@@ -73,10 +73,33 @@ debug_entry* _AddDebugArray(
     return Result;
 }
 
-#define DEBUG_ARRAY(Pointer, Count, Type) _AddDebugArray(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)Pointer, Count)
-#define DEBUG_POINTER(Pointer, Type)      _AddDebugEntry(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)Pointer, false)
-#define DEBUG_VALUE(Variable, Type)       _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &(Variable), false)
-#define DEBUG_EDIT_VALUE(Variable, Type)  _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &(Variable), true)
+debug_entry* _AddDebugPointerArray(
+    debug_info* DebugInfo,
+    const char* Name,
+    debug_type Type,
+    int Size,
+    void* Value,
+    uint32 Count,
+    debug_entry* Parent = NULL
+) {
+    uint8* Memory = (uint8*)Value;
+    char Buffer[64];
+    debug_entry* Result = 0;
+    for (int i = 0; i < Count; i++) {
+        sprintf_s(Buffer, "%s[%d]", Name, i);
+        
+        if (i == 0) Result = _AddDebugEntry(DebugInfo, Buffer, Type, Size, *(void**)Memory, false, Parent);
+        else        _AddDebugEntry(DebugInfo, Buffer, Type, Size, *(void**)Memory, false, Parent);
+        Memory += sizeof(void*);
+    }
+    return Result;
+}
+
+#define DEBUG_VALUE(Variable, Type)               _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &(Variable), false)
+#define DEBUG_POINTER(Pointer, Type)              _AddDebugEntry(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)Pointer, false)
+#define DEBUG_ARRAY(Pointer, Count, Type)         _AddDebugArray(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)Pointer, Count)
+#define DEBUG_POINTER_ARRAY(Pointer, Count, Type) _AddDebugPointerArray(DebugInfo, #Pointer,  Debug_Type_##Type, sizeof(Type), (void*)Pointer, Count)
+#define DEBUG_EDIT_VALUE(Variable, Type)          _AddDebugEntry(DebugInfo, #Variable, Debug_Type_##Type, sizeof(Type), &(Variable), true)
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Debug                                                                                                                                                            |
