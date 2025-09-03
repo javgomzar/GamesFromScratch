@@ -142,6 +142,10 @@ void AdvanceUntilLine(tokenizer& Tokenizer, int Line) {
     }
 }
 
+void SkipLine(tokenizer& Tokenizer) {
+    AdvanceUntilLine(Tokenizer, Tokenizer.Line + 1);
+}
+
 token GetToken(tokenizer& Tokenizer) {
     token Token = {};
     Token.Length = 1;

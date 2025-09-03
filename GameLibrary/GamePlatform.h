@@ -397,11 +397,34 @@ public:
 
 // Services that the platform layer provides for the game
 struct read_file_result {
-    char Path[512];
+    const char* Path;
     int64 Timestamp;
     uint32 ContentSize;
     void* Content;
 };
+
+const char* GetFileExtension(const char* Path) {
+    uint64 L = strlen(Path);
+    const char* LastSlash = NULL;
+    const char* pChar = Path;
+    for (int i = 0; i < L; i++) {
+        if (*pChar == '/' || *pChar == '\\') {
+            LastSlash = Path + i;
+        }
+        pChar++;
+    }
+    
+    const char* Extension = NULL;
+    pChar = LastSlash;
+    for (int i = 0; i < L - (LastSlash - Path); i++) {
+        if (*pChar++ == '.') {
+            Extension = pChar;
+            break;
+        }
+    }
+
+    return Extension;
+}
 
 // Multithreading
 // struct thread_info {

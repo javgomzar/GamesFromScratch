@@ -44,6 +44,12 @@ struct game_mesh {
     uint32 nFaces;
     void* Vertices;
     uint32* Faces;
+    float MinX;
+    float MaxX;
+    float MinY;
+    float MaxY;
+    float MinZ;
+    float MaxZ;
 };
 
 struct preprocessed_mesh {

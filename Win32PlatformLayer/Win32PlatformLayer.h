@@ -14,10 +14,9 @@ PLATFORM_FREE_FILE_MEMORY(PlatformFreeFileMemory) {
 
 PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
     read_file_result Result = {};
+    Result.Path = Path;
     HANDLE FileHandle = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
-        strcpy_s(Result.Path, Path);
-
         LARGE_INTEGER FileSize;
         if (GetFileSizeEx(FileHandle, &FileSize)) {
             Result.Content = VirtualAlloc(0, FileSize.QuadPart, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
