@@ -724,11 +724,13 @@ void ReceiveDamage(combatant* Combatant, int Damage) {
 }
 
 enum combatant_action {
-    combatant_empty_action,
-    combatant_attack_action,
-    combatant_magic_action,
-    combatant_items_action,
-    combatant_flee_action,
+    combatant_action_empty,
+    combatant_action_attack,
+    combatant_action_magic,
+    combatant_action_items,
+    combatant_action_flee,
+
+    combatant_action_count
 };
 
 const int MAX_COMBATANTS = 32;
@@ -783,7 +785,7 @@ struct game_combat {
         Result.Index++;
         Result.Attacker = 0;
         Result.nTargets = 0;
-        Result.Action = combatant_empty_action;
+        Result.Action = combatant_action_empty;
         for (int i = 0; i < Combatants.Count; i++) {
             Result.Targets[i] = 0;
         }
@@ -910,10 +912,14 @@ struct game_combat {
             }
         }
 
-        if (Hot != NULL && Input->Mouse.LeftClick.JustPressed && Hot->Type != Turn.Attacker->Type) {
-            Turn.nTargets = 1;
-            Turn.Targets[0] = Hot;
-            EndTurn();
+        switch(Turn.Action) {
+            case combatant_action_attack: {
+                if (Hot != NULL && Input->Mouse.LeftClick.JustPressed && Hot->Type != Turn.Attacker->Type) {
+                    Turn.nTargets = 1;
+                    Turn.Targets[0] = Hot;
+                    EndTurn();
+                }
+            } break;
         }
 
         ::Update(&DamageAnimations, Group, dt);
@@ -1188,6 +1194,7 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
 
         collider Collider = Entity->Transform * Entity->Collider;
         Entity->Hovered = Raycast(Ray, Collider);
+        bool Outline = Entity->Hovered && GameState->Combat.Turn.Action == combatant_action_attack;
         switch(Entity->Type) {
             case Entity_Type_Character: {
                 character* pCharacter = &State->Characters.List[Entity->Index];
@@ -1199,7 +1206,7 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
                     Bitmap_Empty_ID,
                     White,
                     &pCharacter->Armature,
-                    Entity->Hovered
+                    Outline
                 );
 
                 if (Combat->Active) {
@@ -1226,7 +1233,7 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
                     Shader_Pipeline_Mesh_ID,
                     pEnemy->TextureID,
                     White, 0,
-                    Entity->Hovered
+                    Outline
                 );
 
                 if (Combat->Active) {

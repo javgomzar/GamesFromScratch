@@ -829,6 +829,7 @@ void UpdatePlayingUI(
     float Time = pGameState->Time;
     game_combat* Combat = &pGameState->Combat;
     debug_info* DebugInfo = &Memory->DebugInfo;
+    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
 
     // Main menu
     static bool ShowMenu = false;
@@ -880,14 +881,47 @@ void UpdatePlayingUI(
         PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
 
         // Combat menu
-        { 
+        {
             UIMenu CombatMenu = UIMenu("Combat menu", axis_y, ui_alignment_min, ui_alignment_max, 80.0f, 20.0f);
-            if (UIButton("Attack")) {
 
+            if (UIButton("Attack")) {
+                pGameState->Combat.Turn.Action = combatant_action_attack;
             }
-            UIButton("Magic");
-            UIButton("Items");
-            UIButton("Flee");
+            if (UIButton("Magic")) {
+                pGameState->Combat.Turn.Action = combatant_action_magic;
+            };
+            if (UIButton("Items")) {
+                pGameState->Combat.Turn.Action = combatant_action_items;
+            }
+            if (UIButton("Flee")) {
+                pGameState->Combat.Turn.Action = combatant_action_flee;
+            }
+
+            if (Input->Mouse.RightClick.JustPressed && pGameState->Combat.Turn.Action != combatant_action_empty) {
+                pGameState->Combat.Turn.Action = combatant_action_empty;
+            }
+
+            if (pGameState->Combat.Turn.Action != combatant_action_empty) {
+                const char* Strings[] = {
+                    "Attack", "Magic", "Items", "Flee"
+                };
+                float Width = 0, Height = 0;
+                GetTextWidthAndHeight(Strings[pGameState->Combat.Turn.Action - 1], Font, 20.0f, &Width, &Height);
+                float PosY = Group->Height - CombatMenu.Element->Rect.Height + pGameState->Combat.Turn.Action * (Height + 20.0f);
+                triangle2 Triangle = {
+                    V2(20, PosY - 10),
+                    V2(20, PosY + 10),
+                    V2(50, PosY),
+                };
+                PushLine(
+                    Group, 
+                    V2(0, PosY), 
+                    V2((CombatMenu.Element->Rect.Height + Width) / 2.0f, PosY), 
+                    White, 
+                    2.0f, 
+                    SORT_ORDER_DEBUG_OVERLAY + 1.0f
+                );
+            }
         }
         
         // Next turns menu
