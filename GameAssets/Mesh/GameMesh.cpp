@@ -39,11 +39,37 @@ game_mesh LoadMesh(memory_arena* Arena, preprocessed_mesh* Preprocessed) {
         Result.Vertices = PushSize(Arena, VerticesSize);
         Result.Faces = PushArray(Arena, 3 * Preprocessed->nFaces, uint32);
 
+        Result.MinX = FLT_MAX;
+        Result.MinY = FLT_MAX;
+        Result.MinZ = FLT_MAX;
+        Result.MaxX = -FLT_MAX;
+        Result.MaxY = -FLT_MAX;
+        Result.MaxZ = -FLT_MAX;
+
         float* pOutV = (float*)Result.Vertices;
         for (int i = 0; i < Result.nVertices; i++) {
             v3 Position = ParseV3(Tokenizer);
             v3 Normal = ParseV3(Tokenizer);
             v2 Texture = ParseV2(Tokenizer);
+
+            if (Position.X < Result.MinX) {
+                Result.MinX = Position.X;
+            }
+            if (Position.X > Result.MaxX) {
+                Result.MaxX = Position.X;
+            }
+            if (Position.Y < Result.MinY) {
+                Result.MinY = Position.Y;
+            }
+            if (Position.Y > Result.MaxY) {
+                Result.MaxY = Position.Y;
+            }
+            if (Position.Z < Result.MinZ) {
+                Result.MinZ = Position.Z;
+            }
+            if (Position.Z > Result.MaxZ) {
+                Result.MaxZ = Position.Z;
+            }
 
             *pOutV++ = Position.X; *pOutV++ = Position.Y; *pOutV++ = Position.Z;
             *pOutV++ = Texture.X;  *pOutV++ = Texture.Y;
