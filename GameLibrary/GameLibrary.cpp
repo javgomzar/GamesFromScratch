@@ -82,7 +82,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Magenta, Target_PingPong);
     PushClear(Group, BackgroundBlue, Target_Output);
 
-    UpdateGameState(Assets, pGameState, Input, &Group->Camera, Group->Width, Group->Height);
+    UpdateGameState(Group, pGameState, Input);
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 

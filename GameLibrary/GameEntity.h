@@ -648,23 +648,37 @@ weapon* AddWeapon(
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct damage_animation {
-    int Damage;
+    uint32 Damage;
     float t;
+    bool Active;
 };
 
-struct combat_animations {
-    uint32 Count;
-    damage_animation DamageAnimations[16];
-};
+DefineFreeList(16, damage_animation);
 
-damage_animation* AddDamageAnimation(combat_animations* CombatAnimations, int Damage) {
-    damage_animation* Result = &CombatAnimations->DamageAnimations[CombatAnimations->Count++];
-    *Result = { Damage, 0.0f };
-    return Result;
-}
+void Update(damage_animation_list* CombatAnimations, render_group* Group, float dt) {
+    char TextBuffer[32];
 
-void Update(combat_animations* CombatAnimations) {
+    uint32 Index = 0;
+    uint32 nAnimations = CombatAnimations->Count;
+    while (nAnimations > 0) {
+        damage_animation* Animation = &CombatAnimations->List[Index];
+        if (Animation->Active) nAnimations--;
+        else {
+            Index++;
+            continue;
+        }
 
+        if (Animation->t > 1.0f) {
+            Remove(CombatAnimations, Index);
+        }
+        else {
+            Animation->t += dt;
+            sprintf_s(TextBuffer, "%u", Animation->Damage);
+            PushText(Group, V2(300, 300), Font_Menlo_Regular_ID, TextBuffer);
+        }
+
+        Index++;
+    }
 }
 
 enum combatant_type {
@@ -737,7 +751,9 @@ struct game_combat {
     turn NextTurns[TURN_BUFFER_SIZE];
     turn Turn;
     memory_arena TurnsArena;
+    damage_animation_list DamageAnimations;
     game_entity_state* State;
+    render_group* Group;
     bool Active;
     
     // Advances ATB of turn. If a new attacker is found, it is returned; returns NULL otherwise.
@@ -850,8 +866,13 @@ struct game_combat {
         bool UpdateTurnBuffer = false;
         for (int i = 0; i < Turn.nTargets; i++) {
             combatant* Target = Turn.Targets[i];
-            ReceiveDamage(Target, Turn.Attacker->Stats->Strength);
-            // Someone died
+            uint32 Damage = Turn.Attacker->Stats->Strength;
+            ReceiveDamage(Target, Damage);
+
+            damage_animation Animation = { Damage, 0, true };
+            Insert(&DamageAnimations, Animation);
+
+            // Did someone die?
             if (Target->Entity->Active && !IsAlive(Target)) {
                 UpdateTurnBuffer = true;
                 Target->Entity->Active = false;
@@ -878,7 +899,7 @@ struct game_combat {
         Active = false;
     }
 
-    void Update(game_input* Input) {
+    void Update(game_input* Input, float dt) {
         Assert(Active);
 
         combatant* Hot = NULL;
@@ -894,6 +915,8 @@ struct game_combat {
             Turn.Targets[0] = Hot;
             EndTurn();
         }
+
+        ::Update(&DamageAnimations, Group, dt);
 
         bool CombatEnd = true;
         for (int i = 0; i < Combatants.Count; i++) {
@@ -932,7 +955,7 @@ void Transition(game_state* State, game_state_type Type) {
     State->Type = Type;
 }
 
-void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, camera** pActiveCamera, float Width, float Height) {
+void UpdateGameState(render_group* Group, game_state* State, game_input* Input) {
     game_entity_state* EntityState = &State->Entities;
     game_combat* Combat = &State->Combat;
     uint32 Index = 0;
@@ -950,7 +973,8 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
         }
     }
     else {
-        Combat->Update(Input);
+        Combat->Group = Group;
+        Combat->Update(Input, State->dt);
     }
 
 // Cameras _________________________________________________________________________________________________________________________________
@@ -961,7 +985,7 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
         game_entity* Entity = (game_entity*)Cam->Entity;
 
         if (Cam->OnAir) {
-            *pActiveCamera = Cam;
+            Group->Camera = Cam;
             EntityState->ActiveCamera = Cam;
         }
 
@@ -976,8 +1000,8 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
             Input->Mode == Keyboard && 
             Input->Mouse.MiddleClick.IsDown && 
             Input->Mouse.MiddleClick.WasDown &&
-            Input->Mouse.Cursor.X >= 0 && Input->Mouse.Cursor.X <= Width &&
-            Input->Mouse.Cursor.Y >= 0 && Input->Mouse.Cursor.Y <= Height
+            Input->Mouse.Cursor.X >= 0 && Input->Mouse.Cursor.X <= Group->Width &&
+            Input->Mouse.Cursor.Y >= 0 && Input->Mouse.Cursor.Y <= Group->Height
         ) {
             v2 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
             double AngularVelocity = 0.5;
@@ -1017,7 +1041,7 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
         character_action_id PastAction = Character->Action.ID;
         Character->Action = GetCharacterAction(Character, Input);
         character_action_id NewAction = Character->Action.ID;
-        Character->Animator.Animation = GetAsset(Assets, Character->Action.AnimationID);
+        Character->Animator.Animation = GetAsset(Group->Assets, Character->Action.AnimationID);
 
         if (PastAction == Character_Action_Jump_ID) {
             Character->Entity->Collider.Capsule.Segment.Head += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
