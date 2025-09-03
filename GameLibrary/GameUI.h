@@ -907,7 +907,7 @@ void UpdatePlayingUI(
                 };
                 float Width = 0, Height = 0;
                 GetTextWidthAndHeight(Strings[pGameState->Combat.Turn.Action - 1], Font, 20.0f, &Width, &Height);
-                float PosY = Group->Height - CombatMenu.Element->Rect.Height + pGameState->Combat.Turn.Action * (Height + 20.0f);
+                float PosY = Group->Height - CombatMenu.Element->Rect.Height + (float)pGameState->Combat.Turn.Action * (Height + 20.0f);
                 triangle2 Triangle = {
                     V2(20, PosY - 10),
                     V2(20, PosY + 10),
