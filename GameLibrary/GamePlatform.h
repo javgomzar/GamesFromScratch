@@ -304,8 +304,13 @@ uint64 GetLength(linked_list List) {
 
 // Fixed length lists that track available slots
 
-#define DefineFreeListRemove(type) void Remove(type##_list* List, int Index) { Assert(List->Count > 0); List->Count--; List->List[Index] = {}; List->FreeIDs[List->nFreeIDs++] = Index;}
-#define DefineFreeList(maxNumber, type) struct type##_list {int nFreeIDs; int FreeIDs[maxNumber]; int Count; type List[maxNumber];}; DefineFreeListRemove(type)
+#define DefineFreeListInsert(type) uint32 Insert(type##_list* List, type Element) { \
+    uint32 ID = -1; if (List->nFreeIDs > 0) { ID = List->FreeIDs[List->nFreeIDs - 1]; List->FreeIDs[List->nFreeIDs-- - 1] = -1; List->Count++; } \
+    else ID = List->Count++; List->List[ID] = Element; return ID; }
+#define DefineFreeListRemove(type) void Remove(type##_list* List, uint32 Index) { \
+    Assert(List->Count > 0); List->Count--; List->List[Index] = {}; List->FreeIDs[List->nFreeIDs++] = Index; }
+#define DefineFreeList(maxNumber, type) struct type##_list {\
+    uint32 nFreeIDs; uint32 FreeIDs[maxNumber]; uint32 Count; type List[maxNumber]; }; DefineFreeListRemove(type); DefineFreeListInsert(type);
 
 // Naive implementation of exponential array (see https://www.youtube.com/watch?v=i-h95QIGchY)
 
