@@ -1181,6 +1181,7 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
 
     game_combat* Combat = &GameState->Combat;
     game_entity_state* State = &GameState->Entities;
+    game_assets* Assets = Group->Assets;
 
     basis Basis = Group->Camera->Basis;
     ray Ray = MouseRay(Group->Width, Group->Height, Group->Camera->Position + Group->Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
@@ -1198,6 +1199,7 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
         switch(Entity->Type) {
             case Entity_Type_Character: {
                 character* pCharacter = &State->Characters.List[Entity->Index];
+                game_mesh* Mesh = GetAsset(Assets, Mesh_Body_ID);
                 PushMesh(
                     Group,
                     Mesh_Body_ID,
@@ -1212,7 +1214,7 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
                 if (Combat->Active) {
                     float HPBarWidth = 2.0f;
                     float HPBarHeight = 0.2f;
-                    v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X + V3(0, 4.75f, 0);
+                    v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X + V3(0, Mesh->MaxY + 0.3f, 0);
                     PushFillbar(
                         Group, 
                         Entity->Name, 
@@ -1226,6 +1228,7 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
     
             case Entity_Type_Enemy: {
                 enemy* pEnemy = &State->Enemies.List[Entity->Index];
+                game_mesh* Mesh = GetAsset(Assets, pEnemy->MeshID);
                 PushMesh(
                     Group,
                     pEnemy->MeshID,
@@ -1239,8 +1242,7 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
                 if (Combat->Active) {
                     float HPBarWidth = 2.0f;
                     float HPBarHeight = 0.2f;
-                    v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X;
-                    Position.Y = 4.75f;
+                    v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X + V3(0, Mesh->MaxY + 0.3f, 0);
                     PushFillbar(
                         Group, 
                         Entity->Name, 
