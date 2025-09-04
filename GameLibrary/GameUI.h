@@ -881,8 +881,10 @@ void UpdatePlayingUI(
         PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
 
         // Combat menu
+        float CombatMenuWidth = 0;
         {
             UIMenu CombatMenu = UIMenu("Combat menu", axis_y, ui_alignment_min, ui_alignment_max, 80.0f, 20.0f);
+            CombatMenuWidth = CombatMenu.Element->Rect.Width;
 
             if (UIButton("Attack")) {
                 pGameState->Combat.Turn.Action = combatant_action_attack;
@@ -899,6 +901,7 @@ void UpdatePlayingUI(
 
             if (Input->Mouse.RightClick.JustPressed && pGameState->Combat.Turn.Action != combatant_action_empty) {
                 pGameState->Combat.Turn.Action = combatant_action_empty;
+                pGameState->Combat.Turn.Spell = Spell_Empty;
             }
 
             if (pGameState->Combat.Turn.Action != combatant_action_empty) {
@@ -916,7 +919,41 @@ void UpdatePlayingUI(
                 PushLine(
                     Group, 
                     V2(0, PosY), 
-                    V2((CombatMenu.Element->Rect.Height + Width) / 2.0f, PosY), 
+                    V2((CombatMenu.Element->Rect.Width + Width) / 2.0f, PosY), 
+                    White, 
+                    2.0f, 
+                    SORT_ORDER_DEBUG_OVERLAY + 1.0f
+                );
+            }
+        }
+
+        // Magic menu
+        if (pGameState->Combat.Turn.Action == combatant_action_magic) {
+            UIMenu MagicMenu = UIMenu("Magic Menu", axis_y, ui_alignment_free, ui_alignment_max, 80.0f, 20.0f);
+
+            MagicMenu.Element->RelativePosition[axis_x] = CombatMenuWidth;
+
+            for (int i = 1; i < spell_id_count; i++) {
+                spell Spell = Spells[i];
+                if (UIButton(Spell.Name)) {
+                    pGameState->Combat.Turn.Spell = Spell.ID;
+                }
+            }
+
+            if (pGameState->Combat.Turn.Spell != Spell_Empty) {
+                spell Spell = Spells[pGameState->Combat.Turn.Spell];
+                float Width = 0, Height = 0;
+                GetTextWidthAndHeight(Spell.Name, Font, 20.0f, &Width, &Height);
+                float PosY = Group->Height - MagicMenu.Element->Rect.Height + (float)Spell.ID * (Height + 20.0f);
+                triangle2 Triangle = {
+                    V2(20, PosY - 10),
+                    V2(20, PosY + 10),
+                    V2(50, PosY),
+                };
+                PushLine(
+                    Group, 
+                    V2(0, PosY), 
+                    V2((MagicMenu.Element->Rect.Width + Width) / 2.0f, PosY), 
                     White, 
                     2.0f, 
                     SORT_ORDER_DEBUG_OVERLAY + 1.0f

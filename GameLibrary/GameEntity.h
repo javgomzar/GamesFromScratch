@@ -129,7 +129,7 @@ struct enemy {
     game_bitmap_id TextureID;
 };
 
-enemy EnemyTemplates[enemy_type_count] = {
+const enemy EnemyTemplates[enemy_type_count] = {
     {
         NULL,
         Stats(50, 7, 10, 5, 5, 6, 10),
@@ -733,6 +733,130 @@ enum combatant_action {
     combatant_action_count
 };
 
+// Magic
+
+enum magic_affinity {
+    Magic_Affinity_Fire,
+    Magic_Affinity_Water,
+    Magic_Affinity_Air,
+    Magic_Affinity_Earth,
+    Magic_Affinity_Ice,
+    Magic_Affinity_Electricity,
+    Magic_Affinity_Death,
+    Magic_Affinity_Life,
+    Magic_Affinity_Time,
+    Magic_Affinity_Space,
+};
+
+enum spell_id {
+    Spell_Empty,
+    Spell_Fireball,
+    Spell_Wave,
+    Spell_Wind,
+    Spell_Earthquake,
+    Spell_Blizzard,
+    Spell_Lightning,
+    Spell_Kill,
+    Spell_Cure,
+    Spell_Accelerate,
+    Spell_Reduce,
+
+    spell_id_count
+};
+
+struct spell {
+    const char* Name;
+    spell_id ID;
+    uint32 Damage;
+    uint32 ATBCost;
+    uint32 ManaCost;
+    magic_affinity Affinity;
+};
+
+const spell Spells[spell_id_count] = {
+    {},
+    {
+        "Fireball",
+        Spell_Fireball,
+        20,
+        20,
+        20,
+        Magic_Affinity_Fire
+    },
+    {
+        "Wave",
+        Spell_Wave,
+        20,
+        20,
+        20,
+        Magic_Affinity_Water
+    },
+    {
+        "Wind",
+        Spell_Wind,
+        20,
+        20,
+        20,
+        Magic_Affinity_Air
+    },
+    {
+        "Earthquake",
+        Spell_Earthquake,
+        20,
+        20,
+        20,
+        Magic_Affinity_Earth
+    },
+    {
+        "Blizzard",
+        Spell_Blizzard,
+        20,
+        20,
+        20,
+        Magic_Affinity_Ice
+    },
+    {
+        "Lightning",
+        Spell_Lightning,
+        20,
+        20,
+        20,
+        Magic_Affinity_Electricity
+    },
+    {
+        "Kill",
+        Spell_Kill,
+        20,
+        20,
+        20,
+        Magic_Affinity_Death
+    },
+    {
+        "Cure",
+        Spell_Cure,
+        20,
+        20,
+        20,
+        Magic_Affinity_Life
+    },
+    {
+        "Accelerate",
+        Spell_Accelerate,
+        20,
+        20,
+        20,
+        Magic_Affinity_Time
+    },
+    {
+        "Reduce",
+        Spell_Reduce,
+        20,
+        20,
+        20,
+        Magic_Affinity_Space
+    },
+};
+
 const int MAX_COMBATANTS = 32;
 struct turn {
     combatant* Attacker;
@@ -742,6 +866,7 @@ struct turn {
     float ATB[MAX_COMBATANTS];
     float ATBCost;
     combatant_action Action;
+    spell_id Spell;
     bool TargetsSelected;
 };
 
@@ -868,8 +993,21 @@ struct game_combat {
         bool UpdateTurnBuffer = false;
         for (int i = 0; i < Turn.nTargets; i++) {
             combatant* Target = Turn.Targets[i];
-            uint32 Damage = Turn.Attacker->Stats->Strength;
-            ReceiveDamage(Target, Damage);
+
+            uint32 Damage = 0;
+            switch (Turn.Action) {
+                case combatant_action_attack: {
+                    Damage = Turn.Attacker->Stats->Strength;
+                } break;
+                case combatant_action_magic: {
+                    spell Spell = Spells[Turn.Spell];
+                    Damage = Spell.Damage;
+                } break;
+            }
+
+            if (Damage > 0) {
+                ReceiveDamage(Target, Damage);
+            }
 
             damage_animation Animation = { Damage, 0, true };
             Insert(&DamageAnimations, Animation);
@@ -915,6 +1053,13 @@ struct game_combat {
         switch(Turn.Action) {
             case combatant_action_attack: {
                 if (Hot != NULL && Input->Mouse.LeftClick.JustPressed && Hot->Type != Turn.Attacker->Type) {
+                    Turn.nTargets = 1;
+                    Turn.Targets[0] = Hot;
+                    EndTurn();
+                }
+            } break;
+            case combatant_action_magic: {
+                if (Turn.Spell != Spell_Empty && Hot != NULL && Input->Mouse.LeftClick.JustPressed && Hot->Type != Turn.Attacker->Type) {
                     Turn.nTargets = 1;
                     Turn.Targets[0] = Hot;
                     EndTurn();
@@ -1195,7 +1340,10 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
 
         collider Collider = Entity->Transform * Entity->Collider;
         Entity->Hovered = Raycast(Ray, Collider);
-        bool Outline = Entity->Hovered && GameState->Combat.Turn.Action == combatant_action_attack;
+        bool Outline = Entity->Hovered && (
+            Combat->Turn.Action == combatant_action_attack ||
+            Combat->Turn.Action == combatant_action_magic && Combat->Turn.Spell != Spell_Empty
+        );
         switch(Entity->Type) {
             case Entity_Type_Character: {
                 character* pCharacter = &State->Characters.List[Entity->Index];
