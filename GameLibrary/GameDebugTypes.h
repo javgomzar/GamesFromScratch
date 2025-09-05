@@ -27,6 +27,8 @@ enum debug_type {
     Debug_Type_game_bitmap_id,
     Debug_Type_game_entity_type,
     Debug_Type_enemy_type,
+    Debug_Type_magic_affinity,
+    Debug_Type_spell_id,
     Debug_Type_weapon_type,
     Debug_Type_character_action_id,
     Debug_Type_transform,
@@ -43,8 +45,8 @@ enum debug_type {
     Debug_Type_character,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 30; }
-bool IsStructType(debug_type Type) { return Type > 29 && Type < 42; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 32; }
+bool IsStructType(debug_type Type) { return Type > 31 && Type < 44; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -52,7 +54,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 37;
+const int ENUM_VALUES_SIZE = 60;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_animation_id, "Animation_Idle_ID", 0},
     {Debug_Type_game_animation_id, "Animation_Walk_ID", 1},
@@ -84,6 +86,29 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_enemy_type, "Enemy_Type_Dog", 1},
     {Debug_Type_enemy_type, "Enemy_Type_Dyno", 2},
     {Debug_Type_enemy_type, "enemy_type_count", 3},
+    {Debug_Type_magic_affinity, "Magic_Affinity_None", 0},
+    {Debug_Type_magic_affinity, "Magic_Affinity_Fire", 1},
+    {Debug_Type_magic_affinity, "Magic_Affinity_Water", 2},
+    {Debug_Type_magic_affinity, "Magic_Affinity_Air", 3},
+    {Debug_Type_magic_affinity, "Magic_Affinity_Earth", 4},
+    {Debug_Type_magic_affinity, "Magic_Affinity_Ice", 5},
+    {Debug_Type_magic_affinity, "Magic_Affinity_Electricity", 6},
+    {Debug_Type_magic_affinity, "Magic_Affinity_Death", 7},
+    {Debug_Type_magic_affinity, "Magic_Affinity_Life", 8},
+    {Debug_Type_magic_affinity, "Magic_Affinity_Time", 9},
+    {Debug_Type_magic_affinity, "Magic_Affinity_Space", 10},
+    {Debug_Type_spell_id, "Spell_Empty", 0},
+    {Debug_Type_spell_id, "Spell_Fireball", 1},
+    {Debug_Type_spell_id, "Spell_Wave", 2},
+    {Debug_Type_spell_id, "Spell_Wind", 3},
+    {Debug_Type_spell_id, "Spell_Earthquake", 4},
+    {Debug_Type_spell_id, "Spell_Blizzard", 5},
+    {Debug_Type_spell_id, "Spell_Lightning", 6},
+    {Debug_Type_spell_id, "Spell_Kill", 7},
+    {Debug_Type_spell_id, "Spell_Cure", 8},
+    {Debug_Type_spell_id, "Spell_Accelerate", 9},
+    {Debug_Type_spell_id, "Spell_Reduce", 10},
+    {Debug_Type_spell_id, "spell_id_count", 11},
     {Debug_Type_weapon_type, "Weapon_Sword", 0},
     {Debug_Type_weapon_type, "Weapon_Shield", 1},
     {Debug_Type_weapon_type, "weapon_type_count", 2},
@@ -103,7 +128,7 @@ struct debug_struct_member {
     bool IsPointer;
 };
 
-const int STRUCT_MEMBERS_SIZE = 58;
+const int STRUCT_MEMBERS_SIZE = 59;
 debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Translation", Debug_Type_transform, Debug_Type_v3, sizeof(v3), (uint64)(&((transform*)0)->Translation),0, false},
     {"Scale", Debug_Type_transform, Debug_Type_scale, sizeof(scale), (uint64)(&((transform*)0)->Scale),0, false},
@@ -150,6 +175,7 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"MeshID", Debug_Type_enemy, Debug_Type_game_mesh_id, sizeof(game_mesh_id), (uint64)(&((enemy*)0)->MeshID),0, false},
     {"TextureID", Debug_Type_enemy, Debug_Type_game_bitmap_id, sizeof(game_bitmap_id), (uint64)(&((enemy*)0)->TextureID),0, false},
     {"Type", Debug_Type_weapon, Debug_Type_weapon_type, sizeof(weapon_type), (uint64)(&((weapon*)0)->Type),0, false},
+    {"Affinity", Debug_Type_weapon, Debug_Type_magic_affinity, sizeof(magic_affinity), (uint64)(&((weapon*)0)->Affinity),0, false},
     {"Color", Debug_Type_weapon, Debug_Type_color, sizeof(color), (uint64)(&((weapon*)0)->Color),0, false},
     {"Entity", Debug_Type_weapon, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((weapon*)0)->Entity),0, true},
     {"ParentBone", Debug_Type_weapon, Debug_Type_int, sizeof(int), (uint64)(&((weapon*)0)->ParentBone),0, false},

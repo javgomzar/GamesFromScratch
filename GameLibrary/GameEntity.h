@@ -173,6 +173,135 @@ const int MAX_ENEMIES = 32;
 DefineFreeList(MAX_ENEMIES, enemy);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Magic                                                                                                                                        |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+INTROSPECT
+enum magic_affinity {
+    Magic_Affinity_None,
+    Magic_Affinity_Fire,
+    Magic_Affinity_Water,
+    Magic_Affinity_Air,
+    Magic_Affinity_Earth,
+    Magic_Affinity_Ice,
+    Magic_Affinity_Electricity,
+    Magic_Affinity_Death,
+    Magic_Affinity_Life,
+    Magic_Affinity_Time,
+    Magic_Affinity_Space
+};
+
+INTROSPECT
+enum spell_id {
+    Spell_Empty,
+    Spell_Fireball,
+    Spell_Wave,
+    Spell_Wind,
+    Spell_Earthquake,
+    Spell_Blizzard,
+    Spell_Lightning,
+    Spell_Kill,
+    Spell_Cure,
+    Spell_Accelerate,
+    Spell_Reduce,
+
+    spell_id_count
+};
+
+struct spell {
+    const char* Name;
+    spell_id ID;
+    uint32 Damage;
+    uint32 ATBCost;
+    uint32 ManaCost;
+    magic_affinity Affinity;
+};
+
+const spell Spells[spell_id_count] = {
+    {},
+    {
+        "Fireball",
+        Spell_Fireball,
+        20,
+        20,
+        20,
+        Magic_Affinity_Fire
+    },
+    {
+        "Wave",
+        Spell_Wave,
+        20,
+        20,
+        20,
+        Magic_Affinity_Water
+    },
+    {
+        "Wind",
+        Spell_Wind,
+        20,
+        20,
+        20,
+        Magic_Affinity_Air
+    },
+    {
+        "Earthquake",
+        Spell_Earthquake,
+        20,
+        20,
+        20,
+        Magic_Affinity_Earth
+    },
+    {
+        "Blizzard",
+        Spell_Blizzard,
+        20,
+        20,
+        20,
+        Magic_Affinity_Ice
+    },
+    {
+        "Lightning",
+        Spell_Lightning,
+        20,
+        20,
+        20,
+        Magic_Affinity_Electricity
+    },
+    {
+        "Kill",
+        Spell_Kill,
+        20,
+        20,
+        20,
+        Magic_Affinity_Death
+    },
+    {
+        "Cure",
+        Spell_Cure,
+        20,
+        20,
+        20,
+        Magic_Affinity_Life
+    },
+    {
+        "Accelerate",
+        Spell_Accelerate,
+        20,
+        20,
+        20,
+        Magic_Affinity_Time
+    },
+    {
+        "Reduce",
+        Spell_Reduce,
+        20,
+        20,
+        20,
+        Magic_Affinity_Space
+    },
+};
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Weapons                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
@@ -187,6 +316,7 @@ enum weapon_type {
 INTROSPECT
 struct weapon {
     weapon_type Type;
+    magic_affinity Affinity;
     color Color;
     game_entity* Entity;
     int ParentBone;
@@ -731,130 +861,6 @@ enum combatant_action {
     combatant_action_flee,
 
     combatant_action_count
-};
-
-// Magic
-
-enum magic_affinity {
-    Magic_Affinity_Fire,
-    Magic_Affinity_Water,
-    Magic_Affinity_Air,
-    Magic_Affinity_Earth,
-    Magic_Affinity_Ice,
-    Magic_Affinity_Electricity,
-    Magic_Affinity_Death,
-    Magic_Affinity_Life,
-    Magic_Affinity_Time,
-    Magic_Affinity_Space,
-};
-
-enum spell_id {
-    Spell_Empty,
-    Spell_Fireball,
-    Spell_Wave,
-    Spell_Wind,
-    Spell_Earthquake,
-    Spell_Blizzard,
-    Spell_Lightning,
-    Spell_Kill,
-    Spell_Cure,
-    Spell_Accelerate,
-    Spell_Reduce,
-
-    spell_id_count
-};
-
-struct spell {
-    const char* Name;
-    spell_id ID;
-    uint32 Damage;
-    uint32 ATBCost;
-    uint32 ManaCost;
-    magic_affinity Affinity;
-};
-
-const spell Spells[spell_id_count] = {
-    {},
-    {
-        "Fireball",
-        Spell_Fireball,
-        20,
-        20,
-        20,
-        Magic_Affinity_Fire
-    },
-    {
-        "Wave",
-        Spell_Wave,
-        20,
-        20,
-        20,
-        Magic_Affinity_Water
-    },
-    {
-        "Wind",
-        Spell_Wind,
-        20,
-        20,
-        20,
-        Magic_Affinity_Air
-    },
-    {
-        "Earthquake",
-        Spell_Earthquake,
-        20,
-        20,
-        20,
-        Magic_Affinity_Earth
-    },
-    {
-        "Blizzard",
-        Spell_Blizzard,
-        20,
-        20,
-        20,
-        Magic_Affinity_Ice
-    },
-    {
-        "Lightning",
-        Spell_Lightning,
-        20,
-        20,
-        20,
-        Magic_Affinity_Electricity
-    },
-    {
-        "Kill",
-        Spell_Kill,
-        20,
-        20,
-        20,
-        Magic_Affinity_Death
-    },
-    {
-        "Cure",
-        Spell_Cure,
-        20,
-        20,
-        20,
-        Magic_Affinity_Life
-    },
-    {
-        "Accelerate",
-        Spell_Accelerate,
-        20,
-        20,
-        20,
-        Magic_Affinity_Time
-    },
-    {
-        "Reduce",
-        Spell_Reduce,
-        20,
-        20,
-        20,
-        Magic_Affinity_Space
-    },
 };
 
 const int MAX_COMBATANTS = 32;
