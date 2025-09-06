@@ -68,8 +68,13 @@ extern "C" GAME_UPDATE(GameUpdate)
         Equip(Sword, Character);
         Equip(Shield, Character);
 
+        // UI
         uint32 MaxUIIDStack = 32;
         uint32* StackMemory = PushArray(&Memory->Permanent, MaxUIIDStack, uint32);
+
+        pGameState->Emitter = AllocateParticleEmitter(&Memory->Permanent, 200);
+        SetParticleEmitterCircle(pGameState->Emitter, V3(0,0,0), 1.0f, V3(0,1,0));
+        pGameState->Emitter->ParticleLifetime = 2.0f;
 
         Memory->IsInitialized = true;
     }
@@ -87,7 +92,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // PushEntities(Group, &pGameState->Entities, Input, Time);
 
-    TestRendering(Group, Input);
+    TestRendering(Group, Input, Time);
+
+    Update(Group, pGameState->Emitter, pGameState->dt);
     
     UpdateUI(Memory, Input);
 

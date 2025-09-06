@@ -6,6 +6,7 @@
 #include "GameAssets.h"
 #include "GameInput.h"
 #include "GameRender.h"
+#include "Particles.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Entities                                                                                                                                     |
@@ -624,6 +625,7 @@ void PushEntities(render_group* Group, game_entity_state* State, game_input* Inp
 
 struct game_state {
     game_entity_state Entities;
+    particle_emitter* Emitter;
     double dt;
     float Time;
     bool Exit;

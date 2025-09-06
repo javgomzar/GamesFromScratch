@@ -1,7 +1,7 @@
 #include "GamePlatform.h"
 #include "GameRender.h"
 
-void TestRendering(render_group* Group, game_input* Input) {
+void TestRendering(render_group* Group, game_input* Input, float Time) {
 // 2D
     // Rects
     rectangle Rect = { 20, 20, 100, 100 };

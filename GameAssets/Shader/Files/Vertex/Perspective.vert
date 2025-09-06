@@ -37,5 +37,5 @@ void main() {
 	v_normal = normalize((ModelUBO.normal * vec4(a_normal, 0)).xyz);
 
 	gl_Position = GlobalUBO.projection * GlobalUBO.view * ModelUBO.model * vec4(v_position, 1.0);
-	gl_PointSize = 50.0f;
+	gl_PointSize = 10.0f;
 }
