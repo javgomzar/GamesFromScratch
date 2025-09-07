@@ -737,9 +737,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     memory_arena FontsArena = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
 
     // Assets
+    game_assets* Assets = &Memory.Assets;
     const char* AssetsPath = "..\\GameAssets\\game_assets";
     WriteAssetsFile(&Memory.Platform, AssetsPath);
-    LoadAssetsFromFile(&FontsArena, Memory.Platform.ReadEntireFile, &Memory.Assets, AssetsPath);
+    LoadAssetsFromFile(&FontsArena, Memory.Platform.ReadEntireFile, Assets, AssetsPath);
 
     // Recording and playback
     record_and_playback RecordPlayback;
@@ -752,7 +753,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     InitializeRenderGroup(
         &Memory.Permanent,
         Group,
-        &Memory.Assets
+        Assets
     );
 
     // Input
@@ -776,7 +777,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     InitializeRenderer(
         &RendererContext,
         &Memory.RenderGroup.VertexBuffer,
-        &Memory.Assets,
+        Assets,
         Window,
         DeviceContext,
         hInstance
@@ -801,6 +802,24 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
             if (GameCode.IsValid) {
                 Log(Info, "New game code loaded.");
+            }
+        }
+
+        // Hot reloading for shaders
+        for (int i = 0; i < game_shader_id_count; i++) {
+            game_shader* Shader = GetShader(Assets, (game_shader_id)i);
+
+            int64 LastWriteTime = GetLastWriteTime(Shader->File.Path);
+            if (LastWriteTime > Shader->File.Timestamp) {
+                PlatformFreeFileMemory(Shader->File.Content);
+                PushShader(Assets, Shader->File.Path, Shader->ID);
+                if (Shader->File.Timestamp == LastWriteTime) {
+                    OpenGLReloadShader(&RendererContext, Assets, Shader);
+
+                    char Buffer[128];
+                    sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
+                    Log(Info, Buffer);
+                }
             }
         }
 

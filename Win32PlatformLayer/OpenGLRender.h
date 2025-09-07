@@ -451,6 +451,10 @@ uint32 OpenGLCompileShader(GLenum ShaderType, char* Code, GLint Size) {
 	return ShaderID;
 }
 
+uint32 OpenGLCompileShader(game_shader* Shader) {
+	return OpenGLCompileShader(GetShaderType(Shader->Type), Shader->Code, Shader->File.ContentSize);
+}
+
 uint32 OpenGLLinkProgram(openGL* OpenGL, game_assets* Assets, game_shader_pipeline* Pipeline) {
 	uint32 ProgramID = glCreateProgram();
 
@@ -510,6 +514,20 @@ uint32 OpenGLLinkProgram(openGL* OpenGL, game_compute_shader* ComputeShader) {
 	}
 
 	return ProgramID;
+}
+
+void OpenGLReloadShader(openGL* OpenGL, game_assets* Assets, game_shader* Shader) {
+	glDeleteShader(OpenGL->ShaderIDs[Shader->ID]);
+	OpenGL->ShaderIDs[Shader->ID] = OpenGLCompileShader(Shader);
+
+	for (int i = 0; i < game_shader_pipeline_id_count; i++) {
+		game_shader_pipeline* ShaderPipeline = GetShaderPipeline(Assets, (game_shader_pipeline_id)i);
+
+		if (ShaderPipeline->Pipeline[Shader->Type] == Shader->ID) {
+			glDeleteProgram(OpenGL->ProgramIDs[ShaderPipeline->ID]);
+			OpenGL->ProgramIDs[ShaderPipeline->ID] = OpenGLLinkProgram(OpenGL, Assets, ShaderPipeline);
+		}
+	}
 }
 
 #define SetUBO(UniformContent, Binding) glNamedBufferSubData(OpenGL->UBOs[Binding], 0, sizeof(UniformContent), &UniformContent)
@@ -946,7 +964,7 @@ void InitializeRenderer(
 		// Compiling & attaching shaders
 		for (int i = 0; i < game_shader_id_count; i++) {
 			game_shader* Shader = &Assets->Shader[i];
-			OpenGL->ShaderIDs[Shader->ID] = OpenGLCompileShader(GetShaderType(Shader->Type), Shader->Code, Shader->File.ContentSize);
+			OpenGL->ShaderIDs[Shader->ID] = OpenGLCompileShader(Shader);
 		}
 
 		for (int i = 0; i < game_shader_pipeline_id_count; i++) {

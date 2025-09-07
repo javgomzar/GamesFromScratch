@@ -586,15 +586,7 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
     game_shader* Shader = GetShader(Assets, ID);
     Shader->ID = ID;
 
-    WIN32_FIND_DATAA Data;
-    HANDLE hFind = FindFirstFileA(Path, &Data);
-
-    Assert(hFind != INVALID_HANDLE_VALUE);
-
-    char* Extension = 0;
-    char* Buffer = new char[strlen(Data.cFileName) + 1];
-    strcpy_s(Buffer, strlen(Data.cFileName) + 1, Data.cFileName);
-    char* _ = strtok_s(Buffer, ".", &Extension);
+    const char* Extension = GetFileExtension(Path);
 
     if (Extension != 0) {
         if      (strcmp(Extension, "frag") == 0)  { Shader->Type = Fragment_Shader; }
@@ -606,14 +598,15 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
     }
     else Assert(false);
 
-    Shader->File = Assets->Platform->ReadEntireFile(Path);
-    Shader->Code = (char*)Shader->File.Content;
+    read_file_result File = Assets->Platform->ReadEntireFile(Path);
+    if (File.ContentSize > 0) {
+        Shader->File = File;
+        Shader->Code = (char*)File.Content;
+    }
 
     // Extra char with value 0 to separate shaders
     Assets->TotalSize += Shader->File.ContentSize + 1;
     Assets->ShadersSize += Shader->File.ContentSize + 1;
-
-    delete [] Buffer;
 }
 
 void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nShaders, ...) {
