@@ -46,6 +46,7 @@ enum game_shader_id {
     Fragment_Shader_Sea_ID,
     Fragment_Shader_Bezier_Exterior_ID,
     Fragment_Shader_Bezier_Interior_ID,
+    Fragment_Shader_Fire_ID,
 #if GAME_RENDER_API_VULKAN
     Fragment_Shader_Vulkan_Test_ID,
 #endif
@@ -72,6 +73,7 @@ enum game_shader_pipeline_id {
     Shader_Pipeline_Bezier_Exterior_ID,
     Shader_Pipeline_Bezier_Interior_ID,
     Shader_Pipeline_Solid_Text_ID,
+    Shader_Pipeline_Fire_ID,
 #if GAME_RENDER_API_VULKAN
     Shader_Pipeline_Vulkan_Test_ID,
 #endif

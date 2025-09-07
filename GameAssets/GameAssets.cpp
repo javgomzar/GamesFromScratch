@@ -141,6 +141,7 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Sea.frag", Fragment_Shader_Sea_ID);
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\BezierExterior.frag", Fragment_Shader_Bezier_Exterior_ID);
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\BezierInterior.frag", Fragment_Shader_Bezier_Interior_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Fire.frag", Fragment_Shader_Fire_ID);
 #if GAME_RENDER_API_VULKAN
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\VulkanTest.frag", Fragment_Shader_Vulkan_Test_ID);
 #endif
@@ -160,6 +161,7 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushShaderPipeline(&Assets, Shader_Pipeline_Bezier_Interior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Interior_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Solid_Text_ID,          2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Single_Color_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Jump_Flood_ID,          2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Jump_Flood_ID);
+    PushShaderPipeline(&Assets, Shader_Pipeline_Fire_ID,                2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Fire_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Debug_Normals_ID,       3,
         Vertex_Shader_Bones_ID,
         Geometry_Shader_Debug_Normals_ID,
