@@ -458,9 +458,9 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
             case WM_MBUTTONDOWN: { PressButton(&pInput->Mouse.MiddleClick); } break;
             case WM_MBUTTONUP:   { LiftButton(&pInput->Mouse.MiddleClick); } break;
             case WM_MOUSEWHEEL:  { pInput->Mouse.Wheel = GET_WHEEL_DELTA_WPARAM(msg.wParam); } break;
-            case WM_KEYDOWN:
             
             // Keyboard
+            case WM_KEYDOWN:
             case WM_SYSKEYDOWN: {
                 uint32 VKCode = msg.wParam;
                 bool WasDown = (msg.lParam & (1 << 30)) != 0;
@@ -566,23 +566,10 @@ void GameUpdateStub(GAME_UPDATE_INPUTS) {}
 
 struct game_code {
     bool IsValid;
-    FILETIME DLLLastWriteTime;
+    int64 DLLLastWriteTime;
     HMODULE GameCodeDLL;
     game_update* Update;
 };
-
-FILETIME GetLastWriteTime(LPCSTR FilePath) {
-    FILETIME Result = {};
-
-    WIN32_FIND_DATAA FindData;
-    HANDLE FileHandle = FindFirstFileA(FilePath, &FindData);
-    if (FileHandle != INVALID_HANDLE_VALUE) {
-        Result = FindData.ftLastWriteTime;
-        FindClose(FileHandle);
-    }
-
-    return Result;
-}
 
 void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
     Result->Update = GameUpdateStub;
@@ -618,7 +605,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
         Result->Update = (game_update*)GetProcAddress(Result->GameCodeDLL, "GameUpdate");
         Result->IsValid = (Result->Update);
 
-        FILETIME LastWriteTime = GetLastWriteTime(SourceDLLName);
+        int64 LastWriteTime = GetLastWriteTime(SourceDLLName);
         Result->DLLLastWriteTime = LastWriteTime;
     }
     else {
@@ -740,6 +727,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     Memory.Platform.ReadEntireFile = PlatformReadEntireFile;
     Memory.Platform.WriteEntireFile = PlatformWriteEntireFile;
     Memory.Platform.AppendToFile = PlatformAppendToFile;
+    Memory.Platform.GetLastWriteTime = GetLastWriteTime;
 
     game_state* pGameState = PushStruct(&Memory.Permanent, game_state);
     Memory.GameState = pGameState;
@@ -805,10 +793,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Main message loop:
     while (Running) {
         // Loading game code
-        FILETIME NewDLLWriteTime = GetLastWriteTime(SourceDLLName);
-        LONG DebugFiletime = CompareFileTime(&GameCode.DLLLastWriteTime, &NewDLLWriteTime);
+        int64 NewDLLWriteTime = GetLastWriteTime(SourceDLLName);
 
-        if (DebugFiletime != 0) {
+        if (NewDLLWriteTime > GameCode.DLLLastWriteTime) {
             static int Loads = 0;
             UnloadGameCode(&GameCode);
             LoadGameCode(&GameCode, SourceDLLName, TempDLLName);

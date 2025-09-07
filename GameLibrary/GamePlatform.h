@@ -507,11 +507,15 @@ typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
 #define PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)
 typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 
+#define PLATFORM_GET_LAST_WRITE_TIME(name) int64 name(const char* Path)
+typedef PLATFORM_GET_LAST_WRITE_TIME(platform_get_last_write_time);
+
 struct platform_api {
     platform_read_entire_file* ReadEntireFile;
     platform_free_file_memory* FreeFileMemory;
     platform_write_entire_file* WriteEntireFile;
     platform_append_to_file* AppendToFile;
+    platform_get_last_write_time* GetLastWriteTime;
 };
 
 #endif

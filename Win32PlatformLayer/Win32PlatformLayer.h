@@ -91,6 +91,19 @@ PLATFORM_APPEND_TO_FILE(PlatformAppendToFile) {
     return Result;
 }
 
+PLATFORM_GET_LAST_WRITE_TIME(GetLastWriteTime) {
+    int64 Result = 0;
+
+    WIN32_FIND_DATAA FindData = {};
+    HANDLE FileHandle = FindFirstFileA(Path, &FindData);
+    if (FileHandle != INVALID_HANDLE_VALUE) {
+        *(FILETIME*)&Result = FindData.ftLastWriteTime;
+        FindClose(FileHandle);
+    }
+
+    return Result;
+}
+
 // Record and playback
 struct record_and_playback {
     HANDLE RecordFile;
