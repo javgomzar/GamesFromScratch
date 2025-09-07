@@ -6,6 +6,7 @@
 #include "GameAssets.h"
 #include "GameInput.h"
 #include "GameRender.h"
+#include "Particles.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Entities                                                                                                                                     |
@@ -1101,6 +1102,7 @@ enum game_state_type {
 
 struct game_state {
     game_entity_state Entities;
+    particle_emitter* Emitter;
     game_combat Combat;
     double dt;
     float Time;

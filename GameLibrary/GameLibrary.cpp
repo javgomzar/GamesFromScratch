@@ -69,6 +69,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         Equip(Sword, Character);
         Equip(Shield, Character);
 
+        // UI
         uint32 MaxUIIDStack = 32;
         uint32* StackMemory = PushArray(&Memory->Permanent, MaxUIIDStack, uint32);
 
@@ -87,8 +88,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
     PushEntities(Group, pGameState, Input, Time);
-
-    // TestRendering(Group, Input);
 
     UpdateUI(Memory, Input);
 

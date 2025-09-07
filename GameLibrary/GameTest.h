@@ -1,23 +1,7 @@
 #include "GamePlatform.h"
 #include "GameRender.h"
 
-void TestXArray(uint8* Memory) {
-    memory_arena TestArena = MemoryArena(Megabytes(1), Memory);
-
-    xarray<float> TestArray;
-    
-    for (int i = 0; i < 1000; i++) {
-        float TestElement = i;
-        TestArray.Insert(TestElement);
-        float TestRead = TestArray[i];
-        Log(Info, "Test");
-    }
-
-    float FinalXarTest = TestArray[512];
-    Log(Info, "Test");
-}
-
-void TestRendering(render_group* Group, game_input* Input) {
+void TestRendering(render_group* Group, game_input* Input, float Time) {
 // 2D
     // Rects
     rectangle Rect = { 20, 20, 100, 100 };
