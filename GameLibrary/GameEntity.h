@@ -154,10 +154,10 @@ const enemy EnemyTemplates[enemy_type_count] = {
     },
 };
 
-v3 EnemyColliderOffset[enemy_type_count] = {
-    V3(0,0,0),
-    V3(0,1,0),
-    V3(0,2,0)
+collider EnemyColliders[enemy_type_count] = {
+    SphereCollider(V3(0,0,0), 1.5f),
+    SphereCollider(V3(0,1.5f,0), 2.0f),
+    SphereCollider(V3(0,2.5f,0), 4.0f),
 };
 
 const char* EnemyNames[enemy_type_count] = {
@@ -787,8 +787,8 @@ enemy* AddEnemy(game_entity_state* State, v3 Position, enemy_type Type) {
     sprintf_s(NameBuffer, "%s %d", EnemyNames[Type], EnemyQuantities[Type]++);
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
-    v3 ColliderOffset = EnemyColliderOffset[Type];
-    pEnemy->Entity = AddEntity(State, NameBuffer, Entity_Type_Enemy, SphereCollider(ColliderOffset, 1.5f), Position, Rotation, Scale());
+    collider Collider = EnemyColliders[Type];
+    pEnemy->Entity = AddEntity(State, NameBuffer, Entity_Type_Enemy, Collider, Position, Rotation, Scale());
     pEnemy->Entity->Index = EnemyID;
     return pEnemy;
 }
