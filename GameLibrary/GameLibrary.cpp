@@ -59,15 +59,12 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         Transition(pGameState, Game_State_Main_Menu);
 
-        // Initialize entities
+        // Initialize combat
         pGameState->Combat.State = EntityState;
+
+        // Initialize camera
         Group->Camera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
         Group->Camera->OnAir = true;
-        character* Character = AddCharacter(Assets, EntityState, V3(0,0,0), 500);
-        weapon* Sword = AddWeapon(EntityState, Weapon_Sword, White, V3(-5,0,0));
-        weapon* Shield = AddWeapon(EntityState, Weapon_Shield, White, V3(-10,0,0));
-        Equip(Sword, Character);
-        Equip(Shield, Character);
 
         // UI
         uint32 MaxUIIDStack = 32;
@@ -83,7 +80,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Magenta, Target_PingPong);
     PushClear(Group, BackgroundBlue, Target_Output);
 
-    UpdateGameState(Group, pGameState, Input);
+    UpdateEntities(Group, pGameState, Input);
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 

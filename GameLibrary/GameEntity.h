@@ -310,8 +310,37 @@ INTROSPECT
 enum weapon_type {
     Weapon_Sword,
     Weapon_Shield,
+    Weapon_Staff,
 
     weapon_type_count
+};
+
+game_mesh_id WeaponMeshIDs[weapon_type_count] = {
+    Mesh_Sword_ID,
+    Mesh_Shield_ID,
+    Mesh_Staff_ID,
+};
+
+transform WeaponTransforms[weapon_type_count] = {
+    Transform(
+        V3(0.5f,2.0f,0),
+        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
+    ),
+    Transform(
+        V3(-0.7f,2.2f,0),
+        Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0))
+    ),
+    Transform(
+        V3(0.4f,2.0f,1.0f),
+        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0)),
+        Scale(0.75, 0.75, 0.75)
+    ),
+};
+
+collider WeaponColliders[weapon_type_count] = {
+    CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
+    CapsuleCollider(V3(0,-0.3,0), V3(0,0.7,0), 1.0f),
+    CapsuleCollider(V3(0,-4.5,0), V3(0,2,0), 0.5f),
 };
 
 INTROSPECT
@@ -321,6 +350,7 @@ struct weapon {
     color Color;
     game_entity* Entity;
     int ParentBone;
+    bool SpellCasting;
 };
 
 const int MAX_WEAPONS = 32;
@@ -345,13 +375,25 @@ struct character_action {
     bool Loop;
 };
 
+INTROSPECT
 enum character_class {
-    Knight_Class,
-    Rogue_Class,
-    Hunter_Class,
-    Wizard_Class,
-    Bard_Class,
-    Priest_Class
+    Class_Knight,
+    Class_Rogue,
+    Class_Hunter,
+    Class_Wizard,
+    Class_Bard,
+    Class_Priest,
+
+    character_class_count
+};
+
+const char* ClassNames[character_class_count] = {
+    "Knight",
+    "Rogue",
+    "Hunter",
+    "Wizard",
+    "Bard",
+    "Priest",
 };
 
 INTROSPECT
@@ -363,6 +405,7 @@ struct character {
     weapon* LeftHand;
     weapon* RightHand;
     character_action Action;
+    character_class Class;
 };
 
 character_action CharacterAction(character_action_id ID) {
@@ -454,13 +497,13 @@ character_action GetCharacterAction(character* Character, game_input* Input) {
 
 void Equip(weapon* Weapon, character* Character) {
     Weapon->Entity->Parent = Character->Entity;
-    if (Weapon->Type == Weapon_Sword) {
-        Character->RightHand = Weapon;
-        Weapon->ParentBone = 8;
-    }
-    else if (Weapon->Type == Weapon_Shield) {
+    if (Weapon->Type == Weapon_Shield) {
         Character->LeftHand = Weapon;
         Weapon->ParentBone = 2;
+    }
+    else {
+        Character->RightHand = Weapon;
+        Weapon->ParentBone = 8;
     }
 }
 
@@ -625,20 +668,61 @@ camera* AddCamera(
     return Cam;
 }
 
-character* AddCharacter(game_assets* Assets, game_entity_state* State, v3 Position, int MaxHP) {
+weapon* AddWeapon(
+    game_entity_state* State,
+    weapon_type Type,
+    color Color = White,
+    v3 Position = V3(0,0,0),
+    quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
+    scale S = Scale()
+) {
+    Assert(State->Weapons.Count < MAX_WEAPONS);
+    // If any ID is free, use it
+    int WeaponID = -1;
+    if (State->Weapons.nFreeIDs > 0) {
+        WeaponID = State->Weapons.FreeIDs[State->Weapons.nFreeIDs - 1];
+        State->Weapons.FreeIDs[State->Weapons.nFreeIDs-- - 1] = -1;
+        State->Weapons.Count++;
+    }
+    else WeaponID = State->Weapons.Count++;
+
+    weapon* pWeapon = &State->Weapons.List[WeaponID];
+    pWeapon->Type = Type;
+    pWeapon->ParentBone = -1;
+    pWeapon->Color = Color;
+
+    char NameBuffer[32];
+    sprintf_s(NameBuffer, "Weapon %d", WeaponID);
+
+    collider Collider = WeaponColliders[pWeapon->Type];
+    pWeapon->Entity = AddEntity(
+        State, 
+        NameBuffer, 
+        Entity_Type_Weapon,
+        Collider,
+        Position, 
+        Rotation, 
+        S
+    );
+    pWeapon->Entity->Index = WeaponID;
+    return pWeapon;
+}
+
+character* AddCharacter(game_assets* Assets, game_entity_state* State, character_class Class, v3 Position, int MaxHP) {
     Assert(State->Characters.Count < MAX_CHARACTERS);
     // If any ID is free, use it
     int CharacterID = -1;
     if (State->Characters.nFreeIDs > 0) {
-        CharacterID = State->Characters.FreeIDs[State->Characters.nFreeIDs - 1];
-        State->Characters.FreeIDs[State->Characters.nFreeIDs-- - 1] = -1;
+        uint32* ID = &State->Characters.FreeIDs[--State->Characters.nFreeIDs];
+        CharacterID = *ID;
+        *ID = -1;
         State->Characters.Count++;
     }
     else CharacterID = State->Characters.Count++;
 
     character* pCharacter = &State->Characters.List[CharacterID];
     pCharacter->Animator.Active = false;
-    pCharacter->Animator.Animation = GetAsset(Assets, Animation_Walk_ID);
+    pCharacter->Animator.Animation = GetAsset(Assets, Animation_Idle_ID);
     game_mesh* Mesh = GetAsset(Assets, Mesh_Body_ID);
     pCharacter->Armature = Mesh->Armature;
     pCharacter->Animator.Armature = &pCharacter->Armature;
@@ -666,6 +750,19 @@ character* AddCharacter(game_assets* Assets, game_entity_state* State, v3 Positi
     pCharacter->Stats.Wisdom = 10;
     pCharacter->Stats.Speed = 10;
     pCharacter->Stats.Precission = 10;
+
+    switch (Class) {
+        case Class_Knight: {
+            weapon* Sword = AddWeapon(State, Weapon_Sword, White, V3(-5,0,0));
+            weapon* Shield = AddWeapon(State, Weapon_Shield, White, V3(-10,0,0));
+            Equip(Sword, pCharacter);
+            Equip(Shield, pCharacter);
+        } break;
+        case Class_Wizard: {
+            weapon* Staff = AddWeapon(State, Weapon_Staff, White, V3(-5,0,0));
+            Equip(Staff, pCharacter);
+        } break;
+    }
 
     return pCharacter;
 }
@@ -726,52 +823,6 @@ prop* AddProp(
     pProp->Entity = AddEntity(State, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, S);
     pProp->Entity->Index = PropID;
     return pProp;
-}
-
-weapon* AddWeapon(   
-    game_entity_state* State,
-    weapon_type Type,
-    color Color = White,
-    v3 Position = V3(0,0,0),
-    quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
-    scale S = Scale()
-) {
-    Assert(State->Weapons.Count < MAX_PROPS);
-    // If any ID is free, use it
-    int WeaponID = -1;
-    if (State->Weapons.nFreeIDs > 0) {
-        WeaponID = State->Weapons.FreeIDs[State->Weapons.nFreeIDs - 1];
-        State->Weapons.FreeIDs[State->Weapons.nFreeIDs-- - 1] = -1;
-        State->Weapons.Count++;
-    }
-    else WeaponID = State->Weapons.Count++;
-
-    weapon* pWeapon = &State->Weapons.List[WeaponID];
-    pWeapon->Type = Type;
-    pWeapon->ParentBone = -1;
-    pWeapon->Color = Color;
-
-    char NameBuffer[32];
-    sprintf_s(NameBuffer, "Weapon %d", WeaponID);
-
-    collider Collider;
-    switch (pWeapon->Type) {
-        case Weapon_Sword: Collider = CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f); break;
-        case Weapon_Shield: Collider = CapsuleCollider(V3(0,-0.3,0), V3(0,0.7,0), 1.0f); break;
-        default: Assert(false);
-    }
-
-    pWeapon->Entity = AddEntity(
-        State, 
-        NameBuffer, 
-        Entity_Type_Weapon,
-        Collider,
-        Position, 
-        Rotation, 
-        S
-    );
-    pWeapon->Entity->Index = WeaponID;
-    return pWeapon;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1114,7 +1165,7 @@ void Transition(game_state* State, game_state_type Type) {
     State->Type = Type;
 }
 
-void UpdateGameState(render_group* Group, game_state* State, game_input* Input) {
+void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
     game_entity_state* EntityState = &State->Entities;
     game_combat* Combat = &State->Combat;
     uint32 Index = 0;
@@ -1310,20 +1361,8 @@ void UpdateGameState(render_group* Group, game_state* State, game_input* Input) 
     
             if (pWeapon->ParentBone > 0) {
                 bone Bone = ControlledCharacter->Armature.Bones[pWeapon->ParentBone];
-                transform ModelTransform;
-                if (pWeapon->Type == Weapon_Sword) {
-                    ModelTransform = Transform(
-                        V3(0.5f,2.0f,0),
-                        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
-                    );
-                }
-                else if (pWeapon->Type == Weapon_Shield) {
-                    ModelTransform = Transform(
-                        V3(-0.7f,2.2f,0),
-                        Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0))
-                    );
-                }
-                pWeapon->Entity->Transform = ModelTransform * Bone.Transform * ControlledCharacter->Entity->Transform;
+                transform Transform = WeaponTransforms[pWeapon->Type];
+                pWeapon->Entity->Transform = Transform * Bone.Transform * ControlledCharacter->Entity->Transform;
             }
         }
     }
@@ -1379,6 +1418,13 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
                         Group->Camera->Basis.X, Group->Camera->Basis.Y,
                         2.0f, 0.2f
                     );
+
+                    if (Combat->Turn.Attacker->Entity == Entity) {
+                        v3 SelectorPosition = Entity->Transform.Translation;
+                        SelectorPosition.Y += 1.0f + 0.1f * sinf(5.0f * Time) + Mesh->MaxY;
+                        transform T = Transform(SelectorPosition, Quaternion(Time, V3(0,1,0)));
+                        PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
+                    }
                 }
             } break;
     
@@ -1407,6 +1453,13 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
                         Group->Camera->Basis.X, Group->Camera->Basis.Y,
                         2.0f, 0.2f
                     );
+
+                    if (Combat->Turn.Attacker->Entity == Entity) {
+                        v3 SelectorPosition = Entity->Transform.Translation;
+                        SelectorPosition.Y += 1.0f + 0.1f * sinf(5.0f * Time) + Mesh->MaxY;
+                        transform T = Transform(SelectorPosition, Quaternion(Time, V3(0,1,0)));
+                        PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
+                    }
                 }
             } break;
 
@@ -1424,12 +1477,7 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
 
             case Entity_Type_Weapon: {
                 weapon* pWeapon = &State->Weapons.List[Entity->Index];
-                game_mesh_id MeshID;
-                switch(pWeapon->Type) {
-                    case Weapon_Sword: MeshID = Mesh_Sword_ID; break;
-                    case Weapon_Shield: MeshID = Mesh_Shield_ID; break;
-                    default: Assert(false);
-                }
+                game_mesh_id MeshID = WeaponMeshIDs[pWeapon->Type];
 
                 PushMesh(Group, MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
             } break;

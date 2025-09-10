@@ -83,6 +83,7 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Body.mdl",     Mesh_Body_ID);
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Sword.mdl",    Mesh_Sword_ID);
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Shield.mdl",   Mesh_Shield_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Staff.mdl",    Mesh_Staff_ID);
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Selector.mdl", Mesh_Selector_ID);
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Dyno.mdl",     Mesh_Dyno_ID);
 

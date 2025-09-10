@@ -792,13 +792,13 @@ void UpdateMainMenuUI(
     game_state* pGameState = Memory->GameState;
 
     UIText("Untitled game", ui_alignment_center, ui_alignment_center, White, 100);
-    static bool Settings = false;
+    static bool Settings = false, ClassSelection = false;
     
     {
         UIMenu StartMenu = UIMenu("Start menu", axis_x, ui_alignment_center, ui_alignment_max, 50.0f, 20.0f);
 
         if (UIButton("New game")) {
-
+            ClassSelection = true;
         }
         
         if (UIButton("Continue")) {
@@ -816,6 +816,19 @@ void UpdateMainMenuUI(
 
     if (Settings) {
         SettingsUI();
+    }
+
+    if (ClassSelection) {
+        UIMenu ClassSelectionMenu = UIMenu("Class selection menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 20.0f);
+
+        for (int i = 0; i < character_class_count; i++) {
+            if (UIButton(ClassNames[i])) {
+                character_class Class = (character_class)i;
+                character* Character = AddCharacter(&Memory->Assets, &pGameState->Entities, Class, V3(0,0,0), 500);
+                ClassSelection = false;
+                Transition(pGameState, Game_State_Playing);
+            }
+        }
     }
 }
 
@@ -875,11 +888,6 @@ void UpdatePlayingUI(
 
     // Combat menu
     if (pGameState->Combat.Active) {
-        static int Selected = 0;
-        v3 SelectorPosition = Combat->Turn.Attacker->Entity->Transform.Translation;
-        transform T = Transform(V3(SelectorPosition.X,5.5f+0.1f*sinf(5.0f*Time),SelectorPosition.Z), Quaternion(Time, V3(0,1,0)));
-        PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
-
         // Combat menu
         float CombatMenuWidth = 0;
         {

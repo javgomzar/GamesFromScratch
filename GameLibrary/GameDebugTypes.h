@@ -31,6 +31,7 @@ enum debug_type {
     Debug_Type_spell_id,
     Debug_Type_weapon_type,
     Debug_Type_character_action_id,
+    Debug_Type_character_class,
     Debug_Type_transform,
     Debug_Type_segment3,
     Debug_Type_game_animation,
@@ -45,8 +46,8 @@ enum debug_type {
     Debug_Type_character,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 32; }
-bool IsStructType(debug_type Type) { return Type > 31 && Type < 44; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 33; }
+bool IsStructType(debug_type Type) { return Type > 32 && Type < 45; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -54,7 +55,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 60;
+const int ENUM_VALUES_SIZE = 69;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_animation_id, "Animation_Idle_ID", 0},
     {Debug_Type_game_animation_id, "Animation_Walk_ID", 1},
@@ -67,9 +68,10 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_mesh_id, "Mesh_Body_ID", 3},
     {Debug_Type_game_mesh_id, "Mesh_Shield_ID", 4},
     {Debug_Type_game_mesh_id, "Mesh_Sword_ID", 5},
-    {Debug_Type_game_mesh_id, "Mesh_Selector_ID", 6},
-    {Debug_Type_game_mesh_id, "Mesh_Dyno_ID", 7},
-    {Debug_Type_game_mesh_id, "game_mesh_id_count", 8},
+    {Debug_Type_game_mesh_id, "Mesh_Staff_ID", 6},
+    {Debug_Type_game_mesh_id, "Mesh_Selector_ID", 7},
+    {Debug_Type_game_mesh_id, "Mesh_Dyno_ID", 8},
+    {Debug_Type_game_mesh_id, "game_mesh_id_count", 9},
     {Debug_Type_game_bitmap_id, "Bitmap_Background_ID", 0},
     {Debug_Type_game_bitmap_id, "Bitmap_Button_ID", 1},
     {Debug_Type_game_bitmap_id, "Bitmap_Empty_ID", 2},
@@ -111,11 +113,19 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_spell_id, "spell_id_count", 11},
     {Debug_Type_weapon_type, "Weapon_Sword", 0},
     {Debug_Type_weapon_type, "Weapon_Shield", 1},
-    {Debug_Type_weapon_type, "weapon_type_count", 2},
+    {Debug_Type_weapon_type, "Weapon_Staff", 2},
+    {Debug_Type_weapon_type, "weapon_type_count", 3},
     {Debug_Type_character_action_id, "Character_Action_Idle_ID", 0},
     {Debug_Type_character_action_id, "Character_Action_Walk_ID", 1},
     {Debug_Type_character_action_id, "Character_Action_Jump_ID", 2},
     {Debug_Type_character_action_id, "Character_Action_Attack_ID", 3},
+    {Debug_Type_character_class, "Class_Knight", 0},
+    {Debug_Type_character_class, "Class_Rogue", 1},
+    {Debug_Type_character_class, "Class_Hunter", 2},
+    {Debug_Type_character_class, "Class_Wizard", 3},
+    {Debug_Type_character_class, "Class_Bard", 4},
+    {Debug_Type_character_class, "Class_Priest", 5},
+    {Debug_Type_character_class, "character_class_count", 6},
 };
 
 struct debug_struct_member {
@@ -128,7 +138,7 @@ struct debug_struct_member {
     bool IsPointer;
 };
 
-const int STRUCT_MEMBERS_SIZE = 59;
+const int STRUCT_MEMBERS_SIZE = 61;
 debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Translation", Debug_Type_transform, Debug_Type_v3, sizeof(v3), (uint64)(&((transform*)0)->Translation),0, false},
     {"Scale", Debug_Type_transform, Debug_Type_scale, sizeof(scale), (uint64)(&((transform*)0)->Scale),0, false},
@@ -179,6 +189,7 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Color", Debug_Type_weapon, Debug_Type_color, sizeof(color), (uint64)(&((weapon*)0)->Color),0, false},
     {"Entity", Debug_Type_weapon, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((weapon*)0)->Entity),0, true},
     {"ParentBone", Debug_Type_weapon, Debug_Type_int, sizeof(int), (uint64)(&((weapon*)0)->ParentBone),0, false},
+    {"SpellCasting", Debug_Type_weapon, Debug_Type_bool, sizeof(bool), (uint64)(&((weapon*)0)->SpellCasting),0, false},
     {"ID", Debug_Type_character_action, Debug_Type_character_action_id, sizeof(character_action_id), (uint64)(&((character_action*)0)->ID),0, false},
     {"AnimationID", Debug_Type_character_action, Debug_Type_game_animation_id, sizeof(game_animation_id), (uint64)(&((character_action*)0)->AnimationID),0, false},
     {"Loop", Debug_Type_character_action, Debug_Type_bool, sizeof(bool), (uint64)(&((character_action*)0)->Loop),0, false},
@@ -189,4 +200,5 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"LeftHand", Debug_Type_character, Debug_Type_weapon, sizeof(weapon), (uint64)(&((character*)0)->LeftHand),0, true},
     {"RightHand", Debug_Type_character, Debug_Type_weapon, sizeof(weapon), (uint64)(&((character*)0)->RightHand),0, true},
     {"Action", Debug_Type_character, Debug_Type_character_action, sizeof(character_action), (uint64)(&((character*)0)->Action),0, false},
+    {"Class", Debug_Type_character, Debug_Type_character_class, sizeof(character_class), (uint64)(&((character*)0)->Class),0, false},
 };
