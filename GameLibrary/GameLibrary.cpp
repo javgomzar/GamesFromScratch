@@ -52,8 +52,16 @@ struct room {
 struct level {
     room Rooms[16];
     uint32 nRooms;
-
 };
+
+level RandomizeLevel() {
+    level Result = {};
+
+    room* FirstRoom = &Result.Rooms[0];
+    FirstRoom->Type = Room_Type_Combat;
+
+    return Result;
+}
 
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
