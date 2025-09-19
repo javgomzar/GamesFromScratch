@@ -8,6 +8,20 @@
 #include "GameDebugTypes.h"
 #include "GameRender.h"
 
+int _RandomEnum(debug_type Type) {
+    int i = ENUM_VALUES_SIZE;
+    while(i > 0) {
+        debug_enum_value Entry = EnumValues[--i];
+        if (Entry.EnumType == Type) {
+            return RandInt(0, Entry.Value);
+        }
+    }
+    Assert(false, "Type wasn't found in enum list.");
+    return 0;
+}
+
+#define RandomEnum(Type) (Type)_RandomEnum(Debug_Type_##Type)
+
 struct debug_entry {
     char Name[64];
     debug_entry* Parent;

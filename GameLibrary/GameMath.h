@@ -112,6 +112,7 @@ inline float RandFloat(float Min = 0.0f, float Max = 1.0f) {
 	return ((float)rand() / (float)RAND_MAX) * (Max - Min) + Min;
 }
 
+// Returns a random integer greater or equal than Min and strictly under Max.
 inline int RandInt(int Min, int Max) {
 	return RandFloat() * (Max - Min) + Min;
 }
