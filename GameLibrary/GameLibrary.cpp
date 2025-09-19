@@ -28,7 +28,7 @@ void TestPerformance() {
 }
 
 // Rooms 
-enum room_type {
+ENUM(room_type,
     Room_Type_Combat,
     Room_Type_Camp,
     Room_Type_Merchant,
@@ -36,10 +36,8 @@ enum room_type {
     Room_Type_Wizard,
     Room_Type_Quest,
     Room_Type_Miniboss,
-    Room_Type_Boss,
-
-    room_type_count
-};
+    Room_Type_Boss
+);
 
 struct room {
     room_type Type;
