@@ -189,4 +189,13 @@ void PlayGameSound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
     Sound->Played += 2 * pSoundBuffer->BufferSize;
 }
 
+// Sound
+void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
+    
+    Silence(pSoundBuffer);
+
+    // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
+    //WriteSineWave(pSoundBuffer, 480, 0);
+}
+
 #endif

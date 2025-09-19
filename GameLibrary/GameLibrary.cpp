@@ -19,15 +19,6 @@
 //    return;
 //}
 
-// Sound
-void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
-    
-    Silence(pSoundBuffer);
-
-    // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
-    //WriteSineWave(pSoundBuffer, 480, 0);
-}
-
 // Debug
 void LogGameDebugRecords(render_group* Group);
 
@@ -35,6 +26,34 @@ void TestPerformance() {
     //TIMED_BLOCK;
     
 }
+
+// Rooms 
+enum room_type {
+    Room_Type_Combat,
+    Room_Type_Camp,
+    Room_Type_Merchant,
+    Room_Type_Blacksmith,
+    Room_Type_Wizard,
+    Room_Type_Quest,
+    Room_Type_Miniboss,
+    Room_Type_Boss,
+
+    room_type_count
+};
+
+struct room {
+    room_type Type;
+    uint8 nNext;
+    uint8 nPrevious;
+    room* Next;
+    room* Previous;
+};
+
+struct level {
+    room Rooms[16];
+    uint32 nRooms;
+
+};
 
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
