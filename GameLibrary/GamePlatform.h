@@ -4,10 +4,6 @@
 #include "stdint.h"
 #include "string.h"
 
-#ifndef INTROSPECT
-#define INTROSPECT
-#endif
-
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
@@ -19,6 +15,12 @@ typedef int32_t int32;
 typedef int64_t int64;
 
 typedef size_t memory_index;
+
+#define INTROSPECT
+
+#define ENUM_START(Name) enum Name {
+#define ENUM_END(Name) Name##_count }
+#define ENUM(Name, ...) ENUM_START(Name) __VA_ARGS__, ENUM_END(Name);
 
 uint16 BigEndian(uint16 LittleEndian) {
     return (LittleEndian << 8) | (LittleEndian >> 8);

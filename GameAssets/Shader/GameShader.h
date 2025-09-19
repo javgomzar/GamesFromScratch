@@ -7,7 +7,7 @@
 #ifndef GAME_SHADER
 #define GAME_SHADER
 
-enum game_shader_id {
+ENUM(game_shader_id,
     // Vertex shaders
     Vertex_Shader_Passthrough_ID,
     Vertex_Shader_Screen_ID,
@@ -15,9 +15,6 @@ enum game_shader_id {
     Vertex_Shader_Perspective_ID,
     Vertex_Shader_Bones_ID,
     Vertex_Shader_Barycentric_ID,
-#if GAME_RENDER_API_VULKAN
-    Vertex_Shader_Vulkan_Test_ID,
-#endif
 
     // Tessellation control shaders
     TESC_Heightmap_ID,
@@ -46,15 +43,10 @@ enum game_shader_id {
     Fragment_Shader_Sea_ID,
     Fragment_Shader_Bezier_Exterior_ID,
     Fragment_Shader_Bezier_Interior_ID,
-    Fragment_Shader_Fire_ID,
-#if GAME_RENDER_API_VULKAN
-    Fragment_Shader_Vulkan_Test_ID,
-#endif
+    Fragment_Shader_Fire_ID
+);
 
-    game_shader_id_count
-};
-
-enum game_shader_pipeline_id {
+ENUM(game_shader_pipeline_id,
     Shader_Pipeline_Antialiasing_ID,
     Shader_Pipeline_Framebuffer_ID,
     Shader_Pipeline_Screen_Single_Color_ID,
@@ -73,28 +65,21 @@ enum game_shader_pipeline_id {
     Shader_Pipeline_Bezier_Exterior_ID,
     Shader_Pipeline_Bezier_Interior_ID,
     Shader_Pipeline_Solid_Text_ID,
-    Shader_Pipeline_Fire_ID,
-#if GAME_RENDER_API_VULKAN
-    Shader_Pipeline_Vulkan_Test_ID,
-#endif
+    Shader_Pipeline_Fire_ID
+);
 
-    game_shader_pipeline_id_count
-};
-
-enum game_compute_shader_id {
+ENUM(game_compute_shader_id,
     Compute_Shader_Outline_Init_ID,
     Compute_Shader_Jump_Flood_ID,
     Compute_Shader_Kernel_ID,
-    Compute_Shader_Test_ID,
-
-    game_compute_shader_id_count
-};
+    Compute_Shader_Test_ID
+);
 
 // +-------------------------------------------------------------------------------------------------------------------------------------------+
 // | Vertex layouts                                                                                                                            |
 // +-------------------------------------------------------------------------------------------------------------------------------------------+
 
-enum shader_type {
+ENUM(shader_type,
     shader_type_float,
     shader_type_vec2,
     shader_type_vec3,
@@ -105,10 +90,8 @@ enum shader_type {
     shader_type_ivec4,
     shader_type_mat2,
     shader_type_mat3,
-    shader_type_mat4,
-
-    shader_type_count
-};
+    shader_type_mat4
+);
 
 const char* ShaderTypeTokens[shader_type_count] = {
     "float",
@@ -188,7 +171,7 @@ bool operator!=(vertex_attribute Attribute1, vertex_attribute Attribute2) {
         Attribute1.Offset != Attribute2.Offset;
 }
 
-enum vertex_layout_id {
+ENUM(vertex_layout_id,
     vertex_layout_vec2_id,
     vertex_layout_vec2_vec2_id,
     vertex_layout_vec3_id,
@@ -196,10 +179,8 @@ enum vertex_layout_id {
     vertex_layout_vec3_vec2_vec3_id,
     vertex_layout_vec3_vec4_id,
     vertex_layout_vec4_id,
-    vertex_layout_bones_id,
-
-    vertex_layout_id_count
-};
+    vertex_layout_bones_id
+);
 
 const uint8 MAX_VERTEX_ATTRIBUTES = 16;
 struct vertex_layout {
@@ -344,15 +325,13 @@ struct alignas(16) text_uniforms {
 // | Shaders                                                                                                                                   |
 // +-------------------------------------------------------------------------------------------------------------------------------------------+
 
-enum game_shader_type {
+ENUM(game_shader_type,
     Vertex_Shader,
     Tessellation_Control_Shader,
     Tessellation_Evaluation_Shader,
     Geometry_Shader,
-    Fragment_Shader,
-
-    game_shader_type_count
-};
+    Fragment_Shader
+);
 
 struct game_shader {
     game_shader_id ID;

@@ -14,11 +14,9 @@
         - Implement circular buffer with VirtualAlloc2 and MapViewOfFile3
 */
 
-enum game_sound_id {
-    Sound_Test_ID,
-
-    game_sound_id_count
-};
+ENUM(game_sound_id,
+    Sound_Test_ID
+);
 
 struct waveformat {
     unsigned short    wFormatTag;        /* format type */
@@ -190,12 +188,12 @@ void PlayGameSound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
 }
 
 // Sound
-void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
+// void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
     
-    Silence(pSoundBuffer);
+//     Silence(pSoundBuffer);
 
-    // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
-    //WriteSineWave(pSoundBuffer, 480, 0);
-}
+//     DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
+//     WriteSineWave(pSoundBuffer, 480, 0);
+// }
 
 #endif

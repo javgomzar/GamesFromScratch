@@ -3,16 +3,13 @@
 #ifndef GAME_BITMAP
 #define GAME_BITMAP
 
-INTROSPECT
-enum game_bitmap_id {
+ENUM(game_bitmap_id,
     Bitmap_Background_ID,
     Bitmap_Button_ID,
     Bitmap_Empty_ID,
     Bitmap_Enemy_ID,
-    Bitmap_Player_ID,
-
-    game_bitmap_id_count
-};
+    Bitmap_Player_ID
+);
 
 #pragma pack(push, 1)
 struct bitmap_header {

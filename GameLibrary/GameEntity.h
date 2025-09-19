@@ -12,16 +12,13 @@
 // | Entities                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-INTROSPECT
-enum game_entity_type {
+ENUM(game_entity_type,
     Entity_Type_Character,
     Entity_Type_Enemy,
     Entity_Type_Camera,
     Entity_Type_Prop,
-    Entity_Type_Weapon,
-
-    game_entity_type_count
-};
+    Entity_Type_Weapon
+);
 
 INTROSPECT
 struct game_entity {
@@ -108,14 +105,11 @@ stats Stats(uint32 MaxHP, uint32 Strength, uint32 Defense, uint32 Intelligence, 
 // | Enemies                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-INTROSPECT
-enum enemy_type {
+ENUM(enemy_type,
     Enemy_Type_Horns,
     Enemy_Type_Dog,
-    Enemy_Type_Dyno,
-
-    enemy_type_count
-};
+    Enemy_Type_Dyno
+);
 
 inline enemy_type RandomEnemyType() {
     return (enemy_type)RandInt(0, enemy_type_count);
@@ -177,8 +171,7 @@ DefineFreeList(MAX_ENEMIES, enemy);
 // | Magic                                                                                                                                        |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-INTROSPECT
-enum magic_affinity {
+ENUM(magic_affinity,
     Magic_Affinity_None,
     Magic_Affinity_Fire,
     Magic_Affinity_Water,
@@ -190,7 +183,7 @@ enum magic_affinity {
     Magic_Affinity_Life,
     Magic_Affinity_Time,
     Magic_Affinity_Space
-};
+);
 
 INTROSPECT
 enum spell_id {
@@ -306,14 +299,11 @@ const spell Spells[spell_id_count] = {
 // | Weapons                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-INTROSPECT
-enum weapon_type {
+ENUM(weapon_type,
     Weapon_Sword,
     Weapon_Shield,
-    Weapon_Staff,
-
-    weapon_type_count
-};
+    Weapon_Staff
+);
 
 game_mesh_id WeaponMeshIDs[weapon_type_count] = {
     Mesh_Sword_ID,
@@ -360,13 +350,12 @@ DefineFreeList(MAX_WEAPONS, weapon);
 // | Character                                                                                                                                    |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-INTROSPECT
-enum character_action_id {
+ENUM(character_action_id,
     Character_Action_Idle_ID,
     Character_Action_Walk_ID,
     Character_Action_Jump_ID,
     Character_Action_Attack_ID
-};
+);
 
 INTROSPECT
 struct character_action {
@@ -375,17 +364,14 @@ struct character_action {
     bool Loop;
 };
 
-INTROSPECT
-enum character_class {
+ENUM(character_class,
     Class_Knight,
     Class_Rogue,
     Class_Hunter,
     Class_Wizard,
     Class_Bard,
-    Class_Priest,
-
-    character_class_count
-};
+    Class_Priest
+);
 
 const char* ClassNames[character_class_count] = {
     "Knight",

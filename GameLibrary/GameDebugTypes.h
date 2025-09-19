@@ -22,13 +22,15 @@ enum debug_type {
     Debug_Type_color,
     Debug_Type_collider,
     Debug_Type_memory_arena,
+    Debug_Type_game_asset_type,
+    Debug_Type_game_text_id,
+    Debug_Type_game_heightmap_id,
     Debug_Type_game_animation_id,
     Debug_Type_game_mesh_id,
     Debug_Type_game_bitmap_id,
     Debug_Type_game_entity_type,
     Debug_Type_enemy_type,
     Debug_Type_magic_affinity,
-    Debug_Type_spell_id,
     Debug_Type_weapon_type,
     Debug_Type_character_action_id,
     Debug_Type_character_class,
@@ -46,8 +48,8 @@ enum debug_type {
     Debug_Type_character,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 33; }
-bool IsStructType(debug_type Type) { return Type > 32 && Type < 45; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 35; }
+bool IsStructType(debug_type Type) { return Type > 34 && Type < 47; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -55,39 +57,44 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 69;
+const int ENUM_VALUES_SIZE = 60;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
+    {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
+    {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
+    {Debug_Type_game_asset_type, "Asset_Type_Heightmap", 2},
+    {Debug_Type_game_asset_type, "Asset_Type_Font", 3},
+    {Debug_Type_game_asset_type, "Asset_Type_Sound", 4},
+    {Debug_Type_game_asset_type, "Asset_Type_Video", 5},
+    {Debug_Type_game_asset_type, "Asset_Type_Mesh", 6},
+    {Debug_Type_game_asset_type, "Asset_Type_Animation", 7},
+    {Debug_Type_game_text_id, "Text_Test_ID", 0},
+    {Debug_Type_game_heightmap_id, "Heightmap_Spain_ID", 0},
     {Debug_Type_game_animation_id, "Animation_Idle_ID", 0},
     {Debug_Type_game_animation_id, "Animation_Walk_ID", 1},
     {Debug_Type_game_animation_id, "Animation_Jump_ID", 2},
     {Debug_Type_game_animation_id, "Animation_Attack_ID", 3},
-    {Debug_Type_game_animation_id, "game_animation_id_count", 4},
     {Debug_Type_game_mesh_id, "Mesh_Horns_ID", 0},
     {Debug_Type_game_mesh_id, "Mesh_Dog_ID", 1},
-    {Debug_Type_game_mesh_id, "Mesh_Sphere_ID", 2},
-    {Debug_Type_game_mesh_id, "Mesh_Body_ID", 3},
-    {Debug_Type_game_mesh_id, "Mesh_Shield_ID", 4},
-    {Debug_Type_game_mesh_id, "Mesh_Sword_ID", 5},
-    {Debug_Type_game_mesh_id, "Mesh_Staff_ID", 6},
-    {Debug_Type_game_mesh_id, "Mesh_Selector_ID", 7},
-    {Debug_Type_game_mesh_id, "Mesh_Dyno_ID", 8},
-    {Debug_Type_game_mesh_id, "game_mesh_id_count", 9},
+    {Debug_Type_game_mesh_id, "Mesh_Dyno_ID", 2},
+    {Debug_Type_game_mesh_id, "Mesh_Sphere_ID", 3},
+    {Debug_Type_game_mesh_id, "Mesh_Body_ID", 4},
+    {Debug_Type_game_mesh_id, "Mesh_Shield_ID", 5},
+    {Debug_Type_game_mesh_id, "Mesh_Sword_ID", 6},
+    {Debug_Type_game_mesh_id, "Mesh_Staff_ID", 7},
+    {Debug_Type_game_mesh_id, "Mesh_Selector_ID", 8},
     {Debug_Type_game_bitmap_id, "Bitmap_Background_ID", 0},
     {Debug_Type_game_bitmap_id, "Bitmap_Button_ID", 1},
     {Debug_Type_game_bitmap_id, "Bitmap_Empty_ID", 2},
     {Debug_Type_game_bitmap_id, "Bitmap_Enemy_ID", 3},
     {Debug_Type_game_bitmap_id, "Bitmap_Player_ID", 4},
-    {Debug_Type_game_bitmap_id, "game_bitmap_id_count", 5},
     {Debug_Type_game_entity_type, "Entity_Type_Character", 0},
     {Debug_Type_game_entity_type, "Entity_Type_Enemy", 1},
     {Debug_Type_game_entity_type, "Entity_Type_Camera", 2},
     {Debug_Type_game_entity_type, "Entity_Type_Prop", 3},
     {Debug_Type_game_entity_type, "Entity_Type_Weapon", 4},
-    {Debug_Type_game_entity_type, "game_entity_type_count", 5},
     {Debug_Type_enemy_type, "Enemy_Type_Horns", 0},
     {Debug_Type_enemy_type, "Enemy_Type_Dog", 1},
     {Debug_Type_enemy_type, "Enemy_Type_Dyno", 2},
-    {Debug_Type_enemy_type, "enemy_type_count", 3},
     {Debug_Type_magic_affinity, "Magic_Affinity_None", 0},
     {Debug_Type_magic_affinity, "Magic_Affinity_Fire", 1},
     {Debug_Type_magic_affinity, "Magic_Affinity_Water", 2},
@@ -99,22 +106,9 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_magic_affinity, "Magic_Affinity_Life", 8},
     {Debug_Type_magic_affinity, "Magic_Affinity_Time", 9},
     {Debug_Type_magic_affinity, "Magic_Affinity_Space", 10},
-    {Debug_Type_spell_id, "Spell_Empty", 0},
-    {Debug_Type_spell_id, "Spell_Fireball", 1},
-    {Debug_Type_spell_id, "Spell_Wave", 2},
-    {Debug_Type_spell_id, "Spell_Wind", 3},
-    {Debug_Type_spell_id, "Spell_Earthquake", 4},
-    {Debug_Type_spell_id, "Spell_Blizzard", 5},
-    {Debug_Type_spell_id, "Spell_Lightning", 6},
-    {Debug_Type_spell_id, "Spell_Kill", 7},
-    {Debug_Type_spell_id, "Spell_Cure", 8},
-    {Debug_Type_spell_id, "Spell_Accelerate", 9},
-    {Debug_Type_spell_id, "Spell_Reduce", 10},
-    {Debug_Type_spell_id, "spell_id_count", 11},
     {Debug_Type_weapon_type, "Weapon_Sword", 0},
     {Debug_Type_weapon_type, "Weapon_Shield", 1},
     {Debug_Type_weapon_type, "Weapon_Staff", 2},
-    {Debug_Type_weapon_type, "weapon_type_count", 3},
     {Debug_Type_character_action_id, "Character_Action_Idle_ID", 0},
     {Debug_Type_character_action_id, "Character_Action_Walk_ID", 1},
     {Debug_Type_character_action_id, "Character_Action_Jump_ID", 2},
@@ -125,7 +119,6 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_character_class, "Class_Wizard", 3},
     {Debug_Type_character_class, "Class_Bard", 4},
     {Debug_Type_character_class, "Class_Priest", 5},
-    {Debug_Type_character_class, "character_class_count", 6},
 };
 
 struct debug_struct_member {

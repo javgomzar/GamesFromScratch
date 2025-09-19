@@ -24,8 +24,6 @@ extern GAMELIBRARY_API int nGameLibrary;
 
 #pragma once
 
-#define INTROSPECT
-
 #include "GamePlatform.h"
 #include "GameMath.h"
 #include "GameInput.h"

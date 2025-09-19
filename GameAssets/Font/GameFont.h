@@ -6,11 +6,9 @@
 
 #include <vector>
 
-enum game_font_id {
-    Font_Menlo_Regular_ID,
-
-    game_font_id_count
-};
+ENUM(game_font_id,
+    Font_Menlo_Regular_ID
+);
 
 const uint32 FONT_CHARACTERS_COUNT = '~' - ' ';
 // const int LOAD_POINTS = 20
