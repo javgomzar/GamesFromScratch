@@ -12,11 +12,9 @@ extern "C" {
     #include "libavformat/avio.h"
 }
 
-enum game_video_id {
-    //Video_Test_ID,
-
-    game_video_id_count
-};
+ENUM(game_video_id,
+    Video_Test_ID
+);
 
 struct video_buffer {
     uint8* Start;

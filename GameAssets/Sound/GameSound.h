@@ -14,11 +14,9 @@
         - Implement circular buffer with VirtualAlloc2 and MapViewOfFile3
 */
 
-enum game_sound_id {
-    Sound_Test_ID,
-
-    game_sound_id_count
-};
+ENUM(game_sound_id,
+    Sound_Test_ID
+);
 
 struct waveformat {
     unsigned short    wFormatTag;        /* format type */

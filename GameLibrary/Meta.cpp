@@ -70,7 +70,6 @@ int main() {
     std::vector<std::string> StructMembers = {};
 
     const char* ProcessingFiles[] = {
-        "..\\GameLibrary\\GamePlatform.h",
         "..\\GameLibrary\\GameMath.h",
         "..\\GameAssets\\GameAssets.h",
         "..\\GameLibrary\\GameEntity.h",
@@ -158,18 +157,22 @@ int main() {
                     }
                 }
                 else if (Token == "enum") {
-                    token EnumName = RequireToken(Tokenizer, Token_Identifier);
-                    sprintf_s(Buffer, "Debug_Type_%s", EnumName.Text);
-                    EnumDebugTypes.push_back(std::string(Buffer));
-                    Token = RequireToken(Tokenizer, Token_OpenBrace);
-                    int Value = 0;
-                    while(Token.Type != Token_CloseBrace) {
-                        Token = RequireToken(Tokenizer, Token_Identifier);
-                        sprintf_s(Buffer, "    {Debug_Type_%s, \"%s\", %d},\n", EnumName.Text, Token.Text, Value++);
-                        EnumValues.push_back(std::string(Buffer));
-                        Token = GetToken(Tokenizer);
-                        if (Token.Type != Token_CloseBrace) Assert(Token.Type == Token_Comma);
-                    }
+
+                }
+            }
+            if (Token == "ENUM") {
+                RequireToken(Tokenizer, Token_OpenParen);
+                token EnumName = RequireToken(Tokenizer, Token_Identifier);
+                sprintf_s(Buffer, "Debug_Type_%s", EnumName.Text);
+                EnumDebugTypes.push_back(std::string(Buffer));
+                Token = RequireToken(Tokenizer, Token_Comma);
+                int Value = 0;
+                while(Token.Type != Token_CloseParen) {
+                    Token = RequireToken(Tokenizer, Token_Identifier);
+                    sprintf_s(Buffer, "    {Debug_Type_%s, \"%s\", %d},\n", EnumName.Text, Token.Text, Value++);
+                    EnumValues.push_back(std::string(Buffer));
+                    Token = GetToken(Tokenizer);
+                    if (Token.Type != Token_CloseParen) Assert(Token.Type == Token_Comma);
                 }
             }
 

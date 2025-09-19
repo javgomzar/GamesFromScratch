@@ -17,7 +17,7 @@
         - Asset hot reloading
 */
 
-enum game_asset_type {
+ENUM(game_asset_type,
     Asset_Type_Text,
     Asset_Type_Bitmap,
     Asset_Type_Heightmap,
@@ -25,31 +25,23 @@ enum game_asset_type {
     Asset_Type_Sound,
     Asset_Type_Video,
     Asset_Type_Mesh,
-    Asset_Type_Animation,
+    Asset_Type_Animation
+);
 
-    game_asset_type_count
-};
+ENUM(game_text_id,
+    Text_Test_ID
+);
 
-enum game_text_id {
-    Text_Test_ID,
+ENUM(game_heightmap_id,
+    Heightmap_Spain_ID
+);
 
-    game_text_id_count
-};
-
-enum game_heightmap_id {
-    Heightmap_Spain_ID,
-
-    game_heightmap_id_count
-};
-
-enum game_animation_id {
+ENUM(game_animation_id,
     Animation_Idle_ID,
     Animation_Walk_ID,
     Animation_Jump_ID,
-    Animation_Attack_ID,
-
-    game_animation_id_count
-};
+    Animation_Attack_ID
+);
 
 union game_asset_id {
     game_text_id Text;

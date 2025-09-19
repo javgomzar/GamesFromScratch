@@ -136,15 +136,13 @@ basis GetCameraBasis(float Angle, float Pitch) {
 
 const int MAX_RENDER_ENTRIES = 16384;
 
-enum render_command_type {
+ENUM(render_command_type,
     render_clear,
     render_draw_primitive,
     render_shader_pass,
     render_compute_shader_pass,
-    render_target,
-
-    render_command_type_count
-};
+    render_target
+);
 
 struct render_command {
     render_command_type Type;

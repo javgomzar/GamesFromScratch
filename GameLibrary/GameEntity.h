@@ -12,16 +12,13 @@
 // | Entities                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-INTROSPECT
-enum game_entity_type {
+ENUM(game_entity_type,
     Entity_Type_Character,
     Entity_Type_Enemy,
     Entity_Type_Camera,
     Entity_Type_Prop,
-    Entity_Type_Weapon,
-
-    game_entity_type_count
-};
+    Entity_Type_Weapon
+);
 
 INTROSPECT
 struct game_entity {
@@ -97,12 +94,10 @@ DefineFreeList(MAX_ENEMIES, enemy);
 // | Weapons                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-enum weapon_type {
+ENUM(weapon_type,
     Weapon_Sword,
-    Weapon_Shield,
-
-    weapon_type_count
-};
+    Weapon_Shield
+);
 
 struct weapon {
     weapon_type Type;
@@ -118,13 +113,12 @@ DefineFreeList(MAX_WEAPONS, weapon);
 // | Character                                                                                                                                    |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-INTROSPECT
-enum character_action_id {
+ENUM(character_action_id,
     Character_Action_Idle_ID,
     Character_Action_Walk_ID,
     Character_Action_Jump_ID,
     Character_Action_Attack_ID
-};
+);
 
 struct character_action {
     character_action_id ID;

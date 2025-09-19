@@ -5,16 +5,14 @@
 #ifndef GAME_MESH
 #define GAME_MESH
 
-enum game_mesh_id {
+ENUM(game_mesh_id,
     Mesh_Enemy_ID,
     Mesh_Sphere_ID,
     Mesh_Body_ID,
     Mesh_Shield_ID,
     Mesh_Sword_ID,
-    Mesh_Selector_ID,
-    
-    game_mesh_id_count
-};
+    Mesh_Selector_ID
+);
 
 const int BONE_NAME_LENGTH = 32;
 
