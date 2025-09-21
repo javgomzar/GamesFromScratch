@@ -25,7 +25,6 @@ echo 0 > bin\PDBNumber.txt
  avutil.lib^
  swscale.lib^
  bin\pch.obj^
- /DEBUG^
  /DLL^
  /IMPLIB:"bin\GameLibrary.lib"^
  /PDB:"bin\GameLibrary.pdb"^
