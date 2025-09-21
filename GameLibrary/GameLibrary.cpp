@@ -55,6 +55,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     if (!Memory->IsInitialized) {
         firstFrame = true;
 
+        RNG.Seed = Platform->SeedRNG();
+        RNG.State = RNG.Seed;
+
         //TestPerformance();
 
         // Initialize entities

@@ -443,40 +443,6 @@ void PlaybackInput(record_and_playback* RecordPlayback, game_input* Input) {
     }
 }
 
-// RNG
-int GetRandom() {
-    HCRYPTPROV hCryptProv;
-    uint64 Result = 0;
-
-    if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
-        Log(Error, "CryptAcquireContext failed.");
-        return Result;
-    }
-
-    if (!CryptGenRandom(hCryptProv, sizeof(Result), (BYTE*)&Result)) {
-        Log(Error, "CryptGenRandom failed.");
-    }
-
-    CryptReleaseContext(hCryptProv, 0);
-    return Result;
-}
-
-void SeedRNG() {
-    uint64 Seed = 0;
-#ifdef _DEBUG
-    time_t Seconds = time(NULL);
-    tm* TimeInfo = localtime(&Seconds);
-    Seed = TimeInfo->tm_mday;
-#else
-    Seed = GetRandom();
-    
-    char Buffer[32];
-    sprintf_s(Buffer, "RNG seed: %I64u", Seed);
-    Log(Info, Buffer);
-#endif
-    srand(Seed);
-}
-
 static bool Pause = false;
 static bool Minimized = false;
 // Message processing
@@ -639,7 +605,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
         Result->Update = (game_update*)GetProcAddress(Result->GameCodeDLL, "GameUpdate");
         Result->IsValid = (Result->Update);
 
-        int64 LastWriteTime = GetLastWriteTime(SourceDLLName);
+        int64 LastWriteTime = Win32GetLastWriteTime(SourceDLLName);
         Result->DLLLastWriteTime = LastWriteTime;
     }
     else {
@@ -757,11 +723,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     void* GameMemoryBlock = VirtualAlloc(BaseAddress, PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     Memory.Permanent = MemoryArena(PermanentStorageSize, (uint8*)GameMemoryBlock);
 
-    Memory.Platform.FreeFileMemory = PlatformFreeFileMemory;
-    Memory.Platform.ReadEntireFile = PlatformReadEntireFile;
-    Memory.Platform.WriteEntireFile = PlatformWriteEntireFile;
-    Memory.Platform.AppendToFile = PlatformAppendToFile;
-    Memory.Platform.GetLastWriteTime = GetLastWriteTime;
+    platform_api* Platform = &Memory.Platform;
+
+    Platform->FreeFileMemory = Win32FreeFileMemory;
+    Platform->ReadEntireFile = Win32ReadEntireFile;
+    Platform->WriteEntireFile = Win32WriteEntireFile;
+    Platform->AppendToFile = Win32AppendToFile;
+    Platform->GetLastWriteTime = Win32GetLastWriteTime;
+    Platform->SeedRNG = Win32SeedRNG;
 
     game_state* pGameState = PushStruct(&Memory.Permanent, game_state);
     Memory.GameState = pGameState;
@@ -821,8 +790,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     RefreshMonitors();
 
-    SeedRNG();
-
     ReleaseDC(Window, DeviceContext);
 
     Running = true;
@@ -830,7 +797,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Main message loop:
     while (Running) {
         // Loading game code
-        int64 NewDLLWriteTime = GetLastWriteTime(SourceDLLName);
+        int64 NewDLLWriteTime = Win32GetLastWriteTime(SourceDLLName);
 
         if (NewDLLWriteTime > GameCode.DLLLastWriteTime) {
             static int Loads = 0;
@@ -845,9 +812,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         for (int i = 0; i < game_shader_id_count; i++) {
             game_shader* Shader = GetShader(Assets, (game_shader_id)i);
 
-            int64 LastWriteTime = GetLastWriteTime(Shader->File.Path);
+            int64 LastWriteTime = Win32GetLastWriteTime(Shader->File.Path);
             if (LastWriteTime > Shader->File.Timestamp) {
-                PlatformFreeFileMemory(Shader->File.Content);
+                Win32FreeFileMemory(Shader->File.Content);
                 PushShader(Assets, Shader->File.Path, Shader->ID);
                 if (Shader->File.Timestamp == LastWriteTime) {
                     OpenGLReloadShader(&RendererContext, Assets, Shader);
