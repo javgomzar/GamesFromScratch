@@ -787,6 +787,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     RefreshMonitors();
 
+    SeedRNG();
+
     ReleaseDC(Window, DeviceContext);
 
     Running = true;
