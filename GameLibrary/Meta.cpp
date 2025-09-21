@@ -75,6 +75,7 @@ int main() {
         "..\\GameAssets\\Mesh\\GameMesh.h",
         "..\\GameAssets\\Bitmap\\GameBitmap.h",
         "..\\GameLibrary\\GameEntity.h",
+        "..\\GameLibrary\\GameLibrary.cpp",
     };
 
     char Buffer[256];

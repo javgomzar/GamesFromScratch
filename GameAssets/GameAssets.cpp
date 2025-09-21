@@ -69,6 +69,14 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Empty.bmp",      Bitmap_Empty_ID);
     PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Enemy.bmp",      Bitmap_Enemy_ID);
     PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Player.bmp",     Bitmap_Player_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Anvil.bmp",      Bitmap_Anvil_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Combat.bmp",     Bitmap_Combat_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Fire.bmp",       Bitmap_Fire_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Coin.bmp",       Bitmap_Coin_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Quest.bmp",      Bitmap_Quest_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Wizard.bmp",     Bitmap_Wizard_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Miniboss.bmp",   Bitmap_Miniboss_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Boss.bmp",       Bitmap_Boss_ID);
 
     // Heightmaps
     PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\spain.bmp", Heightmap_Spain_ID);

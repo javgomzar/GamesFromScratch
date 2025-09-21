@@ -8,7 +8,17 @@ ENUM(game_bitmap_id,
     Bitmap_Button_ID,
     Bitmap_Empty_ID,
     Bitmap_Enemy_ID,
-    Bitmap_Player_ID
+    Bitmap_Player_ID,
+
+// Room types
+    Bitmap_Anvil_ID,
+    Bitmap_Combat_ID,
+    Bitmap_Fire_ID,
+    Bitmap_Coin_ID,
+    Bitmap_Quest_ID,
+    Bitmap_Wizard_ID,
+    Bitmap_Miniboss_ID,
+    Bitmap_Boss_ID
 );
 
 #pragma pack(push, 1)
