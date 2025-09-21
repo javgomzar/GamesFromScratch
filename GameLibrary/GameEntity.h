@@ -174,33 +174,79 @@ DefineFreeList(MAX_ENEMIES, enemy);
 ENUM(magic_affinity,
     Magic_Affinity_None,
     Magic_Affinity_Fire,
-    Magic_Affinity_Water,
-    Magic_Affinity_Air,
     Magic_Affinity_Earth,
+    Magic_Affinity_Water,
     Magic_Affinity_Ice,
-    Magic_Affinity_Electricity,
+    Magic_Affinity_Air,
     Magic_Affinity_Death,
     Magic_Affinity_Life,
-    Magic_Affinity_Time,
-    Magic_Affinity_Space
+    Magic_Affinity_Time
 );
 
-INTROSPECT
-enum spell_id {
+ENUM(spell_id,
     Spell_Empty,
-    Spell_Fireball,
-    Spell_Wave,
-    Spell_Wind,
-    Spell_Earthquake,
-    Spell_Blizzard,
-    Spell_Lightning,
-    Spell_Kill,
-    Spell_Cure,
-    Spell_Accelerate,
-    Spell_Reduce,
 
-    spell_id_count
-};
+// Fire (Tetrahedron)
+    Spell_Fireball,
+    Spell_Burn,
+    Spell_Incinerate,
+    Spell_Explosion,
+
+// Earth (Cube)
+    Spell_Rock_Throw,
+    Spell_Spikes,
+    Spell_Rock_Armor,
+    Spell_Diamond_Armor,
+    Spell_Sand_Storm,
+    Spell_Sand_Burst,
+    Spell_Mud_Pack,
+    Spell_Earthquake,
+
+// Water / Ice (Icosahedron)
+    Spell_Drench,
+    Spell_Wave,
+    Spell_Drown,
+    Spell_Cascade,
+    Spell_Wash,
+    Spell_Hydrate,
+
+    Spell_Icicle,
+    Spell_Blizzard,
+    Spell_Freeze,
+    Spell_Ice_Armor,
+    Spell_Snow_Golem,
+    Spell_Absolute_Zero,
+    
+// Air (Octahedron)
+    Spell_Wind,
+    Spell_Gust,
+    Spell_Fly,
+    Spell_Air_Shield,
+    Spell_Tornado,
+    Spell_Hurricane,
+
+// Death / Life (Dodecahedron)
+    Spell_Poison,
+    Spell_Rot,
+    Spell_Bleed,
+    Spell_Kill,
+    Spell_Zombie,
+    Spell_Multikill,
+
+    Spell_Cure,
+    Spell_Heal,
+    Spell_Regeneration,
+    Spell_Multicure,
+    Spell_Multiheal,
+    Spell_Resurrect,
+
+// Time (Circle)
+    Spell_Slow,
+    Spell_Accelerate,
+    Spell_Tempo,
+    Spell_Stop,
+    Spell_Rewind
+);
 
 struct spell {
     const char* Name;
@@ -209,90 +255,67 @@ struct spell {
     uint32 ATBCost;
     uint32 ManaCost;
     magic_affinity Affinity;
+    uint8 Duration;
 };
 
 const spell Spells[spell_id_count] = {
     {},
-    {
-        "Fireball",
-        Spell_Fireball,
-        20,
-        20,
-        20,
-        Magic_Affinity_Fire
-    },
-    {
-        "Wave",
-        Spell_Wave,
-        20,
-        20,
-        20,
-        Magic_Affinity_Water
-    },
-    {
-        "Wind",
-        Spell_Wind,
-        20,
-        20,
-        20,
-        Magic_Affinity_Air
-    },
-    {
-        "Earthquake",
-        Spell_Earthquake,
-        20,
-        20,
-        20,
-        Magic_Affinity_Earth
-    },
-    {
-        "Blizzard",
-        Spell_Blizzard,
-        20,
-        20,
-        20,
-        Magic_Affinity_Ice
-    },
-    {
-        "Lightning",
-        Spell_Lightning,
-        20,
-        20,
-        20,
-        Magic_Affinity_Electricity
-    },
-    {
-        "Kill",
-        Spell_Kill,
-        20,
-        20,
-        20,
-        Magic_Affinity_Death
-    },
-    {
-        "Cure",
-        Spell_Cure,
-        20,
-        20,
-        20,
-        Magic_Affinity_Life
-    },
-    {
-        "Accelerate",
-        Spell_Accelerate,
-        20,
-        20,
-        20,
-        Magic_Affinity_Time
-    },
-    {
-        "Reduce",
-        Spell_Reduce,
-        20,
-        20,
-        20,
-        Magic_Affinity_Space
-    },
+
+//  Name ------------- ID ------------- Damage ATB Mana Affinity ---------- Duration
+    { "Fireball",      Spell_Fireball,      20, 20, 20, Magic_Affinity_Fire,  1 },
+    { "Burn",          Spell_Burn,           5, 10, 20, Magic_Affinity_Fire,  10 },
+    { "Incinerate",    Spell_Incinerate,    50, 30, 30, Magic_Affinity_Fire,  1 },
+    { "Explosion",     Spell_Explosion,    100, 80, 40, Magic_Affinity_Fire,  1 },
+
+    { "Rock_Throw",    Spell_Rock_Throw,    20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Spikes",        Spell_Spikes,        20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Rock_Armor",    Spell_Rock_Armor,    20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Diamond_Armor", Spell_Diamond_Armor, 20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Sand_Storm",    Spell_Sand_Storm,    20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Sand_Burst",    Spell_Sand_Burst,    20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Mud_Pack",      Spell_Mud_Pack,      20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Earthquake",    Spell_Earthquake,    20, 20, 20, Magic_Affinity_Earth, 1 },
+
+    { "Drench",        Spell_Drench,        20, 20, 20, Magic_Affinity_Water, 1 },
+    { "Wave",          Spell_Wave,          10, 20, 20, Magic_Affinity_Water, 1 },
+    { "Drown",         Spell_Drown,          5, 20, 20, Magic_Affinity_Water, 10 },
+    { "Cascade",       Spell_Cascade,       40, 20, 20, Magic_Affinity_Water, 1 },
+    { "Wash",          Spell_Wash,           0, 20, 20, Magic_Affinity_Water, 1 },
+    { "Hydrate",       Spell_Hydrate,        0, 20, 20, Magic_Affinity_Water, 1 },
+
+    { "Icicle",        Spell_Icicle,        20, 20, 20, Magic_Affinity_Ice,   1 },
+    { "Blizzard",      Spell_Blizzard,      20, 20, 20, Magic_Affinity_Ice,   1 },
+    { "Freeze",        Spell_Freeze,        20, 20, 20, Magic_Affinity_Ice,   1 },
+    { "Ice_Armor",     Spell_Ice_Armor,     20, 20, 20, Magic_Affinity_Ice,   1 },
+    { "Snow_Golem",    Spell_Snow_Golem,    20, 20, 20, Magic_Affinity_Ice,   40 },
+    { "Absolute_Zero", Spell_Absolute_Zero, 20, 20, 20, Magic_Affinity_Ice,   1 },
+
+    { "Wind",          Spell_Wind,          20, 20, 20, Magic_Affinity_Air,   10 },
+    { "Gust",          Spell_Gust,          20, 20, 20, Magic_Affinity_Air,   1 },
+    { "Fly",           Spell_Fly,           20, 20, 20, Magic_Affinity_Air,   1 },
+    { "Air_Shield",    Spell_Air_Shield,    20, 20, 20, Magic_Affinity_Air,   1 },
+    { "Tornado",       Spell_Tornado,       20, 20, 20, Magic_Affinity_Air,   1 },
+    { "Hurricane",     Spell_Hurricane,     20, 20, 20, Magic_Affinity_Air,   1 },
+
+    { "Poison",        Spell_Poison,        20, 20, 20, Magic_Affinity_Death, 1 },
+    { "Rot",           Spell_Rot,           20, 20, 20, Magic_Affinity_Death, 1 },
+    { "Bleed",         Spell_Bleed,         20, 20, 20, Magic_Affinity_Death, 1 },
+    { "Kill",          Spell_Kill,          20, 20, 20, Magic_Affinity_Death, 1 },
+    { "Zombie",        Spell_Zombie,        20, 20, 20, Magic_Affinity_Death, 1 },
+    { "Multikill",     Spell_Multikill,     20, 20, 20, Magic_Affinity_Death, 1 },
+
+    { "Cure",          Spell_Cure,          20, 20, 20, Magic_Affinity_Life,  1 },
+    { "Heal",          Spell_Heal,          20, 20, 20, Magic_Affinity_Life,  1 },
+    { "Regeneration",  Spell_Regeneration,  20, 20, 20, Magic_Affinity_Life,  1 },
+    { "Multicure",     Spell_Multicure,     20, 20, 20, Magic_Affinity_Life,  1 },
+    { "Multiheal",     Spell_Multiheal,     20, 20, 20, Magic_Affinity_Life,  1 },
+    { "Resurrect",     Spell_Resurrect,     20, 20, 20, Magic_Affinity_Life,  1 },
+
+    { "Slow",          Spell_Slow,          20, 20, 20, Magic_Affinity_Time,  1 },
+    { "Accelerate",    Spell_Accelerate,    20, 20, 20, Magic_Affinity_Time,  1 },
+    { "Tempo",         Spell_Tempo,         20, 20, 20, Magic_Affinity_Time,  1 },
+    { "Stop",          Spell_Stop,          20, 20, 20, Magic_Affinity_Time,  1 },
+    { "Rewind",        Spell_Rewind,        20, 20, 20, Magic_Affinity_Time,  1 },
 };
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -815,6 +838,19 @@ prop* AddProp(
 // | Combat                                                                                                                                       |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
+ENUM(altered_state,
+    altered_state_none,
+    altered_state_burned,
+    altered_state_wet,
+    altered_state_frozen,
+    altered_state_drowning,
+    altered_state_poisoned,
+    altered_state_rotting,
+    altered_state_bleeding,
+    altered_state_dead,
+    altered_state_regenerating
+);
+
 struct damage_animation {
     uint32 Damage;
     float t;
@@ -860,6 +896,7 @@ struct combatant {
     uint32 Index;
     float ATB;
     combatant_type Type;
+    bool State[altered_state_count];
 };
 
 combatant Combatant(character* Character) {
