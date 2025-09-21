@@ -1053,8 +1053,7 @@ struct game_combat {
                     MaxSpeed = EntityCombatant.Stats->Speed;
                 }
                 else if (Combatant->Stats->Speed == MaxSpeed) {
-                    float Random = (float)rand() / (float)RAND_MAX;
-                    if (Random >= 0.5f) {
+                    if (Bernoulli()) {
                         Turn.Attacker = Combatant;
                         MaxSpeed = EntityCombatant.Stats->Speed;
                     }
