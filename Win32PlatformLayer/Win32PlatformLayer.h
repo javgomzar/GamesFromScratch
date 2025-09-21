@@ -114,12 +114,12 @@ PLATFORM_SEED_RNG(Win32SeedRNG) {
     Seed = TimeInfo->tm_mday + 123456789;
 #else
     QueryPerformanceCounter((LARGE_INTEGER*)&Seed);
+#endif
     for (int i = 0; i < 8; i++) {
         Seed ^= Seed << 13;
         Seed ^= Seed >> 7;
         Seed ^= Seed << 17;
     }
-#endif
 
     char Buffer[64];
     sprintf_s(Buffer, "RNG seed: %I64u.", Seed);
