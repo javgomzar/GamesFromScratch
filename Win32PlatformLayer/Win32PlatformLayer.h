@@ -6,6 +6,18 @@
 #include "Win32Debug.h"
 
 // Platform services for the game
+void SeedRNG() {
+    uint64 Seed = 0;
+#ifdef _DEBUG
+    time_t Seconds = time(NULL);
+    tm* TimeInfo = localtime(&Seconds);
+    Seed = TimeInfo->tm_mday;
+#else
+    _rdseed64_step(&Seed);
+#endif
+    srand(Seed);
+}
+
 PLATFORM_FREE_FILE_MEMORY(PlatformFreeFileMemory) {
     if (Memory) {
         VirtualFree(Memory, 0, MEM_RELEASE);

@@ -788,6 +788,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     RefreshMonitors();
 
+    SeedRNG();
+
     ReleaseDC(Window, DeviceContext);
 
     uint32 Seed = clock();
