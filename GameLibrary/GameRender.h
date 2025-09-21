@@ -994,12 +994,12 @@ void PushBitmap(
     Vertices[3] = { Rect.Left + Rect.Width, Rect.Top + Rect.Height, MaxTexX, MinTexY };
 
     uint32* Elements = Result->ElementEntry.Pointer;
-    Elements[0] = 0;
-    Elements[1] = 1;
-    Elements[2] = 2;
-    Elements[3] = 3;
-    Elements[4] = 2;
-    Elements[5] = 1;
+    Elements[0] = Result->VertexEntry.Offset + 0;
+    Elements[1] = Result->VertexEntry.Offset + 1;
+    Elements[2] = Result->VertexEntry.Offset + 2;
+    Elements[3] = Result->VertexEntry.Offset + 3;
+    Elements[4] = Result->VertexEntry.Offset + 2;
+    Elements[5] = Result->VertexEntry.Offset + 1;
 }
 
 void PushBitmap(
