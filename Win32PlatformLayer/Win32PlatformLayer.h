@@ -114,6 +114,9 @@ PLATFORM_SEED_RNG(Win32SeedRNG) {
     Seed = TimeInfo->tm_mday + 123456789;
 #else
     QueryPerformanceCounter((LARGE_INTEGER*)&Seed);
+    Seed ^= Seed << 13;
+	Seed ^= Seed >> 7;
+	Seed ^= Seed << 17;
 #endif
 
     char Buffer[64];
