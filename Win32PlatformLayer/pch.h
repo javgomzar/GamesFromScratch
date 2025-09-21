@@ -11,6 +11,10 @@
 #include "windows.h"
 #include <psapi.h>
 
+#ifndef _DEBUG
+#include "wincrypt.h"
+#endif
+
 #include "resource.h"
 #include "framework.h"
 

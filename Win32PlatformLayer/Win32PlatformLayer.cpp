@@ -443,6 +443,40 @@ void PlaybackInput(record_and_playback* RecordPlayback, game_input* Input) {
     }
 }
 
+// RNG
+int GetRandom() {
+    HCRYPTPROV hCryptProv;
+    uint64 Result = 0;
+
+    if (!CryptAcquireContext(&hCryptProv, NULL, NULL, PROV_RSA_FULL, CRYPT_VERIFYCONTEXT)) {
+        Log(Error, "CryptAcquireContext failed.");
+        return Result;
+    }
+
+    if (!CryptGenRandom(hCryptProv, sizeof(Result), (BYTE*)&Result)) {
+        Log(Error, "CryptGenRandom failed.");
+    }
+
+    CryptReleaseContext(hCryptProv, 0);
+    return Result;
+}
+
+void SeedRNG() {
+    uint64 Seed = 0;
+#ifdef _DEBUG
+    time_t Seconds = time(NULL);
+    tm* TimeInfo = localtime(&Seconds);
+    Seed = TimeInfo->tm_mday;
+#else
+    Seed = GetRandom();
+    
+    char Buffer[32];
+    sprintf_s(Buffer, "RNG seed: %I64u", Seed);
+    Log(Info, Buffer);
+#endif
+    srand(Seed);
+}
+
 static bool Pause = false;
 static bool Minimized = false;
 // Message processing
