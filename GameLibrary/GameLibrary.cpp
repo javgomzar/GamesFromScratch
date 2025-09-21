@@ -159,6 +159,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     if (!Memory->IsInitialized) {
         firstFrame = true;
 
+        RNG.Seed = Platform->SeedRNG();
+        RNG.State = RNG.Seed;
+
         //TestPerformance();
 
         Transition(pGameState, Game_State_Main_Menu);

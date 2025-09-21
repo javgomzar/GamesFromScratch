@@ -7,13 +7,13 @@
 
 // Platform services for the game
 
-PLATFORM_FREE_FILE_MEMORY(PlatformFreeFileMemory) {
+PLATFORM_FREE_FILE_MEMORY(Win32FreeFileMemory) {
     if (Memory) {
         VirtualFree(Memory, 0, MEM_RELEASE);
     }
 }
 
-PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
+PLATFORM_READ_ENTIRE_FILE(Win32ReadEntireFile) {
     read_file_result Result = {};
     Result.Path = Path;
     HANDLE FileHandle = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
@@ -27,7 +27,7 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
                     Result.ContentSize = FileSize.QuadPart;
                 }
                 else {
-                    PlatformFreeFileMemory(Result.Content);
+                    Win32FreeFileMemory(Result.Content);
                     Result.Content = 0;
                 }
             }
@@ -48,7 +48,7 @@ PLATFORM_READ_ENTIRE_FILE(PlatformReadEntireFile) {
     return Result;
 };
 
-PLATFORM_WRITE_ENTIRE_FILE(PlatformWriteEntireFile) {
+PLATFORM_WRITE_ENTIRE_FILE(Win32WriteEntireFile) {
     bool Result = false;
     HANDLE FileHandle = CreateFileA(Path, GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
@@ -69,7 +69,7 @@ PLATFORM_WRITE_ENTIRE_FILE(PlatformWriteEntireFile) {
     return Result;
 }
 
-PLATFORM_APPEND_TO_FILE(PlatformAppendToFile) {
+PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
     bool Result = false;
     HANDLE FileHandle = CreateFileA(Path, FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
@@ -92,7 +92,7 @@ PLATFORM_APPEND_TO_FILE(PlatformAppendToFile) {
     return Result;
 }
 
-PLATFORM_GET_LAST_WRITE_TIME(GetLastWriteTime) {
+PLATFORM_GET_LAST_WRITE_TIME(Win32GetLastWriteTime) {
     int64 Result = 0;
 
     WIN32_FIND_DATAA FindData = {};
@@ -103,6 +103,23 @@ PLATFORM_GET_LAST_WRITE_TIME(GetLastWriteTime) {
     }
 
     return Result;
+}
+
+PLATFORM_SEED_RNG(Win32SeedRNG) {
+    uint64 Seed = 0;
+
+#ifdef _DEBUG
+    time_t Seconds = time(NULL);
+    tm* TimeInfo = localtime(&Seconds);
+    Seed = TimeInfo->tm_mday + 123456789;
+#else
+    QueryPerformanceCounter((LARGE_INTEGER*)&Seed);
+#endif
+
+    char Buffer[64];
+    sprintf_s(Buffer, "RNG seed: %I64u.", Seed);
+    Log(Info, Buffer);
+    return Seed;
 }
 
 // Record and playback

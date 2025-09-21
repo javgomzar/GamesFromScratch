@@ -512,12 +512,16 @@ typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 #define PLATFORM_GET_LAST_WRITE_TIME(name) int64 name(const char* Path)
 typedef PLATFORM_GET_LAST_WRITE_TIME(platform_get_last_write_time);
 
+#define PLATFORM_SEED_RNG(name) uint64 name()
+typedef PLATFORM_SEED_RNG(platform_seed_rng);
+
 struct platform_api {
     platform_read_entire_file* ReadEntireFile;
     platform_free_file_memory* FreeFileMemory;
     platform_write_entire_file* WriteEntireFile;
     platform_append_to_file* AppendToFile;
     platform_get_last_write_time* GetLastWriteTime;
+    platform_seed_rng* SeedRNG;
 };
 
 #endif

@@ -101,15 +101,36 @@ inline uint32 Hash(const char* String) {
     return Hash;
 }
 
-// Random functions
+// +----------------------------------------------------------------------------------------------------------------------------------------+
+// | RNG                                                                                                                                    |
+// +----------------------------------------------------------------------------------------------------------------------------------------+
 
-inline bool Bernoulli(float p = 0.5f) {
-	return (float)rand() / (float)RAND_MAX >= p;
+struct rng {
+	uint64 Seed;
+	uint64 State;
+};
+
+rng RNG = {};
+
+void RNGNextState() {
+	RNG.State ^= RNG.State << 13;
+	RNG.State ^= RNG.State >> 7;
+	RNG.State ^= RNG.State << 17;
 }
 
-inline float RandFloat(float Min = 0.0f, float Max = 1.0f) {
+inline float RandFloat() {
+	float Result = (float)RNG.State / (float)UINT64_MAX;
+	RNGNextState();
+	return Result;
+}
+
+inline float RandFloat(float Min, float Max) {
 	Assert(Min <= Max);
-	return ((float)rand() / (float)RAND_MAX) * (Max - Min) + Min;
+	return RandFloat() * (Max - Min) + Min;
+}
+
+inline bool Bernoulli(float p = 0.5f) {
+	return RandFloat() >= p;
 }
 
 // Returns a random integer greater or equal than Min and strictly under Max.
