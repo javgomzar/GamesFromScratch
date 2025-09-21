@@ -27,7 +27,10 @@ void TestPerformance() {
     
 }
 
-// Rooms 
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Rooms                                                                                                                                        |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
 ENUM(room_type,
     Room_Type_Combat,
     Room_Type_Camp,
@@ -43,9 +46,58 @@ struct room {
     room_type Type;
     uint8 nNext;
     uint8 nPrevious;
-    room* Next;
-    room* Previous;
+    room* Next[4];
+    room* Previous[4];
 };
+
+room RandomRoom(room_type Type) {
+    room Result = {};
+    Result.Type = Type;
+    switch(Type) {
+        case Room_Type_Combat: {
+            
+        } break;
+
+        case Room_Type_Merchant: {
+
+        } break;
+    }
+
+    return Result;
+}
+
+void PushRoom(render_group* Group, room Room, v2 Position) {
+    game_bitmap_id Bitmap;
+
+    switch(Room.Type) {
+        case Room_Type_Combat: {
+            Bitmap = Bitmap_Combat_ID;
+        } break;
+        case Room_Type_Camp: {
+            Bitmap = Bitmap_Fire_ID;
+        } break;
+        case Room_Type_Merchant: {
+            Bitmap = Bitmap_Coin_ID;
+        } break;
+        case Room_Type_Blacksmith: {
+            Bitmap = Bitmap_Anvil_ID;
+        } break;
+        case Room_Type_Wizard: {
+            Bitmap = Bitmap_Wizard_ID;
+        } break;
+        case Room_Type_Quest: {
+            Bitmap = Bitmap_Quest_ID;
+        } break;
+        case Room_Type_Miniboss: {
+            Bitmap = Bitmap_Miniboss_ID;
+        } break;
+        case Room_Type_Boss: {
+            Bitmap = Bitmap_Boss_ID;
+        } break;
+    }
+
+    PushBitmap(Group, Bitmap, {Position.X, Position.Y, 100, 100});
+}
 
 struct level {
     room Rooms[16];
@@ -54,11 +106,36 @@ struct level {
 
 level RandomizeLevel() {
     level Result = {};
+    Result.nRooms = 0;
 
-    room* FirstRoom = &Result.Rooms[0];
-    FirstRoom->Type = Room_Type_Combat;
+    room* FirstRoom = &Result.Rooms[Result.nRooms++];
+    *FirstRoom = RandomRoom(Room_Type_Combat);
+    
+    int nNextRow = RandInt(1, 4);
+    
+    for (int i = 0; i < nNextRow; i++) {
+        room_type RoomType = RandomEnum(room_type);
+        room* Room = &Result.Rooms[Result.nRooms++];
+        *Room = RandomRoom(RoomType);
+        Room->nPrevious = 1;
+        Room->Previous[0] = FirstRoom;
+        FirstRoom->Next[i] = Room;
+    }
+    FirstRoom->nNext = nNextRow;
 
     return Result;
+}
+
+void PushLevel(render_group* Group, level Level) {
+    room First = Level.Rooms[0];
+
+    v2 Center = V2(0.5f * (float)Group->Width, 0.5f * (float)Group->Height);
+
+    PushRoom(Group, First, Center + V2(-50, 50));
+
+    for (int i = 0; i < First.nNext; i++) {
+        PushRoom(Group, Level.Rooms[i + 1], Center - V2(50, 50) + i * V2(100, 0));
+    }
 }
 
 // Main
@@ -75,6 +152,8 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     float Time = pGameState->Time;
     camera* ActiveCamera = Group->Camera;
+
+    static level Level = {};
 
     bool firstFrame = false;
     if (!Memory->IsInitialized) {
@@ -96,6 +175,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         uint32* StackMemory = PushArray(&Memory->Permanent, MaxUIIDStack, uint32);
 
         Memory->IsInitialized = true;
+
+        Level = RandomizeLevel();
     }
 
     PushClear(Group, Orange, Target_None);
@@ -111,7 +192,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     PushEntities(Group, pGameState, Input, Time);
 
-    UpdateUI(Memory, Input);
+    PushLevel(Group, Level);
+
+    // UpdateUI(Memory, Input);
 
     PushRenderTarget(Group, Target_World);
 
