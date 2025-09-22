@@ -1164,6 +1164,165 @@ struct game_combat {
 };
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Rooms                                                                                                                                        |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+ENUM(room_type,
+    Room_Type_Combat,
+    Room_Type_Camp,
+    Room_Type_Merchant,
+    Room_Type_Blacksmith,
+    Room_Type_Wizard,
+    Room_Type_Quest,
+    Room_Type_Miniboss,
+    Room_Type_Boss
+);
+
+const int MAX_ROOM_LINKS = 4;
+struct room {
+    room_type Type;
+    uint8 nNext;
+    uint8 nPrevious;
+    room* Next[MAX_ROOM_LINKS];
+    room* Previous[MAX_ROOM_LINKS];
+};
+
+room NewRoom(room_type Type) {
+    room Result = {};
+    Result.Type = Type;
+
+    return Result;
+}
+
+const int MAX_LEVEL_ROOMS = 32;
+struct level {
+    room Rooms[MAX_LEVEL_ROOMS];
+    uint32 nRooms;
+};
+
+room* AddRoom(level* Level, room_type RoomType) {
+    Assert(Level->nRooms < MAX_LEVEL_ROOMS);
+    room* Room = &Level->Rooms[Level->nRooms++];
+    *Room = NewRoom(RoomType);
+    return Room;
+}
+
+void AttachRooms(room* Previous, room* Next) {
+    Assert(Previous->nNext < MAX_ROOM_LINKS && Previous->nPrevious < MAX_ROOM_LINKS);
+    Previous->Next[Previous->nNext++] = Next;
+    Next->Previous[Next->nPrevious++] = Previous;
+}
+
+void RandomizeLevel(level* Level) {
+    *Level = {};
+    Level->nRooms = 0;
+
+    room* FirstRoom = AddRoom(Level, Room_Type_Combat);
+
+    room* LastCamp = AddRoom(Level, Room_Type_Camp);
+    AttachRooms(FirstRoom, LastCamp);
+
+    room* LastRoom = AddRoom(Level, Room_Type_Boss);
+    AttachRooms(LastCamp, LastRoom);
+    
+    // int nNextRow = RandInt(1, 4);
+    // for (int i = 0; i < nNextRow; i++) {
+    //     room_type RoomType = RandomEnum(room_type);
+    //     room* Room = &Result.Rooms[Result.nRooms++];
+    //     *Room = RandomRoom(RoomType);
+    //     Room->nPrevious = 1;
+    //     Room->Previous[0] = FirstRoom;
+    //     Room->Row = 0;
+    //     Room->Col = i;
+    //     FirstRoom->Next[i] = Room;
+    // }
+    // FirstRoom->nNext = nNextRow;
+
+    // for(int i = 0; i < nNextRow; i++) {
+    //     room* Room = &Result.Rooms[i + 1];
+    //     int nNextNextRow = RandInt(1, 4);
+    //     for (int j = 0; j < nNextNextRow; j++) {
+    //         room_type RoomType = RandomEnum(room_type);
+    //         room* NextRoom = &Result.Rooms[Result.nRooms++];
+    //         *NextRoom = RandomRoom(RoomType);
+    //         NextRoom->nPrevious = 1;
+    //         NextRoom->Previous[0] = Room;
+    //         NextRoom->Row = 2;
+    //         NextRoom->Col = j;
+    //         Room->Next[j] = NextRoom;
+    //     }
+    //     Room->nNext = nNextNextRow;
+    // }
+}
+
+void PushRoom(render_group* Group, room* Room, v2 Position) {
+    game_bitmap_id Bitmap;
+
+    switch(Room->Type) {
+        case Room_Type_Combat: {
+            Bitmap = Bitmap_Combat_ID;
+        } break;
+        case Room_Type_Camp: {
+            Bitmap = Bitmap_Fire_ID;
+        } break;
+        case Room_Type_Merchant: {
+            Bitmap = Bitmap_Coin_ID;
+        } break;
+        case Room_Type_Blacksmith: {
+            Bitmap = Bitmap_Anvil_ID;
+        } break;
+        case Room_Type_Wizard: {
+            Bitmap = Bitmap_Wizard_ID;
+        } break;
+        case Room_Type_Quest: {
+            Bitmap = Bitmap_Quest_ID;
+        } break;
+        case Room_Type_Miniboss: {
+            Bitmap = Bitmap_Miniboss_ID;
+        } break;
+        case Room_Type_Boss: {
+            Bitmap = Bitmap_Boss_ID;
+        } break;
+    }
+
+    float X = Position.X, Y = Position.Y;
+    PushBitmap(Group, Bitmap, {X, Y, 100, 100});
+    Y -= 150.0f;
+    for (int i = 0; i < Room->nNext; i++) {
+        PushRoom(Group, Room->Next[i], {X, Y});
+        PushDebugVector(Group, V2(i*100,-50), Position + V2(50, 0), Black);
+        X += 100;
+    }
+}
+
+void PushLevel(render_group* Group, level* Level) {
+    room* FirstRoom = &Level->Rooms[0];
+    room* LastRoom = &Level->Rooms[1];
+
+    v2 Center = V2(0.5f * (float)Group->Width, 0.5f * (float)Group->Height);
+
+    v2 FirstRoomPosition = Center + V2(-50, 75);
+    PushRoom(Group, FirstRoom, FirstRoomPosition);
+
+    // PushRoom(Group, First, Center + V2(-50, 50));
+    // v2 Top = Center + V2(0, 50);
+
+    // int nNextRow = 0;
+    // for (int i = 0; i < First.nNext; i++) {
+    //     room Room = Level.Rooms[1 + i];
+    //     PushRoom(Group, Room, Center + V2(i*100 - First.nNext*50, -100));
+    //     PushDebugVector(Group, V2((i - 1)*100, -50), Top, Black);
+    //     nNextRow += Room.nNext;
+    // }
+
+    // for (int i = 0; i < nNextRow; i++) {
+    //     room Room = Level.Rooms[1 + i + First.nNext];
+    //     PushRoom(Group, Room, Center + V2(i*100 - nNextRow*50, -250));
+    //     PushDebugVector(Group, V2((2*i - nNextRow / 2 - 2)*50, -50), Top - V2(0, 150), Black);
+    // }
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Game state                                                                                                                                   |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
@@ -1177,6 +1336,7 @@ struct game_state {
     game_entity_state Entities;
     particle_emitter* Emitter;
     game_combat Combat;
+    level Level;
     double dt;
     float Time;
     game_state_type Type;
