@@ -30,7 +30,8 @@ char* ReadFile(const char* Path) {
 }
 
 int main() {
-    FILE* DebugTypesFile = OpenFile("..\\GameLibrary\\GameDebugTypes.h", "w");
+    FILE* EnumsFile = OpenFile("..\\GameLibrary\\GameEnums.h", "w");
+    FILE* StructsFile = OpenFile("..\\GameLibrary\\GameStructs.h", "w");
 
     const char* PrimitiveTypes[] = {
         "bool",
@@ -59,9 +60,14 @@ int main() {
     };
     int nPrimitiveTypes = ArrayCount(PrimitiveTypes);
 
-    fprintf(DebugTypesFile, "enum debug_type {\n");
+    fprintf(EnumsFile,
+    "#ifndef GAME_ENUMS\n"
+    "#define GAME_ENUMS\n\n"
+    );
+
+    fprintf(EnumsFile, "enum debug_type {\n");
     for (int i = 0; i < nPrimitiveTypes; i++) {
-        fprintf(DebugTypesFile, "    Debug_Type_%s,\n", PrimitiveTypes[i]);
+        fprintf(EnumsFile, "    Debug_Type_%s,\n", PrimitiveTypes[i]);
     }
 
     std::vector<std::string> EnumDebugTypes = {};
@@ -186,47 +192,49 @@ int main() {
     }
 
     for (const std::string& EnumName : EnumDebugTypes) {
-        fprintf(DebugTypesFile, "    %s,\n", EnumName.c_str());
+        fprintf(EnumsFile, "    %s,\n", EnumName.c_str());
     }
 
     for (const std::string& StructName : StructDebugTypes) {
-        fprintf(DebugTypesFile, "    %s,\n", StructName.c_str());
+        fprintf(EnumsFile, "    %s,\n", StructName.c_str());
     }
 
-    fprintf(DebugTypesFile, "};\n\n");
+    fprintf(EnumsFile, "};\n\n");
 
     int nEnums = EnumDebugTypes.size();
-    fprintf(DebugTypesFile, "bool IsEnumType(debug_type Type) { return Type > %d && Type < %d; }\n", 
+    fprintf(EnumsFile, "bool IsEnumType(debug_type Type) { return Type > %d && Type < %d; }\n\n", 
         nPrimitiveTypes - 1, nPrimitiveTypes + nEnums
     );
 
-    int nStructs = StructDebugTypes.size();
-    fprintf(DebugTypesFile, "bool IsStructType(debug_type Type) { return Type > %d && Type < %d; }\n\n", 
-        nPrimitiveTypes + nEnums - 1, nPrimitiveTypes + nEnums + nStructs
-    );
-
-    fprintf(DebugTypesFile,
+    fprintf(EnumsFile,
     "struct debug_enum_value {\n"
     "    debug_type EnumType;\n"
     "    const char* Identifier;\n"
     "    int Value;\n"
     "};\n\n");
 
-    fprintf(DebugTypesFile, "const int ENUM_VALUES_SIZE = %d;\n", (int)EnumValues.size());
+    fprintf(EnumsFile, "const int ENUM_VALUES_SIZE = %d;\n", (int)EnumValues.size());
     if (EnumValues.size() > 0) {
-        fprintf(DebugTypesFile, "debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {\n", (int)EnumValues.size());
+        fprintf(EnumsFile, "debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {\n", (int)EnumValues.size());
 
         for (const std::string& EnumValue : EnumValues) {
-            fprintf(DebugTypesFile, "%s", EnumValue.c_str());
+            fprintf(EnumsFile, "%s", EnumValue.c_str());
         }
 
-        fprintf(DebugTypesFile, "};\n\n");
+        fprintf(EnumsFile, "};\n\n");
     }
     else {
-        fprintf(DebugTypesFile, "debug_enum_value* EnumValues = 0;\n\n");
+        fprintf(EnumsFile, "debug_enum_value* EnumValues = 0;\n\n");
     }
 
-    fprintf(DebugTypesFile,
+    fprintf(EnumsFile, "#endif");
+
+    int nStructs = StructDebugTypes.size();
+    fprintf(StructsFile, "bool IsStructType(debug_type Type) { return Type > %d && Type < %d; }\n\n", 
+        nPrimitiveTypes + nEnums - 1, nPrimitiveTypes + nEnums + nStructs
+    );
+
+    fprintf(StructsFile,
     "struct debug_struct_member {\n"
     "    const char* Name;\n"
     "    debug_type StructType;\n"
@@ -237,19 +245,20 @@ int main() {
     "    bool IsPointer;\n"
     "};\n\n");
 
-    fprintf(DebugTypesFile, "const int STRUCT_MEMBERS_SIZE = %d;\n", (int)StructMembers.size());
+    fprintf(StructsFile, "const int STRUCT_MEMBERS_SIZE = %d;\n", (int)StructMembers.size());
     if (StructMembers.size() > 0) {
-        fprintf(DebugTypesFile, "debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {\n", (int)StructMembers.size());
+        fprintf(StructsFile, "debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {\n", (int)StructMembers.size());
 
         for (const std::string& StructMember : StructMembers) {
-            fprintf(DebugTypesFile, "%s", StructMember.c_str());
+            fprintf(StructsFile, "%s", StructMember.c_str());
         }
 
-        fprintf(DebugTypesFile, "};\n");
+        fprintf(StructsFile, "};\n");
     }
     else {
-        fprintf(DebugTypesFile, "debug_struct_member* StructMembers = 0;\n\n");
+        fprintf(StructsFile, "debug_struct_member* StructMembers = 0;\n\n");
     }
 
-    fclose(DebugTypesFile);
+    fclose(StructsFile);
+    fclose(EnumsFile);
 }

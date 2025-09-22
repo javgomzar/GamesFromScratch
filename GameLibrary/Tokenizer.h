@@ -2,7 +2,6 @@
 #define TOKENIZER_H
 
 #include "GamePlatform.h"
-#include "GameMath.h"
 
 enum token_type {
     Token_Unknown,
@@ -399,62 +398,6 @@ double ParseDouble(tokenizer& Tokenizer) {
     Assert(Token.Type == Token_Constant_Decimal || Token.Type == Token_Constant_Integer, "Tried to parse float but didn't find a number.");
     double Result = strtod(Token.Text, &End);
     return Negative ? -Result : Result;
-}
-
-v2 ParseV2(tokenizer& Tokenizer) {
-    v2 Result;
-    Result.X = ParseFloat(Tokenizer);
-    Result.Y = ParseFloat(Tokenizer);
-    return Result;
-}
-
-v3 ParseV3(tokenizer& Tokenizer) {
-    v3 Result;
-    Result.X = ParseFloat(Tokenizer);
-    Result.Y = ParseFloat(Tokenizer);
-    Result.Z = ParseFloat(Tokenizer);
-    return Result;
-}
-
-v4 ParseV4(tokenizer& Tokenizer) {
-    v4 Result;
-    Result.X = ParseFloat(Tokenizer);
-    Result.Y = ParseFloat(Tokenizer);
-    Result.Z = ParseFloat(Tokenizer);
-    Result.W = ParseFloat(Tokenizer);
-    return Result;
-}
-
-quaternion ParseQuaternion(tokenizer& Tokenizer) {
-    quaternion Result;
-    Result.c = ParseFloat(Tokenizer);
-    Result.i = ParseFloat(Tokenizer);
-    Result.j = ParseFloat(Tokenizer);
-    Result.k = ParseFloat(Tokenizer);
-    return Result;
-}
-
-iv2 ParseIV2(tokenizer& Tokenizer) {
-    iv2 Result;
-    Result.X = ParseInt(Tokenizer);
-    Result.Y = ParseInt(Tokenizer);
-    return Result;
-}
-
-iv3 ParseIV3(tokenizer& Tokenizer) {
-    iv3 Result;
-    Result.X = ParseInt(Tokenizer);
-    Result.Y = ParseInt(Tokenizer);
-    Result.Z = ParseInt(Tokenizer);
-    return Result;
-}
-
-uv3 ParseUV3(tokenizer& Tokenizer) {
-    uv3 Result;
-    Result.X = Parseuint32(Tokenizer);
-    Result.Y = Parseuint32(Tokenizer);
-    Result.Z = Parseuint32(Tokenizer);
-    return Result;
 }
 
 #endif
