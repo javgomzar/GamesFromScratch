@@ -44,6 +44,8 @@ ENUM(room_type,
 
 struct room {
     room_type Type;
+    uint8 Row;
+    uint8 Col;
     uint8 nNext;
     uint8 nPrevious;
     room* Next[4];
@@ -110,18 +112,37 @@ level RandomizeLevel() {
 
     room* FirstRoom = &Result.Rooms[Result.nRooms++];
     *FirstRoom = RandomRoom(Room_Type_Combat);
+    FirstRoom->Row = 0;
+    FirstRoom->Col = 0;
     
     int nNextRow = RandInt(1, 4);
-    
     for (int i = 0; i < nNextRow; i++) {
         room_type RoomType = RandomEnum(room_type);
         room* Room = &Result.Rooms[Result.nRooms++];
         *Room = RandomRoom(RoomType);
         Room->nPrevious = 1;
         Room->Previous[0] = FirstRoom;
+        Room->Row = 0;
+        Room->Col = i;
         FirstRoom->Next[i] = Room;
     }
     FirstRoom->nNext = nNextRow;
+
+    for(int i = 0; i < nNextRow; i++) {
+        room* Room = &Result.Rooms[i + 1];
+        int nNextNextRow = RandInt(1, 4);
+        for (int j = 0; j < nNextNextRow; j++) {
+            room_type RoomType = RandomEnum(room_type);
+            room* NextRoom = &Result.Rooms[Result.nRooms++];
+            *NextRoom = RandomRoom(RoomType);
+            NextRoom->nPrevious = 1;
+            NextRoom->Previous[0] = Room;
+            NextRoom->Row = 2;
+            NextRoom->Col = j;
+            Room->Next[j] = NextRoom;
+        }
+        Room->nNext = nNextNextRow;
+    }
 
     return Result;
 }
@@ -129,12 +150,23 @@ level RandomizeLevel() {
 void PushLevel(render_group* Group, level Level) {
     room First = Level.Rooms[0];
 
-    v2 Center = V2(0.5f * (float)Group->Width, 0.5f * (float)Group->Height);
+    v2 Center = V2(0.5f * (float)Group->Width, 0.5f * (float)Group->Height + 100);
 
     PushRoom(Group, First, Center + V2(-50, 50));
+    v2 Top = Center + V2(0, 50);
 
+    int nNextRow = 0;
     for (int i = 0; i < First.nNext; i++) {
-        PushRoom(Group, Level.Rooms[i + 1], Center - V2(50, 50) + i * V2(100, 0));
+        room Room = Level.Rooms[1 + i];
+        PushRoom(Group, Room, Center + V2(i*100 - First.nNext*50, -100));
+        PushDebugVector(Group, V2((i - 1)*100, -50), Top, Black);
+        nNextRow += Room.nNext;
+    }
+
+    for (int i = 0; i < nNextRow; i++) {
+        room Room = Level.Rooms[1 + i + First.nNext];
+        PushRoom(Group, Room, Center + V2(i*100 - nNextRow*50, -250));
+        PushDebugVector(Group, V2((2*i - nNextRow / 2 - 2)*50, -50), Top - V2(0, 150), Black);
     }
 }
 
