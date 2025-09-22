@@ -10,6 +10,8 @@
 //#pragma comment(lib, "libfftw3-3.lib")
 
 #include "GamePlatform.h"
+#include "GameEnums.h"
+#include "Tokenizer.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | Utility macros                                                                                                                         |
@@ -137,6 +139,22 @@ inline bool Bernoulli(float p = 0.5f) {
 inline int RandInt(int Min, int Max) {
 	return RandFloat() * (Max - Min) + Min;
 }
+
+int _RandomEnum(debug_type Type) {
+    int i = ENUM_VALUES_SIZE;
+    while(i > 0) {
+        debug_enum_value Entry = EnumValues[--i];
+        if (Entry.EnumType == Type) {
+            return RandInt(0, Entry.Value);
+        }
+    }
+    Assert(false, "Type wasn't found in enum list.");
+    return 0;
+}
+
+enum debug_type;
+int _RandomEnum(debug_type Type);
+#define RandomEnum(Type) (Type)_RandomEnum(Debug_Type_##Type)
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | 2D                                                                                                                                     |
@@ -2257,6 +2275,64 @@ bool Raycast(ray Ray, collider Collider) {
 		default: Assert(false);
 	}
 	return false;
+}
+
+// Parsing
+
+v2 ParseV2(tokenizer& Tokenizer) {
+    v2 Result;
+    Result.X = ParseFloat(Tokenizer);
+    Result.Y = ParseFloat(Tokenizer);
+    return Result;
+}
+
+v3 ParseV3(tokenizer& Tokenizer) {
+    v3 Result;
+    Result.X = ParseFloat(Tokenizer);
+    Result.Y = ParseFloat(Tokenizer);
+    Result.Z = ParseFloat(Tokenizer);
+    return Result;
+}
+
+v4 ParseV4(tokenizer& Tokenizer) {
+    v4 Result;
+    Result.X = ParseFloat(Tokenizer);
+    Result.Y = ParseFloat(Tokenizer);
+    Result.Z = ParseFloat(Tokenizer);
+    Result.W = ParseFloat(Tokenizer);
+    return Result;
+}
+
+quaternion ParseQuaternion(tokenizer& Tokenizer) {
+    quaternion Result;
+    Result.c = ParseFloat(Tokenizer);
+    Result.i = ParseFloat(Tokenizer);
+    Result.j = ParseFloat(Tokenizer);
+    Result.k = ParseFloat(Tokenizer);
+    return Result;
+}
+
+iv2 ParseIV2(tokenizer& Tokenizer) {
+    iv2 Result;
+    Result.X = ParseInt(Tokenizer);
+    Result.Y = ParseInt(Tokenizer);
+    return Result;
+}
+
+iv3 ParseIV3(tokenizer& Tokenizer) {
+    iv3 Result;
+    Result.X = ParseInt(Tokenizer);
+    Result.Y = ParseInt(Tokenizer);
+    Result.Z = ParseInt(Tokenizer);
+    return Result;
+}
+
+uv3 ParseUV3(tokenizer& Tokenizer) {
+    uv3 Result;
+    Result.X = Parseuint32(Tokenizer);
+    Result.Y = Parseuint32(Tokenizer);
+    Result.Z = Parseuint32(Tokenizer);
+    return Result;
 }
 
 #endif

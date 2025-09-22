@@ -1,3 +1,6 @@
+#ifndef GAME_ASSETS
+#define GAME_ASSETS
+
 #include "GameMath.h"
 #include "Tokenizer.h"
 
@@ -7,9 +10,6 @@
 #include "Video/GameVideo.h"
 #include "Mesh/GameMesh.h"
 #include "Shader/GameShader.h"
-
-#ifndef GAME_ASSETS
-#define GAME_ASSETS
 
 /*
     TODO:

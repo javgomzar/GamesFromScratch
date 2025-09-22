@@ -24,13 +24,14 @@ extern GAMELIBRARY_API int nGameLibrary;
 
 #pragma once
 
+#include "GameEnums.h"
 #include "GamePlatform.h"
 #include "GameMath.h"
 #include "GameInput.h"
 #include "GameAssets.h"
 #include "GameRender.h"
-#include "GameEntity.h"
 #include "Particles.h"
+#include "GameEntity.h"
 #include "GameDebug.h"
 #include "GameTest.h"
 
