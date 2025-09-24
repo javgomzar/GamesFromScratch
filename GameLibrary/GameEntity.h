@@ -322,6 +322,19 @@ const spell Spells[spell_id_count] = {
 // | Weapons                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
+/*
+    Weapon ideas:
+        - Chest: Allows you to carry a lot of items but damage is proportional to how many items it carries. Bad at start, good later.
+        - Bow: Model done
+        - Crossbows
+        - Knife: Low ATB cost, high critical rate?
+        - Axe: Slow, good DPS can cause bleeding
+        - Spear: Attacks when defending
+        - Scimitar: Sword, but better critical rate?
+        - Hammers / Clubs
+        - Morning star
+*/
+
 ENUM(weapon_type,
     Weapon_Sword,
     Weapon_Shield,
