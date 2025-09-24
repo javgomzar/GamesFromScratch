@@ -40,6 +40,7 @@ enum debug_type {
     Debug_Type_character_class,
     Debug_Type_altered_state,
     Debug_Type_room_type,
+    Debug_Type_game_state_type,
     Debug_Type_transform,
     Debug_Type_segment3,
     Debug_Type_game_animation,
@@ -54,7 +55,7 @@ enum debug_type {
     Debug_Type_character,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 38; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 39; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -62,7 +63,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 147;
+const int ENUM_VALUES_SIZE = 153;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -114,8 +115,9 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_entity_type, "game_entity_type_count", 5},
     {Debug_Type_enemy_type, "Enemy_Type_Horns", 0},
     {Debug_Type_enemy_type, "Enemy_Type_Dog", 1},
-    {Debug_Type_enemy_type, "Enemy_Type_Dyno", 2},
-    {Debug_Type_enemy_type, "enemy_type_count", 3},
+    {Debug_Type_enemy_type, "Enemy_Type_Miniboss_Dyno", 2},
+    {Debug_Type_enemy_type, "Enemy_Type_Boss_Test", 3},
+    {Debug_Type_enemy_type, "enemy_type_count", 4},
     {Debug_Type_magic_affinity, "Magic_Affinity_None", 0},
     {Debug_Type_magic_affinity, "Magic_Affinity_Fire", 1},
     {Debug_Type_magic_affinity, "Magic_Affinity_Earth", 2},
@@ -188,9 +190,7 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_character_class, "Class_Rogue", 1},
     {Debug_Type_character_class, "Class_Hunter", 2},
     {Debug_Type_character_class, "Class_Wizard", 3},
-    {Debug_Type_character_class, "Class_Bard", 4},
-    {Debug_Type_character_class, "Class_Priest", 5},
-    {Debug_Type_character_class, "character_class_count", 6},
+    {Debug_Type_character_class, "character_class_count", 4},
     {Debug_Type_altered_state, "altered_state_none", 0},
     {Debug_Type_altered_state, "altered_state_burned", 1},
     {Debug_Type_altered_state, "altered_state_wet", 2},
@@ -211,6 +211,13 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_room_type, "Room_Type_Miniboss", 6},
     {Debug_Type_room_type, "Room_Type_Boss", 7},
     {Debug_Type_room_type, "room_type_count", 8},
+    {Debug_Type_game_state_type, "Game_State_Main_Menu", 0},
+    {Debug_Type_game_state_type, "Game_State_Combat", 1},
+    {Debug_Type_game_state_type, "Game_State_Camp", 2},
+    {Debug_Type_game_state_type, "Game_State_Trade", 3},
+    {Debug_Type_game_state_type, "Game_State_Map", 4},
+    {Debug_Type_game_state_type, "Game_State_Credits", 5},
+    {Debug_Type_game_state_type, "game_state_type_count", 6},
 };
 
 #endif

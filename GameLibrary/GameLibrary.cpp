@@ -64,9 +64,9 @@ extern "C" GAME_UPDATE(GameUpdate)
         uint32 MaxUIIDStack = 32;
         uint32* StackMemory = PushArray(&Memory->Permanent, MaxUIIDStack, uint32);
 
-        Memory->IsInitialized = true;
+        pGameState->Combat.Group = Group;
 
-        RandomizeLevel(&pGameState->Level);
+        Memory->IsInitialized = true;
     }
 
     PushClear(Group, Orange, Target_None);
@@ -82,9 +82,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     PushEntities(Group, pGameState, Input, Time);
 
-    PushLevel(Group, &pGameState->Level);
-
-    // UpdateUI(Memory, Input);
+    UpdateUI(Memory, Input);
 
     PushRenderTarget(Group, Target_World);
 

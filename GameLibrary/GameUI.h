@@ -802,7 +802,7 @@ void UpdateMainMenuUI(
         }
         
         if (UIButton("Continue")) {
-            Transition(pGameState, Game_State_Playing);
+            
         }
         
         if (UIButton("Settings")) {
@@ -826,13 +826,16 @@ void UpdateMainMenuUI(
                 character_class Class = (character_class)i;
                 character* Character = AddCharacter(&Memory->Assets, &pGameState->Entities, Class, V3(0,0,0), 500);
                 ClassSelection = false;
-                Transition(pGameState, Game_State_Playing);
+                
+                RandomizeLevel(&pGameState->Level);
+                pGameState->CurrentRoom = &pGameState->Level.Rooms[0];
+                Transition(pGameState, Game_State_Combat);
             }
         }
     }
 }
 
-void UpdatePlayingUI(
+void UpdateCombatUI(
     game_memory* Memory,
     game_input* Input
 ) {
@@ -843,48 +846,6 @@ void UpdatePlayingUI(
     game_combat* Combat = &pGameState->Combat;
     debug_info* DebugInfo = &Memory->DebugInfo;
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-
-    // Main menu
-    static bool ShowMenu = false;
-    bool MenuInput = Input->Mode == Keyboard && Input->Keyboard.Escape.JustPressed ||
-                     Input->Mode == Controller && Input->Controller.Start.JustPressed;
-    if (MenuInput) {
-        ShowMenu = !ShowMenu;
-    }
-    
-    static bool Settings = false;
-    if (ShowMenu) {
-        UIMenu MainMenu = UIMenu("Main menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 20.0f);
-
-        if (UIButton("Save game")) {
-            // TODO: Save game
-        }
-
-        if (UIButton("Load game")) {
-            // TODO: Load game
-        }
-
-        if (UIButton("Settings")) {
-            Settings = !Settings;
-        }
-        
-        if (UIButton("Main menu")) {
-            Transition(pGameState, Game_State_Main_Menu);
-            ShowMenu = false;
-        }
-
-        if (UIButton("Exit")) {
-            pGameState->Exit = true;
-        }
-    }
-
-    if (Settings) {
-        SettingsUI();
-
-        if (Input->Keyboard.Escape.JustPressed) {
-            Settings = false;
-        }
-    }
 
     // Combat menu
     if (pGameState->Combat.Active) {
@@ -1000,33 +961,191 @@ void UpdatePlayingUI(
     }
 }
 
+void UpdateMapUI(
+    game_memory* Memory,
+    game_input* Input
+) {
+    render_group* Group = &Memory->RenderGroup;
+    game_state* State = Memory->GameState;
+    level* Level = &State->Level;
+    room* CurrentRoom = State->CurrentRoom;
+
+    room* FirstRoom = &Level->Rooms[0];
+    room* LastRoom = &Level->Rooms[1];
+
+    v2 Center = V2(0.5f * (float)Group->Width, 0.5f * (float)Group->Height);
+    v2 Position = Center + V2(-50, (Level->Depth + 1.5f)*50.0f);
+
+    uint32 Index = 0;
+    for (int i = 0; i <= Level->Depth; i++) {
+        int32 nRow = Level->nInRow[i];
+        int32 nNextRow = i == Level->Depth ? 1 : Level->nInRow[i+1];
+        Position.X = Center.X - 50.0f - (nRow - 1) * 50.0f;
+        for (int j = 0; j < nRow; j++) {
+            room* Room = &Level->Rooms[Index++];
+            PushRoom(Group, Room, Position);
+            rectangle Rect = { Position.X, Position.Y, 99, 99 };
+            if (Room == CurrentRoom) {
+                PushRectOutline(Group, Rect, White);
+            }
+            for (int k = 0; k < Room->nPrevious; k++) {
+                if (Room->Previous[k] == CurrentRoom && IsIn(Rect, Input->Mouse.Cursor)) {
+                    PushRectOutline(Group, Rect, Yellow);
+                    if (Input->Mouse.LeftClick.JustPressed) {
+                        State->CurrentRoom = Room;
+                        game_state_type NextState = GetStateType(Room->Type);
+                        Transition(State, NextState);
+                    }
+                    break;
+                }
+            }
+            for (int k = 0; k < Room->nNext; k++) {
+                room* Next = Room->Next[k];
+                v2 V = V2((Next->RowIndex - Room->RowIndex)*100.0f + 50.0f*(nRow - nNextRow), -50);
+                PushDebugVector(Group, V, Position + V2(50, 0), Black);
+            }
+            Position.X += 100.0f;
+        }
+        Position.Y -= 150.0f;
+    }
+}
+
+void UpdateTradeUI(
+    game_memory* Memory,
+    game_input* Input
+) {
+    game_state* State = Memory->GameState;
+    switch(State->CurrentRoom->Type) {
+        case Room_Type_Merchant: {
+            UIMenu StoreMenu = UIMenu("Store menu", axis_x);
+
+            UIText("Item1 Item2 Item3");
+        } break;
+
+        case Room_Type_Wizard: {
+            UIMenu WizardMenu = UIMenu("Wizard menu", axis_x);
+
+            UIText("Spell1 Spell2 Spell3");
+        } break;
+
+        case Room_Type_Blacksmith: {
+            UIMenu BlacksmithMenu = UIMenu("Blacksmith menu", axis_x);
+
+            static bool Improve = false;
+            if (UIButton("Improve")) {
+                Improve = true;
+            }
+            static bool Trade = false;
+            if (UIButton("Trade")) {
+                Trade = true;
+            }
+        } break;
+
+        case Room_Type_Quest: {
+            UIMenu QuestMenu = UIMenu("Quest menu", axis_x);
+
+            static bool Accept = false;
+            if (UIButton("Accept")) {
+                Accept = true;
+            }
+            static bool Decline = false;
+            if (UIButton("Decline")) {
+                Decline = true;
+            }
+        } break;
+    }
+}
+
 void UpdateUI(
     game_memory* Memory,
     game_input* Input
 ) {
     render_group* Group = &Memory->RenderGroup;
-    game_state* pGameState = Memory->GameState;
-    game_entity_state* EntityState = &pGameState->Entities;
-    float Time = pGameState->Time;
-    game_combat* Combat = &pGameState->Combat;
+    game_state* State = Memory->GameState;
+    game_entity_state* EntityState = &State->Entities;
+    float Time = State->Time;
+    game_combat* Combat = &State->Combat;
     debug_info* DebugInfo = &Memory->DebugInfo;
 
     BeginContext(Memory, Input);
 
     UI.Tree.First = 0;
 
-    switch(pGameState->Type) {
+    switch(State->Type) {
         case Game_State_Main_Menu: {
             UpdateMainMenuUI(Memory, Input);
         } break;
 
-        case Game_State_Playing: {
-            UpdatePlayingUI(Memory, Input);
+        case Game_State_Map: {
+            UpdateMapUI(Memory, Input);
+        } break;
+
+        case Game_State_Combat: {
+            UpdateCombatUI(Memory, Input);
+        } break;
+
+        case Game_State_Camp: {
+            // TODO: do something here instead of waiting
+            if (State->CampTime > 2.0f) {
+                Transition(State, Game_State_Map);
+            }
+            else {
+                UIText("Resting...", ui_alignment_center, ui_alignment_center, Black);
+                State->CampTime += State->dt;
+            }
+        } break;
+
+        case Game_State_Trade: {
+            UpdateTradeUI(Memory, Input);
         } break;
 
         case Game_State_Credits: {
-
+            UIText("JGZ");
         } break;
+    }
+
+    // In-game menu
+    if (State->Type != Game_State_Main_Menu && State->Type != Game_State_Credits) {
+        static bool ShowMenu = false;
+        bool MenuInput = Input->Mode == Keyboard && Input->Keyboard.Escape.JustPressed ||
+                        Input->Mode == Controller && Input->Controller.Start.JustPressed;
+        if (MenuInput) {
+            ShowMenu = !ShowMenu;
+        }
+        
+        static bool Settings = false;
+        if (ShowMenu) {
+            UIMenu MainMenu = UIMenu("Main menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 20.0f);
+
+            if (UIButton("Save game")) {
+                // TODO: Save game
+            }
+
+            if (UIButton("Load game")) {
+                // TODO: Load game
+            }
+
+            if (UIButton("Settings")) {
+                Settings = !Settings;
+            }
+            
+            if (UIButton("Main menu")) {
+                Transition(State, Game_State_Main_Menu);
+                ShowMenu = false;
+            }
+
+            if (UIButton("Exit")) {
+                State->Exit = true;
+            }
+        }
+
+        if (Settings) {
+            SettingsUI();
+
+            if (Input->Keyboard.Escape.JustPressed) {
+                Settings = false;
+            }
+        }
     }
 
     // Debug UI
@@ -1042,7 +1161,7 @@ void UpdateUI(
     if (Group->Debug) {
         // Handle input
         if (DebugAlpha < 1.0) {
-            double x = (pGameState->dt - 1.8) / 1.1;
+            double x = (State->dt - 1.8) / 1.1;
             DebugAlpha += 0.5 * exp(- x * x);
         }
         else DebugAlpha = 1.0;

@@ -108,12 +108,12 @@ stats Stats(uint32 MaxHP, uint32 Strength, uint32 Defense, uint32 Intelligence, 
 ENUM(enemy_type,
     Enemy_Type_Horns,
     Enemy_Type_Dog,
-    Enemy_Type_Dyno
+    Enemy_Type_Miniboss_Dyno,
+    Enemy_Type_Boss_Test
 );
 
-inline enemy_type RandomEnemyType() {
-    return (enemy_type)RandInt(0, enemy_type_count);
-}
+enemy_type EnemyTypeFirstMiniboss = Enemy_Type_Miniboss_Dyno;
+enemy_type EnemyTypeFirstBoss = Enemy_Type_Boss_Test;
 
 INTROSPECT
 struct enemy {
@@ -142,7 +142,7 @@ const enemy EnemyTemplates[enemy_type_count] = {
     {
         NULL,
         Stats(100, 10, 8, 1, 3, 5, 10),
-        Enemy_Type_Dyno,
+        Enemy_Type_Miniboss_Dyno,
         Mesh_Dyno_ID,
         Bitmap_Empty_ID,
     },
@@ -269,11 +269,11 @@ const spell Spells[spell_id_count] = {
 
     { "Rock_Throw",    Spell_Rock_Throw,    20, 20, 20, Magic_Affinity_Earth, 1 },
     { "Spikes",        Spell_Spikes,        20, 20, 20, Magic_Affinity_Earth, 1 },
-    { "Rock_Armor",    Spell_Rock_Armor,    20, 20, 20, Magic_Affinity_Earth, 1 },
-    { "Diamond_Armor", Spell_Diamond_Armor, 20, 20, 20, Magic_Affinity_Earth, 1 },
-    { "Sand_Storm",    Spell_Sand_Storm,    20, 20, 20, Magic_Affinity_Earth, 1 },
-    { "Sand_Burst",    Spell_Sand_Burst,    20, 20, 20, Magic_Affinity_Earth, 1 },
-    { "Mud_Pack",      Spell_Mud_Pack,      20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Rock Armor",    Spell_Rock_Armor,    20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Diamond Armor", Spell_Diamond_Armor, 20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Sand Storm",    Spell_Sand_Storm,    20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Sand Burst",    Spell_Sand_Burst,    20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Mud Pack",      Spell_Mud_Pack,      20, 20, 20, Magic_Affinity_Earth, 1 },
     { "Earthquake",    Spell_Earthquake,    20, 20, 20, Magic_Affinity_Earth, 1 },
 
     { "Drench",        Spell_Drench,        20, 20, 20, Magic_Affinity_Water, 1 },
@@ -286,14 +286,14 @@ const spell Spells[spell_id_count] = {
     { "Icicle",        Spell_Icicle,        20, 20, 20, Magic_Affinity_Ice,   1 },
     { "Blizzard",      Spell_Blizzard,      20, 20, 20, Magic_Affinity_Ice,   1 },
     { "Freeze",        Spell_Freeze,        20, 20, 20, Magic_Affinity_Ice,   1 },
-    { "Ice_Armor",     Spell_Ice_Armor,     20, 20, 20, Magic_Affinity_Ice,   1 },
-    { "Snow_Golem",    Spell_Snow_Golem,    20, 20, 20, Magic_Affinity_Ice,   40 },
-    { "Absolute_Zero", Spell_Absolute_Zero, 20, 20, 20, Magic_Affinity_Ice,   1 },
+    { "Ice Armor",     Spell_Ice_Armor,     20, 20, 20, Magic_Affinity_Ice,   1 },
+    { "Snow Golem",    Spell_Snow_Golem,    20, 20, 20, Magic_Affinity_Ice,   40 },
+    { "Absolute Zero", Spell_Absolute_Zero, 20, 20, 20, Magic_Affinity_Ice,   1 },
 
     { "Wind",          Spell_Wind,          20, 20, 20, Magic_Affinity_Air,   10 },
     { "Gust",          Spell_Gust,          20, 20, 20, Magic_Affinity_Air,   1 },
     { "Fly",           Spell_Fly,           20, 20, 20, Magic_Affinity_Air,   1 },
-    { "Air_Shield",    Spell_Air_Shield,    20, 20, 20, Magic_Affinity_Air,   1 },
+    { "Air Shield",    Spell_Air_Shield,    20, 20, 20, Magic_Affinity_Air,   1 },
     { "Tornado",       Spell_Tornado,       20, 20, 20, Magic_Affinity_Air,   1 },
     { "Hurricane",     Spell_Hurricane,     20, 20, 20, Magic_Affinity_Air,   1 },
 
@@ -391,9 +391,7 @@ ENUM(character_class,
     Class_Knight,
     Class_Rogue,
     Class_Hunter,
-    Class_Wizard,
-    Class_Bard,
-    Class_Priest
+    Class_Wizard
 );
 
 const char* ClassNames[character_class_count] = {
@@ -401,8 +399,6 @@ const char* ClassNames[character_class_count] = {
     "Rogue",
     "Hunter",
     "Wizard",
-    "Bard",
-    "Priest",
 };
 
 INTROSPECT
@@ -1118,49 +1114,6 @@ struct game_combat {
         Erase();
         Active = false;
     }
-
-    void Update(game_input* Input, float dt) {
-        Assert(Active);
-
-        combatant* Hot = NULL;
-        for (int i = 0; i < Combatants.Count; i++) {
-            combatant* Combatant = &Combatants.Content[i];
-            if (IsAlive(Combatant) && Combatant->Entity->Hovered) {
-                Hot = Combatant;
-            }
-        }
-
-        switch(Turn.Action) {
-            case combatant_action_attack: {
-                if (Hot != NULL && Input->Mouse.LeftClick.JustPressed && Hot->Type != Turn.Attacker->Type) {
-                    Turn.nTargets = 1;
-                    Turn.Targets[0] = Hot;
-                    EndTurn();
-                }
-            } break;
-            case combatant_action_magic: {
-                if (Turn.Spell != Spell_Empty && Hot != NULL && Input->Mouse.LeftClick.JustPressed && Hot->Type != Turn.Attacker->Type) {
-                    Turn.nTargets = 1;
-                    Turn.Targets[0] = Hot;
-                    EndTurn();
-                }
-            } break;
-        }
-
-        ::Update(&DamageAnimations, Group, dt);
-
-        bool CombatEnd = true;
-        for (int i = 0; i < Combatants.Count; i++) {
-            combatant* Enemy = &Combatants.Content[i];
-            if (Enemy->Type == Combatant_Type_Enemy) {
-                if (IsAlive(Enemy)) {
-                    CombatEnd = false;
-                    break;
-                }
-            }
-        }
-        if (CombatEnd) End();
-    }
 };
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1178,13 +1131,16 @@ ENUM(room_type,
     Room_Type_Boss
 );
 
-const int MAX_ROOM_LINKS = 4;
+const int MAX_ROOM_NEXT_LINKS = 4;
+const int MAX_ROOM_PREVIOUS_LINKS = 8;
 struct room {
     room_type Type;
+    room* Next[MAX_ROOM_NEXT_LINKS];
+    room* Previous[MAX_ROOM_PREVIOUS_LINKS];
     uint8 nNext;
     uint8 nPrevious;
-    room* Next[MAX_ROOM_LINKS];
-    room* Previous[MAX_ROOM_LINKS];
+    uint8 Depth;
+    uint8 RowIndex;
 };
 
 room NewRoom(room_type Type) {
@@ -1194,21 +1150,48 @@ room NewRoom(room_type Type) {
     return Result;
 }
 
-const int MAX_LEVEL_ROOMS = 32;
+room_type RandomRoomType(bool NoCombat = false) {
+    float Rand = RandFloat();
+
+    if (NoCombat) {
+        return (room_type)RandInt(1, 6);
+    }
+
+    if (Rand < 0.5f) {
+        return Room_Type_Combat;
+    }
+
+    if (Rand > 0.95f) {
+        return Room_Type_Miniboss;
+    }
+
+    return (room_type)RandInt(1, 6);
+}
+
+const uint32 MAX_LEVEL_ROOMS = 32;
+const uint32 MAX_LEVEL_DEPTH = 16;
 struct level {
     room Rooms[MAX_LEVEL_ROOMS];
     uint32 nRooms;
+    uint32 Depth;
+    uint32 nInRow[MAX_LEVEL_DEPTH];
 };
 
 room* AddRoom(level* Level, room_type RoomType) {
     Assert(Level->nRooms < MAX_LEVEL_ROOMS);
     room* Room = &Level->Rooms[Level->nRooms++];
     *Room = NewRoom(RoomType);
+    Room->Depth = Level->Depth;
+    Room->RowIndex = Level->nInRow[Level->Depth]++;
     return Room;
 }
 
+void NextRow(level* Level) {
+    Level->Depth++;
+}
+
 void AttachRooms(room* Previous, room* Next) {
-    Assert(Previous->nNext < MAX_ROOM_LINKS && Previous->nPrevious < MAX_ROOM_LINKS);
+    Assert(Previous->nNext < MAX_ROOM_NEXT_LINKS && Next->nPrevious < MAX_ROOM_PREVIOUS_LINKS);
     Previous->Next[Previous->nNext++] = Next;
     Next->Previous[Next->nPrevious++] = Previous;
 }
@@ -1219,40 +1202,41 @@ void RandomizeLevel(level* Level) {
 
     room* FirstRoom = AddRoom(Level, Room_Type_Combat);
 
-    room* LastCamp = AddRoom(Level, Room_Type_Camp);
-    AttachRooms(FirstRoom, LastCamp);
+    NextRow(Level);
+    for (int i = 0; i < 4; i++) {
+        room* Room = AddRoom(Level, RandomRoomType());
+        AttachRooms(FirstRoom, Room);
+    }
+    
+    int PreviousFirst = 1;
+    NextRow(Level);
+    int nPreviousRow = Level->nInRow[1];
+    for (int j = 0; j < nPreviousRow; j++) {
+        room* Previous = &Level->Rooms[PreviousFirst + j];
+        room* Next = AddRoom(Level, RandomRoomType());
+        AttachRooms(Previous, Next);
+    }
+    PreviousFirst += nPreviousRow;
 
+    NextRow(Level);
+    nPreviousRow = Level->nInRow[2];
+    for (int j = 0; j < nPreviousRow; j++) {
+        room* Previous = &Level->Rooms[PreviousFirst + j];
+        room* Next = AddRoom(Level, RandomRoomType());
+        AttachRooms(Previous, Next);
+    }
+    PreviousFirst += nPreviousRow;
+
+    NextRow(Level);
+    room* LastCamp = AddRoom(Level, Room_Type_Camp);
+    for (int i = PreviousFirst; i < Level->nRooms; i++) {
+        room* Room = &Level->Rooms[i];
+        AttachRooms(Room, LastCamp);
+    }
+
+    NextRow(Level);
     room* LastRoom = AddRoom(Level, Room_Type_Boss);
     AttachRooms(LastCamp, LastRoom);
-    
-    // int nNextRow = RandInt(1, 4);
-    // for (int i = 0; i < nNextRow; i++) {
-    //     room_type RoomType = RandomEnum(room_type);
-    //     room* Room = &Result.Rooms[Result.nRooms++];
-    //     *Room = RandomRoom(RoomType);
-    //     Room->nPrevious = 1;
-    //     Room->Previous[0] = FirstRoom;
-    //     Room->Row = 0;
-    //     Room->Col = i;
-    //     FirstRoom->Next[i] = Room;
-    // }
-    // FirstRoom->nNext = nNextRow;
-
-    // for(int i = 0; i < nNextRow; i++) {
-    //     room* Room = &Result.Rooms[i + 1];
-    //     int nNextNextRow = RandInt(1, 4);
-    //     for (int j = 0; j < nNextNextRow; j++) {
-    //         room_type RoomType = RandomEnum(room_type);
-    //         room* NextRoom = &Result.Rooms[Result.nRooms++];
-    //         *NextRoom = RandomRoom(RoomType);
-    //         NextRoom->nPrevious = 1;
-    //         NextRoom->Previous[0] = Room;
-    //         NextRoom->Row = 2;
-    //         NextRoom->Col = j;
-    //         Room->Next[j] = NextRoom;
-    //     }
-    //     Room->nNext = nNextNextRow;
-    // }
 }
 
 void PushRoom(render_group* Group, room* Room, v2 Position) {
@@ -1287,64 +1271,74 @@ void PushRoom(render_group* Group, room* Room, v2 Position) {
 
     float X = Position.X, Y = Position.Y;
     PushBitmap(Group, Bitmap, {X, Y, 100, 100});
-    Y -= 150.0f;
-    for (int i = 0; i < Room->nNext; i++) {
-        PushRoom(Group, Room->Next[i], {X, Y});
-        PushDebugVector(Group, V2(i*100,-50), Position + V2(50, 0), Black);
-        X += 100;
-    }
-}
-
-void PushLevel(render_group* Group, level* Level) {
-    room* FirstRoom = &Level->Rooms[0];
-    room* LastRoom = &Level->Rooms[1];
-
-    v2 Center = V2(0.5f * (float)Group->Width, 0.5f * (float)Group->Height);
-
-    v2 FirstRoomPosition = Center + V2(-50, 75);
-    PushRoom(Group, FirstRoom, FirstRoomPosition);
-
-    // PushRoom(Group, First, Center + V2(-50, 50));
-    // v2 Top = Center + V2(0, 50);
-
-    // int nNextRow = 0;
-    // for (int i = 0; i < First.nNext; i++) {
-    //     room Room = Level.Rooms[1 + i];
-    //     PushRoom(Group, Room, Center + V2(i*100 - First.nNext*50, -100));
-    //     PushDebugVector(Group, V2((i - 1)*100, -50), Top, Black);
-    //     nNextRow += Room.nNext;
-    // }
-
-    // for (int i = 0; i < nNextRow; i++) {
-    //     room Room = Level.Rooms[1 + i + First.nNext];
-    //     PushRoom(Group, Room, Center + V2(i*100 - nNextRow*50, -250));
-    //     PushDebugVector(Group, V2((2*i - nNextRow / 2 - 2)*50, -50), Top - V2(0, 150), Black);
-    // }
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Game state                                                                                                                                   |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-enum game_state_type {
+ENUM(game_state_type,
     Game_State_Main_Menu,
-    Game_State_Playing,
+    Game_State_Combat,
+    Game_State_Camp,
+    Game_State_Trade,
+    Game_State_Map,
     Game_State_Credits
-};
+);
+
+game_state_type GetStateType(room_type RoomType) {
+    switch(RoomType) {
+        case Room_Type_Boss:
+        case Room_Type_Miniboss:
+        case Room_Type_Combat: 
+            return Game_State_Combat;
+        
+        case Room_Type_Merchant:
+        case Room_Type_Blacksmith:
+        case Room_Type_Wizard:
+        case Room_Type_Quest: 
+            return Game_State_Trade;
+
+        case Room_Type_Camp:
+            return Game_State_Camp;
+    }
+
+    Assert(false);
+    return Game_State_Map;
+}
 
 struct game_state {
     game_entity_state Entities;
     particle_emitter* Emitter;
     game_combat Combat;
     level Level;
+    room* CurrentRoom;
     double dt;
     float Time;
+    float CampTime;
     game_state_type Type;
     bool Exit;
 };
 
 void Transition(game_state* State, game_state_type Type) {
     State->Type = Type;
+
+    switch(Type) {
+        case Game_State_Combat: {
+            uint32 nEnemies = RandInt(2, 4);
+            v3 Position = V3(10, 0, -5 * ((nEnemies - 1) / 2.0f));
+            for (int i = 0; i < nEnemies; i++) {
+                enemy_type EnemyType = (enemy_type)RandInt(0, EnemyTypeFirstMiniboss);
+                AddEnemy(&State->Entities, Position, EnemyType);
+                Position.Z += 5.0f;
+            }
+            State->Combat.Start();
+        } break;
+
+        case Game_State_Camp: {
+            State->CampTime = 0;
+        } break;
+    }
 }
 
 void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
@@ -1353,20 +1347,52 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
     uint32 Index = 0;
 
 // Combat
-    if (!Combat->Active) {
-        if (Input->Keyboard.One.JustPressed) {
-            uint32 nEnemies = 3;
-            v3 Position = V3(10, 0, -5 * ((nEnemies - 1) / 2.0f));
-            for (int i = 0; i < nEnemies; i++) {
-                AddEnemy(EntityState, Position, RandomEnemyType());
-                Position.Z += 5.0f;
+    if (Combat->Active) {
+        combatant* Hot = NULL;
+        combatant_array* Combatants = &Combat->Combatants;
+        for (int i = 0; i < Combatants->Count; i++) {
+            combatant* Combatant = &Combatants->Content[i];
+            if (IsAlive(Combatant) && Combatant->Entity->Hovered) {
+                Hot = Combatant;
             }
-            Combat->Start();
         }
-    }
-    else {
-        Combat->Group = Group;
-        Combat->Update(Input, State->dt);
+
+        turn* Turn = &Combat->Turn;
+        if (Hot != NULL && Input->Mouse.LeftClick.JustPressed) {
+            switch(Turn->Action) {
+                case combatant_action_attack: {
+                    if (Hot->Type != Combat->Turn.Attacker->Type) {
+                        Turn->nTargets = 1;
+                        Turn->Targets[0] = Hot;
+                        Combat->EndTurn();
+                    }
+                } break;
+                case combatant_action_magic: {
+                    if (Hot->Type != Turn->Attacker->Type && Turn->Spell != Spell_Empty) {
+                        Turn->nTargets = 1;
+                        Turn->Targets[0] = Hot;
+                        Combat->EndTurn();
+                    }
+                } break;
+            }
+        }
+
+        Update(&Combat->DamageAnimations, Group, State->dt);
+
+        bool CombatEnd = true;
+        for (int i = 0; i < Combatants->Count; i++) {
+            combatant* Enemy = &Combatants->Content[i];
+            if (Enemy->Type == Combatant_Type_Enemy) {
+                if (IsAlive(Enemy)) {
+                    CombatEnd = false;
+                    break;
+                }
+            }
+        }
+        if (CombatEnd) {
+            Combat->End();
+            Transition(State, Game_State_Map);
+        }
     }
 
 // Cameras _________________________________________________________________________________________________________________________________
