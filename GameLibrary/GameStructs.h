@@ -10,7 +10,7 @@ struct debug_struct_member {
     bool IsPointer;
 };
 
-const int STRUCT_MEMBERS_SIZE = 61;
+const int STRUCT_MEMBERS_SIZE = 62;
 debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Translation", Debug_Type_transform, Debug_Type_v3, sizeof(v3), (uint64)(&((transform*)0)->Translation),0, false},
     {"Scale", Debug_Type_transform, Debug_Type_scale, sizeof(scale), (uint64)(&((transform*)0)->Scale),0, false},
@@ -73,4 +73,5 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"RightHand", Debug_Type_character, Debug_Type_weapon, sizeof(weapon), (uint64)(&((character*)0)->RightHand),0, true},
     {"Action", Debug_Type_character, Debug_Type_character_action, sizeof(character_action), (uint64)(&((character*)0)->Action),0, false},
     {"Class", Debug_Type_character, Debug_Type_character_class, sizeof(character_class), (uint64)(&((character*)0)->Class),0, false},
+    {"KnownSpell", Debug_Type_character, Debug_Type_bool, sizeof(bool), (uint64)(&((character*)0)->KnownSpell),0, false},
 };

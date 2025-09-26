@@ -36,8 +36,11 @@
 const float Pi = 3.1415926535897932f;
 const float Tau = 6.2831853071795865f;
 
+const float sqrt2 = 1.41421356237f;
+const float sqrt3 = 1.73205080757f;
+const float goldenRatio = 0.61803398875f;
 // Twelfth root of 2, important for music
-const float twroot = 1.0594630943592952646f;
+const float twelfthRootOf2 = 1.0594630943592952646f;
 
 const float Degrees = Pi / 180.0f;
 

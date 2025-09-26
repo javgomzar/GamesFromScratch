@@ -424,6 +424,7 @@ struct character {
     weapon* RightHand;
     character_action Action;
     character_class Class;
+    bool KnownSpell[spell_id_count];
 };
 
 character_action CharacterAction(character_action_id ID) {

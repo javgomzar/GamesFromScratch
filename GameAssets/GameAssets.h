@@ -102,6 +102,7 @@ color Yellow         = { 1.0f, 1.0f, 0.0f, 1.0f };
 color Cyan           = { 0.0f, 1.0f, 1.0f, 1.0f };
 color Orange         = { 1.0f, 0.63f, 0.0f, 1.0f };
 color Purple         = { 0.5f, 0.0f, 0.6f, 1.0f};
+color Brown          = { 0.5f, 0.25f, 0.0f, 1.0f };
 color BackgroundBlue = { 0.4f, 0.4f, 0.8f, 1.0f };
 
 uint32 GetColorBytes(color Color) {

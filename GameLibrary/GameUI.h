@@ -1014,18 +1014,37 @@ void UpdateTradeUI(
     game_memory* Memory,
     game_input* Input
 ) {
+    render_group* Group = &Memory->RenderGroup;
     game_state* State = Memory->GameState;
+
     switch(State->CurrentRoom->Type) {
         case Room_Type_Merchant: {
             UIMenu StoreMenu = UIMenu("Store menu", axis_x);
 
             UIText("Item1 Item2 Item3");
+
+            if (UIButton("Skip")) {
+                Transition(State, Game_State_Map);
+            }
         } break;
 
         case Room_Type_Wizard: {
-            UIMenu WizardMenu = UIMenu("Wizard menu", axis_x);
-
-            UIText("Spell1 Spell2 Spell3");
+            UIMenu WizardMenu = UIMenu("Wizard menu", axis_y);
+            
+            // UIButton("Fire");
+            // UIButton("Earth");
+            // UIButton("Air");
+            // UIButton("Water");
+            // UIButton("Aether");
+            
+            if (UIButton("Skip")) {
+                Transition(State, Game_State_Map);
+            }
+            
+            transform T = Transform(Group->Camera->Position - Group->Camera->Basis.Z);
+            T.Scale = Scale(5.0f, 5.0f, 5.0f);
+            T.Rotation = Quaternion(Group->Camera->Angle * Degrees, V3(0, 1, 0));
+            PushTetrahedronOutline(Group, T, Red);
         } break;
 
         case Room_Type_Blacksmith: {
@@ -1039,6 +1058,10 @@ void UpdateTradeUI(
             if (UIButton("Trade")) {
                 Trade = true;
             }
+
+            if (UIButton("Skip")) {
+                Transition(State, Game_State_Map);
+            }
         } break;
 
         case Room_Type_Quest: {
@@ -1051,6 +1074,10 @@ void UpdateTradeUI(
             static bool Decline = false;
             if (UIButton("Decline")) {
                 Decline = true;
+            }
+
+            if (UIButton("Skip")) {
+                Transition(State, Game_State_Map);
             }
         } break;
     }
