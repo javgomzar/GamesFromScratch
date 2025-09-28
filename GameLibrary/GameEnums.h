@@ -63,7 +63,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 153;
+const int ENUM_VALUES_SIZE = 158;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -83,16 +83,21 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_animation_id, "Animation_Jump_ID", 2},
     {Debug_Type_game_animation_id, "Animation_Attack_ID", 3},
     {Debug_Type_game_animation_id, "game_animation_id_count", 4},
-    {Debug_Type_game_mesh_id, "Mesh_Horns_ID", 0},
-    {Debug_Type_game_mesh_id, "Mesh_Dog_ID", 1},
-    {Debug_Type_game_mesh_id, "Mesh_Dyno_ID", 2},
-    {Debug_Type_game_mesh_id, "Mesh_Sphere_ID", 3},
-    {Debug_Type_game_mesh_id, "Mesh_Body_ID", 4},
-    {Debug_Type_game_mesh_id, "Mesh_Shield_ID", 5},
-    {Debug_Type_game_mesh_id, "Mesh_Sword_ID", 6},
-    {Debug_Type_game_mesh_id, "Mesh_Staff_ID", 7},
-    {Debug_Type_game_mesh_id, "Mesh_Selector_ID", 8},
-    {Debug_Type_game_mesh_id, "game_mesh_id_count", 9},
+    {Debug_Type_game_mesh_id, "Mesh_Tetrahedron_ID", 0},
+    {Debug_Type_game_mesh_id, "Mesh_Cube_ID", 1},
+    {Debug_Type_game_mesh_id, "Mesh_Octahedron_ID", 2},
+    {Debug_Type_game_mesh_id, "Mesh_Icosahedron_ID", 3},
+    {Debug_Type_game_mesh_id, "Mesh_Dodecahedron_ID", 4},
+    {Debug_Type_game_mesh_id, "Mesh_Horns_ID", 5},
+    {Debug_Type_game_mesh_id, "Mesh_Dog_ID", 6},
+    {Debug_Type_game_mesh_id, "Mesh_Dyno_ID", 7},
+    {Debug_Type_game_mesh_id, "Mesh_Sphere_ID", 8},
+    {Debug_Type_game_mesh_id, "Mesh_Body_ID", 9},
+    {Debug_Type_game_mesh_id, "Mesh_Shield_ID", 10},
+    {Debug_Type_game_mesh_id, "Mesh_Sword_ID", 11},
+    {Debug_Type_game_mesh_id, "Mesh_Staff_ID", 12},
+    {Debug_Type_game_mesh_id, "Mesh_Selector_ID", 13},
+    {Debug_Type_game_mesh_id, "game_mesh_id_count", 14},
     {Debug_Type_game_bitmap_id, "Bitmap_Background_ID", 0},
     {Debug_Type_game_bitmap_id, "Bitmap_Button_ID", 1},
     {Debug_Type_game_bitmap_id, "Bitmap_Empty_ID", 2},
