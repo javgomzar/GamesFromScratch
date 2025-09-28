@@ -56,6 +56,7 @@ struct game_memory {
     memory_arena Transient;
     debug_info DebugInfo;
     bool IsInitialized;
+    bool HotReload;
 };
 
 #include "GameUI.h"
