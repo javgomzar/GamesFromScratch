@@ -6,6 +6,11 @@
 #define GAME_MESH
 
 ENUM(game_mesh_id,
+    Mesh_Tetrahedron_ID,
+    Mesh_Cube_ID,
+    Mesh_Octahedron_ID,
+    Mesh_Icosahedron_ID,
+    Mesh_Dodecahedron_ID,
     Mesh_Enemy_ID,
     Mesh_Sphere_ID,
     Mesh_Body_ID,
@@ -34,8 +39,10 @@ struct game_mesh {
     game_mesh_id ID;
     vertex_layout_id LayoutID;
     uint32 nVertices;
+    uint32 nEdges;
     uint32 nFaces;
     void* Vertices;
+    uint32* Edges;
     uint32* Faces;
     float MinX;
     float MaxX;
@@ -48,6 +55,7 @@ struct game_mesh {
 struct preprocessed_mesh {
     read_file_result File;
     uint32 nVertices;
+    uint32 nEdges;
     uint32 nFaces;
     uint32 nBones;
 };

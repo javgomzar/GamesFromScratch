@@ -66,6 +66,21 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     transform T = Transform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
     PushMesh(Group, Mesh_Body_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, White, 0, true);
 
+    T.Translation = V3(-2, 0, 0);
+    PushMesh(Group, Mesh_Tetrahedron_ID, T, Shader_Pipeline_World_Single_Color_ID);
+
+    T.Translation = V3(-2, 0, 2);
+    PushMesh(Group, Mesh_Cube_ID, T, Shader_Pipeline_World_Single_Color_ID);
+
+    T.Translation = V3(-2, 0, 4);
+    PushMesh(Group, Mesh_Octahedron_ID, T, Shader_Pipeline_World_Single_Color_ID);
+
+    T.Translation = V3(-2, 0, 6);
+    PushMesh(Group, Mesh_Icosahedron_ID, T, Shader_Pipeline_World_Single_Color_ID);
+
+    T.Translation = V3(-2, 0, 8.5);
+    PushMesh(Group, Mesh_Dodecahedron_ID, T, Shader_Pipeline_World_Single_Color_ID);
+
     // Heightmap
     PushHeightmap(Group, Heightmap_Spain_ID, Shader_Pipeline_Heightmap_ID);
 }

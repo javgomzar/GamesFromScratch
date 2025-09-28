@@ -471,6 +471,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_mesh_id ID) {
     if (Preprocessed.nBones > 0) Asset.MemoryNeeded += Preprocessed.nVertices * (10 * sizeof(float) + 2 * sizeof(int32));
     else                         Asset.MemoryNeeded += Preprocessed.nVertices * 8 * sizeof(float);
     Asset.MemoryNeeded += Preprocessed.nFaces * 3 * sizeof(uint32);
+    Asset.MemoryNeeded += Preprocessed.nEdges * 2 * sizeof(uint32);
 
     PreprocessedAssets.Mesh[ID] = Preprocessed;
 

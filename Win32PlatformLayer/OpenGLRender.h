@@ -903,10 +903,10 @@ void InitializeRenderer(
 
 			game_mesh* Mesh = &Assets->Mesh[i];
 			uint64 VerticesSize = GetMeshVerticesSize(Mesh->nVertices, Mesh->Armature.nBones > 0);
-			uint64 FacesSize = 3 * sizeof(uint32) * Mesh->nFaces;
+			uint64 ElementsSize = 3 * sizeof(uint32) * Mesh->nFaces + 2 * sizeof(uint32) * Mesh->nEdges;
 
 			glNamedBufferStorage(MeshBuffer->VBO, VerticesSize, Mesh->Vertices, 0);
-			glNamedBufferStorage(MeshBuffer->EBO, FacesSize, Mesh->Faces, 0);
+			glNamedBufferStorage(MeshBuffer->EBO, ElementsSize, Mesh->nEdges > 0 ? Mesh->Edges : Mesh->Faces, 0);
 
 			vertex_layout Layout = Assets->VertexLayouts[Mesh->LayoutID];
 

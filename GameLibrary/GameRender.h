@@ -1538,17 +1538,36 @@ void PushMesh(
     Options.Outline = Outline;
     Options.Transform = Transform;
     
-    PushPrimitiveCommand(
-        Group,
-        render_primitive_triangle,
-        Color,
-        GetShaderPipeline(Group->Assets, ShaderID),
-        Armature != NULL ? vertex_layout_vec3_vec2_vec3_id : vertex_layout_bones_id,
-        Mesh->nVertices,
-        3 * Mesh->nFaces,
-        SORT_ORDER_MESHES,
-        Options
-    );
+    // Faces
+    if (Mesh->nFaces > 0) {
+        PushPrimitiveCommand(
+            Group,
+            render_primitive_triangle,
+            Color,
+            GetShaderPipeline(Group->Assets, ShaderID),
+            Armature != NULL ? vertex_layout_vec3_vec2_vec3_id : vertex_layout_bones_id,
+            Mesh->nVertices,
+            3 * Mesh->nFaces,
+            SORT_ORDER_MESHES,
+            Options
+        );
+    }
+
+    // Edges
+    if (Mesh->nEdges > 0) {
+        uint32* MeshEdges = Mesh->Edges;
+        PushPrimitiveCommand(
+            Group,
+            render_primitive_line,
+            Color,
+            GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID),
+            Armature != NULL ? vertex_layout_vec3_vec2_vec3_id : vertex_layout_bones_id,
+            Mesh->nVertices,
+            2 * Mesh->nEdges,
+            SORT_ORDER_MESHES,
+            Options
+        );
+    }
 
     // Deal with outlines: Add necessary shader passes
     if (Outline && !Group->PushOutline) {
