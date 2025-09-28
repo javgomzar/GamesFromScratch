@@ -85,6 +85,11 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Sound\\Files\\16agosto.wav", Sound_Test_ID);
 
     // Meshes
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Tetrahedron.mdl", Mesh_Tetrahedron_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Cube.mdl", Mesh_Cube_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Octahedron.mdl", Mesh_Octahedron_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Icosahedron.mdl", Mesh_Icosahedron_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Dodecahedron.mdl", Mesh_Dodecahedron_ID);
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Horns.mdl",    Mesh_Horns_ID);
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Dog.mdl",      Mesh_Dog_ID);
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Sphere.mdl",   Mesh_Sphere_ID);
@@ -306,7 +311,8 @@ void LoadAssetsFromFile(
                 game_mesh* Mesh = GetAsset(Assets, Asset.ID.Mesh);
                 Mesh->Vertices = (void*)(Assets->Memory + Asset.Offset);
                 vertex_layout Layout = Assets->VertexLayouts[Mesh->LayoutID];
-                Mesh->Faces = (uint32*)((uint8*)Mesh->Vertices + Layout.Stride * Mesh->nVertices);
+                Mesh->Edges = (uint32*)((uint8*)Mesh->Vertices + Layout.Stride * Mesh->nVertices);
+                Mesh->Faces = Mesh->Edges + Mesh->nEdges;
             } break;
 
             case Asset_Type_Animation: {

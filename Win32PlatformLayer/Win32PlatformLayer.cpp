@@ -722,6 +722,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     memory_index PermanentStorageSize = Megabytes(64);
     void* GameMemoryBlock = VirtualAlloc(BaseAddress, PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     Memory.Permanent = MemoryArena(PermanentStorageSize, (uint8*)GameMemoryBlock);
+    Memory.HotReload = true;
 
     platform_api* Platform = &Memory.Platform;
 
@@ -806,6 +807,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
             if (GameCode.IsValid) {
                 Log(Info, "New game code loaded.");
+                Memory.HotReload = true;
             }
         }
 

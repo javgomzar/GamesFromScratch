@@ -163,6 +163,22 @@ int _RandomEnum(debug_type Type);
 // | 2D                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
+struct uv2 {
+	uint32 X, Y;
+};
+
+inline uv2 UV2(uint32 X, uint32 Y) {
+	return { X, Y };
+}
+
+inline uv2 operator+(uv2 a, uv2 b) {
+	return UV2(a.X + b.X, a.Y + b.Y);
+}
+
+inline bool operator==(const uv2& lhs, const uv2& rhs) {
+	return lhs.X == rhs.X && lhs.Y == rhs.Y;
+}
+
 struct iv2 {
 	int X, Y;
 };
@@ -2328,6 +2344,13 @@ iv3 ParseIV3(tokenizer& Tokenizer) {
     Result.X = ParseInt(Tokenizer);
     Result.Y = ParseInt(Tokenizer);
     Result.Z = ParseInt(Tokenizer);
+    return Result;
+}
+
+uv2 ParseUV2(tokenizer& Tokenizer) {
+    uv2 Result;
+    Result.X = Parseuint32(Tokenizer);
+    Result.Y = Parseuint32(Tokenizer);
     return Result;
 }
 

@@ -10,6 +10,7 @@ preprocessed_mesh PreprocessMesh(read_file_result File) {
         token Token = RequireToken(Tokenizer, Token_Identifier);
         while (Token.Type == Token_Identifier) {
             if (Token == "nV")   Result.nVertices = Parseuint32(Tokenizer);
+            else if (Token == "nE") Result.nEdges = Parseuint32(Tokenizer);
             else if (Token == "nF") Result.nFaces = Parseuint32(Tokenizer);
             else if (Token == "nB") Result.nBones = Parseuint32(Tokenizer);
             Token = GetToken(Tokenizer);
@@ -31,13 +32,19 @@ game_mesh LoadMesh(memory_arena* Arena, preprocessed_mesh* Preprocessed) {
         AdvanceUntilLine(Tokenizer, 2);
 
         Result.nVertices = Preprocessed->nVertices;
+        Result.nEdges = Preprocessed->nEdges;
         Result.nFaces = Preprocessed->nFaces;
         Result.Armature.nBones = Preprocessed->nBones;
         bool HasArmature = Result.Armature.nBones > 0;
         Result.LayoutID = HasArmature ? vertex_layout_bones_id : vertex_layout_vec3_vec2_vec3_id;
         uint32 VerticesSize = GetMeshVerticesSize(Preprocessed->nVertices, HasArmature);
         Result.Vertices = PushSize(Arena, VerticesSize);
-        Result.Faces = PushArray(Arena, 3 * Preprocessed->nFaces, uint32);
+        if (Preprocessed->nEdges > 0) {
+            Result.Edges = PushArray(Arena, 2 * Preprocessed->nEdges, uint32);
+        }
+        if (Preprocessed->nFaces > 0) {
+            Result.Faces = PushArray(Arena, 3 * Preprocessed->nFaces, uint32);
+        }
 
         Result.MinX = FLT_MAX;
         Result.MinY = FLT_MAX;
@@ -86,6 +93,13 @@ game_mesh LoadMesh(memory_arena* Arena, preprocessed_mesh* Preprocessed) {
                 *pOutV++ = Weights.X;
                 *pOutV++ = Weights.Y;
             }
+        }
+
+        uint32* pOutE = Result.Edges;
+        for (int i = 0; i < Result.nEdges; i++) {
+            uv2 Edge = ParseUV2(Tokenizer);
+            *pOutE++ = Edge.X;
+            *pOutE++ = Edge.Y;
         }
 
         uint32* pOutF = Result.Faces;

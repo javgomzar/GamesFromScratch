@@ -46,9 +46,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     if (!Memory->IsInitialized) {
         firstFrame = true;
 
-        RNG.Seed = Platform->SeedRNG();
-        RNG.State = RNG.Seed;
-
         //TestPerformance();
 
         Transition(pGameState, Game_State_Main_Menu);
@@ -60,13 +57,16 @@ extern "C" GAME_UPDATE(GameUpdate)
         Group->Camera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
         Group->Camera->OnAir = true;
 
-        // UI
-        uint32 MaxUIIDStack = 32;
-        uint32* StackMemory = PushArray(&Memory->Permanent, MaxUIIDStack, uint32);
-
         pGameState->Combat.Group = Group;
 
         Memory->IsInitialized = true;
+    }
+
+    if (Memory->HotReload) {
+        RNG.Seed = Platform->SeedRNG();
+        RNG.State = RNG.Seed;
+        
+        Memory->HotReload = false;
     }
 
     PushClear(Group, Orange, Target_None);
