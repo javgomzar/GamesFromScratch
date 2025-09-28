@@ -849,6 +849,8 @@ void UpdateCombatUI(
 
     // Combat menu
     if (pGameState->Combat.Active) {
+        combatant* ActiveCombatant = Combat->Turn.Attacker;
+
         // Combat menu
         float CombatMenuWidth = 0;
         {
@@ -858,9 +860,15 @@ void UpdateCombatUI(
             if (UIButton("Attack")) {
                 pGameState->Combat.Turn.Action = combatant_action_attack;
             }
-            if (UIButton("Magic")) {
-                pGameState->Combat.Turn.Action = combatant_action_magic;
-            };
+            for (int i = 0; i < spell_id_count; i++) {
+                if (ActiveCombatant->KnownSpells[i]) {
+                    if (UIButton("Magic")) {
+                        pGameState->Combat.Turn.Action = combatant_action_magic;
+                    };
+                    break;
+                }
+            }
+
             if (UIButton("Items")) {
                 pGameState->Combat.Turn.Action = combatant_action_items;
             }
@@ -903,9 +911,11 @@ void UpdateCombatUI(
             MagicMenu.Element->RelativePosition[axis_x] = CombatMenuWidth;
 
             for (int i = 1; i < spell_id_count; i++) {
-                spell Spell = Spells[i];
-                if (UIButton(Spell.Name)) {
-                    pGameState->Combat.Turn.Spell = Spell.ID;
+                if (ActiveCombatant->KnownSpells[i]) {
+                    spell Spell = Spells[i];
+                    if (UIButton(Spell.Name)) {
+                        pGameState->Combat.Turn.Spell = Spell.ID;
+                    }
                 }
             }
 
@@ -1030,12 +1040,69 @@ void UpdateTradeUI(
 
         case Room_Type_Wizard: {
             UIMenu WizardMenu = UIMenu("Wizard menu", axis_y);
-            
-            // UIButton("Fire");
-            // UIButton("Earth");
-            // UIButton("Air");
-            // UIButton("Water");
-            // UIButton("Aether");
+
+            spell_id SelectedSpell = Spell_Empty;
+
+            if (UIDropdown(Fire)) {
+                for (int i = 0; i < nFireSpells; i++) {
+                    spell Spell = Spells[FireSpellIDs[i]];
+                    if (UIButton(Spell.Name)) {
+                        SelectedSpell = Spell.ID;
+                    }
+                }
+            }
+
+            if (UIDropdown(Earth)) {
+                for (int i = 0; i < nEarthSpells; i++) {
+                    spell Spell = Spells[EarthSpellIDs[i]];
+                    if (UIButton(Spell.Name)) {
+                        SelectedSpell = Spell.ID;
+                    }
+                }
+            }
+
+            if (UIDropdown(Air)) {
+                for (int i = 0; i < nAirSpells; i++) {
+                    spell Spell = Spells[AirSpellIDs[i]];
+                    if (UIButton(Spell.Name)) {
+                        SelectedSpell = Spell.ID;
+                    }
+                }
+            }
+
+            if (UIDropdown(Water)) {
+                for (int i = 0; i < nWaterIceSpells; i++) {
+                    spell Spell = Spells[WaterIceSpellIDs[i]];
+                    if (UIButton(Spell.Name)) {
+                        SelectedSpell = Spell.ID;
+                    }
+                }
+            }
+
+            if (UIDropdown(Aether)) {
+                for (int i = 0; i < nLifeDeathSpells; i++) {
+                    spell Spell = Spells[LifeDeathSpellIDs[i]];
+                    if (UIButton(Spell.Name)) {
+                        SelectedSpell = Spell.ID;
+                    }
+                }
+            }
+
+            if (UIDropdown(Time)) {
+                for (int i = 0; i < nTimeSpells; i++) {
+                    spell Spell = Spells[TimeSpellIDs[i]];
+                    if (UIButton(Spell.Name)) {
+                        SelectedSpell = Spell.ID;
+                    }
+                }
+            }
+
+            if (SelectedSpell != Spell_Empty) {
+                character* Character = &State->Entities.Characters.List[0];
+
+                Character->KnownSpells[SelectedSpell] = true;
+                Transition(State, Game_State_Map);
+            }
             
             if (UIButton("Skip")) {
                 Transition(State, Game_State_Map);
@@ -1044,7 +1111,6 @@ void UpdateTradeUI(
             transform T = Transform(Group->Camera->Position - Group->Camera->Basis.Z);
             T.Scale = Scale(5.0f, 5.0f, 5.0f);
             T.Rotation = Quaternion(Group->Camera->Angle * Degrees, V3(0, 1, 0));
-            PushTetrahedronOutline(Group, T, Red);
         } break;
 
         case Room_Type_Blacksmith: {

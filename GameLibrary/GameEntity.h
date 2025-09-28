@@ -102,76 +102,6 @@ stats Stats(uint32 MaxHP, uint32 Strength, uint32 Defense, uint32 Intelligence, 
 };
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Enemies                                                                                                                                      |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-ENUM(enemy_type,
-    Enemy_Type_Horns,
-    Enemy_Type_Dog,
-    Enemy_Type_Miniboss_Dyno,
-    Enemy_Type_Boss_Test
-);
-
-enemy_type EnemyTypeFirstMiniboss = Enemy_Type_Miniboss_Dyno;
-enemy_type EnemyTypeFirstBoss = Enemy_Type_Boss_Test;
-
-INTROSPECT
-struct enemy {
-    uint32 ID;
-    game_entity* Entity;
-    stats Stats;
-    enemy_type Type;
-    game_mesh_id MeshID;
-    game_bitmap_id TextureID;
-};
-
-const enemy EnemyTemplates[enemy_type_count] = {
-    {
-        0,
-        NULL,
-        Stats(50, 7, 10, 5, 5, 6, 10),
-        Enemy_Type_Horns,
-        Mesh_Horns_ID,
-        Bitmap_Enemy_ID,
-    },
-    {
-        0,
-        NULL,
-        Stats(20, 2, 8, 2, 6, 10, 10),
-        Enemy_Type_Dog,
-        Mesh_Dog_ID,
-        Bitmap_Empty_ID,
-    },
-    {
-        0,
-        NULL,
-        Stats(100, 10, 8, 1, 3, 5, 10),
-        Enemy_Type_Miniboss_Dyno,
-        Mesh_Dyno_ID,
-        Bitmap_Empty_ID,
-    },
-};
-
-collider EnemyColliders[enemy_type_count] = {
-    SphereCollider(V3(0,0,0), 1.5f),
-    SphereCollider(V3(0,1.5f,0), 2.0f),
-    SphereCollider(V3(0,2.5f,0), 4.0f),
-};
-
-const char* EnemyNames[enemy_type_count] = {
-    "Horns",
-    "Dog",
-    "Dyno"
-};
-
-enemy NewEnemy(enemy_type Type) {
-    return EnemyTemplates[Type];
-}
-
-const int MAX_ENEMIES = 32;
-DefineFreeList(MAX_ENEMIES, enemy);
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Magic                                                                                                                                        |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
@@ -271,7 +201,7 @@ const spell Spells[spell_id_count] = {
     { "Incinerate",    Spell_Incinerate,    50, 30, 30, Magic_Affinity_Fire,  1 },
     { "Explosion",     Spell_Explosion,    100, 80, 40, Magic_Affinity_Fire,  1 },
 
-    { "Rock_Throw",    Spell_Rock_Throw,    20, 20, 20, Magic_Affinity_Earth, 1 },
+    { "Rock Throw",    Spell_Rock_Throw,    20, 20, 20, Magic_Affinity_Earth, 1 },
     { "Spikes",        Spell_Spikes,        20, 20, 20, Magic_Affinity_Earth, 1 },
     { "Rock Armor",    Spell_Rock_Armor,    20, 20, 20, Magic_Affinity_Earth, 1 },
     { "Diamond Armor", Spell_Diamond_Armor, 20, 20, 20, Magic_Affinity_Earth, 1 },
@@ -321,6 +251,99 @@ const spell Spells[spell_id_count] = {
     { "Stop",          Spell_Stop,          20, 20, 20, Magic_Affinity_Time,  1 },
     { "Rewind",        Spell_Rewind,        20, 20, 20, Magic_Affinity_Time,  1 },
 };
+
+const int nFireSpells = 4;
+const spell_id FireSpellIDs[nFireSpells] = { Spell_Fireball, Spell_Burn, Spell_Incinerate, Spell_Explosion };
+
+const int nEarthSpells = 8;
+const spell_id EarthSpellIDs[nEarthSpells] = { Spell_Rock_Throw, Spell_Spikes, Spell_Rock_Armor, Spell_Diamond_Armor, Spell_Sand_Storm, Spell_Sand_Burst, Spell_Mud_Pack, Spell_Earthquake, };
+
+const int nWaterIceSpells = 12;
+const spell_id WaterIceSpellIDs[nWaterIceSpells] = { Spell_Drench, Spell_Wave, Spell_Drown, Spell_Cascade, Spell_Wash, Spell_Hydrate, Spell_Icicle, Spell_Blizzard, Spell_Freeze, Spell_Ice_Armor, Spell_Snow_Golem, Spell_Absolute_Zero };
+
+const int nAirSpells = 6;
+const spell_id AirSpellIDs[nAirSpells] = { Spell_Wind, Spell_Gust, Spell_Fly, Spell_Air_Shield, Spell_Tornado, Spell_Hurricane };
+
+const int nLifeDeathSpells = 12;
+const spell_id LifeDeathSpellIDs[nLifeDeathSpells] = { Spell_Poison, Spell_Rot, Spell_Bleed, Spell_Kill, Spell_Zombie, Spell_Multikill, Spell_Cure, Spell_Heal, Spell_Regeneration, Spell_Multicure, Spell_Multiheal, Spell_Resurrect, };
+
+const int nTimeSpells = 5;
+const spell_id TimeSpellIDs[nTimeSpells] = { Spell_Slow, Spell_Accelerate, Spell_Tempo, Spell_Stop, Spell_Rewind, };
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Enemies                                                                                                                                      |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+ENUM(enemy_type,
+    Enemy_Type_Horns,
+    Enemy_Type_Dog,
+    Enemy_Type_Miniboss_Dyno,
+    Enemy_Type_Boss_Test
+);
+
+enemy_type EnemyTypeFirstMiniboss = Enemy_Type_Miniboss_Dyno;
+enemy_type EnemyTypeFirstBoss = Enemy_Type_Boss_Test;
+
+INTROSPECT
+struct enemy {
+    uint32 ID;
+    game_entity* Entity;
+    stats Stats;
+    enemy_type Type;
+    game_mesh_id MeshID;
+    game_bitmap_id TextureID;
+    bool KnownSpells[spell_id_count];
+};
+
+const enemy EnemyTemplates[enemy_type_count] = {
+    {
+        0,
+        NULL,
+        Stats(50, 7, 10, 5, 5, 6, 10),
+        Enemy_Type_Horns,
+        Mesh_Horns_ID,
+        Bitmap_Enemy_ID,
+    },
+    {
+        0,
+        NULL,
+        Stats(20, 2, 8, 2, 6, 10, 10),
+        Enemy_Type_Dog,
+        Mesh_Dog_ID,
+        Bitmap_Empty_ID,
+    },
+    {
+        0,
+        NULL,
+        Stats(100, 10, 8, 1, 3, 5, 10),
+        Enemy_Type_Miniboss_Dyno,
+        Mesh_Dyno_ID,
+        Bitmap_Empty_ID,
+    },
+};
+
+collider EnemyColliders[enemy_type_count] = {
+    SphereCollider(V3(0,0,0), 1.5f),
+    SphereCollider(V3(0,1.5f,0), 2.0f),
+    SphereCollider(V3(0,2.5f,0), 4.0f),
+};
+
+const char* EnemyNames[enemy_type_count] = {
+    "Horns",
+    "Dog",
+    "Dyno"
+};
+
+void FillTemplate(enemy* Enemy, enemy_type Type) {
+    enemy Template = EnemyTemplates[Type];
+    Enemy->MeshID = Template.MeshID;
+    Enemy->Stats = Template.Stats;
+    Enemy->TextureID = Template.TextureID;
+    Enemy->Type = Type;
+}
+
+const int MAX_ENEMIES = 32;
+DefineFreeList(MAX_ENEMIES, enemy);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Weapons                                                                                                                                      |
@@ -430,7 +453,7 @@ struct character {
     weapon* RightHand;
     character_action Action;
     character_class Class;
-    bool KnownSpell[spell_id_count];
+    bool KnownSpells[spell_id_count];
 };
 
 character_action CharacterAction(character_action_id ID) {
@@ -776,16 +799,8 @@ enemy* AddEnemy(game_entity_state* State, v3 Position, enemy_type Type) {
     static int32 EnemyQuantities[enemy_type_count] = {};
 
     // If any ID is free, use it
-    int EnemyID = -1;
-    if (State->Enemies.nFreeIDs > 0) {
-        EnemyID = State->Enemies.FreeIDs[State->Enemies.nFreeIDs - 1];
-        State->Enemies.FreeIDs[State->Enemies.nFreeIDs-- - 1] = -1;
-        State->Enemies.Count++;
-    }
-    else EnemyID = State->Enemies.Count++;
-
-    enemy* pEnemy = &State->Enemies.List[EnemyID];
-    *pEnemy = NewEnemy(Type);
+    enemy* pEnemy = Insert(&State->Enemies);
+    FillTemplate(pEnemy, Type);
 
     char NameBuffer[32];
     sprintf_s(NameBuffer, "%s %d", EnemyNames[Type], EnemyQuantities[Type]++);
@@ -793,7 +808,7 @@ enemy* AddEnemy(game_entity_state* State, v3 Position, enemy_type Type) {
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
     collider Collider = EnemyColliders[Type];
     pEnemy->Entity = AddEntity(State, NameBuffer, Entity_Type_Enemy, Collider, Position, Rotation, Scale());
-    pEnemy->Entity->Index = EnemyID;
+    pEnemy->Entity->Index = pEnemy->ID;
     return pEnemy;
 }
 
@@ -892,6 +907,7 @@ struct combatant {
     uint32 Index;
     float ATB;
     combatant_type Type;
+    bool KnownSpells[spell_id_count];
     bool State[altered_state_count];
 };
 
@@ -901,6 +917,9 @@ combatant Combatant(character* Character) {
     Result.Entity = Character->Entity;
     Result.ATB = 100.0f;
     Result.Type = Combatant_Type_Player;
+    for (int i = 0; i < spell_id_count; i++) {
+        Result.KnownSpells[i] = Character->KnownSpells[i];
+    }
     return Result;
 }
 
@@ -910,6 +929,9 @@ combatant Combatant(enemy* Enemy) {
     Result.Entity = Enemy->Entity;
     Result.ATB = 100.0f;
     Result.Type = Combatant_Type_Enemy;
+    for (int i = 0; i < spell_id_count; i++) {
+        Result.KnownSpells[i] = Enemy->KnownSpells[i];
+    }
     return Result;
 }
 
@@ -1211,7 +1233,8 @@ void RandomizeLevel(level* Level) {
 
     NextRow(Level);
     for (int i = 0; i < 4; i++) {
-        room* Room = AddRoom(Level, RandomRoomType());
+        room* Room = AddRoom(Level, Room_Type_Wizard);
+
         AttachRooms(FirstRoom, Room);
     }
     
