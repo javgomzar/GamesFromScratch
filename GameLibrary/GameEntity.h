@@ -117,6 +117,7 @@ enemy_type EnemyTypeFirstBoss = Enemy_Type_Boss_Test;
 
 INTROSPECT
 struct enemy {
+    uint32 ID;
     game_entity* Entity;
     stats Stats;
     enemy_type Type;
@@ -126,6 +127,7 @@ struct enemy {
 
 const enemy EnemyTemplates[enemy_type_count] = {
     {
+        0,
         NULL,
         Stats(50, 7, 10, 5, 5, 6, 10),
         Enemy_Type_Horns,
@@ -133,6 +135,7 @@ const enemy EnemyTemplates[enemy_type_count] = {
         Bitmap_Enemy_ID,
     },
     {
+        0,
         NULL,
         Stats(20, 2, 8, 2, 6, 10, 10),
         Enemy_Type_Dog,
@@ -140,6 +143,7 @@ const enemy EnemyTemplates[enemy_type_count] = {
         Bitmap_Empty_ID,
     },
     {
+        0,
         NULL,
         Stats(100, 10, 8, 1, 3, 5, 10),
         Enemy_Type_Miniboss_Dyno,
@@ -371,6 +375,7 @@ collider WeaponColliders[weapon_type_count] = {
 
 INTROSPECT
 struct weapon {
+    uint32 ID;
     weapon_type Type;
     magic_affinity Affinity;
     color Color;
@@ -416,6 +421,7 @@ const char* ClassNames[character_class_count] = {
 
 INTROSPECT
 struct character {
+    uint32 ID;
     armature Armature;
     stats Stats;
     game_animator Animator;
@@ -534,6 +540,7 @@ DefineFreeList(MAX_CHARACTERS, character);
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct prop {
+    uint32 ID;
     game_mesh_id MeshID;
     game_bitmap_id Texture;
     game_shader_pipeline_id Shader;
@@ -575,18 +582,7 @@ game_entity* AddEntity(
     Assert(State->Entities.Count < MAX_ENTITIES);
 
     // If any ID is free, use it
-    int EntityID = -1;
-    if (State->Entities.nFreeIDs > 0) {
-        EntityID = State->Entities.FreeIDs[State->Entities.nFreeIDs - 1];
-        State->Entities.FreeIDs[State->Entities.nFreeIDs-- - 1] = -1;
-        State->Entities.Count++;
-    }
-    else {
-        EntityID = State->Entities.Count++;
-    }
-
-    game_entity* Entity = &State->Entities.List[EntityID];
-    Entity->ID = EntityID;
+    game_entity* Entity = Insert(&State->Entities);
     Entity->Type = Type;
     Entity->Transform = Transform(Position, Rotation, S);
     Entity->Active = Active;
@@ -625,10 +621,7 @@ void RemoveEntity(game_entity_state* State, int EntityID) {
         default: Raise("Invalid entity type.");
     }
 
-    *Entity = {};
-    State->Entities.Count--;
-    State->Entities.FreeIDs[State->Entities.nFreeIDs] = EntityID;
-    State->Entities.nFreeIDs++;
+    Remove(&State->Entities, Entity->ID);
 }
 
 game_entity* QueryEntity(game_entity_state* State, game_entity_type Type, bool Active = true) {
@@ -662,26 +655,18 @@ camera* AddCamera(
 ) {
     Assert(State->Cameras.Count < MAX_CAMERAS);
     // If any ID is free, use it
-    int CameraID = -1;
-    if (State->Cameras.nFreeIDs > 0) {
-        CameraID = State->Cameras.FreeIDs[State->Cameras.nFreeIDs - 1];
-        State->Cameras.FreeIDs[State->Cameras.nFreeIDs-- - 1] = -1;
-        State->Cameras.Count++;
-    }
-    else CameraID = State->Cameras.Count++;
-
-    camera* Cam = &State->Cameras.List[CameraID];
+    camera* Cam = Insert(&State->Cameras);
     Cam->Angle = Angle;
     Cam->Pitch = Pitch;
     Cam->Position = Position;
     Cam->Distance = Distance;
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Camera %d", CameraID);
+    sprintf_s(NameBuffer, "Camera %d", Cam->ID);
 
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
-    game_entity* Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), CameraID == 0);
-    Entity->Index = CameraID;
+    game_entity* Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), Cam->ID == 0);
+    Entity->Index = Cam->ID;
     Cam->Entity = (void*)Entity;
 
     return Cam;
@@ -862,6 +847,7 @@ ENUM(altered_state,
 );
 
 struct damage_animation {
+    uint32 ID;
     uint32 Damage;
     float t;
     bool Active;
@@ -1038,8 +1024,13 @@ struct game_combat {
 
         // Add entities to struct and compute first attacker
         float MaxSpeed = 0.0f;
-        for (int i = 0; i < State->Entities.Count; i++) {
-            game_entity* Entity = &State->Entities.List[i];
+        uint32 nEntities = State->Entities.Count;
+        uint32 Index = 0;
+        while(nEntities > 0 && Index < MAX_ENTITIES) {
+            game_entity* Entity = &State->Entities.List[Index++];
+            if (!Entity->Active) continue;
+            else nEntities--;
+            
             combatant EntityCombatant;
             bool IsEnemy = Entity->Type == Entity_Type_Enemy;
             bool IsCharacter = Entity->Type == Entity_Type_Character;
@@ -1099,8 +1090,10 @@ struct game_combat {
                 ReceiveDamage(Target, Damage);
             }
 
-            damage_animation Animation = { Damage, 0, true };
-            Insert(&DamageAnimations, Animation);
+            damage_animation* Animation = Insert(&DamageAnimations);
+            Animation->Active = true;
+            Animation->Damage = Damage;
+            Animation->t = 0;
 
             // Did someone die?
             if (Target->Entity->Active && !IsAlive(Target)) {

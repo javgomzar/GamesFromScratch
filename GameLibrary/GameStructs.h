@@ -10,7 +10,7 @@ struct debug_struct_member {
     bool IsPointer;
 };
 
-const int STRUCT_MEMBERS_SIZE = 62;
+const int STRUCT_MEMBERS_SIZE = 65;
 debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Translation", Debug_Type_transform, Debug_Type_v3, sizeof(v3), (uint64)(&((transform*)0)->Translation),0, false},
     {"Scale", Debug_Type_transform, Debug_Type_scale, sizeof(scale), (uint64)(&((transform*)0)->Scale),0, false},
@@ -51,11 +51,13 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Wisdom", Debug_Type_stats, Debug_Type_uint32, sizeof(uint32), (uint64)(&((stats*)0)->Wisdom),0, false},
     {"Speed", Debug_Type_stats, Debug_Type_float, sizeof(float), (uint64)(&((stats*)0)->Speed),0, false},
     {"Precission", Debug_Type_stats, Debug_Type_float, sizeof(float), (uint64)(&((stats*)0)->Precission),0, false},
+    {"ID", Debug_Type_enemy, Debug_Type_uint32, sizeof(uint32), (uint64)(&((enemy*)0)->ID),0, false},
     {"Entity", Debug_Type_enemy, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((enemy*)0)->Entity),0, true},
     {"Stats", Debug_Type_enemy, Debug_Type_stats, sizeof(stats), (uint64)(&((enemy*)0)->Stats),0, false},
     {"Type", Debug_Type_enemy, Debug_Type_enemy_type, sizeof(enemy_type), (uint64)(&((enemy*)0)->Type),0, false},
     {"MeshID", Debug_Type_enemy, Debug_Type_game_mesh_id, sizeof(game_mesh_id), (uint64)(&((enemy*)0)->MeshID),0, false},
     {"TextureID", Debug_Type_enemy, Debug_Type_game_bitmap_id, sizeof(game_bitmap_id), (uint64)(&((enemy*)0)->TextureID),0, false},
+    {"ID", Debug_Type_weapon, Debug_Type_uint32, sizeof(uint32), (uint64)(&((weapon*)0)->ID),0, false},
     {"Type", Debug_Type_weapon, Debug_Type_weapon_type, sizeof(weapon_type), (uint64)(&((weapon*)0)->Type),0, false},
     {"Affinity", Debug_Type_weapon, Debug_Type_magic_affinity, sizeof(magic_affinity), (uint64)(&((weapon*)0)->Affinity),0, false},
     {"Color", Debug_Type_weapon, Debug_Type_color, sizeof(color), (uint64)(&((weapon*)0)->Color),0, false},
@@ -65,6 +67,7 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"ID", Debug_Type_character_action, Debug_Type_character_action_id, sizeof(character_action_id), (uint64)(&((character_action*)0)->ID),0, false},
     {"AnimationID", Debug_Type_character_action, Debug_Type_game_animation_id, sizeof(game_animation_id), (uint64)(&((character_action*)0)->AnimationID),0, false},
     {"Loop", Debug_Type_character_action, Debug_Type_bool, sizeof(bool), (uint64)(&((character_action*)0)->Loop),0, false},
+    {"ID", Debug_Type_character, Debug_Type_uint32, sizeof(uint32), (uint64)(&((character*)0)->ID),0, false},
     {"Armature", Debug_Type_character, Debug_Type_armature, sizeof(armature), (uint64)(&((character*)0)->Armature),0, false},
     {"Stats", Debug_Type_character, Debug_Type_stats, sizeof(stats), (uint64)(&((character*)0)->Stats),0, false},
     {"Animator", Debug_Type_character, Debug_Type_game_animator, sizeof(game_animator), (uint64)(&((character*)0)->Animator),0, false},
