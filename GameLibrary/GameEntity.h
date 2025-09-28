@@ -84,6 +84,7 @@ DefineFreeList(MAX_CAMERAS, camera);
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct enemy {
+    uint32 ID;
     game_entity* Entity;
 };
 
@@ -100,6 +101,7 @@ ENUM(weapon_type,
 );
 
 struct weapon {
+    uint32 ID;
     weapon_type Type;
     color Color;
     game_entity* Entity;
@@ -136,6 +138,7 @@ enum character_class {
 };
 
 struct character {
+    uint32 ID;
     armature Armature;
     game_animator Animator;
     game_entity* Entity;
@@ -251,6 +254,7 @@ DefineFreeList(MAX_CHARACTERS, character);
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct prop {
+    uint32 ID;
     game_mesh_id MeshID;
     game_bitmap_id Texture;
     game_shader_pipeline_id Shader;
@@ -292,18 +296,7 @@ game_entity* AddEntity(
     Assert(State->Entities.Count < MAX_ENTITIES);
 
     // If any ID is free, use it
-    int EntityID = -1;
-    if (State->Entities.nFreeIDs > 0) {
-        EntityID = State->Entities.FreeIDs[State->Entities.nFreeIDs - 1];
-        State->Entities.FreeIDs[State->Entities.nFreeIDs-- - 1] = -1;
-        State->Entities.Count++;
-    }
-    else {
-        EntityID = State->Entities.Count++;
-    }
-
-    game_entity* Entity = &State->Entities.List[EntityID];
-    Entity->ID = EntityID;
+    game_entity* Entity = Insert(&State->Entities);
     Entity->Type = Type;
     Entity->Transform = Transform(Position, Rotation, S);
     Entity->Active = Active;
@@ -379,26 +372,18 @@ camera* AddCamera(
 ) {
     Assert(State->Cameras.Count < MAX_CAMERAS);
     // If any ID is free, use it
-    int CameraID = -1;
-    if (State->Cameras.nFreeIDs > 0) {
-        CameraID = State->Cameras.FreeIDs[State->Cameras.nFreeIDs - 1];
-        State->Cameras.FreeIDs[State->Cameras.nFreeIDs-- - 1] = -1;
-        State->Cameras.Count++;
-    }
-    else CameraID = State->Cameras.Count++;
-
-    camera* Cam = &State->Cameras.List[CameraID];
+    camera* Cam = Insert(&State->Cameras);
     Cam->Angle = Angle;
     Cam->Pitch = Pitch;
     Cam->Position = Position;
     Cam->Distance = Distance;
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Camera %d", CameraID);
+    sprintf_s(NameBuffer, "Camera %d", Cam->ID);
 
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
-    game_entity* Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), CameraID == 0);
-    Entity->Index = CameraID;
+    game_entity* Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), Cam->ID == 0);
+    Entity->Index = Cam->ID;
     Cam->Entity = (void*)Entity;
 
     return Cam;
@@ -503,21 +488,13 @@ weapon* AddWeapon(
 ) {
     Assert(State->Weapons.Count < MAX_PROPS);
     // If any ID is free, use it
-    int WeaponID = -1;
-    if (State->Weapons.nFreeIDs > 0) {
-        WeaponID = State->Weapons.FreeIDs[State->Weapons.nFreeIDs - 1];
-        State->Weapons.FreeIDs[State->Weapons.nFreeIDs-- - 1] = -1;
-        State->Weapons.Count++;
-    }
-    else WeaponID = State->Weapons.Count++;
-
-    weapon* pWeapon = &State->Weapons.List[WeaponID];
+    weapon* pWeapon = Insert(&State->Weapons);
     pWeapon->Type = Type;
     pWeapon->ParentBone = -1;
     pWeapon->Color = Color;
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Weapon %d", WeaponID);
+    sprintf_s(NameBuffer, "Weapon %d", pWeapon->ID);
 
     collider Collider;
     switch (pWeapon->Type) {
@@ -535,7 +512,7 @@ weapon* AddWeapon(
         Rotation, 
         S
     );
-    pWeapon->Entity->Index = WeaponID;
+    pWeapon->Entity->Index = pWeapon->ID;
     return pWeapon;
 }
 

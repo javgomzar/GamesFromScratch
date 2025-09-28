@@ -103,6 +103,7 @@ void ClearVertexBuffer(vertex_buffer* Buffer) {
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct camera {
+    uint32 ID;
     basis Basis;
     void* Entity;
     v3 Position;
