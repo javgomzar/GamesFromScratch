@@ -40,7 +40,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     TIMED_BLOCK;
 
     float Time = pGameState->Time;
-    camera* ActiveCamera = Group->Camera;
+    camera* ActiveCamera = pGameState->ActiveCamera;
 
     bool firstFrame = false;
     if (!Memory->IsInitialized) {
@@ -54,8 +54,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         pGameState->Combat.State = EntityState;
 
         // Initialize camera
-        Group->Camera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
-        Group->Camera->OnAir = true;
+        ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
+        ActiveCamera->OnAir = true;
 
         pGameState->Combat.Group = Group;
 
@@ -80,7 +80,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
-    PushEntities(Group, pGameState, Input, Time);
+    PushEntities(Group, ActiveCamera, pGameState, Input, Time);
 
     UpdateUI(Memory, Input);
 

@@ -1002,7 +1002,7 @@ void InitializeRenderer(
 // | Renderer                                                                                                                               |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
+void Render(HWND Window, render_group* Group, openGL* OpenGL, camera* Camera, double Time) {
 	TIMED_BLOCK;
 
 	for (int i = 0; i < vertex_layout_id_count; i++) {
@@ -1019,7 +1019,7 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, double Time) {
 	int32 Height = Group->Height;
 
 // Global uniforms
-	SetGlobalUniforms(OpenGL, Width, Height, Group->Camera, Time);
+	SetGlobalUniforms(OpenGL, Width, Height, Camera, Time);
 	SetLightUniforms(OpenGL, Group->Light);
 	SetModelUniforms(OpenGL, Identity4);
 

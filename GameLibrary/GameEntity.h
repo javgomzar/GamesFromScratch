@@ -71,10 +71,39 @@ bool Collide(game_entity* Entity1, game_entity* Entity2) {
     return false;
 }
 
-
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Camera                                                                                                                                       |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct camera {
+    uint32 ID;
+    game_entity* Entity;
+    game_entity* Follow;
+    v3 Position;
+    float Distance;
+    float Pitch;
+    float Angle;
+    basis Basis;
+    matrix4 View;
+    bool OnAir;
+};
+
+basis GetCameraBasis(float Angle, float Pitch) {
+    float cosA = cosf(Angle * Degrees);
+    float sinA = sinf(Angle * Degrees);
+    float cosP = cosf(Pitch * Degrees);
+    float sinP = sinf(Pitch * Degrees);
+
+    v3 X = V3(        cosA,  0.0,         sinA);
+    v3 Y = V3(-sinA * sinP, cosP,  cosA * sinP);
+    v3 Z = V3( sinA * cosP, sinP, -cosA * cosP);
+
+    basis Result;
+    Result.X = X;
+    Result.Y = Y;
+    Result.Z = Z;
+    return Result;
+}
 
 const int MAX_CAMERAS = 16;
 DefineFreeList(MAX_CAMERAS, camera);
@@ -602,8 +631,6 @@ struct game_entity_state {
     enemy_list Enemies;
     prop_list Props;
     weapon_list Weapons;
-    character* ControlledCharacter;
-    camera* ActiveCamera;
 };
 
 game_entity* AddEntity(
@@ -704,7 +731,7 @@ camera* AddCamera(
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
     game_entity* Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), Cam->ID == 0);
     Entity->Index = Cam->ID;
-    Cam->Entity = (void*)Entity;
+    Cam->Entity = Entity;
 
     return Cam;
 }
@@ -1323,13 +1350,13 @@ game_state_type GetStateType(room_type RoomType) {
     switch(RoomType) {
         case Room_Type_Boss:
         case Room_Type_Miniboss:
+        case Room_Type_Quest:
         case Room_Type_Combat: 
             return Game_State_Combat;
         
         case Room_Type_Merchant:
         case Room_Type_Blacksmith:
         case Room_Type_Wizard:
-        case Room_Type_Quest: 
             return Game_State_Trade;
 
         case Room_Type_Camp:
@@ -1346,6 +1373,8 @@ struct game_state {
     game_combat Combat;
     level Level;
     room* CurrentRoom;
+    character* ControlledCharacter;
+    camera* ActiveCamera;
     double dt;
     float Time;
     float CampTime;
@@ -1443,8 +1472,7 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         game_entity* Entity = (game_entity*)Cam->Entity;
 
         if (Cam->OnAir) {
-            Group->Camera = Cam;
-            EntityState->ActiveCamera = Cam;
+            State->ActiveCamera = Cam;
         }
 
     // Zoom
@@ -1485,17 +1513,38 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
 
         break;
     }
-
-    camera* ActiveCamera = EntityState->ActiveCamera;
     
 // Characters ______________________________________________________________________________________________________________________________
     Index = 0;
     uint32 nCharacters = EntityState->Characters.Count;
     for (int i = 0; i < EntityState->Characters.Count; i++) {
         character* Character = &EntityState->Characters.List[i];
-        
-        Character->Entity->Velocity = V3(0, 0, 0);
 
+        if (Character->Armature.nBones == 0) {
+            Character->Armature = GetAsset(Group->Assets, Mesh_Body_ID)->Armature;
+            Character->Animator.Armature = &Character->Armature;
+            Character->Animator.Animation = GetAsset(Group->Assets, Animation_Idle_ID);
+            Character->Animator.Loop = true;
+            Character->Animator.Active = true;
+            Character->Action.ID = Character_Action_Idle_ID;
+            Character->Action.Loop = true;
+        }
+        
+        Character->Entity->Collided = false;
+
+        if (Combat->Active && Combat->Turn.Attacker->Entity == Character->Entity) {
+            State->ActiveCamera->Follow = Character->Entity;
+            State->ControlledCharacter = Character;
+        }
+
+        Update(&Character->Animator);
+    }
+    
+// Movement _______________________________________________________________________________________________________________________
+    if (State->ControlledCharacter != NULL && State->ControlledCharacter->Entity != NULL) {
+        character* Character = State->ControlledCharacter;
+
+        // Actions
         character_action_id PastAction = Character->Action.ID;
         Character->Action = GetCharacterAction(Character, Input);
         character_action_id NewAction = Character->Action.ID;
@@ -1506,8 +1555,13 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
             Character->Entity->Collider.Capsule.Segment.Tail += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
         }
 
-        // Movement
-        if (NewAction == Character_Action_Walk_ID || NewAction == Character_Action_Jump_ID) {
+        if (PastAction == Character_Action_Attack_ID && NewAction == Character_Action_Idle_ID) {
+            Character->Entity->Transform.Translation += Character->Entity->Transform.Rotation * V3(0,0,2);
+        }
+
+        Character->Entity->Velocity = V3(0, 0, 0);
+
+        if (Character->Action.ID == Character_Action_Walk_ID || Character->Action.ID == Character_Action_Jump_ID) {
             v3 Direction = V3(0,0,0);
             float Speed = 20.0f;
             if (Input->Mode == Keyboard) {
@@ -1528,41 +1582,26 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
                 Speed = 20.0f * modulus(Input->Controller.LeftJoystick);
             }
 
-            basis HorizontalBasis = GetCameraBasis(ActiveCamera->Angle, 0);
+            basis HorizontalBasis = GetCameraBasis(State->ActiveCamera->Angle, 0);
             
             // Direction is in coordinates relative to camera
             float Angle = atan2f(-Direction.X, Direction.Z);
             Direction = Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z;
             Character->Entity->Velocity = Speed * Direction;
-            Character->Entity->Transform.Rotation = Quaternion(ActiveCamera->Angle * Degrees + Angle, V3(0,1,0));
+            Character->Entity->Transform.Rotation = Quaternion(State->ActiveCamera->Angle * Degrees + Angle, V3(0,1,0));
         }
         Character->Entity->Transform.Translation += State->dt * Character->Entity->Velocity;
-
-        if (PastAction == Character_Action_Attack_ID && NewAction == Character_Action_Idle_ID) {
-            Character->Entity->Transform.Translation += Character->Entity->Transform.Rotation * V3(0,0,2);
-        }
         
-        Character->Entity->Collided = false;
-        Character->Entity->Collider.Capsule.Segment = { V3(0,0.75f,0), V3(0,3.75f,0) };
-
-        EntityState->ControlledCharacter = Character;
-
-        Update(&Character->Animator);
-    }
-
-    character* ControlledCharacter = EntityState->ControlledCharacter;
-    
-// Autofollow player _______________________________________________________________________________________________________________________
-    if (ControlledCharacter != NULL && ControlledCharacter->Entity != NULL) {
-        v3 Displacement = ControlledCharacter->Entity->Transform.Translation - ActiveCamera->Position;
+        // Camera autofollow
+        v3 Displacement = Character->Entity->Transform.Translation - State->ActiveCamera->Position;
         Displacement.Y = 0;
         float Distance = modulus(Displacement);
         v3 Velocity = V3(0,0,0);
         float MinDistance = .01f;
         if (Distance >= MinDistance) Velocity = 20.0f * (Distance - MinDistance) * normalize(Displacement);
-        ActiveCamera->Position += State->dt * Velocity;
-        game_entity* ActiveCameraEntity = (game_entity*)ActiveCamera->Entity;
-        ActiveCameraEntity->Transform.Translation = V3(0,0,ActiveCamera->Distance) - ActiveCamera->Position * ActiveCamera->Basis;
+        State->ActiveCamera->Position += State->dt * Velocity;
+        State->ActiveCamera->Entity->Transform.Translation = 
+            V3(0,0,State->ActiveCamera->Distance) - State->ActiveCamera->Position * State->ActiveCamera->Basis;
     }
 
 // Enemies _________________________________________________________________________________________________________________________________
@@ -1578,8 +1617,8 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         }
 
         v3 FacingDirection = V3(-1,0,0);
-        if (ControlledCharacter != NULL && ControlledCharacter->Entity != NULL) {
-            FacingDirection = ControlledCharacter->Entity->Transform.Translation - pEnemy->Entity->Transform.Translation;
+        if (State->ControlledCharacter != NULL && State->ControlledCharacter->Entity != NULL) {
+            FacingDirection = State->ControlledCharacter->Entity->Transform.Translation - pEnemy->Entity->Transform.Translation;
         }
         float Angle = atan2f(FacingDirection.Z, FacingDirection.X);
         pEnemy->Entity->Transform.Rotation = Quaternion(Angle, V3(0,1,0));
@@ -1599,32 +1638,32 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
 
         pWeapon->Entity->Collided = false;
 
-        if (ControlledCharacter != NULL && ControlledCharacter->Entity != NULL) {
-            bool Collision = Collide(pWeapon->Entity, ControlledCharacter->Entity);
+        if (State->ControlledCharacter != NULL && State->ControlledCharacter->Entity != NULL) {
+            bool Collision = Collide(pWeapon->Entity, State->ControlledCharacter->Entity);
             if (pWeapon->Entity->Parent == NULL && Collision) {
-                ControlledCharacter->Entity->Collided = true;
+                State->ControlledCharacter->Entity->Collided = true;
                 pWeapon->Entity->Collided = true;
-                Equip(pWeapon, ControlledCharacter);
+                Equip(pWeapon, State->ControlledCharacter);
             }
     
             if (pWeapon->ParentBone > 0) {
-                bone Bone = ControlledCharacter->Armature.Bones[pWeapon->ParentBone];
+                bone Bone = State->ControlledCharacter->Armature.Bones[pWeapon->ParentBone];
                 transform Transform = WeaponTransforms[pWeapon->Type];
-                pWeapon->Entity->Transform = Transform * Bone.Transform * ControlledCharacter->Entity->Transform;
+                pWeapon->Entity->Transform = Transform * Bone.Transform * State->ControlledCharacter->Entity->Transform;
             }
         }
     }
 }
 
-void PushEntities(render_group* Group, game_state* GameState, game_input* Input, float Time) {
+void PushEntities(render_group* Group, camera* Camera, game_state* GameState, game_input* Input, float Time) {
     TIMED_BLOCK;
 
     game_combat* Combat = &GameState->Combat;
     game_entity_state* State = &GameState->Entities;
     game_assets* Assets = Group->Assets;
 
-    basis Basis = Group->Camera->Basis;
-    ray Ray = MouseRay(Group->Width, Group->Height, Group->Camera->Position + Group->Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
+    basis Basis = Camera->Basis;
+    ray Ray = MouseRay(Group->Width, Group->Height, Camera->Position + Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
     int i = 0;
     int nEntities = State->Entities.Count;
     while (nEntities > 0 && i < MAX_ENTITIES) {
@@ -1657,13 +1696,13 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
                 if (Combat->Active) {
                     float HPBarWidth = 2.0f;
                     float HPBarHeight = 0.2f;
-                    v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X + V3(0, Mesh->MaxY + 0.3f, 0);
+                    v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Camera->Basis.X + V3(0, Mesh->MaxY + 0.3f, 0);
                     PushFillbar(
                         Group, 
                         Entity->Name, 
                         pCharacter->Stats.HP, pCharacter->Stats.MaxHP,
                         Position, 
-                        Group->Camera->Basis.X, Group->Camera->Basis.Y,
+                        Camera->Basis.X, Camera->Basis.Y,
                         2.0f, 0.2f
                     );
 
@@ -1692,13 +1731,13 @@ void PushEntities(render_group* Group, game_state* GameState, game_input* Input,
                 if (Combat->Active) {
                     float HPBarWidth = 2.0f;
                     float HPBarHeight = 0.2f;
-                    v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Group->Camera->Basis.X + V3(0, Mesh->MaxY + 0.3f, 0);
+                    v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Camera->Basis.X + V3(0, Mesh->MaxY + 0.3f, 0);
                     PushFillbar(
                         Group, 
                         Entity->Name, 
                         pEnemy->Stats.HP, pEnemy->Stats.MaxHP,
                         Position, 
-                        Group->Camera->Basis.X, Group->Camera->Basis.Y,
+                        Camera->Basis.X, Camera->Basis.Y,
                         2.0f, 0.2f
                     );
 

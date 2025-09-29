@@ -99,39 +99,6 @@ void ClearVertexBuffer(vertex_buffer* Buffer) {
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Camera                                                                                                                                       |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-struct camera {
-    uint32 ID;
-    basis Basis;
-    void* Entity;
-    v3 Position;
-    float Distance;
-    float Pitch;
-    float Angle;
-    matrix4 View;
-    bool OnAir;
-};
-
-basis GetCameraBasis(float Angle, float Pitch) {
-    float cosA = cosf(Angle * Degrees);
-    float sinA = sinf(Angle * Degrees);
-    float cosP = cosf(Pitch * Degrees);
-    float sinP = sinf(Pitch * Degrees);
-
-    v3 X = V3(        cosA,  0.0,         sinA);
-    v3 Y = V3(-sinA * sinP, cosP,  cosA * sinP);
-    v3 Z = V3( sinA * cosP, sinP, -cosA * cosP);
-
-    basis Result;
-    Result.X = X;
-    Result.Y = Y;
-    Result.Z = Z;
-    return Result;
-}
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Render entries                                                                                                                               |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
@@ -270,7 +237,6 @@ struct render_group {
     render_target_command TargetCommands[MAX_RENDER_TARGET_COMMANDS];
     vertex_buffer VertexBuffer;
     light Light;
-    camera* Camera;
     game_assets* Assets;
     int32 Width;
     int32 Height;
@@ -1701,11 +1667,11 @@ void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
     );
 }
 
-void PushDebugVector(render_group* Group, v3 Vector, v3 Position, color Color) {
+void PushDebugVector(render_group* Group, basis CameraBasis, v3 Vector, v3 Position, color Color) {
     float Height = Group->Height;
 
-    v2 CameraCoordinates = perp(V2(dot(Vector, Group->Camera->Basis.X), dot(Vector, Group->Camera->Basis.Y)));
-    v3 Orthogonal = normalize(CameraCoordinates.X * Group->Camera->Basis.X + CameraCoordinates.Y * Group->Camera->Basis.Y);
+    v2 CameraCoordinates = perp(V2(dot(Vector, CameraBasis.X), dot(Vector, CameraBasis.Y)));
+    v3 Orthogonal = normalize(CameraCoordinates.X * CameraBasis.X + CameraCoordinates.Y * CameraBasis.Y);
     float OrthogonalLength = (modulus(Vector) / 15.0f);
 
     int Thickness = max(1.0, 0.0025 * Height);
@@ -1726,8 +1692,8 @@ void PushDebugVector(render_group* Group, v3 Vector, v3 Position, color Color) {
 
 void PushDebugFustrum(
     render_group* Group,
+    basis CameraBasis,
     v3 Position,
-    double Angle, double Pitch,
     double l, double r, double b, double t, double n, double f
 ) {
     game_shader_pipeline* Shader = GetShaderPipeline(Group->Assets, Shader_Pipeline_World_Single_Color_ID);
@@ -1745,14 +1711,12 @@ void PushDebugFustrum(
         Options
     );
 
-    basis B = GetCameraBasis(Angle, Pitch);
-
-    v3 nv = -n * B.Z;
-    v3 rv = r * B.X;
-    v3 lv = -l * B.X;
-    v3 tv = t * B.Y * ((double)Group->Height / (double)Group->Width);
-    v3 bv = -b * B.Y * ((double)Group->Height / (double)Group->Width);
-    v3 fv = -f * B.Z;
+    v3 nv = -n * CameraBasis.Z;
+    v3 rv = r * CameraBasis.X;
+    v3 lv = -l * CameraBasis.X;
+    v3 tv = t * CameraBasis.Y * ((double)Group->Height / (double)Group->Width);
+    v3 bv = -b * CameraBasis.Y * ((double)Group->Height / (double)Group->Width);
+    v3 fv = -f * CameraBasis.Z;
 
     v3 l_ = f * lv;
     v3 r_ = f * rv;
