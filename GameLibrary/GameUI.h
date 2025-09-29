@@ -824,7 +824,7 @@ void UpdateMainMenuUI(
         for (int i = 0; i < character_class_count; i++) {
             if (UIButton(ClassNames[i])) {
                 character_class Class = (character_class)i;
-                character* Character = AddCharacter(&Memory->Assets, &pGameState->Entities, Class, V3(0,0,0), 500);
+                character* Character = AddCharacter(&pGameState->Entities, Class, V3(0,0,0), 500);
                 ClassSelection = false;
                 
                 RandomizeLevel(&pGameState->Level);
@@ -1309,8 +1309,16 @@ void UpdateUI(
         }
 
         if (UIDropdown(Entities)) {
-            character* Character = &EntityState->Characters.List[0];
-            DEBUG_POINTER(Character, character);
+            character* Characters[MAX_ENEMIES] = {};
+            uint32 nCharacters = 0;
+            uint32 Index = 0;
+            while (nCharacters < EntityState->Characters.Count && Index < MAX_ENTITIES) {
+                character* Character = &EntityState->Characters.List[Index++];
+                if (Character->Entity && Character->Entity->Active) {
+                    Characters[nCharacters++] = Character;
+                }
+            }
+            DEBUG_POINTER_ARRAY(Characters, EntityState->Characters.Count, character);
 
             if (EntityState->Enemies.Count > 0) {
                 enemy* Enemies[MAX_ENEMIES] = {};
