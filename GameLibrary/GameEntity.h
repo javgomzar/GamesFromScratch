@@ -1632,25 +1632,16 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         if (pWeapon->Entity != NULL) nWeapons--;
         else continue;
 
+        pWeapon->Entity->Collided = false;
+
         if (pWeapon->ParentBone == -1) {
             pWeapon->Entity->Transform.Rotation = Quaternion(State->Time, V3(0,1,0));
         }
-
-        pWeapon->Entity->Collided = false;
-
-        if (State->ControlledCharacter != NULL && State->ControlledCharacter->Entity != NULL) {
-            bool Collision = Collide(pWeapon->Entity, State->ControlledCharacter->Entity);
-            if (pWeapon->Entity->Parent == NULL && Collision) {
-                State->ControlledCharacter->Entity->Collided = true;
-                pWeapon->Entity->Collided = true;
-                Equip(pWeapon, State->ControlledCharacter);
-            }
-    
-            if (pWeapon->ParentBone > 0) {
-                bone Bone = State->ControlledCharacter->Armature.Bones[pWeapon->ParentBone];
-                transform Transform = WeaponTransforms[pWeapon->Type];
-                pWeapon->Entity->Transform = Transform * Bone.Transform * State->ControlledCharacter->Entity->Transform;
-            }
+        else {
+            character* Owner = &EntityState->Characters.List[pWeapon->Entity->Parent->Index];
+            bone Bone = Owner->Armature.Bones[pWeapon->ParentBone];
+            transform Transform = WeaponTransforms[pWeapon->Type];
+            pWeapon->Entity->Transform = Transform * Bone.Transform * Owner->Entity->Transform;
         }
     }
 }
