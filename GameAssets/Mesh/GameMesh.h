@@ -18,7 +18,9 @@ ENUM(game_mesh_id,
     Mesh_Body_ID,
     Mesh_Shield_ID,
     Mesh_Sword_ID,
+    Mesh_Knife_ID,
     Mesh_Staff_ID,
+    Mesh_Bow_ID,
     Mesh_Selector_ID
 );
 

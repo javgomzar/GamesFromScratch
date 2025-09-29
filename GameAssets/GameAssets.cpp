@@ -85,20 +85,22 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Sound\\Files\\16agosto.wav", Sound_Test_ID);
 
     // Meshes
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Tetrahedron.mdl", Mesh_Tetrahedron_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Cube.mdl", Mesh_Cube_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Octahedron.mdl", Mesh_Octahedron_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Icosahedron.mdl", Mesh_Icosahedron_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Tetrahedron.mdl",  Mesh_Tetrahedron_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Cube.mdl",         Mesh_Cube_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Octahedron.mdl",   Mesh_Octahedron_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Icosahedron.mdl",  Mesh_Icosahedron_ID);
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Dodecahedron.mdl", Mesh_Dodecahedron_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Horns.mdl",    Mesh_Horns_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Dog.mdl",      Mesh_Dog_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Sphere.mdl",   Mesh_Sphere_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Body.mdl",     Mesh_Body_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Sword.mdl",    Mesh_Sword_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Shield.mdl",   Mesh_Shield_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Staff.mdl",    Mesh_Staff_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Selector.mdl", Mesh_Selector_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Dyno.mdl",     Mesh_Dyno_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Horns.mdl",        Mesh_Horns_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Dog.mdl",          Mesh_Dog_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Sphere.mdl",       Mesh_Sphere_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Body.mdl",         Mesh_Body_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Sword.mdl",        Mesh_Sword_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Knife.mdl",        Mesh_Knife_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Shield.mdl",       Mesh_Shield_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Staff.mdl",        Mesh_Staff_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Bow.mdl",          Mesh_Bow_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Selector.mdl",     Mesh_Selector_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Dyno.mdl",         Mesh_Dyno_ID);
 
     // Animation
     PushAsset(&Assets, "..\\GameAssets\\Animation\\Files\\Idle.anim",    Animation_Idle_ID);

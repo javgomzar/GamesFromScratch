@@ -63,7 +63,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 158;
+const int ENUM_VALUES_SIZE = 162;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -95,9 +95,11 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_mesh_id, "Mesh_Body_ID", 9},
     {Debug_Type_game_mesh_id, "Mesh_Shield_ID", 10},
     {Debug_Type_game_mesh_id, "Mesh_Sword_ID", 11},
-    {Debug_Type_game_mesh_id, "Mesh_Staff_ID", 12},
-    {Debug_Type_game_mesh_id, "Mesh_Selector_ID", 13},
-    {Debug_Type_game_mesh_id, "game_mesh_id_count", 14},
+    {Debug_Type_game_mesh_id, "Mesh_Knife_ID", 12},
+    {Debug_Type_game_mesh_id, "Mesh_Staff_ID", 13},
+    {Debug_Type_game_mesh_id, "Mesh_Bow_ID", 14},
+    {Debug_Type_game_mesh_id, "Mesh_Selector_ID", 15},
+    {Debug_Type_game_mesh_id, "game_mesh_id_count", 16},
     {Debug_Type_game_bitmap_id, "Bitmap_Background_ID", 0},
     {Debug_Type_game_bitmap_id, "Bitmap_Button_ID", 1},
     {Debug_Type_game_bitmap_id, "Bitmap_Empty_ID", 2},
@@ -185,7 +187,9 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_weapon_type, "Weapon_Sword", 0},
     {Debug_Type_weapon_type, "Weapon_Shield", 1},
     {Debug_Type_weapon_type, "Weapon_Staff", 2},
-    {Debug_Type_weapon_type, "weapon_type_count", 3},
+    {Debug_Type_weapon_type, "Weapon_Bow", 3},
+    {Debug_Type_weapon_type, "Weapon_Knife", 4},
+    {Debug_Type_weapon_type, "weapon_type_count", 5},
     {Debug_Type_character_action_id, "Character_Action_Idle_ID", 0},
     {Debug_Type_character_action_id, "Character_Action_Walk_ID", 1},
     {Debug_Type_character_action_id, "Character_Action_Jump_ID", 2},

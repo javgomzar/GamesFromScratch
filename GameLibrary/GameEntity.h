@@ -365,13 +365,17 @@ DefineFreeList(MAX_ENEMIES, enemy);
 ENUM(weapon_type,
     Weapon_Sword,
     Weapon_Shield,
-    Weapon_Staff
+    Weapon_Staff,
+    Weapon_Bow,
+    Weapon_Knife
 );
 
 game_mesh_id WeaponMeshIDs[weapon_type_count] = {
     Mesh_Sword_ID,
     Mesh_Shield_ID,
     Mesh_Staff_ID,
+    Mesh_Bow_ID,
+    Mesh_Knife_ID
 };
 
 transform WeaponTransforms[weapon_type_count] = {
@@ -388,12 +392,22 @@ transform WeaponTransforms[weapon_type_count] = {
         Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0)),
         Scale(0.75, 0.75, 0.75)
     ),
+    Transform(
+        V3(0.5f,2.0f,0),
+        Quaternion(0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
+    ),
+    Transform(
+        V3(0.5f,2.0f,0),
+        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
+    ),
 };
 
 collider WeaponColliders[weapon_type_count] = {
     CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
     CapsuleCollider(V3(0,-0.3,0), V3(0,0.7,0), 1.0f),
     CapsuleCollider(V3(0,-4.5,0), V3(0,2,0), 0.5f),
+    CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
+    CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
 };
 
 INTROSPECT
@@ -704,22 +718,14 @@ weapon* AddWeapon(
     scale S = Scale()
 ) {
     Assert(State->Weapons.Count < MAX_WEAPONS);
-    // If any ID is free, use it
-    int WeaponID = -1;
-    if (State->Weapons.nFreeIDs > 0) {
-        WeaponID = State->Weapons.FreeIDs[State->Weapons.nFreeIDs - 1];
-        State->Weapons.FreeIDs[State->Weapons.nFreeIDs-- - 1] = -1;
-        State->Weapons.Count++;
-    }
-    else WeaponID = State->Weapons.Count++;
 
-    weapon* pWeapon = &State->Weapons.List[WeaponID];
+    weapon* pWeapon = Insert(&State->Weapons);
     pWeapon->Type = Type;
     pWeapon->ParentBone = -1;
     pWeapon->Color = Color;
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Weapon %d", WeaponID);
+    sprintf_s(NameBuffer, "Weapon %d", pWeapon->ID);
 
     collider Collider = WeaponColliders[pWeapon->Type];
     pWeapon->Entity = AddEntity(
@@ -731,31 +737,17 @@ weapon* AddWeapon(
         Rotation, 
         S
     );
-    pWeapon->Entity->Index = WeaponID;
+    pWeapon->Entity->Index = pWeapon->ID;
     return pWeapon;
 }
 
-character* AddCharacter(game_assets* Assets, game_entity_state* State, character_class Class, v3 Position, int MaxHP) {
+character* AddCharacter(game_entity_state* State, character_class Class, v3 Position, int MaxHP) {
     Assert(State->Characters.Count < MAX_CHARACTERS);
-    // If any ID is free, use it
-    int CharacterID = -1;
-    if (State->Characters.nFreeIDs > 0) {
-        uint32* ID = &State->Characters.FreeIDs[--State->Characters.nFreeIDs];
-        CharacterID = *ID;
-        *ID = -1;
-        State->Characters.Count++;
-    }
-    else CharacterID = State->Characters.Count++;
 
-    character* pCharacter = &State->Characters.List[CharacterID];
-    pCharacter->Animator.Active = false;
-    pCharacter->Animator.Animation = GetAsset(Assets, Animation_Idle_ID);
-    game_mesh* Mesh = GetAsset(Assets, Mesh_Body_ID);
-    pCharacter->Armature = Mesh->Armature;
-    pCharacter->Animator.Armature = &pCharacter->Armature;
+    character* pCharacter = Insert(&State->Characters);
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Character %d", CharacterID);
+    sprintf_s(NameBuffer, "Character %d", pCharacter->ID);
 
     quaternion Rotation = Quaternion(1.5f * Pi, V3(0,1,0));
     pCharacter->Entity = AddEntity(
@@ -767,7 +759,7 @@ character* AddCharacter(game_assets* Assets, game_entity_state* State, character
         Rotation, 
         Scale()
     );
-    pCharacter->Entity->Index = CharacterID;
+    pCharacter->Entity->Index = pCharacter->ID;
 
     pCharacter->Stats.MaxHP = MaxHP;
     pCharacter->Stats.HP = MaxHP;
@@ -785,6 +777,17 @@ character* AddCharacter(game_assets* Assets, game_entity_state* State, character
             Equip(Sword, pCharacter);
             Equip(Shield, pCharacter);
         } break;
+
+        case Class_Rogue: {
+            weapon* Knife = AddWeapon(State, Weapon_Knife, White, V3(-5,0,0));
+            Equip(Knife, pCharacter);
+        } break;
+        
+        case Class_Hunter: {
+            weapon* Bow = AddWeapon(State, Weapon_Bow, White, V3(-5,0,0));
+            Equip(Bow, pCharacter);
+        } break;
+
         case Class_Wizard: {
             weapon* Staff = AddWeapon(State, Weapon_Staff, White, V3(-5,0,0));
             Equip(Staff, pCharacter);
@@ -1233,7 +1236,7 @@ void RandomizeLevel(level* Level) {
 
     NextRow(Level);
     for (int i = 0; i < 4; i++) {
-        room* Room = AddRoom(Level, Room_Type_Wizard);
+        room* Room = AddRoom(Level, RandomRoomType());
 
         AttachRooms(FirstRoom, Room);
     }
@@ -1362,6 +1365,13 @@ void Transition(game_state* State, game_state_type Type) {
                 AddEnemy(&State->Entities, Position, EnemyType);
                 Position.Z += 5.0f;
             }
+
+            if (State->CurrentRoom->Type == Room_Type_Quest) {
+                character_class Companion = RandomEnum(character_class);
+
+                AddCharacter(&State->Entities, Companion, V3(0,0,0), 500);
+            }
+
             State->Combat.Start();
         } break;
 
