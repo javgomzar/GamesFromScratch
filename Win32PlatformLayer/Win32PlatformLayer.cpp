@@ -984,7 +984,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
 
             LogDebugRecords(Group, &Memory.Transient);
-            Render(Window, Group, &RendererContext, pGameState->Time);
+            Render(Window, Group, &RendererContext, pGameState->ActiveCamera, pGameState->Time);
             ClearVertexBuffer(&Memory.RenderGroup.VertexBuffer);
         }
         else {
@@ -1188,7 +1188,7 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
                     ResizeWindow(&RendererContext, NewWidth, NewHeight);
                 }
 
-                Render(Window, Group, &RendererContext, 0.0);
+                Render(Window, Group, &RendererContext, Memory.GameState->ActiveCamera, 0.0);
             }
 
             EndPaint(Window, &ps);

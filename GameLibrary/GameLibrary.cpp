@@ -49,7 +49,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     TIMED_BLOCK;
 
     float Time = pGameState->Time;
-    camera* ActiveCamera = Group->Camera;
+    camera* ActiveCamera = pGameState->ActiveCamera;
 
     bool firstFrame = false;
     if (!Memory->IsInitialized) {
@@ -58,8 +58,8 @@ extern "C" GAME_UPDATE(GameUpdate)
         //TestPerformance();
 
         // Initialize entities
-        Group->Camera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
-        Group->Camera->OnAir = true;
+        ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
+        ActiveCamera->OnAir = true;
         character* Character = AddCharacter(Assets, EntityState, V3(0,0,0), 100);
         prop* Prop = AddProp(EntityState, Mesh_Sphere_ID, Shader_Pipeline_Sphere_ID, Red, V3(0,0,5), Quaternion(1.0), Scale(10,1,1));
         enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));
@@ -89,7 +89,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Magenta, Target_PingPong);
     PushClear(Group, BackgroundBlue, Target_Output);
 
-    UpdateGameState(Assets, pGameState, Input, &Group->Camera, Group->Width, Group->Height);
+    UpdateGameState(Assets, pGameState, Input, Group->Width, Group->Height);
     
     //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
@@ -97,7 +97,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     TestRendering(Group, Input, Time);
 
-    Update(Group, pGameState->Emitter, pGameState->dt);
+    Update(Group, ActiveCamera->Position, pGameState->Emitter, pGameState->dt);
     
     UpdateUI(Memory, Input);
 

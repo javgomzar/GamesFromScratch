@@ -105,7 +105,7 @@ void AddParticle(particle_emitter* Emitter) {
     }
 }
 
-void Update(render_group* Group, particle_emitter* Emitter, float dt) {
+void Update(render_group* Group, v3 CameraPosition, particle_emitter* Emitter, float dt) {
     TIMED_BLOCK;
     
     AddParticle(Emitter);
@@ -119,7 +119,7 @@ void Update(render_group* Group, particle_emitter* Emitter, float dt) {
 
             Particle->Position += Particle->Velocity;
             Particle->Color = HSV2RGB(1.0f + 0.2f * (Particle->Time / Emitter->ParticleLifetime), 1.0f, 1.0f, 1.0f);
-            PushPoint(Group, Particle->Position, Particle->Color, SORT_ORDER_DEBUG_OVERLAY - distance(Particle->Position, Group->Camera->Position));
+            PushPoint(Group, Particle->Position, Particle->Color, SORT_ORDER_DEBUG_OVERLAY - distance(Particle->Position, CameraPosition));
 
             Particle->Time -= dt;
             if (Particle->Time < 0) Particle->Time = 0;

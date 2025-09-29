@@ -751,6 +751,7 @@ void UpdateUI(
     game_entity_state* EntityState = &pGameState->Entities;
     float Time = pGameState->Time;
     debug_info* DebugInfo = &Memory->DebugInfo;
+    camera* Camera = pGameState->ActiveCamera;
 
     BeginContext(Memory, Input);
 
@@ -808,18 +809,18 @@ void UpdateUI(
         PushDebugGrid(Group, DebugAlpha);
 
         // Axes
-        v2 XAxis = V2(cos(Group->Camera->Angle * Degrees), sin(Group->Camera->Angle * Degrees) * sin(Group->Camera->Pitch * Degrees));
-        v2 YAxis = V2(0.0, -cos(Group->Camera->Pitch * Degrees));
-        v2 ZAxis = V2(-sin(Group->Camera->Angle * Degrees), sin(Group->Camera->Pitch * Degrees) * cos(Group->Camera->Angle * Degrees));
+        v2 XAxis = V2(cos(Camera->Angle * Degrees), sin(Camera->Angle * Degrees) * sin(Camera->Pitch * Degrees));
+        v2 YAxis = V2(0.0, -cos(Camera->Pitch * Degrees));
+        v2 ZAxis = V2(-sin(Camera->Angle * Degrees), sin(Camera->Pitch * Degrees) * cos(Camera->Angle * Degrees));
         v2 AxisOrigin = V2(Group->Width - 0.08 * (float)Group->Height - 10.0, 0.1 * (float)Group->Height);
         PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, ChangeAlpha(Red, DebugAlpha));
         PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, ChangeAlpha(Green, DebugAlpha));
         PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, ChangeAlpha(Blue, DebugAlpha));
 
         // Debug camera basis
-        // PushDebugVector(Group, Group->Camera.Basis.X, V3(0,0,0), World_Coordinates, Yellow);
-        // PushDebugVector(Group, Group->Camera.Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
-        // PushDebugVector(Group, Group->Camera.Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
+        // PushDebugVector(Group, Camera->Basis, Camera->Basis.X, V3(0,0,0), World_Coordinates, Yellow);
+        // PushDebugVector(Group, Camera->Basis, Camera->Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
+        // PushDebugVector(Group, Camera->Basis, Camera->Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
         
         UIMenu DebugMenu = UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 5.0f, 0.0f);
 
