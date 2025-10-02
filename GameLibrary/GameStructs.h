@@ -1,4 +1,4 @@
-bool IsStructType(debug_type Type) { return Type > 38 && Type < 51; }
+bool IsStructType(debug_type Type) { return Type > 41 && Type < 55; }
 
 struct debug_struct_member {
     const char* Name;
@@ -10,7 +10,7 @@ struct debug_struct_member {
     bool IsPointer;
 };
 
-const int STRUCT_MEMBERS_SIZE = 66;
+const int STRUCT_MEMBERS_SIZE = 79;
 debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Translation", Debug_Type_transform, Debug_Type_v3, sizeof(v3), (uint64)(&((transform*)0)->Translation),0, false},
     {"Scale", Debug_Type_transform, Debug_Type_scale, sizeof(scale), (uint64)(&((transform*)0)->Scale),0, false},
@@ -57,14 +57,18 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"Type", Debug_Type_enemy, Debug_Type_enemy_type, sizeof(enemy_type), (uint64)(&((enemy*)0)->Type),0, false},
     {"MeshID", Debug_Type_enemy, Debug_Type_game_mesh_id, sizeof(game_mesh_id), (uint64)(&((enemy*)0)->MeshID),0, false},
     {"TextureID", Debug_Type_enemy, Debug_Type_game_bitmap_id, sizeof(game_bitmap_id), (uint64)(&((enemy*)0)->TextureID),0, false},
-    {"KnownSpells", Debug_Type_enemy, Debug_Type_bool, sizeof(bool), (uint64)(&((enemy*)0)->KnownSpells),0, false},
-    {"ID", Debug_Type_weapon, Debug_Type_uint32, sizeof(uint32), (uint64)(&((weapon*)0)->ID),0, false},
+    {"Spells", Debug_Type_enemy, Debug_Type_spell_id, sizeof(spell_id), (uint64)(&((enemy*)0)->Spells),0, false},
     {"Type", Debug_Type_weapon, Debug_Type_weapon_type, sizeof(weapon_type), (uint64)(&((weapon*)0)->Type),0, false},
+    {"MeshID", Debug_Type_weapon, Debug_Type_game_mesh_id, sizeof(game_mesh_id), (uint64)(&((weapon*)0)->MeshID),0, false},
+    {"Collider", Debug_Type_weapon, Debug_Type_collider, sizeof(collider), (uint64)(&((weapon*)0)->Collider),0, false},
+    {"Transform", Debug_Type_weapon, Debug_Type_transform, sizeof(transform), (uint64)(&((weapon*)0)->Transform),0, false},
+    {"SpellCasting", Debug_Type_weapon, Debug_Type_bool, sizeof(bool), (uint64)(&((weapon*)0)->SpellCasting),0, false},
+    {"Modifier", Debug_Type_weapon, Debug_Type_stats, sizeof(stats), (uint64)(&((weapon*)0)->Modifier),0, false},
+    {"ID", Debug_Type_weapon, Debug_Type_uint32, sizeof(uint32), (uint64)(&((weapon*)0)->ID),0, false},
+    {"Entity", Debug_Type_weapon, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((weapon*)0)->Entity),0, true},
     {"Affinity", Debug_Type_weapon, Debug_Type_magic_affinity, sizeof(magic_affinity), (uint64)(&((weapon*)0)->Affinity),0, false},
     {"Color", Debug_Type_weapon, Debug_Type_color, sizeof(color), (uint64)(&((weapon*)0)->Color),0, false},
-    {"Entity", Debug_Type_weapon, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((weapon*)0)->Entity),0, true},
     {"ParentBone", Debug_Type_weapon, Debug_Type_int, sizeof(int), (uint64)(&((weapon*)0)->ParentBone),0, false},
-    {"SpellCasting", Debug_Type_weapon, Debug_Type_bool, sizeof(bool), (uint64)(&((weapon*)0)->SpellCasting),0, false},
     {"ID", Debug_Type_character_action, Debug_Type_character_action_id, sizeof(character_action_id), (uint64)(&((character_action*)0)->ID),0, false},
     {"AnimationID", Debug_Type_character_action, Debug_Type_game_animation_id, sizeof(game_animation_id), (uint64)(&((character_action*)0)->AnimationID),0, false},
     {"Loop", Debug_Type_character_action, Debug_Type_bool, sizeof(bool), (uint64)(&((character_action*)0)->Loop),0, false},
@@ -77,5 +81,14 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"RightHand", Debug_Type_character, Debug_Type_weapon, sizeof(weapon), (uint64)(&((character*)0)->RightHand),0, true},
     {"Action", Debug_Type_character, Debug_Type_character_action, sizeof(character_action), (uint64)(&((character*)0)->Action),0, false},
     {"Class", Debug_Type_character, Debug_Type_character_class, sizeof(character_class), (uint64)(&((character*)0)->Class),0, false},
-    {"KnownSpells", Debug_Type_character, Debug_Type_bool, sizeof(bool), (uint64)(&((character*)0)->KnownSpells),0, false},
+    {"Spells", Debug_Type_character, Debug_Type_spell_id, sizeof(spell_id), (uint64)(&((character*)0)->Spells),0, false},
+    {"Entity", Debug_Type_combatant, Debug_Type_game_entity, sizeof(game_entity), (uint64)(&((combatant*)0)->Entity),0, true},
+    {"Stats", Debug_Type_combatant, Debug_Type_stats, sizeof(stats), (uint64)(&((combatant*)0)->Stats),0, true},
+    {"Modifier", Debug_Type_combatant, Debug_Type_stats, sizeof(stats), (uint64)(&((combatant*)0)->Modifier),0, false},
+    {"Affinity", Debug_Type_combatant, Debug_Type_magic_affinity, sizeof(magic_affinity), (uint64)(&((combatant*)0)->Affinity),0, false},
+    {"Index", Debug_Type_combatant, Debug_Type_uint32, sizeof(uint32), (uint64)(&((combatant*)0)->Index),0, false},
+    {"ATB", Debug_Type_combatant, Debug_Type_float, sizeof(float), (uint64)(&((combatant*)0)->ATB),0, false},
+    {"Type", Debug_Type_combatant, Debug_Type_combatant_type, sizeof(combatant_type), (uint64)(&((combatant*)0)->Type),0, false},
+    {"Spells", Debug_Type_combatant, Debug_Type_spell_id, sizeof(spell_id), (uint64)(&((combatant*)0)->Spells),0, false},
+    {"AlteredState", Debug_Type_combatant, Debug_Type_bool, sizeof(bool), (uint64)(&((combatant*)0)->AlteredState),0, false},
 };

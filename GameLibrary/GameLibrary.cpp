@@ -50,14 +50,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         Transition(pGameState, Game_State_Main_Menu);
 
-        // Initialize combat
-        pGameState->Combat.State = EntityState;
-
         // Initialize camera
         ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
         ActiveCamera->OnAir = true;
-
-        pGameState->Combat.Group = Group;
 
         Memory->IsInitialized = true;
     }

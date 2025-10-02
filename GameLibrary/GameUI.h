@@ -247,7 +247,7 @@ ui_element* PushUIElement(
     Element->Alignment[axis_x] = AlignmentX;
     Element->Alignment[axis_y] = AlignmentY;
     Element->Flags = Flags;
-    Element->Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
+    Element->Hovered = IsInside(Element->Rect, UI.Input->Mouse.Cursor);
     Element->Clicked = Element->Hovered && UI.Input->Mouse.LeftClick.JustPressed;
 
     if (Element->Clicked) {
@@ -590,7 +590,7 @@ struct _UIDropdown {
         Element->Rect.Width = Width;
         Element->Rect.Height = Height;
 
-        bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
+        bool Hovered = IsInside(Element->Rect, UI.Input->Mouse.Cursor);
         if (Hovered) {
             Element->Color = Yellow;
         }
@@ -652,7 +652,7 @@ bool UIButton(const char* Text) {
     }
     Element->Points = Points;
 
-    bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
+    bool Hovered = IsInside(Element->Rect, UI.Input->Mouse.Cursor);
     if (Hovered) {
         Element->Color = Yellow;
     }
@@ -860,8 +860,8 @@ void UpdateCombatUI(
             if (UIButton("Attack")) {
                 pGameState->Combat.Turn.Action = combatant_action_attack;
             }
-            for (int i = 0; i < spell_id_count; i++) {
-                if (ActiveCombatant->KnownSpells[i]) {
+            for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
+                if (ActiveCombatant->Spells[i] != Spell_Empty) {
                     if (UIButton("Magic")) {
                         pGameState->Combat.Turn.Action = combatant_action_magic;
                     };
@@ -869,9 +869,15 @@ void UpdateCombatUI(
                 }
             }
 
-            if (UIButton("Items")) {
-                pGameState->Combat.Turn.Action = combatant_action_items;
+            for (int i = 0; i < 3; i++) {
+                if (pGameState->Inventory[i] != Item_Type_None) {
+                    if (UIButton("Items")) {
+                        pGameState->Combat.Turn.Action = combatant_action_items;
+                    }
+                    break;
+                }
             }
+
             if (UIButton("Flee")) {
                 pGameState->Combat.Turn.Action = combatant_action_flee;
             }
@@ -910,8 +916,8 @@ void UpdateCombatUI(
 
             MagicMenu.Element->RelativePosition[axis_x] = CombatMenuWidth;
 
-            for (int i = 1; i < spell_id_count; i++) {
-                if (ActiveCombatant->KnownSpells[i]) {
+            for (int i = 1; i < MAX_COMBATANT_SPELLS; i++) {
+                if (ActiveCombatant->Spells[i] != Spell_Empty) {
                     spell Spell = Spells[i];
                     if (UIButton(Spell.Name)) {
                         pGameState->Combat.Turn.Spell = Spell.ID;
@@ -959,7 +965,7 @@ void UpdateCombatUI(
         bool Alive = false;
         for (int i = 0; i < Combat->Combatants.Count; i++) {
             combatant* Combatant = &Combat->Combatants.Content[i];
-            if (Combatant->Type == Combatant_Type_Player && IsAlive(Combatant)) {
+            if (Combatant->Type == Combatant_Type_Player && !Combatant->AlteredState[altered_state_dead]) {
                 Alive = true;
                 break;
             }
@@ -999,7 +1005,7 @@ void UpdateMapUI(
                 PushRectOutline(Group, Rect, White);
             }
             for (int k = 0; k < Room->nPrevious; k++) {
-                if (Room->Previous[k] == CurrentRoom && IsIn(Rect, Input->Mouse.Cursor)) {
+                if (Room->Previous[k] == CurrentRoom && IsInside(Rect, Input->Mouse.Cursor)) {
                     PushRectOutline(Group, Rect, Yellow);
                     if (Input->Mouse.LeftClick.JustPressed) {
                         State->CurrentRoom = Room;
@@ -1030,9 +1036,24 @@ void UpdateTradeUI(
 
     switch(State->CurrentRoom->Type) {
         case Room_Type_Merchant: {
-            UIMenu StoreMenu = UIMenu("Store menu", axis_x);
+            UIMenu StoreMenu = UIMenu("Store menu", axis_y, ui_alignment_center, ui_alignment_center, 10.0f, 20.0f);
 
-            UIText("Item1 Item2 Item3");
+            char Buffer[16];
+            for (int i = 0; i < 3; i++) {
+                item Item = Items[State->Store[i]];
+                PushBitmap(Group, Item.BitmapID, {400.0f, 220.0f + 60.0f*i, 60.0f, 60.0f}, SORT_ORDER_DEBUG_OVERLAY + 20.0f);
+                if (UIButton(Item.Name)) {
+                    for (int j = 0; j < 3; j++) {
+                        item_type InventoryItem = State->Inventory[j];
+                        if (InventoryItem == Item_Type_None) {
+                            State->Inventory[j] = Item.Type;
+                            State->Gold -= 10;
+                            Transition(State, Game_State_Map);
+                            break;
+                        }
+                    }
+                }
+            }
 
             if (UIButton("Skip")) {
                 Transition(State, Game_State_Map);
@@ -1100,8 +1121,12 @@ void UpdateTradeUI(
 
             if (SelectedSpell != Spell_Empty) {
                 character* Character = &State->Entities.Characters.List[0];
+                for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
+                    if (Character->Spells[i] != Spell_Empty) {
+                        Character->Spells[i] = SelectedSpell;
+                    }
+                }
 
-                Character->KnownSpells[SelectedSpell] = true;
                 Transition(State, Game_State_Map);
             }
             
@@ -1241,6 +1266,37 @@ void UpdateUI(
                 Settings = false;
             }
         }
+
+        // Gold
+        char Buffer[64];
+        sprintf_s(Buffer, "Gold: %d", State->Gold);
+        PushText(Group, V2(Group->Width - 200, 50), Font_Menlo_Regular_ID, Buffer, Yellow);
+
+        // Inventory
+        static bool Selected[3] = {};
+        for (int i = 0; i < 3; i++) {
+            item Item = Items[State->Inventory[i]];
+            if (Item.Type != Item_Type_None) {
+                rectangle Rect = { 60.0f*i, 0.0f, 60.0f, 60.0f };
+                PushBitmap(Group, Item.BitmapID, Rect);
+                if (State->Type == Game_State_Combat && State->Combat.Turn.Action == combatant_action_items) {
+                    bool Hovered = IsInside(Rect, Input->Mouse.Cursor);
+                    if (Hovered || Selected[i]) {
+                        PushRectOutline(Group, Rect, Yellow);
+                    }
+
+                    if (Hovered && Input->Mouse.LeftClick.JustPressed) {
+                        State->Combat.Turn.UsedItem = Item.Type;
+                        Selected[i] = true;
+                        Selected[i + 1 % 3] = false;
+                        Selected[i + 2 % 3] = false;
+                    }
+                }
+                else {
+                    Selected[i] = false;
+                }
+            }
+        }
     }
 
     // Debug UI
@@ -1339,6 +1395,18 @@ void UpdateUI(
             for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];
                 UIDebugValue(Entry);
+            }
+        }
+
+        if (Combat->Active) {
+            if (UIDropdown(Combat)) {
+                DEBUG_ARRAY(Combat->Combatants.Content, Combat->Combatants.Count, combatant);
+
+                nEntries = DebugInfo->nEntries;
+                for (; i < nEntries; i++) {
+                    debug_entry* Entry = &DebugInfo->Entries[i];
+                    UIDebugValue(Entry);
+                }
             }
         }
         

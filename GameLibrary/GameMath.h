@@ -1956,7 +1956,7 @@ rectangle Rectangle(float Left, float Top, float Width, float Height) {
 	return {Left, Top, Width, Height};
 }
 
-bool IsIn(rectangle Rect, v2 Position) {
+bool IsInside(rectangle Rect, v2 Position) {
 	return Rect.Left <= Position.X && Position.X <= Rect.Left+Rect.Width &&
 		   Rect.Top  <= Position.Y && Position.Y <= Rect.Top+Rect.Height;
 }
@@ -2267,7 +2267,7 @@ bool HitBoundingBox(float minB[3], float maxB[3], float origin[3], float dir[3],
 bool Raycast(ray Ray, collider Collider) {
 	switch(Collider.Type) {
 		case Rect_Collider: {
-			return IsIn(Rectangle(Collider), V2(Ray.Point.X, Ray.Point.Y));
+			return IsInside(Rectangle(Collider), V2(Ray.Point.X, Ray.Point.Y));
 		} break;
 		case Cube_Collider: {
 			float minB[3] = { 0 };

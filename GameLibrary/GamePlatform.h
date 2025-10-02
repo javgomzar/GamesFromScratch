@@ -290,8 +290,8 @@ uint64 GetLength(linked_list List) {
 // Fixed length arrays
 
 #define ArrayStructDefinition(Capacity, Type) struct Type##_array { uint32 Size = Capacity; uint32 Count = 0; Type Content[Capacity]; }
-#define ArrayAppendDefinition(Capacity, Type) void Append(Type##_array* Array, Type Element) { Assert(Array->Count < Capacity); \
-    Array->Content[Array->Count++] = Element; }
+#define ArrayAppendDefinition(Capacity, Type) Type* Append(Type##_array* Array, Type Element) { Assert(Array->Count < Capacity); \
+    Type* Result = &Array->Content[Array->Count++]; *Result = Element; return Result; }
 #define ArrayPopDefinition(Capacity, Type) Type Pop(Type##_array* Array) { Assert(Array->Count > 0); \
     Type Result = Array->Content[Array->Count]; Array->Content[Array->Count--] = {}; return Result; }
 #define ArrayClearDefinition(Type) void Clear(Type##_array* Array) { for(int i = 0; i < Array->Count; i++) Array->Content[i] = {}; Array->Count = 0; }

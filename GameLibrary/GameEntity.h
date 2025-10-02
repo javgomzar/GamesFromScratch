@@ -299,6 +299,106 @@ const spell_id LifeDeathSpellIDs[nLifeDeathSpells] = { Spell_Poison, Spell_Rot, 
 const int nTimeSpells = 5;
 const spell_id TimeSpellIDs[nTimeSpells] = { Spell_Slow, Spell_Accelerate, Spell_Tempo, Spell_Stop, Spell_Rewind, };
 
+const uint32 MAX_COMBATANT_SPELLS = 4;
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Items                                                                                                                                        |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+ENUM(item_type,
+    Item_Type_None,
+    Item_Type_Potion,
+    Item_Type_Antidote,
+    Item_Type_Bomb,
+    Item_Type_Phoenix_Feather,
+    Item_Type_Lightning_Bottle,
+    Item_Type_Water_Bottle,
+    Item_Type_Poison,
+    Item_Type_Acid
+);
+
+struct item {
+    const char* Name;
+    item_type Type;
+    game_bitmap_id BitmapID;
+    float Rarity;
+};
+
+item Items[item_type_count] = {
+    {
+        "",
+        Item_Type_None,
+        Bitmap_Empty_ID,
+        0.0f
+    },
+    {
+        "Potion",
+        Item_Type_Potion,
+        Bitmap_Potion_ID,
+        1.0f
+    },
+    {
+        "Antidote",
+        Item_Type_Antidote,
+        Bitmap_Antidote_ID,
+        1.0f
+    },
+    {
+        "Bomb",
+        Item_Type_Bomb,
+        Bitmap_Bomb_ID,
+        1.0f
+    },
+    {
+        "Phoenix Feather",
+        Item_Type_Phoenix_Feather,
+        Bitmap_Phoenix_Feather_ID,
+        0.1f
+    },
+    {
+        "Lightning in a bottle",
+        Item_Type_Lightning_Bottle,
+        Bitmap_Lightning_Bottle_ID,
+        0.5f
+    },
+    {
+        "Water bottle",
+        Item_Type_Water_Bottle,
+        Bitmap_Water_Bottle_ID,
+        1.0f
+    },
+    {
+        "Poison",
+        Item_Type_Poison,
+        Bitmap_Poison_ID,
+        1.0f
+    },
+    {
+        "Acid",
+        Item_Type_Acid,
+        Bitmap_Acid_ID,
+        1.0f
+    },
+};
+
+item_type RandomItemType() {
+    float TotalRarity = 0;
+    for (int i = 0; i < item_type_count; i++) {
+        TotalRarity += Items[i].Rarity;
+    }
+
+    float r = RandFloat();
+    float Acc = 0;
+    for (int i = 0; i < item_type_count; i++) {
+        Acc += Items[i].Rarity / TotalRarity;
+        if (r < Acc) {
+            return (item_type)i;
+        }
+    }
+
+    return (item_type)(item_type_count - 1);
+}
+
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Enemies                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -321,7 +421,7 @@ struct enemy {
     enemy_type Type;
     game_mesh_id MeshID;
     game_bitmap_id TextureID;
-    bool KnownSpells[spell_id_count];
+    spell_id Spells[MAX_COMBATANT_SPELLS];
 };
 
 const enemy EnemyTemplates[enemy_type_count] = {
@@ -399,55 +499,69 @@ ENUM(weapon_type,
     Weapon_Knife
 );
 
-game_mesh_id WeaponMeshIDs[weapon_type_count] = {
-    Mesh_Sword_ID,
-    Mesh_Shield_ID,
-    Mesh_Staff_ID,
-    Mesh_Bow_ID,
-    Mesh_Knife_ID
-};
-
-transform WeaponTransforms[weapon_type_count] = {
-    Transform(
-        V3(0.5f,2.0f,0),
-        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
-    ),
-    Transform(
-        V3(-0.7f,2.2f,0),
-        Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0))
-    ),
-    Transform(
-        V3(0.4f,2.0f,1.0f),
-        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0)),
-        Scale(0.75, 0.75, 0.75)
-    ),
-    Transform(
-        V3(0.5f,2.0f,0),
-        Quaternion(0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
-    ),
-    Transform(
-        V3(0.5f,2.0f,0),
-        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
-    ),
-};
-
-collider WeaponColliders[weapon_type_count] = {
-    CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
-    CapsuleCollider(V3(0,-0.3,0), V3(0,0.7,0), 1.0f),
-    CapsuleCollider(V3(0,-4.5,0), V3(0,2,0), 0.5f),
-    CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
-    CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
-};
-
 INTROSPECT
 struct weapon {
-    uint32 ID;
     weapon_type Type;
+    game_mesh_id MeshID;
+    collider Collider;
+    transform Transform;
+    bool SpellCasting;
+    stats Modifier;
+    uint32 ID;
+    game_entity* Entity;
     magic_affinity Affinity;
     color Color;
-    game_entity* Entity;
     int ParentBone;
-    bool SpellCasting;
+};
+
+weapon WeaponTemplates[weapon_type_count] = {
+    {
+        Weapon_Sword,
+        Mesh_Sword_ID,
+        CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
+        Transform(
+            V3(0.5f,2.0f,0),
+            Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
+        )
+    },
+    {
+        Weapon_Shield,
+        Mesh_Shield_ID,
+        CapsuleCollider(V3(0,-0.3,0), V3(0,0.7,0), 1.0f),
+        Transform(
+            V3(-0.7f,2.2f,0),
+            Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0))
+        )
+    },
+    {
+        Weapon_Staff,
+        Mesh_Staff_ID,
+        CapsuleCollider(V3(0,-4.5,0), V3(0,2,0), 0.5f),
+        Transform(
+            V3(0.4f,2.0f,1.0f),
+            Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0)),
+            Scale(0.75, 0.75, 0.75)
+        ),
+        true
+    },
+    {
+        Weapon_Bow,
+        Mesh_Bow_ID,
+        CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
+        Transform(
+            V3(0.5f,2.0f,0),
+            Quaternion(0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
+        )
+    },
+    {
+        Weapon_Knife,
+        Mesh_Knife_ID,
+        CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
+        Transform(
+            V3(0.5f,2.0f,0),
+            Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
+        ),
+    },
 };
 
 const int MAX_WEAPONS = 32;
@@ -496,7 +610,7 @@ struct character {
     weapon* RightHand;
     character_action Action;
     character_class Class;
-    bool KnownSpells[spell_id_count];
+    spell_id Spells[MAX_COMBATANT_SPELLS];
 };
 
 character_action CharacterAction(character_action_id ID) {
@@ -747,19 +861,19 @@ weapon* AddWeapon(
     Assert(State->Weapons.Count < MAX_WEAPONS);
 
     weapon* pWeapon = Insert(&State->Weapons);
-    pWeapon->Type = Type;
-    pWeapon->ParentBone = -1;
+    uint32 ID = pWeapon->ID;
+    *pWeapon = WeaponTemplates[Type];
+    pWeapon->ID = ID;
     pWeapon->Color = Color;
 
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Weapon %d", pWeapon->ID);
 
-    collider Collider = WeaponColliders[pWeapon->Type];
     pWeapon->Entity = AddEntity(
         State, 
         NameBuffer, 
         Entity_Type_Weapon,
-        Collider,
+        pWeapon->Collider,
         Position, 
         Rotation, 
         S
@@ -774,7 +888,7 @@ character* AddCharacter(game_entity_state* State, character_class Class, v3 Posi
     character* pCharacter = Insert(&State->Characters);
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Character %d", pCharacter->ID);
+    sprintf_s(NameBuffer, "%s %d", ClassNames[Class], pCharacter->ID);
 
     quaternion Rotation = Quaternion(1.5f * Pi, V3(0,1,0));
     pCharacter->Entity = AddEntity(
@@ -880,7 +994,7 @@ prop* AddProp(
 
 ENUM(altered_state,
     altered_state_none,
-    altered_state_burned,
+    altered_state_burnt,
     altered_state_wet,
     altered_state_frozen,
     altered_state_drowning,
@@ -891,6 +1005,58 @@ ENUM(altered_state,
     altered_state_regenerating
 );
 
+ENUM(combatant_type,
+    Combatant_Type_Player,
+    Combatant_Type_Enemy
+);
+
+INTROSPECT
+struct combatant {
+    game_entity* Entity;
+    stats* Stats;
+    stats Modifier;
+    magic_affinity Affinity;
+    uint32 Index;
+    float ATB;
+    combatant_type Type;
+    spell_id Spells[MAX_COMBATANT_SPELLS];
+    bool AlteredState[altered_state_count];
+};
+
+const int MAX_COMBATANTS = 32;
+
+combatant Combatant(character* Character) {
+    combatant Result = {};
+    Result.Stats = &Character->Stats;
+    Result.Entity = Character->Entity;
+    Result.ATB = 100.0f;
+    Result.Type = Combatant_Type_Player;
+    for (int i = 0; i < spell_id_count; i++) {
+        Result.Spells[i] = Character->Spells[i];
+    }
+    return Result;
+}
+
+combatant Combatant(enemy* Enemy) {
+    combatant Result = {};
+    Result.Stats = &Enemy->Stats;
+    Result.Entity = Enemy->Entity;
+    Result.ATB = 100.0f;
+    Result.Type = Combatant_Type_Enemy;
+    for (int i = 0; i < spell_id_count; i++) {
+        Result.Spells[i] = Enemy->Spells[i];
+    }
+    return Result;
+}
+
+ENUM(combatant_action,
+    combatant_action_empty,
+    combatant_action_attack,
+    combatant_action_magic,
+    combatant_action_items,
+    combatant_action_flee
+);
+
 struct damage_animation {
     uint32 ID;
     uint32 Damage;
@@ -898,7 +1064,44 @@ struct damage_animation {
     bool Active;
 };
 
-DefineFreeList(16, damage_animation);
+DefineFreeList(MAX_COMBATANTS, damage_animation);
+
+void HealDamage(combatant* Target, uint32 Damage) {
+    Target->Stats->HP += Damage;
+    if (Target->Stats->HP > Target->Stats->MaxHP)
+        Target->Stats->HP = Target->Stats->MaxHP;
+}
+
+void ApplyAlteredState(combatant* Target, altered_state State) {
+    Target->AlteredState[State] = true;
+}
+
+void RemoveAlteredState(combatant* Target, altered_state State) {
+    Target->AlteredState[State] = false;
+}
+
+void ApplyDamage(damage_animation_list* DamageAnimations, combatant* Target, uint32 Damage) {
+    if  (Target->Stats->HP <= Damage) {
+        Target->Stats->HP = 0;
+        ApplyAlteredState(Target, altered_state_dead);
+    }
+    else Target->Stats->HP -= Damage;
+
+    damage_animation* Animation = Insert(DamageAnimations);
+    Animation->Active = true;
+    Animation->Damage = Damage;
+    Animation->t = 0;
+}
+
+void ApplyStatModifier(combatant* Target, stats Modifier) {
+    Target->Modifier.MaxHP        += Modifier.MaxHP;
+    Target->Modifier.Strength     += Modifier.Strength;
+    Target->Modifier.Defense      += Modifier.Defense;
+    Target->Modifier.Intelligence += Modifier.Intelligence;
+    Target->Modifier.Wisdom       += Modifier.Wisdom;
+    Target->Modifier.Speed        += Modifier.Speed;
+    Target->Modifier.Precission   += Modifier.Precission;
+}
 
 void Update(damage_animation_list* CombatAnimations, render_group* Group, float dt) {
     char TextBuffer[32];
@@ -926,67 +1129,6 @@ void Update(damage_animation_list* CombatAnimations, render_group* Group, float 
     }
 }
 
-enum combatant_type {
-    Combatant_Type_Player,
-    Combatant_Type_Enemy,
-};
-
-struct combatant {
-    game_entity* Entity;
-    stats* Stats;
-    uint32 Index;
-    float ATB;
-    combatant_type Type;
-    bool KnownSpells[spell_id_count];
-    bool State[altered_state_count];
-};
-
-combatant Combatant(character* Character) {
-    combatant Result;
-    Result.Stats = &Character->Stats;
-    Result.Entity = Character->Entity;
-    Result.ATB = 100.0f;
-    Result.Type = Combatant_Type_Player;
-    for (int i = 0; i < spell_id_count; i++) {
-        Result.KnownSpells[i] = Character->KnownSpells[i];
-    }
-    return Result;
-}
-
-combatant Combatant(enemy* Enemy) {
-    combatant Result;
-    Result.Stats = &Enemy->Stats;
-    Result.Entity = Enemy->Entity;
-    Result.ATB = 100.0f;
-    Result.Type = Combatant_Type_Enemy;
-    for (int i = 0; i < spell_id_count; i++) {
-        Result.KnownSpells[i] = Enemy->KnownSpells[i];
-    }
-    return Result;
-}
-
-bool IsAlive(combatant* Combatant) {
-    return Combatant->Stats->HP > 0;
-}
-
-void ReceiveDamage(combatant* Combatant, int Damage) {
-    if (Damage > Combatant->Stats->HP) {
-        Combatant->Stats->HP = 0;
-    }
-    else Combatant->Stats->HP -= Damage;
-}
-
-enum combatant_action {
-    combatant_action_empty,
-    combatant_action_attack,
-    combatant_action_magic,
-    combatant_action_items,
-    combatant_action_flee,
-
-    combatant_action_count
-};
-
-const int MAX_COMBATANTS = 32;
 struct turn {
     combatant* Attacker;
     uint32 Index;
@@ -996,6 +1138,7 @@ struct turn {
     float ATBCost;
     combatant_action Action;
     spell_id Spell;
+    item_type UsedItem;
     bool TargetsSelected;
 };
 
@@ -1008,172 +1151,312 @@ struct game_combat {
     turn Turn;
     memory_arena TurnsArena;
     damage_animation_list DamageAnimations;
-    game_entity_state* State;
-    render_group* Group;
     bool Active;
-    
-    // Advances ATB of turn. If a new attacker is found, it is returned; returns NULL otherwise.
-    combatant* AdvanceTurnATB(turn& T, int AttackerIndex = -1) {
-        combatant* Result = NULL;
-        float MaxSpeed = 0.0f;
-        for (int i = 0; i < Combatants.Count; i++) {
-            combatant* Combatant = &Combatants.Content[i];
-            if (IsAlive(Combatant)) {
-                if (AttackerIndex != i) T.ATB[i] += Combatant->Stats->Speed;
-                if (T.ATB[i] >= 100.0f) {
-                    if (
-                        Combatant->Stats->Speed > MaxSpeed || 
-                        // If current attacker's speed is equal to this potential attacker, flip a coin
-                        Combatant->Stats->Speed == MaxSpeed && Bernoulli()
-                    ) Result = Combatant;
-                }
-                T.ATB[i] = Clamp(T.ATB[i], 0.0f, 100.0f);
+};
+
+void Erase(game_combat* Combat) {
+    ClearArena(&Combat->TurnsArena);
+    Clear(&Combat->Combatants);
+    Combat->Turn = {};
+    for (int i = 0; i < TURN_BUFFER_SIZE; i++) {
+        Combat->NextTurns[i] = {};
+    }
+}
+
+// Advances ATB of turn. If a new attacker is found, it is returned; returns NULL otherwise.
+combatant* AdvanceTurnATB(combatant_array* Combatants, turn* Turn, int AttackerIndex = -1) {
+    combatant* Result = NULL;
+    float MaxSpeed = 0.0f;
+    for (int i = 0; i < Combatants->Count; i++) {
+        combatant* Combatant = &Combatants->Content[i];
+        if (!Combatant->AlteredState[altered_state_dead]) {
+            if (AttackerIndex != i) Turn->ATB[i] += Combatant->Stats->Speed;
+            if (Turn->ATB[i] >= 100.0f) {
+                if (
+                    Combatant->Stats->Speed > MaxSpeed || 
+                    // If current attacker's speed is equal to this potential attacker, flip a coin
+                    Combatant->Stats->Speed == MaxSpeed && Bernoulli()
+                ) Result = Combatant;
             }
-        }
-        return Result;
-    }
-
-    // Applies ATB cost and advances turn ATB until new attacker is found.
-    turn GetNextTurn(turn PreviousTurn) {
-        turn Result = PreviousTurn;
-        Result.Index++;
-        Result.Attacker = 0;
-        Result.nTargets = 0;
-        Result.Action = combatant_action_empty;
-        for (int i = 0; i < Combatants.Count; i++) {
-            Result.Targets[i] = 0;
-        }
-
-        // Apply ATB Cost
-        Result.ATB[PreviousTurn.Attacker->Index] -= PreviousTurn.ATBCost;
-        Result.Attacker = AdvanceTurnATB(Result, PreviousTurn.Attacker->Index);
-
-        while (Result.Attacker == 0) {
-            Result.Attacker = AdvanceTurnATB(Result);
-        }
-        return Result;
-    }
-
-    void Erase() {
-        ClearArena(&TurnsArena);
-        Clear(&Combatants);
-        Turn = {};
-        for (int i = 0; i < TURN_BUFFER_SIZE; i++) {
-            NextTurns[i] = {};
+            Turn->ATB[i] = Clamp(Turn->ATB[i], 0.0f, 100.0f);
         }
     }
+    return Result;
+}
 
-    void FillTurnBuffer() {
-        NextTurns[0] = GetNextTurn(Turn);
-        for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
-            NextTurns[i] = GetNextTurn(NextTurns[i-1]);
-        }
+// Applies ATB cost and advances turn ATB until new attacker is found.
+turn GetNextTurn(combatant_array* Combatants, turn PreviousTurn) {
+    turn Result = PreviousTurn;
+    Result.Index++;
+    Result.Attacker = NULL;
+    Result.nTargets = 0;
+    Result.Action = combatant_action_empty;
+    for (int i = 0; i < Combatants->Count; i++) {
+        Result.Targets[i] = NULL;
     }
 
-    void Start() {
-        Erase();
-        Active = true;
+    // Apply ATB Cost
+    Result.ATB[PreviousTurn.Attacker->Index] -= PreviousTurn.ATBCost;
+    Result.Attacker = AdvanceTurnATB(Combatants, &Result, PreviousTurn.Attacker->Index);
 
-        // Add entities to struct and compute first attacker
-        float MaxSpeed = 0.0f;
-        uint32 nEntities = State->Entities.Count;
-        uint32 Index = 0;
-        while(nEntities > 0 && Index < MAX_ENTITIES) {
-            game_entity* Entity = &State->Entities.List[Index++];
-            if (!Entity->Active) continue;
-            else nEntities--;
-            
-            combatant EntityCombatant;
-            bool IsEnemy = Entity->Type == Entity_Type_Enemy;
-            bool IsCharacter = Entity->Type == Entity_Type_Character;
-            if (IsEnemy || IsCharacter) {
-                if (IsEnemy) {
-                    enemy* Enemy = &State->Enemies.List[Entity->Index];
-                    EntityCombatant = Combatant(Enemy);
-                }
-                else if (IsCharacter) {
-                    character* Character = &State->Characters.List[Entity->Index];
-                    EntityCombatant = Combatant(Character);
-                }
+    while (Result.Attacker == NULL) {
+        Result.Attacker = AdvanceTurnATB(Combatants, &Result);
+    }
+    return Result;
+}
 
-                EntityCombatant.Index = Combatants.Count;
-                combatant* Combatant = &Combatants.Content[EntityCombatant.Index];
-                Append(&Combatants, EntityCombatant);
-                Turn.ATB[Combatant->Index] = Combatant->ATB;
+void FillTurnBuffer(combatant_array* Combatants, turn Turn, turn* NextTurns) {
+    NextTurns[0] = GetNextTurn(Combatants, Turn);
+    for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
+        NextTurns[i] = GetNextTurn(Combatants, NextTurns[i-1]);
+    }
+}
 
-                if (EntityCombatant.Stats->Speed > MaxSpeed) {
-                    Turn.Attacker = Combatant;
+void Start(game_entity_state* State, game_combat* Combat) {
+    Erase(Combat);
+    Combat->Active = true;
+
+    // Add entities to struct and compute first attacker
+    float MaxSpeed = 0.0f;
+    uint32 nEntities = State->Entities.Count;
+    uint32 Index = 0;
+    while(nEntities > 0 && Index < MAX_ENTITIES) {
+        game_entity* Entity = &State->Entities.List[Index++];
+        if (!Entity->Active) continue;
+        else nEntities--;
+        
+        combatant EntityCombatant;
+        bool IsEnemy = Entity->Type == Entity_Type_Enemy;
+        bool IsCharacter = Entity->Type == Entity_Type_Character;
+        if (IsEnemy || IsCharacter) {
+            if (IsEnemy) {
+                enemy* Enemy = &State->Enemies.List[Entity->Index];
+                EntityCombatant = Combatant(Enemy);
+            }
+            else if (IsCharacter) {
+                character* Character = &State->Characters.List[Entity->Index];
+                EntityCombatant = Combatant(Character);
+            }
+
+            EntityCombatant.Index = Combat->Combatants.Count;
+            combatant* Combatant = &Combat->Combatants.Content[EntityCombatant.Index];
+            Append(&Combat->Combatants, EntityCombatant);
+            Combat->Turn.ATB[Combatant->Index] = Combatant->ATB;
+
+            // Compute first attacker
+            if (EntityCombatant.Stats->Speed > MaxSpeed) {
+                Combat->Turn.Attacker = Combatant;
+                MaxSpeed = EntityCombatant.Stats->Speed;
+            }
+            else if (Combatant->Stats->Speed == MaxSpeed) {
+                if (Bernoulli()) {
+                    Combat->Turn.Attacker = Combatant;
                     MaxSpeed = EntityCombatant.Stats->Speed;
                 }
-                else if (Combatant->Stats->Speed == MaxSpeed) {
-                    if (Bernoulli()) {
-                        Turn.Attacker = Combatant;
-                        MaxSpeed = EntityCombatant.Stats->Speed;
+            }
+        }
+    }
+
+    Combat->Turn.Index = 0;
+    Combat->Turn.ATBCost = 50.0f;
+    Combat->Turn.nTargets = 1;
+    Combat->Turn.TargetsSelected = false;
+
+    FillTurnBuffer(&Combat->Combatants, Combat->Turn, Combat->NextTurns);
+}
+
+bool Apply(game_entity_state* State, turn Turn, damage_animation_list* DamageAnimations) {
+    bool UpdateTurnBuffer = false;
+    for (int i = 0; i < Turn.nTargets; i++) {
+        combatant* Target = Turn.Targets[i];
+        switch (Turn.Action) {
+            case combatant_action_attack: {
+                uint32 Damage = Turn.Attacker->Stats->Strength + Turn.Attacker->Modifier.Strength;
+                ApplyDamage(DamageAnimations, Target, Damage);
+            } break;
+
+            case combatant_action_magic: {
+                spell Spell = Spells[Turn.Spell];
+
+                uint32 Damage = Spell.Damage + Turn.Attacker->Stats->Intelligence;
+
+                // Altered states
+                switch (Turn.Spell) {
+                    case Spell_Fireball:
+                    case Spell_Burn:
+                    case Spell_Incinerate:
+                    case Spell_Explosion: {
+                        if (Bernoulli(0.4f)) {
+                            ApplyAlteredState(Target, altered_state_burnt);
+                        }
+                        if (Target->AlteredState[altered_state_frozen]) {
+                            RemoveAlteredState(Target, altered_state_frozen);
+                        }
+                        ApplyDamage(DamageAnimations, Target, Damage);
+                    } break;
+
+                    case Spell_Drown:
+                        ApplyAlteredState(Target, altered_state_drowning);
+                    case Spell_Drench:
+                    case Spell_Wave:
+                    case Spell_Cascade:
+                    case Spell_Wash:
+                    case Spell_Hydrate: {
+                        ApplyAlteredState(Target, altered_state_wet);
+                        ApplyDamage(DamageAnimations, Target, Damage);
+                    } break;
+
+                    case Spell_Icicle:
+                    case Spell_Blizzard:
+                    case Spell_Freeze:
+                    case Spell_Absolute_Zero: {
+                        ApplyAlteredState(Target, altered_state_frozen);
+                        ApplyDamage(DamageAnimations, Target, Damage);
+                    } break;
+                        
+                    // Air (Octahedron)
+                        // Spell_Wind,
+                        // Spell_Gust,
+                        // Spell_Fly,
+                        // Spell_Air_Shield,
+                        // Spell_Tornado,
+                        // Spell_Hurricane,
+
+                    case Spell_Poison: {
+                        ApplyAlteredState(Target, altered_state_poisoned);
+                    } break;
+
+                    case Spell_Rot: {
+                        ApplyAlteredState(Target, altered_state_rotting);
+                    } break;
+
+                    case Spell_Bleed: {
+                        ApplyAlteredState(Target, altered_state_bleeding);
+                    } break;
+
+                    case Spell_Kill:
+                    case Spell_Multikill: {
+                        if (Bernoulli(0.1f)) {
+                            ApplyAlteredState(Target, altered_state_dead);
+                        }
+                        else {
+                            ApplyDamage(DamageAnimations, Target, Spell.Damage);
+                        }
+                    }
+
+                    case Spell_Cure: 
+                    case Spell_Multicure: {
+                        for (int j = 0; j < altered_state_count; j++) {
+                            RemoveAlteredState(Target, (altered_state)j);
+                        }
+                    } break;
+
+                    case Spell_Heal: {
+                        HealDamage(Target, Damage);
+                    } break;
+
+                    case Spell_Regeneration: 
+                    case Spell_Multiheal: {
+                        ApplyAlteredState(Target, altered_state_regenerating);
+                    } break;
+
+                    case Spell_Resurrect: {
+                        RemoveAlteredState(Target, altered_state_dead);
+                    } break;
+
+                    case Spell_Slow: {
+                        stats Modifier = {};
+                        Modifier.Speed /= 2;
+                        ApplyStatModifier(Target, Modifier);
+                    } break;
+
+                    case Spell_Accelerate: {
+                        stats Modifier = {};
+                        Modifier.Speed *= 2;
+                        ApplyStatModifier(Target, Modifier);
+                    } break;
+
+                    case Spell_Stop: {
+                        ApplyAlteredState(Target, altered_state_frozen);
+                    } break;
+
+                    default: {
+                        Raise("NOT IMPLEMENTED");
                     }
                 }
-            }
+            } break;
+
+            case combatant_action_items: {
+                switch (Turn.UsedItem) {
+                    case Item_Type_Potion: {
+                        HealDamage(Target, 50);
+                    } break;
+
+                    case Item_Type_Antidote: {
+                        RemoveAlteredState(Target, altered_state_poisoned);
+                    } break;
+
+                    case Item_Type_Bomb: {
+                        ApplyDamage(DamageAnimations, Target, 50);
+                    } break;
+
+                    case Item_Type_Phoenix_Feather: {
+                        RemoveAlteredState(Target, altered_state_dead);
+                    } break;
+
+                    case Item_Type_Lightning_Bottle: {
+                        ApplyDamage(DamageAnimations, Target, 75);
+                    } break;
+
+                    case Item_Type_Water_Bottle: {
+                        ApplyAlteredState(Target, altered_state_wet);
+                    } break;
+
+                    case Item_Type_Poison: {
+                        ApplyAlteredState(Target, altered_state_poisoned);
+                    } break;
+
+                    case Item_Type_Acid: {
+                        ApplyAlteredState(Target, altered_state_burnt);
+                    } break;
+                }
+            } break;
+
+            default: Raise("Invalid or empty combatant action.");
         }
 
-        Turn.Index = 0;
-        Turn.ATBCost = 50.0f;
-        Turn.nTargets = 1;
-        Turn.TargetsSelected = false;
+        // Did someone die?
+        if (Target->AlteredState[altered_state_dead]) {
+            UpdateTurnBuffer = true;
+        }
+    }
+    return UpdateTurnBuffer;
+}
 
-        FillTurnBuffer();
+void EndTurn(
+    game_entity_state* State, 
+    damage_animation_list* DamageAnimations, 
+    memory_arena* TurnsArena, 
+    combatant_array* Combatants, 
+    turn* Turn, 
+    turn* NextTurns
+) {
+    bool UpdateTurnBuffer = Apply(State, *Turn, DamageAnimations);
+
+    if (UpdateTurnBuffer) {
+        FillTurnBuffer(Combatants, *Turn, NextTurns);
     }
 
-    void EndTurn() {
-        bool UpdateTurnBuffer = false;
-        for (int i = 0; i < Turn.nTargets; i++) {
-            combatant* Target = Turn.Targets[i];
+    turn* History = PushStruct(TurnsArena, turn);
+    *History = *Turn;
 
-            uint32 Damage = 0;
-            switch (Turn.Action) {
-                case combatant_action_attack: {
-                    Damage = Turn.Attacker->Stats->Strength;
-                } break;
-                case combatant_action_magic: {
-                    spell Spell = Spells[Turn.Spell];
-                    Damage = Spell.Damage;
-                } break;
-            }
-
-            if (Damage > 0) {
-                ReceiveDamage(Target, Damage);
-            }
-
-            damage_animation* Animation = Insert(&DamageAnimations);
-            Animation->Active = true;
-            Animation->Damage = Damage;
-            Animation->t = 0;
-
-            // Did someone die?
-            if (Target->Entity->Active && !IsAlive(Target)) {
-                UpdateTurnBuffer = true;
-                Target->Entity->Active = false;
-                RemoveEntity(State, Target->Entity->ID);
-            }
-        }
-
-        if (UpdateTurnBuffer) {
-            FillTurnBuffer();
-        }
-
-        turn* History = PushStruct(&TurnsArena, turn);
-        *History = Turn;
-        Turn = NextTurns[0];
-        for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
-            NextTurns[i-1] = NextTurns[i];
-        }
-        turn LastKnown = NextTurns[TURN_BUFFER_SIZE - 1];
-        NextTurns[TURN_BUFFER_SIZE - 1] = GetNextTurn(LastKnown);
+    *Turn = NextTurns[0];
+    for (int i = 1; i < TURN_BUFFER_SIZE; i++) {
+        NextTurns[i-1] = NextTurns[i];
     }
-
-    void End() {
-        Erase();
-        Active = false;
-    }
-};
+    turn LastKnown = NextTurns[TURN_BUFFER_SIZE - 1];
+    NextTurns[TURN_BUFFER_SIZE - 1] = GetNextTurn(Combatants, LastKnown);
+}
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Rooms                                                                                                                                        |
@@ -1372,6 +1655,9 @@ struct game_state {
     particle_emitter* Emitter;
     game_combat Combat;
     level Level;
+    uint32 Gold;
+    item_type Store[3];
+    item_type Inventory[3];
     room* CurrentRoom;
     character* ControlledCharacter;
     camera* ActiveCamera;
@@ -1401,7 +1687,19 @@ void Transition(game_state* State, game_state_type Type) {
                 AddCharacter(&State->Entities, Companion, V3(0,0,0), 500);
             }
 
-            State->Combat.Start();
+            Start(&State->Entities, &State->Combat);
+        } break;
+
+        case Game_State_Trade: {
+            State->Store[0] = RandomItemType();
+            State->Store[1] = RandomItemType();
+            while (State->Store[1] == State->Store[0]) {
+                State->Store[1] = RandomItemType();
+            }
+            State->Store[2] = RandomItemType();
+            while (State->Store[2] == State->Store[0] || State->Store[2] == State->Store[1]) {
+                State->Store[2] = RandomItemType();
+            }
         } break;
 
         case Game_State_Camp: {
@@ -1421,7 +1719,7 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         combatant_array* Combatants = &Combat->Combatants;
         for (int i = 0; i < Combatants->Count; i++) {
             combatant* Combatant = &Combatants->Content[i];
-            if (IsAlive(Combatant) && Combatant->Entity->Hovered) {
+            if (!Combatant->AlteredState[altered_state_dead] && Combatant->Entity->Hovered) {
                 Hot = Combatant;
             }
         }
@@ -1433,15 +1731,43 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
                     if (Hot->Type != Combat->Turn.Attacker->Type) {
                         Turn->nTargets = 1;
                         Turn->Targets[0] = Hot;
-                        Combat->EndTurn();
+                        EndTurn(
+                            EntityState, 
+                            &Combat->DamageAnimations, 
+                            &Combat->TurnsArena, 
+                            &Combat->Combatants, 
+                            &Combat->Turn,
+                            Combat->NextTurns
+                        );
                     }
                 } break;
+
                 case combatant_action_magic: {
                     if (Hot->Type != Turn->Attacker->Type && Turn->Spell != Spell_Empty) {
                         Turn->nTargets = 1;
                         Turn->Targets[0] = Hot;
-                        Combat->EndTurn();
+                        EndTurn(
+                            EntityState, 
+                            &Combat->DamageAnimations, 
+                            &Combat->TurnsArena, 
+                            &Combat->Combatants, 
+                            &Combat->Turn,
+                            Combat->NextTurns
+                        );
                     }
+                } break;
+
+                case combatant_action_items: {
+                    Turn->nTargets = 1;
+                    Turn->Targets[0] = Hot;
+                    EndTurn(
+                        EntityState, 
+                        &Combat->DamageAnimations, 
+                        &Combat->TurnsArena, 
+                        &Combat->Combatants, 
+                        &Combat->Turn,
+                        Combat->NextTurns
+                    );
                 } break;
             }
         }
@@ -1452,15 +1778,23 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         for (int i = 0; i < Combatants->Count; i++) {
             combatant* Enemy = &Combatants->Content[i];
             if (Enemy->Type == Combatant_Type_Enemy) {
-                if (IsAlive(Enemy)) {
+                if (!Enemy->AlteredState[altered_state_dead]) {
                     CombatEnd = false;
                     break;
                 }
             }
         }
         if (CombatEnd) {
-            Combat->End();
+            Erase(Combat);
+            Combat->Active = false;
+            State->Gold += 10;
             Transition(State, Game_State_Map);
+            for (int i = 0; i < Combat->Combatants.Count; i++) {
+                combatant* Combatant = &Combat->Combatants.Content[i];
+                if (Combatant->AlteredState[altered_state_dead]) {
+                    RemoveEntity(EntityState, Combatant->Entity->ID);
+                }
+            }
         }
     }
 
@@ -1640,8 +1974,7 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         else {
             character* Owner = &EntityState->Characters.List[pWeapon->Entity->Parent->Index];
             bone Bone = Owner->Armature.Bones[pWeapon->ParentBone];
-            transform Transform = WeaponTransforms[pWeapon->Type];
-            pWeapon->Entity->Transform = Transform * Bone.Transform * Owner->Entity->Transform;
+            pWeapon->Entity->Transform = pWeapon->Transform * Bone.Transform * Owner->Entity->Transform;
         }
     }
 }
@@ -1667,7 +2000,8 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
         Entity->Hovered = Raycast(Ray, Collider);
         bool Outline = Entity->Hovered && (
             Combat->Turn.Action == combatant_action_attack ||
-            Combat->Turn.Action == combatant_action_magic && Combat->Turn.Spell != Spell_Empty
+            Combat->Turn.Action == combatant_action_magic && Combat->Turn.Spell != Spell_Empty ||
+            Combat->Turn.Action == combatant_action_items && Combat->Turn.UsedItem != Item_Type_None
         );
         switch(Entity->Type) {
             case Entity_Type_Character: {
@@ -1755,9 +2089,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
 
             case Entity_Type_Weapon: {
                 weapon* pWeapon = &State->Weapons.List[Entity->Index];
-                game_mesh_id MeshID = WeaponMeshIDs[pWeapon->Type];
-
-                PushMesh(Group, MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
+                PushMesh(Group, pWeapon->MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
             } break;
         }
 

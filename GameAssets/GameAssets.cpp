@@ -64,19 +64,27 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Text\\Files\\Test.txt", Text_Test_ID);
 
     // Bitmaps
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Background.bmp", Bitmap_Background_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Button.bmp",     Bitmap_Button_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Empty.bmp",      Bitmap_Empty_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Enemy.bmp",      Bitmap_Enemy_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Player.bmp",     Bitmap_Player_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Anvil.bmp",      Bitmap_Anvil_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Combat.bmp",     Bitmap_Combat_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Fire.bmp",       Bitmap_Fire_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Coin.bmp",       Bitmap_Coin_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Quest.bmp",      Bitmap_Quest_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Wizard.bmp",     Bitmap_Wizard_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Miniboss.bmp",   Bitmap_Miniboss_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Boss.bmp",       Bitmap_Boss_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Background.bmp",         Bitmap_Background_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Button.bmp",             Bitmap_Button_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Empty.bmp",              Bitmap_Empty_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Enemy.bmp",              Bitmap_Enemy_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Player.bmp",             Bitmap_Player_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Anvil.bmp",              Bitmap_Anvil_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Combat.bmp",             Bitmap_Combat_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Fire.bmp",               Bitmap_Fire_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Coin.bmp",               Bitmap_Coin_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Quest.bmp",              Bitmap_Quest_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Wizard.bmp",             Bitmap_Wizard_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Miniboss.bmp",           Bitmap_Miniboss_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Boss.bmp",               Bitmap_Boss_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Potion.bmp",             Bitmap_Potion_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Poison.bmp",             Bitmap_Poison_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Acid.bmp",               Bitmap_Acid_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Antidote.bmp",           Bitmap_Antidote_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Bomb.bmp",               Bitmap_Bomb_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Water.bmp",              Bitmap_Water_Bottle_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\LightningInABottle.bmp", Bitmap_Lightning_Bottle_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Feather.bmp",            Bitmap_Phoenix_Feather_ID);
 
     // Heightmaps
     PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\spain.bmp", Heightmap_Spain_ID);

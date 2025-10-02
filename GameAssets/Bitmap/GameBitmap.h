@@ -9,7 +9,15 @@ ENUM(game_bitmap_id,
     Bitmap_Empty_ID,
     Bitmap_Enemy_ID,
     Bitmap_Player_ID,
-
+// Items
+    Bitmap_Potion_ID,
+    Bitmap_Antidote_ID,
+    Bitmap_Poison_ID,
+    Bitmap_Acid_ID,
+    Bitmap_Water_Bottle_ID,
+    Bitmap_Lightning_Bottle_ID,
+    Bitmap_Bomb_ID,
+    Bitmap_Phoenix_Feather_ID,
 // Room types
     Bitmap_Anvil_ID,
     Bitmap_Combat_ID,
