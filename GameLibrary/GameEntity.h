@@ -743,6 +743,7 @@ struct game_entity_state {
     camera_list Cameras;
     character_list Characters;
     enemy_list Enemies;
+    uint32 nEnemyTypes[enemy_type_count];
     prop_list Props;
     weapon_list Weapons;
 };
@@ -773,7 +774,7 @@ game_entity* AddEntity(
 
 void RemoveEntity(game_entity_state* State, int EntityID) {
     game_entity* Entity = &State->Entities.List[EntityID];
-    Assert(!Entity->Active);
+    Assert(Entity->Active);
 
     switch(Entity->Type) {
         case Entity_Type_Camera: {
@@ -940,14 +941,15 @@ character* AddCharacter(game_entity_state* State, character_class Class, v3 Posi
 
 enemy* AddEnemy(game_entity_state* State, v3 Position, enemy_type Type) {
     Assert(State->Characters.Count < MAX_ENEMIES);
-    static int32 EnemyQuantities[enemy_type_count] = {};
+
+    uint32 TypeID = State->nEnemyTypes[Type]++;
 
     // If any ID is free, use it
     enemy* pEnemy = Insert(&State->Enemies);
     FillTemplate(pEnemy, Type);
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "%s %d", EnemyNames[Type], EnemyQuantities[Type]++);
+    sprintf_s(NameBuffer, "%s %d", EnemyNames[Type], TypeID);
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
     collider Collider = EnemyColliders[Type];
@@ -1001,8 +1003,8 @@ ENUM(altered_state,
     altered_state_poisoned,
     altered_state_rotting,
     altered_state_bleeding,
-    altered_state_dead,
-    altered_state_regenerating
+    altered_state_regenerating,
+    altered_state_dead
 );
 
 ENUM(combatant_type,
@@ -1031,7 +1033,7 @@ combatant Combatant(character* Character) {
     Result.Entity = Character->Entity;
     Result.ATB = 100.0f;
     Result.Type = Combatant_Type_Player;
-    for (int i = 0; i < spell_id_count; i++) {
+    for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
         Result.Spells[i] = Character->Spells[i];
     }
     return Result;
@@ -1043,7 +1045,7 @@ combatant Combatant(enemy* Enemy) {
     Result.Entity = Enemy->Entity;
     Result.ATB = 100.0f;
     Result.Type = Combatant_Type_Enemy;
-    for (int i = 0; i < spell_id_count; i++) {
+    for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
         Result.Spells[i] = Enemy->Spells[i];
     }
     return Result;
@@ -1785,7 +1787,6 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
             }
         }
         if (CombatEnd) {
-            Erase(Combat);
             Combat->Active = false;
             State->Gold += 10;
             Transition(State, Game_State_Map);
@@ -1794,6 +1795,12 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
                 if (Combatant->AlteredState[altered_state_dead]) {
                     RemoveEntity(EntityState, Combatant->Entity->ID);
                 }
+            }
+
+            Erase(Combat);
+
+            for (int i = 0; i < enemy_type_count; i++) {
+                EntityState->nEnemyTypes[i] = 0;
             }
         }
     }

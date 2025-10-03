@@ -90,5 +90,5 @@ debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {
     {"ATB", Debug_Type_combatant, Debug_Type_float, sizeof(float), (uint64)(&((combatant*)0)->ATB),0, false},
     {"Type", Debug_Type_combatant, Debug_Type_combatant_type, sizeof(combatant_type), (uint64)(&((combatant*)0)->Type),0, false},
     {"Spells", Debug_Type_combatant, Debug_Type_spell_id, sizeof(spell_id), (uint64)(&((combatant*)0)->Spells),4, false},
-    {"AlteredState", Debug_Type_combatant, Debug_Type_bool, sizeof(bool), (uint64)(&((combatant*)0)->AlteredState),0, false},
+    {"AlteredState", Debug_Type_combatant, Debug_Type_bool, sizeof(bool), (uint64)(&((combatant*)0)->AlteredState),10, false},
 };
