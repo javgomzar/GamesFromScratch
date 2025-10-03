@@ -44,6 +44,9 @@ enum debug_type {
     Debug_Type_combatant_action,
     Debug_Type_room_type,
     Debug_Type_game_state_type,
+    Debug_Type_render_command_type,
+    Debug_Type_render_primitive,
+    Debug_Type_render_flags,
     Debug_Type_transform,
     Debug_Type_segment3,
     Debug_Type_game_animation,
@@ -59,7 +62,13 @@ enum debug_type {
     Debug_Type_combatant,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 42; }
+enum render_flags {
+    DEPTH_TEST_RENDER_FLAG = 1 << 0,
+    STENCIL_TEST_RENDER_FLAG = 1 << 1,
+};
+
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 44; }
+bool IsFlagType(debug_type Type) { return Type > 43 && Type < 45; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -67,7 +76,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 189;
+const int ENUM_VALUES_SIZE = 203;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -258,6 +267,26 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_state_type, "Game_State_Map", 4},
     {Debug_Type_game_state_type, "Game_State_Credits", 5},
     {Debug_Type_game_state_type, "game_state_type_count", 6},
+    {Debug_Type_render_command_type, "render_clear", 0},
+    {Debug_Type_render_command_type, "render_draw_primitive", 1},
+    {Debug_Type_render_command_type, "render_shader_pass", 2},
+    {Debug_Type_render_command_type, "render_compute_shader_pass", 3},
+    {Debug_Type_render_command_type, "render_target", 4},
+    {Debug_Type_render_command_type, "render_command_type_count", 5},
+    {Debug_Type_render_primitive, "render_primitive_point", 0},
+    {Debug_Type_render_primitive, "render_primitive_line", 1},
+    {Debug_Type_render_primitive, "render_primitive_line_strip", 2},
+    {Debug_Type_render_primitive, "render_primitive_line_loop", 3},
+    {Debug_Type_render_primitive, "render_primitive_triangle", 4},
+    {Debug_Type_render_primitive, "render_primitive_triangle_fan", 5},
+    {Debug_Type_render_primitive, "render_primitive_patches", 6},
+    {Debug_Type_render_primitive, "render_primitive_count", 7},
+};
+
+const int FLAG_VALUES_SIZE = 2;
+debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {
+    {Debug_Type_render_flags, "DEPTH_TEST_RENDER_FLAG", 1},
+    {Debug_Type_render_flags, "STENCIL_TEST_RENDER_FLAG", 2},
 };
 
 #endif

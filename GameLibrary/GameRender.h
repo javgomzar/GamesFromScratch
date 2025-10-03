@@ -122,26 +122,23 @@ struct render_clear_command {
     color Color;
 };
 
-enum render_primitive {
+ENUM(render_primitive,
     render_primitive_point,
     render_primitive_line,
     render_primitive_line_strip,
     render_primitive_line_loop,
     render_primitive_triangle,
     render_primitive_triangle_fan,
-    render_primitive_patches,
+    render_primitive_patches
+);
 
-    render_primitive_count
-};
-
-typedef uint64 render_flags;
-enum {
-    DEPTH_TEST_RENDER_FLAG   = 1 << 0,
-    STENCIL_TEST_RENDER_FLAG = 1 << 1,
-};
+FLAGS(render_flags,
+    DEPTH_TEST_RENDER_FLAG,
+    STENCIL_TEST_RENDER_FLAG
+);
 
 struct render_primitive_options {
-    render_flags Flags = 0;
+    render_flags Flags;
     float Thickness = 2.0f;
     transform Transform = IdentityTransform;
     game_bitmap* Texture = NULL;
@@ -221,7 +218,7 @@ light Light(v3 Direction, color Color = White, float Ambient = 0.5f, float Diffu
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int MAX_FRAMEBUFFER_COUNT = 8;
-const int MAX_PRIMITIVE_COMMANDS = Kilobytes(8);
+const int MAX_PRIMITIVE_COMMANDS = 8192;
 const int MAX_MESH_COMMANDS = 64;
 const int MAX_HEIGHTMAP_COMMANDS = 8;
 const int MAX_SHADER_PASS_COMMANDS = 32;

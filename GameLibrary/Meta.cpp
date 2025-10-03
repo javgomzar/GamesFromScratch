@@ -72,6 +72,10 @@ int main() {
 
     std::vector<std::string> EnumDebugTypes = {};
     std::vector<std::string> EnumValues = {};
+    std::vector<std::string> FlagDebugTypes = {};
+    std::vector<std::string> FlagValues = {};
+    std::string FlagDeclarations = "";
+    uint32 nFlagTypes = 0;
     std::vector<std::string> StructDebugTypes = {};
     std::vector<std::string> StructMembers = {};
 
@@ -82,6 +86,7 @@ int main() {
         "..\\GameAssets\\Bitmap\\GameBitmap.h",
         "..\\GameLibrary\\GameEntity.h",
         "..\\GameLibrary\\GameLibrary.cpp",
+        "..\\GameLibrary\\GameRender.h",
     };
 
     char Buffer[256];
@@ -119,7 +124,7 @@ int main() {
                     Constants[ConstantName] = Value;
                 }
             }
-            if (Token == "INTROSPECT") {
+            else if (Token == "INTROSPECT") {
                 Token = GetToken(Tokenizer);
                 if (Token == "struct") {
                     token StructType = RequireToken(Tokenizer, Token_Identifier);
@@ -165,16 +170,16 @@ int main() {
                         Token = GetToken(Tokenizer);
                     }
                 }
-                else if (Token == "enum") {
-
-                }
             }
-            if (Token == "ENUM") {
+            else if (Token == "ENUM") {
                 RequireToken(Tokenizer, Token_OpenParen);
+
                 token EnumName = RequireToken(Tokenizer, Token_Identifier);
                 sprintf_s(Buffer, "Debug_Type_%s", EnumName.Text);
                 EnumDebugTypes.push_back(std::string(Buffer));
+
                 Token = RequireToken(Tokenizer, Token_Comma);
+
                 int Value = 0;
                 while(Token.Type != Token_CloseParen) {
                     Token = RequireToken(Tokenizer, Token_Identifier);
@@ -186,6 +191,41 @@ int main() {
                 sprintf_s(Buffer, "    {Debug_Type_%s, \"%s_count\", %d},\n", EnumName.Text, EnumName.Text, Value++);
                 EnumValues.push_back(std::string(Buffer));
             }
+            else if (Token == "FLAGS") {
+                RequireToken(Tokenizer, Token_OpenParen);
+
+                token FlagsName = RequireToken(Tokenizer, Token_Identifier);
+                sprintf_s(Buffer, "Debug_Type_%s", FlagsName.Text);
+                FlagDebugTypes.push_back(std::string(Buffer));
+
+                sprintf_s(Buffer, "enum %s {\n", FlagsName.Text);
+                FlagDeclarations += std::string(Buffer);
+
+                RequireToken(Tokenizer, Token_Comma);
+
+                int Bit = 0;
+                while(Token.Type != Token_CloseParen) {
+                    token FlagValue = RequireToken(Tokenizer, Token_Identifier);
+                    Token = GetToken(Tokenizer);
+                    if (Token.Type == Token_Comma || Token.Type == Token_CloseParen) {
+                        sprintf_s(Buffer, "    {Debug_Type_%s, \"%s\", %d},\n", FlagsName.Text, FlagValue.Text, 1 << Bit);
+                        FlagValues.push_back(std::string(Buffer));
+                        sprintf_s(Buffer, "    %s = 1 << %d,\n", FlagValue.Text, Bit);
+                        FlagDeclarations += std::string(Buffer);
+                        Bit++;
+                    }
+                    else if (Token.Type == Token_Equal) {
+                        FlagDeclarations += std::string("    ") + std::string(FlagValue.Text);
+                        Token = GetToken(Tokenizer);
+                        while (Token.Type != Token_Comma && Token.Type != Token_OpenParen) {
+                            FlagDeclarations += std::string(Token.Text);
+                        }
+                        FlagDeclarations += std::string(",\n");
+                    }
+                }
+                FlagDeclarations += std::string("};\n\n");
+                nFlagTypes += 1;
+            }
 
             Token = GetToken(Tokenizer);
         }
@@ -195,15 +235,25 @@ int main() {
         fprintf(EnumsFile, "    %s,\n", EnumName.c_str());
     }
 
+    for (const std::string& FlagName : FlagDebugTypes) {
+        fprintf(EnumsFile, "    %s,\n", FlagName.c_str());
+    }
+
     for (const std::string& StructName : StructDebugTypes) {
         fprintf(EnumsFile, "    %s,\n", StructName.c_str());
     }
 
     fprintf(EnumsFile, "};\n\n");
 
+    fprintf(EnumsFile, "%s", FlagDeclarations.c_str());
+
     int nEnums = EnumDebugTypes.size();
-    fprintf(EnumsFile, "bool IsEnumType(debug_type Type) { return Type > %d && Type < %d; }\n\n", 
+    fprintf(EnumsFile, "bool IsEnumType(debug_type Type) { return Type > %d && Type < %d; }\n", 
         nPrimitiveTypes - 1, nPrimitiveTypes + nEnums
+    );
+
+    fprintf(EnumsFile, "bool IsFlagType(debug_type Type) { return Type > %d && Type < %d; }\n\n",
+        nPrimitiveTypes + nEnums - 1, nPrimitiveTypes + nEnums + nFlagTypes
     );
 
     fprintf(EnumsFile,
@@ -215,10 +265,24 @@ int main() {
 
     fprintf(EnumsFile, "const int ENUM_VALUES_SIZE = %d;\n", (int)EnumValues.size());
     if (EnumValues.size() > 0) {
-        fprintf(EnumsFile, "debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {\n", (int)EnumValues.size());
+        fprintf(EnumsFile, "debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {\n");
 
         for (const std::string& EnumValue : EnumValues) {
             fprintf(EnumsFile, "%s", EnumValue.c_str());
+        }
+
+        fprintf(EnumsFile, "};\n\n");
+    }
+    else {
+        fprintf(EnumsFile, "debug_enum_value* EnumValues = 0;\n\n");
+    }
+
+    fprintf(EnumsFile, "const int FLAG_VALUES_SIZE = %d;\n", (int)FlagValues.size());
+    if (FlagValues.size() > 0) {
+        fprintf(EnumsFile, "debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {\n");
+
+        for (const std::string& FlagValue : FlagValues) {
+            fprintf(EnumsFile, "%s", FlagValue.c_str());
         }
 
         fprintf(EnumsFile, "};\n\n");
@@ -231,7 +295,7 @@ int main() {
 
     int nStructs = StructDebugTypes.size();
     fprintf(StructsFile, "bool IsStructType(debug_type Type) { return Type > %d && Type < %d; }\n\n", 
-        nPrimitiveTypes + nEnums - 1, nPrimitiveTypes + nEnums + nStructs
+        nPrimitiveTypes + nEnums + nFlagTypes - 1, nPrimitiveTypes + nEnums + nFlagTypes + nStructs
     );
 
     fprintf(StructsFile,

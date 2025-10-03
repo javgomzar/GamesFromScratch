@@ -14,7 +14,7 @@ struct debug_entry {
     void* Value;
     debug_type Type;
     bool Editable;
-    char ValueString[64];
+    char ValueString[128];
 };
 
 const int MAX_DEBUG_ENTRIES = 128;
@@ -286,15 +286,37 @@ void UpdateAndSizeDebugEntry(game_font* Font, debug_entry* Entry, float* OutWidt
             
             default: {
                 if (IsEnumType(Entry->Type)) {
+                    int Value = *(int*)Entry->Value;
                     for (int i = 0; i < ENUM_VALUES_SIZE; i++) {
                         debug_enum_value EnumValue = EnumValues[i];
-                        int Value = *(int*)Entry->Value;
                         if (EnumValue.EnumType == Entry->Type && EnumValue.Value == Value) {
                             sprintf_s(Entry->ValueString, "%s (%d)", EnumValue.Identifier, Value);
                             GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
                             break;
                         }
                     }
+                }
+                else if (IsFlagType(Entry->Type)) {
+                    int Matches = 0;
+                    int Value = *(int*)Entry->Value;
+                    for (int i = 0; i < FLAG_VALUES_SIZE; i++) {
+                        debug_enum_value FlagValue = FlagValues[i];
+                        if (FlagValue.EnumType == Entry->Type && (FlagValue.Value & Value)) {
+                            if (Matches == 0) {
+                                sprintf_s(Entry->ValueString, "%s", FlagValue.Identifier);
+                            }
+                            else {
+                                strcat_s(Entry->ValueString, " | ");
+                                strcat_s(Entry->ValueString, FlagValue.Identifier);
+                            }
+
+                            Matches++;
+                        }
+                    }
+                    char Buffer[16];
+                    sprintf_s(Buffer, " (%d)", Value);
+                    strcat_s(Entry->ValueString, Buffer);
+                    GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
                 }
                 else if (IsStructType(Entry->Type)) {
                     if (Entry->Value == 0) {
@@ -401,10 +423,7 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color 
         } break;
 
         default: {
-            if (IsEnumType(Entry->Type)) {
-                PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
-            }
-            else if (IsStructType(Entry->Type)) {
+            if (IsEnumType(Entry->Type) || IsFlagType(Entry->Type) || IsStructType(Entry->Type)) {
                 PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
             }
         }
