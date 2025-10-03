@@ -299,7 +299,7 @@ const spell_id LifeDeathSpellIDs[nLifeDeathSpells] = { Spell_Poison, Spell_Rot, 
 const int nTimeSpells = 5;
 const spell_id TimeSpellIDs[nTimeSpells] = { Spell_Slow, Spell_Accelerate, Spell_Tempo, Spell_Stop, Spell_Rewind, };
 
-const uint32 MAX_COMBATANT_SPELLS = 4;
+const int MAX_COMBATANT_SPELLS = 4;
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Items                                                                                                                                        |
