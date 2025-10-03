@@ -188,8 +188,10 @@ int main() {
                     Token = GetToken(Tokenizer);
                     if (Token.Type != Token_CloseParen) Assert(Token.Type == Token_Comma);
                 }
-                sprintf_s(Buffer, "    {Debug_Type_%s, \"%s_count\", %d},\n", EnumName.Text, EnumName.Text, Value++);
+                sprintf_s(Buffer, "    {Debug_Type_%s, \"%s_count\", %d},\n", EnumName.Text, EnumName.Text, Value);
                 EnumValues.push_back(std::string(Buffer));
+                sprintf_s(Buffer, "%s_count", EnumName.Text);
+                Constants[std::string(Buffer)] = Value;
             }
             else if (Token == "FLAGS") {
                 RequireToken(Tokenizer, Token_OpenParen);
