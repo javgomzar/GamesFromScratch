@@ -51,6 +51,50 @@ enum token_type {
     Token_End
 };
 
+const char* TokenTypeName[] = {
+    "unknown",
+
+    "open parenthesis",
+    "close parenthesis",
+    "open bracket",
+    "close bracket",
+    "open brace",
+    "close brace",
+
+    "dot",
+    "comma",
+    "colon",
+    "semicolon",
+    "underscore",
+    "pound",
+
+    "equal",
+    "lessThan",
+    "greaterThan",
+    "plus",
+    "minus",
+    "asterisk",
+    "percent",
+    "back slash",
+    "forwardd slash",
+    "interrogation",
+    "exclamation",
+    "tilde",
+    "at",
+    "bar",
+    "and",
+    "caret",
+
+    "identifier",
+    "string",
+    "constant integer",
+    "constant decimal",
+    "constant hexadecimal",
+    "constant binary",
+
+    "EOF"
+};
+
 const int MAX_TOKEN_LENGTH = 128;
 
 struct token {
@@ -342,14 +386,14 @@ token RequireToken(tokenizer& Tokenizer, token_type Type) {
         char ErrorBuffer[256];
         sprintf_s(
             ErrorBuffer, 
-            "Token `%s` at line %d, column %d is type %d but should be %d.", 
+            "Token `%s` at line %d, column %d is type '%s' but should be '%s'.", 
             NextToken.Text, 
             NextToken.Line, 
             NextToken.Column, 
-            NextToken.Type,
-            Type
+            TokenTypeName[NextToken.Type],
+            TokenTypeName[Type]
         );
-        Assert(false);
+        Assert(false, ErrorBuffer);
     }
     return NextToken;
 }

@@ -22,6 +22,8 @@ typedef size_t memory_index;
 #define ENUM_END(Name) Name##_count }
 #define ENUM(Name, ...) ENUM_START(Name) __VA_ARGS__, ENUM_END(Name);
 
+#define FLAGS(...)
+
 uint16 BigEndian(uint16 LittleEndian) {
     return (LittleEndian << 8) | (LittleEndian >> 8);
 }
