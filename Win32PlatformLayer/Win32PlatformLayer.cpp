@@ -1115,6 +1115,14 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
 {
     hInst = hInstance; // Store instance handle in our global variable
 
+    BOOL DPIAwarenessResult = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    if (DPIAwarenessResult) {
+        Log(Info, "DPI awareness activated.");
+    }
+    else {
+        Log(Error, "Couldn't set DPI awareness.");
+    }
+
     // This code starts the window centered
     HWND hWnd = CreateWindowA(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, 0, 0,
         100, 100, nullptr, nullptr, hInstance, nullptr);
