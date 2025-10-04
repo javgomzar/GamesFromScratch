@@ -916,11 +916,11 @@ void UpdateCombatUI(
 
             MagicMenu.Element->RelativePosition[axis_x] = CombatMenuWidth;
 
-            for (int i = 1; i < MAX_COMBATANT_SPELLS; i++) {
-                if (ActiveCombatant->Spells[i] != Spell_Empty) {
-                    spell Spell = Spells[i];
-                    if (UIButton(Spell.Name)) {
-                        pGameState->Combat.Turn.Spell = Spell.ID;
+            for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
+                spell_id SpellID = ActiveCombatant->Spells[i];
+                if (SpellID != Spell_Empty) {
+                    if (UIButton(Spells[SpellID].Name)) {
+                        pGameState->Combat.Turn.Spell = SpellID;
                     }
                 }
             }
@@ -1122,8 +1122,9 @@ void UpdateTradeUI(
             if (SelectedSpell != Spell_Empty) {
                 character* Character = &State->Entities.Characters.List[0];
                 for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
-                    if (Character->Spells[i] != Spell_Empty) {
+                    if (Character->Spells[i] == Spell_Empty) {
                         Character->Spells[i] = SelectedSpell;
+                        break;
                     }
                 }
 
