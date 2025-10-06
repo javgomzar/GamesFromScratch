@@ -116,17 +116,17 @@ INTROSPECT
 struct stats {
     uint32 HP;
     uint32 MaxHP;
-    uint32 Strength;
-    uint32 Defense;
-    uint32 Intelligence;
-    uint32 Wisdom;
+    uint16 Strength;
+    uint16 Precission;
+    uint16 Defense;
+    uint16 Intelligence;
+    uint16 Wisdom;
     float Speed;
-    float Precission;
 };
 
-stats Stats(uint32 MaxHP, uint32 Strength, uint32 Defense, uint32 Intelligence, uint32 Wisdom, float Speed, float Precission) {
+stats Stats(uint32 MaxHP, uint16 Strength, uint16 Precission, uint16 Defense, uint16 Intelligence, uint16 Wisdom, float Speed) {
     return {
-        MaxHP, MaxHP, Strength, Defense, Intelligence, Wisdom, Speed, Precission
+        MaxHP, MaxHP, Strength, Precission, Defense, Intelligence, Wisdom, Speed
     };
 };
 
@@ -428,7 +428,7 @@ const enemy EnemyTemplates[enemy_type_count] = {
     {
         0,
         NULL,
-        Stats(50, 7, 10, 5, 5, 6, 10),
+        Stats(50, 10, 10, 5, 5, 6, 10),
         Enemy_Type_Horns,
         Mesh_Horns_ID,
         Bitmap_Enemy_ID,
@@ -436,7 +436,7 @@ const enemy EnemyTemplates[enemy_type_count] = {
     {
         0,
         NULL,
-        Stats(20, 2, 8, 2, 6, 10, 10),
+        Stats(30, 20, 8, 2, 6, 10, 10),
         Enemy_Type_Dog,
         Mesh_Dog_ID,
         Bitmap_Empty_ID,
@@ -883,7 +883,7 @@ weapon* AddWeapon(
     return pWeapon;
 }
 
-character* AddCharacter(game_entity_state* State, character_class Class, v3 Position, int MaxHP) {
+character* AddCharacter(game_entity_state* State, character_class Class, v3 Position) {
     Assert(State->Characters.Count < MAX_CHARACTERS);
 
     character* pCharacter = Insert(&State->Characters);
@@ -903,14 +903,8 @@ character* AddCharacter(game_entity_state* State, character_class Class, v3 Posi
     );
     pCharacter->Entity->Index = pCharacter->ID;
 
-    pCharacter->Stats.MaxHP = MaxHP;
-    pCharacter->Stats.HP = MaxHP;
-    pCharacter->Stats.Strength = 10;
-    pCharacter->Stats.Defense = 10;
-    pCharacter->Stats.Intelligence = 10;
-    pCharacter->Stats.Wisdom = 10;
-    pCharacter->Stats.Speed = 10;
-    pCharacter->Stats.Precission = 10;
+    pCharacter->Stats.MaxHP = 400;
+    pCharacter->Stats.HP = 400;
 
     switch (Class) {
         case Class_Knight: {
@@ -918,21 +912,49 @@ character* AddCharacter(game_entity_state* State, character_class Class, v3 Posi
             weapon* Shield = AddWeapon(State, Weapon_Shield, White, V3(-10,0,0));
             Equip(Sword, pCharacter);
             Equip(Shield, pCharacter);
+
+            pCharacter->Stats.Strength     = 10;
+            pCharacter->Stats.Defense      = 10;
+            pCharacter->Stats.Intelligence = 10;
+            pCharacter->Stats.Wisdom       = 10;
+            pCharacter->Stats.Speed        = 10;
+            pCharacter->Stats.Precission   = 10;
         } break;
 
         case Class_Rogue: {
             weapon* Knife = AddWeapon(State, Weapon_Knife, White, V3(-5,0,0));
             Equip(Knife, pCharacter);
+
+            pCharacter->Stats.Strength     = 10;
+            pCharacter->Stats.Defense      = 10;
+            pCharacter->Stats.Intelligence = 10;
+            pCharacter->Stats.Wisdom       = 10;
+            pCharacter->Stats.Speed        = 10;
+            pCharacter->Stats.Precission   = 10;
         } break;
         
         case Class_Hunter: {
             weapon* Bow = AddWeapon(State, Weapon_Bow, White, V3(-5,0,0));
             Equip(Bow, pCharacter);
+
+            pCharacter->Stats.Strength     = 10;
+            pCharacter->Stats.Defense      = 10;
+            pCharacter->Stats.Intelligence = 10;
+            pCharacter->Stats.Wisdom       = 10;
+            pCharacter->Stats.Speed        = 10;
+            pCharacter->Stats.Precission   = 10;
         } break;
 
         case Class_Wizard: {
             weapon* Staff = AddWeapon(State, Weapon_Staff, White, V3(-5,0,0));
             Equip(Staff, pCharacter);
+
+            pCharacter->Stats.Strength     = 10;
+            pCharacter->Stats.Defense      = 10;
+            pCharacter->Stats.Intelligence = 10;
+            pCharacter->Stats.Wisdom       = 10;
+            pCharacter->Stats.Speed        = 10;
+            pCharacter->Stats.Precission   = 10;
         } break;
     }
 
@@ -1675,18 +1697,29 @@ void Transition(game_state* State, game_state_type Type) {
 
     switch(Type) {
         case Game_State_Combat: {
-            uint32 nEnemies = RandInt(2, 4);
-            v3 Position = V3(10, 0, -5 * ((nEnemies - 1) / 2.0f));
-            for (int i = 0; i < nEnemies; i++) {
-                enemy_type EnemyType = (enemy_type)RandInt(0, EnemyTypeFirstMiniboss);
-                AddEnemy(&State->Entities, Position, EnemyType);
-                Position.Z += 5.0f;
+            if (State->CurrentRoom->Type == Room_Type_Combat || State->CurrentRoom->Type == Room_Type_Quest) {
+                uint32 nEnemies = RandInt(2, 4);
+                v3 Position = V3(10, 0, -5 * ((nEnemies - 1) / 2.0f));
+
+                for (int i = 0; i < nEnemies; i++) {
+                    enemy_type EnemyType = (enemy_type)RandInt(0, EnemyTypeFirstMiniboss);
+                    AddEnemy(&State->Entities, Position, EnemyType);
+                    Position.Z += 5.0f;
+                }
             }
+            else if (State->CurrentRoom->Type == Room_Type_Miniboss) {
+                enemy_type EnemyType = (enemy_type)RandInt(EnemyTypeFirstMiniboss, EnemyTypeFirstBoss);
+                AddEnemy(&State->Entities, V3(10, 0, 0), EnemyType);
+            }
+            else if (State->CurrentRoom->Type == Room_Type_Miniboss) {
+
+            }
+            else Raise("Invalid room type for game state combat.");
 
             if (State->CurrentRoom->Type == Room_Type_Quest) {
                 character_class Companion = RandomEnum(character_class);
 
-                AddCharacter(&State->Entities, Companion, V3(0,0,0), 500);
+                AddCharacter(&State->Entities, Companion, V3(0,0,0));
             }
 
             Start(&State->Entities, &State->Combat);
@@ -1954,7 +1987,12 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         else continue;
 
         if (pEnemy->Type == Enemy_Type_Horns) {
-            pEnemy->Entity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
+            if (pEnemy->Stats.HP > 0) {
+                pEnemy->Entity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
+            }
+            else {
+                pEnemy->Entity->Transform.Translation.Y = 0;
+            }
         }
 
         v3 FacingDirection = V3(-1,0,0);
@@ -2050,10 +2088,16 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
             case Entity_Type_Enemy: {
                 enemy* pEnemy = &State->Enemies.List[Entity->Index];
                 game_mesh* Mesh = GetAsset(Assets, pEnemy->MeshID);
+
+                transform DeadTransform = IdentityTransform;
+                if (pEnemy->Stats.HP == 0) {
+                    DeadTransform.Rotation = Quaternion(90 * Degrees, V3(1,0,0));
+                }
+
                 PushMesh(
                     Group,
                     pEnemy->MeshID,
-                    Entity->Transform,
+                    DeadTransform * Entity->Transform,
                     Shader_Pipeline_Mesh_ID,
                     pEnemy->TextureID,
                     White, 0,

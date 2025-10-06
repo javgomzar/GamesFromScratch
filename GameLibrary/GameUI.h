@@ -824,7 +824,7 @@ void UpdateMainMenuUI(
         for (int i = 0; i < character_class_count; i++) {
             if (UIButton(ClassNames[i])) {
                 character_class Class = (character_class)i;
-                character* Character = AddCharacter(&pGameState->Entities, Class, V3(0,0,0), 500);
+                character* Character = AddCharacter(&pGameState->Entities, Class, V3(0,0,0));
                 ClassSelection = false;
                 
                 RandomizeLevel(&pGameState->Level);
