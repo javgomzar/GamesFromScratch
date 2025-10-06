@@ -159,6 +159,27 @@ enum debug_type;
 int _RandomEnum(debug_type Type);
 #define RandomEnum(Type) (Type)_RandomEnum(Debug_Type_##Type)
 
+float Normal() {
+	static bool UseSaved = false;
+	static float SavedValue = 0.0f;
+
+	if (UseSaved) {
+		UseSaved = false;
+		return SavedValue;
+	}
+
+	float R = sqrtf(-2 * logf(RandFloat()));
+	float Theta = Tau * RandFloat();
+
+	UseSaved = true;
+	SavedValue = R * sinf(Theta);
+	return R * cosf(Theta);
+}
+
+float Normal(float Mean, float StdDeviation) {
+	return Mean + StdDeviation * Normal();
+}
+
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | 2D                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
