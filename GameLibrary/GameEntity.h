@@ -738,7 +738,7 @@ DefineFreeList(MAX_PROPS, prop);
 const int32 MAX_ENTITIES = MAX_CAMERAS + MAX_CHARACTERS + MAX_ENEMIES + MAX_PROPS;
 DefineFreeList(MAX_ENTITIES, game_entity);
 
-struct game_entity_state {
+struct game_entity_manager {
     game_entity_list Entities;
     camera_list Cameras;
     character_list Characters;
@@ -749,7 +749,7 @@ struct game_entity_state {
 };
 
 game_entity* AddEntity(
-    game_entity_state* State,
+    game_entity_list* Entities,
     const char* Name,
     game_entity_type Type,
     collider Collider,
@@ -758,10 +758,10 @@ game_entity* AddEntity(
     scale S = Scale(),
     bool Active = true
 ) {
-    Assert(State->Entities.Count < MAX_ENTITIES);
+    Assert(Entities->Count < MAX_ENTITIES);
 
     // If any ID is free, use it
-    game_entity* Entity = Insert(&State->Entities);
+    game_entity* Entity = Insert(Entities);
     Entity->Type = Type;
     Entity->Transform = Transform(Position, Rotation, S);
     Entity->Active = Active;
@@ -772,40 +772,40 @@ game_entity* AddEntity(
     return Entity;
 }
 
-void RemoveEntity(game_entity_state* State, int EntityID) {
-    game_entity* Entity = &State->Entities.List[EntityID];
+void RemoveEntity(game_entity_manager* EntityManager, int EntityID) {
+    game_entity* Entity = &EntityManager->Entities.List[EntityID];
     Assert(Entity->Active);
 
     switch(Entity->Type) {
         case Entity_Type_Camera: {
-            Remove(&State->Cameras, Entity->Index);
+            Remove(&EntityManager->Cameras, Entity->Index);
         } break;
 
         case Entity_Type_Character: {
-            Remove(&State->Characters, Entity->Index);
+            Remove(&EntityManager->Characters, Entity->Index);
         } break;
 
         case Entity_Type_Enemy: {
-            Remove(&State->Enemies, Entity->Index);
+            Remove(&EntityManager->Enemies, Entity->Index);
         } break;
 
         case Entity_Type_Prop: {
-            Remove(&State->Props, Entity->Index);
+            Remove(&EntityManager->Props, Entity->Index);
         } break;
 
         case Entity_Type_Weapon: {
-            Remove(&State->Weapons, Entity->Index);
+            Remove(&EntityManager->Weapons, Entity->Index);
         } break;
 
         default: Raise("Invalid entity type.");
     }
 
-    Remove(&State->Entities, Entity->ID);
+    Remove(&EntityManager->Entities, Entity->ID);
 }
 
-game_entity* QueryEntity(game_entity_state* State, game_entity_type Type, bool Active = true) {
+game_entity* QueryEntity(game_entity_list* Entities, game_entity_type Type, bool Active = true) {
     for (int i = 0; i < MAX_ENTITIES; i++) {
-        game_entity* Entity = &State->Entities.List[i];
+        game_entity* Entity = &Entities->List[i];
         if (Entity->Type == Type && Entity->Active == Active) {
             return Entity;
         }
@@ -813,10 +813,10 @@ game_entity* QueryEntity(game_entity_state* State, game_entity_type Type, bool A
     return 0;
 }
 
-int QueryEntityCount(game_entity_state* State, game_entity_type Type, bool Active = true) {
+int QueryEntityCount(game_entity_list* Entities, game_entity_type Type, bool Active = true) {
     int Result = 0;
     for (int i = 0; i < MAX_ENTITIES; i++) {
-        game_entity* Entity = &State->Entities.List[i];
+        game_entity* Entity = &Entities->List[i];
         if (Entity->Type == Type && Entity->Active == Active) {
             Result++;
         }
@@ -827,14 +827,14 @@ int QueryEntityCount(game_entity_state* State, game_entity_type Type, bool Activ
 // Entity initialization ___________________________________________________________________________________________________________________
 
 camera* AddCamera(
-    game_entity_state* State,
+    game_entity_manager* EntityManager,
     v3 Position,
     float Angle, float Pitch,
     float Distance = 9.0
 ) {
-    Assert(State->Cameras.Count < MAX_CAMERAS);
+    Assert(EntityManager->Cameras.Count < MAX_CAMERAS);
     // If any ID is free, use it
-    camera* Cam = Insert(&State->Cameras);
+    camera* Cam = Insert(&EntityManager->Cameras);
     Cam->Angle = Angle;
     Cam->Pitch = Pitch;
     Cam->Position = Position;
@@ -844,7 +844,7 @@ camera* AddCamera(
     sprintf_s(NameBuffer, "Camera %d", Cam->ID);
 
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
-    game_entity* Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), Cam->ID == 0);
+    game_entity* Entity = AddEntity(&EntityManager->Entities, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), Cam->ID == 0);
     Entity->Index = Cam->ID;
     Cam->Entity = Entity;
 
@@ -852,16 +852,16 @@ camera* AddCamera(
 }
 
 weapon* AddWeapon(
-    game_entity_state* State,
+    game_entity_manager* EntityManager,
     weapon_type Type,
     color Color = White,
     v3 Position = V3(0,0,0),
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
     scale S = Scale()
 ) {
-    Assert(State->Weapons.Count < MAX_WEAPONS);
+    Assert(EntityManager->Weapons.Count < MAX_WEAPONS);
 
-    weapon* pWeapon = Insert(&State->Weapons);
+    weapon* pWeapon = Insert(&EntityManager->Weapons);
     uint32 ID = pWeapon->ID;
     *pWeapon = WeaponTemplates[Type];
     pWeapon->ID = ID;
@@ -871,7 +871,7 @@ weapon* AddWeapon(
     sprintf_s(NameBuffer, "Weapon %d", pWeapon->ID);
 
     pWeapon->Entity = AddEntity(
-        State, 
+        &EntityManager->Entities, 
         NameBuffer, 
         Entity_Type_Weapon,
         pWeapon->Collider,
@@ -883,17 +883,17 @@ weapon* AddWeapon(
     return pWeapon;
 }
 
-character* AddCharacter(game_entity_state* State, character_class Class, v3 Position) {
-    Assert(State->Characters.Count < MAX_CHARACTERS);
+character* AddCharacter(game_entity_manager* EntityManager, character_class Class, v3 Position) {
+    Assert(EntityManager->Characters.Count < MAX_CHARACTERS);
 
-    character* pCharacter = Insert(&State->Characters);
+    character* pCharacter = Insert(&EntityManager->Characters);
 
     char NameBuffer[32];
     sprintf_s(NameBuffer, "%s %d", ClassNames[Class], pCharacter->ID);
 
     quaternion Rotation = Quaternion(1.5f * Pi, V3(0,1,0));
     pCharacter->Entity = AddEntity(
-        State, 
+        &EntityManager->Entities, 
         NameBuffer, 
         Entity_Type_Character,
         CapsuleCollider(V3(0,0.6f,0), V3(0,3.0f,0), 0.8f),
@@ -908,8 +908,8 @@ character* AddCharacter(game_entity_state* State, character_class Class, v3 Posi
 
     switch (Class) {
         case Class_Knight: {
-            weapon* Sword = AddWeapon(State, Weapon_Sword, White, V3(-5,0,0));
-            weapon* Shield = AddWeapon(State, Weapon_Shield, White, V3(-10,0,0));
+            weapon* Sword = AddWeapon(EntityManager, Weapon_Sword, White, V3(-5,0,0));
+            weapon* Shield = AddWeapon(EntityManager, Weapon_Shield, White, V3(-10,0,0));
             Equip(Sword, pCharacter);
             Equip(Shield, pCharacter);
 
@@ -922,7 +922,7 @@ character* AddCharacter(game_entity_state* State, character_class Class, v3 Posi
         } break;
 
         case Class_Rogue: {
-            weapon* Knife = AddWeapon(State, Weapon_Knife, White, V3(-5,0,0));
+            weapon* Knife = AddWeapon(EntityManager, Weapon_Knife, White, V3(-5,0,0));
             Equip(Knife, pCharacter);
 
             pCharacter->Stats.Strength     = 10;
@@ -934,7 +934,7 @@ character* AddCharacter(game_entity_state* State, character_class Class, v3 Posi
         } break;
         
         case Class_Hunter: {
-            weapon* Bow = AddWeapon(State, Weapon_Bow, White, V3(-5,0,0));
+            weapon* Bow = AddWeapon(EntityManager, Weapon_Bow, White, V3(-5,0,0));
             Equip(Bow, pCharacter);
 
             pCharacter->Stats.Strength     = 10;
@@ -946,7 +946,7 @@ character* AddCharacter(game_entity_state* State, character_class Class, v3 Posi
         } break;
 
         case Class_Wizard: {
-            weapon* Staff = AddWeapon(State, Weapon_Staff, White, V3(-5,0,0));
+            weapon* Staff = AddWeapon(EntityManager, Weapon_Staff, White, V3(-5,0,0));
             Equip(Staff, pCharacter);
 
             pCharacter->Stats.Strength     = 10;
@@ -961,13 +961,13 @@ character* AddCharacter(game_entity_state* State, character_class Class, v3 Posi
     return pCharacter;
 }
 
-enemy* AddEnemy(game_entity_state* State, v3 Position, enemy_type Type) {
-    Assert(State->Characters.Count < MAX_ENEMIES);
+enemy* AddEnemy(game_entity_manager* EntityManager, v3 Position, enemy_type Type) {
+    Assert(EntityManager->Characters.Count < MAX_ENEMIES);
 
-    uint32 TypeID = State->nEnemyTypes[Type]++;
+    uint32 TypeID = EntityManager->nEnemyTypes[Type]++;
 
     // If any ID is free, use it
-    enemy* pEnemy = Insert(&State->Enemies);
+    enemy* pEnemy = Insert(&EntityManager->Enemies);
     FillTemplate(pEnemy, Type);
 
     char NameBuffer[32];
@@ -975,13 +975,13 @@ enemy* AddEnemy(game_entity_state* State, v3 Position, enemy_type Type) {
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
     collider Collider = EnemyColliders[Type];
-    pEnemy->Entity = AddEntity(State, NameBuffer, Entity_Type_Enemy, Collider, Position, Rotation, Scale());
+    pEnemy->Entity = AddEntity(&EntityManager->Entities, NameBuffer, Entity_Type_Enemy, Collider, Position, Rotation, Scale());
     pEnemy->Entity->Index = pEnemy->ID;
     return pEnemy;
 }
 
 prop* AddProp(
-    game_entity_state* State, 
+    game_entity_manager* EntityManager, 
     game_mesh_id MeshID, 
     game_shader_pipeline_id Shader, 
     color Color = White,
@@ -989,17 +989,17 @@ prop* AddProp(
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
     scale S = Scale()
 ) {
-    Assert(State->Props.Count < MAX_PROPS);
+    Assert(EntityManager->Props.Count < MAX_PROPS);
     // If any ID is free, use it
     int PropID = -1;
-    if (State->Props.nFreeIDs > 0) {
-        PropID = State->Props.FreeIDs[State->Props.nFreeIDs - 1];
-        State->Props.FreeIDs[State->Props.nFreeIDs-- - 1] = -1;
-        State->Props.Count++;
+    if (EntityManager->Props.nFreeIDs > 0) {
+        PropID = EntityManager->Props.FreeIDs[EntityManager->Props.nFreeIDs - 1];
+        EntityManager->Props.FreeIDs[EntityManager->Props.nFreeIDs-- - 1] = -1;
+        EntityManager->Props.Count++;
     }
-    else PropID = State->Props.Count++;
+    else PropID = EntityManager->Props.Count++;
 
-    prop* pProp = &State->Props.List[PropID];
+    prop* pProp = &EntityManager->Props.List[PropID];
     pProp->MeshID = MeshID;
     pProp->Shader = Shader;
     pProp->Color = Color;
@@ -1007,7 +1007,7 @@ prop* AddProp(
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Prop %d", PropID);
 
-    pProp->Entity = AddEntity(State, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, S);
+    pProp->Entity = AddEntity(&EntityManager->Entities, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, S);
     pProp->Entity->Index = PropID;
     return pProp;
 }
@@ -1236,16 +1236,16 @@ void FillTurnBuffer(combatant_array* Combatants, turn Turn, turn* NextTurns) {
     }
 }
 
-void Start(game_entity_state* State, game_combat* Combat) {
+void Start(game_entity_manager* EntityManager, game_combat* Combat) {
     Erase(Combat);
     Combat->Active = true;
 
     // Add entities to struct and compute first attacker
     float MaxSpeed = 0.0f;
-    uint32 nEntities = State->Entities.Count;
+    uint32 nEntities = EntityManager->Entities.Count;
     uint32 Index = 0;
     while(nEntities > 0 && Index < MAX_ENTITIES) {
-        game_entity* Entity = &State->Entities.List[Index++];
+        game_entity* Entity = &EntityManager->Entities.List[Index++];
         if (!Entity->Active) continue;
         else nEntities--;
         
@@ -1254,11 +1254,11 @@ void Start(game_entity_state* State, game_combat* Combat) {
         bool IsCharacter = Entity->Type == Entity_Type_Character;
         if (IsEnemy || IsCharacter) {
             if (IsEnemy) {
-                enemy* Enemy = &State->Enemies.List[Entity->Index];
+                enemy* Enemy = &EntityManager->Enemies.List[Entity->Index];
                 EntityCombatant = Combatant(Enemy);
             }
             else if (IsCharacter) {
-                character* Character = &State->Characters.List[Entity->Index];
+                character* Character = &EntityManager->Characters.List[Entity->Index];
                 EntityCombatant = Combatant(Character);
             }
 
@@ -1289,13 +1289,20 @@ void Start(game_entity_state* State, game_combat* Combat) {
     FillTurnBuffer(&Combat->Combatants, Combat->Turn, Combat->NextTurns);
 }
 
-bool Apply(game_entity_state* State, turn Turn, damage_animation_list* DamageAnimations) {
+bool Apply(turn Turn, damage_animation_list* DamageAnimations) {
     bool UpdateTurnBuffer = false;
     for (int i = 0; i < Turn.nTargets; i++) {
         combatant* Target = Turn.Targets[i];
         switch (Turn.Action) {
             case combatant_action_attack: {
-                uint32 Damage = Turn.Attacker->Stats->Strength + Turn.Attacker->Modifier.Strength;
+                uint32 Strength = Turn.Attacker->Stats->Strength + Turn.Attacker->Modifier.Strength;
+                uint32 Precission = Turn.Attacker->Stats->Precission + Turn.Attacker->Modifier.Precission;
+
+                float Mu = 2.0f * (float)Strength;
+                float Sigma = Mu / (float)Precission;
+
+                uint32 Damage = CustomRound(Normal(Mu, Sigma));
+
                 ApplyDamage(DamageAnimations, Target, Damage);
             } break;
 
@@ -1458,14 +1465,13 @@ bool Apply(game_entity_state* State, turn Turn, damage_animation_list* DamageAni
 }
 
 void EndTurn(
-    game_entity_state* State, 
     damage_animation_list* DamageAnimations, 
     memory_arena* TurnsArena, 
     combatant_array* Combatants, 
     turn* Turn, 
     turn* NextTurns
 ) {
-    bool UpdateTurnBuffer = Apply(State, *Turn, DamageAnimations);
+    bool UpdateTurnBuffer = Apply(*Turn, DamageAnimations);
 
     if (UpdateTurnBuffer) {
         FillTurnBuffer(Combatants, *Turn, NextTurns);
@@ -1675,7 +1681,7 @@ game_state_type GetStateType(room_type RoomType) {
 }
 
 struct game_state {
-    game_entity_state Entities;
+    game_entity_manager EntityManager;
     particle_emitter* Emitter;
     game_combat Combat;
     level Level;
@@ -1693,6 +1699,8 @@ struct game_state {
 };
 
 void Transition(game_state* State, game_state_type Type) {
+    game_entity_manager* EntityManager = &State->EntityManager;
+    
     State->Type = Type;
 
     switch(Type) {
@@ -1703,26 +1711,27 @@ void Transition(game_state* State, game_state_type Type) {
 
                 for (int i = 0; i < nEnemies; i++) {
                     enemy_type EnemyType = (enemy_type)RandInt(0, EnemyTypeFirstMiniboss);
-                    AddEnemy(&State->Entities, Position, EnemyType);
+                    AddEnemy(&State->EntityManager, Position, EnemyType);
                     Position.Z += 5.0f;
                 }
             }
             else if (State->CurrentRoom->Type == Room_Type_Miniboss) {
                 enemy_type EnemyType = (enemy_type)RandInt(EnemyTypeFirstMiniboss, EnemyTypeFirstBoss);
-                AddEnemy(&State->Entities, V3(10, 0, 0), EnemyType);
+                AddEnemy(&State->EntityManager, V3(10, 0, 0), EnemyType);
             }
-            else if (State->CurrentRoom->Type == Room_Type_Miniboss) {
-
+            else if (State->CurrentRoom->Type == Room_Type_Boss) {
+                enemy_type EnemyType = (enemy_type)RandInt(EnemyTypeFirstBoss, enemy_type_count);
+                AddEnemy(&State->EntityManager, V3(10, 0, 0), EnemyType);
             }
             else Raise("Invalid room type for game state combat.");
 
             if (State->CurrentRoom->Type == Room_Type_Quest) {
                 character_class Companion = RandomEnum(character_class);
 
-                AddCharacter(&State->Entities, Companion, V3(0,0,0));
+                AddCharacter(&State->EntityManager, Companion, V3(0,0,0));
             }
 
-            Start(&State->Entities, &State->Combat);
+            Start(&State->EntityManager, &State->Combat);
         } break;
 
         case Game_State_Trade: {
@@ -1738,13 +1747,24 @@ void Transition(game_state* State, game_state_type Type) {
         } break;
 
         case Game_State_Camp: {
+            uint32 nCharacters = EntityManager->Characters.Count;
+            uint32 Index = 0;
+            while (nCharacters > 0) {
+                character* Character = &EntityManager->Characters.List[Index++];
+
+                if (Character->Entity != NULL) nCharacters--;
+                else continue;
+
+                Character->Stats.HP = Character->Stats.MaxHP;
+            }
+
             State->CampTime = 0;
         } break;
     }
 }
 
 void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
-    game_entity_state* EntityState = &State->Entities;
+    game_entity_manager* EntityManager = &State->EntityManager;
     game_combat* Combat = &State->Combat;
     uint32 Index = 0;
 
@@ -1767,7 +1787,6 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
                         Turn->nTargets = 1;
                         Turn->Targets[0] = Hot;
                         EndTurn(
-                            EntityState, 
                             &Combat->DamageAnimations, 
                             &Combat->TurnsArena, 
                             &Combat->Combatants, 
@@ -1782,7 +1801,6 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
                         Turn->nTargets = 1;
                         Turn->Targets[0] = Hot;
                         EndTurn(
-                            EntityState, 
                             &Combat->DamageAnimations, 
                             &Combat->TurnsArena, 
                             &Combat->Combatants, 
@@ -1796,7 +1814,6 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
                     Turn->nTargets = 1;
                     Turn->Targets[0] = Hot;
                     EndTurn(
-                        EntityState, 
                         &Combat->DamageAnimations, 
                         &Combat->TurnsArena, 
                         &Combat->Combatants, 
@@ -1826,23 +1843,23 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
             for (int i = 0; i < Combat->Combatants.Count; i++) {
                 combatant* Combatant = &Combat->Combatants.Content[i];
                 if (Combatant->AlteredState[altered_state_dead]) {
-                    RemoveEntity(EntityState, Combatant->Entity->ID);
+                    RemoveEntity(EntityManager, Combatant->Entity->ID);
                 }
             }
 
             Erase(Combat);
 
             for (int i = 0; i < enemy_type_count; i++) {
-                EntityState->nEnemyTypes[i] = 0;
+                EntityManager->nEnemyTypes[i] = 0;
             }
         }
     }
 
 // Cameras _________________________________________________________________________________________________________________________________
     Index = 0;
-    uint32 nCameras = EntityState->Cameras.Count;
+    uint32 nCameras = EntityManager->Cameras.Count;
     while(nCameras > 0) {
-        camera* Cam = &EntityState->Cameras.List[Index++];
+        camera* Cam = &EntityManager->Cameras.List[Index++];
         game_entity* Entity = (game_entity*)Cam->Entity;
 
         if (Cam->OnAir) {
@@ -1890,9 +1907,12 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
     
 // Characters ______________________________________________________________________________________________________________________________
     Index = 0;
-    uint32 nCharacters = EntityState->Characters.Count;
-    for (int i = 0; i < EntityState->Characters.Count; i++) {
-        character* Character = &EntityState->Characters.List[i];
+    uint32 nCharacters = EntityManager->Characters.Count;
+    while (nCharacters > 0) {
+        character* Character = &EntityManager->Characters.List[Index++];
+
+        if (Character->Entity != NULL) nCharacters--;
+        else continue;
 
         if (Character->Armature.nBones == 0) {
             Character->Armature = GetAsset(Group->Assets, Mesh_Body_ID)->Armature;
@@ -1980,9 +2000,9 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
 
 // Enemies _________________________________________________________________________________________________________________________________
     Index = 0;
-    uint32 nEnemies = EntityState->Enemies.Count;
+    uint32 nEnemies = EntityManager->Enemies.Count;
     while (nEnemies > 0) {
-        enemy* pEnemy = &EntityState->Enemies.List[Index++];
+        enemy* pEnemy = &EntityManager->Enemies.List[Index++];
         if (pEnemy->Entity != NULL) nEnemies--;
         else continue;
 
@@ -2005,9 +2025,9 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
 
 // Weapons _________________________________________________________________________________________________________________________________
     Index = 0;
-    uint32 nWeapons = EntityState->Weapons.Count;
+    uint32 nWeapons = EntityManager->Weapons.Count;
     while (nWeapons > 0) {
-        weapon* pWeapon = &EntityState->Weapons.List[Index++];
+        weapon* pWeapon = &EntityManager->Weapons.List[Index++];
         if (pWeapon->Entity != NULL) nWeapons--;
         else continue;
 
@@ -2017,7 +2037,7 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
             pWeapon->Entity->Transform.Rotation = Quaternion(State->Time, V3(0,1,0));
         }
         else {
-            character* Owner = &EntityState->Characters.List[pWeapon->Entity->Parent->Index];
+            character* Owner = &EntityManager->Characters.List[pWeapon->Entity->Parent->Index];
             bone Bone = Owner->Armature.Bones[pWeapon->ParentBone];
             pWeapon->Entity->Transform = pWeapon->Transform * Bone.Transform * Owner->Entity->Transform;
         }
@@ -2028,15 +2048,15 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
     TIMED_BLOCK;
 
     game_combat* Combat = &GameState->Combat;
-    game_entity_state* State = &GameState->Entities;
+    game_entity_manager* EntityManager = &GameState->EntityManager;
     game_assets* Assets = Group->Assets;
 
     basis Basis = Camera->Basis;
     ray Ray = MouseRay(Group->Width, Group->Height, Camera->Position + Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
     int i = 0;
-    int nEntities = State->Entities.Count;
+    int nEntities = EntityManager->Entities.Count;
     while (nEntities > 0 && i < MAX_ENTITIES) {
-        game_entity* Entity = &State->Entities.List[i++];
+        game_entity* Entity = &EntityManager->Entities.List[i++];
 
         if (Entity->Active) nEntities--;
         else continue;
@@ -2050,7 +2070,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
         );
         switch(Entity->Type) {
             case Entity_Type_Character: {
-                character* pCharacter = &State->Characters.List[Entity->Index];
+                character* pCharacter = &EntityManager->Characters.List[Entity->Index];
                 game_mesh* Mesh = GetAsset(Assets, Mesh_Body_ID);
                 PushMesh(
                     Group,
@@ -2068,10 +2088,10 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                     float HPBarHeight = 0.2f;
                     v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Camera->Basis.X + V3(0, Mesh->MaxY + 0.3f, 0);
                     PushFillbar(
-                        Group, 
-                        Entity->Name, 
+                        Group,
+                        Entity->Name,
                         pCharacter->Stats.HP, pCharacter->Stats.MaxHP,
-                        Position, 
+                        Position,
                         Camera->Basis.X, Camera->Basis.Y,
                         2.0f, 0.2f
                     );
@@ -2086,7 +2106,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
             } break;
     
             case Entity_Type_Enemy: {
-                enemy* pEnemy = &State->Enemies.List[Entity->Index];
+                enemy* pEnemy = &EntityManager->Enemies.List[Entity->Index];
                 game_mesh* Mesh = GetAsset(Assets, pEnemy->MeshID);
 
                 transform DeadTransform = IdentityTransform;
@@ -2127,7 +2147,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
             } break;
 
             case Entity_Type_Prop: {
-                prop* pProp = &State->Props.List[Entity->Index];
+                prop* pProp = &EntityManager->Props.List[Entity->Index];
                 PushMesh(
                     Group,
                     pProp->MeshID,
@@ -2139,7 +2159,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
             } break;
 
             case Entity_Type_Weapon: {
-                weapon* pWeapon = &State->Weapons.List[Entity->Index];
+                weapon* pWeapon = &EntityManager->Weapons.List[Entity->Index];
                 PushMesh(Group, pWeapon->MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
             } break;
         }

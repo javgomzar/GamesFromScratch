@@ -34,7 +34,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     game_state* pGameState = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
     platform_api* Platform = &Memory->Platform;
-    game_entity_state* EntityState = &pGameState->Entities;
+    game_entity_manager* EntityManager = &pGameState->EntityManager;
     debug_info* DebugInfo = &Memory->DebugInfo;
     {
     TIMED_BLOCK;
@@ -51,7 +51,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         Transition(pGameState, Game_State_Main_Menu);
 
         // Initialize camera
-        ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
+        ActiveCamera = AddCamera(EntityManager, V3(0, 3.2f, 0), -45.0f, 22.5f);
         ActiveCamera->OnAir = true;
 
         Memory->IsInitialized = true;

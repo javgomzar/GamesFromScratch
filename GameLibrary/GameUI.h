@@ -824,7 +824,7 @@ void UpdateMainMenuUI(
         for (int i = 0; i < character_class_count; i++) {
             if (UIButton(ClassNames[i])) {
                 character_class Class = (character_class)i;
-                character* Character = AddCharacter(&pGameState->Entities, Class, V3(0,0,0));
+                character* Character = AddCharacter(&pGameState->EntityManager, Class, V3(0,0,0));
                 ClassSelection = false;
                 
                 RandomizeLevel(&pGameState->Level);
@@ -841,7 +841,7 @@ void UpdateCombatUI(
 ) {
     render_group* Group = &Memory->RenderGroup;
     game_state* pGameState = (game_state*)Memory->Permanent.Base;
-    game_entity_state* EntityState = &pGameState->Entities;
+    game_entity_manager* EntityManager = &pGameState->EntityManager;
     float Time = pGameState->Time;
     game_combat* Combat = &pGameState->Combat;
     debug_info* DebugInfo = &Memory->DebugInfo;
@@ -1120,7 +1120,7 @@ void UpdateTradeUI(
             }
 
             if (SelectedSpell != Spell_Empty) {
-                character* Character = &State->Entities.Characters.List[0];
+                character* Character = &State->EntityManager.Characters.List[0];
                 for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
                     if (Character->Spells[i] == Spell_Empty) {
                         Character->Spells[i] = SelectedSpell;
@@ -1182,7 +1182,7 @@ void UpdateUI(
 ) {
     render_group* Group = &Memory->RenderGroup;
     game_state* State = Memory->GameState;
-    game_entity_state* EntityState = &State->Entities;
+    game_entity_manager* EntityManager = &State->EntityManager;
     float Time = State->Time;
     game_combat* Combat = &State->Combat;
     debug_info* DebugInfo = &Memory->DebugInfo;
@@ -1371,25 +1371,25 @@ void UpdateUI(
             character* Characters[MAX_ENEMIES] = {};
             uint32 nCharacters = 0;
             uint32 Index = 0;
-            while (nCharacters < EntityState->Characters.Count && Index < MAX_ENTITIES) {
-                character* Character = &EntityState->Characters.List[Index++];
+            while (nCharacters < EntityManager->Characters.Count && Index < MAX_ENTITIES) {
+                character* Character = &EntityManager->Characters.List[Index++];
                 if (Character->Entity && Character->Entity->Active) {
                     Characters[nCharacters++] = Character;
                 }
             }
-            DEBUG_POINTER_ARRAY(Characters, EntityState->Characters.Count, character);
+            DEBUG_POINTER_ARRAY(Characters, EntityManager->Characters.Count, character);
 
-            if (EntityState->Enemies.Count > 0) {
+            if (EntityManager->Enemies.Count > 0) {
                 enemy* Enemies[MAX_ENEMIES] = {};
                 uint32 nEnemies = 0;
                 uint32 Index = 0;
-                while (nEnemies < EntityState->Enemies.Count && Index < MAX_ENTITIES) {
-                    enemy* Enemy = &EntityState->Enemies.List[Index++];
+                while (nEnemies < EntityManager->Enemies.Count && Index < MAX_ENTITIES) {
+                    enemy* Enemy = &EntityManager->Enemies.List[Index++];
                     if (Enemy->Entity && Enemy->Entity->Active) {
                         Enemies[nEnemies++] = Enemy;
                     }
                 }
-                DEBUG_POINTER_ARRAY(Enemies, EntityState->Enemies.Count, enemy);
+                DEBUG_POINTER_ARRAY(Enemies, EntityManager->Enemies.Count, enemy);
             }
             
             nEntries = DebugInfo->nEntries;
