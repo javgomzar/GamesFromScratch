@@ -8,6 +8,7 @@ ENUM(game_bitmap_id,
     Bitmap_Button_ID,
     Bitmap_Empty_ID,
     Bitmap_Enemy_ID,
+    Bitmap_Squid_ID,
     Bitmap_Player_ID,
 // Items
     Bitmap_Potion_ID,

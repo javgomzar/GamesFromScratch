@@ -85,6 +85,7 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Water.bmp",              Bitmap_Water_Bottle_ID);
     PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\LightningInABottle.bmp", Bitmap_Lightning_Bottle_ID);
     PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Feather.bmp",            Bitmap_Phoenix_Feather_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Squid.bmp",              Bitmap_Squid_ID);
 
     // Heightmaps
     PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\spain.bmp", Heightmap_Spain_ID);
@@ -109,6 +110,7 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Bow.mdl",          Mesh_Bow_ID);
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Selector.mdl",     Mesh_Selector_ID);
     PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Dyno.mdl",         Mesh_Dyno_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Squid.mdl",        Mesh_Squid_ID);
 
     // Animation
     PushAsset(&Assets, "..\\GameAssets\\Animation\\Files\\Idle.anim",    Animation_Idle_ID);

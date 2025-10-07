@@ -407,11 +407,11 @@ ENUM(enemy_type,
     Enemy_Type_Horns,
     Enemy_Type_Dog,
     Enemy_Type_Miniboss_Dyno,
-    Enemy_Type_Boss_Test
+    Enemy_Type_Boss_Squid
 );
 
 enemy_type EnemyTypeFirstMiniboss = Enemy_Type_Miniboss_Dyno;
-enemy_type EnemyTypeFirstBoss = Enemy_Type_Boss_Test;
+enemy_type EnemyTypeFirstBoss = Enemy_Type_Boss_Squid;
 
 INTROSPECT
 struct enemy {
@@ -449,18 +449,28 @@ const enemy EnemyTemplates[enemy_type_count] = {
         Mesh_Dyno_ID,
         Bitmap_Empty_ID,
     },
+    {
+        0,
+        NULL,
+        Stats(200, 20, 8, 1, 3, 5, 10),
+        Enemy_Type_Boss_Squid,
+        Mesh_Squid_ID,
+        Bitmap_Squid_ID,
+    },
 };
 
 collider EnemyColliders[enemy_type_count] = {
     SphereCollider(V3(0,0,0), 1.5f),
     SphereCollider(V3(0,1.5f,0), 2.0f),
     SphereCollider(V3(0,2.5f,0), 4.0f),
+    CapsuleCollider(V3(0,4.0f,0), V3(0,12.0f,0), 6.0f),
 };
 
 const char* EnemyNames[enemy_type_count] = {
     "Horns",
     "Dog",
-    "Dyno"
+    "Dyno",
+    "Squid"
 };
 
 void FillTemplate(enemy* Enemy, enemy_type Type) {
@@ -896,7 +906,7 @@ character* AddCharacter(game_entity_manager* EntityManager, character_class Clas
         &EntityManager->Entities, 
         NameBuffer, 
         Entity_Type_Character,
-        CapsuleCollider(V3(0,0.6f,0), V3(0,3.0f,0), 0.8f),
+        CapsuleCollider(V3(0,0.6f,0), V3(0,4.0f,0), 0.8f),
         Position, 
         Rotation, 
         Scale()
