@@ -826,10 +826,21 @@ void UpdateMainMenuUI(
                 character_class Class = (character_class)i;
                 character* Character = AddCharacter(&pGameState->EntityManager, Class, V3(0,0,0));
                 ClassSelection = false;
+
+                room_type FirstRoomType = Room_Type_Combat;
+                switch(Class) {
+                    case Class_Wizard: {
+                        FirstRoomType = Room_Type_Wizard;
+                    } break;
+
+                    case Class_Rogue: {
+                        FirstRoomType = Room_Type_Merchant;
+                    } break;
+                }
                 
-                RandomizeLevel(&pGameState->Level);
+                RandomizeLevel(&pGameState->Level, FirstRoomType);
                 pGameState->CurrentRoom = &pGameState->Level.Rooms[0];
-                Transition(pGameState, Game_State_Combat);
+                Transition(pGameState, GetStateType(FirstRoomType));
             }
         }
     }

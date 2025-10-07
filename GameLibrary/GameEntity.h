@@ -1578,11 +1578,11 @@ void AttachRooms(room* Previous, room* Next) {
     Next->Previous[Next->nPrevious++] = Previous;
 }
 
-void RandomizeLevel(level* Level) {
+void RandomizeLevel(level* Level, room_type FirstRoomType) {
     *Level = {};
     Level->nRooms = 0;
 
-    room* FirstRoom = AddRoom(Level, Room_Type_Combat);
+    room* FirstRoom = AddRoom(Level, FirstRoomType);
 
     NextRow(Level);
     for (int i = 0; i < 4; i++) {
