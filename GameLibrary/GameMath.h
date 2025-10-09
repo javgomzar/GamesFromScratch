@@ -1812,7 +1812,7 @@ inline float SqDistance(segment3 Segment, ray Ray) {
     // Clamp u to [0,1] for the segment
     u = Clamp(u, 0.0f, 1.0f);
 
-    // Clamp t to [0, ∞) for the ray
+    // Clamp t to [0, inf) for the ray
     if (t < 0.0f) {
         t = 0.0f;
         // Recompute u for this t
@@ -1822,7 +1822,7 @@ inline float SqDistance(segment3 Segment, ray Ray) {
     }
 
     v3 D = V + t * Ray.Direction - u * SegmentDirection;
-	return modulus(D);
+	return dot(D, D);
 }
 
 struct triangle2 {
