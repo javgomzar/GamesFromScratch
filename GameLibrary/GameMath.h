@@ -528,7 +528,7 @@ inline float distance(v3 A, v3 B) {
 }
 
 inline v3 normalize(v3 V) {
-	return (modulus(V) < Epsilon) ? V3(0,0,0) : (1 / modulus(V)) * V;
+	return (modulus(V) < Epsilon) ? V3(0,0,0) : (1.0f / modulus(V)) * V;
 }
 
 inline v3 project(v3 A, v3 B) {

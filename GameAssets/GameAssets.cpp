@@ -158,18 +158,17 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     // Fragment
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Antialiasing.frag",          Fragment_Shader_Antialiasing_ID);
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\FramebufferAttachment.frag", Fragment_Shader_Framebuffer_Attachment_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Texture.frag",        Fragment_Shader_Texture_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Outline.frag",        Fragment_Shader_Outline_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\SingleColor.frag",    Fragment_Shader_Single_Color_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Kernel.frag",         Fragment_Shader_Kernel_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Sphere.frag",         Fragment_Shader_Sphere_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Mesh.frag",           Fragment_Shader_Mesh_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\JumpFlood.frag",      Fragment_Shader_Jump_Flood_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Heightmap.frag",      Fragment_Shader_Heightmap_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Sea.frag",            Fragment_Shader_Sea_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\BezierExterior.frag", Fragment_Shader_Bezier_Exterior_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\BezierInterior.frag", Fragment_Shader_Bezier_Interior_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Fire.frag",           Fragment_Shader_Fire_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Texture.frag",               Fragment_Shader_Texture_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Outline.frag",               Fragment_Shader_Outline_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\SingleColor.frag",           Fragment_Shader_Single_Color_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Kernel.frag",                Fragment_Shader_Kernel_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Mesh.frag",                  Fragment_Shader_Mesh_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\JumpFlood.frag",             Fragment_Shader_Jump_Flood_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Heightmap.frag",             Fragment_Shader_Heightmap_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Sea.frag",                   Fragment_Shader_Sea_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\BezierExterior.frag",        Fragment_Shader_Bezier_Exterior_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\BezierInterior.frag",        Fragment_Shader_Bezier_Interior_ID);
+    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Fire.frag",                  Fragment_Shader_Fire_ID);
 #if GAME_RENDER_API_VULKAN
     PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\VulkanTest.frag", Fragment_Shader_Vulkan_Test_ID);
 #endif
@@ -180,7 +179,6 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushShaderPipeline(&Assets, Shader_Pipeline_Texture_ID,             2, Vertex_Shader_Screen_Texture_ID, Fragment_Shader_Texture_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Mesh_ID,                2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Mesh_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Mesh_Bones_ID,          2, Vertex_Shader_Bones_ID,          Fragment_Shader_Mesh_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Sphere_ID,              2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Sphere_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_World_Single_Color_ID,  2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Single_Color_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Screen_Single_Color_ID, 2, Vertex_Shader_Screen_ID,         Fragment_Shader_Single_Color_ID);
     PushShaderPipeline(&Assets, Shader_Pipeline_Bones_Single_Color_ID,  2, Vertex_Shader_Bones_ID,          Fragment_Shader_Single_Color_ID);
