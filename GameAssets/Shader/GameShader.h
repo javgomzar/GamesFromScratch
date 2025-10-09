@@ -37,7 +37,6 @@ ENUM(game_shader_id,
     Fragment_Shader_Outline_ID,
     Fragment_Shader_Kernel_ID,
     Fragment_Shader_Mesh_ID,
-    Fragment_Shader_Sphere_ID,
     Fragment_Shader_Jump_Flood_ID,
     Fragment_Shader_Heightmap_ID,
     Fragment_Shader_Sea_ID,
@@ -55,7 +54,6 @@ ENUM(game_shader_pipeline_id,
     Shader_Pipeline_Texture_ID,
     Shader_Pipeline_Mesh_ID,
     Shader_Pipeline_Mesh_Bones_ID,
-    Shader_Pipeline_Sphere_ID,
     Shader_Pipeline_Jump_Flood_ID,
     Shader_Pipeline_Outline_ID,
     Shader_Pipeline_Heightmap_ID,
@@ -282,6 +280,7 @@ struct alignas(16) global_uniforms {
 struct alignas(16) light_uniforms {
     alignas(16) v3 direction;
     alignas(16) v3 color;
+    alignas(16) v3 cameraPosition;
     float ambient;
     float diffuse;
 };

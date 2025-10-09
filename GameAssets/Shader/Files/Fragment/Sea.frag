@@ -1,17 +1,18 @@
 #version 450
 precision highp float;
 
-#if VULKAN
+#ifdef VULKAN
 layout (std140, set = 0, binding = 1) uniform LightUniforms 
 #else
 layout (std140, binding = 1) uniform LightUniforms
 #endif
 {
-    vec3 direction;
-    vec3 color;
-    float ambient;
-    float diffuse;
-} UBO;
+	vec3 direction;
+	vec3 color;
+	vec3 cameraPosition;
+	float ambient;
+	float diffuse;
+} LightUBO;
 
 layout (location = 0) in vec3 v_normal;
 layout (location = 1) in float height;

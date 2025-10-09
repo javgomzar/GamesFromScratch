@@ -9,6 +9,7 @@ layout (std140, binding = 1) uniform LightUniforms
 {
 	vec3 direction;
 	vec3 color;
+	vec3 cameraPosition;
 	float ambient;
 	float diffuse;
 } LightUBO;
@@ -36,8 +37,14 @@ layout (location = 0) out vec4 frag_color;
 void main() {
 	vec4 texture_color = texture(binded_texture, v_texture);
 
-	float diff = LightUBO.diffuse * max(dot(v_normal, -LightUBO.direction), 0);
-	vec3 out_color = (LightUBO.ambient + diff) * LightUBO.color * texture_color.rgb;
+	vec3 norm = normalize(v_normal);
 
-	frag_color = vec4(out_color, 1.0) * ColorUBO.color;
+	float diff = LightUBO.diffuse * max(dot(norm, -LightUBO.direction), 0);
+	vec3 viewDirection = normalize(LightUBO.cameraPosition - v_position);
+	vec3 reflectionDirection = reflect(LightUBO.direction, norm);
+	float spec = pow(max(dot(viewDirection, reflectionDirection), 0.0), 8);
+
+	vec3 out_color = (LightUBO.ambient + diff) * texture_color.rgb * ColorUBO.color.rgb + spec * LightUBO.color;
+
+	frag_color = vec4(out_color, 1.0);
 }

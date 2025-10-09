@@ -547,12 +547,13 @@ void SetGlobalUniforms(openGL* OpenGL, float Width, float Height, camera* Camera
 	SetUBO(GlobalUniforms, 0);
 }
 
-void SetLightUniforms(openGL* OpenGL, light Light) {
+void SetLightUniforms(openGL* OpenGL, light Light, v3 CameraPosition) {
 	light_uniforms LightUniforms = {};
 	LightUniforms.ambient = Light.Ambient;
 	LightUniforms.color = V3(Light.Color.R, Light.Color.G, Light.Color.B);
 	LightUniforms.diffuse = Light.Diffuse;
 	LightUniforms.direction = Light.Direction;
+	LightUniforms.cameraPosition = CameraPosition;
 	SetUBO(LightUniforms, 1);
 }
 
@@ -1020,7 +1021,7 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, camera* Camera, do
 
 // Global uniforms
 	SetGlobalUniforms(OpenGL, Width, Height, Camera, Time);
-	SetLightUniforms(OpenGL, Group->Light);
+	SetLightUniforms(OpenGL, Group->Light, Camera->Position + Camera->Distance * Camera->Basis.Z);
 	SetModelUniforms(OpenGL, Identity4);
 
 	float CurrentLineWidth = 2.0f;
