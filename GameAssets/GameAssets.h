@@ -40,7 +40,8 @@ ENUM(game_animation_id,
     Animation_Idle_ID,
     Animation_Walk_ID,
     Animation_Jump_ID,
-    Animation_Attack_ID
+    Animation_Attack_ID,
+    Animation_Dead_ID
 );
 
 union game_asset_id {

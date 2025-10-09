@@ -76,7 +76,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 205;
+const int ENUM_VALUES_SIZE = 207;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -95,7 +95,8 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_animation_id, "Animation_Walk_ID", 1},
     {Debug_Type_game_animation_id, "Animation_Jump_ID", 2},
     {Debug_Type_game_animation_id, "Animation_Attack_ID", 3},
-    {Debug_Type_game_animation_id, "game_animation_id_count", 4},
+    {Debug_Type_game_animation_id, "Animation_Dead_ID", 4},
+    {Debug_Type_game_animation_id, "game_animation_id_count", 5},
     {Debug_Type_game_mesh_id, "Mesh_Tetrahedron_ID", 0},
     {Debug_Type_game_mesh_id, "Mesh_Cube_ID", 1},
     {Debug_Type_game_mesh_id, "Mesh_Octahedron_ID", 2},
@@ -227,7 +228,8 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_character_action_id, "Character_Action_Walk_ID", 1},
     {Debug_Type_character_action_id, "Character_Action_Jump_ID", 2},
     {Debug_Type_character_action_id, "Character_Action_Attack_ID", 3},
-    {Debug_Type_character_action_id, "character_action_id_count", 4},
+    {Debug_Type_character_action_id, "Character_Action_Dead_ID", 4},
+    {Debug_Type_character_action_id, "character_action_id_count", 5},
     {Debug_Type_character_class, "Class_Knight", 0},
     {Debug_Type_character_class, "Class_Rogue", 1},
     {Debug_Type_character_class, "Class_Hunter", 2},

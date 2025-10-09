@@ -585,7 +585,8 @@ ENUM(character_action_id,
     Character_Action_Idle_ID,
     Character_Action_Walk_ID,
     Character_Action_Jump_ID,
-    Character_Action_Attack_ID
+    Character_Action_Attack_ID,
+    Character_Action_Dead_ID
 );
 
 INTROSPECT
@@ -641,6 +642,11 @@ character_action CharacterAction(character_action_id ID) {
         } break;
         case Character_Action_Attack_ID: {
             Result.AnimationID = Animation_Attack_ID;
+            Result.Loop = true;
+        } break;
+        case Character_Action_Dead_ID: {
+            Result.AnimationID = Animation_Dead_ID;
+            Result.Loop = true;
         } break;
         default: Assert(false);
     }
@@ -662,48 +668,50 @@ character_action GetCharacterAction(character* Character, game_input* Input) {
                        (Input->Mode == Controller && ControllerMoving);
 
     character_action Result = Character->Action;
-    if (AttackInput) {
-        OutputDebugStringA("A");
+
+    if (Character->Stats.HP == 0) {
+        Result = CharacterAction(Character_Action_Dead_ID);
     }
+    else {
+        switch(Character->Action.ID) {
+            case Character_Action_Idle_ID: {
+                Character->Animator.Active = true;
+                if (JumpingInput || MovingInput || AttackInput) {
+                    Character->Animator.CurrentFrame = 0;
+                }
 
-    switch(Character->Action.ID) {
-        case Character_Action_Idle_ID: {
-            Character->Animator.Active = true;
-            if (JumpingInput || MovingInput || AttackInput) {
-                Character->Animator.CurrentFrame = 0;
-            }
-
-            if     (JumpingInput) Result = CharacterAction(Character_Action_Jump_ID);
-            else if (MovingInput) Result = CharacterAction(Character_Action_Walk_ID);
-            else if (AttackInput) Result = CharacterAction(Character_Action_Attack_ID);
-        } break;
-        case Character_Action_Walk_ID: {
-            if (JumpingInput) {
-                Result = CharacterAction(Character_Action_Jump_ID);
-                Character->Animator.CurrentFrame = 0;
-            }
-            else if (AttackInput) {
-                Result = CharacterAction(Character_Action_Attack_ID);
-                Character->Animator.CurrentFrame = 0;
-            }
-            else if (!MovingInput) {
-                Character->Animator.Active = false;
-                Result = CharacterAction(Character_Action_Idle_ID);
-            }
-        } break;
-        case Character_Action_Jump_ID: {
-            if (!Character->Animator.Active) {
-                Result = CharacterAction(Character_Action_Idle_ID);
-                Character->Animator.CurrentFrame = 0;
-            }
-        } break;
-        case Character_Action_Attack_ID: {
-            if (!Character->Animator.Active) {
-                Result = CharacterAction(Character_Action_Idle_ID);
-                Character->Animator.CurrentFrame = 0;
-            }
-        } break;
-        default: Raise("Invalid character action");
+                if     (JumpingInput) Result = CharacterAction(Character_Action_Jump_ID);
+                else if (MovingInput) Result = CharacterAction(Character_Action_Walk_ID);
+                else if (AttackInput) Result = CharacterAction(Character_Action_Attack_ID);
+            } break;
+            case Character_Action_Walk_ID: {
+                if (JumpingInput) {
+                    Result = CharacterAction(Character_Action_Jump_ID);
+                    Character->Animator.CurrentFrame = 0;
+                }
+                else if (AttackInput) {
+                    Result = CharacterAction(Character_Action_Attack_ID);
+                    Character->Animator.CurrentFrame = 0;
+                }
+                else if (!MovingInput) {
+                    Character->Animator.Active = false;
+                    Result = CharacterAction(Character_Action_Idle_ID);
+                }
+            } break;
+            case Character_Action_Jump_ID: {
+                if (!Character->Animator.Active) {
+                    Result = CharacterAction(Character_Action_Idle_ID);
+                    Character->Animator.CurrentFrame = 0;
+                }
+            } break;
+            case Character_Action_Attack_ID: {
+                if (!Character->Animator.Active) {
+                    Result = CharacterAction(Character_Action_Idle_ID);
+                    Character->Animator.CurrentFrame = 0;
+                }
+            } break;
+            default: Raise("Invalid character action");
+        }
     }
 
     Character->Animator.Loop = Result.Loop;
@@ -913,8 +921,8 @@ character* AddCharacter(game_entity_manager* EntityManager, character_class Clas
     );
     pCharacter->Entity->Index = pCharacter->ID;
 
-    pCharacter->Stats.MaxHP = 400;
-    pCharacter->Stats.HP = 400;
+    pCharacter->Stats.MaxHP = 500;
+    pCharacter->Stats.HP = pCharacter->Stats.MaxHP;
 
     switch (Class) {
         case Class_Knight: {
@@ -923,10 +931,10 @@ character* AddCharacter(game_entity_manager* EntityManager, character_class Clas
             Equip(Sword, pCharacter);
             Equip(Shield, pCharacter);
 
-            pCharacter->Stats.Strength     = 10;
-            pCharacter->Stats.Defense      = 10;
-            pCharacter->Stats.Intelligence = 10;
-            pCharacter->Stats.Wisdom       = 10;
+            pCharacter->Stats.Strength     = 15;
+            pCharacter->Stats.Defense      = 12;
+            pCharacter->Stats.Intelligence = 5;
+            pCharacter->Stats.Wisdom       = 5;
             pCharacter->Stats.Speed        = 10;
             pCharacter->Stats.Precission   = 10;
         } break;
@@ -935,12 +943,12 @@ character* AddCharacter(game_entity_manager* EntityManager, character_class Clas
             weapon* Knife = AddWeapon(EntityManager, Weapon_Knife, White, V3(-5,0,0));
             Equip(Knife, pCharacter);
 
-            pCharacter->Stats.Strength     = 10;
-            pCharacter->Stats.Defense      = 10;
-            pCharacter->Stats.Intelligence = 10;
-            pCharacter->Stats.Wisdom       = 10;
-            pCharacter->Stats.Speed        = 10;
-            pCharacter->Stats.Precission   = 10;
+            pCharacter->Stats.Strength     = 8;
+            pCharacter->Stats.Defense      = 8;
+            pCharacter->Stats.Intelligence = 6;
+            pCharacter->Stats.Wisdom       = 5;
+            pCharacter->Stats.Speed        = 15;
+            pCharacter->Stats.Precission   = 5;
         } break;
         
         case Class_Hunter: {
@@ -948,22 +956,22 @@ character* AddCharacter(game_entity_manager* EntityManager, character_class Clas
             Equip(Bow, pCharacter);
 
             pCharacter->Stats.Strength     = 10;
-            pCharacter->Stats.Defense      = 10;
+            pCharacter->Stats.Defense      = 6;
             pCharacter->Stats.Intelligence = 10;
-            pCharacter->Stats.Wisdom       = 10;
+            pCharacter->Stats.Wisdom       = 12;
             pCharacter->Stats.Speed        = 10;
-            pCharacter->Stats.Precission   = 10;
+            pCharacter->Stats.Precission   = 20;
         } break;
 
         case Class_Wizard: {
             weapon* Staff = AddWeapon(EntityManager, Weapon_Staff, White, V3(-5,0,0));
             Equip(Staff, pCharacter);
 
-            pCharacter->Stats.Strength     = 10;
-            pCharacter->Stats.Defense      = 10;
-            pCharacter->Stats.Intelligence = 10;
-            pCharacter->Stats.Wisdom       = 10;
-            pCharacter->Stats.Speed        = 10;
+            pCharacter->Stats.Strength     = 5;
+            pCharacter->Stats.Defense      = 6;
+            pCharacter->Stats.Intelligence = 15;
+            pCharacter->Stats.Wisdom       = 15;
+            pCharacter->Stats.Speed        = 12;
             pCharacter->Stats.Precission   = 10;
         } break;
     }
@@ -1246,7 +1254,7 @@ void FillTurnBuffer(combatant_array* Combatants, turn Turn, turn* NextTurns) {
     }
 }
 
-void Start(game_entity_manager* EntityManager, game_combat* Combat) {
+void StartCombat(game_entity_manager* EntityManager, game_combat* Combat) {
     Erase(Combat);
     Combat->Active = true;
 
@@ -1498,6 +1506,29 @@ void EndTurn(
     NextTurns[TURN_BUFFER_SIZE - 1] = GetNextTurn(Combatants, LastKnown);
 }
 
+void EndCombat(game_combat* Combat, game_entity_manager* EntityManager, uint32* Gold, bool Success = true) {
+    Combat->Active = false;
+
+    for (int i = 0; i < Combat->Combatants.Count; i++) {
+        combatant* Combatant = &Combat->Combatants.Content[i];
+        if (Combatant->AlteredState[altered_state_dead]) {
+            RemoveEntity(EntityManager, Combatant->Entity->ID);
+        }
+    }
+    Erase(Combat);
+
+    for (int i = 0; i < enemy_type_count; i++) {
+        EntityManager->nEnemyTypes[i] = 0;
+    }
+
+    if (Success) {
+        *Gold += 10;
+    }
+    else {
+        *Gold = 0;
+    }
+}
+
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Rooms                                                                                                                                        |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1741,7 +1772,7 @@ void Transition(game_state* State, game_state_type Type) {
                 AddCharacter(&State->EntityManager, Companion, V3(0,0,0));
             }
 
-            Start(&State->EntityManager, &State->Combat);
+            StartCombat(&State->EntityManager, &State->Combat);
         } break;
 
         case Game_State_Trade: {
@@ -1847,21 +1878,8 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
             }
         }
         if (CombatEnd) {
-            Combat->Active = false;
-            State->Gold += 10;
+            EndCombat(Combat, &State->EntityManager, &State->Gold);
             Transition(State, Game_State_Map);
-            for (int i = 0; i < Combat->Combatants.Count; i++) {
-                combatant* Combatant = &Combat->Combatants.Content[i];
-                if (Combatant->AlteredState[altered_state_dead]) {
-                    RemoveEntity(EntityManager, Combatant->Entity->ID);
-                }
-            }
-
-            Erase(Combat);
-
-            for (int i = 0; i < enemy_type_count; i++) {
-                EntityManager->nEnemyTypes[i] = 0;
-            }
         }
     }
 

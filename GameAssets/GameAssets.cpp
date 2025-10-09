@@ -117,6 +117,7 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
     PushAsset(&Assets, "..\\GameAssets\\Animation\\Files\\Walking.anim", Animation_Walk_ID);
     PushAsset(&Assets, "..\\GameAssets\\Animation\\Files\\Jumping.anim", Animation_Jump_ID);
     PushAsset(&Assets, "..\\GameAssets\\Animation\\Files\\Attack.anim",  Animation_Attack_ID);
+    PushAsset(&Assets, "..\\GameAssets\\Animation\\Files\\Dead.anim",    Animation_Dead_ID);
 
     // Video
     //PushAsset(&Assets, "..\\GameAssets\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);

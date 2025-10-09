@@ -789,7 +789,7 @@ void UpdateMainMenuUI(
     game_memory* Memory,
     game_input* Input
 ) {
-    game_state* pGameState = Memory->GameState;
+    game_state* State = Memory->GameState;
 
     UIText("Untitled game", ui_alignment_center, ui_alignment_center, White, 100);
     static bool Settings = false, ClassSelection = false;
@@ -810,7 +810,7 @@ void UpdateMainMenuUI(
         }
         
         if (UIButton("Exit")) {
-            pGameState->Exit = true;
+            State->Exit = true;
         }
     }
 
@@ -824,7 +824,7 @@ void UpdateMainMenuUI(
         for (int i = 0; i < character_class_count; i++) {
             if (UIButton(ClassNames[i])) {
                 character_class Class = (character_class)i;
-                character* Character = AddCharacter(&pGameState->EntityManager, Class, V3(0,0,0));
+                character* Character = AddCharacter(&State->EntityManager, Class, V3(0,0,0));
                 ClassSelection = false;
 
                 room_type FirstRoomType = Room_Type_Combat;
@@ -835,12 +835,13 @@ void UpdateMainMenuUI(
 
                     case Class_Rogue: {
                         FirstRoomType = Room_Type_Merchant;
+                        State->Gold = 10;
                     } break;
                 }
                 
-                RandomizeLevel(&pGameState->Level, FirstRoomType);
-                pGameState->CurrentRoom = &pGameState->Level.Rooms[0];
-                Transition(pGameState, GetStateType(FirstRoomType));
+                RandomizeLevel(&State->Level, FirstRoomType);
+                State->CurrentRoom = &State->Level.Rooms[0];
+                Transition(State, GetStateType(FirstRoomType));
             }
         }
     }
@@ -851,15 +852,15 @@ void UpdateCombatUI(
     game_input* Input
 ) {
     render_group* Group = &Memory->RenderGroup;
-    game_state* pGameState = (game_state*)Memory->Permanent.Base;
-    game_entity_manager* EntityManager = &pGameState->EntityManager;
-    float Time = pGameState->Time;
-    game_combat* Combat = &pGameState->Combat;
+    game_state* State = (game_state*)Memory->Permanent.Base;
+    game_entity_manager* EntityManager = &State->EntityManager;
+    float Time = State->Time;
+    game_combat* Combat = &State->Combat;
     debug_info* DebugInfo = &Memory->DebugInfo;
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
 
     // Combat menu
-    if (pGameState->Combat.Active) {
+    if (State->Combat.Active) {
         combatant* ActiveCombatant = Combat->Turn.Attacker;
 
         // Combat menu
@@ -869,42 +870,42 @@ void UpdateCombatUI(
             CombatMenuWidth = CombatMenu.Element->Rect.Width;
 
             if (UIButton("Attack")) {
-                pGameState->Combat.Turn.Action = combatant_action_attack;
+                State->Combat.Turn.Action = combatant_action_attack;
             }
             for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
                 if (ActiveCombatant->Spells[i] != Spell_Empty) {
                     if (UIButton("Magic")) {
-                        pGameState->Combat.Turn.Action = combatant_action_magic;
+                        State->Combat.Turn.Action = combatant_action_magic;
                     };
                     break;
                 }
             }
 
             for (int i = 0; i < 3; i++) {
-                if (pGameState->Inventory[i] != Item_Type_None) {
+                if (State->Inventory[i] != Item_Type_None) {
                     if (UIButton("Items")) {
-                        pGameState->Combat.Turn.Action = combatant_action_items;
+                        State->Combat.Turn.Action = combatant_action_items;
                     }
                     break;
                 }
             }
 
             if (UIButton("Flee")) {
-                pGameState->Combat.Turn.Action = combatant_action_flee;
+                State->Combat.Turn.Action = combatant_action_flee;
             }
 
-            if (Input->Mouse.RightClick.JustPressed && pGameState->Combat.Turn.Action != combatant_action_empty) {
-                pGameState->Combat.Turn.Action = combatant_action_empty;
-                pGameState->Combat.Turn.Spell = Spell_Empty;
+            if (Input->Mouse.RightClick.JustPressed && State->Combat.Turn.Action != combatant_action_empty) {
+                State->Combat.Turn.Action = combatant_action_empty;
+                State->Combat.Turn.Spell = Spell_Empty;
             }
 
-            if (pGameState->Combat.Turn.Action != combatant_action_empty) {
+            if (State->Combat.Turn.Action != combatant_action_empty) {
                 const char* Strings[] = {
                     "Attack", "Magic", "Items", "Flee"
                 };
                 float Width = 0, Height = 0;
-                GetTextWidthAndHeight(Strings[pGameState->Combat.Turn.Action - 1], Font, 20.0f, &Width, &Height);
-                float PosY = Group->Height - CombatMenu.Element->Rect.Height + (float)pGameState->Combat.Turn.Action * (Height + 20.0f);
+                GetTextWidthAndHeight(Strings[State->Combat.Turn.Action - 1], Font, 20.0f, &Width, &Height);
+                float PosY = Group->Height - CombatMenu.Element->Rect.Height + (float)State->Combat.Turn.Action * (Height + 20.0f);
                 triangle2 Triangle = {
                     V2(20, PosY - 10),
                     V2(20, PosY + 10),
@@ -922,7 +923,7 @@ void UpdateCombatUI(
         }
 
         // Magic menu
-        if (pGameState->Combat.Turn.Action == combatant_action_magic) {
+        if (State->Combat.Turn.Action == combatant_action_magic) {
             UIMenu MagicMenu = UIMenu("Magic Menu", axis_y, ui_alignment_free, ui_alignment_max, 80.0f, 20.0f);
 
             MagicMenu.Element->RelativePosition[axis_x] = CombatMenuWidth;
@@ -931,13 +932,13 @@ void UpdateCombatUI(
                 spell_id SpellID = ActiveCombatant->Spells[i];
                 if (SpellID != Spell_Empty) {
                     if (UIButton(Spells[SpellID].Name)) {
-                        pGameState->Combat.Turn.Spell = SpellID;
+                        State->Combat.Turn.Spell = SpellID;
                     }
                 }
             }
 
-            if (pGameState->Combat.Turn.Spell != Spell_Empty) {
-                spell Spell = Spells[pGameState->Combat.Turn.Spell];
+            if (State->Combat.Turn.Spell != Spell_Empty) {
+                spell Spell = Spells[State->Combat.Turn.Spell];
                 float Width = 0, Height = 0;
                 GetTextWidthAndHeight(Spell.Name, Font, 20.0f, &Width, &Height);
                 float PosY = Group->Height - MagicMenu.Element->Rect.Height + (float)Spell.ID * (Height + 20.0f);
@@ -984,6 +985,32 @@ void UpdateCombatUI(
 
         if (!Alive) {
             UIText("YOU DIED", ui_alignment_center, ui_alignment_center, Red, 120);
+            if (UIButton("Return to main menu")) {
+                EndCombat(Combat, &State->EntityManager, &State->Gold, false);
+                uint32 nWeapons = State->EntityManager.Weapons.Count;
+                uint32 Index = 0;
+                while (nWeapons > 0) {
+                    weapon* Weapon = &State->EntityManager.Weapons.List[Index++];
+                    if (Weapon->Entity != NULL) {
+                        nWeapons--;
+                    }
+                    else continue;
+
+                    RemoveEntity(&State->EntityManager, Weapon->Entity->ID);
+                }
+                uint32 nEnemies = State->EntityManager.Enemies.Count;
+                Index = 0;
+                while (nEnemies > 0) {
+                    enemy* Enemy = &State->EntityManager.Enemies.List[Index++];
+                    if (Enemy->Entity != NULL) {
+                        nEnemies--;
+                    }
+                    else continue;
+
+                    RemoveEntity(&State->EntityManager, Enemy->Entity->ID);
+                }
+                Transition(State, Game_State_Main_Menu);
+            }
         }
     }
 }
