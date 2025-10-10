@@ -1325,7 +1325,7 @@ void UpdateUI(
                     }
 
                     if (Hovered && Input->Mouse.LeftClick.JustPressed) {
-                        State->Combat.Turn.UsedItem = Item.Type;
+                        State->Combat.Turn.UsedItem = &State->Inventory[i];
                         Selected[i] = true;
                         Selected[i + 1 % 3] = false;
                         Selected[i + 2 % 3] = false;

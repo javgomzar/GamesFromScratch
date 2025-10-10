@@ -1180,7 +1180,7 @@ struct turn {
     float ATBCost;
     combatant_action Action;
     spell_id Spell;
-    item_type UsedItem;
+    item_type* UsedItem;
     bool TargetsSelected;
 };
 
@@ -1436,7 +1436,7 @@ bool Apply(turn Turn, damage_animation_list* DamageAnimations) {
             } break;
 
             case combatant_action_items: {
-                switch (Turn.UsedItem) {
+                switch (*Turn.UsedItem) {
                     case Item_Type_Potion: {
                         HealDamage(Target, 50);
                     } break;
@@ -1469,6 +1469,7 @@ bool Apply(turn Turn, damage_animation_list* DamageAnimations) {
                         ApplyAlteredState(Target, altered_state_burnt);
                     } break;
                 }
+                *Turn.UsedItem = Item_Type_None;
             } break;
 
             default: Raise("Invalid or empty combatant action.");
@@ -1879,7 +1880,16 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         }
         if (CombatEnd) {
             EndCombat(Combat, &State->EntityManager, &State->Gold);
-            Transition(State, Game_State_Map);
+
+            if (State->CurrentRoom->Type == Room_Type_Boss) {
+                room_type FirstRoomType = (room_type)RandInt(0, Room_Type_Miniboss);
+                RandomizeLevel(&State->Level, FirstRoomType);
+                State->CurrentRoom = &State->Level.Rooms[0];
+                Transition(State, GetStateType(FirstRoomType));
+            }
+            else {
+                Transition(State, Game_State_Map);
+            }
         }
     }
 
@@ -2094,7 +2104,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
         bool Outline = Entity->Hovered && (
             Combat->Turn.Action == combatant_action_attack ||
             Combat->Turn.Action == combatant_action_magic && Combat->Turn.Spell != Spell_Empty ||
-            Combat->Turn.Action == combatant_action_items && Combat->Turn.UsedItem != Item_Type_None
+            Combat->Turn.Action == combatant_action_items && *Combat->Turn.UsedItem != Item_Type_None
         );
         switch(Entity->Type) {
             case Entity_Type_Character: {
