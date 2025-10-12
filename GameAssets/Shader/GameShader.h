@@ -1,11 +1,8 @@
-#include "GamePlatform.h"
-#include "Tokenizer.h"
-#include <stdio.h>
-
-#include "Win32Debug.h"
-
 #ifndef GAME_SHADER
 #define GAME_SHADER
+
+#include "GamePlatform.h"
+#include "Tokenizer.h"
 
 ENUM(game_shader_id,
     // Vertex shaders

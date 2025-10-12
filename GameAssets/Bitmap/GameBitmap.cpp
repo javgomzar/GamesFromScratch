@@ -111,14 +111,14 @@ game_bitmap MakeEmptyBitmap(memory_arena* Arena, int32 Width, int32 Height, bool
     return Result;
 }
 
-void SaveBMP(platform_api* Platform, const char* Path, game_bitmap* BMP) {
-    Platform->WriteEntireFile(Path, sizeof(BMP->Header), &BMP->Header);
+void SaveBMP(const char* Path, game_bitmap* BMP) {
+    Platform.WriteEntireFile(Path, sizeof(BMP->Header), &BMP->Header);
     uint32 Offset = BMP->Header.BitmapOffset - sizeof(BMP->Header);
     char Zero = 0;
     for (uint32 i = 0; i < Offset; i++) {
-        Platform->AppendToFile(Path, 1, &Zero);
+        Platform.AppendToFile(Path, 1, &Zero);
     }
-    Platform->AppendToFile(Path, BMP->Header.Width * BMP->Header.Height * BMP->BytesPerPixel, BMP->Content);
+    Platform.AppendToFile(Path, BMP->Header.Width * BMP->Header.Height * BMP->BytesPerPixel, BMP->Content);
 }
 
 uint32* GetPixelAddress(game_bitmap* BMP, int X, int Y) {

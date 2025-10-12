@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "GameLibrary.h"
-#include "Win32PlatformLayer.h"
 
 #if GAME_RENDER_API_OPENGL
     #pragma comment (lib, "opengl32.lib")
@@ -637,16 +636,6 @@ inline float GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End) {
     return((float)(End.QuadPart - Start.QuadPart) / (float)PerfCountFrequency);
 }
 
-// Debugging
-void DebugDrawVertical(game_offscreen_buffer* Buffer, int X, int Top, int Bottom, uint32 Color) {
-    uint8* Pixel = ((uint8*)Buffer->Memory + X * Buffer->BytesPerPixel + Top * Buffer->Pitch);
-
-    for (int Y = Top; Y < Bottom; Y++) {
-        *(uint32*)Pixel = Color;
-        Pixel += Buffer->Pitch;
-    }
-}
-
 void LogDebugRecords(render_group* Group, memory_arena* TransientArena);
 
 // Main window callback
@@ -724,15 +713,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     Memory.Permanent = MemoryArena(PermanentStorageSize, (uint8*)GameMemoryBlock);
     Memory.HotReload = true;
 
-    platform_api* Platform = &Memory.Platform;
-
-    Platform->FreeFileMemory = Win32FreeFileMemory;
-    Platform->ReadEntireFile = Win32ReadEntireFile;
-    Platform->WriteEntireFile = Win32WriteEntireFile;
-    Platform->AppendToFile = Win32AppendToFile;
-    Platform->GetLastWriteTime = Win32GetLastWriteTime;
-    Platform->SeedRNG = Win32SeedRNG;
-
     game_state* pGameState = PushStruct(&Memory.Permanent, game_state);
     Memory.GameState = pGameState;
     
@@ -744,8 +724,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Assets
     game_assets* Assets = &Memory.Assets;
     const char* AssetsPath = "..\\GameAssets\\game_assets";
-    WriteAssetsFile(&Memory.Platform, AssetsPath);
-    LoadAssetsFromFile(&FontsArena, Memory.Platform.ReadEntireFile, Assets, AssetsPath);
+    WriteAssetsFile(AssetsPath);
+    LoadAssetsFromFile(&FontsArena, Assets, AssetsPath);
 
     // Recording and playback
     record_and_playback RecordPlayback;
@@ -981,7 +961,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
 
             if (Input.Keyboard.F10.IsDown && !Input.Keyboard.F11.WasDown) {
-                ScreenCapture(&Memory.Platform, &RendererContext, Group->Width, Group->Height);
+                ScreenCapture(&Platform, &RendererContext, Group->Width, Group->Height);
             }
 
             LogDebugRecords(Group, &Memory.Transient);

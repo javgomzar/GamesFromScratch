@@ -49,7 +49,6 @@ extern GAMELIBRARY_API int nGameLibrary;
 */
 struct game_memory {
     game_assets Assets;
-    platform_api Platform;
     render_group RenderGroup;
     game_state* GameState;
     memory_arena Permanent;

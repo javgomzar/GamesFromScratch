@@ -52,9 +52,8 @@ void LoadShaderPipelines(game_assets* Assets) {
     }
 }
 
-void WriteAssetsFile(platform_api* Platform, const char* Path) {
+void WriteAssetsFile(const char* Path) {
     game_assets Assets = {};
-    Assets.Platform = Platform;
 
 // Assets
     // Fonts
@@ -236,12 +235,12 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
 
     // Shaders
     for (int i = 0; i < game_shader_id_count; i++) {
-        LoadShader(Platform, &AssetArena, &Assets.Shader[i]);
+        LoadShader(&AssetArena, &Assets.Shader[i]);
     }
 
     // Compute shaders
     for (int i = 0; i < game_compute_shader_id_count; i++) {
-        LoadComputeShader(Platform, &AssetArena, &Assets.ComputeShader[i]);
+        LoadComputeShader(&AssetArena, &Assets.ComputeShader[i]);
     }
 
     // Shader pipelines vertex and uniform layouts
@@ -249,7 +248,7 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
 
     game_assets* OutputAssets = (game_assets*)FileMemory;
     if (OutputAssets) *OutputAssets = Assets;
-    Platform->WriteEntireFile(Path, sizeof(game_assets) + Assets.TotalSize, FileMemory);
+    Platform.WriteEntireFile(Path, sizeof(game_assets) + Assets.TotalSize, FileMemory);
 
     Log(Info, "Finished writing assets file.");
 
@@ -258,11 +257,10 @@ void WriteAssetsFile(platform_api* Platform, const char* Path) {
 
 void LoadAssetsFromFile(
     memory_arena* FontsArena,
-    platform_read_entire_file Read, 
     game_assets* Assets, 
     const char* Path
 ) {
-    read_file_result AssetsFile = Read(Path);
+    read_file_result AssetsFile = Platform.ReadEntireFile(Path);
 
     *Assets = *(game_assets*)AssetsFile.Content;
     Assets->Memory = (uint8*)AssetsFile.Content + sizeof(game_assets);

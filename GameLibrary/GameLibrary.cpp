@@ -33,7 +33,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     render_group* Group = &Memory->RenderGroup;
     game_state* pGameState = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
-    platform_api* Platform = &Memory->Platform;
     game_entity_manager* EntityManager = &pGameState->EntityManager;
     debug_info* DebugInfo = &Memory->DebugInfo;
     {
@@ -58,7 +57,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     if (Memory->HotReload) {
-        RNG.Seed = Platform->SeedRNG();
+        RNG.Seed = SeedRNG();
         RNG.State = RNG.Seed;
         
         Memory->HotReload = false;
