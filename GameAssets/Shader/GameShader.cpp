@@ -1,6 +1,6 @@
 #include "GameShader.h"
 
-void LoadShader(platform_api* Platform, memory_arena* Arena, game_shader* Shader) {
+void LoadShader(memory_arena* Arena, game_shader* Shader) {
     char* Destination = (char*)PushSize(Arena, Shader->File.ContentSize + 1);
     memcpy(Destination, Shader->Code, Shader->File.ContentSize);
 
@@ -95,15 +95,15 @@ void LoadShader(platform_api* Platform, memory_arena* Arena, game_shader* Shader
         }
     }
 
-    Platform->FreeFileMemory(Shader->Code);
+    Platform.FreeFileMemory(Shader->Code);
 
     char LogBuffer[256];
     sprintf_s(LogBuffer, "Loaded shader %s.", Shader->File.Path);
     Log(Info, LogBuffer);
 }
 
-void LoadComputeShader(platform_api* Platform, memory_arena* Arena, game_compute_shader* Shader) {
+void LoadComputeShader(memory_arena* Arena, game_compute_shader* Shader) {
     char* Destination = (char*)PushSize(Arena, Shader->Size + 1);
     memcpy(Destination, Shader->Code, Shader->Size);
-    Platform->FreeFileMemory(Shader->Code);
+    Platform.FreeFileMemory(Shader->Code);
 }

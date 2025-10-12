@@ -1,8 +1,7 @@
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
 
-#include "stdint.h"
-#include "string.h"
+#include "pch.h"
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -80,7 +79,27 @@ inline void Assert(bool assertion, const char* Message = "") {
     }
 }
 
-// Memory Arenas
+// +---------------------------------------------------------------------------------------------------------------------------------+
+// | Logging                                                                                                                         |
+// +---------------------------------------------------------------------------------------------------------------------------------+
+
+enum log_mode {
+    File,
+    Terminal
+};
+
+enum log_level {
+    Info,
+    Warn,
+    Error
+};
+
+log_mode LOG_MODE = Terminal;
+
+// +---------------------------------------------------------------------------------------------------------------------------------+
+// | Memory arenas                                                                                                                   |
+// +---------------------------------------------------------------------------------------------------------------------------------+
+
 struct memory_arena {
     memory_index Size;
     memory_index Used;
@@ -399,7 +418,10 @@ public:
     }
 };
 
-// Services that the platform layer provides for the game
+// +---------------------------------------------------------------------------------------------------------------------------------+
+// | File IO                                                                                                                         |
+// +---------------------------------------------------------------------------------------------------------------------------------+
+
 struct read_file_result {
     const char* Path;
     int64 Timestamp;
@@ -430,7 +452,35 @@ const char* GetFileExtension(const char* Path) {
     return Extension;
 }
 
-// Multithreading
+// Record and playback
+struct record_and_playback {
+    void* RecordFile;
+    int RecordIndex;
+    void* PlaybackFile;
+    int PlaybackIndex;
+    void* GameMemoryBlock;
+    uint64 TotalSize;
+};
+
+// +------------------------------------------------------------------------------------------------------------------------------------------+
+// | Monitor info                                                                                                                             |
+// +------------------------------------------------------------------------------------------------------------------------------------------+
+
+const uint8 MAX_SUPPORTED_MONITORS = 8;
+
+struct monitor_info {
+    uint8 ID;
+    char DeviceName[128];
+    char DisplayName[128];
+    RECT WorkArea;
+    RECT MonitorRect;
+    bool IsPrimary;
+};
+
+// +------------------------------------------------------------------------------------------------------------------------------------------+
+// | Multithreading                                                                                                                           |
+// +------------------------------------------------------------------------------------------------------------------------------------------+
+
 // struct thread_info {
 //     int ID;
 //     bool Running;
@@ -499,6 +549,10 @@ const char* GetFileExtension(const char* Path) {
 //    }
 // }
 
+// +------------------------------------------------------------------------------------------------------------------------------------------+
+// | OS Platform                                                                                                                              |
+// +------------------------------------------------------------------------------------------------------------------------------------------+
+
 #define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Path)
 typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
 
@@ -514,16 +568,87 @@ typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 #define PLATFORM_GET_LAST_WRITE_TIME(name) int64 name(const char* Path)
 typedef PLATFORM_GET_LAST_WRITE_TIME(platform_get_last_write_time);
 
-#define PLATFORM_SEED_RNG(name) uint64 name()
-typedef PLATFORM_SEED_RNG(platform_seed_rng);
+#define PLATFORM_GET_WALL_CLOCK(name) uint64 name()
+typedef PLATFORM_GET_WALL_CLOCK(platform_get_wall_clock);
 
 struct platform_api {
     platform_read_entire_file* ReadEntireFile;
-    platform_free_file_memory* FreeFileMemory;
     platform_write_entire_file* WriteEntireFile;
+    platform_free_file_memory* FreeFileMemory;
     platform_append_to_file* AppendToFile;
     platform_get_last_write_time* GetLastWriteTime;
-    platform_seed_rng* SeedRNG;
+    platform_get_wall_clock* GetWallClock;
+};
+
+#ifdef _WIN32
+    #include "Win32PlatformLayer.h"
+#else
+    UNKNOWN_OPERATING_SYSTEM
+#endif
+
+void Raise(const char* ErrorMessage) {
+    Log(Error, ErrorMessage);
+    Assert(false);
+}
+
+uint64 SeedRNG() {
+    uint64 Seed = 0;
+
+#ifdef _DEBUG
+    time_t Seconds = time(NULL);
+    tm* TimeInfo = localtime(&Seconds);
+    Seed = TimeInfo->tm_mday + 123456789;
+#else
+    Seed = Platform.GetWallClock();
+#endif
+    for (int i = 0; i < 8; i++) {
+        Seed ^= Seed << 13;
+        Seed ^= Seed >> 7;
+        Seed ^= Seed << 17;
+    }
+
+    char Buffer[64];
+    sprintf_s(Buffer, "RNG seed: %I64u.", Seed);
+    Log(Info, Buffer);
+    return Seed;
+}
+
+// +---------------------------------------------------------------------------------------------------------------------------------+
+// | Timing                                                                                                                          |
+// +---------------------------------------------------------------------------------------------------------------------------------+
+
+#define TIMED_BLOCK__(FunctionName) timed_block TimedBlock_##FunctionName(__COUNTER__, __FILE__, __LINE__, __FUNCTION__)
+#define TIMED_BLOCK_(Line) TIMED_BLOCK__(Line);
+#define TIMED_BLOCK TIMED_BLOCK_(__LINE__)
+
+struct time_record {
+    uint64 CycleCount;
+    
+    const char* FileName;
+    const char* FunctionName;
+    
+    int LineNumber;
+    int HitCount;
+};
+
+time_record TimeRecordArray[];
+
+struct timed_block {
+    time_record* Record;
+    uint64 StartCycles;
+
+    timed_block(int Counter, const char* FileName, int LineNumber, const char* FunctionName) {
+        Record = TimeRecordArray + Counter;
+        Record->FileName = FileName;
+        Record->FunctionName = FunctionName;
+        Record->LineNumber = LineNumber;
+        Record->HitCount++; 
+        StartCycles = __rdtsc();
+    }
+
+    ~timed_block() {
+        Record->CycleCount += __rdtsc() - StartCycles;
+    }
 };
 
 #endif

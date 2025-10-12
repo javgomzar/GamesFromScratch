@@ -1,11 +1,65 @@
-#pragma once
-
-#include "pch.h"
-
 #include "GamePlatform.h"
-#include "Win32Debug.h"
 
-// Platform services for the game
+void Log(log_level Level, const char* Content) {
+    // Level
+    char LevelString[9];
+    int LevelStringLength = 0;
+    switch (Level) {
+        case Info:
+        {
+            strcpy_s(LevelString, "[INFO] ");
+            LevelStringLength = 7;
+        } break;
+        case Warn:
+        {
+            strcpy_s(LevelString, "[WARN] ");
+            LevelStringLength = 7;
+        } break;
+        case Error:
+        {
+            strcpy_s(LevelString, "[ERROR] ");
+            LevelStringLength = 8;
+        } break;
+    }
+    LevelString[LevelStringLength] = 0;
+
+    // Timestamp
+    time_t t = time(NULL);
+    struct tm tm;
+    localtime_s(&tm, &t);
+    char Date[21];
+    sprintf_s(Date, "%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    // Logging
+    switch (LOG_MODE) {
+        case File:
+        {
+            HANDLE FileHandle = CreateFileA("log.log", FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
+            if (FileHandle != INVALID_HANDLE_VALUE) {
+                DWORD BytesWritten = 0;
+                WriteFile(FileHandle, Date, 20, &BytesWritten, 0);
+                WriteFile(FileHandle, LevelString, LevelStringLength, &BytesWritten, 0);
+                int i = 0;
+                while (*(Content + i) != 0) {
+                    i++;
+                }
+                WriteFile(FileHandle, Content, i, &BytesWritten, 0);
+            }
+            else {
+                Assert(false);
+            }
+
+            CloseHandle(FileHandle);
+        } break;
+        case Terminal:
+        {
+            OutputDebugStringA(Date);
+            OutputDebugStringA(LevelString);
+            OutputDebugStringA(Content);
+            OutputDebugStringA("\n");
+        } break;
+    }
+}
 
 PLATFORM_FREE_FILE_MEMORY(Win32FreeFileMemory) {
     if (Memory) {
@@ -105,46 +159,17 @@ PLATFORM_GET_LAST_WRITE_TIME(Win32GetLastWriteTime) {
     return Result;
 }
 
-PLATFORM_SEED_RNG(Win32SeedRNG) {
-    uint64 Seed = 0;
-
-#ifdef _DEBUG
-    time_t Seconds = time(NULL);
-    tm* TimeInfo = localtime(&Seconds);
-    Seed = TimeInfo->tm_mday + 123456789;
-#else
-    QueryPerformanceCounter((LARGE_INTEGER*)&Seed);
-#endif
-    for (int i = 0; i < 8; i++) {
-        Seed ^= Seed << 13;
-        Seed ^= Seed >> 7;
-        Seed ^= Seed << 17;
-    }
-
-    char Buffer[64];
-    sprintf_s(Buffer, "RNG seed: %I64u.", Seed);
-    Log(Info, Buffer);
-    return Seed;
+PLATFORM_GET_WALL_CLOCK(Win32GetWallClock) {
+    uint64 Result = 0;
+    QueryPerformanceCounter((LARGE_INTEGER*)&Result);
+    return Result;
 }
 
-// Record and playback
-struct record_and_playback {
-    HANDLE RecordFile;
-    int RecordIndex;
-    HANDLE PlaybackFile;
-    int PlaybackIndex;
-    void* GameMemoryBlock;
-    uint64 TotalSize;
-};
-
-// Monitors
-const uint8 MAX_SUPPORTED_MONITORS = 8;
-
-struct monitor_info {
-    uint8 ID;
-    char DeviceName[128];
-    char DisplayName[128];
-    RECT WorkArea;
-    RECT MonitorRect;
-    bool IsPrimary;
+const platform_api Platform = {
+    .ReadEntireFile   = Win32ReadEntireFile,
+    .WriteEntireFile  = Win32WriteEntireFile,
+    .FreeFileMemory   = Win32FreeFileMemory,
+    .AppendToFile     = Win32AppendToFile,
+    .GetLastWriteTime = Win32GetLastWriteTime,
+    .GetWallClock     = Win32GetWallClock,
 };

@@ -348,7 +348,6 @@ const uint32 ASSET_COUNT =
 ArrayDefinition(ASSET_COUNT, game_asset)
 
 struct game_assets {
-    platform_api* Platform;
     game_asset_array Asset;
     game_text Text[game_text_id_count];
     game_bitmap Bitmap[game_bitmap_id_count];
@@ -393,7 +392,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_text_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Text;
     Asset.ID.Text = ID;
-    Asset.File = Assets->Platform->ReadEntireFile(Path);
+    Asset.File = Platform.ReadEntireFile(Path);
     Assert(Asset.File.ContentSize > 0);
     Asset.MemoryNeeded = Asset.File.ContentSize + 1;
     
@@ -406,7 +405,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_sound_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Sound;
     Asset.ID.Sound = ID;
-    Asset.File = Assets->Platform->ReadEntireFile(Path);
+    Asset.File = Platform.ReadEntireFile(Path);
     Assert(Asset.File.ContentSize > 0);
 
     preprocessed_sound Preprocessed = PreprocessSound(Asset.File);
@@ -422,7 +421,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_bitmap_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Bitmap;
     Asset.ID.Bitmap = ID;
-    Asset.File = Assets->Platform->ReadEntireFile(Path);
+    Asset.File = Platform.ReadEntireFile(Path);
     Assert(Asset.File.ContentSize > 0);
     Asset.MemoryNeeded = PreprocessBitmap((bitmap_header*)Asset.File.Content);
 
@@ -435,7 +434,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_heightmap_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Heightmap;
     Asset.ID.Heightmap = ID;
-    Asset.File = Assets->Platform->ReadEntireFile(Path);
+    Asset.File = Platform.ReadEntireFile(Path);
     Assert(Asset.File.ContentSize > 0);
     Asset.MemoryNeeded = ComputeNeededMemoryForHeightmap(Asset.File);
 
@@ -448,7 +447,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_font_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Font;
     Asset.ID.Font = ID;
-    Asset.File = Assets->Platform->ReadEntireFile(Path);
+    Asset.File = Platform.ReadEntireFile(Path);
     Assert(Asset.File.ContentSize > 0);
     preprocessed_font Preprocessed = PreprocessFont(Asset.File);
     PreprocessedAssets.Font[ID] = Preprocessed;
@@ -463,7 +462,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_mesh_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Mesh;
     Asset.ID.Mesh = ID;
-    Asset.File = Assets->Platform->ReadEntireFile(Path);
+    Asset.File = Platform.ReadEntireFile(Path);
     Assert(Asset.File.ContentSize > 0);
 
     preprocessed_mesh Preprocessed = PreprocessMesh(Asset.File);
@@ -484,7 +483,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_animation_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Animation;
     Asset.ID.Animation = ID;
-    Asset.File = Assets->Platform->ReadEntireFile(Path);
+    Asset.File = Platform.ReadEntireFile(Path);
     Assert(Asset.File.ContentSize > 0);
     Asset.MemoryNeeded = ComputeNeededMemoryForAnimation(Asset.File);
 
@@ -497,7 +496,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Video;
     Asset.ID.Video = ID;
-    Asset.File = Assets->Platform->ReadEntireFile(Path);
+    Asset.File = Platform.ReadEntireFile(Path);
     Assert(Asset.File.ContentSize > 0);
     Asset.MemoryNeeded = Asset.File.ContentSize;
 
@@ -567,7 +566,7 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
     Log(Info, LogBuffer);
     uint64 UsedMemory = Arena->Used - Asset->Offset;
     Assert(Asset->MemoryNeeded == UsedMemory);
-    Assets->Platform->FreeFileMemory(Asset->File.Content);
+    Platform.FreeFileMemory(Asset->File.Content);
     Asset->File.Content = 0;
 }
 
@@ -591,7 +590,7 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
     }
     else Assert(false);
 
-    read_file_result File = Assets->Platform->ReadEntireFile(Path);
+    read_file_result File = Platform.ReadEntireFile(Path);
     if (File.ContentSize > 0) {
         Shader->File = File;
         Shader->Code = (char*)File.Content;
@@ -642,7 +641,7 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
         Raise("Extension of compute shader file should be '.comp'.");
     }
     else {
-        read_file_result ShaderFile = Assets->Platform->ReadEntireFile(Path);
+        read_file_result ShaderFile = Platform.ReadEntireFile(Path);
         Shader->Size = ShaderFile.ContentSize;
         Shader->Code = (char*)ShaderFile.Content;
 
@@ -655,6 +654,6 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
 }
 
 void WriteAssetsFile(platform_api* Platform, const char* Path);
-void LoadAssetsFromFile(memory_arena* FontsArena, platform_read_entire_file Read, game_assets* Assets, const char* Path);
+void LoadAssetsFromFile(memory_arena* FontsArena, game_assets* Assets, const char* Path);
 
 #endif
