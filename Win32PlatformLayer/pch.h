@@ -7,24 +7,36 @@
 #ifndef PCH_H
 #define PCH_H
 
-// add headers that you want to pre-compile here
-#include "windows.h"
-#include <psapi.h>
+#ifdef _WIN32
+// Windows Header Files
+/*  
+    Including SDKDDKVer.h defines the highest available Windows platform.
+    If you wish to build your application for a previous Windows platform, include WinSDKVer.h and
+    set the _WIN32_WINNT macro to the platform you wish to support before including SDKDDKVer.h.
+*/
+#include <SDKDDKVer.h>
+#define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
+#include <windows.h>
 
 #ifndef _DEBUG
-#include "wincrypt.h"
+#include <wincrypt.h>
 #endif
-
-#include "resource.h"
-#include "framework.h"
-
-#include <stdint.h>
-#include <time.h>
-
-#include <thread>
-#include <mutex>
 
 #include <XInput.h>
 #include <xaudio2.h>
+#endif
 
-#endif //PCH_H
+// C RunTime Header Files
+#include <stdlib.h>
+#include <stdint.h>
+#include <malloc.h>
+#include <memory.h>
+#include <tchar.h>
+#include <psapi.h>
+#include <time.h>
+#include <thread>
+#include <mutex>
+
+#include "Resource.h"
+
+#endif
