@@ -456,6 +456,10 @@ const enemy EnemyTemplates[enemy_type_count] = {
         Enemy_Type_Boss_Squid,
         Mesh_Squid_ID,
         Bitmap_Squid_ID,
+        {
+            Spell_Drench,
+            Spell_Cascade,
+        }
     },
 };
 
@@ -1193,6 +1197,8 @@ struct game_combat {
     turn Turn;
     memory_arena TurnsArena;
     damage_animation_list DamageAnimations;
+    uint32 nEnemies;
+    uint32 nPlayers;
     bool Active;
 };
 
@@ -1203,6 +1209,8 @@ void Erase(game_combat* Combat) {
     for (int i = 0; i < TURN_BUFFER_SIZE; i++) {
         Combat->NextTurns[i] = {};
     }
+    Combat->nEnemies = 0;
+    Combat->nPlayers = 0;
 }
 
 // Advances ATB of turn. If a new attacker is found, it is returned; returns NULL otherwise.
@@ -1233,6 +1241,7 @@ turn GetNextTurn(combatant_array* Combatants, turn PreviousTurn) {
     Result.Attacker = NULL;
     Result.nTargets = 0;
     Result.Action = combatant_action_empty;
+    Result.TargetsSelected = false;
     for (int i = 0; i < Combatants->Count; i++) {
         Result.Targets[i] = NULL;
     }
@@ -1273,11 +1282,13 @@ void StartCombat(game_entity_manager* EntityManager, game_combat* Combat) {
         if (IsEnemy || IsCharacter) {
             if (IsEnemy) {
                 enemy* Enemy = &EntityManager->Enemies.List[Entity->Index];
-                EntityCombatant = Combatant(Enemy);
+                EntityCombatant = Combatant(Enemy);\
+                Combat->nEnemies++;
             }
             else if (IsCharacter) {
                 character* Character = &EntityManager->Characters.List[Entity->Index];
                 EntityCombatant = Combatant(Character);
+                Combat->nPlayers++;
             }
 
             EntityCombatant.Index = Combat->Combatants.Count;
@@ -1828,13 +1839,7 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
                     if (Hot->Type != Combat->Turn.Attacker->Type) {
                         Turn->nTargets = 1;
                         Turn->Targets[0] = Hot;
-                        EndTurn(
-                            &Combat->DamageAnimations, 
-                            &Combat->TurnsArena, 
-                            &Combat->Combatants, 
-                            &Combat->Turn,
-                            Combat->NextTurns
-                        );
+                        Turn->TargetsSelected = true;
                     }
                 } break;
 
@@ -1842,28 +1847,26 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
                     if (Hot->Type != Turn->Attacker->Type && Turn->Spell != Spell_Empty) {
                         Turn->nTargets = 1;
                         Turn->Targets[0] = Hot;
-                        EndTurn(
-                            &Combat->DamageAnimations, 
-                            &Combat->TurnsArena, 
-                            &Combat->Combatants, 
-                            &Combat->Turn,
-                            Combat->NextTurns
-                        );
+                        Turn->TargetsSelected = true;
                     }
                 } break;
 
                 case combatant_action_items: {
                     Turn->nTargets = 1;
                     Turn->Targets[0] = Hot;
-                    EndTurn(
-                        &Combat->DamageAnimations, 
-                        &Combat->TurnsArena, 
-                        &Combat->Combatants, 
-                        &Combat->Turn,
-                        Combat->NextTurns
-                    );
+                    Turn->TargetsSelected = true;
                 } break;
             }
+        }
+
+        if (Combat->Turn.TargetsSelected) {
+            EndTurn(
+                &Combat->DamageAnimations, 
+                &Combat->TurnsArena, 
+                &Combat->Combatants, 
+                &Combat->Turn,
+                Combat->NextTurns
+            );
         }
 
         Update(&Combat->DamageAnimations, Group, State->dt);
@@ -2059,6 +2062,23 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         }
         float Angle = atan2f(FacingDirection.Z, FacingDirection.X);
         pEnemy->Entity->Transform.Rotation = Quaternion(Angle, V3(0,1,0));
+
+        // Combat AI
+        if (Combat->Active && Combat->Turn.Attacker->Entity == pEnemy->Entity) {
+            uint32 CheckedPlayers = 0;
+            for (int i = 0; i < Combat->Combatants.Count; i++) {
+                combatant* Combatant = &Combat->Combatants.Content[i];
+                if (Combatant->Type == Combatant_Type_Player) {
+                    if (CheckedPlayers == Combat->nPlayers - 1 || Bernoulli()) {
+                        Combat->Turn.Action = combatant_action_attack;
+                        Combat->Turn.nTargets = 1;
+                        Combat->Turn.Targets[0] = Combatant;
+                        Combat->Turn.TargetsSelected = true;
+                        break;
+                    }
+                }
+            }
+        }
     }
 
 // Weapons _________________________________________________________________________________________________________________________________

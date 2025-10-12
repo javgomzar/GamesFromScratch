@@ -862,10 +862,8 @@ void UpdateCombatUI(
     // Combat menu
     if (State->Combat.Active) {
         combatant* ActiveCombatant = Combat->Turn.Attacker;
-
-        // Combat menu
         float CombatMenuWidth = 0;
-        {
+        if (ActiveCombatant->Type == Combatant_Type_Player) {
             UIMenu CombatMenu = UIMenu("Combat menu", axis_y, ui_alignment_min, ui_alignment_max, 80.0f, 20.0f);
             CombatMenuWidth = CombatMenu.Element->Rect.Width;
 
@@ -1327,8 +1325,8 @@ void UpdateUI(
                     if (Hovered && Input->Mouse.LeftClick.JustPressed) {
                         State->Combat.Turn.UsedItem = &State->Inventory[i];
                         Selected[i] = true;
-                        Selected[i + 1 % 3] = false;
-                        Selected[i + 2 % 3] = false;
+                        Selected[(i + 1) % 3] = false;
+                        Selected[(i + 2) % 3] = false;
                     }
                 }
                 else {
