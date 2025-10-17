@@ -73,10 +73,10 @@ inline uint8 MSB32(uint64 X) {
 }
 
 inline void Assert(bool assertion, const char* Message = "") {
-    if (!assertion) {
-        int* i = 0;
-        int j = *i;
-    }
+#ifdef _DEBUG
+    if (!assertion)
+        throw Message;
+#endif
 }
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
@@ -481,6 +481,12 @@ struct monitor_info {
 // | Multithreading                                                                                                                           |
 // +------------------------------------------------------------------------------------------------------------------------------------------+
 
+struct process_info {
+    void* Handle;
+    void* ThreadHandle;
+    bool Running;
+};
+
 // struct thread_info {
 //     int ID;
 //     bool Running;
@@ -553,6 +559,14 @@ struct monitor_info {
 // | OS Platform                                                                                                                              |
 // +------------------------------------------------------------------------------------------------------------------------------------------+
 
+enum system_os {
+    Windows,
+    Linux,
+};
+
+#define PLATFORM_FILE_EXISTS(name) bool name(const char* Path)
+typedef PLATFORM_FILE_EXISTS(platform_file_exists);
+
 #define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Path)
 typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
 
@@ -568,16 +582,30 @@ typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 #define PLATFORM_GET_LAST_WRITE_TIME(name) int64 name(const char* Path)
 typedef PLATFORM_GET_LAST_WRITE_TIME(platform_get_last_write_time);
 
+/*
+    This function should be accompanied by a QuerPerformanceFrequency function that sets the
+    .PerformanceCounterFrequency member of the Platform struct.
+*/
 #define PLATFORM_GET_WALL_CLOCK(name) uint64 name()
 typedef PLATFORM_GET_WALL_CLOCK(platform_get_wall_clock);
 
+#define PLATFORM_RUN_COMMAND(name) process_info name(char* Command, char* Environment)
+typedef PLATFORM_RUN_COMMAND(platform_run_command);
+
+#define PLATFORM_WAIT_FOR_PROCESS(name) uint32 name(process_info* Process)
+typedef PLATFORM_WAIT_FOR_PROCESS(platform_wait_for_process);
+
 struct platform_api {
-    platform_read_entire_file* ReadEntireFile;
-    platform_write_entire_file* WriteEntireFile;
-    platform_free_file_memory* FreeFileMemory;
-    platform_append_to_file* AppendToFile;
+    platform_file_exists*         FileExists;
+    platform_read_entire_file*    ReadEntireFile;
+    platform_write_entire_file*   WriteEntireFile;
+    platform_free_file_memory*    FreeFileMemory;
+    platform_append_to_file*      AppendToFile;
     platform_get_last_write_time* GetLastWriteTime;
-    platform_get_wall_clock* GetWallClock;
+    platform_get_wall_clock*      GetWallClock;
+    platform_run_command*         RunCommand;
+    platform_wait_for_process*    WaitForProcess;
+    uint64                        PerformanceCounterFrequency;
 };
 
 #ifdef _WIN32
