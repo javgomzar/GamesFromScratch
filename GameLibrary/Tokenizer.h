@@ -1,7 +1,7 @@
 #ifndef TOKENIZER_H
 #define TOKENIZER_H
 
-#include "GamePlatform.h"
+#include <string>
 
 enum token_type {
     Token_Unknown,
@@ -166,7 +166,7 @@ tokenizer InitTokenizer(void* At, bool IgnoreWhitespace = true) {
 
 void Advance(tokenizer& Tokenizer) {
     if (Tokenizer.At[0] == '\0') {
-        Assert(false); // Tokenizer reached EOF
+        throw "Tokenizer reached EOF";
         return;
     }
     else if (Tokenizer.At[0] == '\n') {
@@ -390,7 +390,7 @@ token RequireToken(tokenizer& Tokenizer, const char* Text) {
             "Token `%s` at line %d, column %d should be `%s`.", 
             TokenText, Token.Line, Token.Column, Text
         );
-        Raise(ErrorBuffer);
+        throw ErrorBuffer;
     }
     return Token;
 }
@@ -409,13 +409,13 @@ token RequireToken(tokenizer& Tokenizer, token_type Type) {
             "Token `%s` at line %d, column %d is type '%s' but should be '%s'.", 
             TokenText, Token.Line, Token.Column, TokenTypeName[Token.Type], TokenTypeName[Type]
         );
-        Raise(ErrorBuffer);
+        throw ErrorBuffer;
     }
     return Token;
 }
 
 // Parsing
-uint32 Parseuint32(tokenizer& Tokenizer) {
+unsigned int Parseuint32(tokenizer& Tokenizer) {
     token Token = RequireToken(Tokenizer, Token_Constant_Integer);
     char* End;
     return strtol(Token.Text, &End, 10);
@@ -429,7 +429,9 @@ int ParseInt(tokenizer& Tokenizer) {
         Negative = true;
         Token = GetToken(Tokenizer);
     }
-    Assert(Token.Type == Token_Constant_Integer, "Tried to parse int but didn't find a number.");
+    if (Token.Type != Token_Constant_Integer) {
+        throw "Tried to parse int but didn't find a number.";
+    };
     int Result = strtol(Token.Text, &End, 10);
     return Negative ? -Result : Result;
 }
@@ -442,7 +444,9 @@ float ParseFloat(tokenizer& Tokenizer) {
         Negative = true;
         Token = GetToken(Tokenizer);
     }
-    Assert(Token.Type == Token_Constant_Decimal || Token.Type == Token_Constant_Integer, "Tried to parse float but didn't find a number.");
+    if (Token.Type == Token_Constant_Decimal || Token.Type == Token_Constant_Integer) {
+        throw "Tried to parse float but didn't find a number.";
+    }
     float Result = strtof(Token.Text, &End);
     return Negative ? -Result : Result;
 }
@@ -455,7 +459,9 @@ double ParseDouble(tokenizer& Tokenizer) {
         Negative = true;
         Token = GetToken(Tokenizer);
     }
-    Assert(Token.Type == Token_Constant_Decimal || Token.Type == Token_Constant_Integer, "Tried to parse float but didn't find a number.");
+    if (Token.Type == Token_Constant_Decimal || Token.Type == Token_Constant_Integer) {
+        throw "Tried to parse float but didn't find a number.";
+    };
     double Result = strtod(Token.Text, &End);
     return Negative ? -Result : Result;
 }
@@ -464,14 +470,14 @@ double ParseDouble(tokenizer& Tokenizer) {
 int ParsePath(char* Text) {
     int Result = 0;
     while (Text[0] != '\0') {
-        if (Text[0] == ';' || Text[0] == '\n') break;
+        if (Text[0] == ';' || Text[0] == '\n' || Text[0] == '\r') break;
 
 #ifdef _WIN32
         if (
             Text[0] == '<' || Text[0] == '>' || Text[0] == '|' || Text[0] == '?' || Text[0] == '*' ||
             Text[0] >= 0 && Text[0] < 32
         ) {
-            Raise("Invalid character in path.");
+            throw "Invalid character in path.";
         }
 #endif
         Result++;
