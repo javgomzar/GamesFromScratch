@@ -624,18 +624,6 @@ void UnloadGameCode(game_code* GameCode) {
 }
 
 // Performance
-static uint64 PerfCountFrequency;
-
-inline LARGE_INTEGER GetWallClock() {
-    LARGE_INTEGER Result;
-    QueryPerformanceCounter(&Result);
-    return(Result);
-}
-
-inline float GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End) {
-    return((float)(End.QuadPart - Start.QuadPart) / (float)PerfCountFrequency);
-}
-
 void LogDebugRecords(render_group* Group, memory_arena* TransientArena);
 
 // Main window callback
@@ -673,7 +661,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Performance counting initialization
     LARGE_INTEGER PerfCountFrequencyResult;
     QueryPerformanceFrequency(&PerfCountFrequencyResult);
-    PerfCountFrequency = PerfCountFrequencyResult.QuadPart;
+    Platform.PerformanceCounterFrequency = PerfCountFrequencyResult.QuadPart;
 
     // Initialize global strings
     LoadStringA(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -752,7 +740,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     float TargetSecondsPerFrame = 1.0f / (float)MonitorRefreshHz;
 
     // Performance
-    LARGE_INTEGER LastCounter = GetWallClock();
+    uint64 LastCounter = Platform.GetWallClock();
     uint64 LastCycleCount = __rdtsc();
 
     HDC DeviceContext = GetDC(Window);
@@ -999,8 +987,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
         float UsedMCyclesPerFrame = (float)CyclesElapsed / 1000000.0f;
 
-        LARGE_INTEGER WorkCounter = GetWallClock();
-        float WorkSecsElapsed = GetSecondsElapsed(LastCounter, WorkCounter);
+        float WorkSecsElapsed = GetSecondsElapsed(LastCounter, Platform.GetWallClock());
         float UsedTime_ms = 1000.0f * WorkSecsElapsed;
 
         float SecsElapsedPerFrame = WorkSecsElapsed;
@@ -1008,7 +995,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             while (SecsElapsedPerFrame < (TargetSecondsPerFrame - 0.0005f)) {
                 // if sleep granular : DWORD SleepMs = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecsElapsedPerFrame));
                 //Sleep(SleepMs);
-                SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, GetWallClock());
+                SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, Platform.GetWallClock());
             }
         }
         else {
@@ -1044,10 +1031,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         while (SecsElapsedPerFrame < TargetSecondsPerFrame) {
             // if sleep granular : DWORD SleepMs = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecsElapsedPerFrame));
             //Sleep(SleepMs);
-            SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, GetWallClock());
+            SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, Platform.GetWallClock());
         }
 
-        LARGE_INTEGER EndCounter = GetWallClock();
+        uint64 EndCounter = Platform.GetWallClock();
         LastCounter = EndCounter;
         LastCycleCount = EndCycleCount;
     }

@@ -1,27 +1,25 @@
 #include "GamePlatform.h"
 
+system_os SystemOS = Windows;
+
 void Log(log_level Level, const char* Content) {
     // Level
     char LevelString[9];
-    int LevelStringLength = 0;
     switch (Level) {
         case Info:
         {
-            strcpy_s(LevelString, "[INFO] ");
-            LevelStringLength = 7;
+            strcpy_s(LevelString, "[INFO]  ");
         } break;
         case Warn:
         {
-            strcpy_s(LevelString, "[WARN] ");
-            LevelStringLength = 7;
+            strcpy_s(LevelString, "[WARN]  ");
         } break;
         case Error:
         {
             strcpy_s(LevelString, "[ERROR] ");
-            LevelStringLength = 8;
         } break;
     }
-    LevelString[LevelStringLength] = 0;
+    LevelString[8] = 0;
 
     // Timestamp
     time_t t = time(NULL);
@@ -38,7 +36,7 @@ void Log(log_level Level, const char* Content) {
             if (FileHandle != INVALID_HANDLE_VALUE) {
                 DWORD BytesWritten = 0;
                 WriteFile(FileHandle, Date, 20, &BytesWritten, 0);
-                WriteFile(FileHandle, LevelString, LevelStringLength, &BytesWritten, 0);
+                WriteFile(FileHandle, LevelString, 8, &BytesWritten, 0);
                 int i = 0;
                 while (*(Content + i) != 0) {
                     i++;
@@ -51,14 +49,27 @@ void Log(log_level Level, const char* Content) {
 
             CloseHandle(FileHandle);
         } break;
+
         case Terminal:
         {
-            OutputDebugStringA(Date);
-            OutputDebugStringA(LevelString);
-            OutputDebugStringA(Content);
-            OutputDebugStringA("\n");
+            HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+            SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+            WriteConsoleA(hConsole, Date, 21, NULL, NULL);
+            switch (Level) {
+                case Info:  { SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_BLUE); } break;
+                case Warn:  { SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN); } break;
+                case Error: { SetConsoleTextAttribute(hConsole, FOREGROUND_RED); } break;
+            }
+            WriteConsoleA(hConsole, LevelString, 8, NULL, NULL);
+            SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
+            WriteConsoleA(hConsole, Content, strlen(Content), NULL, NULL);
+            WriteConsoleA(hConsole, "\n", 1, NULL, NULL);
         } break;
     }
+}
+
+PLATFORM_FILE_EXISTS(Win32FileExists) {
+    return GetFileAttributesA(Path) != INVALID_FILE_ATTRIBUTES;
 }
 
 PLATFORM_FREE_FILE_MEMORY(Win32FreeFileMemory) {
@@ -165,11 +176,51 @@ PLATFORM_GET_WALL_CLOCK(Win32GetWallClock) {
     return Result;
 }
 
-const platform_api Platform = {
+PLATFORM_RUN_COMMAND(Win32RunCommand) {
+    STARTUPINFOA StartInfo = {};
+    StartInfo.cb = sizeof(StartInfo);
+
+    PROCESS_INFORMATION ProcessInfo = {};
+
+    bool Success = CreateProcessA(NULL, Command, NULL, NULL, FALSE, 0, Environment, NULL, &StartInfo, &ProcessInfo);
+    if (!Success) {
+        DWORD Err = GetLastError();
+        char ErrorBuffer[1024];
+        sprintf_s(ErrorBuffer, "Error '%d' when trying to run command:\n    %s", Err, Command);
+        Log(Error, ErrorBuffer);
+    }
+
+    process_info Process = {};
+    Process.Handle = ProcessInfo.hProcess;
+    Process.ThreadHandle = ProcessInfo.hThread;
+    Process.Running = Success;
+
+    return Process;
+}
+
+PLATFORM_WAIT_FOR_PROCESS(Win32WaitForProcess) {
+    WaitForSingleObject(Process->Handle, INFINITE);
+    Process->Running = false;
+    DWORD Result = 0;
+    GetExitCodeProcess(Process->Handle, &Result);
+    CloseHandle(Process->Handle);
+    CloseHandle(Process->ThreadHandle);
+    return Result;
+}
+
+platform_api Platform = {
+    .FileExists       = Win32FileExists,
     .ReadEntireFile   = Win32ReadEntireFile,
     .WriteEntireFile  = Win32WriteEntireFile,
     .FreeFileMemory   = Win32FreeFileMemory,
     .AppendToFile     = Win32AppendToFile,
     .GetLastWriteTime = Win32GetLastWriteTime,
     .GetWallClock     = Win32GetWallClock,
+    .RunCommand       = Win32RunCommand,
+    .WaitForProcess   = Win32WaitForProcess,
 };
+
+inline float GetSecondsElapsed(uint64 Start, uint64 End) {
+    uint64 TimeElapsed = End - Start;
+    return TimeElapsed / (float)Platform.PerformanceCounterFrequency;
+}
