@@ -6,6 +6,8 @@
 #include <vector>
 #include <string>
 
+#define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
+
 FILE* OpenFile(const char* Path, const char* Permissions) {
     FILE* File = fopen(Path, Permissions);
     if (File == NULL) {
@@ -30,8 +32,8 @@ char* ReadFile(const char* Path) {
 }
 
 int main() {
-    FILE* EnumsFile = OpenFile("..\\GameLibrary\\GameEnums.h", "w");
-    FILE* StructsFile = OpenFile("..\\GameLibrary\\GameStructs.h", "w");
+    FILE* EnumsFile = OpenFile("GameLibrary\\GameEnums.h", "w");
+    FILE* StructsFile = OpenFile("GameLibrary\\GameStructs.h", "w");
 
     const char* PrimitiveTypes[] = {
         "bool",
@@ -75,15 +77,15 @@ int main() {
     std::vector<std::string> FlagDebugTypes = {};
     std::vector<std::string> FlagValues = {};
     std::string FlagDeclarations = "";
-    uint32 nFlagTypes = 0;
+    unsigned int nFlagTypes = 0;
     std::vector<std::string> StructDebugTypes = {};
     std::vector<std::string> StructMembers = {};
 
     const char* ProcessingFiles[] = {
-        "..\\GameLibrary\\GameMath.h",
-        "..\\GameAssets\\GameAssets.h",
-        "..\\GameLibrary\\GameEntity.h",
-        "..\\GameLibrary\\GameRender.h",
+        "GameLibrary\\GameMath.h",
+        "GameAssets\\GameAssets.h",
+        "GameLibrary\\GameEntity.h",
+        "GameLibrary\\GameRender.h",
     };
 
     char Buffer[256];
@@ -112,7 +114,9 @@ int main() {
                     int Value = Constants[FirstAddend];
                     Token = RequireToken(Tokenizer, Token_Plus);
                     while (Token.Type != Token_Semicolon) {
-                        Assert(Token.Type == Token_Plus);
+                        if (Token.Type != Token_Plus) {
+                            throw "Should be a plus sign.";
+                        };
                         Token = RequireToken(Tokenizer, Token_Identifier);
                         std::string Addend(Token.Text, Token.Length);
                         Value += Constants[Addend];
@@ -173,7 +177,9 @@ int main() {
                             ArraySize, IsPointer ? "true" : "false");
                         std::string StructMember = Buffer;
                         StructMembers.push_back(StructMember);
-                        Assert(Token.Type == Token_Semicolon);
+                        if (Token.Type != Token_Semicolon) {
+                            throw "Should be a semicolon.";
+                        };
                         Token = GetToken(Tokenizer);
                     }
                 }
@@ -197,7 +203,9 @@ int main() {
                     sprintf_s(Buffer, "    {Debug_Type_%s, \"%s\", %d},\n", EnumNameText, TokenText, Value++);
                     EnumValues.push_back(std::string(Buffer));
                     Token = GetToken(Tokenizer);
-                    if (Token.Type != Token_CloseParen) Assert(Token.Type == Token_Comma);
+                    if (Token.Type != Token_CloseParen && Token.Type != Token_Comma) {
+                        throw "Should be a comma.";
+                    };
                 }
                 sprintf_s(Buffer, "    {Debug_Type_%s, \"%s_count\", %d},\n", EnumNameText, EnumNameText, Value);
                 EnumValues.push_back(std::string(Buffer));
@@ -342,4 +350,6 @@ int main() {
 
     fclose(StructsFile);
     fclose(EnumsFile);
+
+    return 0;
 }
