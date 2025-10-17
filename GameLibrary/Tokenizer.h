@@ -444,7 +444,7 @@ float ParseFloat(tokenizer& Tokenizer) {
         Negative = true;
         Token = GetToken(Tokenizer);
     }
-    if (Token.Type == Token_Constant_Decimal || Token.Type == Token_Constant_Integer) {
+    if (Token.Type != Token_Constant_Decimal && Token.Type != Token_Constant_Integer) {
         throw "Tried to parse float but didn't find a number.";
     }
     float Result = strtof(Token.Text, &End);
