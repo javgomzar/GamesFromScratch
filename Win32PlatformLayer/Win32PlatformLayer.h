@@ -6,18 +6,9 @@ void Log(log_level Level, const char* Content) {
     // Level
     char LevelString[9];
     switch (Level) {
-        case Info:
-        {
-            strcpy_s(LevelString, "[INFO]  ");
-        } break;
-        case Warn:
-        {
-            strcpy_s(LevelString, "[WARN]  ");
-        } break;
-        case Error:
-        {
-            strcpy_s(LevelString, "[ERROR] ");
-        } break;
+        case Info:  { strcpy_s(LevelString, "[INFO]  "); } break;
+        case Warn:  { strcpy_s(LevelString, "[WARN]  "); } break;
+        case Error: { strcpy_s(LevelString, "[ERROR] "); } break;
     }
     LevelString[8] = 0;
 
@@ -157,6 +148,11 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
     return Result;
 }
 
+PLATFORM_COPY_FILE(Win32CopyFile) {
+    bool CopyResult = CopyFileA(Source, Destination, FALSE);
+    return CopyResult;
+}
+
 PLATFORM_GET_LAST_WRITE_TIME(Win32GetLastWriteTime) {
     int64 Result = 0;
 
@@ -199,12 +195,16 @@ PLATFORM_RUN_COMMAND(Win32RunCommand) {
 }
 
 PLATFORM_WAIT_FOR_PROCESS(Win32WaitForProcess) {
-    WaitForSingleObject(Process->Handle, INFINITE);
+    DWORD WaitResult = WaitForSingleObject(Process->Handle, Timeout);
     Process->Running = false;
-    DWORD Result = 0;
-    GetExitCodeProcess(Process->Handle, &Result);
-    CloseHandle(Process->Handle);
-    CloseHandle(Process->ThreadHandle);
+    int32 Result = -1;
+    if (WaitResult == WAIT_OBJECT_0) {
+        DWORD ExitCode = 0;
+        GetExitCodeProcess(Process->Handle, &ExitCode);
+        Result = ExitCode;
+        CloseHandle(Process->Handle);
+        CloseHandle(Process->ThreadHandle);
+    }
     return Result;
 }
 
@@ -214,6 +214,7 @@ platform_api Platform = {
     .WriteEntireFile  = Win32WriteEntireFile,
     .FreeFileMemory   = Win32FreeFileMemory,
     .AppendToFile     = Win32AppendToFile,
+    .Copy             = Win32CopyFile,
     .GetLastWriteTime = Win32GetLastWriteTime,
     .GetWallClock     = Win32GetWallClock,
     .RunCommand       = Win32RunCommand,

@@ -576,6 +576,9 @@ typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
 #define PLATFORM_APPEND_TO_FILE(name) bool name(const char* Path, uint64 MemorySize, void* Memory)
 typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
 
+#define PLATFORM_COPY_FILE(name) bool name(const char* Source, const char* Destination)
+typedef PLATFORM_COPY_FILE(platform_copy_file);
+
 #define PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)
 typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 
@@ -583,7 +586,7 @@ typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 typedef PLATFORM_GET_LAST_WRITE_TIME(platform_get_last_write_time);
 
 /*
-    This function should be accompanied by a QuerPerformanceFrequency function that sets the
+    This function should be accompanied by a QueryPerformanceFrequency function that sets the
     .PerformanceCounterFrequency member of the Platform struct.
 */
 #define PLATFORM_GET_WALL_CLOCK(name) uint64 name()
@@ -592,7 +595,7 @@ typedef PLATFORM_GET_WALL_CLOCK(platform_get_wall_clock);
 #define PLATFORM_RUN_COMMAND(name) process_info name(char* Command, char* Environment)
 typedef PLATFORM_RUN_COMMAND(platform_run_command);
 
-#define PLATFORM_WAIT_FOR_PROCESS(name) uint32 name(process_info* Process)
+#define PLATFORM_WAIT_FOR_PROCESS(name) int32 name(process_info* Process, uint32 Timeout)
 typedef PLATFORM_WAIT_FOR_PROCESS(platform_wait_for_process);
 
 struct platform_api {
@@ -601,6 +604,7 @@ struct platform_api {
     platform_write_entire_file*   WriteEntireFile;
     platform_free_file_memory*    FreeFileMemory;
     platform_append_to_file*      AppendToFile;
+    platform_copy_file*           Copy;
     platform_get_last_write_time* GetLastWriteTime;
     platform_get_wall_clock*      GetWallClock;
     platform_run_command*         RunCommand;
