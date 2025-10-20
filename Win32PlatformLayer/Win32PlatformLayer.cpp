@@ -158,7 +158,12 @@ BOOL AddMonitorInfo(HMONITOR hMonitor, monitor_manager* Manager) {
 
         monitor_info Monitor = {};
         strcpy_s(Monitor.DeviceName, Info.szDevice);
-        Monitor.MonitorRect = Info.rcMonitor;
+        Monitor.MonitorRect = { 
+            (float)Info.rcMonitor.left, 
+            (float)Info.rcMonitor.top, 
+            (float)(Info.rcMonitor.right - Info.rcMonitor.left), 
+            (float)(Info.rcMonitor.bottom - Info.rcMonitor.top)
+        };
         Monitor.IsPrimary = (Info.dwFlags & MONITORINFOF_PRIMARY) != 0;
         Monitor.ID = Manager->nMonitors;
 
@@ -247,8 +252,18 @@ void RefreshMonitors() {
                             if (DeviceName.compare(&WideMonitorDeviceName[0]) == 0) {
                                 monitor_info ResultInfo = {};
                                 ResultInfo.ID = MonitorManager.nMonitors;
-                                ResultInfo.MonitorRect = MonitorInfo.rcMonitor;
-                                ResultInfo.WorkArea = MonitorInfo.rcWork;
+                                ResultInfo.MonitorRect = { 
+                                    (float)MonitorInfo.rcMonitor.left, 
+                                    (float)MonitorInfo.rcMonitor.top, 
+                                    (float)(MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left), 
+                                    (float)(MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top)
+                                };
+                                ResultInfo.WorkArea = { 
+                                    (float)MonitorInfo.rcWork.left, 
+                                    (float)MonitorInfo.rcWork.top, 
+                                    (float)(MonitorInfo.rcWork.right - MonitorInfo.rcWork.left), 
+                                    (float)(MonitorInfo.rcWork.bottom - MonitorInfo.rcWork.top)
+                                };
                                 strcpy_s(ResultInfo.DeviceName, MonitorInfo.szDevice);
                                 std::wstring DisplayName = DisplayNames[j];
                                 int Result = WideCharToMultiByte(

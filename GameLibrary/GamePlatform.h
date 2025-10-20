@@ -470,8 +470,18 @@ struct monitor_info {
     uint8 ID;
     char DeviceName[128];
     char DisplayName[128];
-    RECT WorkArea;
-    RECT MonitorRect;
+    struct {
+        float Left;
+        float Top;
+        float Width;
+        float Height;
+    } WorkArea;
+    struct {
+        float Left;
+        float Top;
+        float Width;
+        float Height;
+    } MonitorRect;
     bool IsPrimary;
 };
 
