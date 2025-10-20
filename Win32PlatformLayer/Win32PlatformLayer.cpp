@@ -473,23 +473,25 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                         Pause = !Pause;
                     }
                     
-                    if (VKCode == VK_UP)          PressButton(&pInput->Keyboard.Up);
-                    else if (VKCode == VK_DOWN)   PressButton(&pInput->Keyboard.Down);
-                    else if (VKCode == VK_LEFT)   PressButton(&pInput->Keyboard.Left);
-                    else if (VKCode == VK_RIGHT)  PressButton(&pInput->Keyboard.Right);
-                    else if (VKCode == VK_ESCAPE) PressButton(&pInput->Keyboard.Escape);
-                    else if (VKCode == VK_SPACE)  PressButton(&pInput->Keyboard.Space);
-                    else if (VKCode == VK_RETURN) PressButton(&pInput->Keyboard.Enter);
-                    else if (VKCode == VK_F1)     PressButton(&pInput->Keyboard.F1);
-                    else if (VKCode == VK_F2)     PressButton(&pInput->Keyboard.F2);
-                    else if (VKCode == VK_F3)     PressButton(&pInput->Keyboard.F3);
-                    else if (VKCode == VK_F4)     PressButton(&pInput->Keyboard.F4);
-                    else if (VKCode == VK_F5)     PressButton(&pInput->Keyboard.F5);
-                    else if (VKCode == VK_F6)     PressButton(&pInput->Keyboard.F6);
-                    else if (VKCode == VK_F7)     PressButton(&pInput->Keyboard.F7);
-                    else if (VKCode == VK_F8)     PressButton(&pInput->Keyboard.F8);
-                    else if (VKCode == VK_F9)     PressButton(&pInput->Keyboard.F9);
-                    else if (VKCode == VK_F10)    PressButton(&pInput->Keyboard.F10);
+                    if (VKCode == VK_UP)           PressButton(&pInput->Keyboard.Up);
+                    else if (VKCode == VK_DOWN)    PressButton(&pInput->Keyboard.Down);
+                    else if (VKCode == VK_LEFT)    PressButton(&pInput->Keyboard.Left);
+                    else if (VKCode == VK_RIGHT)   PressButton(&pInput->Keyboard.Right);
+                    else if (VKCode == VK_ESCAPE)  PressButton(&pInput->Keyboard.Escape);
+                    else if (VKCode == VK_SPACE)   PressButton(&pInput->Keyboard.Space);
+                    else if (VKCode == VK_RETURN)  PressButton(&pInput->Keyboard.Enter);
+                    else if (VKCode == VK_CONTROL) PressButton(&pInput->Keyboard.Control);
+                    else if (VKCode == VK_MENU)    PressButton(&pInput->Keyboard.Alt);
+                    else if (VKCode == VK_F1)      PressButton(&pInput->Keyboard.F1);
+                    else if (VKCode == VK_F2)      PressButton(&pInput->Keyboard.F2);
+                    else if (VKCode == VK_F3)      PressButton(&pInput->Keyboard.F3);
+                    else if (VKCode == VK_F4)      PressButton(&pInput->Keyboard.F4);
+                    else if (VKCode == VK_F5)      PressButton(&pInput->Keyboard.F5);
+                    else if (VKCode == VK_F6)      PressButton(&pInput->Keyboard.F6);
+                    else if (VKCode == VK_F7)      PressButton(&pInput->Keyboard.F7);
+                    else if (VKCode == VK_F8)      PressButton(&pInput->Keyboard.F8);
+                    else if (VKCode == VK_F9)      PressButton(&pInput->Keyboard.F9);
+                    else if (VKCode == VK_F10)     PressButton(&pInput->Keyboard.F10);
                     else if (VKCode == VK_F11) {
                         PressButton(&pInput->Keyboard.F11);
                         ToggleFullScreen(Window);
@@ -523,28 +525,30 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                     LiftKey(pInput, VKCode);
                 }
 
-                if (VKCode == VK_UP)          LiftButton(&pInput->Keyboard.Up);
-                else if (VKCode == VK_DOWN)   LiftButton(&pInput->Keyboard.Down);
-                else if (VKCode == VK_LEFT)   LiftButton(&pInput->Keyboard.Left);
-                else if (VKCode == VK_RIGHT)  LiftButton(&pInput->Keyboard.Right);
-                else if (VKCode == VK_ESCAPE) LiftButton(&pInput->Keyboard.Escape);
-                else if (VKCode == VK_SPACE)  LiftButton(&pInput->Keyboard.Space);
-                else if (VKCode == VK_RETURN) LiftButton(&pInput->Keyboard.Enter);
-                else if (VKCode == VK_F1)     LiftButton(&pInput->Keyboard.F1);
-                else if (VKCode == VK_F2)     LiftButton(&pInput->Keyboard.F2);
-                else if (VKCode == VK_F3)     LiftButton(&pInput->Keyboard.F3);
-                else if (VKCode == VK_F4)     LiftButton(&pInput->Keyboard.F4);
-                else if (VKCode == VK_F5)     LiftButton(&pInput->Keyboard.F5);
-                else if (VKCode == VK_F6)     LiftButton(&pInput->Keyboard.F6);
-                else if (VKCode == VK_F7)     LiftButton(&pInput->Keyboard.F7);
-                else if (VKCode == VK_F8)     LiftButton(&pInput->Keyboard.F8);
-                else if (VKCode == VK_F9)     LiftButton(&pInput->Keyboard.F9);
-                else if (VKCode == VK_F10)    LiftButton(&pInput->Keyboard.F10);
-                else if (VKCode == VK_F11)    LiftButton(&pInput->Keyboard.F11);
-                else if (VKCode == VK_F12)    LiftButton(&pInput->Keyboard.F12);
-                else if (VKCode == VK_PRIOR)  LiftButton(&pInput->Keyboard.PageUp);
-                else if (VKCode == VK_NEXT)   LiftButton(&pInput->Keyboard.PageDown);
-                else if (VKCode == VK_SHIFT)  LiftButton(&pInput->Keyboard.Shift);
+                if (VKCode == VK_UP)           LiftButton(&pInput->Keyboard.Up);
+                else if (VKCode == VK_DOWN)    LiftButton(&pInput->Keyboard.Down);
+                else if (VKCode == VK_LEFT)    LiftButton(&pInput->Keyboard.Left);
+                else if (VKCode == VK_RIGHT)   LiftButton(&pInput->Keyboard.Right);
+                else if (VKCode == VK_ESCAPE)  LiftButton(&pInput->Keyboard.Escape);
+                else if (VKCode == VK_SPACE)   LiftButton(&pInput->Keyboard.Space);
+                else if (VKCode == VK_RETURN)  LiftButton(&pInput->Keyboard.Enter);
+                else if (VKCode == VK_CONTROL) LiftButton(&pInput->Keyboard.Control);
+                else if (VKCode == VK_MENU)    LiftButton(&pInput->Keyboard.Alt);
+                else if (VKCode == VK_F1)      LiftButton(&pInput->Keyboard.F1);
+                else if (VKCode == VK_F2)      LiftButton(&pInput->Keyboard.F2);
+                else if (VKCode == VK_F3)      LiftButton(&pInput->Keyboard.F3);
+                else if (VKCode == VK_F4)      LiftButton(&pInput->Keyboard.F4);
+                else if (VKCode == VK_F5)      LiftButton(&pInput->Keyboard.F5);
+                else if (VKCode == VK_F6)      LiftButton(&pInput->Keyboard.F6);
+                else if (VKCode == VK_F7)      LiftButton(&pInput->Keyboard.F7);
+                else if (VKCode == VK_F8)      LiftButton(&pInput->Keyboard.F8);
+                else if (VKCode == VK_F9)      LiftButton(&pInput->Keyboard.F9);
+                else if (VKCode == VK_F10)     LiftButton(&pInput->Keyboard.F10);
+                else if (VKCode == VK_F11)     LiftButton(&pInput->Keyboard.F11);
+                else if (VKCode == VK_F12)     LiftButton(&pInput->Keyboard.F12);
+                else if (VKCode == VK_PRIOR)   LiftButton(&pInput->Keyboard.PageUp);
+                else if (VKCode == VK_NEXT)    LiftButton(&pInput->Keyboard.PageDown);
+                else if (VKCode == VK_SHIFT)   LiftButton(&pInput->Keyboard.Shift);
             } break;
             case WM_CLOSE:
             case WM_DESTROY:

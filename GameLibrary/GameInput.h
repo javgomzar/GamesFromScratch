@@ -108,6 +108,8 @@ struct game_keyboard_input {
             game_button_state Space;
             game_button_state Enter;
             game_button_state Shift;
+            game_button_state Control;
+            game_button_state Alt;
             game_button_state F1;
             game_button_state F2;
             game_button_state F3;
