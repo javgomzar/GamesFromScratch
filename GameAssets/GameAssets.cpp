@@ -57,45 +57,45 @@ void WriteAssetsFile(const char* Path) {
 
 // Assets
     // Fonts
-    PushAsset(&Assets, "..\\GameAssets\\Font\\Files\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
+    PushAsset(&Assets, "GameAssets\\Font\\Files\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
 
     // Text
-    PushAsset(&Assets, "..\\GameAssets\\Text\\Files\\Test.txt", Text_Test_ID);
+    PushAsset(&Assets, "GameAssets\\Text\\Files\\Test.txt", Text_Test_ID);
 
     // Bitmaps
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Background.bmp", Bitmap_Background_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Button.bmp", Bitmap_Button_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Empty.bmp", Bitmap_Empty_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Enemy.bmp", Bitmap_Enemy_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\Player.bmp", Bitmap_Player_ID);
+    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Background.bmp", Bitmap_Background_ID);
+    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Button.bmp", Bitmap_Button_ID);
+    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Empty.bmp", Bitmap_Empty_ID);
+    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Enemy.bmp", Bitmap_Enemy_ID);
+    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Player.bmp", Bitmap_Player_ID);
 
     // Heightmaps
-    PushAsset(&Assets, "..\\GameAssets\\Bitmap\\Files\\spain.bmp", Heightmap_Spain_ID);
+    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\spain.bmp", Heightmap_Spain_ID);
 
     // Sound
-    PushAsset(&Assets, "..\\GameAssets\\Sound\\Files\\16agosto.wav", Sound_Test_ID);
+    PushAsset(&Assets, "GameAssets\\Sound\\Files\\16agosto.wav", Sound_Test_ID);
 
     // Meshes
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Tetrahedron.mdl", Mesh_Tetrahedron_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Cube.mdl", Mesh_Cube_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Octahedron.mdl", Mesh_Octahedron_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Icosahedron.mdl", Mesh_Icosahedron_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Dodecahedron.mdl", Mesh_Dodecahedron_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Horns.mdl", Mesh_Enemy_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Sphere.mdl", Mesh_Sphere_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Body.mdl", Mesh_Body_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Sword.mdl", Mesh_Sword_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Shield.mdl", Mesh_Shield_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Mesh\\Files\\Selector.mdl", Mesh_Selector_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Tetrahedron.mdl", Mesh_Tetrahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Cube.mdl", Mesh_Cube_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Octahedron.mdl", Mesh_Octahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Icosahedron.mdl", Mesh_Icosahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Dodecahedron.mdl", Mesh_Dodecahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Horns.mdl", Mesh_Enemy_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Sphere.mdl", Mesh_Sphere_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Body.mdl", Mesh_Body_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Sword.mdl", Mesh_Sword_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Shield.mdl", Mesh_Shield_ID);
+    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Selector.mdl", Mesh_Selector_ID);
 
     // Animation
-    PushAsset(&Assets, "..\\GameAssets\\Animation\\Files\\Idle.anim", Animation_Idle_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Animation\\Files\\Walking.anim", Animation_Walk_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Animation\\Files\\Jumping.anim", Animation_Jump_ID);
-    PushAsset(&Assets, "..\\GameAssets\\Animation\\Files\\Attack.anim", Animation_Attack_ID);
+    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Idle.anim", Animation_Idle_ID);
+    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Walking.anim", Animation_Walk_ID);
+    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Jumping.anim", Animation_Jump_ID);
+    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Attack.anim", Animation_Attack_ID);
 
     // Video
-    //PushAsset(&Assets, "..\\GameAssets\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
+    //PushAsset(&Assets, "GameAssets\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
 
 // Shaders
     // Vertex layouts
@@ -110,43 +110,43 @@ void WriteAssetsFile(const char* Path) {
     for (int i = 0; i < vertex_layout_id_count; i++) Assets.VertexLayouts[i].ID = (vertex_layout_id)i;
 
     // Vertex
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Passthrough.vert", Vertex_Shader_Passthrough_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Screen.vert", Vertex_Shader_Screen_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\ScreenTexture.vert", Vertex_Shader_Screen_Texture_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Perspective.vert", Vertex_Shader_Perspective_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Bones.vert", Vertex_Shader_Bones_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Vertex\\Barycentric.vert", Vertex_Shader_Barycentric_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\Passthrough.vert", Vertex_Shader_Passthrough_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\Screen.vert", Vertex_Shader_Screen_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\ScreenTexture.vert", Vertex_Shader_Screen_Texture_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\Perspective.vert", Vertex_Shader_Perspective_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\Bones.vert", Vertex_Shader_Bones_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\Barycentric.vert", Vertex_Shader_Barycentric_ID);
 #if GAME_RENDER_API_VULKAN
-    PushShader(&Assets, "..\\GameAssets\\Shaders\\Vertex\\VulkanTest.vert", Vertex_Shader_Vulkan_Test_ID);
+    PushShader(&Assets, "GameAssets\\Shaders\\Vertex\\VulkanTest.vert", Vertex_Shader_Vulkan_Test_ID);
 #endif
 
     // Geometry
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Geometry\\Test.geom", Geometry_Shader_Test_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Geometry\\DebugNormals.geom", Geometry_Shader_Debug_Normals_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Geometry\\Test.geom", Geometry_Shader_Test_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Geometry\\DebugNormals.geom", Geometry_Shader_Debug_Normals_ID);
 
     // Tessellation
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Tessellation\\Heightmap.tesc", TESC_Heightmap_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Tessellation\\Bezier.tesc", TESC_Bezier_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Tessellation\\Heightmap.tese", TESE_Heightmap_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Tessellation\\Trochoidal.tese", TESE_Trochoidal_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Tessellation\\Bezier.tese", TESE_Bezier_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Tessellation\\Heightmap.tesc", TESC_Heightmap_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Tessellation\\Bezier.tesc", TESC_Bezier_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Tessellation\\Heightmap.tese", TESE_Heightmap_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Tessellation\\Trochoidal.tese", TESE_Trochoidal_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Tessellation\\Bezier.tese", TESE_Bezier_ID);
 
     // Fragment
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Antialiasing.frag", Fragment_Shader_Antialiasing_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\FramebufferAttachment.frag", Fragment_Shader_Framebuffer_Attachment_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Texture.frag", Fragment_Shader_Texture_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Outline.frag", Fragment_Shader_Outline_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\SingleColor.frag", Fragment_Shader_Single_Color_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Kernel.frag", Fragment_Shader_Kernel_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Mesh.frag", Fragment_Shader_Mesh_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\JumpFlood.frag", Fragment_Shader_Jump_Flood_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Heightmap.frag", Fragment_Shader_Heightmap_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Sea.frag", Fragment_Shader_Sea_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\BezierExterior.frag", Fragment_Shader_Bezier_Exterior_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\BezierInterior.frag", Fragment_Shader_Bezier_Interior_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\Fire.frag", Fragment_Shader_Fire_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Antialiasing.frag", Fragment_Shader_Antialiasing_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\FramebufferAttachment.frag", Fragment_Shader_Framebuffer_Attachment_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Texture.frag", Fragment_Shader_Texture_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Outline.frag", Fragment_Shader_Outline_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\SingleColor.frag", Fragment_Shader_Single_Color_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Kernel.frag", Fragment_Shader_Kernel_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Mesh.frag", Fragment_Shader_Mesh_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\JumpFlood.frag", Fragment_Shader_Jump_Flood_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Heightmap.frag", Fragment_Shader_Heightmap_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Sea.frag", Fragment_Shader_Sea_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\BezierExterior.frag", Fragment_Shader_Bezier_Exterior_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\BezierInterior.frag", Fragment_Shader_Bezier_Interior_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Fire.frag", Fragment_Shader_Fire_ID);
 #if GAME_RENDER_API_VULKAN
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Fragment\\VulkanTest.frag", Fragment_Shader_Vulkan_Test_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\VulkanTest.frag", Fragment_Shader_Vulkan_Test_ID);
 #endif
 
     // Shader pipelines
@@ -194,10 +194,10 @@ void WriteAssetsFile(const char* Path) {
 #endif
     
     // Compute
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Compute\\OutlineInit.comp", Compute_Shader_Outline_Init_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Compute\\JumpFlood.comp", Compute_Shader_Jump_Flood_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Compute\\Test.comp", Compute_Shader_Test_ID);
-    PushShader(&Assets, "..\\GameAssets\\Shader\\Files\\Compute\\Kernel.comp", Compute_Shader_Kernel_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\OutlineInit.comp", Compute_Shader_Outline_Init_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\JumpFlood.comp", Compute_Shader_Jump_Flood_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\Test.comp", Compute_Shader_Test_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\Kernel.comp", Compute_Shader_Kernel_ID);
 
 // Output file
     void* FileMemory = VirtualAlloc(0, sizeof(game_assets) + Assets.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);

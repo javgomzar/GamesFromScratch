@@ -694,8 +694,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_WIN32PLATFORMLAYER));
 
     // Set up for main loop
-    const LPCSTR SourceDLLName = "GameLibrary.dll";
-    const LPCSTR TempDLLName = "GameLibraryTemp.dll";
+    const LPCSTR SourceDLLName = "bin\\GameLibrary.dll";
+    const LPCSTR TempDLLName = "bin\\GameLibraryTemp.dll";
 
     game_code GameCode = { 0 };
     LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
@@ -714,7 +714,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Assets
     game_assets* Assets = &Memory.Assets;
-    const char* AssetsPath = "..\\GameAssets\\game_assets";
+    const char* AssetsPath = "GameAssets\\game_assets";
     WriteAssetsFile(AssetsPath);
     LoadAssetsFromFile(&FontsArena, Assets, AssetsPath);
 
