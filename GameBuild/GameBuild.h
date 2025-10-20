@@ -225,9 +225,10 @@ process_info CompileMetaprogramming(build_configuration* Configuration) {
     switch(Configuration->Compiler) {
         case MSVC: {
             Command = std::format(
-                "{} /std:c++20 /nologo /W0 /Fo\"bin\\Meta.obj\" /Fd\"bin\\Meta.pdb\" {} {} "
-                "/link /OUT:\"bin\\Meta.exe\" /PDB:\"bin\\Meta.pdb\"", 
-                Configuration->CompilerPath, Configuration->MetaprogrammingCodePath, GetCompilerFlags(MSVC, Configuration->Mode)
+                "{} /std:c++20 /nologo /W0 {} /Fo\"bin\\Meta.obj\" /Fd\"bin\\Meta.pdb\" {} {} "
+                "/link {} /OUT:\"bin\\Meta.exe\" /PDB:\"bin\\Meta.pdb\"", 
+                Configuration->Include, Configuration->CompilerPath, Configuration->MetaprogrammingCodePath, 
+                GetCompilerFlags(MSVC, Configuration->Mode), Configuration->Lib
             );
         } break;
         default: Raise("Invalid compiler. Only MSVC supported for now.");
