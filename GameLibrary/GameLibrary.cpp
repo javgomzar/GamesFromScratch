@@ -1,23 +1,5 @@
-// GameLibrary.cpp : Defines the exported functions for the DLL.
-//
-
 #include "pch.h"
 #include "GameLibrary.h"
-
-//// This is an example of an exported variable
-//GAMELIBRARY_API int nGameLibrary=0;
-//
-//// This is an example of an exported function.
-//GAMELIBRARY_API int fnGameLibrary(void)
-//{
-//    return 0;
-//}
-//
-//// This is the constructor of a class that has been exported.
-//CGameLibrary::CGameLibrary()
-//{
-//    return;
-//}
 
 // Sound
 void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
