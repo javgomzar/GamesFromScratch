@@ -1,6 +1,21 @@
 #include "GamePlatform.h"
+#include "pch.h"
 
 system_os SystemOS = Windows;
+
+static char Environment[8192] = {};
+int FillEnvironmentBuffer(char* Buffer) {
+    char* EnvironmentPen = Buffer;
+    char* EnvironmentStringsPointer = GetEnvironmentStrings();
+    int EnvironmentLength = 0;
+
+    while (EnvironmentStringsPointer[0] != '\0' || EnvironmentStringsPointer[1] != '\0') {
+        *EnvironmentPen++ = *EnvironmentStringsPointer++;
+        EnvironmentLength += 1;
+    }
+    return EnvironmentLength;
+}
+static int EnvironmentLength = FillEnvironmentBuffer(Environment);
 
 void Log(log_level Level, const char* Content) {
     // Level
@@ -45,7 +60,7 @@ void Log(log_level Level, const char* Content) {
         {
             HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
             SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
-            WriteConsoleA(hConsole, Date, 21, NULL, NULL);
+            WriteConsoleA(hConsole, Date, 20, NULL, NULL);
             switch (Level) {
                 case Info:  { SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_BLUE); } break;
                 case Warn:  { SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN); } break;
@@ -153,6 +168,11 @@ PLATFORM_COPY_FILE(Win32CopyFile) {
     return CopyResult;
 }
 
+PLATFORM_DELETE_FILE(Win32DeleteFile) {
+    bool CopyResult = DeleteFileA(Path);
+    return CopyResult;
+}
+
 PLATFORM_GET_LAST_WRITE_TIME(Win32GetLastWriteTime) {
     int64 Result = 0;
 
@@ -196,9 +216,16 @@ PLATFORM_RUN_COMMAND(Win32RunCommand) {
 
 PLATFORM_WAIT_FOR_PROCESS(Win32WaitForProcess) {
     DWORD WaitResult = WaitForSingleObject(Process->Handle, Timeout);
-    Process->Running = false;
     int32 Result = -1;
-    if (WaitResult == WAIT_OBJECT_0) {
+    if (WaitResult == WAIT_FAILED) {
+        char ErrorBuffer[128] = {};
+        DWORD ErrorCode = GetLastError();
+        sprintf_s(ErrorBuffer, "Error while waiting for a process to end. Error code '%d'.", ErrorCode);
+        Log(Error, ErrorBuffer);
+        return Result;
+    }
+    else if (WaitResult == WAIT_OBJECT_0) {
+        Process->Running = false;
         DWORD ExitCode = 0;
         GetExitCodeProcess(Process->Handle, &ExitCode);
         Result = ExitCode;
@@ -215,6 +242,7 @@ platform_api Platform = {
     .FreeFileMemory   = Win32FreeFileMemory,
     .AppendToFile     = Win32AppendToFile,
     .Copy             = Win32CopyFile,
+    .Delete           = Win32DeleteFile,
     .GetLastWriteTime = Win32GetLastWriteTime,
     .GetWallClock     = Win32GetWallClock,
     .RunCommand       = Win32RunCommand,
