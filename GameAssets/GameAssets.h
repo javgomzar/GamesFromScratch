@@ -632,10 +632,7 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
 
     Assert(hFind != INVALID_HANDLE_VALUE);
 
-    char* Extension = 0;
-    char* Buffer = new char[strlen(Data.cFileName) + 1];
-    strcpy_s(Buffer, strlen(Data.cFileName) + 1, Data.cFileName);
-    char* _ = strtok_s(Buffer, ".", &Extension);
+    const char* Extension = GetFileExtension(Path);
 
     if (strcmp(Extension, "comp") != 0) {
         Raise("Extension of compute shader file should be '.comp'.");
@@ -649,8 +646,6 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
         Assets->TotalSize += Shader->Size + 1;
         Assets->ComputeShadersSize += Shader->Size + 1;
     }
-
-    delete [] Buffer;
 }
 
 void WriteAssetsFile(platform_api* Platform, const char* Path);

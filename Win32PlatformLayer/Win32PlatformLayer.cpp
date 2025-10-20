@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "GameLibrary.h"
+#include "GameBuild.h"
 
 #if GAME_RENDER_API_OPENGL
     #pragma comment (lib, "opengl32.lib")
@@ -595,7 +596,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
     char ErrorText[256];
     DWORD LastError = 0;
 
-    bool CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
+    bool CopyResult = Platform.Copy(SourceDLLName, TempDLLName);
     if (!CopyResult) {
         LastError = GetLastError();
         if (LastError == ERROR_SHARING_VIOLATION) {
@@ -603,7 +604,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
             do {
                 Log(Warn, "Retrying game code loading after sharing violation.");
                 Sleep(100);
-                CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
+                CopyResult = Platform.Copy(SourceDLLName, TempDLLName);
                 Retries++;
                 if (Retries > 100) {
                     Log(Error, "Max number of retries reached.");
@@ -780,13 +781,112 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     ReleaseDC(Window, DeviceContext);
 
+    // Console for logging
+    AllocConsole();
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD ConsoleMode = 0;
+    GetConsoleMode(hConsole, &ConsoleMode);
+    SetConsoleMode(hConsole, ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+
+    // Delete old hot reloading files
+    WIN32_FIND_DATAA FindData = {};
+    HANDLE OldPDBFile = FindFirstFileA("bin\\GameLibrary*.pdb", &FindData);
+    bool FindResult = true;
+    while (FindResult && OldPDBFile != INVALID_HANDLE_VALUE) {
+        if (
+            strcmp(FindData.cFileName, "GameLibrary.pdb") != 0 && 
+           !(FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        ) {
+            char Buffer[64] = {};
+            sprintf_s(Buffer, "bin\\%s", FindData.cFileName);
+            bool Result = Platform.Delete(Buffer);
+            if (Result) {
+                sprintf_s(Buffer, "Deleted old PDB file bin\\%s.", FindData.cFileName);
+                Log(Info, Buffer);
+            }
+        }
+        FindResult = FindNextFileA(OldPDBFile, &FindData);
+    }
+
+    // Code compilation setup
+    build_configuration BuildConfiguration = {};
+    ReadBuildConfiguration("GameBuild\\build.conf", &BuildConfiguration);
+    process_info LibraryCompilation = {};
+    uint64 LibraryCompilationStart = 0;
+    char MetaFile[] = "bin\\Meta.exe";
+    process_info MetaprogrammingCompilation = {};
+    uint64 MetaprogrammingCompilationStart = 0;
+    process_info MetaprogrammingExecution = {};
+    uint64 MetaprogrammingExecutionStart = 0;
+    char LogBuffer[64] = {};
+
+
     Running = true;
     bool FirstFrame = true;
-    // Main message loop:
-    while (Running) {
-        // Loading game code
-        int64 NewDLLWriteTime = Win32GetLastWriteTime(SourceDLLName);
 
+    // Main loop
+    while (Running) {
+        // Hot reloading code
+        if (
+            !LibraryCompilation.Running && !MetaprogrammingCompilation.Running && !MetaprogrammingExecution.Running &&
+            (Input.Keyboard.Control.JustPressed && Input.Keyboard.H.IsDown ||
+            Input.Keyboard.Control.IsDown      && Input.Keyboard.H.JustPressed)
+        ) {
+            int64 MetaprogrammingSourceTimestamp = Platform.GetLastWriteTime(BuildConfiguration.MetaprogrammingCodePath);
+            int64 MetaprogrammingBinaryTimestamp = Platform.GetLastWriteTime(MetaFile);
+    
+            if (MetaprogrammingSourceTimestamp > MetaprogrammingBinaryTimestamp) {
+                MetaprogrammingCompilationStart = Platform.GetWallClock();
+                MetaprogrammingCompilation = CompileMetaprogramming(&BuildConfiguration);
+            }
+            else {
+                MetaprogrammingExecutionStart = Platform.GetWallClock();
+                MetaprogrammingExecution = Platform.RunCommand(MetaFile);
+            }
+        }
+
+        if (MetaprogrammingCompilation.Running) {
+            int32 WaitResult = Platform.WaitForProcess(&MetaprogrammingCompilation, 0);
+            if (WaitResult >= 0) {
+                uint64 End = Platform.GetWallClock();
+                LogCompilationResult("Metaprogramming", WaitResult, MetaprogrammingCompilationStart, End);
+                MetaprogrammingCompilationStart = 0;
+
+                if (WaitResult == 0) {
+                    MetaprogrammingExecutionStart = Platform.GetWallClock();
+                    MetaprogrammingExecution = Platform.RunCommand(MetaFile);
+                }
+            }
+        }
+
+        if (MetaprogrammingExecution.Running) {
+            int32 WaitResult = Platform.WaitForProcess(&MetaprogrammingExecution, 0);
+            if (WaitResult >= 0) {
+                uint64 End = Platform.GetWallClock();
+                float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
+                log_level Level = WaitResult == 0 ? Info : Error;
+                if (WaitResult == 0) sprintf_s(LogBuffer, "Metaprogramming executed in %.2f milliseconds.", 1000.0f * Time);
+                else                 sprintf_s(LogBuffer, "Metaprogramming execution failed with code '%d'", WaitResult);
+                Log(Level, LogBuffer);
+                MetaprogrammingExecutionStart = 0;
+
+                if (WaitResult == 0) {
+                    LibraryCompilationStart = Platform.GetWallClock();
+                    LibraryCompilation = CompileGameLibraryHot(&BuildConfiguration);
+                }
+            }
+        }
+
+        if (LibraryCompilation.Running) {
+            int32 WaitResult = Platform.WaitForProcess(&LibraryCompilation, 0);
+            if (WaitResult >= 0) {
+                uint64 End = Platform.GetWallClock();
+                LogCompilationResult("Game library", WaitResult, LibraryCompilationStart, End);
+                LibraryCompilationStart = 0;
+            }
+        }
+        
+        int64 NewDLLWriteTime = Platform.GetLastWriteTime(SourceDLLName);
         if (NewDLLWriteTime > GameCode.DLLLastWriteTime) {
             static int Loads = 0;
             UnloadGameCode(&GameCode);

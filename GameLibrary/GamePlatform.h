@@ -1,6 +1,9 @@
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
 
+#include <string>
+#include <format>
+
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
