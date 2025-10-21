@@ -61,7 +61,7 @@ All math is contained in the `GameMath.h` header. This library contains:
 - Matrix math for 2x2, 3x3, 4x4 matrices, compatible with vector math.
 - Quaternions for rotations and complex numbers.
 - Affine transformations.
-- Lines, rays and segment distance computantion and collision detection.
+- Lines, rays and segment distance computation and collision detection.
 
 ## User Interface
 Custom immediate mode UI library with basic support for text, buttons, dropdowns, menus and sidebars.
