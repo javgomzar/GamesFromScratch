@@ -15,7 +15,7 @@ You will also need the ffmpeg dlls for compilation. You can look for them [here]
 
 After you have installed these, modify the files `bat\env.bat.template` and `GameBuild\build.conf.template`, updating the values between braces to the corresponding installation folders and version numbers. Then rename these files to `env.bat` and `build.conf` respectively.
 
-When you're done, run `buildbuild.bat`. This should create the executable `Build.exe` inside the `bin` folder. Run `bin\Build.exe GameBuild\build.conf` and this should create the executable `bin\Win32PlatformLayer.exe` and the DLL `bin\GameLibrary.dll`. Run this executable to start the engine.
+When you're done, run `buildbuild.bat`. This should create the executable `Build.exe` inside the `bin` folder. Run `bin\Build.exe GameBuild\build.conf` and this should create the DLL `bin\GameLibrary.dll` and the executable `bin\Win32PlatformLayer.exe`. Run this executable to start the engine.
 
 
 # Overview
