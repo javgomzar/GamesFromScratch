@@ -30,8 +30,8 @@ int main(int argc, char* argv[]) {
             switch (Configuration.Compiler) {
                 case MSVC: {
                     Command = std::format(
-                        "{} /std:c++20 /nologo /W0 {}/pch.cpp /c {} /Yc\"pch.h\" /Fp\"bin\\{}.pch\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
-                        Configuration.CompilerPath, Configuration.PCHPath, CompilerFlags, PCHOutput, PCHOutput, PCHOutput
+                        "{} /std:c++20 /nologo /W0 {} {}/pch.cpp /c {} /Yc\"pch.h\" /Fp\"bin\\{}.pch\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
+                        Configuration.CompilerPath, Configuration.Include, Configuration.PCHPath, CompilerFlags, PCHOutput, PCHOutput, PCHOutput
                     );
                 } break;
 

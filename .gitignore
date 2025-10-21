@@ -9,7 +9,7 @@ GameAssets/*/Files
 GameAssets/game_assets
 
 # Captures
-Captures/
+Captures/*
 
 # Binaries
 bin/
