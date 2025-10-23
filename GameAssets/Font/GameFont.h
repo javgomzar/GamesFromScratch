@@ -722,4 +722,33 @@ void GetTextWidthAndHeight(const char* Text, game_font* Font, float Points, floa
     *Height = ResultHeight;
 }
 
+float GetTextWidth(const char* Text, game_font* Font, float Points) {
+    float PixelsPerEm = Points * (DPI / 72.0f) / Font->UnitsPerEm;
+
+    float ResultWidth = 0;
+    
+    int Length = strlen(Text);
+    float LineWidth = 0;
+    for (int i = 0; i < Length; i++) {
+        char c = Text[i];
+        if (c == '#' && Text[i+1] == '#') break;
+        if (c == ' ') {
+            LineWidth += Font->SpaceAdvance * PixelsPerEm;
+        }
+        if ('!' <= c && c <= '~') {
+            LineWidth += Font->Characters[c - '!'].Width * PixelsPerEm;
+        }
+        if (c == '\n') {
+            if (LineWidth > ResultWidth) ResultWidth = LineWidth;
+            LineWidth = 0;
+        }
+    }
+
+    if (ResultWidth == 0) {
+        ResultWidth = LineWidth;
+    }
+
+    return ResultWidth;
+}
+
 #endif

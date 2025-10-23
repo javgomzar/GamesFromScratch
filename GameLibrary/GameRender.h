@@ -1135,12 +1135,10 @@ void PushFillbar(
     PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 10);
 
     int Points = 8;
-    float Width, Height;
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    char Buffer[16];
-    sprintf_s(Buffer, "%.2f%%", 100 * FillPercentage);
-    GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
-    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
+    std::string Text = std::format("{:.2f}%", 100 * FillPercentage);
+    float Width = GetTextWidth(Text.c_str(), Font, Points);
+    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Text.c_str(), White, 8);
 }
 
 void PushFillbar(
@@ -1161,12 +1159,10 @@ void PushFillbar(
     PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 8);
 
     int Points = 8;
-    float Width, Height;
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    char Buffer[16];
-    sprintf_s(Buffer, "%d/%d", Used, Max);
-    GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
-    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
+    std::string Text = std::format("{}/{}", Used, Max);
+    float Width = GetTextWidth(Text.c_str(), Font, Points);
+    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Text.c_str(), White, 8);
 }
 
 void PushFillbar(
