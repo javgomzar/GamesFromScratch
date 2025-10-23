@@ -50,7 +50,7 @@ const char* GetRendererLibs(renderer Renderer) {
 const char* GetCompilerFlags(compiler Compiler, build_mode Mode) {
     Assert(Compiler == MSVC, "Invalid compiler. Only MSVC is supported right now.");
     switch(Mode) {
-        case Release: return "/O3";
+        case Release: return "/O2";
         case Debug:   return "/D _DEBUG /EHsc /MDd /Zi /Od /fsanitize=address";
     }
 

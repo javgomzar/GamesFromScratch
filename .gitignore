@@ -18,8 +18,10 @@ GameAssets/Assets/Shaders/*/*.spv
 # Linking
 Linking/
 
-# Environment
+# Batch scripts
 bat/env.bat
+bat/hot.bat
+bat/meta.bat
 
 # Build
 GameBuild/build.conf
