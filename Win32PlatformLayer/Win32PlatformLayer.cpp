@@ -643,9 +643,6 @@ void UnloadGameCode(game_code* GameCode) {
     GameCode->Update = GameUpdateStub;
 }
 
-// Performance
-void LogDebugRecords(render_group* Group, memory_arena* TransientArena);
-
 // Main window callback
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -719,6 +716,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     memory_index PermanentStorageSize = Megabytes(64);
     void* GameMemoryBlock = VirtualAlloc(BaseAddress, PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     Memory.Permanent = MemoryArena(PermanentStorageSize, (uint8*)GameMemoryBlock);
+    TimeRecords = (time_record*)&Memory.TimeRecordsPlatform;
     Memory.HotReload = true;
 
     game_state* pGameState = PushStruct(&Memory.Permanent, game_state);
@@ -819,7 +817,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     process_info MetaprogrammingExecution = {};
     uint64 MetaprogrammingExecutionStart = 0;
     char LogBuffer[64] = {};
-
 
     Running = true;
     bool FirstFrame = true;
@@ -1070,7 +1067,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ScreenCapture(&Platform, &RendererContext, Group->Width, Group->Height);
             }
 
-            LogDebugRecords(Group, &Memory.Transient);
             Render(Window, Group, &RendererContext, pGameState->ActiveCamera, pGameState->Time);
             ClearVertexBuffer(&Memory.RenderGroup.VertexBuffer);
         }
@@ -1156,6 +1152,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         uint64 EndCounter = Platform.GetWallClock();
         LastCounter = EndCounter;
         LastCycleCount = EndCycleCount;
+
+        Memory.nTimeRecordsPlatform = __COUNTER__;
     }
 
     return 0;
@@ -1313,34 +1311,4 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
             break;
     }
     return (INT_PTR)FALSE;
-}
-
-time_record TimeRecordArray[__COUNTER__];
-
-void LogDebugRecords(render_group* Group, memory_arena* Arena) {
-    char Buffer[512];
-    int Height = 350;
-    game_font* Font = GetAsset(&Memory.Assets, Font_Menlo_Regular_ID);
-    for (int i = 0; i < ArrayCount(TimeRecordArray); i++) {
-        time_record* DebugRecord = TimeRecordArray + i;
-
-        if (DebugRecord->HitCount) {
-            if (DebugRecord->HitCount == 1) {
-                sprintf_s(Buffer, "%s: (%d hit) %.2f Mcycles (%s:%d).", 
-                    DebugRecord->FunctionName, DebugRecord->HitCount, 
-                    DebugRecord->CycleCount / 1000000.0f, DebugRecord->FileName, DebugRecord->LineNumber);
-            }
-            else {
-                sprintf_s(Buffer, "%s: (%d hits) Total: %.2f Mcycles, Average: %.2f ms (%s:%d).", 
-                    DebugRecord->FunctionName, DebugRecord->HitCount, 
-                    DebugRecord->CycleCount / 1000000.0f, 
-                    DebugRecord->CycleCount / (1000000.0f * DebugRecord->HitCount), 
-                    DebugRecord->FileName, DebugRecord->LineNumber);
-            }
-            Log(Info, Buffer);
-            Height += 18;
-            DebugRecord->HitCount = 0;
-            DebugRecord->CycleCount = 0;
-        }
-    }
 }

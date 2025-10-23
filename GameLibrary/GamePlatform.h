@@ -97,6 +97,8 @@ enum log_level {
 
 log_mode LOG_MODE = Terminal;
 
+void Log(log_level Level, const char* Content);
+
 // +---------------------------------------------------------------------------------------------------------------------------------+
 // | Memory arenas                                                                                                                   |
 // +---------------------------------------------------------------------------------------------------------------------------------+
@@ -664,10 +666,6 @@ uint64 SeedRNG() {
 // | Timing                                                                                                                          |
 // +---------------------------------------------------------------------------------------------------------------------------------+
 
-#define TIMED_BLOCK__(FunctionName) timed_block TimedBlock_##FunctionName(__COUNTER__, __FILE__, __LINE__, __FUNCTION__)
-#define TIMED_BLOCK_(Line) TIMED_BLOCK__(Line);
-#define TIMED_BLOCK TIMED_BLOCK_(__LINE__)
-
 struct time_record {
     uint64 CycleCount;
     
@@ -678,24 +676,30 @@ struct time_record {
     int HitCount;
 };
 
-time_record TimeRecordArray[];
+const int MAX_TIME_RECORDS = 128;
+time_record *TimeRecords = NULL;
 
 struct timed_block {
     time_record* Record;
     uint64 StartCycles;
+    uint32 Aux;
 
     timed_block(int Counter, const char* FileName, int LineNumber, const char* FunctionName) {
-        Record = TimeRecordArray + Counter;
+        Record = TimeRecords + Counter;
         Record->FileName = FileName;
         Record->FunctionName = FunctionName;
         Record->LineNumber = LineNumber;
-        Record->HitCount++; 
-        StartCycles = __rdtsc();
+        Record->HitCount++;
+        StartCycles = __rdtscp(&Aux);
     }
 
     ~timed_block() {
-        Record->CycleCount += __rdtsc() - StartCycles;
+        Record->CycleCount += __rdtscp(&Aux) - StartCycles;
     }
 };
+
+#define TIMED_BLOCK__(Line) timed_block TimedBlock_##Line(__COUNTER__, __FILE__, __LINE__, __FUNCTION__)
+#define TIMED_BLOCK_(Line) TIMED_BLOCK__(Line);
+#define TIMED_BLOCK TIMED_BLOCK_(__LINE__)
 
 #endif

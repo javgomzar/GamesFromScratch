@@ -751,8 +751,6 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
 }
 
 void PushEntities(render_group* Group, camera* Camera, game_state* GameState, game_input* Input, float Time) {
-    TIMED_BLOCK;
-
     game_entity_state* State = &GameState->Entities;
     game_assets* Assets = Group->Assets;
 
