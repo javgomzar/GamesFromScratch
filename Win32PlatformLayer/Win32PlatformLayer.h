@@ -201,7 +201,7 @@ PLATFORM_RUN_COMMAND(Win32RunCommand) {
     bool Success = CreateProcessA(NULL, Command, NULL, NULL, FALSE, 0, Environment, NULL, &StartInfo, &ProcessInfo);
     if (!Success) {
         DWORD Err = GetLastError();
-        char ErrorBuffer[1024];
+        char ErrorBuffer[2048];
         sprintf_s(ErrorBuffer, "Error '%d' when trying to run command:\n    %s", Err, Command);
         Log(Error, ErrorBuffer);
     }
