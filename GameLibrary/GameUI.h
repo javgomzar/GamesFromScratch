@@ -425,8 +425,6 @@ void ComputeLayout() {
 }
 
 void RenderUI() {
-    TIMED_BLOCK;
-    
     game_font_id FontID = Font_Menlo_Regular_ID;
     game_font* Font = GetAsset(UI.Group->Assets, FontID);
 
@@ -661,13 +659,11 @@ bool UIButton(const char* Text) {
 }
 
 void UIDebugValue(debug_entry* Entry) {
-    game_font_id FontID = Font_Menlo_Regular_ID;
-    game_font* Font = GetAsset(UI.Group->Assets, FontID);
     ui_size Sizes[2] = {
         {ui_size_pixels, 0},
         {ui_size_pixels, 0},
     };
-    UpdateAndSizeDebugEntry(Font, Entry, &Sizes[axis_x].Value, &Sizes[axis_y].Value);
+    UpdateAndSizeDebugEntry(UI.Group->DebugFont, Entry, &Sizes[axis_x].Value, &Sizes[axis_y].Value);
 
     ui_element* Element = PushUIElement(Entry->Name, Sizes[0], Sizes[1], ui_alignment_min, ui_alignment_free);
     Element->DebugEntry = Entry;

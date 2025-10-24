@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "GameLibrary.h"
+#include "GameBuild.h"
 
 #if GAME_RENDER_API_OPENGL
     #pragma comment (lib, "opengl32.lib")
@@ -158,7 +159,12 @@ BOOL AddMonitorInfo(HMONITOR hMonitor, monitor_manager* Manager) {
 
         monitor_info Monitor = {};
         strcpy_s(Monitor.DeviceName, Info.szDevice);
-        Monitor.MonitorRect = Info.rcMonitor;
+        Monitor.MonitorRect = { 
+            (float)Info.rcMonitor.left, 
+            (float)Info.rcMonitor.top, 
+            (float)(Info.rcMonitor.right - Info.rcMonitor.left), 
+            (float)(Info.rcMonitor.bottom - Info.rcMonitor.top)
+        };
         Monitor.IsPrimary = (Info.dwFlags & MONITORINFOF_PRIMARY) != 0;
         Monitor.ID = Manager->nMonitors;
 
@@ -247,8 +253,18 @@ void RefreshMonitors() {
                             if (DeviceName.compare(&WideMonitorDeviceName[0]) == 0) {
                                 monitor_info ResultInfo = {};
                                 ResultInfo.ID = MonitorManager.nMonitors;
-                                ResultInfo.MonitorRect = MonitorInfo.rcMonitor;
-                                ResultInfo.WorkArea = MonitorInfo.rcWork;
+                                ResultInfo.MonitorRect = { 
+                                    (float)MonitorInfo.rcMonitor.left, 
+                                    (float)MonitorInfo.rcMonitor.top, 
+                                    (float)(MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left), 
+                                    (float)(MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top)
+                                };
+                                ResultInfo.WorkArea = { 
+                                    (float)MonitorInfo.rcWork.left, 
+                                    (float)MonitorInfo.rcWork.top, 
+                                    (float)(MonitorInfo.rcWork.right - MonitorInfo.rcWork.left), 
+                                    (float)(MonitorInfo.rcWork.bottom - MonitorInfo.rcWork.top)
+                                };
                                 strcpy_s(ResultInfo.DeviceName, MonitorInfo.szDevice);
                                 std::wstring DisplayName = DisplayNames[j];
                                 int Result = WideCharToMultiByte(
@@ -473,23 +489,25 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                         Pause = !Pause;
                     }
                     
-                    if (VKCode == VK_UP)          PressButton(&pInput->Keyboard.Up);
-                    else if (VKCode == VK_DOWN)   PressButton(&pInput->Keyboard.Down);
-                    else if (VKCode == VK_LEFT)   PressButton(&pInput->Keyboard.Left);
-                    else if (VKCode == VK_RIGHT)  PressButton(&pInput->Keyboard.Right);
-                    else if (VKCode == VK_ESCAPE) PressButton(&pInput->Keyboard.Escape);
-                    else if (VKCode == VK_SPACE)  PressButton(&pInput->Keyboard.Space);
-                    else if (VKCode == VK_RETURN) PressButton(&pInput->Keyboard.Enter);
-                    else if (VKCode == VK_F1)     PressButton(&pInput->Keyboard.F1);
-                    else if (VKCode == VK_F2)     PressButton(&pInput->Keyboard.F2);
-                    else if (VKCode == VK_F3)     PressButton(&pInput->Keyboard.F3);
-                    else if (VKCode == VK_F4)     PressButton(&pInput->Keyboard.F4);
-                    else if (VKCode == VK_F5)     PressButton(&pInput->Keyboard.F5);
-                    else if (VKCode == VK_F6)     PressButton(&pInput->Keyboard.F6);
-                    else if (VKCode == VK_F7)     PressButton(&pInput->Keyboard.F7);
-                    else if (VKCode == VK_F8)     PressButton(&pInput->Keyboard.F8);
-                    else if (VKCode == VK_F9)     PressButton(&pInput->Keyboard.F9);
-                    else if (VKCode == VK_F10)    PressButton(&pInput->Keyboard.F10);
+                    if (VKCode == VK_UP)           PressButton(&pInput->Keyboard.Up);
+                    else if (VKCode == VK_DOWN)    PressButton(&pInput->Keyboard.Down);
+                    else if (VKCode == VK_LEFT)    PressButton(&pInput->Keyboard.Left);
+                    else if (VKCode == VK_RIGHT)   PressButton(&pInput->Keyboard.Right);
+                    else if (VKCode == VK_ESCAPE)  PressButton(&pInput->Keyboard.Escape);
+                    else if (VKCode == VK_SPACE)   PressButton(&pInput->Keyboard.Space);
+                    else if (VKCode == VK_RETURN)  PressButton(&pInput->Keyboard.Enter);
+                    else if (VKCode == VK_CONTROL) PressButton(&pInput->Keyboard.Control);
+                    else if (VKCode == VK_MENU)    PressButton(&pInput->Keyboard.Alt);
+                    else if (VKCode == VK_F1)      PressButton(&pInput->Keyboard.F1);
+                    else if (VKCode == VK_F2)      PressButton(&pInput->Keyboard.F2);
+                    else if (VKCode == VK_F3)      PressButton(&pInput->Keyboard.F3);
+                    else if (VKCode == VK_F4)      PressButton(&pInput->Keyboard.F4);
+                    else if (VKCode == VK_F5)      PressButton(&pInput->Keyboard.F5);
+                    else if (VKCode == VK_F6)      PressButton(&pInput->Keyboard.F6);
+                    else if (VKCode == VK_F7)      PressButton(&pInput->Keyboard.F7);
+                    else if (VKCode == VK_F8)      PressButton(&pInput->Keyboard.F8);
+                    else if (VKCode == VK_F9)      PressButton(&pInput->Keyboard.F9);
+                    else if (VKCode == VK_F10)     PressButton(&pInput->Keyboard.F10);
                     else if (VKCode == VK_F11) {
                         PressButton(&pInput->Keyboard.F11);
                         ToggleFullScreen(Window);
@@ -523,28 +541,30 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                     LiftKey(pInput, VKCode);
                 }
 
-                if (VKCode == VK_UP)          LiftButton(&pInput->Keyboard.Up);
-                else if (VKCode == VK_DOWN)   LiftButton(&pInput->Keyboard.Down);
-                else if (VKCode == VK_LEFT)   LiftButton(&pInput->Keyboard.Left);
-                else if (VKCode == VK_RIGHT)  LiftButton(&pInput->Keyboard.Right);
-                else if (VKCode == VK_ESCAPE) LiftButton(&pInput->Keyboard.Escape);
-                else if (VKCode == VK_SPACE)  LiftButton(&pInput->Keyboard.Space);
-                else if (VKCode == VK_RETURN) LiftButton(&pInput->Keyboard.Enter);
-                else if (VKCode == VK_F1)     LiftButton(&pInput->Keyboard.F1);
-                else if (VKCode == VK_F2)     LiftButton(&pInput->Keyboard.F2);
-                else if (VKCode == VK_F3)     LiftButton(&pInput->Keyboard.F3);
-                else if (VKCode == VK_F4)     LiftButton(&pInput->Keyboard.F4);
-                else if (VKCode == VK_F5)     LiftButton(&pInput->Keyboard.F5);
-                else if (VKCode == VK_F6)     LiftButton(&pInput->Keyboard.F6);
-                else if (VKCode == VK_F7)     LiftButton(&pInput->Keyboard.F7);
-                else if (VKCode == VK_F8)     LiftButton(&pInput->Keyboard.F8);
-                else if (VKCode == VK_F9)     LiftButton(&pInput->Keyboard.F9);
-                else if (VKCode == VK_F10)    LiftButton(&pInput->Keyboard.F10);
-                else if (VKCode == VK_F11)    LiftButton(&pInput->Keyboard.F11);
-                else if (VKCode == VK_F12)    LiftButton(&pInput->Keyboard.F12);
-                else if (VKCode == VK_PRIOR)  LiftButton(&pInput->Keyboard.PageUp);
-                else if (VKCode == VK_NEXT)   LiftButton(&pInput->Keyboard.PageDown);
-                else if (VKCode == VK_SHIFT)  LiftButton(&pInput->Keyboard.Shift);
+                if (VKCode == VK_UP)           LiftButton(&pInput->Keyboard.Up);
+                else if (VKCode == VK_DOWN)    LiftButton(&pInput->Keyboard.Down);
+                else if (VKCode == VK_LEFT)    LiftButton(&pInput->Keyboard.Left);
+                else if (VKCode == VK_RIGHT)   LiftButton(&pInput->Keyboard.Right);
+                else if (VKCode == VK_ESCAPE)  LiftButton(&pInput->Keyboard.Escape);
+                else if (VKCode == VK_SPACE)   LiftButton(&pInput->Keyboard.Space);
+                else if (VKCode == VK_RETURN)  LiftButton(&pInput->Keyboard.Enter);
+                else if (VKCode == VK_CONTROL) LiftButton(&pInput->Keyboard.Control);
+                else if (VKCode == VK_MENU)    LiftButton(&pInput->Keyboard.Alt);
+                else if (VKCode == VK_F1)      LiftButton(&pInput->Keyboard.F1);
+                else if (VKCode == VK_F2)      LiftButton(&pInput->Keyboard.F2);
+                else if (VKCode == VK_F3)      LiftButton(&pInput->Keyboard.F3);
+                else if (VKCode == VK_F4)      LiftButton(&pInput->Keyboard.F4);
+                else if (VKCode == VK_F5)      LiftButton(&pInput->Keyboard.F5);
+                else if (VKCode == VK_F6)      LiftButton(&pInput->Keyboard.F6);
+                else if (VKCode == VK_F7)      LiftButton(&pInput->Keyboard.F7);
+                else if (VKCode == VK_F8)      LiftButton(&pInput->Keyboard.F8);
+                else if (VKCode == VK_F9)      LiftButton(&pInput->Keyboard.F9);
+                else if (VKCode == VK_F10)     LiftButton(&pInput->Keyboard.F10);
+                else if (VKCode == VK_F11)     LiftButton(&pInput->Keyboard.F11);
+                else if (VKCode == VK_F12)     LiftButton(&pInput->Keyboard.F12);
+                else if (VKCode == VK_PRIOR)   LiftButton(&pInput->Keyboard.PageUp);
+                else if (VKCode == VK_NEXT)    LiftButton(&pInput->Keyboard.PageDown);
+                else if (VKCode == VK_SHIFT)   LiftButton(&pInput->Keyboard.Shift);
             } break;
             case WM_CLOSE:
             case WM_DESTROY:
@@ -576,7 +596,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
     char ErrorText[256];
     DWORD LastError = 0;
 
-    bool CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
+    bool CopyResult = Platform.Copy(SourceDLLName, TempDLLName);
     if (!CopyResult) {
         LastError = GetLastError();
         if (LastError == ERROR_SHARING_VIOLATION) {
@@ -584,7 +604,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
             do {
                 Log(Warn, "Retrying game code loading after sharing violation.");
                 Sleep(100);
-                CopyResult = CopyFileA(SourceDLLName, TempDLLName, FALSE);
+                CopyResult = Platform.Copy(SourceDLLName, TempDLLName);
                 Retries++;
                 if (Retries > 100) {
                     Log(Error, "Max number of retries reached.");
@@ -623,21 +643,6 @@ void UnloadGameCode(game_code* GameCode) {
     GameCode->Update = GameUpdateStub;
 }
 
-// Performance
-static uint64 PerfCountFrequency;
-
-inline LARGE_INTEGER GetWallClock() {
-    LARGE_INTEGER Result;
-    QueryPerformanceCounter(&Result);
-    return(Result);
-}
-
-inline float GetSecondsElapsed(LARGE_INTEGER Start, LARGE_INTEGER End) {
-    return((float)(End.QuadPart - Start.QuadPart) / (float)PerfCountFrequency);
-}
-
-void LogDebugRecords(render_group* Group, memory_arena* TransientArena);
-
 // Main window callback
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
@@ -673,7 +678,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Performance counting initialization
     LARGE_INTEGER PerfCountFrequencyResult;
     QueryPerformanceFrequency(&PerfCountFrequencyResult);
-    PerfCountFrequency = PerfCountFrequencyResult.QuadPart;
+    Platform.PerformanceCounterFrequency = PerfCountFrequencyResult.QuadPart;
 
     // Initialize global strings
     LoadStringA(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -702,8 +707,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_WIN32PLATFORMLAYER));
 
     // Set up for main loop
-    const LPCSTR SourceDLLName = "GameLibrary.dll";
-    const LPCSTR TempDLLName = "GameLibraryTemp.dll";
+    const LPCSTR SourceDLLName = "bin\\GameLibrary.dll";
+    const LPCSTR TempDLLName = "bin\\GameLibraryTemp.dll";
 
     game_code GameCode = { 0 };
     LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
@@ -711,6 +716,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     memory_index PermanentStorageSize = Megabytes(64);
     void* GameMemoryBlock = VirtualAlloc(BaseAddress, PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     Memory.Permanent = MemoryArena(PermanentStorageSize, (uint8*)GameMemoryBlock);
+    TimeRecords = (time_record*)&Memory.TimeRecordsPlatform;
     Memory.HotReload = true;
 
     game_state* pGameState = PushStruct(&Memory.Permanent, game_state);
@@ -723,7 +729,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Assets
     game_assets* Assets = &Memory.Assets;
-    const char* AssetsPath = "..\\GameAssets\\game_assets";
+    const char* AssetsPath = "GameAssets\\game_assets";
     WriteAssetsFile(AssetsPath);
     LoadAssetsFromFile(&FontsArena, Assets, AssetsPath);
 
@@ -753,7 +759,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     float TargetSecondsPerFrame = 1.0f / (float)MonitorRefreshHz;
 
     // Performance
-    LARGE_INTEGER LastCounter = GetWallClock();
+    uint64 LastCounter = Platform.GetWallClock();
     uint64 LastCycleCount = __rdtsc();
 
     HDC DeviceContext = GetDC(Window);
@@ -774,13 +780,111 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     ReleaseDC(Window, DeviceContext);
 
+    // Console for logging
+    AllocConsole();
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD ConsoleMode = 0;
+    GetConsoleMode(hConsole, &ConsoleMode);
+    SetConsoleMode(hConsole, ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+
+    // Delete old hot reloading files
+    WIN32_FIND_DATAA FindData = {};
+    HANDLE OldPDBFile = FindFirstFileA("bin\\GameLibrary*.pdb", &FindData);
+    bool FindResult = true;
+    while (FindResult && OldPDBFile != INVALID_HANDLE_VALUE) {
+        if (
+            strcmp(FindData.cFileName, "GameLibrary.pdb") != 0 && 
+           !(FindData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        ) {
+            char Buffer[64] = {};
+            sprintf_s(Buffer, "bin\\%s", FindData.cFileName);
+            bool Result = Platform.Delete(Buffer);
+            if (Result) {
+                sprintf_s(Buffer, "Deleted old PDB file bin\\%s.", FindData.cFileName);
+                Log(Info, Buffer);
+            }
+        }
+        FindResult = FindNextFileA(OldPDBFile, &FindData);
+    }
+
+    // Code compilation setup
+    build_configuration BuildConfiguration = {};
+    ReadBuildConfiguration("GameBuild\\build.conf", &BuildConfiguration);
+    process_info LibraryCompilation = {};
+    uint64 LibraryCompilationStart = 0;
+    char MetaFile[] = "bin\\Meta.exe";
+    process_info MetaprogrammingCompilation = {};
+    uint64 MetaprogrammingCompilationStart = 0;
+    process_info MetaprogrammingExecution = {};
+    uint64 MetaprogrammingExecutionStart = 0;
+    char LogBuffer[64] = {};
+
     Running = true;
     bool FirstFrame = true;
-    // Main message loop:
-    while (Running) {
-        // Loading game code
-        int64 NewDLLWriteTime = Win32GetLastWriteTime(SourceDLLName);
 
+    // Main loop
+    while (Running) {
+        // Hot reloading code
+        if (
+            !LibraryCompilation.Running && !MetaprogrammingCompilation.Running && !MetaprogrammingExecution.Running &&
+            (Input.Keyboard.Control.JustPressed && Input.Keyboard.H.IsDown ||
+            Input.Keyboard.Control.IsDown      && Input.Keyboard.H.JustPressed)
+        ) {
+            int64 MetaprogrammingSourceTimestamp = Platform.GetLastWriteTime(BuildConfiguration.MetaprogrammingCodePath);
+            int64 MetaprogrammingBinaryTimestamp = Platform.GetLastWriteTime(MetaFile);
+    
+            if (MetaprogrammingSourceTimestamp > MetaprogrammingBinaryTimestamp) {
+                MetaprogrammingCompilationStart = Platform.GetWallClock();
+                MetaprogrammingCompilation = CompileMetaprogramming(&BuildConfiguration);
+            }
+            else {
+                MetaprogrammingExecutionStart = Platform.GetWallClock();
+                MetaprogrammingExecution = Platform.RunCommand(MetaFile);
+            }
+        }
+
+        if (MetaprogrammingCompilation.Running) {
+            int32 WaitResult = Platform.WaitForProcess(&MetaprogrammingCompilation, 0);
+            if (WaitResult >= 0) {
+                uint64 End = Platform.GetWallClock();
+                LogCompilationResult("Metaprogramming", WaitResult, MetaprogrammingCompilationStart, End);
+                MetaprogrammingCompilationStart = 0;
+
+                if (WaitResult == 0) {
+                    MetaprogrammingExecutionStart = Platform.GetWallClock();
+                    MetaprogrammingExecution = Platform.RunCommand(MetaFile);
+                }
+            }
+        }
+
+        if (MetaprogrammingExecution.Running) {
+            int32 WaitResult = Platform.WaitForProcess(&MetaprogrammingExecution, 0);
+            if (WaitResult >= 0) {
+                uint64 End = Platform.GetWallClock();
+                float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
+                log_level Level = WaitResult == 0 ? Info : Error;
+                if (WaitResult == 0) sprintf_s(LogBuffer, "Metaprogramming executed in %.2f milliseconds.", 1000.0f * Time);
+                else                 sprintf_s(LogBuffer, "Metaprogramming execution failed with code '%d'", WaitResult);
+                Log(Level, LogBuffer);
+                MetaprogrammingExecutionStart = 0;
+
+                if (WaitResult == 0) {
+                    LibraryCompilationStart = Platform.GetWallClock();
+                    LibraryCompilation = CompileGameLibraryHot(&BuildConfiguration);
+                }
+            }
+        }
+
+        if (LibraryCompilation.Running) {
+            int32 WaitResult = Platform.WaitForProcess(&LibraryCompilation, 0);
+            if (WaitResult >= 0) {
+                uint64 End = Platform.GetWallClock();
+                LogCompilationResult("Game library", WaitResult, LibraryCompilationStart, End);
+                LibraryCompilationStart = 0;
+            }
+        }
+        
+        int64 NewDLLWriteTime = Platform.GetLastWriteTime(SourceDLLName);
         if (NewDLLWriteTime > GameCode.DLLLastWriteTime) {
             static int Loads = 0;
             UnloadGameCode(&GameCode);
@@ -964,7 +1068,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ScreenCapture(&Platform, &RendererContext, Group->Width, Group->Height);
             }
 
-            LogDebugRecords(Group, &Memory.Transient);
             Render(Window, Group, &RendererContext, pGameState->ActiveCamera, pGameState->Time);
             ClearVertexBuffer(&Memory.RenderGroup.VertexBuffer);
         }
@@ -1000,8 +1103,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
         float UsedMCyclesPerFrame = (float)CyclesElapsed / 1000000.0f;
 
-        LARGE_INTEGER WorkCounter = GetWallClock();
-        float WorkSecsElapsed = GetSecondsElapsed(LastCounter, WorkCounter);
+        float WorkSecsElapsed = GetSecondsElapsed(LastCounter, Platform.GetWallClock());
         float UsedTime_ms = 1000.0f * WorkSecsElapsed;
 
         float SecsElapsedPerFrame = WorkSecsElapsed;
@@ -1009,7 +1111,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             while (SecsElapsedPerFrame < (TargetSecondsPerFrame - 0.0005f)) {
                 // if sleep granular : DWORD SleepMs = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecsElapsedPerFrame));
                 //Sleep(SleepMs);
-                SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, GetWallClock());
+                SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, Platform.GetWallClock());
             }
         }
         else {
@@ -1045,12 +1147,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         while (SecsElapsedPerFrame < TargetSecondsPerFrame) {
             // if sleep granular : DWORD SleepMs = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecsElapsedPerFrame));
             //Sleep(SleepMs);
-            SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, GetWallClock());
+            SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, Platform.GetWallClock());
         }
 
-        LARGE_INTEGER EndCounter = GetWallClock();
+        uint64 EndCounter = Platform.GetWallClock();
         LastCounter = EndCounter;
         LastCycleCount = EndCycleCount;
+
+        Memory.nTimeRecordsPlatform = __COUNTER__;
     }
 
     return 0;
@@ -1208,34 +1312,4 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
             break;
     }
     return (INT_PTR)FALSE;
-}
-
-time_record TimeRecordArray[__COUNTER__];
-
-void LogDebugRecords(render_group* Group, memory_arena* Arena) {
-    char Buffer[512];
-    int Height = 350;
-    game_font* Font = GetAsset(&Memory.Assets, Font_Menlo_Regular_ID);
-    for (int i = 0; i < ArrayCount(TimeRecordArray); i++) {
-        time_record* DebugRecord = TimeRecordArray + i;
-
-        if (DebugRecord->HitCount) {
-            if (DebugRecord->HitCount == 1) {
-                sprintf_s(Buffer, "%s: (%d hit) %.2f Mcycles (%s:%d).", 
-                    DebugRecord->FunctionName, DebugRecord->HitCount, 
-                    DebugRecord->CycleCount / 1000000.0f, DebugRecord->FileName, DebugRecord->LineNumber);
-            }
-            else {
-                sprintf_s(Buffer, "%s: (%d hits) Total: %.2f Mcycles, Average: %.2f ms (%s:%d).", 
-                    DebugRecord->FunctionName, DebugRecord->HitCount, 
-                    DebugRecord->CycleCount / 1000000.0f, 
-                    DebugRecord->CycleCount / (1000000.0f * DebugRecord->HitCount), 
-                    DebugRecord->FileName, DebugRecord->LineNumber);
-            }
-            Log(Info, Buffer);
-            Height += 18;
-            DebugRecord->HitCount = 0;
-            DebugRecord->CycleCount = 0;
-        }
-    }
 }

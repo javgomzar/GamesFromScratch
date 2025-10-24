@@ -339,7 +339,7 @@ void ScreenCapture(const platform_api* Platform, openGL* OpenGL, int Width, int 
     struct tm tm;
     localtime_s(&tm, &t);
     char Filename[100];
-    sprintf_s(Filename, "../Captures/Screenshot %d-%02d-%02d %02d.%02d.%02d.bmp",
+    sprintf_s(Filename, "Captures/Screenshot %d-%02d-%02d_%02d-%02d-%02d.bmp",
         tm.tm_year + 1900,
         tm.tm_mon + 1,
         tm.tm_mday,

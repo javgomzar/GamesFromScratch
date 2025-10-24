@@ -1,7 +1,8 @@
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
 
-#include "pch.h"
+#include <string>
+#include <format>
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -73,10 +74,10 @@ inline uint8 MSB32(uint64 X) {
 }
 
 inline void Assert(bool assertion, const char* Message = "") {
-    if (!assertion) {
-        int* i = 0;
-        int j = *i;
-    }
+#ifdef _DEBUG
+    if (!assertion)
+        throw Message;
+#endif
 }
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
@@ -95,6 +96,8 @@ enum log_level {
 };
 
 log_mode LOG_MODE = Terminal;
+
+void Log(log_level Level, const char* Content);
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
 // | Memory arenas                                                                                                                   |
@@ -472,14 +475,30 @@ struct monitor_info {
     uint8 ID;
     char DeviceName[128];
     char DisplayName[128];
-    RECT WorkArea;
-    RECT MonitorRect;
+    struct {
+        float Left;
+        float Top;
+        float Width;
+        float Height;
+    } WorkArea;
+    struct {
+        float Left;
+        float Top;
+        float Width;
+        float Height;
+    } MonitorRect;
     bool IsPrimary;
 };
 
 // +------------------------------------------------------------------------------------------------------------------------------------------+
 // | Multithreading                                                                                                                           |
 // +------------------------------------------------------------------------------------------------------------------------------------------+
+
+struct process_info {
+    void* Handle;
+    void* ThreadHandle;
+    bool Running;
+};
 
 // struct thread_info {
 //     int ID;
@@ -553,6 +572,14 @@ struct monitor_info {
 // | OS Platform                                                                                                                              |
 // +------------------------------------------------------------------------------------------------------------------------------------------+
 
+enum system_os {
+    Windows,
+    Linux,
+};
+
+#define PLATFORM_FILE_EXISTS(name) bool name(const char* Path)
+typedef PLATFORM_FILE_EXISTS(platform_file_exists);
+
 #define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Path)
 typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
 
@@ -562,22 +589,44 @@ typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
 #define PLATFORM_APPEND_TO_FILE(name) bool name(const char* Path, uint64 MemorySize, void* Memory)
 typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
 
+#define PLATFORM_COPY_FILE(name) bool name(const char* Source, const char* Destination)
+typedef PLATFORM_COPY_FILE(platform_copy_file);
+
+#define PLATFORM_DELETE_FILE(name) bool name(const char* Path)
+typedef PLATFORM_DELETE_FILE(platform_delete_file);
+
 #define PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)
 typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 
 #define PLATFORM_GET_LAST_WRITE_TIME(name) int64 name(const char* Path)
 typedef PLATFORM_GET_LAST_WRITE_TIME(platform_get_last_write_time);
 
+/*
+    This function should be accompanied by a QueryPerformanceFrequency function that sets the
+    .PerformanceCounterFrequency member of the Platform struct.
+*/
 #define PLATFORM_GET_WALL_CLOCK(name) uint64 name()
 typedef PLATFORM_GET_WALL_CLOCK(platform_get_wall_clock);
 
+#define PLATFORM_RUN_COMMAND(name) process_info name(char* Command)
+typedef PLATFORM_RUN_COMMAND(platform_run_command);
+
+#define PLATFORM_WAIT_FOR_PROCESS(name) int32 name(process_info* Process, uint32 Timeout)
+typedef PLATFORM_WAIT_FOR_PROCESS(platform_wait_for_process);
+
 struct platform_api {
-    platform_read_entire_file* ReadEntireFile;
-    platform_write_entire_file* WriteEntireFile;
-    platform_free_file_memory* FreeFileMemory;
-    platform_append_to_file* AppendToFile;
+    platform_file_exists*         FileExists;
+    platform_read_entire_file*    ReadEntireFile;
+    platform_write_entire_file*   WriteEntireFile;
+    platform_free_file_memory*    FreeFileMemory;
+    platform_append_to_file*      AppendToFile;
+    platform_copy_file*           Copy;
+    platform_delete_file*         Delete;
     platform_get_last_write_time* GetLastWriteTime;
-    platform_get_wall_clock* GetWallClock;
+    platform_get_wall_clock*      GetWallClock;
+    platform_run_command*         RunCommand;
+    platform_wait_for_process*    WaitForProcess;
+    uint64                        PerformanceCounterFrequency;
 };
 
 #ifdef _WIN32
@@ -617,10 +666,6 @@ uint64 SeedRNG() {
 // | Timing                                                                                                                          |
 // +---------------------------------------------------------------------------------------------------------------------------------+
 
-#define TIMED_BLOCK__(FunctionName) timed_block TimedBlock_##FunctionName(__COUNTER__, __FILE__, __LINE__, __FUNCTION__)
-#define TIMED_BLOCK_(Line) TIMED_BLOCK__(Line);
-#define TIMED_BLOCK TIMED_BLOCK_(__LINE__)
-
 struct time_record {
     uint64 CycleCount;
     
@@ -631,24 +676,30 @@ struct time_record {
     int HitCount;
 };
 
-time_record TimeRecordArray[];
+const int MAX_TIME_RECORDS = 128;
+time_record *TimeRecords = NULL;
 
 struct timed_block {
     time_record* Record;
     uint64 StartCycles;
+    uint32 Aux;
 
     timed_block(int Counter, const char* FileName, int LineNumber, const char* FunctionName) {
-        Record = TimeRecordArray + Counter;
+        Record = TimeRecords + Counter;
         Record->FileName = FileName;
         Record->FunctionName = FunctionName;
         Record->LineNumber = LineNumber;
-        Record->HitCount++; 
-        StartCycles = __rdtsc();
+        Record->HitCount++;
+        StartCycles = __rdtscp(&Aux);
     }
 
     ~timed_block() {
-        Record->CycleCount += __rdtsc() - StartCycles;
+        Record->CycleCount += __rdtscp(&Aux) - StartCycles;
     }
 };
+
+#define TIMED_BLOCK__(Line) timed_block TimedBlock_##Line(__COUNTER__, __FILE__, __LINE__, __FUNCTION__)
+#define TIMED_BLOCK_(Line) TIMED_BLOCK__(Line);
+#define TIMED_BLOCK TIMED_BLOCK_(__LINE__)
 
 #endif

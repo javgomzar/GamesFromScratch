@@ -54,6 +54,10 @@ struct game_memory {
     memory_arena Permanent;
     memory_arena Transient;
     debug_info DebugInfo;
+    time_record TimeRecordsLibrary[MAX_TIME_RECORDS];
+    time_record TimeRecordsPlatform[MAX_TIME_RECORDS];
+    uint16 nTimeRecordsLibrary;
+    uint16 nTimeRecordsPlatform;
     bool IsInitialized;
     bool HotReload;
 };

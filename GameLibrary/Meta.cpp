@@ -6,6 +6,8 @@
 #include <vector>
 #include <string>
 
+#define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
+
 FILE* OpenFile(const char* Path, const char* Permissions) {
     FILE* File = fopen(Path, Permissions);
     if (File == NULL) {
@@ -30,8 +32,8 @@ char* ReadFile(const char* Path) {
 }
 
 int main() {
-    FILE* EnumsFile = OpenFile("..\\GameLibrary\\GameEnums.h", "w");
-    FILE* StructsFile = OpenFile("..\\GameLibrary\\GameStructs.h", "w");
+    FILE* EnumsFile = OpenFile("GameLibrary\\GameEnums.h", "w");
+    FILE* StructsFile = OpenFile("GameLibrary\\GameStructs.h", "w");
 
     const char* PrimitiveTypes[] = {
         "bool",
@@ -75,18 +77,18 @@ int main() {
     std::vector<std::string> FlagDebugTypes = {};
     std::vector<std::string> FlagValues = {};
     std::string FlagDeclarations = "";
-    uint32 nFlagTypes = 0;
+    unsigned int nFlagTypes = 0;
     std::vector<std::string> StructDebugTypes = {};
     std::vector<std::string> StructMembers = {};
 
     const char* ProcessingFiles[] = {
-        "..\\GameLibrary\\GameMath.h",
-        "..\\GameAssets\\GameAssets.h",
-        "..\\GameAssets\\Mesh\\GameMesh.h",
-        "..\\GameAssets\\Bitmap\\GameBitmap.h",
-        "..\\GameLibrary\\GameEntity.h",
-        "..\\GameLibrary\\GameLibrary.cpp",
-        "..\\GameLibrary\\GameRender.h",
+        "GameLibrary\\GameMath.h",
+        "GameAssets\\GameAssets.h",
+        "GameAssets\\Mesh\\GameMesh.h",
+        "GameAssets\\Bitmap\\GameBitmap.h",
+        "GameLibrary\\GameEntity.h",
+        "GameLibrary\\GameLibrary.cpp",
+        "GameLibrary\\GameRender.h",
     };
 
     char Buffer[256];
@@ -101,23 +103,25 @@ int main() {
                 Token = GetToken(Tokenizer);
                 if (Token == "int") {
                     Token = RequireToken(Tokenizer, Token_Identifier);
-                    std::string ConstantName(Token.Text);
+                    std::string ConstantName(Token.Text, Token.Length);
                     Token = RequireToken(Tokenizer, Token_Equal);
                     int Value = ParseInt(Tokenizer);
                     Constants[ConstantName] = Value;
                 }
                 else if (Token == "int32") {
                     Token = RequireToken(Tokenizer, Token_Identifier);
-                    std::string ConstantName(Token.Text);
+                    std::string ConstantName(Token.Text, Token.Length);
                     Token = RequireToken(Tokenizer, Token_Equal);
                     Token = RequireToken(Tokenizer, Token_Identifier);
-                    std::string FirstAddend(Token.Text);
+                    std::string FirstAddend(Token.Text, Token.Length);
                     int Value = Constants[FirstAddend];
                     Token = RequireToken(Tokenizer, Token_Plus);
                     while (Token.Type != Token_Semicolon) {
-                        Assert(Token.Type == Token_Plus);
+                        if (Token.Type != Token_Plus) {
+                            throw "Should be a plus sign.";
+                        };
                         Token = RequireToken(Tokenizer, Token_Identifier);
-                        std::string Addend(Token.Text);
+                        std::string Addend(Token.Text, Token.Length);
                         Value += Constants[Addend];
                         Token = GetToken(Tokenizer);
                     }
@@ -128,8 +132,10 @@ int main() {
                 Token = GetToken(Tokenizer);
                 if (Token == "struct") {
                     token StructType = RequireToken(Tokenizer, Token_Identifier);
+                    char StructTypeText[MAX_TOKEN_LENGTH] = {};
+                    strncpy_s(StructTypeText, MAX_TOKEN_LENGTH, StructType.Text, StructType.Length);
 
-                    sprintf_s(Buffer, "Debug_Type_%s", StructType.Text);
+                    sprintf_s(Buffer, "Debug_Type_%s", StructTypeText);
                     StructDebugTypes.push_back(std::string(Buffer));
 
                     Token = RequireToken(Tokenizer, Token_OpenBrace);
@@ -147,7 +153,7 @@ int main() {
                         if (Token.Type == Token_OpenBracket) {
                             Token = GetToken(Tokenizer);
                             if (Token.Type == Token_Identifier) {
-                                ArraySize = Constants[std::string(Token.Text)];
+                                ArraySize = Constants[std::string(Token.Text, Token.Length)];
                             }
                             else if (Token.Type == Token_Constant_Integer) {
                                 tokenizer Parser = InitTokenizer(Token.Text);
@@ -156,17 +162,27 @@ int main() {
                             Token = RequireToken(Tokenizer, Token_CloseBracket);
                             Token = RequireToken(Tokenizer, Token_Semicolon);
                         }
-                        const char* MemberTypeText = MemberType.Text;
+                        char MemberTypeDebugText[MAX_TOKEN_LENGTH] = {};
+                        char MemberTypeText[MAX_TOKEN_LENGTH] = {};
                         if (MemberType == "char" && (ArraySize > 0 || IsPointer)) {
-                            MemberTypeText = "string";
+                            strcpy_s(MemberTypeDebugText, "string");
+                            strcpy_s(MemberTypeText, "char");
                             ArraySize = 0;
                         }
+                        else {
+                            strncpy_s(MemberTypeDebugText, MAX_TOKEN_LENGTH, MemberType.Text, MemberType.Length);
+                            strncpy_s(MemberTypeText, MAX_TOKEN_LENGTH, MemberType.Text, MemberType.Length);
+                        }
+                        char MemberNameText[MAX_TOKEN_LENGTH] = {};
+                        strncpy_s(MemberNameText, MAX_TOKEN_LENGTH, MemberName.Text, MemberName.Length);
                         sprintf_s(Buffer, "    {\"%s\", Debug_Type_%s, Debug_Type_%s, sizeof(%s), (uint64)(&((%s*)0)->%s),%d, %s},\n", 
-                            MemberName.Text, StructType.Text, MemberTypeText, MemberType.Text, StructType.Text, MemberName.Text,
+                            MemberNameText, StructTypeText, MemberTypeDebugText, MemberTypeText, StructTypeText, MemberNameText,
                             ArraySize, IsPointer ? "true" : "false");
                         std::string StructMember = Buffer;
                         StructMembers.push_back(StructMember);
-                        Assert(Token.Type == Token_Semicolon);
+                        if (Token.Type != Token_Semicolon) {
+                            throw "Should be a semicolon.";
+                        };
                         Token = GetToken(Tokenizer);
                     }
                 }
@@ -175,7 +191,9 @@ int main() {
                 RequireToken(Tokenizer, Token_OpenParen);
 
                 token EnumName = RequireToken(Tokenizer, Token_Identifier);
-                sprintf_s(Buffer, "Debug_Type_%s", EnumName.Text);
+                char EnumNameText[MAX_TOKEN_LENGTH] = {};
+                strncpy_s(EnumNameText, MAX_TOKEN_LENGTH, EnumName.Text, EnumName.Length);
+                sprintf_s(Buffer, "Debug_Type_%s", EnumNameText);
                 EnumDebugTypes.push_back(std::string(Buffer));
 
                 Token = RequireToken(Tokenizer, Token_Comma);
@@ -183,24 +201,30 @@ int main() {
                 int Value = 0;
                 while(Token.Type != Token_CloseParen) {
                     Token = RequireToken(Tokenizer, Token_Identifier);
-                    sprintf_s(Buffer, "    {Debug_Type_%s, \"%s\", %d},\n", EnumName.Text, Token.Text, Value++);
+                    char TokenText[MAX_TOKEN_LENGTH] = {};
+                    strncpy_s(TokenText, MAX_TOKEN_LENGTH, Token.Text, Token.Length);
+                    sprintf_s(Buffer, "    {Debug_Type_%s, \"%s\", %d},\n", EnumNameText, TokenText, Value++);
                     EnumValues.push_back(std::string(Buffer));
                     Token = GetToken(Tokenizer);
-                    if (Token.Type != Token_CloseParen) Assert(Token.Type == Token_Comma);
+                    if (Token.Type != Token_CloseParen && Token.Type != Token_Comma) {
+                        throw "Should be a comma.";
+                    };
                 }
-                sprintf_s(Buffer, "    {Debug_Type_%s, \"%s_count\", %d},\n", EnumName.Text, EnumName.Text, Value);
+                sprintf_s(Buffer, "    {Debug_Type_%s, \"%s_count\", %d},\n", EnumNameText, EnumNameText, Value);
                 EnumValues.push_back(std::string(Buffer));
-                sprintf_s(Buffer, "%s_count", EnumName.Text);
+                sprintf_s(Buffer, "%s_count", EnumNameText);
                 Constants[std::string(Buffer)] = Value;
             }
             else if (Token == "FLAGS") {
                 RequireToken(Tokenizer, Token_OpenParen);
 
                 token FlagsName = RequireToken(Tokenizer, Token_Identifier);
-                sprintf_s(Buffer, "Debug_Type_%s", FlagsName.Text);
+                char FlagsNameText[MAX_TOKEN_LENGTH] = {};
+                strncpy_s(FlagsNameText, MAX_TOKEN_LENGTH, FlagsName.Text, FlagsName.Length);
+                sprintf_s(Buffer, "Debug_Type_%s", FlagsNameText);
                 FlagDebugTypes.push_back(std::string(Buffer));
 
-                sprintf_s(Buffer, "enum %s {\n", FlagsName.Text);
+                sprintf_s(Buffer, "enum %s {\n", FlagsNameText);
                 FlagDeclarations += std::string(Buffer);
 
                 RequireToken(Tokenizer, Token_Comma);
@@ -208,19 +232,21 @@ int main() {
                 int Bit = 0;
                 while(Token.Type != Token_CloseParen) {
                     token FlagValue = RequireToken(Tokenizer, Token_Identifier);
+                    char FlagValueText[MAX_TOKEN_LENGTH] = {};
+                    strncpy_s(FlagValueText, MAX_TOKEN_LENGTH, FlagValue.Text, FlagValue.Length);
                     Token = GetToken(Tokenizer);
                     if (Token.Type == Token_Comma || Token.Type == Token_CloseParen) {
-                        sprintf_s(Buffer, "    {Debug_Type_%s, \"%s\", %d},\n", FlagsName.Text, FlagValue.Text, 1 << Bit);
+                        sprintf_s(Buffer, "    {Debug_Type_%s, \"%s\", %d},\n", FlagsNameText, FlagValueText, 1 << Bit);
                         FlagValues.push_back(std::string(Buffer));
-                        sprintf_s(Buffer, "    %s = 1 << %d,\n", FlagValue.Text, Bit);
+                        sprintf_s(Buffer, "    %s = 1 << %d,\n", FlagValueText, Bit);
                         FlagDeclarations += std::string(Buffer);
                         Bit++;
                     }
                     else if (Token.Type == Token_Equal) {
-                        FlagDeclarations += std::string("    ") + std::string(FlagValue.Text);
+                        FlagDeclarations += std::string("    ") + std::string(FlagValueText);
                         Token = GetToken(Tokenizer);
-                        while (Token.Type != Token_Comma && Token.Type != Token_OpenParen) {
-                            FlagDeclarations += std::string(Token.Text);
+                        while (Token.Type != Token_Comma && Token.Type != Token_CloseParen) {
+                            FlagDeclarations += std::string(Token.Text, Token.Length);
                         }
                         FlagDeclarations += std::string(",\n");
                     }
@@ -327,4 +353,6 @@ int main() {
 
     fclose(StructsFile);
     fclose(EnumsFile);
+
+    return 0;
 }

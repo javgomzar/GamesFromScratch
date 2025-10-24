@@ -106,8 +106,6 @@ void AddParticle(particle_emitter* Emitter) {
 }
 
 void Update(render_group* Group, v3 CameraPosition, particle_emitter* Emitter, float dt) {
-    TIMED_BLOCK;
-    
     AddParticle(Emitter);
 
     for (int i = 0; i < Emitter->Size; i++) {

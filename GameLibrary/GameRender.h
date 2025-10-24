@@ -235,6 +235,7 @@ struct render_group {
     vertex_buffer VertexBuffer;
     light Light;
     game_assets* Assets;
+    game_font* DebugFont;
     int32 Width;
     int32 Height;
     uint32 EntryCount;
@@ -255,6 +256,7 @@ void InitializeRenderGroup(
     game_assets* Assets
 ) {
     Group->Assets = Assets;
+    Group->DebugFont = GetAsset(Assets, Font_Menlo_Regular_ID);
 
     // Lighting
     Group->Light = Light(V3(-0.5, -1, 1), White);
@@ -373,7 +375,6 @@ render_primitive_command* PushPrimitiveCommand(
     float Order = 0.0,
     render_primitive_options Options = {}
 ) {
-    TIMED_BLOCK;
     render_command Command;
     Command.Index = Group->nPrimitiveCommands;
     Command.Priority = Order;
@@ -1135,12 +1136,10 @@ void PushFillbar(
     PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 10);
 
     int Points = 8;
-    float Width, Height;
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    char Buffer[16];
-    sprintf_s(Buffer, "%.2f%%", 100 * FillPercentage);
-    GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
-    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
+    std::string Text = std::format("{:.2f}%", 100 * FillPercentage);
+    float Width = GetTextWidth(Text.c_str(), Font, Points);
+    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Text.c_str(), White, 8);
 }
 
 void PushFillbar(
@@ -1161,12 +1160,10 @@ void PushFillbar(
     PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 8);
 
     int Points = 8;
-    float Width, Height;
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    char Buffer[16];
-    sprintf_s(Buffer, "%d/%d", Used, Max);
-    GetTextWidthAndHeight(Buffer, Font, Points, &Width, &Height);
-    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Buffer, White, 8);
+    std::string Text = std::format("{}/{}", Used, Max);
+    float Width = GetTextWidth(Text.c_str(), Font, Points);
+    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Text.c_str(), White, 8);
 }
 
 void PushFillbar(
@@ -1634,6 +1631,8 @@ void PushCollider(render_group* Group, collider Collider, transform T, color Col
 // | Debug                                                                                                                                                            |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+const float DEBUG_ENTRIES_TEXT_POINTS = 10.0f;
+
 void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
     v2 Orthogonal = perp(normalize(V2(Vector.X, Vector.Y)));
     float OrthogonalLength = 0.005333f * Group->Height;
@@ -1732,30 +1731,18 @@ void PushDebugFustrum(
     Vertices[8] = Position + lv + tv + nv;
 
     uint32* Elements = Result->ElementEntry.Pointer;
-    Elements[0]  = 0;
-    Elements[1]  = 1;
-    Elements[2]  = 0;
-    Elements[3]  = 2;
-    Elements[4]  = 0;
-    Elements[5]  = 3;
-    Elements[6]  = 0;
-    Elements[7]  = 4;
-    Elements[8]  = 4;
-    Elements[9]  = 3;
-    Elements[10] = 2;
-    Elements[11] = 1;
-    Elements[12] = 4;
-    Elements[13] = 2;
-    Elements[14] = 3;
-    Elements[15] = 1;
-    Elements[16] = 5;
-    Elements[17] = 7;
-    Elements[18] = 6;
-    Elements[19] = 8;
-    Elements[20] = 5;
-    Elements[21] = 6;
-    Elements[22] = 7;
-    Elements[23] = 8;
+    *Elements++ = 0; *Elements++ = 1;
+    *Elements++ = 0; *Elements++ = 2;
+    *Elements++ = 0; *Elements++ = 3;
+    *Elements++ = 0; *Elements++ = 4;
+    *Elements++ = 4; *Elements++ = 3;
+    *Elements++ = 2; *Elements++ = 1;
+    *Elements++ = 4; *Elements++ = 2;
+    *Elements++ = 3; *Elements++ = 1;
+    *Elements++ = 5; *Elements++ = 7;
+    *Elements++ = 6; *Elements++ = 8;
+    *Elements++ = 5; *Elements++ = 6;
+    *Elements++ = 7; *Elements++ = 8;
 }
 
 void PushDebugGrid(render_group* Group, float Alpha) {
@@ -1808,12 +1795,12 @@ void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, 
     TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
 
     float* Vertices = (float*)TargetCommand.VertexEntry.Pointer;
-    Vertices[0]  = -1.0f; Vertices[1]  = -1.0f; Vertices[2]  = 0.0f; Vertices[3]  = 0.0f; Vertices[4]  = 0.0f,
-    Vertices[5]  = -0.5f; Vertices[6]  = -1.0f; Vertices[7]  = 0.0f; Vertices[8]  = 1.0f; Vertices[9]  = 0.0f;
-    Vertices[10] = -0.5f; Vertices[11] = -0.5f; Vertices[12] = 0.0f; Vertices[13] = 1.0f; Vertices[14] = 1.0f;
-    Vertices[15] = -1.0f; Vertices[16] = -1.0f; Vertices[17] = 0.0f; Vertices[18] = 0.0f; Vertices[19] = 0.0f;
-    Vertices[20] = -0.5f; Vertices[21] = -0.5f; Vertices[22] = 0.0f; Vertices[23] = 1.0f; Vertices[24] = 1.0f;
-    Vertices[25] = -1.0f; Vertices[26] = -0.5f; Vertices[27] = 0.0f; Vertices[28] = 0.0f; Vertices[29] = 1.0f;
+    *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f,
+    *Vertices++ = -0.5f; *Vertices++ = -1.0f; *Vertices++ = 0.0f; *Vertices++ = 1.0f; *Vertices++ = 0.0f;
+    *Vertices++ = -0.5f; *Vertices++ = -0.5f; *Vertices++ = 0.0f; *Vertices++ = 1.0f; *Vertices++ = 1.0f;
+    *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f;
+    *Vertices++ = -0.5f; *Vertices++ = -0.5f; *Vertices++ = 0.0f; *Vertices++ = 1.0f; *Vertices++ = 1.0f;
+    *Vertices++ = -1.0f; *Vertices++ = -0.5f; *Vertices++ = 0.0f; *Vertices++ = 0.0f; *Vertices++ = 1.0f;
 
     Group->TargetCommands[Group->nTargets++] = TargetCommand;
 }
@@ -1848,6 +1835,148 @@ void PushDebugPlot(
         Vertices[N] = Position + V2(X, -Data[i]);
         X += dx;
     }
+}
+
+inline uint16 ComputeTimeRecordsColWidths(
+    game_font* Font, float Points,
+    uint16 nRecords, time_record* TimeRecords,
+    float* FunctionColWidth,
+    float* HitsColWidth,
+    float* MCyclesColWidth,
+    float* FileColWidth
+) {
+    uint16 TotalRecords = 0;
+    std::string Text;
+    float Width = 0;
+    for (int i = 0; i < nRecords; i++) {
+        time_record* Record = TimeRecords + i;
+        if (Record->HitCount > 0) {
+            TotalRecords += 1;
+            Width = GetTextWidth(Record->FunctionName, Font, Points);
+            if (Width > *FunctionColWidth) *FunctionColWidth = Width;
+            Text = std::format("{}", Record->HitCount);
+            Width = GetTextWidth(Text.c_str(), Font, Points);
+            if (Width > *HitsColWidth) *HitsColWidth = Width;
+            Text = std::format("{:.2f}", Record->CycleCount / 1000000.0f);
+            Width = GetTextWidth(Text.c_str(), Font, Points);
+            if (Width > *MCyclesColWidth) *MCyclesColWidth = Width;
+            Text = std::format("{}:{}", Record->FileName, Record->LineNumber);
+            Width = GetTextWidth(Text.c_str(), Font, Points);
+            if (Width > *FileColWidth) *FileColWidth = Width;
+        }
+    }
+    return TotalRecords;
+}
+
+void PushTimeRecordsPartial(
+    render_group* Group,
+    time_record* TimeRecords,
+    uint16 nTimeRecords,
+    float* X, float* Y,
+    float TotalWidth, float RecordHeight,
+    float FunctionColWidth,
+    float HitsColWidth,
+    float MCyclesColWidth,
+    float FileColWidth,
+    float HMargin, float VMargin
+) {
+    std::string Text;
+    float Width = 0;
+    for (int i = 0; i < nTimeRecords; i++) {
+        time_record* Record = TimeRecords + i;
+
+        if (Record->HitCount > 0) {
+            PushText(Group, V2(*X, *Y), Font_Menlo_Regular_ID, Record->FunctionName, White, DEBUG_ENTRIES_TEXT_POINTS);
+            *X += FunctionColWidth + HMargin;
+
+            Text = std::format("{}", Record->HitCount);
+            Width = GetTextWidth(Text.c_str(), Group->DebugFont, DEBUG_ENTRIES_TEXT_POINTS);
+            *X += HitsColWidth - Width;
+            PushText(Group, V2(*X, *Y), Font_Menlo_Regular_ID, Text.c_str(), White, DEBUG_ENTRIES_TEXT_POINTS);
+            *X += Width + HMargin;
+            
+            Text = std::format("{:.2f}", Record->CycleCount / 1000000.0f);
+            Width = GetTextWidth(Text.c_str(), Group->DebugFont, DEBUG_ENTRIES_TEXT_POINTS);
+            *X += MCyclesColWidth - Width;
+            PushText(Group, V2(*X, *Y), Font_Menlo_Regular_ID, Text.c_str(), White, DEBUG_ENTRIES_TEXT_POINTS);
+            *X += Width + HMargin;
+
+            Text = std::format("{}:{}", Record->FileName, Record->LineNumber);
+            PushText(Group, V2(*X, *Y), Font_Menlo_Regular_ID, Text.c_str(), White, DEBUG_ENTRIES_TEXT_POINTS);
+            *X = Group->Width - TotalWidth + HMargin;
+
+            *Y += RecordHeight;
+
+            Record->HitCount = 0;
+            Record->CycleCount = 0;
+        }
+    }
+    *X = Group->Width - TotalWidth + HMargin;
+}
+
+void PushTimeRecords(
+    render_group* Group, 
+    uint16 nTimeRecordsLibrary,
+    time_record* TimeRecordsLibrary,
+    uint16 nTimeRecordsPlatform,
+    time_record* TimeRecordsPlatform
+) {
+    char Buffer[512];
+    const float Points = DEBUG_ENTRIES_TEXT_POINTS;
+    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
+    
+    float FunctionHeaderWidth = GetTextWidth("Function", Font, Points);
+    float FunctionColWidth    = FunctionHeaderWidth;
+    float HitsHeaderWidth     = GetTextWidth("Hits", Font, Points);
+    float HitsColWidth        = HitsHeaderWidth;
+    float MCyclesHeaderWidth  = GetTextWidth("MCycles", Font, Points);
+    float MCyclesColWidth     = MCyclesHeaderWidth;
+    float FileHeaderWidth     = GetTextWidth("File", Font, Points);
+    float FileColWidth        = FileHeaderWidth;
+
+    // Compute column widths
+    uint16 nTotalRecords = 0;
+    nTotalRecords += ComputeTimeRecordsColWidths(Font, Points, nTimeRecordsLibrary, TimeRecordsLibrary, 
+        &FunctionColWidth, &HitsColWidth, &MCyclesColWidth, &FileColWidth);
+    nTotalRecords += ComputeTimeRecordsColWidths(Font, Points, nTimeRecordsPlatform, TimeRecordsPlatform, 
+        &FunctionColWidth, &HitsColWidth, &MCyclesColWidth, &FileColWidth);
+
+    float HMargin = 10.0f;
+    float VMargin = 10.0f;
+
+    float TotalWidth = FunctionColWidth + HitsColWidth + MCyclesColWidth + FileColWidth + 5 * HMargin;
+    float RecordHeight = GetCharMaxHeight(Font, Points);
+    float TotalHeight = (RecordHeight) * (nTotalRecords + 1) + 2 * VMargin;
+
+    PushRect(Group, { Group->Width - TotalWidth, Group->Height - TotalHeight, TotalWidth, TotalHeight }, ChangeAlpha(Black, 0.7f));
+
+    float RecordX = Group->Width - TotalWidth + HMargin;
+    float RecordY = Group->Height - TotalHeight + RecordHeight + 0.5f * VMargin;
+
+    // Push header
+    float X = RecordX + 0.5f * (FunctionColWidth - FunctionHeaderWidth);
+    PushText(Group, V2(X, RecordY), Font_Menlo_Regular_ID, "Function", White, Points);
+    RecordX += FunctionColWidth + HMargin;
+
+    X = RecordX + 0.5f * (HitsColWidth - HitsHeaderWidth);
+    PushText(Group, V2(X, RecordY), Font_Menlo_Regular_ID, "Hits", White, Points);
+    RecordX += HitsColWidth + HMargin;
+
+    X = RecordX + 0.5f * (MCyclesColWidth - MCyclesHeaderWidth);
+    PushText(Group, V2(X, RecordY), Font_Menlo_Regular_ID, "MCycles", White, Points);
+    RecordX += MCyclesColWidth + HMargin;
+
+    X = RecordX + 0.5f * (FileColWidth - FileHeaderWidth);
+    PushText(Group, V2(X, RecordY), Font_Menlo_Regular_ID, "File", White, Points);
+
+    RecordX = Group->Width - TotalWidth + HMargin;
+    RecordY += RecordHeight + 0.5f * VMargin;
+
+    // Push table
+    PushTimeRecordsPartial(Group, TimeRecordsLibrary, nTimeRecordsLibrary, &RecordX, &RecordY, TotalWidth, RecordHeight, 
+        FunctionColWidth, HitsColWidth, MCyclesColWidth, RecordHeight, HMargin, VMargin);
+    PushTimeRecordsPartial(Group, TimeRecordsPlatform, nTimeRecordsLibrary, &RecordX, &RecordY, TotalWidth, RecordHeight, 
+        FunctionColWidth, HitsColWidth, MCyclesColWidth, RecordHeight, HMargin, VMargin);
 }
 
 #endif
