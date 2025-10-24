@@ -6,11 +6,10 @@
 GameAssets/*/Files
 !GameAssets/Shader/Files
 **/*.spv
-
 GameAssets/game_assets
 
 # Captures
-Captures/
+Captures/*
 
 # Binaries
 bin/
@@ -19,5 +18,10 @@ GameAssets/Assets/Shaders/*/*.spv
 # Linking
 Linking/
 
-# Environment
+# Batch scripts
 bat/env.bat
+bat/hot.bat
+bat/meta.bat
+
+# Build
+GameBuild/build.conf
