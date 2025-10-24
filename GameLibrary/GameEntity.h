@@ -615,6 +615,38 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
 
     // Camera basis
         Cam->Basis = GetCameraBasis(Cam->Angle, Cam->Pitch);
+    
+    // Movement
+        v3 Direction = V3(0,0,0);
+        float Speed = 20.0f;
+        if (Input->Mode == Keyboard) {
+            bool Left = Input->Keyboard.A.IsDown;
+            bool Right = Input->Keyboard.D.IsDown;
+            bool Up = Input->Keyboard.W.IsDown;
+            bool Down = Input->Keyboard.S.IsDown;
+            if (Right) { Direction.X += 1.0f; }
+            if (Left)  { Direction.X -= 1.0f; }
+            if (Up)    { Direction.Z += 1.0f; }
+            if (Down)  { Direction.Z -= 1.0f; }
+            Direction = normalize(Direction);
+            if (Input->Keyboard.Space.IsDown) Direction.Y += 1.0f;
+            if (Input->Keyboard.Shift.IsDown) Direction.Y -= 1.0f;
+        }
+        else if (Input->Mode == Controller) {
+            v2 Normalized = normalize(Input->Controller.LeftJoystick);
+            Direction.X = Normalized.X;
+            Direction.Z = Normalized.Y;
+            Speed = 20.0f * modulus(Input->Controller.LeftJoystick);
+        }
+
+        basis HorizontalBasis = GetCameraBasis(Cam->Angle, 0);
+        // Direction is in coordinates relative to camera
+        float Angle = atan2f(-Direction.X, Direction.Z);
+        Direction = Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z;
+        Cam->Entity->Velocity = Speed * Direction;
+        Cam->Entity->Transform.Rotation = Quaternion(State->ActiveCamera->Angle * Degrees + Angle, V3(0,1,0));
+
+        Cam->Position += State->dt * Cam->Entity->Velocity;
 
         break;
     }
@@ -691,17 +723,6 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
             Character->Entity->Transform.Rotation = Quaternion(State->ActiveCamera->Angle * Degrees + Angle, V3(0,1,0));
         }
         Character->Entity->Transform.Translation += State->dt * Character->Entity->Velocity;
-        
-        // Camera autofollow
-        v3 Displacement = Character->Entity->Transform.Translation - State->ActiveCamera->Position;
-        Displacement.Y = 0;
-        float Distance = modulus(Displacement);
-        v3 Velocity = V3(0,0,0);
-        float MinDistance = .01f;
-        if (Distance >= MinDistance) Velocity = 20.0f * (Distance - MinDistance) * normalize(Displacement);
-        State->ActiveCamera->Position += State->dt * Velocity;
-        State->ActiveCamera->Entity->Transform.Translation = 
-            V3(0,0,State->ActiveCamera->Distance) - State->ActiveCamera->Position * State->ActiveCamera->Basis;
     }
 
 // Enemies _________________________________________________________________________________________________________________________________
