@@ -60,7 +60,8 @@ debug_entry* _AddDebugArray(
     debug_entry* Result = 0;
     for (int i = 0; i < Count; i++) {
         std::string Text = std::format("{}[{}]", Name, i);
-        _AddDebugEntry(DebugInfo, Text.c_str(), Type, Size, Memory, false, Parent);
+        if (i == 0) Result = _AddDebugEntry(DebugInfo, Text.c_str(), Type, Size, Memory, false, Parent);
+        else        _AddDebugEntry(DebugInfo, Text.c_str(), Type, Size, Memory, false, Parent);
         Memory += Size;
     }
     return Result;
@@ -79,7 +80,8 @@ debug_entry* _AddDebugPointerArray(
     debug_entry* Result = 0;
     for (int i = 0; i < Count; i++) {
         std::string Text = std::format("{}[{}]", Name, i);
-        _AddDebugEntry(DebugInfo, Text.c_str(), Type, Size, *(void**)Memory, false, Parent);
+        if (i == 0) Result = _AddDebugEntry(DebugInfo, Text.c_str(), Type, Size, *(void**)Memory, false, Parent);
+        else        _AddDebugEntry(DebugInfo, Text.c_str(), Type, Size, *(void**)Memory, false, Parent);
         Memory += sizeof(void*);
     }
     return Result;
