@@ -83,7 +83,7 @@ const char* TokenTypeName[] = {
     "asterisk",
     "percent",
     "back slash",
-    "forwardd slash",
+    "forward slash",
     "interrogation",
     "exclamation",
     "tilde",
