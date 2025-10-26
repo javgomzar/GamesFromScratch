@@ -530,6 +530,13 @@ void OpenGLReloadShader(openGL* OpenGL, game_assets* Assets, game_shader* Shader
 	}
 }
 
+void OpenGLReloadShader(openGL* OpenGL, game_compute_shader* Shader) {
+	glDeleteShader(OpenGL->ComputeShaderIDs[Shader->ID]);
+	OpenGL->ComputeShaderIDs[Shader->ID] = OpenGLCompileShader(GL_COMPUTE_SHADER, Shader->Code, Shader->Size);
+	glDeleteProgram(OpenGL->ComputeProgramIDs[Shader->ID]);
+	OpenGL->ComputeProgramIDs[Shader->ID] = OpenGLLinkProgram(OpenGL, Shader);
+}
+
 #define SetUBO(UniformContent, Binding) glNamedBufferSubData(OpenGL->UBOs[Binding], 0, sizeof(UniformContent), &UniformContent)
 
 // Shader uniforms

@@ -586,15 +586,12 @@ void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
         else if (strcmp(Extension, "geom") == 0)  { Shader->Type = Geometry_Shader; }
         else if (strcmp(Extension, "tesc")  == 0) { Shader->Type = Tessellation_Control_Shader; }
         else if (strcmp(Extension, "tese")  == 0) { Shader->Type = Tessellation_Evaluation_Shader; }
-        else Assert(false);
+        else Raise("Invalid shader extension. Should be one of '.vert', '.geom', '.tesc', '.tese', '.frag'.");
     }
-    else Assert(false);
 
     read_file_result File = Platform.ReadEntireFile(Path);
-    if (File.ContentSize > 0) {
-        Shader->File = File;
-        Shader->Code = (char*)File.Content;
-    }
+    Shader->File = File;
+    Shader->Code = (char*)File.Content;
 
     // Extra char with value 0 to separate shaders
     Assets->TotalSize += Shader->File.ContentSize + 1;
@@ -627,20 +624,15 @@ void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID
     game_compute_shader* Shader = GetShader(Assets, ID);
     Shader->ID = ID;
 
-    WIN32_FIND_DATAA Data;
-    HANDLE hFind = FindFirstFileA(Path, &Data);
-
-    Assert(hFind != INVALID_HANDLE_VALUE);
-
     const char* Extension = GetFileExtension(Path);
 
     if (strcmp(Extension, "comp") != 0) {
         Raise("Extension of compute shader file should be '.comp'.");
     }
     else {
-        read_file_result ShaderFile = Platform.ReadEntireFile(Path);
-        Shader->Size = ShaderFile.ContentSize;
-        Shader->Code = (char*)ShaderFile.Content;
+        Shader->File = Platform.ReadEntireFile(Path);
+        Shader->Size = Shader->File.ContentSize;
+        Shader->Code = (char*)Shader->File.Content;
 
         // Extra char with value 0 to separate shaders
         Assets->TotalSize += Shader->Size + 1;

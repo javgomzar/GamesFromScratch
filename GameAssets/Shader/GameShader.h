@@ -353,6 +353,7 @@ struct game_shader_pipeline {
 
 struct game_compute_shader {
     game_compute_shader_id ID;
+    read_file_result File;
     uint32 Size;
     char* Code;
 };

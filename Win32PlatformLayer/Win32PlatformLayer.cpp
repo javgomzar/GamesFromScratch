@@ -912,6 +912,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
         }
 
+        for (int i = 0; i < game_compute_shader_id_count; i++) {
+            game_compute_shader* Shader = GetShader(Assets, (game_compute_shader_id)i);
+
+            int64 LastWriteTime = Win32GetLastWriteTime(Shader->File.Path);
+            if (LastWriteTime > Shader->File.Timestamp) {
+                Win32FreeFileMemory(Shader->File.Content);
+                PushShader(Assets, Shader->File.Path, Shader->ID);
+                if (Shader->File.Timestamp == LastWriteTime) {
+                    OpenGLReloadShader(&RendererContext, Shader);
+
+                    char Buffer[128];
+                    sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
+                    Log(Info, Buffer);
+                }
+            }
+        }
+
         // Clear transient memory
         ClearArena(&Memory.Transient);
 
