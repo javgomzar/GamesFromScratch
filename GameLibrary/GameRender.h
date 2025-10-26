@@ -167,6 +167,7 @@ enum render_group_target {
     Target_Outline,
     Target_Postprocessing_Outline,
     Target_PingPong,
+    Target_Fluid,
     Target_Output,
 
     render_group_target_count
@@ -1363,11 +1364,10 @@ void PushRenderTarget(
         Shader_Pipeline_Antialiasing_ID : 
         Shader_Pipeline_Framebuffer_ID;
     TargetCommand.Shader = GetShaderPipeline(Group->Assets, ShaderID);
-    
-    if (Target == Target_World || Target == Target_Postprocessing_Outline) TargetCommand.Target = Target_Output;
-    else if (Target == Target_Outline) TargetCommand.Target = Target_Postprocessing_Outline;
+
+    if (Target == Target_Outline) TargetCommand.Target = Target_Postprocessing_Outline;
     else if (Target == Target_Output) TargetCommand.Target = Target_None;
-    else Raise("Target shouldn't be rendered out.");
+    else TargetCommand.Target = Target_Output;
 
     TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
     float* Data = (float*)TargetCommand.VertexEntry.Pointer;

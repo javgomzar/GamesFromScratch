@@ -747,8 +747,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     );
 
     // Input
-    game_input Input = {};
-    Input.Mode = Keyboard;
+    game_input* Input = &Memory.Input;
+    Input->Mode = Keyboard;
 
     // Sound
     int currentBuffer = 1;
@@ -826,8 +826,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         // Hot reloading code
         if (
             !LibraryCompilation.Running && !MetaprogrammingCompilation.Running && !MetaprogrammingExecution.Running &&
-            (Input.Keyboard.Control.JustPressed && Input.Keyboard.H.IsDown ||
-            Input.Keyboard.Control.IsDown      && Input.Keyboard.H.JustPressed)
+            (Input->Keyboard.Control.JustPressed && Input->Keyboard.H.IsDown ||
+             Input->Keyboard.Control.IsDown      && Input->Keyboard.H.JustPressed)
         ) {
             int64 MetaprogrammingSourceTimestamp = Platform.GetLastWriteTime(BuildConfiguration.MetaprogrammingCodePath);
             int64 MetaprogrammingBinaryTimestamp = Platform.GetLastWriteTime(MetaFile);
@@ -933,23 +933,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         ClearArena(&Memory.Transient);
 
         // Previous input
-        UpdatePreviousInput(&Input);
+        UpdatePreviousInput(&Memory.Input);
 
         // Peek and dispatch messages
         if (!FirstFrame) {
-            ProcessPendingMessages(Window, &Input, &RecordPlayback);
+            ProcessPendingMessages(Window, &Memory.Input, &RecordPlayback);
         }
 
-        Input.Keyboard.Any = false;
+        Input->Keyboard.Any = false;
         for (int i = 0; i < NUMBER_OF_KEYS; i++) {
-            if (Input.Keyboard.Keys[i].IsDown) {
-                Input.Keyboard.Any = true;
+            if (Input->Keyboard.Keys[i].IsDown) {
+                Input->Keyboard.Any = true;
                 break;
             }
         }
 
-        if ((Input.Mode != Keyboard) && Input.Keyboard.Any) {
-            Input.Mode = Keyboard;
+        if (Input->Mode != Keyboard && Input->Keyboard.Any) {
+            Input->Mode = Keyboard;
         }
 
         // XInput Controller
@@ -959,39 +959,39 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 XINPUT_GAMEPAD* Pad = &ControllerState.Gamepad;
 
                 // Button mapping
-                Input.Controller.PadUp.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
-                Input.Controller.PadDown.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
-                Input.Controller.PadLeft.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
-                Input.Controller.PadRight.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
-                Input.Controller.LB.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
-                Input.Controller.RB.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
-                Input.Controller.AButton.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_A);
-                Input.Controller.BButton.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_B);
-                Input.Controller.XButton.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_X);
-                Input.Controller.YButton.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_Y);
-                Input.Controller.Start.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_START);
-                Input.Controller.Back.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_BACK);
-                Input.Controller.LS.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_THUMB);
-                Input.Controller.RS.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_THUMB);
-                Input.Controller.LT.IsDown = Pad->bLeftTrigger > 0;
-                Input.Controller.RT.IsDown = Pad->bRightTrigger > 0;
+                Input->Controller.PadUp.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
+                Input->Controller.PadDown.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
+                Input->Controller.PadLeft.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
+                Input->Controller.PadRight.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
+                Input->Controller.LB.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
+                Input->Controller.RB.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
+                Input->Controller.AButton.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_A);
+                Input->Controller.BButton.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_B);
+                Input->Controller.XButton.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_X);
+                Input->Controller.YButton.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_Y);
+                Input->Controller.Start.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_START);
+                Input->Controller.Back.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_BACK);
+                Input->Controller.LS.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_THUMB);
+                Input->Controller.RS.IsDown = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_THUMB);
+                Input->Controller.LT.IsDown = Pad->bLeftTrigger > 0;
+                Input->Controller.RT.IsDown = Pad->bRightTrigger > 0;
 
                 for (int i = 0; i < NUMBER_OF_CONTROLLER_BUTTONS; i++) {
-                    game_button_state* Button = &Input.Controller.Buttons[i];
+                    game_button_state* Button = &Input->Controller.Buttons[i];
                     Button->JustPressed = Button->IsDown && !Button->WasDown;
                     Button->JustPressed = !Button->IsDown && Button->WasDown;
                 }
 
-                Input.Controller.Any = false;
+                Input->Controller.Any = false;
                 for (int i = 0; i < 16; i++) {
-                    if (Input.Controller.Buttons[i].IsDown) {
-                        Input.Controller.Any = true;
+                    if (Input->Controller.Buttons[i].IsDown) {
+                        Input->Controller.Any = true;
                         break;
                     }
                 }
 
-                if (Input.Mode != Controller && Input.Controller.Any) {
-                    Input.Mode = Controller;
+                if (Input->Mode != Controller && Input->Controller.Any) {
+                    Input->Mode = Controller;
                 }
 
                 SHORT LeftStickX = (float)Pad->sThumbLX;
@@ -1000,15 +1000,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 SHORT RightStickY = (float)Pad->sThumbRY;
 
                 // Normalizing joystick values
-                Input.Controller.LeftJoystick.X = LeftStickX / (LeftStickX < 0 ? 32768.0f : 32767.0f);
-                Input.Controller.LeftJoystick.Y = LeftStickY / (LeftStickY < 0 ? 32768.0f : 32767.0f);
-                Input.Controller.RightJoystick.X = RightStickX / (RightStickX < 0 ? 32768.0f : 32767.0f);
-                Input.Controller.RightJoystick.Y = RightStickY / (RightStickY < 0 ? 32768.0f : 32767.0f);
+                Input->Controller.LeftJoystick.X = LeftStickX / (LeftStickX < 0 ? 32768.0f : 32767.0f);
+                Input->Controller.LeftJoystick.Y = LeftStickY / (LeftStickY < 0 ? 32768.0f : 32767.0f);
+                Input->Controller.RightJoystick.X = RightStickX / (RightStickX < 0 ? 32768.0f : 32767.0f);
+                Input->Controller.RightJoystick.Y = RightStickY / (RightStickY < 0 ? 32768.0f : 32767.0f);
 
                 char text[256];
                 sprintf_s(text, "L: X %f, Y %f\nR: X %f, Y %f\n",
-                    Input.Controller.LeftJoystick.X, Input.Controller.LeftJoystick.Y,
-                    Input.Controller.RightJoystick.X, Input.Controller.RightJoystick.Y);
+                    Input->Controller.LeftJoystick.X, Input->Controller.LeftJoystick.Y,
+                    Input->Controller.RightJoystick.X, Input->Controller.RightJoystick.Y);
                 //OutputDebugStringA(text);
             }
         }
@@ -1024,11 +1024,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         int ScreenX = rect.left;
         int ScreenY = rect.bottom;
 
-        Input.Mouse.LastCursor.X = Input.Mouse.Cursor.X;
-        Input.Mouse.LastCursor.Y = Input.Mouse.Cursor.Y;
+        Input->Mouse.LastCursor.X = Input->Mouse.Cursor.X;
+        Input->Mouse.LastCursor.Y = Input->Mouse.Cursor.Y;
 
-        Input.Mouse.Cursor.X = MouseP.x;
-        Input.Mouse.Cursor.Y = MouseP.y;
+        Input->Mouse.Cursor.X = MouseP.x;
+        Input->Mouse.Cursor.Y = MouseP.y;
 
         /*char MouseTextBuffer[256];
         sprintf_s(MouseTextBuffer, "X: %d\nY: %d\n", Input.Mouse.Cursor.X, Input.Mouse.Cursor.Y);
@@ -1043,10 +1043,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Buffer.BytesPerPixel = 4;
 
         if (RecordPlayback.RecordIndex) {
-            RecordInput(&RecordPlayback, &Input);
+            RecordInput(&RecordPlayback, &Memory.Input);
         }
         if (RecordPlayback.PlaybackIndex) {
-            PlaybackInput(&RecordPlayback, &Input);
+            PlaybackInput(&RecordPlayback, &Memory.Input);
         }
 
         // Game function
@@ -1073,18 +1073,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 // Clear render group
                 ClearEntries(Group);
 
-                GameCode.Update(&Memory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer], &Input);
+                GameCode.Update(&Memory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer]);
 
                 if (pGameState->Exit) {
                     Running = false; PostQuitMessage(0);
                 }
             }
 
-            if (Input.Keyboard.F10.IsDown && !Input.Keyboard.F11.WasDown) {
+            if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F11.WasDown) {
                 ScreenCapture(&Platform, &RendererContext, Group->Width, Group->Height);
             }
 
-            Render(Window, Group, &RendererContext, pGameState->ActiveCamera, pGameState->Time);
+            Render(Window, Group, &RendererContext, &Memory.Input, pGameState->ActiveCamera, pGameState->Time);
             ClearVertexBuffer(&Memory.RenderGroup.VertexBuffer);
         }
         else {
@@ -1297,7 +1297,7 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
                     ResizeWindow(&RendererContext, NewWidth, NewHeight);
                 }
 
-                Render(Window, Group, &RendererContext, Memory.GameState->ActiveCamera, 0.0);
+                Render(Window, Group, &RendererContext, &Memory.Input, Memory.GameState->ActiveCamera, 0.0);
             }
 
             EndPaint(Window, &ps);

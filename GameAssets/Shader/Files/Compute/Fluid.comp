@@ -1,0 +1,83 @@
+#version 450
+precision highp float;
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(rgba32f, binding = 0) readonly uniform image2D source;
+layout(rgba32f, binding = 1) writeonly uniform image2D target;
+
+#ifdef VULKAN
+layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
+#else 
+layout(std140, binding = 0) uniform GlobalUniforms 
+#endif
+{
+	mat4 projection;
+	mat4 view;
+	vec2 resolution;
+    vec2 mouse;
+    vec2 lastmouse;
+	float time;
+} GlobalUBO;
+
+const float dt = 0.15;
+const float K = 0.2;
+
+const float S = K / dt;
+const float v = 0.2;
+
+vec4 LinearSampler(vec2 Coord) {
+    vec2 f = fract(Coord);
+    ivec2 i = ivec2(floor(Coord));
+
+    vec4 t00 = imageLoad(source, i);
+    vec4 t10 = imageLoad(source, i + ivec2(1, 0));
+    vec4 t01 = imageLoad(source, i + ivec2(0, 1));
+    vec4 t11 = imageLoad(source, i + ivec2(1, 1));
+
+    vec4 tx0 = mix(t00, t10, f.x);
+    vec4 tx1 = mix(t01, t11, f.x);
+
+    return mix(tx0, tx1, f.y);
+}
+
+void main() {
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+
+    // R, G are velocity components, B is density
+    vec3 Center = imageLoad(source, texelCoord).xyz;
+    vec3 Right  = imageLoad(source, texelCoord + ivec2(1, 0)).xyz;
+    vec3 Left   = imageLoad(source, texelCoord - ivec2(1, 0)).xyz;
+    vec3 Top    = imageLoad(source, texelCoord + ivec2(0, 1)).xyz;
+    vec3 Down   = imageLoad(source, texelCoord - ivec2(0, 1)).xyz;
+
+    vec3 dUdX = 0.5 * (Right - Left);
+    vec3 dUdY = 0.5 * (Top - Down);
+
+    float divU = dUdX.x + dUdY.y;
+    vec2 dD = vec2(dUdX.z, dUdY.z);
+
+    // Mass conservation
+    float Density = clamp(Center.z - dt * dot(vec3(dD, divU), Center), 0.5, 3.0);
+
+    vec2 dP = S * dD;
+    vec2 Laplacian = Right.xy + Left.xy + Top.xy + Down.xy - 4.0 * Center.xy;
+    vec2 Viscosity = v * Laplacian;
+
+    // Advection 
+    vec2 Was = vec2(texelCoord) - dt*Center.xy;
+
+    vec2 Velocity = LinearSampler(Was).xy + dt*(Viscosity - dP);
+
+    if (texelCoord.x == 0 || texelCoord.x == GlobalUBO.resolution.x - 1) {
+        Velocity = vec2(0, 0);
+    }
+    if (texelCoord.y == 0 || texelCoord.y == GlobalUBO.resolution.y - 1) {
+        Velocity = vec2(0, 0);
+    }
+
+    // External source
+    Velocity += dt * exp(-0.1*distance(vec2(texelCoord), GlobalUBO.mouse)) * (GlobalUBO.mouse - GlobalUBO.lastmouse);
+    Velocity = clamp(Velocity, vec2(-10, -10), vec2(10, 10));
+
+    imageStore(target, texelCoord, vec4(Velocity, Density, 1.0));
+}

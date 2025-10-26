@@ -67,7 +67,9 @@ ENUM(game_compute_shader_id,
     Compute_Shader_Outline_Init_ID,
     Compute_Shader_Jump_Flood_ID,
     Compute_Shader_Kernel_ID,
-    Compute_Shader_Test_ID
+    Compute_Shader_Test_ID,
+    Compute_Shader_Fluid_ID,
+    Compute_Shader_Fluid_Init_ID
 );
 
 // +-------------------------------------------------------------------------------------------------------------------------------------------+

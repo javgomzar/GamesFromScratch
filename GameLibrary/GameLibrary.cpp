@@ -42,9 +42,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     float Time = pGameState->Time;
     camera* ActiveCamera = pGameState->ActiveCamera;
 
-    bool firstFrame = false;
+    bool FirstFrame = false;
     if (!Memory->IsInitialized) {
-        firstFrame = true;
+        FirstFrame = true;
 
         //TestPerformance();
 
@@ -80,6 +80,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     // PushEntities(Group, &pGameState->Entities, Input, Time);
 
     TestRendering(Group, Input, Time);
+
+    // TestFluid(Group, Input, FirstFrame);
 
     Update(Group, ActiveCamera->Position, pGameState->Emitter, pGameState->dt);
     

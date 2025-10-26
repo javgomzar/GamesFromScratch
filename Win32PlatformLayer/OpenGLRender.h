@@ -250,7 +250,7 @@ void CreateFramebuffer(
 
 	GLenum Status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (Status != GL_FRAMEBUFFER_COMPLETE) {
-		Assert(false);
+		Raise("Something went wrong creating a framebuffer.");
 	}
 }
 
@@ -551,8 +551,8 @@ void SetGlobalUniforms(openGL* OpenGL, game_input* Input, float Width, float Hei
 	}
 	GlobalUniforms.resolution = V2(Width, Height);
 	GlobalUniforms.time = Time;
-	GlobalUniforms.mouse = Input->Mouse.Cursor;
-	GlobalUniforms.lastmouse = Input->Mouse.LastCursor;
+	GlobalUniforms.mouse = V2(Input->Mouse.Cursor.X, Height - Input->Mouse.Cursor.Y);
+	GlobalUniforms.lastmouse = V2(Input->Mouse.LastCursor.X, Height - Input->Mouse.LastCursor.Y);
 	SetUBO(GlobalUniforms, 0);
 }
 
@@ -853,6 +853,11 @@ void InitializeRenderer(
 		openGL_framebuffer* PingPongTarget = &OpenGL->Targets[Target_PingPong];
 		PingPongTarget->Label = Target_PingPong;
 		PingPongTarget->Attachment = GL_DEPTH_ATTACHMENT;
+		PingPongTarget->Samples = 1;
+
+		// Fluid
+		openGL_framebuffer* FluidTarget = &OpenGL->Targets[Target_Fluid];
+		PingPongTarget->Label = Target_Fluid;
 		PingPongTarget->Samples = 1;
 
 		// Creating framebuffers
@@ -1241,10 +1246,10 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, game_input* Input,
 						glStencilMask(GL_TRUE);
 					}
 				}
+				else glDisable(GL_DEPTH_TEST);
 				if (Source.Multisampling) SetAntialiasingUniforms(OpenGL, Source.Samples);
 
 				if (Source.Label == Target_Output) glDepthFunc(GL_ALWAYS);
-				if (Source.Label == Target_Postprocessing_Outline) glDisable(GL_DEPTH_TEST);
 
 				glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 				
