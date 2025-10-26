@@ -863,13 +863,20 @@ void UpdateCombatUI(
             UIMenu CombatMenu = UIMenu("Combat menu", axis_y, ui_alignment_min, ui_alignment_max, 80.0f, 20.0f);
             CombatMenuWidth = CombatMenu.Element->Rect.Width;
 
+            static int8 SelectedButtonIndex = -1;
+            int8 TotalButtons = 1;
+            
             if (UIButton("Attack")) {
                 State->Combat.Turn.Action = combatant_action_attack;
+                SelectedButtonIndex = 0;
             }
+
             for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
                 if (ActiveCombatant->Spells[i] != Spell_Empty) {
+                    TotalButtons++;
                     if (UIButton("Magic")) {
                         State->Combat.Turn.Action = combatant_action_magic;
+                        SelectedButtonIndex = 1;
                     };
                     break;
                 }
@@ -877,8 +884,10 @@ void UpdateCombatUI(
 
             for (int i = 0; i < 3; i++) {
                 if (State->Inventory[i] != Item_Type_None) {
+                    int8 Index = TotalButtons++;
                     if (UIButton("Items")) {
                         State->Combat.Turn.Action = combatant_action_items;
+                        SelectedButtonIndex = Index;
                     }
                     break;
                 }
@@ -886,6 +895,7 @@ void UpdateCombatUI(
 
             if (UIButton("Flee")) {
                 State->Combat.Turn.Action = combatant_action_flee;
+                SelectedButtonIndex = TotalButtons++;
             }
 
             if (Input->Mouse.RightClick.JustPressed && State->Combat.Turn.Action != combatant_action_empty) {
@@ -893,18 +903,24 @@ void UpdateCombatUI(
                 State->Combat.Turn.Spell = Spell_Empty;
             }
 
-            if (State->Combat.Turn.Action != combatant_action_empty) {
+            combatant_action Action = State->Combat.Turn.Action;
+            if (Action == combatant_action_empty) {
+                SelectedButtonIndex = -1;
+            }
+            else {
                 const char* Strings[] = {
-                    "Attack", "Magic", "Items", "Flee"
+                    "EMPTY", "Attack", "Magic", "Items", "Flee"
                 };
                 float Width = 0, Height = 0;
-                GetTextWidthAndHeight(Strings[State->Combat.Turn.Action - 1], Font, 20.0f, &Width, &Height);
-                float PosY = Group->Height - CombatMenu.Element->Rect.Height + (float)State->Combat.Turn.Action * (Height + 20.0f);
+                GetTextWidthAndHeight(Strings[Action], Font, 20.0f, &Width, &Height);
+                float PosY = Group->Height - CombatMenu.Element->Rect.Height + (float)(SelectedButtonIndex + 1) * (Height + 20.0f);
+                float TriangleY = PosY - 0.5f * Height;
                 triangle2 Triangle = {
-                    V2(20, PosY - 10),
-                    V2(20, PosY + 10),
-                    V2(50, PosY),
+                    V2(20, TriangleY - 5 * sinf(2.0f * State->Time)),
+                    V2(20, TriangleY + 5 * sinf(2.0f * State->Time)),
+                    V2(50, TriangleY),
                 };
+                PushTriangle(Group, Triangle, White, SORT_ORDER_DEBUG_OVERLAY + 1.0f);
                 PushLine(
                     Group, 
                     V2(0, PosY), 
