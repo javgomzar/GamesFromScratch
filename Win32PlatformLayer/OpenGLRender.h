@@ -540,7 +540,7 @@ void OpenGLReloadShader(openGL* OpenGL, game_compute_shader* Shader) {
 #define SetUBO(UniformContent, Binding) glNamedBufferSubData(OpenGL->UBOs[Binding], 0, sizeof(UniformContent), &UniformContent)
 
 // Shader uniforms
-void SetGlobalUniforms(openGL* OpenGL, float Width, float Height, camera* Camera, float Time) {
+void SetGlobalUniforms(openGL* OpenGL, game_input* Input, float Width, float Height, camera* Camera, float Time) {
 	global_uniforms GlobalUniforms;
 	GlobalUniforms.projection = GetWorldProjectionMatrix(Width, Height);
 	if (Camera) {
@@ -551,6 +551,8 @@ void SetGlobalUniforms(openGL* OpenGL, float Width, float Height, camera* Camera
 	}
 	GlobalUniforms.resolution = V2(Width, Height);
 	GlobalUniforms.time = Time;
+	GlobalUniforms.mouse = Input->Mouse.Cursor;
+	GlobalUniforms.lastmouse = Input->Mouse.LastCursor;
 	SetUBO(GlobalUniforms, 0);
 }
 
@@ -1010,7 +1012,7 @@ void InitializeRenderer(
 // | Renderer                                                                                                                               |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-void Render(HWND Window, render_group* Group, openGL* OpenGL, camera* Camera, double Time) {
+void Render(HWND Window, render_group* Group, openGL* OpenGL, game_input* Input, camera* Camera, double Time) {
 	TIMED_BLOCK;
 
 	for (int i = 0; i < vertex_layout_id_count; i++) {
@@ -1027,7 +1029,7 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, camera* Camera, do
 	int32 Height = Group->Height;
 
 // Global uniforms
-	SetGlobalUniforms(OpenGL, Width, Height, Camera, Time);
+	SetGlobalUniforms(OpenGL, Input, Width, Height, Camera, Time);
 	SetLightUniforms(OpenGL, Group->Light, Camera->Position + Camera->Distance * Camera->Basis.Z);
 	SetModelUniforms(OpenGL, Identity4);
 

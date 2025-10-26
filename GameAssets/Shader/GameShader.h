@@ -271,6 +271,8 @@ struct alignas(16) global_uniforms {
     matrix4 projection;
     matrix4 view;
     v2 resolution;
+    v2 mouse;
+    v2 lastmouse;
     float time;
 };
 

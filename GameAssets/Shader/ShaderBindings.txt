@@ -1,6 +1,6 @@
 # OPENGL
 Bindings:
-    - (0) GlobalUBO: projection, view, resolution, time.
+    - (0) GlobalUBO: projection, view, resolution, time, mouse
     - (1) LightUBO: Light direction, color, etc.
     - (2) ColorUBO: Color.
     - (3) ModelUBO: model, normal.

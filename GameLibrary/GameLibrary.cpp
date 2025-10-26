@@ -31,6 +31,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     render_group* Group = &Memory->RenderGroup;
+    game_input* Input = &Memory->Input;
     game_state* pGameState = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
     game_entity_state* EntityState = &pGameState->Entities;
