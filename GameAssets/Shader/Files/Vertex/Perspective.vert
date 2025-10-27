@@ -14,6 +14,8 @@ layout(std140, binding = 0) uniform GlobalUniforms
 	mat4 projection;
 	mat4 view;
 	vec2 resolution;
+    vec2 mouse;
+    vec2 lastmouse;
 	float time;
 } GlobalUBO;
 

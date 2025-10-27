@@ -67,7 +67,9 @@ ENUM(game_compute_shader_id,
     Compute_Shader_Outline_Init_ID,
     Compute_Shader_Jump_Flood_ID,
     Compute_Shader_Kernel_ID,
-    Compute_Shader_Test_ID
+    Compute_Shader_Test_ID,
+    Compute_Shader_Fluid_ID,
+    Compute_Shader_Fluid_Init_ID
 );
 
 // +-------------------------------------------------------------------------------------------------------------------------------------------+
@@ -271,6 +273,8 @@ struct alignas(16) global_uniforms {
     matrix4 projection;
     matrix4 view;
     v2 resolution;
+    v2 mouse;
+    v2 lastmouse;
     float time;
 };
 
@@ -353,6 +357,7 @@ struct game_shader_pipeline {
 
 struct game_compute_shader {
     game_compute_shader_id ID;
+    read_file_result File;
     uint32 Size;
     char* Code;
 };

@@ -22,6 +22,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     }
 
     render_group* Group = &Memory->RenderGroup;
+    game_input* Input = &Memory->Input;
     game_state* pGameState = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
     game_entity_manager* EntityManager = &pGameState->EntityManager;
@@ -32,9 +33,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     float Time = pGameState->Time;
     camera* ActiveCamera = pGameState->ActiveCamera;
 
-    bool firstFrame = false;
+    bool FirstFrame = false;
     if (!Memory->IsInitialized) {
-        firstFrame = true;
+        FirstFrame = true;
 
         //TestPerformance();
 

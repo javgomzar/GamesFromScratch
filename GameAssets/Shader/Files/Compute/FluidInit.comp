@@ -1,0 +1,35 @@
+#version 450
+precision highp float;
+
+layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout(rgba32f, binding = 0) readonly uniform image2D source;
+layout(rgba32f, binding = 1) writeonly uniform image2D target;
+
+#ifdef VULKAN
+layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
+#else 
+layout(std140, binding = 0) uniform GlobalUniforms 
+#endif
+{
+	mat4 projection;
+	mat4 view;
+	vec2 resolution;
+    vec2 mouse;
+    vec2 lastmouse;
+	float time;
+} GlobalUBO;
+
+
+void main() {
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+
+    float X = 10.0 * texelCoord.x / GlobalUBO.resolution.x;
+    float Y = 10.0 * texelCoord.y / GlobalUBO.resolution.y;
+
+    float u = 0;
+    float v = 0;
+
+    vec4 result = vec4(u, v, 1, 1);
+
+    imageStore(target, texelCoord, result);
+}

@@ -222,6 +222,8 @@ void WriteAssetsFile(const char* Path) {
     PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\JumpFlood.comp",   Compute_Shader_Jump_Flood_ID);
     PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\Test.comp",        Compute_Shader_Test_ID);
     PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\Kernel.comp",      Compute_Shader_Kernel_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\Fluid.comp",       Compute_Shader_Fluid_ID);
+    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\FluidInit.comp",   Compute_Shader_Fluid_Init_ID);
 
 // Output file
     void* FileMemory = VirtualAlloc(0, sizeof(game_assets) + Assets.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);

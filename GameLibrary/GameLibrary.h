@@ -50,6 +50,7 @@ extern GAMELIBRARY_API int nGameLibrary;
 struct game_memory {
     game_assets Assets;
     render_group RenderGroup;
+    game_input Input;
     game_state* GameState;
     memory_arena Permanent;
     memory_arena Transient;
@@ -64,7 +65,7 @@ struct game_memory {
 
 #include "GameUI.h"
 
-#define GAME_UPDATE_INPUTS game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer, game_input* Input
+#define GAME_UPDATE_INPUTS game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer
 #define GAME_UPDATE(name) GAMELIBRARY_API void name(GAME_UPDATE_INPUTS)
 typedef GAME_UPDATE(game_update);
 

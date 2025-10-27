@@ -250,7 +250,7 @@ void CreateFramebuffer(
 
 	GLenum Status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
 	if (Status != GL_FRAMEBUFFER_COMPLETE) {
-		Assert(false);
+		Raise("Something went wrong creating a framebuffer.");
 	}
 }
 
@@ -530,10 +530,17 @@ void OpenGLReloadShader(openGL* OpenGL, game_assets* Assets, game_shader* Shader
 	}
 }
 
+void OpenGLReloadShader(openGL* OpenGL, game_compute_shader* Shader) {
+	glDeleteShader(OpenGL->ComputeShaderIDs[Shader->ID]);
+	OpenGL->ComputeShaderIDs[Shader->ID] = OpenGLCompileShader(GL_COMPUTE_SHADER, Shader->Code, Shader->Size);
+	glDeleteProgram(OpenGL->ComputeProgramIDs[Shader->ID]);
+	OpenGL->ComputeProgramIDs[Shader->ID] = OpenGLLinkProgram(OpenGL, Shader);
+}
+
 #define SetUBO(UniformContent, Binding) glNamedBufferSubData(OpenGL->UBOs[Binding], 0, sizeof(UniformContent), &UniformContent)
 
 // Shader uniforms
-void SetGlobalUniforms(openGL* OpenGL, float Width, float Height, camera* Camera, float Time) {
+void SetGlobalUniforms(openGL* OpenGL, game_input* Input, float Width, float Height, camera* Camera, float Time) {
 	global_uniforms GlobalUniforms;
 	GlobalUniforms.projection = GetWorldProjectionMatrix(Width, Height);
 	if (Camera) {
@@ -544,6 +551,8 @@ void SetGlobalUniforms(openGL* OpenGL, float Width, float Height, camera* Camera
 	}
 	GlobalUniforms.resolution = V2(Width, Height);
 	GlobalUniforms.time = Time;
+	GlobalUniforms.mouse = V2(Input->Mouse.Cursor.X, Height - Input->Mouse.Cursor.Y);
+	GlobalUniforms.lastmouse = V2(Input->Mouse.LastCursor.X, Height - Input->Mouse.LastCursor.Y);
 	SetUBO(GlobalUniforms, 0);
 }
 
@@ -846,6 +855,11 @@ void InitializeRenderer(
 		PingPongTarget->Attachment = GL_DEPTH_ATTACHMENT;
 		PingPongTarget->Samples = 1;
 
+		// Fluid
+		openGL_framebuffer* FluidTarget = &OpenGL->Targets[Target_Fluid];
+		PingPongTarget->Label = Target_Fluid;
+		PingPongTarget->Samples = 1;
+
 		// Creating framebuffers
 		for (int i = 1; i < render_group_target_count; i++) {
 			openGL_framebuffer* Target = &OpenGL->Targets[i];
@@ -1003,7 +1017,7 @@ void InitializeRenderer(
 // | Renderer                                                                                                                               |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-void Render(HWND Window, render_group* Group, openGL* OpenGL, camera* Camera, double Time) {
+void Render(HWND Window, render_group* Group, openGL* OpenGL, game_input* Input, camera* Camera, double Time) {
 	TIMED_BLOCK;
 
 	for (int i = 0; i < vertex_layout_id_count; i++) {
@@ -1020,7 +1034,7 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, camera* Camera, do
 	int32 Height = Group->Height;
 
 // Global uniforms
-	SetGlobalUniforms(OpenGL, Width, Height, Camera, Time);
+	SetGlobalUniforms(OpenGL, Input, Width, Height, Camera, Time);
 	SetLightUniforms(OpenGL, Group->Light, Camera->Position + Camera->Distance * Camera->Basis.Z);
 	SetModelUniforms(OpenGL, Identity4);
 
@@ -1232,10 +1246,10 @@ void Render(HWND Window, render_group* Group, openGL* OpenGL, camera* Camera, do
 						glStencilMask(GL_TRUE);
 					}
 				}
+				else glDisable(GL_DEPTH_TEST);
 				if (Source.Multisampling) SetAntialiasingUniforms(OpenGL, Source.Samples);
 
 				if (Source.Label == Target_Output) glDepthFunc(GL_ALWAYS);
-				if (Source.Label == Target_Postprocessing_Outline) glDisable(GL_DEPTH_TEST);
 
 				glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 				
