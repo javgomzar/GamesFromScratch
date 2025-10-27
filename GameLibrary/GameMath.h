@@ -1086,6 +1086,15 @@ inline v4 operator*(matrix4 A, v4 V) {
 	return Result;
 }
 
+inline v4 operator*(v4 V, matrix4 A) {
+	v4 Result;
+	Result.X = dot(col(A, 0), V);
+	Result.Y = dot(col(A, 1), V);
+	Result.Z = dot(col(A, 2), V);
+	Result.W = dot(col(A, 3), V);
+	return Result;
+}
+
 inline bool operator==(matrix4 A, matrix4 B) {
 	for (int i = 0; i < 16; i++) {
 		if (fabsf(A.Element[i] - B.Element[i]) > Epsilon) return false;
