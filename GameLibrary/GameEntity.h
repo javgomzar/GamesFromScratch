@@ -630,6 +630,7 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
 
     // Camera basis
         Cam->Basis = GetCameraBasis(Cam->Angle, Cam->Pitch);
+        Cam->View = GetViewMatrix(*Cam);
     
     // Movement
         v3 Direction = V3(0,0,0);
