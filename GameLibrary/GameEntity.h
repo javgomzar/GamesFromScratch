@@ -105,6 +105,21 @@ basis GetCameraBasis(float Angle, float Pitch) {
     return Result;
 }
 
+matrix4 GetViewMatrix(camera Camera) {
+	matrix3 Basis = Camera.Basis;
+	Basis.Z = -Basis.Z;
+	Basis = transpose(Basis);
+
+	v3 Translation = V3(0,0,Camera.Distance) - Camera.Position * Basis;
+	matrix4 Result;
+	Result.X = V4(Basis.X, 0);
+	Result.Y = V4(Basis.Y, 0);
+	Result.Z = V4(Basis.Z, 0);
+	Result.W = V4(Translation, 1);
+
+	return Result;
+}
+
 const int MAX_CAMERAS = 16;
 DefineFreeList(MAX_CAMERAS, camera);
 
