@@ -1957,6 +1957,7 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(-1,0,0));
         transform Test = Transform(Rotation);
         matrix4 MatrixT = Matrix(Test);
+        Cam->View = GetViewMatrix(*Cam);
 
         break;
     }
