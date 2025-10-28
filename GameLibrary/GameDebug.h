@@ -369,7 +369,7 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color 
 
     std::format_to(Buffer, "{}: ", Entry->Name);
     if (Entry->Type != Debug_Type_memory_arena) {
-        PushText(Group, TextCursor, Font_Menlo_Regular_ID, Buffer, Color, Points);
+        PushText(Group, TextCursor, Buffer, .Color = Color, .Font = Group->DebugFont->ID, .Points = Points);
     }
 
     float Width, Height;
@@ -379,7 +379,8 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color 
     switch(Entry->Type) {
         case Debug_Type_bool: {
             bool Value = *(bool*)Entry->Value;
-            PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, Value? Cyan : Red, Points);
+            PushText(Group, TextCursor, Entry->ValueString, 
+                .Color = Value ? Cyan : Red, .Font = Group->DebugFont->ID, .Points = Points);
         } break;
 
         case Debug_Type_char:
@@ -403,7 +404,8 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color 
         case Debug_Type_quaternion:
         case Debug_Type_collider:
         {
-            PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
+            PushText(Group, TextCursor, Entry->ValueString, 
+                .Color = Color, .Font = Group->DebugFont->ID, .Points = Points);
         } break;
 
         case Debug_Type_color: {
@@ -422,7 +424,8 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color 
 
         default: {
             if (IsEnumType(Entry->Type) || IsFlagType(Entry->Type) || IsStructType(Entry->Type)) {
-                PushText(Group, TextCursor, Font_Menlo_Regular_ID, Entry->ValueString, White, Points);
+                PushText(Group, TextCursor, Entry->ValueString, 
+                    .Color = Color, .Font = Group->DebugFont->ID, .Points = Points);
             }
         }
     }

@@ -86,6 +86,7 @@ struct ui_element {
     debug_entry* DebugEntry;
 
     color Color;
+    game_font_id Font;
     rectangle Rect;
     float RelativePosition[2];
     float Margins[2];
@@ -102,7 +103,7 @@ struct ui_element {
     bool Hovered;
     bool Clicked;
     bool Dragged;
-    bool Expand;
+    bool Expanded;
 };
 
 const int MAX_UI_ELEMENTS = 256;
@@ -192,19 +193,29 @@ void PopParent() {
 ui_element* NewUIElement(uint32 ID) {
     if (UI.Tree.Count >= MAX_UI_ELEMENTS) Raise("UI Elements Tree is FULL!!");
     ui_element* Result = &UI.Tree.Elements[UI.Tree.Count++];
+    *Result = {};
     Result->ID = ID;
     Result->Index = UI.CurrentIndex;
     Result->Scroll = 0;
+    Result->Font = Font_Menlo_Regular_ID;
+    Result->Color = White;
     return Result;
 }
 
-ui_element* PushUIElement(
+struct ui_element_options {
+    ui_alignment AlignmentX = ui_alignment_free;
+    ui_alignment AlignmentY = ui_alignment_free;
+    color Color             = White;
+    ui_flags Flags          = 0;
+    game_font_id Font       = Font_Menlo_Regular_ID;
+    float Points            = 20.0f;
+    ui_size SizeX           = UISizeNull();
+    ui_size SizeY           = UISizeNull();
+};
+
+ui_element* _PushUIElement(
     const char* Name,
-    ui_size SizeX,
-    ui_size SizeY,
-    ui_alignment AlignmentX,
-    ui_alignment AlignmentY,
-    ui_flags Flags = 0
+    ui_element_options Options = {}
 ) {
     bool Found = false;
     uint32 ID = GetID(Name);
@@ -220,10 +231,10 @@ ui_element* PushUIElement(
     if (UI.Tree.First == NULL) UI.Tree.First = Element;
 
     Element->Parent = UI.Tree.Parent;
-    Element->Size[axis_x] = SizeX;
-    Element->Size[axis_y] = SizeY;
+    ui_size Sizes[2] = { Options.SizeX, Options.SizeY };
+    Element->Size[axis_x] = Sizes[axis_x];
+    Element->Size[axis_y] = Sizes[axis_y];
 
-    ui_size Sizes[2] = { SizeX, SizeY };
     float* RectSizes[2] = { &Element->Rect.Width, &Element->Rect.Height };
     for (int i = 0; i < 2; i++) {
         switch(Sizes[i].Type) {
@@ -244,9 +255,11 @@ ui_element* PushUIElement(
 
     strcpy_s(Element->Name, Name);
     Element->Color = White;
-    Element->Alignment[axis_x] = AlignmentX;
-    Element->Alignment[axis_y] = AlignmentY;
-    Element->Flags = Flags;
+    Element->Font = Options.Font;
+    Element->Points = Options.Points;
+    Element->Alignment[axis_x] = Options.AlignmentX;
+    Element->Alignment[axis_y] = Options.AlignmentY;
+    Element->Flags = Options.Flags;
     Element->Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
     Element->Clicked = Element->Hovered && UI.Input->Mouse.LeftClick.JustPressed;
 
@@ -266,6 +279,8 @@ ui_element* PushUIElement(
 
     return Element;
 }
+
+#define PushUIElement(Name, ...) _PushUIElement(Name, { __VA_ARGS__ })
 
 void BeginContext(game_memory* Memory, game_input* Input) {
     UI.Group = &Memory->RenderGroup;
@@ -425,9 +440,6 @@ void ComputeLayout() {
 }
 
 void RenderUI() {
-    game_font_id FontID = Font_Menlo_Regular_ID;
-    game_font* Font = GetAsset(UI.Group->Assets, FontID);
-
     rectangle Screen = {0, 0, (float)UI.Group->Width, (float)UI.Group->Height};
 
     ui_element* Element = UI.Tree.First;
@@ -443,15 +455,10 @@ void RenderUI() {
                 }
     
                 if (Element->Flags & RENDER_TEXT_UI_FLAG) {
+                    game_font* Font = GetAsset(UI.Group->Assets, Element->Font);
                     float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
-                    PushText(
-                        UI.Group,
-                        Position + V2(0, OffsetHeight), 
-                        FontID, 
-                        Element->Name,
-                        Element->Color,
-                        Element->Points
-                    );
+                    PushText(UI.Group, Position + V2(0, OffsetHeight), Element->Name, 
+                        .Color = Element->Color, .Font = Element->Font, .Points = Element->Points);
                 }
             }
         }
@@ -482,11 +489,11 @@ void UISidebar(ui_axis Axis) {
     Size[OppositeAxis] = UISizePixels(SIDEBAR_WIDTH);
     ui_element* Element = PushUIElement(
         "Sidebar",
-        Size[axis_x],
-        Size[axis_y],
-        Alignments[0],
-        Alignments[1],
-        RENDER_RECT_UI_FLAG
+        .AlignmentX = Alignments[axis_x],
+        .AlignmentY = Alignments[axis_y],
+        .Flags = RENDER_RECT_UI_FLAG,
+        .SizeX = Size[axis_x],
+        .SizeY = Size[axis_y]
     );
 
     if (Element->Parent->Hovered && UI.Input->Mouse.Wheel != 0) {
@@ -538,7 +545,12 @@ struct UIMenu {
             Sizes[axis_x] = UISizeMaxChildren();
             Sizes[axis_y] = UISizeSumChildren();
         }
-        Element = PushUIElement(Text, Sizes[0], Sizes[1], AlignmentX, AlignmentY, Flags);
+        Element = PushUIElement(
+            Text, 
+            .AlignmentX = AlignmentX, .AlignmentY = AlignmentY, 
+            .Flags = Flags, 
+            .SizeX = Sizes[0], .SizeY = Sizes[1]
+        );
         Element->Margins[axis_x] = MarginX;
         Element->Margins[axis_y] = MarginY;
         Element->Color = C;
@@ -566,11 +578,11 @@ struct UIMenu {
 };
 
 struct _UIDropdown {
-    bool Expand;
+    bool Expanded;
 
     _UIDropdown(const char* Text) {
         game_font* Font = GetAsset(UI.Group->Assets, Font_Menlo_Regular_ID);
-        int Points = 12;
+        float Points = 12;
         float Width = 0, Height = 0;
         GetTextWidthAndHeight(Text, Font, Points, &Width, &Height);
         ui_size Sizes[2] = {
@@ -580,11 +592,11 @@ struct _UIDropdown {
         
         ui_element* Element = PushUIElement(
             Text, 
-            Sizes[axis_x], Sizes[axis_y], 
-            ui_alignment_min, ui_alignment_min,
-            RENDER_TEXT_UI_FLAG | STACK_CHILDREN_Y_UI_FLAG
+            .AlignmentX = ui_alignment_min, .AlignmentY = ui_alignment_min,
+            .Flags = RENDER_TEXT_UI_FLAG | STACK_CHILDREN_Y_UI_FLAG,
+            .Points = Points,
+            .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
         );
-        Element->Points = Points;
         Element->Rect.Width = Width;
         Element->Rect.Height = Height;
 
@@ -594,10 +606,10 @@ struct _UIDropdown {
         }
 
         if (Hovered && UI.Input->Mouse.LeftClick.JustPressed) {
-            Element->Expand = !Element->Expand;
+            Element->Expanded = !Element->Expanded;
         }
 
-        Expand = Element->Expand;
+        Expanded = Element->Expanded;
 
         PushParent(Element);
     }
@@ -606,7 +618,7 @@ struct _UIDropdown {
         PopParent();
     }
 
-    operator bool() const { return Expand; }
+    operator bool() const { return Expanded; }
 };
 
 #define UIDropdown(Name) _UIDropdown _##Name(#Name); _##Name
@@ -620,25 +632,24 @@ void UIText(
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
     ui_element* Element = PushUIElement(
-        Text, 
-        Sizes[axis_x], Sizes[axis_y], 
-        AlignmentX, AlignmentY,
-        RENDER_TEXT_UI_FLAG
+        Text,
+        .AlignmentX = AlignmentX, .AlignmentY = AlignmentY,
+        .Flags = RENDER_TEXT_UI_FLAG,
+        .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
     );
     Element->Color = Color;
     Element->Points = Points;
 }
 
-bool UIButton(const char* Text) {
-    float Points = 20.0f;
+bool UIButton(const char* Text, float Points = 20.0f) {
     ui_size Sizes[2];
     UISizeText(Text, Points, Sizes);
     ui_element* Element = PushUIElement(
         Text, 
-        Sizes[axis_x], Sizes[axis_y], 
-        ui_alignment_center, 
-        ui_alignment_center,
-        RENDER_TEXT_UI_FLAG
+        .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_center,
+        .Flags = RENDER_TEXT_UI_FLAG,
+        .Points = Points,
+        .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
     );
     if (Element->Parent != NULL) {
         if (Element->Parent->Flags & STACK_CHILDREN_X_UI_FLAG) {
@@ -648,7 +659,6 @@ bool UIButton(const char* Text) {
             Element->Alignment[1] = ui_alignment_free;
         }
     }
-    Element->Points = Points;
 
     bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
     if (Hovered) {
@@ -665,7 +675,11 @@ void UIDebugValue(debug_entry* Entry) {
     };
     UpdateAndSizeDebugEntry(UI.Group->DebugFont, Entry, &Sizes[axis_x].Value, &Sizes[axis_y].Value);
 
-    ui_element* Element = PushUIElement(Entry->Name, Sizes[0], Sizes[1], ui_alignment_min, ui_alignment_free);
+    ui_element* Element = PushUIElement(
+        Entry->Name, 
+        .AlignmentX = ui_alignment_min,
+        .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
+    );
     Element->DebugEntry = Entry;
     if (IsStructType(Entry->Type)) {
         Element->Size[axis_x] = UISizeMaxChildren(Sizes[axis_x].Value);
@@ -673,12 +687,12 @@ void UIDebugValue(debug_entry* Entry) {
         Element->Flags = STACK_CHILDREN_Y_UI_FLAG;
         if (Element->Hovered) Element->Color = Yellow;
         if (Entry->Value == NULL) {
-            Element->Expand = false;
+            Element->Expanded = false;
         }
         else if (Element->Clicked) {
-            Element->Expand = !Element->Expand;
+            Element->Expanded = !Element->Expanded;
         }
-        if (Element->Expand) {
+        if (Element->Expanded) {
             PushParent(Element);
             // Add members
             bool Found = false;

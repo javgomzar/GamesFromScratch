@@ -981,22 +981,24 @@ void PushBitmap(
     PushBitmap(Group, Bitmap, Rect, Order, Mode, Size, Offset, false);
 }
 
+void PushBitmap() {}
+
 struct render_text_options {
+    color Color        = White;
+    game_font_id Font  = Font_Menlo_Regular_ID;
+    float Order        = SORT_ORDER_DEBUG_OVERLAY;
+    bool Outline       = false;
     color OutlineColor = Black;
     float OutlineWidth = 2.0f;
-    bool Wrapped = false;
-    bool Outline = false;
+    float Points       = 20.0f;
+    bool Wrapped       = false;
 };
 
-void PushText(
+void _PushText(
     render_group* Group,
     v2 Position,
-    game_font_id FontID,
     const char* String,
-    color Color = White,
-    float Points = 20.0f,
-    render_text_options Options = {},
-    float Order = SORT_ORDER_DEBUG_OVERLAY
+    render_text_options Options = {}
 ) {
     uint32 nCharacters = 0;
     uint32 StringLength = strlen(String);
@@ -1005,7 +1007,8 @@ void PushText(
         if (String[i] >= '!' && String[i] <= '~') nCharacters++;
     }
 
-    game_font* Font = GetAsset(Group->Assets, FontID);
+    game_font* Font = GetAsset(Group->Assets, Options.Font);
+    color Color = Options.Color;
     game_shader_pipeline* OutlineShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Text_Outline_ID);
     game_shader_pipeline* InteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Interior_ID);
     game_shader_pipeline* ExteriorShader = GetShaderPipeline(Group->Assets, Shader_Pipeline_Bezier_Exterior_ID);
@@ -1013,7 +1016,7 @@ void PushText(
     
     v2 Pen = Position;
     float DPI = 96;
-    float Size = Points * (DPI / 72.0f) / Font->UnitsPerEm;
+    float Size = Options.Points * (DPI / 72.0f) / Font->UnitsPerEm;
     float LineJump = Font->LineJump * Size;
 
     for (int i = 0; i < StringLength; i++) {
@@ -1121,6 +1124,8 @@ void PushText(
     }
 }
 
+#define PushText(Group, Position, String, ...) _PushText(Group, Position, String, { __VA_ARGS__ })
+
 void PushFillbar(
     render_group* Group,
     char* Description,
@@ -1134,13 +1139,13 @@ void PushFillbar(
     PushRect(Group, SmallRect, Color);
 
     v2 Position = LeftTop(Rect);
-    PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 10);
+    PushText(Group, Position + V2(5.0f, 15.0f), Description, .Points = 10);
 
     int Points = 8;
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
     std::string Text = std::format("{:.2f}%", 100 * FillPercentage);
     float Width = GetTextWidth(Text.c_str(), Font, Points);
-    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Text.c_str(), White, 8);
+    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Text.c_str(), .Points = 8);
 }
 
 void PushFillbar(
@@ -1152,19 +1157,19 @@ void PushFillbar(
     color Color = Red
 ) {
     float FillPercentage = (float)Used / (float)Max;
+    float Points = 8;
     PushRect(Group, Rect, DarkGray);
     rectangle SmallRect = Rect;
     SmallRect.Width *= FillPercentage;
     PushRect(Group, Rect, Color);
 
     v2 Position = LeftTop(Rect);
-    PushText(Group, Position + V2(5.0f, 15.0f), Font_Menlo_Regular_ID, Description, White, 8);
+    PushText(Group, Position + V2(5.0f, 15.0f), Description, .Points = Points);
 
-    int Points = 8;
     game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
     std::string Text = std::format("{}/{}", Used, Max);
     float Width = GetTextWidth(Text.c_str(), Font, Points);
-    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Font_Menlo_Regular_ID, Text.c_str(), White, 8);
+    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Text.c_str(), .Points = Points);
 }
 
 void PushFillbar(
@@ -1944,23 +1949,23 @@ void PushTimeRecordsPartial(
         time_record* Record = TimeRecords + i;
 
         if (Record->HitCount > 0) {
-            PushText(Group, V2(*X, *Y), Font_Menlo_Regular_ID, Record->FunctionName, White, DEBUG_ENTRIES_TEXT_POINTS);
+            PushText(Group, V2(*X, *Y), Record->FunctionName, .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X += FunctionColWidth + HMargin;
 
             Text = std::format("{}", Record->HitCount);
             Width = GetTextWidth(Text.c_str(), Group->DebugFont, DEBUG_ENTRIES_TEXT_POINTS);
             *X += HitsColWidth - Width;
-            PushText(Group, V2(*X, *Y), Font_Menlo_Regular_ID, Text.c_str(), White, DEBUG_ENTRIES_TEXT_POINTS);
+            PushText(Group, V2(*X, *Y), Text.c_str(), .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X += Width + HMargin;
             
             Text = std::format("{:.2f}", Record->CycleCount / 1000000.0f);
             Width = GetTextWidth(Text.c_str(), Group->DebugFont, DEBUG_ENTRIES_TEXT_POINTS);
             *X += MCyclesColWidth - Width;
-            PushText(Group, V2(*X, *Y), Font_Menlo_Regular_ID, Text.c_str(), White, DEBUG_ENTRIES_TEXT_POINTS);
+            PushText(Group, V2(*X, *Y), Text.c_str(), .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X += Width + HMargin;
 
             Text = std::format("{}:{}", Record->FileName, Record->LineNumber);
-            PushText(Group, V2(*X, *Y), Font_Menlo_Regular_ID, Text.c_str(), White, DEBUG_ENTRIES_TEXT_POINTS);
+            PushText(Group, V2(*X, *Y), Text.c_str(), .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X = Group->Width - TotalWidth + HMargin;
 
             *Y += RecordHeight;
@@ -2013,19 +2018,19 @@ void PushTimeRecords(
 
     // Push header
     float X = RecordX + 0.5f * (FunctionColWidth - FunctionHeaderWidth);
-    PushText(Group, V2(X, RecordY), Font_Menlo_Regular_ID, "Function", White, Points);
+    PushText(Group, V2(X, RecordY), "Function", .Font = Group->DebugFont->ID, .Points = Points);
     RecordX += FunctionColWidth + HMargin;
 
     X = RecordX + 0.5f * (HitsColWidth - HitsHeaderWidth);
-    PushText(Group, V2(X, RecordY), Font_Menlo_Regular_ID, "Hits", White, Points);
+    PushText(Group, V2(X, RecordY), "Hits", .Font = Group->DebugFont->ID, .Points = Points);
     RecordX += HitsColWidth + HMargin;
 
     X = RecordX + 0.5f * (MCyclesColWidth - MCyclesHeaderWidth);
-    PushText(Group, V2(X, RecordY), Font_Menlo_Regular_ID, "MCycles", White, Points);
+    PushText(Group, V2(X, RecordY), "MCycles", .Font = Group->DebugFont->ID, .Points = Points);
     RecordX += MCyclesColWidth + HMargin;
 
     X = RecordX + 0.5f * (FileColWidth - FileHeaderWidth);
-    PushText(Group, V2(X, RecordY), Font_Menlo_Regular_ID, "File", White, Points);
+    PushText(Group, V2(X, RecordY), "File", .Font = Group->DebugFont->ID, .Points = Points);
 
     RecordX = Group->Width - TotalWidth + HMargin;
     RecordY += RecordHeight + 0.5f * VMargin;
