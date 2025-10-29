@@ -105,12 +105,12 @@ basis GetCameraBasis(float Angle, float Pitch) {
     return Result;
 }
 
-matrix4 GetViewMatrix(camera Camera) {
-	matrix3 Basis = Camera.Basis;
+matrix4 GetViewMatrix(camera* Camera) {
+	matrix3 Basis = Camera->Basis;
 	Basis.Z = -Basis.Z;
 	Basis = transpose(Basis);
 
-	v3 Translation = V3(0,0,Camera.Distance) - Camera.Position * Basis;
+	v3 Translation = V3(0,0,Camera->Distance) - Camera->Position * Basis;
 	matrix4 Result;
 	Result.X = V4(Basis.X, 0);
 	Result.Y = V4(Basis.Y, 0);
@@ -118,6 +118,19 @@ matrix4 GetViewMatrix(camera Camera) {
 	Result.W = V4(Translation, 1);
 
 	return Result;
+}
+
+v2 GetScreenPosition(float ScreenWidth, float ScreenHeight, camera* Camera, v3 WorldPosition) {
+    v4 Point = V4(WorldPosition, 1);
+    matrix4 Projection = GetWorldProjectionMatrix(ScreenWidth, ScreenHeight);
+    v4 ViewPoint = Point * Camera->View * Projection;
+    float Factor = ViewPoint.W == 0 ? 0 : 1.0f/ViewPoint.W;
+    v2 DevicePoint = Factor * V2(ViewPoint.X, ViewPoint.Y);
+    v2 ScreenPoint = V2(
+        0.5f * (1.0f + DevicePoint.X) * ScreenWidth,
+        0.5f * (1.0f - DevicePoint.Y) * ScreenHeight
+    );
+    return ScreenPoint;
 }
 
 const int MAX_CAMERAS = 16;
@@ -630,7 +643,7 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
 
     // Camera basis
         Cam->Basis = GetCameraBasis(Cam->Angle, Cam->Pitch);
-        Cam->View = GetViewMatrix(*Cam);
+        Cam->View = GetViewMatrix(Cam);
     
     // Movement
         v3 Direction = V3(0,0,0);
