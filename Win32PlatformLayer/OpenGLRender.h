@@ -525,7 +525,7 @@ void SetGlobalUniforms(openGL* OpenGL, game_input* Input, float Width, float Hei
 	global_uniforms GlobalUniforms;
 	GlobalUniforms.projection = GetWorldProjectionMatrix(Width, Height);
 	if (Camera) {
-		GlobalUniforms.view = GetViewMatrix(*Camera);
+		GlobalUniforms.view = GetViewMatrix(Camera);
 	}
 	else {
 		GlobalUniforms.view = Identity4;

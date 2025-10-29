@@ -105,12 +105,12 @@ basis GetCameraBasis(float Angle, float Pitch) {
     return Result;
 }
 
-matrix4 GetViewMatrix(camera Camera) {
-	matrix3 Basis = Camera.Basis;
+matrix4 GetViewMatrix(camera* Camera) {
+	matrix3 Basis = Camera->Basis;
 	Basis.Z = -Basis.Z;
 	Basis = transpose(Basis);
 
-	v3 Translation = V3(0,0,Camera.Distance) - Camera.Position * Basis;
+	v3 Translation = V3(0,0,Camera->Distance) - Camera->Position * Basis;
 	matrix4 Result;
 	Result.X = V4(Basis.X, 0);
 	Result.Y = V4(Basis.Y, 0);
@@ -118,6 +118,19 @@ matrix4 GetViewMatrix(camera Camera) {
 	Result.W = V4(Translation, 1);
 
 	return Result;
+}
+
+v2 GetScreenPosition(float ScreenWidth, float ScreenHeight, camera* Camera, v3 WorldPosition) {
+    v4 Point = V4(WorldPosition, 1);
+    matrix4 Projection = GetWorldProjectionMatrix(ScreenWidth, ScreenHeight);
+    v4 ViewPoint = Point * Camera->View * Projection;
+    float Factor = ViewPoint.W == 0 ? 0 : 1.0f/ViewPoint.W;
+    v2 DevicePoint = Factor * V2(ViewPoint.X, ViewPoint.Y);
+    v2 ScreenPoint = V2(
+        0.5f * (1.0f + DevicePoint.X) * ScreenWidth,
+        0.5f * (1.0f - DevicePoint.Y) * ScreenHeight
+    );
+    return ScreenPoint;
 }
 
 const int MAX_CAMERAS = 16;
@@ -1183,7 +1196,7 @@ void Update(damage_animation_list* CombatAnimations, render_group* Group, float 
         else {
             Animation->t += dt;
             sprintf_s(TextBuffer, "%u", Animation->Damage);
-            PushText(Group, V2(300, 300), Font_Menlo_Regular_ID, TextBuffer);
+            PushText(Group, V2(300, 300), TextBuffer);
         }
 
         Index++;
@@ -1957,7 +1970,7 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
         quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(-1,0,0));
         transform Test = Transform(Rotation);
         matrix4 MatrixT = Matrix(Test);
-        Cam->View = GetViewMatrix(*Cam);
+        Cam->View = GetViewMatrix(Cam);
 
         break;
     }
