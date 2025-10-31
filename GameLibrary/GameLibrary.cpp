@@ -4,11 +4,6 @@
 // Debug
 void LogGameDebugRecords(render_group* Group);
 
-void TestPerformance() {
-    //TIMED_BLOCK;
-    
-}
-
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
 {
@@ -23,15 +18,15 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     render_group* Group = &Memory->RenderGroup;
     game_input* Input = &Memory->Input;
-    game_state* pGameState = Memory->GameState;
+    game_state* State = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
-    game_entity_manager* EntityManager = &pGameState->EntityManager;
+    game_entity_manager* EntityManager = &State->EntityManager;
     debug_info* DebugInfo = &Memory->DebugInfo;
 {
     TIMED_BLOCK;
 
-    float Time = pGameState->Time;
-    camera* ActiveCamera = pGameState->ActiveCamera;
+    float Time = State->Time;
+    camera* ActiveCamera = State->ActiveCamera;
 
     bool FirstFrame = false;
     if (!Memory->IsInitialized) {
@@ -39,11 +34,10 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         //TestPerformance();
 
-        Transition(pGameState, Game_State_Main_Menu);
+        Transition(State, Game_State_Main_Menu);
 
         // Initialize camera
         ActiveCamera = AddCamera(EntityManager, V3(0, 3.2f, 0), -45.0f, 22.5f);
-        ActiveCamera->OnAir = true;
 
         Memory->IsInitialized = true;
     }
@@ -55,11 +49,13 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Magenta, Target_PingPong);
     PushClear(Group, BackgroundBlue, Target_Output);
 
-    UpdateEntities(Group, pGameState, Input);
+    UpdateEntities(Group, State, Input);
     
-    //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
+    // GameOutputSound(Assets, SoundBuffer, State, Input);
 
-    PushEntities(Group, ActiveCamera, pGameState, Input, Time);
+    PushEntities(Group, ActiveCamera, State, Input, Time);
+
+    DEBUG_VALUE(State->Type, game_state_type);
 
     UpdateUI(Memory, Input);
 

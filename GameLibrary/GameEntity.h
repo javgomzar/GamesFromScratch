@@ -853,6 +853,30 @@ void RemoveEntity(game_entity_manager* EntityManager, int EntityID) {
     Remove(&EntityManager->Entities, Entity->ID);
 }
 
+void ClearEntities(game_entity_manager* EntityManager) {
+    uint32 Index = 0;
+    while (EntityManager->Cameras.Count > 1 && Index < MAX_CAMERAS) {
+        camera* Camera = &EntityManager->Cameras.List[Index++];
+        if (!Camera->OnAir && Camera->Entity) {
+            RemoveEntity(EntityManager, Camera->Entity->ID);
+        }
+    }
+
+    Index = 0;
+    while (EntityManager->Entities.Count > 1)  {
+        game_entity* Entity = &EntityManager->Entities.List[Index++];
+
+        if (Entity->Type != Entity_Type_Camera && Entity->Active) {
+            RemoveEntity(EntityManager, Entity->ID);
+        }
+    }
+
+    EntityManager->Characters = {};
+    EntityManager->Enemies = {};
+    EntityManager->Props = {};
+    EntityManager->Weapons = {};
+}
+
 game_entity* QueryEntity(game_entity_list* Entities, game_entity_type Type, bool Active = true) {
     for (int i = 0; i < MAX_ENTITIES; i++) {
         game_entity* Entity = &Entities->List[i];
@@ -883,12 +907,13 @@ camera* AddCamera(
     float Distance = 9.0
 ) {
     Assert(EntityManager->Cameras.Count < MAX_CAMERAS);
-    // If any ID is free, use it
+
     camera* Cam = Insert(&EntityManager->Cameras);
     Cam->Angle = Angle;
     Cam->Pitch = Pitch;
     Cam->Position = Position;
     Cam->Distance = Distance;
+    Cam->OnAir = EntityManager->Cameras.Count == 1;
 
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Camera %d", Cam->ID);
@@ -1132,8 +1157,10 @@ ENUM(combatant_action,
 );
 
 struct damage_animation {
+    combatant* Combatant;
     uint32 ID;
     uint32 Damage;
+    v2 Offset;
     float t;
     bool Active;
 };
@@ -1162,9 +1189,11 @@ void ApplyDamage(damage_animation_list* DamageAnimations, combatant* Target, uin
     else Target->Stats->HP -= Damage;
 
     damage_animation* Animation = Insert(DamageAnimations);
+    Animation->Combatant = Target;
     Animation->Active = true;
     Animation->Damage = Damage;
     Animation->t = 0;
+    Animation->Offset = 30.0f * Radial(Tau * RandFloat());
 }
 
 void ApplyStatModifier(combatant* Target, stats Modifier) {
@@ -1177,11 +1206,13 @@ void ApplyStatModifier(combatant* Target, stats Modifier) {
     Target->Modifier.Precission   += Modifier.Precission;
 }
 
-void Update(damage_animation_list* CombatAnimations, render_group* Group, float dt) {
-    char TextBuffer[32];
-
+void Update(damage_animation_list* CombatAnimations, render_group* Group, camera* Camera, float dt) {
     uint32 Index = 0;
     uint32 nAnimations = CombatAnimations->Count;
+    const float Duration = 1.0f;
+    // Represents the percentage of the animation duration that will be spent in a transition
+    const float PercentageTransition = 0.25f; // This should be less than 0.5f (2 transitions: on and off)
+
     while (nAnimations > 0) {
         damage_animation* Animation = &CombatAnimations->List[Index];
         if (Animation->Active) nAnimations--;
@@ -1190,13 +1221,28 @@ void Update(damage_animation_list* CombatAnimations, render_group* Group, float 
             continue;
         }
 
-        if (Animation->t > 1.0f) {
+        if (Animation->t > Duration) {
             Remove(CombatAnimations, Index);
         }
         else {
             Animation->t += dt;
-            sprintf_s(TextBuffer, "%u", Animation->Damage);
-            PushText(Group, V2(300, 300), TextBuffer);
+            std::string Text = std::format("{}", Animation->Damage);
+            v3 WorldPosition = Animation->Combatant->Entity->Transform.Translation;
+            v2 ScreenPosition = GetScreenPosition(Group->Width, Group->Height, Camera, WorldPosition);
+            ScreenPosition += Animation->Offset;
+
+            float t = Animation->t / Duration;
+            float Alpha = 1.0f;
+            color Color = White;
+            if (t < PercentageTransition) {
+                Color = ChangeAlpha(Color, t / PercentageTransition);
+                ScreenPosition += 10.0f * V2(0, 1.0f - t / PercentageTransition);
+            }
+            else if (t > 1.0f - PercentageTransition) {
+                Color = ChangeAlpha(Color, (1.0f - t) / PercentageTransition);
+                ScreenPosition -= 10.0f * V2(0, 1.0f - (1.0f - t) / PercentageTransition);
+            }
+            PushText(Group, ScreenPosition, Text.c_str(), .Color = Color);
         }
 
         Index++;
@@ -1239,6 +1285,7 @@ void Erase(game_combat* Combat) {
     }
     Combat->nEnemies = 0;
     Combat->nPlayers = 0;
+    Combat->DamageAnimations = {};
 }
 
 // Advances ATB of turn. If a new attacker is found, it is returned; returns NULL otherwise.
@@ -1551,7 +1598,7 @@ void EndCombat(game_combat* Combat, game_entity_manager* EntityManager, uint32* 
 
     for (int i = 0; i < Combat->Combatants.Count; i++) {
         combatant* Combatant = &Combat->Combatants.Content[i];
-        if (Combatant->AlteredState[altered_state_dead]) {
+        if (Combatant->Type == Combatant_Type_Enemy && Combatant->AlteredState[altered_state_dead]) {
             RemoveEntity(EntityManager, Combatant->Entity->ID);
         }
     }
@@ -1897,29 +1944,34 @@ void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
             );
         }
 
-        Update(&Combat->DamageAnimations, Group, State->dt);
+        Update(&Combat->DamageAnimations, Group, State->ActiveCamera, State->dt);
 
-        bool CombatEnd = true;
+        bool SomePlayerAlive = false;
+        bool AllEnemiesDead = true;
         for (int i = 0; i < Combatants->Count; i++) {
-            combatant* Enemy = &Combatants->Content[i];
-            if (Enemy->Type == Combatant_Type_Enemy) {
-                if (!Enemy->AlteredState[altered_state_dead]) {
-                    CombatEnd = false;
-                    break;
-                }
+            combatant* Combatant = &Combatants->Content[i];
+            if (Combatant->Type == Combatant_Type_Player ) {
+                SomePlayerAlive |= !Combatant->AlteredState[altered_state_dead];
             }
+            else if (Combatant->Type == Combatant_Type_Enemy) {
+                AllEnemiesDead &= Combatant->AlteredState[altered_state_dead];
+            }
+            if (SomePlayerAlive && !AllEnemiesDead) break;
         }
-        if (CombatEnd) {
-            EndCombat(Combat, &State->EntityManager, &State->Gold);
+        if (!SomePlayerAlive || AllEnemiesDead) {
+            EndCombat(Combat, &State->EntityManager, &State->Gold, AllEnemiesDead);
 
-            if (State->CurrentRoom->Type == Room_Type_Boss) {
-                room_type FirstRoomType = (room_type)RandInt(0, Room_Type_Miniboss);
-                RandomizeLevel(&State->Level, FirstRoomType);
-                State->CurrentRoom = &State->Level.Rooms[0];
-                Transition(State, GetStateType(FirstRoomType));
-            }
-            else {
-                Transition(State, Game_State_Map);
+            if (SomePlayerAlive) {
+                // Advance room
+                if (State->CurrentRoom->Type == Room_Type_Boss) {
+                    room_type FirstRoomType = (room_type)RandInt(0, Room_Type_Miniboss);
+                    RandomizeLevel(&State->Level, FirstRoomType);
+                    State->CurrentRoom = &State->Level.Rooms[0];
+                    Transition(State, GetStateType(FirstRoomType));
+                }
+                else {
+                    Transition(State, Game_State_Map);
+                }
             }
         }
     }

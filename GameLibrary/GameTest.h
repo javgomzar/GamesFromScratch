@@ -1,6 +1,11 @@
 #include "GamePlatform.h"
 #include "GameRender.h"
 
+void TestPerformance() {
+    TIMED_BLOCK;
+    
+}
+
 void TestFluid(render_group* Group, game_input* Input, bool FirstFrame) {
     if (FirstFrame || Input->Keyboard.R.JustPressed) {
         PushShaderPass(Group, Compute_Shader_Fluid_Init_ID, Target_Fluid, Target_Fluid);

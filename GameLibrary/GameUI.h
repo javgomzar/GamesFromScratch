@@ -996,45 +996,12 @@ void UpdateCombatUI(
                 Position.Y += 20.0f;
             }
         }
-
-        // YOU DIED
-        bool Alive = false;
-        for (int i = 0; i < Combat->Combatants.Count; i++) {
-            combatant* Combatant = &Combat->Combatants.Content[i];
-            if (Combatant->Type == Combatant_Type_Player && !Combatant->AlteredState[altered_state_dead]) {
-                Alive = true;
-                break;
-            }
-        }
-
-        if (!Alive) {
-            UIText("YOU DIED", ui_alignment_center, ui_alignment_center, Red, 120);
-            if (UIButton("Return to main menu")) {
-                EndCombat(Combat, &State->EntityManager, &State->Gold, false);
-                uint32 nWeapons = State->EntityManager.Weapons.Count;
-                uint32 Index = 0;
-                while (nWeapons > 0) {
-                    weapon* Weapon = &State->EntityManager.Weapons.List[Index++];
-                    if (Weapon->Entity != NULL) {
-                        nWeapons--;
-                    }
-                    else continue;
-
-                    RemoveEntity(&State->EntityManager, Weapon->Entity->ID);
-                }
-                uint32 nEnemies = State->EntityManager.Enemies.Count;
-                Index = 0;
-                while (nEnemies > 0) {
-                    enemy* Enemy = &State->EntityManager.Enemies.List[Index++];
-                    if (Enemy->Entity != NULL) {
-                        nEnemies--;
-                    }
-                    else continue;
-
-                    RemoveEntity(&State->EntityManager, Enemy->Entity->ID);
-                }
-                Transition(State, Game_State_Main_Menu);
-            }
+    }
+    else {
+        UIText("YOU DIED", ui_alignment_center, ui_alignment_center, Red, 120);
+        if (UIButton("Return to main menu")) {
+            ClearEntities(&State->EntityManager);
+            Transition(State, Game_State_Main_Menu);
         }
     }
 }
