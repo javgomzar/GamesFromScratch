@@ -1288,6 +1288,19 @@ void Erase(game_combat* Combat) {
     Combat->DamageAnimations = {};
 }
 
+combatant* GetCombatant(combatant_array* Combatants, game_entity* Entity) {
+    Assert(Entity != nullptr);
+
+    for (int i = 0; i < Combatants->Count; i++) {
+        combatant* Combatant = &Combatants->Content[i];
+        if (Combatant->Entity == Entity) {
+            return Combatant;
+        }
+    }
+
+    return nullptr;
+}
+
 // Advances ATB of turn. If a new attacker is found, it is returned; returns NULL otherwise.
 combatant* AdvanceTurnATB(combatant_array* Combatants, turn* Turn, int AttackerIndex = -1) {
     combatant* Result = NULL;
@@ -1566,6 +1579,17 @@ bool Apply(turn Turn, damage_animation_list* DamageAnimations) {
             UpdateTurnBuffer = true;
         }
     }
+
+    if (
+        Turn.Attacker->AlteredState[altered_state_burnt] || 
+        Turn.Attacker->AlteredState[altered_state_drowning] ||
+        Turn.Attacker->AlteredState[altered_state_poisoned] ||
+        Turn.Attacker->AlteredState[altered_state_rotting] ||
+        Turn.Attacker->AlteredState[altered_state_bleeding]
+    ) {
+        ApplyDamage(DamageAnimations, Turn.Attacker, 10);
+    }
+
     return UpdateTurnBuffer;
 }
 
@@ -2209,16 +2233,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
             case Entity_Type_Character: {
                 character* pCharacter = &EntityManager->Characters.List[Entity->Index];
                 game_mesh* Mesh = GetAsset(Assets, Mesh_Body_ID);
-                PushMesh(
-                    Group,
-                    Mesh_Body_ID,
-                    Entity->Transform,
-                    Shader_Pipeline_Mesh_Bones_ID,
-                    Bitmap_Empty_ID,
-                    White,
-                    &pCharacter->Armature,
-                    Outline
-                );
+                color Color = White;
 
                 if (Combat->Active) {
                     float HPBarWidth = 2.0f;
@@ -2239,27 +2254,48 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                         transform T = Transform(SelectorPosition, Quaternion(Time, V3(0,1,0)));
                         PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
                     }
+
+                    combatant* Combatant = GetCombatant(&Combat->Combatants, Entity);
+                    if (Combatant) {
+                        if (Combatant->AlteredState[altered_state_burnt]) {
+                            Color = Orange;
+                        }
+                        else if (Combatant->AlteredState[altered_state_drowning]) {
+                            Color = Blue;
+                        }
+                        else if (Combatant->AlteredState[altered_state_poisoned]) {
+                            Color = Green;
+                        }
+                        else if (Combatant->AlteredState[altered_state_rotting]) {
+                            Color = Purple;
+                        }
+                        else if (Combatant->AlteredState[altered_state_bleeding]) {
+                            Color = Red;
+                        }
+                    }
                 }
+
+                PushMesh(
+                    Group,
+                    Mesh_Body_ID,
+                    Entity->Transform,
+                    Shader_Pipeline_Mesh_Bones_ID,
+                    Bitmap_Empty_ID,
+                    Color,
+                    &pCharacter->Armature,
+                    Outline
+                );
             } break;
     
             case Entity_Type_Enemy: {
                 enemy* pEnemy = &EntityManager->Enemies.List[Entity->Index];
                 game_mesh* Mesh = GetAsset(Assets, pEnemy->MeshID);
+                color Color = White;
 
                 transform DeadTransform = IdentityTransform;
                 if (pEnemy->Stats.HP == 0) {
                     DeadTransform.Rotation = Quaternion(90 * Degrees, V3(1,0,0));
                 }
-
-                PushMesh(
-                    Group,
-                    pEnemy->MeshID,
-                    DeadTransform * Entity->Transform,
-                    Shader_Pipeline_Mesh_ID,
-                    pEnemy->TextureID,
-                    White, 0,
-                    Outline
-                );
 
                 if (Combat->Active) {
                     float HPBarWidth = 2.0f;
@@ -2280,7 +2316,36 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                         transform T = Transform(SelectorPosition, Quaternion(Time, V3(0,1,0)));
                         PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
                     }
+
+                    combatant* Combatant = GetCombatant(&Combat->Combatants, Entity);
+                    if (Combatant) {
+                        if (Combatant->AlteredState[altered_state_burnt]) {
+                            Color = Orange;
+                        }
+                        else if (Combatant->AlteredState[altered_state_drowning]) {
+                            Color = Blue;
+                        }
+                        else if (Combatant->AlteredState[altered_state_poisoned]) {
+                            Color = Green;
+                        }
+                        else if (Combatant->AlteredState[altered_state_rotting]) {
+                            Color = Purple;
+                        }
+                        else if (Combatant->AlteredState[altered_state_bleeding]) {
+                            Color = Red;
+                        }
+                    }
                 }
+
+                PushMesh(
+                    Group,
+                    pEnemy->MeshID,
+                    DeadTransform * Entity->Transform,
+                    Shader_Pipeline_Mesh_ID,
+                    pEnemy->TextureID,
+                    Color, nullptr,
+                    Outline
+                );
             } break;
 
             case Entity_Type_Prop: {
