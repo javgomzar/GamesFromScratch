@@ -1622,7 +1622,7 @@ void EndCombat(game_combat* Combat, game_entity_manager* EntityManager, uint32* 
 
     for (int i = 0; i < Combat->Combatants.Count; i++) {
         combatant* Combatant = &Combat->Combatants.Content[i];
-        if (Combatant->Type == Combatant_Type_Enemy && Combatant->AlteredState[altered_state_dead]) {
+        if (Combatant->Type == Combatant_Type_Enemy) {
             RemoveEntity(EntityManager, Combatant->Entity->ID);
         }
     }
@@ -2227,7 +2227,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
         bool Outline = Entity->Hovered && (
             Combat->Turn.Action == combatant_action_attack ||
             Combat->Turn.Action == combatant_action_magic && Combat->Turn.Spell != Spell_Empty ||
-            Combat->Turn.Action == combatant_action_items && *Combat->Turn.UsedItem != Item_Type_None
+            Combat->Turn.Action == combatant_action_items && Combat->Turn.UsedItem && *Combat->Turn.UsedItem != Item_Type_None
         );
         switch(Entity->Type) {
             case Entity_Type_Character: {

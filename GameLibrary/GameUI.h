@@ -910,6 +910,9 @@ void UpdateCombatUI(
             if (UIButton("Flee")) {
                 State->Combat.Turn.Action = combatant_action_flee;
                 SelectedButtonIndex = TotalButtons++;
+                EndCombat(&State->Combat, &State->EntityManager, &State->Gold, false);
+                Transition(State, Game_State_Map);
+                return;
             }
 
             if (Input->Mouse.RightClick.JustPressed && State->Combat.Turn.Action != combatant_action_empty) {
@@ -1074,7 +1077,7 @@ void UpdateTradeUI(
                 if (UIButton(Item.Name)) {
                     for (int j = 0; j < 3; j++) {
                         item_type InventoryItem = State->Inventory[j];
-                        if (InventoryItem == Item_Type_None) {
+                        if (InventoryItem == Item_Type_None && State->Gold >= 10) {
                             State->Inventory[j] = Item.Type;
                             State->Gold -= 10;
                             Transition(State, Game_State_Map);
