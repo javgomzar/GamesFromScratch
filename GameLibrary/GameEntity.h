@@ -1754,7 +1754,7 @@ void RandomizeLevel(level* Level, room_type FirstRoomType) {
 
     NextRow(Level);
     room* LastCamp = AddRoom(Level, Room_Type_Camp);
-    for (int i = PreviousFirst; i < Level->nRooms; i++) {
+    for (int i = PreviousFirst; i < Level->nRooms - 1; i++) {
         room* Room = &Level->Rooms[i];
         AttachRooms(Room, LastCamp);
     }
