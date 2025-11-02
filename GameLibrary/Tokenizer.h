@@ -403,7 +403,7 @@ token RequireToken(tokenizer& Tokenizer, token_type Type) {
     else {
         char ErrorBuffer[256];
         char TokenText[MAX_TOKEN_LENGTH] = {};
-        strcpy_s(TokenText, Token.Length * sizeof(char), Token.Text);
+        strncpy_s(TokenText, Token.Text, Token.Length);
         sprintf_s(
             ErrorBuffer, 
             "Token `%s` at line %d, column %d is type '%s' but should be '%s'.", 
