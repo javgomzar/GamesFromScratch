@@ -174,6 +174,18 @@ ENUM(magic_affinity,
     Magic_Affinity_Time
 );
 
+const char* MagicAffinityNames[magic_affinity_count] = {
+    "None",
+    "Fire",
+    "Earth",
+    "Water",
+    "Ice",
+    "Air",
+    "Death",
+    "Life",
+    "Time"
+};
+
 ENUM(spell_id,
     Spell_Empty,
 
@@ -326,6 +338,8 @@ const spell_id LifeDeathSpellIDs[nLifeDeathSpells] = { Spell_Poison, Spell_Rot, 
 
 const int nTimeSpells = 5;
 const spell_id TimeSpellIDs[nTimeSpells] = { Spell_Slow, Spell_Accelerate, Spell_Tempo, Spell_Stop, Spell_Rewind, };
+
+const uint32 nSpellsForAffinity[magic_affinity_count] = {0, nFireSpells, nEarthSpells, nWaterIceSpells, nAirSpells, nLifeDeathSpells, nTimeSpells};
 
 const int MAX_COMBATANT_SPELLS = 4;
 

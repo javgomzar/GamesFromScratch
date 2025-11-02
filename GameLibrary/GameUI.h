@@ -1065,6 +1065,7 @@ void UpdateTradeUI(
     render_group* Group = &Memory->RenderGroup;
     game_state* State = Memory->GameState;
     camera* Camera = State->ActiveCamera;
+    debug_info* DebugInfo = &Memory->DebugInfo;
 
     switch(State->CurrentRoom->Type) {
         case Room_Type_Merchant: {
@@ -1095,72 +1096,86 @@ void UpdateTradeUI(
         case Room_Type_Wizard: {
             UIMenu WizardMenu = UIMenu("Wizard menu", axis_y);
 
-            spell_id SelectedSpell = Spell_Empty;
+            static character* Character = nullptr;
+            static magic_affinity Affinity = Magic_Affinity_None;
+            static spell_id SelectedSpell = Spell_Empty;
 
-            if (UIDropdown(Fire)) {
-                for (int i = 0; i < nFireSpells; i++) {
-                    spell Spell = Spells[FireSpellIDs[i]];
-                    if (UIButton(Spell.Name)) {
-                        SelectedSpell = Spell.ID;
+            DEBUG_POINTER(Character, character);
+            DEBUG_VALUE(Affinity, magic_affinity);
+            DEBUG_VALUE(SelectedSpell, spell_id);
+
+            if (Character == nullptr) {
+                UIText("Select character to learn spell");
+                uint32 nPlayers = State->EntityManager.Characters.Count;
+                uint32 Index = 0;
+                while(nPlayers > 0) {
+                    character* C = &State->EntityManager.Characters.List[Index++];
+                    if (C->Entity && C->Entity->Active) {
+                        nPlayers--;
                     }
-                }
-            }
+                    else continue;
 
-            if (UIDropdown(Earth)) {
-                for (int i = 0; i < nEarthSpells; i++) {
-                    spell Spell = Spells[EarthSpellIDs[i]];
-                    if (UIButton(Spell.Name)) {
-                        SelectedSpell = Spell.ID;
-                    }
-                }
-            }
-
-            if (UIDropdown(Air)) {
-                for (int i = 0; i < nAirSpells; i++) {
-                    spell Spell = Spells[AirSpellIDs[i]];
-                    if (UIButton(Spell.Name)) {
-                        SelectedSpell = Spell.ID;
-                    }
-                }
-            }
-
-            if (UIDropdown(Water)) {
-                for (int i = 0; i < nWaterIceSpells; i++) {
-                    spell Spell = Spells[WaterIceSpellIDs[i]];
-                    if (UIButton(Spell.Name)) {
-                        SelectedSpell = Spell.ID;
-                    }
-                }
-            }
-
-            if (UIDropdown(Aether)) {
-                for (int i = 0; i < nLifeDeathSpells; i++) {
-                    spell Spell = Spells[LifeDeathSpellIDs[i]];
-                    if (UIButton(Spell.Name)) {
-                        SelectedSpell = Spell.ID;
-                    }
-                }
-            }
-
-            if (UIDropdown(Time)) {
-                for (int i = 0; i < nTimeSpells; i++) {
-                    spell Spell = Spells[TimeSpellIDs[i]];
-                    if (UIButton(Spell.Name)) {
-                        SelectedSpell = Spell.ID;
-                    }
-                }
-            }
-
-            if (SelectedSpell != Spell_Empty) {
-                character* Character = &State->EntityManager.Characters.List[0];
-                for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
-                    if (Character->Spells[i] == Spell_Empty) {
-                        Character->Spells[i] = SelectedSpell;
+                    if (UIButton(C->Entity->Name)) {
+                        Character = C;
                         break;
                     }
                 }
+            }
+            else if (Affinity == Magic_Affinity_None) {
+                UIText("Select spell affinity");
+                for (int i = 1; i < magic_affinity_count; i++) {
+                    if (UIButton(MagicAffinityNames[i])) {
+                        Affinity = (magic_affinity)i;
+                        break;
+                    }
+                }
+            }
+            else if (SelectedSpell == Spell_Empty) {
+                int nSpells = nSpellsForAffinity[Affinity];
+                for (int i = 1; i < nSpells; i++) {
+                    spell Spell = Spells[i];
+                    bool Known = false;
+                    for (int j = 0; j < MAX_COMBATANT_SPELLS; j++) {
+                        if (Character->Spells[j] == Spell.ID) {
+                            Known = true;
+                            break;
+                        }
+                    }
 
-                Transition(State, Game_State_Map);
+                    if (!Known) {
+                        if (UIButton(Spell.Name)) {
+                            SelectedSpell = Spell.ID;
+                            break;
+                        }
+                    }
+                }
+            }
+            else {
+                bool OverwriteSpell = true;
+                for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
+                    if (Character->Spells[i] == Spell_Empty) {
+                        OverwriteSpell = false;
+                        break;
+                    }
+                }
+                if (OverwriteSpell) {
+                    for (int i = 0; i < MAX_COMBATANT_SPELLS; i++) {
+                        spell Spell = Spells[Character->Spells[i]];
+                        if (UIButton(Spell.Name)) {
+                            Character->Spells[i] = SelectedSpell;
+                            Character = nullptr;
+                            Affinity = Magic_Affinity_None;
+                            SelectedSpell = Spell_Empty;
+                            Transition(State, Game_State_Map);
+                        }
+                    }
+                }
+                else {
+                    Character = nullptr;
+                    Affinity = Magic_Affinity_None;
+                    SelectedSpell = Spell_Empty;
+                    Transition(State, Game_State_Map);
+                }
             }
             
             if (UIButton("Skip")) {
