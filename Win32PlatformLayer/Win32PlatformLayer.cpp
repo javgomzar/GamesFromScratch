@@ -774,6 +774,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         Assets,
         Group->Width,
         Group->Height,
+        Window,
+        hInstance,
         DeviceContext
     );
 
@@ -907,7 +909,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 Win32FreeFileMemory(Shader->File.Content);
                 PushShader(Assets, Shader->File.Path, Shader->ID);
                 if (Shader->File.Timestamp == LastWriteTime) {
-                    OpenGLReloadShader(&RendererContext, Assets, Shader);
+                    ReloadShader(&RendererContext, Assets, Shader);
 
                     char Buffer[128];
                     sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
@@ -924,7 +926,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 Win32FreeFileMemory(Shader->File.Content);
                 PushShader(Assets, Shader->File.Path, Shader->ID);
                 if (Shader->File.Timestamp == LastWriteTime) {
-                    OpenGLReloadShader(&RendererContext, Shader);
+                    ReloadShader(&RendererContext, Shader);
 
                     char Buffer[128];
                     sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
@@ -1084,7 +1086,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
 
             if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F11.WasDown) {
-                ScreenCapture(&Platform, &RendererContext, Group->Width, Group->Height);
+                ScreenCapture(&RendererContext, Group->Width, Group->Height);
             }
 
             Render(Window, Group, &RendererContext, &Memory.Input, pGameState->ActiveCamera, pGameState->Time);

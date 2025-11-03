@@ -1,5 +1,5 @@
-#ifndef RENDER_GROUP
-#define RENDER_GROUP
+#ifndef GAME_RENDER_H
+#define GAME_RENDER_H
 
 #pragma once
 #include "GameAssets.h"
@@ -254,8 +254,13 @@ struct render_group {
 void InitializeRenderGroup(
     memory_arena* Arena,
     render_group* Group, 
-    game_assets* Assets
+    game_assets* Assets,
+    int32 Width,
+    int32 Height
 ) {
+    Group->Width = Width;
+    Group->Height = Height;
+
     Group->Assets = Assets;
     Group->DebugFont = GetAsset(Assets, Font_Menlo_Regular_ID);
 
