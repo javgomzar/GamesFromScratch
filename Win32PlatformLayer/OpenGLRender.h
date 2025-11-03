@@ -703,16 +703,10 @@ void InitializeRenderer(
 	openGL* OpenGL,
 	vertex_buffer* VertexBuffer, 
 	game_assets* Assets,
-	HWND Window,
-	HDC DeviceContext,
-	HINSTANCE hInstance
+	int32 Width,
+	int32 Height,
+	HDC DeviceContext
 ) {
-	RECT Rect = { 0 };
-	GetClientRect(Window, &Rect);
-
-	int32 Width = Rect.right - Rect.left;
-	int32 Height = Rect.bottom - Rect.top;
-
 	int PixelFormatAttribs[] = {
         WGL_DRAW_TO_WINDOW_ARB,     GL_TRUE,
         WGL_SUPPORT_OPENGL_ARB,     GL_TRUE,

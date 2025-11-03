@@ -740,10 +740,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     RecordPlayback.TotalSize = PermanentStorageSize;
     
     render_group* Group = &Memory.RenderGroup;
+    RECT Rect = { 0 };
+    GetClientRect(Window, &Rect);
     InitializeRenderGroup(
         &Memory.Permanent,
         Group,
-        Assets
+        Assets,
+        Rect.right - Rect.left,
+        Rect.bottom - Rect.top
     );
 
     // Input
@@ -768,9 +772,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         &RendererContext,
         &Memory.RenderGroup.VertexBuffer,
         Assets,
-        Window,
-        DeviceContext,
-        hInstance
+        Group->Width,
+        Group->Height,
+        DeviceContext
     );
 
     RendererContext.DPI = GetDeviceCaps(DeviceContext, LOGPIXELSX);
@@ -1051,7 +1055,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         // Game function
         if (GameCode.IsValid) {
-            RECT Rect = { 0 };
             GetClientRect(Window, &Rect);
 
             if (FirstFrame) {
