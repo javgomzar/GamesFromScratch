@@ -620,23 +620,19 @@ struct ui_dropdown {
 
 #define UIDropdown(Name) ui_dropdown _##Name(#Name); _##Name
 
-void UIText(
-    const char* Text, 
-    ui_alignment AlignmentX = ui_alignment_center, ui_alignment AlignmentY = ui_alignment_center, 
-    color Color = White,
-    int Points = 10
+void _UIText(
+    const char* Text,
+    ui_element_options Options = {}
 ) {
     ui_size Sizes[2];
-    UISizeText(Text, Points, Sizes);
-    ui_element* Element = PushUIElement(
-        Text,
-        .AlignmentX = AlignmentX, .AlignmentY = AlignmentY,
-        .Flags = RENDER_TEXT_UI_FLAG,
-        .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
-    );
-    Element->Color = Color;
-    Element->Points = Points;
+    UISizeText(Text, Options.Points, Sizes);
+    Options.Flags |= RENDER_TEXT_UI_FLAG;
+    Options.SizeX = Sizes[axis_x];
+    Options.SizeY = Sizes[axis_y];
+    ui_element* Element = PushUIElement(Text, Options);
 }
+
+#define UIText(Text, ...) _UIText(Text, { __VA_ARGS__ })
 
 bool UIButton(const char* Text, float Points = 20.0f) {
     ui_size Sizes[2];
