@@ -777,15 +777,15 @@ void SettingsUI() {
     
     switch(ActiveSection) {
         case Graphics_Settings: {
-            UIText("GRAPHICS");
+            UIText("GRAPHICS", .AlignmentX = ui_alignment_center);
         } break;
 
         case Audio_Settings: {
-            UIText("AUDIO");
+            UIText("AUDIO", .AlignmentX = ui_alignment_center);
         } break;
 
         case Game_Settings: {
-            UIText("GAME");
+            UIText("GAME", .AlignmentX = ui_alignment_center);
         } break;
 
         default: Raise("Invalid settings section.");
@@ -798,7 +798,7 @@ void UpdateMainMenuUI(
 ) {
     game_state* State = Memory->GameState;
 
-    UIText("Untitled game", ui_alignment_center, ui_alignment_center, White, 100);
+    UIText("Untitled game", .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_center, .Points = 100);
     static bool Settings = false, ClassSelection = false;
     
     {
@@ -1019,7 +1019,7 @@ void UpdateCombatUI(
         }
     }
     else {
-        UIText("YOU DIED", ui_alignment_center, ui_alignment_center, Red, 120);
+        UIText("YOU DIED", .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_center, .Color = Red, .Points = 120);
         if (UIButton("Return to main menu")) {
             ClearEntities(&State->EntityManager);
             Transition(State, Game_State_Main_Menu);
@@ -1117,7 +1117,7 @@ void UpdateTradeUI(
 
         case Room_Type_Wizard: {
             ui_menu WizardMenu = UIMenu(
-                "Wizard menu", 
+                "Wizard menu",
                 .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_center,
                 .MarginX = 10.0f, .MarginY = 10.0f
             );
@@ -1131,7 +1131,7 @@ void UpdateTradeUI(
             DEBUG_VALUE(SelectedSpell, spell_id);
 
             if (Character == nullptr) {
-                UIText("Select character to learn spell");
+                UIText("Select character to learn spell", .AlignmentX = ui_alignment_center);
                 uint32 nPlayers = State->EntityManager.Characters.Count;
                 uint32 Index = 0;
                 while(nPlayers > 0) {
@@ -1148,7 +1148,7 @@ void UpdateTradeUI(
                 }
             }
             else if (Affinity == Magic_Affinity_None) {
-                UIText("Select spell affinity");
+                UIText("Select spell affinity", .AlignmentX = ui_alignment_center);
                 for (int i = 1; i < magic_affinity_count; i++) {
                     if (UIButton(MagicAffinityNames[i])) {
                         Affinity = (magic_affinity)i;
