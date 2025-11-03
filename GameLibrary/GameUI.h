@@ -208,9 +208,12 @@ struct ui_element_options {
     color Color             = White;
     ui_flags Flags          = 0;
     game_font_id Font       = Font_Menlo_Regular_ID;
+    float MarginX           = 0.0f;
+    float MarginY           = 0.0f;
     float Points            = 20.0f;
     ui_size SizeX           = UISizeNull();
     ui_size SizeY           = UISizeNull();
+    ui_axis Stack           = axis_y;
 };
 
 ui_element* _PushUIElement(
@@ -234,6 +237,8 @@ ui_element* _PushUIElement(
     ui_size Sizes[2] = { Options.SizeX, Options.SizeY };
     Element->Size[axis_x] = Sizes[axis_x];
     Element->Size[axis_y] = Sizes[axis_y];
+    Element->Margins[axis_x] = Options.MarginX;
+    Element->Margins[axis_y] = Options.MarginY;
 
     float* RectSizes[2] = { &Element->Rect.Width, &Element->Rect.Height };
     for (int i = 0; i < 2; i++) {
@@ -254,7 +259,7 @@ ui_element* _PushUIElement(
     }
 
     strcpy_s(Element->Name, Name);
-    Element->Color = White;
+    Element->Color = Options.Color;
     Element->Font = Options.Font;
     Element->Points = Options.Points;
     Element->Alignment[axis_x] = Options.AlignmentX;
@@ -516,48 +521,38 @@ void UISidebar(ui_axis Axis) {
     Element->RelativePosition[Axis] = -Element->Parent->RelativePosition[Axis] + Element->Scroll * (ParentsParentSize[Axis] - SideBarSize);
 }
 
-struct UIMenu {
+struct ui_menu {
     ui_element* Element;
     ui_alignment Alignment;
     ui_axis StackAxis;
 
-    UIMenu(
+    ui_menu(
         const char* Text,
-        ui_axis Stack = axis_y, 
-        ui_alignment AlignmentX = ui_alignment_center,
-        ui_alignment AlignmentY = ui_alignment_center,
-        float MarginX = 10.0f,
-        float MarginY = 10.0f,
-        color C = ChangeAlpha(Black, 0.7f)
+        ui_element_options Options = {}
     ) {
-        StackAxis = Stack;
-        Alignment = Stack == axis_x ? AlignmentX : AlignmentY;
-        ui_axis NoStack = Opposite(Stack);
-        ui_flags Flags = RENDER_RECT_UI_FLAG;
+        Options.Color = ChangeAlpha(Black, 0.7f);
+        StackAxis = Options.Stack;
+        Alignment = StackAxis == axis_x ? Options.AlignmentX : Options.AlignmentY;
+        ui_axis NoStack = Opposite(StackAxis);
+        Options.Flags |= RENDER_RECT_UI_FLAG;
         ui_size Sizes[2] = {};
-        if (Stack == axis_x) {
-            Flags |= STACK_CHILDREN_X_UI_FLAG;
+        if (StackAxis == axis_x) {
+            Options.Flags |= STACK_CHILDREN_X_UI_FLAG;
             Sizes[axis_x] = UISizeSumChildren();
             Sizes[axis_y] = UISizeMaxChildren();
         }
         else {
-            Flags |= STACK_CHILDREN_Y_UI_FLAG;
+            Options.Flags |= STACK_CHILDREN_Y_UI_FLAG;
             Sizes[axis_x] = UISizeMaxChildren();
             Sizes[axis_y] = UISizeSumChildren();
         }
-        Element = PushUIElement(
-            Text, 
-            .AlignmentX = AlignmentX, .AlignmentY = AlignmentY, 
-            .Flags = Flags, 
-            .SizeX = Sizes[0], .SizeY = Sizes[1]
-        );
-        Element->Margins[axis_x] = MarginX;
-        Element->Margins[axis_y] = MarginY;
-        Element->Color = C;
+        Options.SizeX = Sizes[axis_x];
+        Options.SizeY = Sizes[axis_y];
+        Element = PushUIElement(Text, Options);
         PushParent(Element);
     }
 
-    ~UIMenu() {
+    ~ui_menu() {
         float ParentSize = StackAxis == axis_x ? UI.Group->Width : UI.Group->Height;
         if (Element->Parent != NULL) {
             ParentSize = axis_x ? Element->Parent->Rect.Width : Element->Parent->Rect.Height;
@@ -577,10 +572,12 @@ struct UIMenu {
     }
 };
 
-struct _UIDropdown {
+#define UIMenu(Name, ...) ui_menu(Name, { __VA_ARGS__ })
+
+struct ui_dropdown {
     bool Expanded;
 
-    _UIDropdown(const char* Text) {
+    ui_dropdown(const char* Text) {
         game_font* Font = GetAsset(UI.Group->Assets, Font_Menlo_Regular_ID);
         float Points = 12;
         float Width = 0, Height = 0;
@@ -614,14 +611,14 @@ struct _UIDropdown {
         PushParent(Element);
     }
 
-    ~_UIDropdown() {
+    ~ui_dropdown() {
         PopParent();
     }
 
     operator bool() const { return Expanded; }
 };
 
-#define UIDropdown(Name) _UIDropdown _##Name(#Name); _##Name
+#define UIDropdown(Name) ui_dropdown _##Name(#Name); _##Name
 
 void UIText(
     const char* Text, 
@@ -775,7 +772,11 @@ void UpdateUI(
         ShowMainMenu = !ShowMainMenu;
     }
     if (ShowMainMenu) {
-        UIMenu MainMenu = UIMenu("Main menu", axis_y, ui_alignment_center, ui_alignment_center, 50.0f, 20.0f);
+        ui_menu MainMenu = UIMenu(
+            "Main menu", 
+            .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_center,
+            .MarginX = 50.0f, .MarginY = 20.0f
+        );
 
         if (UIButton("Save game")) {
             // TODO: Save game
@@ -832,7 +833,11 @@ void UpdateUI(
         // PushDebugVector(Group, Camera->Basis, Camera->Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
         // PushDebugVector(Group, Camera->Basis, Camera->Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
         
-        UIMenu DebugMenu = UIMenu("Debug Menu", axis_y, ui_alignment_min, ui_alignment_min, 5.0f, 0.0f);
+        ui_menu DebugMenu = UIMenu(
+            "Debug Menu",
+            .AlignmentX = ui_alignment_min, .AlignmentY = ui_alignment_min,
+            .MarginX = 5.0f
+        );
 
         int i = 0;
         int nEntries = DebugInfo->nEntries;
