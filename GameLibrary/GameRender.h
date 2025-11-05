@@ -173,6 +173,13 @@ enum render_group_target {
     render_group_target_count
 };
 
+struct render_group_target_description {
+    render_group_target Target;
+    bool Multisample;
+    bool Depth;
+    bool Stencil;
+};
+
 struct render_shader_pass_command {
     vertex_buffer_entry VertexEntry;
     game_shader_pipeline* Shader;
@@ -233,6 +240,7 @@ struct render_group {
     render_shader_pass_command ShaderPassCommands[MAX_SHADER_PASS_COMMANDS];
     render_compute_shader_pass_command ComputeShaderPassCommands[MAX_COMPUTE_SHADER_PASS_COMMANDS];
     render_target_command TargetCommands[MAX_RENDER_TARGET_COMMANDS];
+    render_group_target_description RenderTargets[render_group_target_count];
     vertex_buffer VertexBuffer;
     light Light;
     game_assets* Assets;
@@ -269,6 +277,51 @@ void InitializeRenderGroup(
 
     // Vertex & element buffers
     InitializeVertexBuffer(Arena, Assets, &Group->VertexBuffer);
+
+    // Render targets
+    Group->RenderTargets[Target_None] = {};
+
+    Group->RenderTargets[Target_World] = {
+        .Target = Target_World,
+        .Multisample = true,
+        .Depth = true,
+        .Stencil = false
+    };
+
+    Group->RenderTargets[Target_Outline] = {
+        .Target = Target_Outline,
+        .Multisample = true,
+        .Depth = true,
+        .Stencil = false
+    };
+
+    Group->RenderTargets[Target_Postprocessing_Outline] = {
+        .Target = Target_Postprocessing_Outline,
+        .Multisample = false,
+        .Depth = false,
+        .Stencil = false
+    };
+
+    Group->RenderTargets[Target_Output] = {
+        .Target = Target_Output,
+        .Multisample = false,
+        .Depth = true,
+        .Stencil = false
+    };
+
+    Group->RenderTargets[Target_PingPong] = {
+        .Target = Target_PingPong,
+        .Multisample = false,
+        .Depth = true,
+        .Stencil = false
+    };
+
+    Group->RenderTargets[Target_Fluid] = {
+        .Target = Target_Fluid,
+        .Multisample = false,
+        .Depth = true,
+        .Stencil = false
+    };
 }
 
 // Render entries sorting

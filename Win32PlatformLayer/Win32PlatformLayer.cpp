@@ -3,12 +3,15 @@
 #include "GameBuild.h"
 
 #if GAME_RENDER_API_OPENGL
-    #pragma comment (lib, "opengl32.lib")
     #include "OpenGLRender.h"
 #endif
 
 #if GAME_RENDER_API_VULKAN
     #include "VulkanRender.h"
+#endif
+
+#if GAME_RENDER_API_DIRECTX
+    #include "DirectX11Render.h"
 #endif
 
 #pragma comment(lib, "xaudio2.lib")
@@ -132,13 +135,6 @@ VOID DisplayBufferToWindow(
 
     SwapBuffers(DeviceContext);
 }
-
-#if GAME_RENDER_API_OPENGL
-    openGL RendererContext;
-#endif
-#if GAME_RENDER_API_VULKAN
-    vulkan RendererContext;
-#endif
 
 // Monitors
 struct monitor_manager {
@@ -761,6 +757,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     int MonitorRefreshHz = 60;
     float TargetSecondsPerFrame = 1.0f / (float)MonitorRefreshHz;
 
+    // Console for logging
+    AllocConsole();
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD ConsoleMode = 0;
+    GetConsoleMode(hConsole, &ConsoleMode);
+    SetConsoleMode(hConsole, ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+
     // Performance
     uint64 LastCounter = Platform.GetWallClock();
     uint64 LastCycleCount = __rdtsc();
@@ -770,10 +773,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Initilize render API
     InitializeRenderer(
         &RendererContext,
-        &Memory.RenderGroup.VertexBuffer,
-        Assets,
-        Group->Width,
-        Group->Height,
+        Group,
         Window,
         hInstance,
         DeviceContext
@@ -784,13 +784,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     RefreshMonitors();
 
     ReleaseDC(Window, DeviceContext);
-
-    // Console for logging
-    AllocConsole();
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD ConsoleMode = 0;
-    GetConsoleMode(hConsole, &ConsoleMode);
-    SetConsoleMode(hConsole, ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
     // Delete old hot reloading files
     WIN32_FIND_DATAA FindData = {};

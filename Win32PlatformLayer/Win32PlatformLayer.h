@@ -1,8 +1,7 @@
 #include "GamePlatform.h"
 #include "pch.h"
 
-#define RENDERER_INITIALIZE(RenderAPI) void InitializeRenderer(RenderAPI* Renderer, vertex_buffer* VertexBuffer, game_assets* Assets,	\
-    int32 Width, int32 Height, HWND Window, HINSTANCE Instance, HDC DeviceContext)
+#define RENDERER_INITIALIZE(RenderAPI) void InitializeRenderer(RenderAPI* Renderer, render_group* Group, HWND Window, HINSTANCE Instance, HDC DeviceContext)
 
 #define RENDERER_RENDER(RenderAPI) void Render(HWND Window, render_group* Group, RenderAPI* Renderer, game_input* Input, camera* Camera, double Time)
 

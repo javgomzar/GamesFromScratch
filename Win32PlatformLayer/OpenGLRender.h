@@ -704,6 +704,8 @@ void GetWGLFunctions(HWND DummyWindow) {
 }
 
 RENDERER_INITIALIZE(openGL) {
+	game_assets* Assets = Group->Assets;
+
 	int PixelFormatAttribs[] = {
         WGL_DRAW_TO_WINDOW_ARB,     GL_TRUE,
         WGL_SUPPORT_OPENGL_ARB,     GL_TRUE,
@@ -796,62 +798,40 @@ RENDERER_INITIALIZE(openGL) {
 		}
 		int MSAASamples = min(Square, 16);
 
-		// World
-		openGL_framebuffer* WorldTarget = &Renderer->Targets[Target_World];
-		WorldTarget->Label = Target_World;
-		WorldTarget->Multisampling = true;
-		WorldTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		WorldTarget->Samples = MSAASamples;
-
-		// Outline
-		openGL_framebuffer* OutlineTarget = &Renderer->Targets[Target_Outline];
-		OutlineTarget->Label = Target_Outline;
-		OutlineTarget->Multisampling = true;
-		OutlineTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		OutlineTarget->Samples = MSAASamples;
-
-		// Outline postprocessing
-		openGL_framebuffer* OutlinePostprocessingTarget = &Renderer->Targets[Target_Postprocessing_Outline];
-		OutlinePostprocessingTarget->Label = Target_Postprocessing_Outline;
-		OutlinePostprocessingTarget->Samples = 1;
-
-		// Output
-		openGL_framebuffer* OutputTarget = &Renderer->Targets[Target_Output];
-		OutputTarget->Label = Target_Output;
-		OutputTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		OutputTarget->Samples = 1;
-
-		// PingPong
-		openGL_framebuffer* PingPongTarget = &Renderer->Targets[Target_PingPong];
-		PingPongTarget->Label = Target_PingPong;
-		PingPongTarget->Attachment = GL_DEPTH_ATTACHMENT;
-		PingPongTarget->Samples = 1;
-
-		// Fluid
-		openGL_framebuffer* FluidTarget = &Renderer->Targets[Target_Fluid];
-		PingPongTarget->Label = Target_Fluid;
-		PingPongTarget->Samples = 1;
-
-		// Creating framebuffers
+		// Framebuffers
 		for (int i = 1; i < render_group_target_count; i++) {
-			openGL_framebuffer* Target = &Renderer->Targets[i];
-			if (Target->Multisampling) CreateFramebufferMultisampling(
-				Width, Height,
-				Target->Samples,
-				Target->Framebuffer,
-				Target->Texture,
-				Target->Attachment,
-				&Target->AttachmentTexture
+			openGL_framebuffer* Framebuffer = &Renderer->Targets[i];
+			render_group_target_description Target = Group->RenderTargets[i];
+			Framebuffer->Label = Target.Target;
+			Framebuffer->Multisampling = Target.Multisample;
+			Framebuffer->Samples = Target.Multisample ? MSAASamples : 1;
+			if (Target.Depth && Target.Stencil) {
+				Framebuffer->Attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+			}
+			else if (Target.Depth) {
+				Framebuffer->Attachment = GL_DEPTH_ATTACHMENT;
+			}
+			else if (Target.Stencil) {
+				Framebuffer->Attachment = GL_STENCIL_ATTACHMENT;
+			}
+
+			if (Framebuffer->Multisampling) CreateFramebufferMultisampling(
+				Group->Width, Group->Height,
+				Framebuffer->Samples,
+				Framebuffer->Framebuffer,
+				Framebuffer->Texture,
+				Framebuffer->Attachment,
+				&Framebuffer->AttachmentTexture
 			);
 			else {
 				GLenum InternalFormat = GL_RGBA32F;
 				CreateFramebuffer(
-					Width, Height,
+					Group->Width, Group->Height,
 					InternalFormat,
-					Target->Framebuffer,
-					Target->Texture,
-					Target->Attachment,
-					&Target->AttachmentTexture
+					Framebuffer->Framebuffer,
+					Framebuffer->Texture,
+					Framebuffer->Attachment,
+					&Framebuffer->AttachmentTexture
 				);
 			}
 		}
@@ -872,7 +852,7 @@ RENDERER_INITIALIZE(openGL) {
 			uint32 VAO = Renderer->VAOs[i];
 			uint32 VBO = Renderer->VBOs[i];
 			
-			vertex_layout Layout = Assets->VertexLayouts[i];
+			vertex_layout Layout = Group->Assets->VertexLayouts[i];
 			memory_index Size = VERTEX_BUFFER_SIZE;
 			
 			glNamedBufferStorage(VBO, Size, 0, GL_DYNAMIC_STORAGE_BIT);
