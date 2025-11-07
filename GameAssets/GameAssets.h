@@ -4,12 +4,11 @@
 #include "GameMath.h"
 #include "Tokenizer.h"
 
-#include "Font/GameFont.h"
-#include "Bitmap/GameBitmap.h"
-#include "Sound/GameSound.h"
-#include "Video/GameVideo.h"
-#include "Mesh/GameMesh.h"
-#include "Shader/GameShader.h"
+#include "GameFont.h"
+#include "GameBitmap.h"
+#include "GameSound.h"
+#include "GameVideo.h"
+#include "GameMesh.h"
 
 /*
     TODO:
@@ -356,15 +355,10 @@ struct game_assets {
     game_sound Sound[game_sound_id_count];
     game_mesh Mesh[game_mesh_id_count];
     game_animation Animation[game_animation_id_count];
+    vertex_layout VertexLayouts[vertex_layout_id_count];
     uint64 AssetsSize;
     //game_video Videos[1];
-    vertex_layout VertexLayouts[vertex_layout_id_count];
-    uint32 nBindings[SHADER_SETS];
-    shader_uniform_block UBOs[SHADER_SETS][MAX_SHADER_SET_BINDINGS];
     uint32 nSamplers;
-    game_shader Shader[game_shader_id_count];
-    game_shader_pipeline ShaderPipeline[game_shader_pipeline_id_count];
-    game_compute_shader ComputeShader[game_compute_shader_id_count];
     uint64 ShadersSize;
     uint64 ComputeShadersSize;
     uint64 TotalSize;
@@ -570,75 +564,6 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
     Asset->File.Content = 0;
 }
 
-game_shader*          GetShader        (game_assets* Assets, game_shader_id ID)          { return &Assets->Shader[ID]; }
-game_shader_pipeline* GetShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID) { return &Assets->ShaderPipeline[ID]; }
-game_compute_shader*  GetShader        (game_assets* Assets, game_compute_shader_id ID)  { return &Assets->ComputeShader[ID]; }
-
-void PushShader(game_assets* Assets, const char* Path, game_shader_id ID) {
-    game_shader* Shader = GetShader(Assets, ID);
-    Shader->ID = ID;
-
-    const char* Extension = GetFileExtension(Path);
-
-    if (Extension != 0) {
-        if      (strcmp(Extension, "frag") == 0)  { Shader->Type = Fragment_Shader; }
-        else if (strcmp(Extension, "vert") == 0)  { Shader->Type = Vertex_Shader; }
-        else if (strcmp(Extension, "geom") == 0)  { Shader->Type = Geometry_Shader; }
-        else if (strcmp(Extension, "tesc")  == 0) { Shader->Type = Tessellation_Control_Shader; }
-        else if (strcmp(Extension, "tese")  == 0) { Shader->Type = Tessellation_Evaluation_Shader; }
-        else Raise("Invalid shader extension. Should be one of '.vert', '.geom', '.tesc', '.tese', '.frag'.");
-    }
-
-    read_file_result File = Platform.ReadEntireFile(Path);
-    Shader->File = File;
-    Shader->Code = (char*)File.Content;
-
-    // Extra char with value 0 to separate shaders
-    Assets->TotalSize += Shader->File.ContentSize + 1;
-    Assets->ShadersSize += Shader->File.ContentSize + 1;
-}
-
-void PushShaderPipeline(game_assets* Assets, game_shader_pipeline_id ID, int nShaders, ...) {
-    Assert(nShaders <= game_shader_type_count);
-
-    game_shader_pipeline* ShaderPipeline = GetShaderPipeline(Assets, ID);
-    ShaderPipeline->ID = ID;
-    
-    va_list Shaders;
-    va_start(Shaders, nShaders);
-
-    for (int i = 0; i < nShaders; i++) {
-        game_shader_id ShaderID = va_arg(Shaders, game_shader_id);
-
-        game_shader* Shader = &Assets->Shader[ShaderID];
-
-        if (ShaderPipeline->IsProvided[Shader->Type]) Raise("Shader of this type has alredy been attached to pipeline.");
-        else {
-            ShaderPipeline->IsProvided[Shader->Type] = true;
-            ShaderPipeline->Pipeline[Shader->Type] = Shader->ID;
-        }
-    }
-}
-
-void PushShader(game_assets* Assets, const char* Path, game_compute_shader_id ID) {
-    game_compute_shader* Shader = GetShader(Assets, ID);
-    Shader->ID = ID;
-
-    const char* Extension = GetFileExtension(Path);
-
-    if (strcmp(Extension, "comp") != 0) {
-        Raise("Extension of compute shader file should be '.comp'.");
-    }
-    else {
-        Shader->File = Platform.ReadEntireFile(Path);
-        Shader->Size = Shader->File.ContentSize;
-        Shader->Code = (char*)Shader->File.Content;
-
-        // Extra char with value 0 to separate shaders
-        Assets->TotalSize += Shader->Size + 1;
-        Assets->ComputeShadersSize += Shader->Size + 1;
-    }
-}
 
 void WriteAssetsFile(platform_api* Platform, const char* Path);
 void LoadAssetsFromFile(memory_arena* FontsArena, game_assets* Assets, const char* Path);

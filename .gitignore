@@ -3,9 +3,7 @@
 .vscode/
 
 # Game assets
-GameAssets/*/Files
-!GameAssets/Shader/Files
-**/*.spv
+GameAssets/Files
 GameAssets/game_assets
 
 # Captures
@@ -13,7 +11,7 @@ Captures/*
 
 # Binaries
 bin/
-GameAssets/Assets/Shaders/*/*.spv
+**/*.spv
 
 # Linking
 Linking/
