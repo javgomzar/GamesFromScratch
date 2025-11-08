@@ -325,7 +325,6 @@ struct prop {
     uint32 ID;
     game_mesh_id MeshID;
     game_bitmap_id Texture;
-    game_shader_pipeline_id Shader;
     color Color;
     game_entity* Entity;
 };
@@ -514,8 +513,7 @@ enemy* AddEnemy(game_entity_state* State, v3 Position) {
 
 prop* AddProp(
     game_entity_state* State, 
-    game_mesh_id MeshID, 
-    game_shader_pipeline_id Shader, 
+    game_mesh_id MeshID,
     color Color = White,
     v3 Position = V3(0,0,0),
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
@@ -533,7 +531,6 @@ prop* AddProp(
 
     prop* pProp = &State->Props.List[PropID];
     pProp->MeshID = MeshID;
-    pProp->Shader = Shader;
     pProp->Color = Color;
 
     char NameBuffer[32];
@@ -825,7 +822,6 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                     Group,
                     Mesh_Body_ID,
                     Entity->Transform,
-                    Shader_Pipeline_Mesh_Bones_ID,
                     Bitmap_Empty_ID,
                     White,
                     &pCharacter->Armature,
@@ -839,7 +835,6 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                     Group,
                     Mesh_Enemy_ID,
                     Entity->Transform,
-                    Shader_Pipeline_Mesh_ID,
                     Bitmap_Enemy_ID,
                     White, 0,
                     Outline
@@ -852,7 +847,6 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                     Group,
                     pProp->MeshID,
                     Entity->Transform,
-                    pProp->Shader,
                     Bitmap_Empty_ID,
                     pProp->Color
                 );
@@ -862,7 +856,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                 weapon* pWeapon = &State->Weapons.List[Entity->Index];
                 game_mesh_id MeshID = pWeapon->Type == Weapon_Sword ? Mesh_Sword_ID : Mesh_Shield_ID;
 
-                PushMesh(Group, MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
+                PushMesh(Group, MeshID, Entity->Transform);
             } break;
         }
 

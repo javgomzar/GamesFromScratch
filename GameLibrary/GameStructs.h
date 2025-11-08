@@ -1,4 +1,4 @@
-bool IsStructType(debug_type Type) { return Type > 32 && Type < 35; }
+bool IsStructType(debug_type Type) { return Type > 33 && Type < 36; }
 
 struct debug_struct_member {
     const char* Name;

@@ -52,7 +52,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
         ActiveCamera->OnAir = true;
         character* Character = AddCharacter(Assets, EntityState, V3(0,0,0), 100);
-        prop* Prop = AddProp(EntityState, Mesh_Sphere_ID, Shader_Pipeline_Mesh_ID, Red, V3(0,0,5), Quaternion(1.0), Scale(10,1,1));
+        prop* Prop = AddProp(EntityState, Mesh_Sphere_ID, Red, V3(0,0,5), Quaternion(1.0), Scale(10,1,1));
         enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));
         weapon* Sword = AddWeapon(EntityState, Weapon_Sword, White, V3(-5,0,0));
         weapon* Shield = AddWeapon(EntityState, Weapon_Shield, White, V3(-10,0,0));
@@ -71,7 +71,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, { 0 }, Target_Outline);
     PushClear(Group, { 0 }, Target_Postprocessing_Outline);
     PushClear(Group, Magenta, Target_PingPong);
-    PushClear(Group, BackgroundBlue, Target_Output);
+    PushClear(Group, GetColor(1.0f, sinf(Time)*sinf(Time), 1.0f), Target_Output);
 
     UpdateGameState(Assets, pGameState, Input, Group->Width, Group->Height);
     

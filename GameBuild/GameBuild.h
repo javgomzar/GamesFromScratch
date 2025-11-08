@@ -22,26 +22,32 @@ inline compiler GetCompiler(token Token) {
 }
 
 enum renderer {
-    OpenGL,
-    Vulkan,
+    Renderer_OpenGL,
+    Renderer_DirectX,
+    Renderer_Vulkan,
 };
 
 renderer GetRenderer(token Token) {
-    if (Token == "Vulkan") return Vulkan;
-    if (Token != "OpenGL") Raise("Invalid renderer. Currently OpenGL and Vulkan are supported.");
-    return OpenGL;
+    if      (Token == "Vulkan")  return Renderer_Vulkan;
+    else if (Token == "DirectX") return Renderer_DirectX;
+    else if (Token != "OpenGL")  Raise("Invalid renderer. Currently only OpenGL is supported.");
+    return Renderer_OpenGL;
 }
 
 const char* GetRendererString(renderer Renderer) {
     switch(Renderer) {
-        case Vulkan: return "VULKAN";
+        case Renderer_OpenGL:  return "OPENGL";
+        case Renderer_DirectX: return "DIRECTX";
+        case Renderer_Vulkan:  return "VULKAN";
     }
-    return "OPENGL";
+    return "";
 }
 
 const char* GetRendererLibs(renderer Renderer) {
     switch(Renderer) {
-        case Vulkan: return "vulkan-1.lib shaderc_combined.lib";
+        case Renderer_OpenGL:  return "glew32.lib";
+        case Renderer_DirectX: return "D3d11.lib";
+        case Renderer_Vulkan:  return "vulkan-1.lib shaderc_combined.lib";
     }
 
     return "glew32.lib";
