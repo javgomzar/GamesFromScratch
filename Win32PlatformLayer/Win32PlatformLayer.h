@@ -1,9 +1,8 @@
 #include "GamePlatform.h"
 #include "pch.h"
 
-#define RENDERER_INITIALIZE(RenderAPI) void InitializeRenderer(RenderAPI* Renderer, render_group* Group, HWND Window, HINSTANCE Instance, HDC DeviceContext)
-
-#define RENDERER_RENDER(RenderAPI) void Render(HWND Window, render_group* Group, RenderAPI* Renderer, game_input* Input, camera* Camera, double Time)
+#define RENDERER_INITIALIZE void InitializeRenderer(render_group* Group, HWND Window, HINSTANCE Instance, HDC DeviceContext)
+#define RENDERER_RENDER void Render(render_group* Group, camera* Camera, game_input* Input, HWND Window, double Time)
 
 system_os SystemOS = Windows;
 

@@ -191,8 +191,8 @@ struct armature {
 struct game_mesh {
     armature Armature;
     game_mesh_id ID;
+    vertex_layout_id VertexLayoutID;
     uint32 nVertices;
-    uint32 Stride;
     void* Vertices;
     uint32* Edges;
     uint32* Faces;

@@ -772,14 +772,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Initilize render API
     InitializeRenderer(
-        &RendererContext,
         Group,
         Window,
         hInstance,
         DeviceContext
     );
-
-    RendererContext.DPI = GetDeviceCaps(DeviceContext, LOGPIXELSX);
 
     RefreshMonitors();
 
@@ -894,39 +891,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         // Hot reloading for shaders
-        for (int i = 0; i < game_shader_id_count; i++) {
-            game_shader* Shader = GetShader(Assets, (game_shader_id)i);
-
-            int64 LastWriteTime = Win32GetLastWriteTime(Shader->File.Path);
-            if (LastWriteTime > Shader->File.Timestamp) {
-                Win32FreeFileMemory(Shader->File.Content);
-                PushShader(Assets, Shader->File.Path, Shader->ID);
-                if (Shader->File.Timestamp == LastWriteTime) {
-                    ReloadShader(&RendererContext, Assets, Shader);
-
-                    char Buffer[128];
-                    sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
-                    Log(Info, Buffer);
-                }
-            }
-        }
-
-        for (int i = 0; i < game_compute_shader_id_count; i++) {
-            game_compute_shader* Shader = GetShader(Assets, (game_compute_shader_id)i);
-
-            int64 LastWriteTime = Win32GetLastWriteTime(Shader->File.Path);
-            if (LastWriteTime > Shader->File.Timestamp) {
-                Win32FreeFileMemory(Shader->File.Content);
-                PushShader(Assets, Shader->File.Path, Shader->ID);
-                if (Shader->File.Timestamp == LastWriteTime) {
-                    ReloadShader(&RendererContext, Shader);
-
-                    char Buffer[128];
-                    sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
-                    Log(Info, Buffer);
-                }
-            }
-        }
+        ReloadShaders();
 
         // Clear transient memory
         ClearArena(&Memory.Transient);
@@ -1063,7 +1028,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 if ((NewWidth != Memory.RenderGroup.Width || NewHeight != Memory.RenderGroup.Height)) {
                     Group->Width = NewWidth;
                     Group->Height = NewHeight;
-                    ResizeWindow(&RendererContext, NewWidth, NewHeight);
+                    ResizeWindow(NewWidth, NewHeight);
                 }
             }
 
@@ -1079,10 +1044,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
 
             if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F11.WasDown) {
-                ScreenCapture(&RendererContext, Group->Width, Group->Height);
+                ScreenCapture(Group->Width, Group->Height);
             }
 
-            Render(Window, Group, &RendererContext, &Memory.Input, pGameState->ActiveCamera, pGameState->Time);
+            Render( Group, pGameState->ActiveCamera, &Memory.Input, Window, pGameState->Time);
             ClearVertexBuffer(&Memory.RenderGroup.VertexBuffer);
         }
         else {
@@ -1292,10 +1257,10 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
                 if (NewWidth != Group->Width || NewHeight != Group->Height) {
                     Group->Width = NewWidth;
                     Group->Height = NewHeight;
-                    ResizeWindow(&RendererContext, NewWidth, NewHeight);
+                    ResizeWindow(NewWidth, NewHeight);
                 }
 
-                Render(Window, Group, &RendererContext, &Memory.Input, Memory.GameState->ActiveCamera, 0.0);
+                Render(Group, Memory.GameState->ActiveCamera, &Memory.Input, Window, 0.0);
             }
 
             EndPaint(Window, &ps);

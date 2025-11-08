@@ -162,14 +162,14 @@ void ClearBitmap(game_bitmap* Bitmap) {
     }
 }
 
-void MakeBitmapHeader(bitmap_header* Header, int Width, int Height, int BitsPerPixel) {
+void MakeBitmapHeader(bitmap_header* Header, int Width, int Height, int BytesPerPixel) {
     Header->FileType = 19778;
     Header->Width = Width;
     Header->Height = Height;
     Header->BitmapOffset = 138;
     Header->Size = 124;
     Header->Planes = 1;
-    Header->BitsPerPixel = BitsPerPixel;
+    Header->BitsPerPixel = 8 * BytesPerPixel;
     Header->FileSize = Width * Height * Header->BitsPerPixel;
     Header->Compression = 3;
     Header->SizeOfBitmap = Width * Height * 4 + Header->BitmapOffset;

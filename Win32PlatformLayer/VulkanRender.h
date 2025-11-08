@@ -1,7 +1,3 @@
-#include "GameMath.h"
-#include "GameAssets.h"
-#include "Win32Debug.h"
-
 #include "vulkan/Vulkan.h"
 #include "vulkan/vulkan_win32.h"
 #include "shaderc/shaderc.hpp"
@@ -51,6 +47,8 @@ struct vulkan {
     uint32 CurrentFrame;
     bool Initialized;
 };
+
+vulkan RendererContext;
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT Severity,
@@ -446,7 +444,7 @@ void CreatePipeline(
     }
 }
 
-void InitializeRenderer( vulkan* Vulkan, HWND Window, HINSTANCE Instance, game_assets* Assets) {
+RENDERER_INITIALIZE(vulkan) {
     VkApplicationInfo AppInfo = {};
     AppInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     AppInfo.pApplicationName = "VulkanTest";
@@ -477,7 +475,7 @@ void InitializeRenderer( vulkan* Vulkan, HWND Window, HINSTANCE Instance, game_a
     CreateInfo.ppEnabledLayerNames = &ValidationLayer;
 #endif
     CreateInfo.ppEnabledExtensionNames = Extensions;
-    VkResult Result = vkCreateInstance(&CreateInfo, NULL, &Vulkan->Instance);
+    VkResult Result = vkCreateInstance(&CreateInfo, NULL, &Renderer->Instance);
     
     if (Result != VK_SUCCESS) {
         Raise("Vulkan instance was not correctly initialized.");
@@ -855,40 +853,40 @@ void ScreenCapture(vulkan* Vulkan, int Width, int Height) {
     // TODO
 }
 
-void Render(HWND Window, render_group* Group, vulkan* Vulkan, double Time) {
-    uint32 CurrentFrame = Vulkan->CurrentFrame;
+RENDERER_RENDER(vulkan) {
+    uint32 CurrentFrame = Renderer->CurrentFrame;
 
-    vkWaitForFences(Vulkan->LogicalDevice, 1, &Vulkan->InFlightFence[CurrentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(Vulkan->LogicalDevice, 1, &Vulkan->InFlightFence[CurrentFrame]);
+    vkWaitForFences(Renderer->LogicalDevice, 1, &Renderer->InFlightFence[CurrentFrame], VK_TRUE, UINT64_MAX);
+    vkResetFences(Renderer->LogicalDevice, 1, &Renderer->InFlightFence[CurrentFrame]);
 
     uint32 ImageIndex;
     vkAcquireNextImageKHR(
-        Vulkan->LogicalDevice, 
-        Vulkan->SwapChain.SwapChain, 
+        Renderer->LogicalDevice, 
+        Renderer->SwapChain.SwapChain, 
         UINT64_MAX, 
-        Vulkan->ImageAvailable[CurrentFrame], 
+        Renderer->ImageAvailable[CurrentFrame], 
         VK_NULL_HANDLE, 
         &ImageIndex
     );
-    vkResetCommandBuffer(Vulkan->CommandBuffer[CurrentFrame], 0);
-    RecordCommandBuffer(Vulkan, ImageIndex);
+    vkResetCommandBuffer(Renderer->CommandBuffer[CurrentFrame], 0);
+    RecordCommandBuffer(Renderer, ImageIndex);
 
     VkSubmitInfo SubmitInfo = {};
     SubmitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore WaitSemaphores[] = { Vulkan->ImageAvailable[CurrentFrame] };
+    VkSemaphore WaitSemaphores[] = { Renderer->ImageAvailable[CurrentFrame] };
     VkPipelineStageFlags WaitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     SubmitInfo.waitSemaphoreCount = 1;
     SubmitInfo.pWaitSemaphores = WaitSemaphores;
     SubmitInfo.pWaitDstStageMask = WaitStages;
     SubmitInfo.commandBufferCount = 1;
-    SubmitInfo.pCommandBuffers = &Vulkan->CommandBuffer[CurrentFrame];
+    SubmitInfo.pCommandBuffers = &Renderer->CommandBuffer[CurrentFrame];
 
-    VkSemaphore SignalSemaphores[] = { Vulkan->RenderFinished[CurrentFrame] };
+    VkSemaphore SignalSemaphores[] = { Renderer->RenderFinished[CurrentFrame] };
     SubmitInfo.signalSemaphoreCount = 1;
     SubmitInfo.pSignalSemaphores = SignalSemaphores;
 
-    VkResult QueueSubmitResult = vkQueueSubmit(Vulkan->GraphicsQueue, 1, &SubmitInfo, Vulkan->InFlightFence[CurrentFrame]);
+    VkResult QueueSubmitResult = vkQueueSubmit(Renderer->GraphicsQueue, 1, &SubmitInfo, Renderer->InFlightFence[CurrentFrame]);
     if (QueueSubmitResult != VK_SUCCESS) {
         Raise("Queue submit went wrong.");
     }
@@ -898,14 +896,14 @@ void Render(HWND Window, render_group* Group, vulkan* Vulkan, double Time) {
     PresentInfo.waitSemaphoreCount = 1;
     PresentInfo.pWaitSemaphores = SignalSemaphores;
 
-    VkSwapchainKHR SwapChains[] = { Vulkan->SwapChain.SwapChain };
+    VkSwapchainKHR SwapChains[] = { Renderer->SwapChain.SwapChain };
     PresentInfo.swapchainCount = 1;
     PresentInfo.pSwapchains = SwapChains;
     PresentInfo.pImageIndices = &ImageIndex;
     PresentInfo.pResults = NULL;
 
-    vkQueuePresentKHR(Vulkan->PresentationQueue, &PresentInfo);
+    vkQueuePresentKHR(Renderer->PresentationQueue, &PresentInfo);
 
-    Vulkan->CurrentFrame += 1;
-    if (Vulkan->CurrentFrame >= MAX_FRAMES_IN_FLIGHT) Vulkan->CurrentFrame = 0;
+    Renderer->CurrentFrame += 1;
+    if (Renderer->CurrentFrame >= MAX_FRAMES_IN_FLIGHT) Renderer->CurrentFrame = 0;
 }

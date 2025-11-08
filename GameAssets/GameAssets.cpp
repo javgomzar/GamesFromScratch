@@ -3,44 +3,54 @@
 void WriteAssetsFile(const char* Path) {
     game_assets Assets = {};
 
+    Assets.VertexLayouts[vertex_layout_vec2_id]           = VertexLayout(1, shader_type_vec2);
+    Assets.VertexLayouts[vertex_layout_vec2_vec2_id]      = VertexLayout(2, shader_type_vec2, shader_type_vec2);
+    Assets.VertexLayouts[vertex_layout_vec3_id]           = VertexLayout(1, shader_type_vec3);
+    Assets.VertexLayouts[vertex_layout_vec3_vec2_id]      = VertexLayout(2, shader_type_vec3, shader_type_vec2);
+    Assets.VertexLayouts[vertex_layout_vec3_vec2_vec3_id] = VertexLayout(3, shader_type_vec3, shader_type_vec2, shader_type_vec3);
+    Assets.VertexLayouts[vertex_layout_vec3_vec4_id]      = VertexLayout(2, shader_type_vec3, shader_type_vec4);
+    Assets.VertexLayouts[vertex_layout_vec4_id]           = VertexLayout(1, shader_type_vec4);
+    Assets.VertexLayouts[vertex_layout_bones_id]          = VertexLayout(5, shader_type_vec3, shader_type_vec2, shader_type_vec3, shader_type_ivec2, shader_type_vec2);
+    for (int i = 0; i < vertex_layout_id_count; i++) Assets.VertexLayouts[i].ID = (vertex_layout_id)i;
+
 // Assets
     // Fonts
-    PushAsset(&Assets, "GameAssets\\Font\\Files\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Font\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
 
     // Text
-    PushAsset(&Assets, "GameAssets\\Text\\Files\\Test.txt", Text_Test_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Text\\Test.txt", Text_Test_ID);
 
     // Bitmaps
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Background.bmp", Bitmap_Background_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Button.bmp", Bitmap_Button_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Empty.bmp", Bitmap_Empty_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Enemy.bmp", Bitmap_Enemy_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Player.bmp", Bitmap_Player_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Background.bmp", Bitmap_Background_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Button.bmp", Bitmap_Button_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Empty.bmp", Bitmap_Empty_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Enemy.bmp", Bitmap_Enemy_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Player.bmp", Bitmap_Player_ID);
 
     // Heightmaps
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\spain.bmp", Heightmap_Spain_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\spain.bmp", Heightmap_Spain_ID);
 
     // Sound
-    PushAsset(&Assets, "GameAssets\\Sound\\Files\\16agosto.wav", Sound_Test_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Sound\\16agosto.wav", Sound_Test_ID);
 
     // Meshes
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Tetrahedron.mdl", Mesh_Tetrahedron_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Cube.mdl", Mesh_Cube_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Octahedron.mdl", Mesh_Octahedron_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Icosahedron.mdl", Mesh_Icosahedron_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Dodecahedron.mdl", Mesh_Dodecahedron_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Horns.mdl", Mesh_Enemy_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Sphere.mdl", Mesh_Sphere_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Body.mdl", Mesh_Body_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Sword.mdl", Mesh_Sword_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Shield.mdl", Mesh_Shield_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Selector.mdl", Mesh_Selector_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Tetrahedron.mdl", Mesh_Tetrahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Cube.mdl", Mesh_Cube_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Octahedron.mdl", Mesh_Octahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Icosahedron.mdl", Mesh_Icosahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Dodecahedron.mdl", Mesh_Dodecahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Horns.mdl", Mesh_Enemy_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Sphere.mdl", Mesh_Sphere_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Body.mdl", Mesh_Body_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Sword.mdl", Mesh_Sword_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Shield.mdl", Mesh_Shield_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Selector.mdl", Mesh_Selector_ID);
 
     // Animation
-    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Idle.anim", Animation_Idle_ID);
-    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Walking.anim", Animation_Walk_ID);
-    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Jumping.anim", Animation_Jump_ID);
-    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Attack.anim", Animation_Attack_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Animation\\Idle.anim", Animation_Idle_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Animation\\Walking.anim", Animation_Walk_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Animation\\Jumping.anim", Animation_Jump_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Animation\\Attack.anim", Animation_Attack_ID);
 
     // Video
     //PushAsset(&Assets, "GameAssets\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
@@ -128,7 +138,8 @@ void LoadAssetsFromFile(
             case Asset_Type_Mesh: {
                 game_mesh* Mesh = GetAsset(Assets, Asset.ID.Mesh);
                 Mesh->Vertices = (void*)(Assets->Memory + Asset.Offset);
-                Mesh->Edges = (uint32*)((uint8*)Mesh->Vertices + Mesh->Stride * Mesh->nVertices);
+                uint32 Stride = Assets->VertexLayouts[Mesh->VertexLayoutID].Stride;
+                Mesh->Edges = (uint32*)((uint8*)Mesh->Vertices + Stride * Mesh->nVertices);
                 Mesh->Faces = Mesh->Edges + Mesh->nEdges;
             } break;
 
