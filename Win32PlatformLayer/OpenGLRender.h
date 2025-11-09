@@ -65,24 +65,24 @@ GLenum GetType(GLenum InternalFormat) {
 	return 0;
 }
 
-GLenum GetType(shader_type Type) {
+GLenum GetType(vertex_type Type) {
 	switch (Type) {
-		case shader_type_float:
-		case shader_type_vec2:
-		case shader_type_vec3:
-		case shader_type_vec4: 
+		case vertex_type_float:
+		case vertex_type_vec2:
+		case vertex_type_vec3:
+		case vertex_type_vec4: 
 			{ return GL_FLOAT; } break;
-		case shader_type_int:
-		case shader_type_ivec2:
-		case shader_type_ivec3:
-		case shader_type_ivec4:
+		case vertex_type_int:
+		case vertex_type_ivec2:
+		case vertex_type_ivec3:
+		case vertex_type_ivec4:
 			{ return GL_INT; } break;
-		case shader_type_mat2:
-		case shader_type_mat3:
-		case shader_type_mat4:
+		case vertex_type_mat2:
+		case vertex_type_mat3:
+		case vertex_type_mat4:
 			{ return GL_FLOAT; } break;
 		default:
-			Assert(false);
+			Raise("Invalid vertex typpe.");
 	}
 	return GL_FLOAT;
 }
@@ -294,6 +294,33 @@ struct openGL_mesh_buffer {
 	uint32 EBO;
 };
 
+;const char* OpenGLVertexTypeTokens[vertex_type_count] = {
+	"",
+    "float",
+    "vec2",
+    "vec3",
+    "vec4",
+    "int",
+    "ivec2",
+    "ivec3",
+    "ivec4",
+    "mat2",
+    "mat3",
+    "mat4"
+};
+
+vertex_type GetVertexType(token Token) {
+    for (int i = 1; i < vertex_type_count; i++) {
+        if (Token == OpenGLVertexTypeTokens[i]) {
+            return (vertex_type)i;
+        }
+    }
+    char ErrorBuffer[256];
+    sprintf_s(ErrorBuffer, "Invalid vertex type token `%s`.", Token.Text);
+    Raise(ErrorBuffer);
+    return vertex_type_count;
+}
+
 /*
 	Creates a Vertex Array Object (VAO) and a Vertex Buffer Object (VBO) to attach it to. 
 	`Usage` should be one of 
@@ -311,7 +338,7 @@ void EnableVertexLayout(
 		glEnableVertexArrayAttrib(VAO, location);
 
 		GLenum Type = GetType(Attribute.Type);
-		int Size = GetShaderTypeSize(Attribute.Type);
+		int Size = GetVertexTypeSize(Attribute.Type);
 		if (
 			Type == GL_BYTE || Type == GL_UNSIGNED_BYTE || 
 			Type == GL_SHORT || Type == GL_UNSIGNED_SHORT || 
@@ -330,20 +357,17 @@ void EnableVertexLayout(
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 const int MAX_SHADER_UNIFORM_BLOCK_MEMBERS = 16;
-const int SHADER_SETS = 3;
-const int MAX_SHADER_SET_BINDINGS = 8;
-const int MAX_SHADER_UBOS = 8;
 const int MAX_SHADER_SAMPLERS = 4;
 
-struct shader_uniform_block {
-    uint32 Set;
+struct openGL_shader_uniform_block {
+	uint32 ID;
     uint32 Binding;
     uint32 nMembers;
-    shader_type Member[MAX_SHADER_UNIFORM_BLOCK_MEMBERS];
+    vertex_type Member[MAX_SHADER_UNIFORM_BLOCK_MEMBERS];
 };
 
-bool operator==(shader_uniform_block UBO1, shader_uniform_block UBO2) {
-    if (UBO1.Set == UBO2.Set && UBO1.Binding == UBO2.Binding && UBO1.nMembers == UBO2.nMembers) {
+bool operator==(openGL_shader_uniform_block UBO1, openGL_shader_uniform_block UBO2) {
+    if (UBO1.Binding == UBO2.Binding && UBO1.nMembers == UBO2.nMembers) {
         for (int i = 0; i < UBO1.nMembers; i++) {
             if (UBO1.Member[i] != UBO2.Member[i]) return false;
         }
@@ -352,8 +376,8 @@ bool operator==(shader_uniform_block UBO1, shader_uniform_block UBO2) {
     return false;
 }
 
-bool operator!=(shader_uniform_block UBO1, shader_uniform_block UBO2) {
-    if (UBO1.Set != UBO2.Set || UBO1.Binding != UBO2.Binding || UBO1.nMembers != UBO2.nMembers) {
+bool operator!=(openGL_shader_uniform_block UBO1, openGL_shader_uniform_block UBO2) {
+    if (UBO1.Binding != UBO2.Binding || UBO1.nMembers != UBO2.nMembers) {
         return true;
     }
     else {
@@ -363,11 +387,6 @@ bool operator!=(shader_uniform_block UBO1, shader_uniform_block UBO2) {
     }
     return false;
 }
-
-struct shader_uniform_sampler {
-    uint32 Set;
-    uint32 Binding;
-};
 
 const int SHADER_UNIFORM_BLOCKS = 9;
 
@@ -478,9 +497,9 @@ struct openGL_shader {
     read_file_result File;
     vertex_layout VertexLayout;
     uint32 nUBOs;
-    shader_uniform_block UBO[MAX_SHADER_UBOS];
-    uint32 nSamplers;
-    shader_uniform_sampler Sampler[MAX_SHADER_SAMPLERS];
+    openGL_shader_uniform_block UBO[SHADER_UNIFORM_BLOCKS];
+	uint32 nSamplers;
+	uint32 Samplers[MAX_SHADER_SAMPLERS];
 };
 
 ENUM(openGL_compute_shader_id,
@@ -525,7 +544,7 @@ struct openGL_shader_pipeline {
 	uint32 ID;
     vertex_layout_id VertexLayoutID;
 	openGL_shader_id Shader[openGL_shader_type_count];
-    bool Bindings[SHADER_SETS][MAX_SHADER_SET_BINDINGS];
+    bool UsesUBO[SHADER_UNIFORM_BLOCKS];
 };
 
 GLenum GetShaderType(openGL_shader_type Type) {
@@ -592,106 +611,6 @@ uint32 OpenGLLinkComputeShader(uint32 ShaderID) {
 	return ProgramID;
 }
 
-#define SetUBO(UniformContent, Binding) glNamedBufferSubData(UBOs[Binding], 0, sizeof(UniformContent), &UniformContent)
-
-// Shader uniforms
-void SetGlobalUniforms(uint32* UBOs, game_input* Input, float Width, float Height, camera* Camera, float Time) {
-	global_uniforms GlobalUniforms;
-	GlobalUniforms.projection = GetWorldProjectionMatrix(Width, Height);
-	if (Camera) {
-		GlobalUniforms.view = GetViewMatrix(Camera);
-	}
-	else {
-		GlobalUniforms.view = Identity4;
-	}
-	GlobalUniforms.resolution = V2(Width, Height);
-	GlobalUniforms.time = Time;
-	GlobalUniforms.mouse = V2(Input->Mouse.Cursor.X, Height - Input->Mouse.Cursor.Y);
-	GlobalUniforms.lastmouse = V2(Input->Mouse.LastCursor.X, Height - Input->Mouse.LastCursor.Y);
-	SetUBO(GlobalUniforms, 0);
-}
-
-void SetLightUniforms(uint32* UBOs, light Light, v3 CameraPosition) {
-	light_uniforms LightUniforms = {};
-	LightUniforms.ambient = Light.Ambient;
-	LightUniforms.color = V3(Light.Color.R, Light.Color.G, Light.Color.B);
-	LightUniforms.diffuse = Light.Diffuse;
-	LightUniforms.direction = Light.Direction;
-	LightUniforms.cameraPosition = CameraPosition;
-	SetUBO(LightUniforms, 1);
-}
-
-void SetColorUniform(uint32* UBOs, color Color) {
-	SetUBO(Color, 2);
-}
-
-void SetModelUniforms(uint32* UBOs, matrix4 Model) {
-	model_uniforms Matrices = {};
-	Matrices.model = Model;
-	Matrices.normal = Matrix4(inverse(Matrix3(Model)));
-	SetUBO(Matrices, 3);
-}
-
-void ClearModelUniforms(uint32* UBOs) {
-	model_uniforms Matrices = {};
-	Matrices.model = Identity4;
-	Matrices.normal = Identity4;
-	SetUBO(Matrices, 3);
-}
-
-void SetBoneUniforms(uint32* UBOs, armature* Armature) {
-	bone_uniforms BoneUniforms = {};
-	BoneUniforms.n_bones = Armature->nBones;
-	int Offset1 = offsetof(bone_uniforms, bone_transforms);
-	int Offset2 = offsetof(bone_uniforms, bone_normal_transforms);
-	int Offset3 = offsetof(bone_uniforms, n_bones);
-	for (int i = 0; i < Armature->nBones; i++) {
-		matrix4 BoneMatrix = Matrix(Armature->Bones[i].Transform);
-		BoneUniforms.bone_transforms[i] = BoneMatrix;
-		BoneUniforms.bone_normal_transforms[i] = Matrix4(inverse(Matrix3(BoneMatrix)));
-	}
-	SetUBO(BoneUniforms, 4);
-}
-
-void ClearBoneUniforms(uint32* UBOs) {
-	int nBones = 0;
-	glBindBuffer(GL_UNIFORM_BUFFER, UBOs[4]);
-	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(matrix4) * 2 * MAX_ARMATURE_BONES, sizeof(int), &nBones);
-	glBindBufferBase(GL_UNIFORM_BUFFER, 4, UBOs[4]);
-}
-
-void SetOutlineUniforms(uint32* UBOs, float Width, int Level) {
-	outline_uniforms OutlineUniforms;
-	OutlineUniforms.width = Width;
-	OutlineUniforms.level = Level;
-	SetUBO(OutlineUniforms, 5);
-}
-
-void SetKernelUniforms(uint32* UBOs, matrix3 Kernel) {
-	kernel_uniforms KernelUniforms;
-	KernelUniforms.XX = Kernel.XX;
-	KernelUniforms.XY = Kernel.XY;
-	KernelUniforms.XZ = Kernel.XZ;
-	KernelUniforms.YX = Kernel.YX;
-	KernelUniforms.YY = Kernel.YY;
-	KernelUniforms.YZ = Kernel.YZ;
-	KernelUniforms.ZX = Kernel.ZX;
-	KernelUniforms.ZY = Kernel.ZY;
-	KernelUniforms.ZZ = Kernel.ZZ;
-	SetUBO(KernelUniforms, 6);
-}
-
-void SetAntialiasingUniforms(uint32* UBOs, int Samples) {
-	SetUBO(Samples, 7);
-}
-
-void SetTextUniforms(uint32* UBOs, float Size, v2 Pen) {
-	text_uniforms TextUniforms = {};
-	TextUniforms.Pen = Pen;
-	TextUniforms.Size = Size;
-	SetUBO(TextUniforms, 8);
-}
-
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Initialization                                                                                                                                                   |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -708,7 +627,7 @@ struct openGL {
 	uint32 VBOs[vertex_layout_id_count];
 	uint32 EBO;
 	uint32 nSamplers;
-	uint32 UBOs[SHADER_UNIFORM_BLOCKS];
+	openGL_shader_uniform_block UBOs[SHADER_UNIFORM_BLOCKS];
 	int MaxPatchParameter;
 	float DPI;
 	bool Initialized;
@@ -734,96 +653,103 @@ void LoadShader(openGL_shader_id Index, const char* Path) {
 
     Shader->File = Platform.ReadEntireFile(Path);
 
-	// Get attributes and uniforms
+	// Get vertex attributes and uniforms
 	tokenizer Tokenizer = InitTokenizer(Shader->File.Content);
     token Token = GetToken(Tokenizer);
-    uint32 nAttributes = 0;
-    vertex_attribute Attributes[MAX_VERTEX_ATTRIBUTES] = {};
+    Shader->VertexLayout = {};
     while (Token.Type != Token_End) {
-        // Attributes
-        if (Shader->Type == Vertex_Shader && Token == "layout") {
-            vertex_attribute Attribute = {};
+		if (Token == "layout") {
+			RequireToken(Tokenizer, Token_OpenParen);
+			Token = GetToken(Tokenizer);
+			
+			// Attributes
+			if (Shader->Type == Vertex_Shader && Token == "location") {
+				RequireToken(Tokenizer, Token_Equal);
 
-            Token = RequireToken(Tokenizer, Token_OpenParen);
-            Token = RequireToken(Tokenizer, "location");
-            Token = RequireToken(Tokenizer, Token_Equal);
-            Attribute.Location = Parseuint32(Tokenizer);
+				vertex_attribute Attribute = {};
+				Attribute.Location = Parseuint32(Tokenizer);
+				Assert(Attribute.Location >= 0 && Attribute.Location < MAX_VERTEX_ATTRIBUTES);
+				RequireToken(Tokenizer, Token_CloseParen);
+				Token = RequireToken(Tokenizer, Token_Identifier);
 
-            Token = RequireToken(Tokenizer, Token_CloseParen);
-            Token = RequireToken(Tokenizer, Token_Identifier);
-            // We only need input vertex attributes
-            if (Token == "in") {
-                Token = GetToken(Tokenizer);
-                Attribute.Type = GetShaderType(Token);
-                Attribute.Size = GetShaderTypeSize(Attribute.Type);
-                Attributes[nAttributes++] = Attribute;
-            }
-        }
+				// We only need input vertex attributes
+				if (Token == "in") {
+					Token = GetToken(Tokenizer);
+					Attribute.Type = GetVertexType(Token);
+					Attribute.Size = GetVertexTypeSize(Attribute.Type);
+					Shader->VertexLayout.Attributes[Attribute.Location] = Attribute;
+					if (Attribute.Location + 1 > Shader->VertexLayout.nAttributes)
+						Shader->VertexLayout.nAttributes = Attribute.Location + 1;
+				}
+			}
 
-        // Uniforms
-        if (Token == "VULKAN") {
-            Token = GetToken(Tokenizer);
+			// Uniforms
+			else if (Token == "std140") {
+				RequireToken(Tokenizer, Token_Comma);
+				Token = GetToken(Tokenizer);
+				if (Token == "binding") {
+					RequireToken(Tokenizer, Token_Equal);
 
-            if (Token == "layout") {
-                shader_uniform_block UBO = {};
-                shader_uniform_sampler Sampler = {};
+					uint32 Binding = Parseuint32(Tokenizer);
 
-                Token = RequireToken(Tokenizer, Token_OpenParen);
-                Token = RequireToken(Tokenizer, Token_Identifier);
-                while (Token.Type != Token_CloseParen && Token.Type != Token_End) {
-                    if (Token == "set") {
-                        Token = RequireToken(Tokenizer, Token_Equal);
-                        UBO.Set = Parseuint32(Tokenizer);
-                        Sampler.Set = UBO.Set;
-                    }
-                    else if (Token == "binding") {
-                        Token = RequireToken(Tokenizer, Token_Equal);
-                        UBO.Binding = Parseuint32(Tokenizer);
-                        Sampler.Binding = UBO.Binding;
-                    }
-                    Token = GetToken(Tokenizer);
-                }
+					RequireToken(Tokenizer, Token_CloseParen);
+					RequireToken(Tokenizer, "uniform");
 
-                if (Token.Type == Token_End) {
-                    break;
-                }
+					Token = GetToken(Tokenizer);
 
-                Token = RequireToken(Tokenizer, Token_Identifier);
-                if (Token == "uniform") {
-                    Token = GetToken(Tokenizer);
-                    if (Token == "sampler2D" || Token == "sampler2DMS") {
-                        Assert(Sampler.Set == 2);
-                        Shader->Sampler[Shader->nSamplers++] = Sampler;
-                    }
-                    else {
-                        AdvanceUntil(Tokenizer, '{');
-                        Token = RequireToken(Tokenizer, Token_OpenBrace);
+					if (Token == "sampler2D" || Token == "sampler2DMS") {
+						Shader->Samplers[Shader->nSamplers++] = Binding;
+					}
+					else {
+						openGL_shader_uniform_block UBO = {};
+						UBO.Binding = Binding;
+						AdvanceUntil(Tokenizer, '{');
+                        RequireToken(Tokenizer, Token_OpenBrace);
                         Token = GetToken(Tokenizer);
                         while (Token.Type != Token_CloseBrace && Token.Type != Token_End) {
-                            shader_type Type = GetShaderType(Token);
+                            vertex_type Type = GetVertexType(Token);
                             AdvanceUntil(Tokenizer, ';');
-                            Token = GetToken(Tokenizer);
+                            RequireToken(Tokenizer, Token_Semicolon);
                             Token = GetToken(Tokenizer);
                             UBO.Member[UBO.nMembers++] = Type;
                         }
                         Shader->UBO[Shader->nUBOs++] = UBO;
-                    }
-                }
-            }
-        }
+					}
+				}
+			}
+		}
+
         Token = GetToken(Tokenizer);
     }
-    
-    Shader->VertexLayout = {};
-    for (int i = 0; i < nAttributes; i++) {
-        for (int j = 0; j < nAttributes; j++) {
-            vertex_attribute Attribute = Attributes[j];
-            if (Attribute.Location == i) {
-                AddAttribute(&Shader->VertexLayout, Attribute.Type);
-                break;
-            }
-        }
-    }
+
+	// Find compatible vertex layout from assets definition
+	if (Shader->Type == Vertex_Shader) {
+		bool Found = false;
+		for (int i = 0; i < vertex_layout_id_count; i++) {
+			vertex_layout VertexLayout = OpenGL.VertexLayouts[i];
+			if (VertexLayout.nAttributes == Shader->VertexLayout.nAttributes) {
+				bool Compatible = true;
+				for (int j = 0; j < VertexLayout.nAttributes; j++) {
+					vertex_attribute Attribute = VertexLayout.Attributes[j];
+					vertex_attribute ShaderAttribute = Shader->VertexLayout.Attributes[j];
+
+					if (ShaderAttribute.Type != vertex_type_empty && ShaderAttribute.Type != Attribute.Type) {
+						Compatible = false;
+						break;
+					}
+				}
+
+				if (Compatible) {
+					Shader->VertexLayout = VertexLayout;
+					Found = true;
+				}
+			}
+
+			if (Found) break;
+		}
+
+		if (!Found) Raise("OpenGL: No compatible vertex layout was found.");
+	}
 
 	GLenum TypeEnum = GetShaderType(Shader->Type);
 	Shader->ID = OpenGLCompileShader(TypeEnum, (char*)Shader->File.Content, Shader->File.ContentSize);
@@ -881,7 +807,6 @@ void OpenGLLinkProgram(openGL_shader_pipeline* Pipeline) {
 
 void LoadPipeline(openGL_shader_pipeline_id Index, int nShaders, ...) {
     Assert(nShaders <= openGL_shader_type_count);
-	bool UBOLoaded[SHADER_SETS][MAX_SHADER_SET_BINDINGS] = {};
 
     openGL_shader_pipeline* Pipeline = &OpenGL.Pipeline[Index];
 	*Pipeline = {};
@@ -920,29 +845,29 @@ void LoadPipeline(openGL_shader_pipeline_id Index, int nShaders, ...) {
     }
 
 	// Uniform layout
-	// for (int j = 0; j < openGL_shader_type_count; j++) {
-	// 	if (Pipeline->Shader[j] != No_Shader_ID) {
-	// 		openGL_shader* Shader = &OpenGL.Shader[Pipeline->Shader[j]];
-	// 		if (OpenGL.nSamplers < Shader->nSamplers) OpenGL.nSamplers = Shader->nSamplers;
-	// 		for (int k = 0; k < Shader->nUBOs; k++) {
-	// 			shader_uniform_block UBO = Shader->UBO[k];
-	// 			Pipeline->Bindings[UBO.Set][UBO.Binding] = true;
-	// 			shader_uniform_block* LoadUBO = &Assets->UBOs[UBO.Set][UBO.Binding];
-	// 			if (UBOLoaded[UBO.Set][UBO.Binding]) {
-	// 				if (UBO != *LoadUBO) {
-	// 					Raise("Inconsistent UBO definition.");
-	// 				}
-	// 			}
-	// 			else {
-	// 				*LoadUBO = UBO;
-	// 				UBOLoaded[UBO.Set][UBO.Binding] = true;
-	// 				Assets->nBindings[UBO.Set]++;
-	// 			}
-	// 		}
+	bool UBOLoaded[SHADER_UNIFORM_BLOCKS] = {};
+	for (int i = 0; i < openGL_shader_type_count; i++) {
+		if (Pipeline->Shader[i] != No_Shader_ID) {
+			openGL_shader* Shader = &OpenGL.Shader[Pipeline->Shader[i]];
+			if (OpenGL.nSamplers < Shader->nSamplers) OpenGL.nSamplers = Shader->nSamplers;
+			for (int j = 0; j < Shader->nUBOs; j++) {
+				openGL_shader_uniform_block UBO = Shader->UBO[j];
+				Pipeline->UsesUBO[UBO.Binding] = true;
+				openGL_shader_uniform_block* LoadUBO = &OpenGL.UBOs[UBO.Binding];
+				if (UBOLoaded[UBO.Binding]) {
+					if (UBO != *LoadUBO) {
+						Raise("Inconsistent UBO definition.");
+					}
+				}
+				else {
+					*LoadUBO = UBO;
+					UBOLoaded[UBO.Binding] = true;
+				}
+			}
 
-	// 		if (Shader->nSamplers > OpenGL.nSamplers) OpenGL.nSamplers = Shader->nSamplers;
-	// 	}
-	// }
+			if (Shader->nSamplers > OpenGL.nSamplers) OpenGL.nSamplers = Shader->nSamplers;
+		}
+	}
 
 	OpenGLLinkProgram(Pipeline);
 }
@@ -1051,6 +976,107 @@ void ReloadShaders() {
 			}
 		}
 	}
+}
+
+// Shader uniforms setting
+#define SetUBO(UniformContent, Binding) glNamedBufferSubData(OpenGL.UBOs[Binding].ID, 0, sizeof(UniformContent), &UniformContent)
+
+void SetGlobalUniforms(game_input* Input, float Width, float Height, camera* Camera, float Time) {
+	global_uniforms GlobalUniforms = {};
+	GlobalUniforms.projection = GetWorldProjectionMatrix(Width, Height);
+	if (Camera) {
+		GlobalUniforms.view = GetViewMatrix(Camera);
+	}
+	else {
+		GlobalUniforms.view = Identity4;
+	}
+	GlobalUniforms.resolution = V2(Width, Height);
+	GlobalUniforms.time = Time;
+	GlobalUniforms.mouse = V2(Input->Mouse.Cursor.X, Height - Input->Mouse.Cursor.Y);
+	GlobalUniforms.lastmouse = V2(Input->Mouse.LastCursor.X, Height - Input->Mouse.LastCursor.Y);
+	SetUBO(GlobalUniforms, 0);
+}
+
+void SetLightUniforms(light Light, v3 CameraPosition) {
+	light_uniforms LightUniforms = {};
+	LightUniforms.ambient = Light.Ambient;
+	LightUniforms.color = V3(Light.Color.R, Light.Color.G, Light.Color.B);
+	LightUniforms.diffuse = Light.Diffuse;
+	LightUniforms.direction = Light.Direction;
+	LightUniforms.cameraPosition = CameraPosition;
+	SetUBO(LightUniforms, 1);
+}
+
+void SetColorUniform(color Color) {
+	SetUBO(Color, 2);
+}
+
+void SetModelUniforms(matrix4 Model) {
+	model_uniforms Matrices = {};
+	Matrices.model = Model;
+	Matrices.normal = Matrix4(inverse(Matrix3(Model)));
+	SetUBO(Matrices, 3);
+}
+
+void ClearModelUniforms() {
+	model_uniforms Matrices = {};
+	Matrices.model = Identity4;
+	Matrices.normal = Identity4;
+	SetUBO(Matrices, 3);
+}
+
+void SetBoneUniforms(armature* Armature) {
+	bone_uniforms BoneUniforms = {};
+	BoneUniforms.n_bones = Armature->nBones;
+	int Offset1 = offsetof(bone_uniforms, bone_transforms);
+	int Offset2 = offsetof(bone_uniforms, bone_normal_transforms);
+	int Offset3 = offsetof(bone_uniforms, n_bones);
+	for (int i = 0; i < Armature->nBones; i++) {
+		matrix4 BoneMatrix = Matrix(Armature->Bones[i].Transform);
+		BoneUniforms.bone_transforms[i] = BoneMatrix;
+		BoneUniforms.bone_normal_transforms[i] = Matrix4(inverse(Matrix3(BoneMatrix)));
+	}
+	SetUBO(BoneUniforms, 4);
+}
+
+void ClearBoneUniforms() {
+	uint32 UBO = OpenGL.UBOs[4].ID;
+	int nBones = 0;
+	glBindBuffer(GL_UNIFORM_BUFFER, UBO);
+	glBufferSubData(GL_UNIFORM_BUFFER, sizeof(matrix4) * 2 * MAX_ARMATURE_BONES, sizeof(int), &nBones);
+	glBindBufferBase(GL_UNIFORM_BUFFER, 4, UBO);
+}
+
+void SetOutlineUniforms(float Width, int Level) {
+	outline_uniforms OutlineUniforms;
+	OutlineUniforms.width = Width;
+	OutlineUniforms.level = Level;
+	SetUBO(OutlineUniforms, 5);
+}
+
+void SetKernelUniforms(matrix3 Kernel) {
+	kernel_uniforms KernelUniforms;
+	KernelUniforms.XX = Kernel.XX;
+	KernelUniforms.XY = Kernel.XY;
+	KernelUniforms.XZ = Kernel.XZ;
+	KernelUniforms.YX = Kernel.YX;
+	KernelUniforms.YY = Kernel.YY;
+	KernelUniforms.YZ = Kernel.YZ;
+	KernelUniforms.ZX = Kernel.ZX;
+	KernelUniforms.ZY = Kernel.ZY;
+	KernelUniforms.ZZ = Kernel.ZZ;
+	SetUBO(KernelUniforms, 6);
+}
+
+void SetAntialiasingUniforms(int Samples) {
+	SetUBO(Samples, 7);
+}
+
+void SetTextUniforms(float Size, v2 Pen) {
+	text_uniforms TextUniforms = {};
+	TextUniforms.Pen = Pen;
+	TextUniforms.Size = Size;
+	SetUBO(TextUniforms, 8);
 }
 
 void GLAPIENTRY OpenGLDebugMessageCallback(
@@ -1271,7 +1297,6 @@ RENDERER_INITIALIZE {
 		glCreateVertexArrays(vertex_layout_id_count, OpenGL.VAOs);
 		glCreateBuffers(
 			vertex_layout_id_count + // One VBO per vertex layout
-			SHADER_UNIFORM_BLOCKS +  // One UBO per uniform type
 			1,                       // 1 EBO for transient entries
 			OpenGL.VBOs
 		);
@@ -1441,9 +1466,10 @@ RENDERER_INITIALIZE {
 			sizeof(text_uniforms)
 		};
 		for (int i = 0; i < SHADER_UNIFORM_BLOCKS; i++) {
-			uint32 UBO = OpenGL.UBOs[i];
-			glNamedBufferStorage(UBO, UBOSizes[i], NULL, GL_DYNAMIC_STORAGE_BIT);
-			glBindBufferBase(GL_UNIFORM_BUFFER, i, UBO);
+			openGL_shader_uniform_block* UBO = &OpenGL.UBOs[i];
+			glCreateBuffers(1, &UBO->ID);
+			glNamedBufferStorage(UBO->ID, UBOSizes[i], NULL, GL_DYNAMIC_STORAGE_BIT);
+			glBindBufferBase(GL_UNIFORM_BUFFER, i, UBO->ID);
 		}
 	}
 }
@@ -1520,9 +1546,9 @@ RENDERER_RENDER {
 	int32 Height = Group->Height;
 
 // Global uniforms
-	SetGlobalUniforms(OpenGL.UBOs, Input, Width, Height, Camera, Time);
-	SetLightUniforms(OpenGL.UBOs, Group->Light, Camera->Position + Camera->Distance * Camera->Basis.Z);
-	SetModelUniforms(OpenGL.UBOs, Identity4);
+	SetGlobalUniforms(Input, Width, Height, Camera, Time);
+	SetLightUniforms(Group->Light, Camera->Position + Camera->Distance * Camera->Basis.Z);
+	SetModelUniforms(Identity4);
 
 	float CurrentLineWidth = 2.0f;
 	glLineWidth(CurrentLineWidth);
@@ -1556,7 +1582,7 @@ RENDERER_RENDER {
 				glUseProgram(ProgramID);
 
 				// Uniforms
-				SetColorUniform(OpenGL.UBOs, DrawCommand.Color);
+				SetColorUniform(DrawCommand.Color);
 				if (Options.Texture != NULL) BindTexture(ProgramID, Options.Texture, 0);
 				if (Options.Thickness != CurrentLineWidth) {
 					CurrentLineWidth = Options.Thickness;
@@ -1565,13 +1591,13 @@ RENDERER_RENDER {
 
 				if (Options.Mesh != NULL) {
 					matrix4 Model = Matrix(Options.Transform);
-					SetModelUniforms(OpenGL.UBOs, Model);
+					SetModelUniforms(Model);
 
-					if (Options.Armature != NULL) SetBoneUniforms(OpenGL.UBOs, Options.Armature);
+					if (Options.Armature != NULL) SetBoneUniforms(Options.Armature);
 				}
 
 				if (Options.Font != NULL) {
-					SetTextUniforms(OpenGL.UBOs, Options.TextSize, Options.Pen);
+					SetTextUniforms(Options.TextSize, Options.Pen);
 				}
 
 				// Depth testing and alpha blending
@@ -1623,7 +1649,7 @@ RENDERER_RENDER {
 
 				if (Options.Mesh != NULL) {
 					if (Group->Debug && Group->DebugNormals) {
-						SetColorUniform(OpenGL.UBOs, Yellow);
+						SetColorUniform(Yellow);
 
 						glUseProgram(OpenGL.Pipeline[Shader_Pipeline_Debug_Normals_ID].ID);
 						glLineWidth(1.0f);
@@ -1633,13 +1659,13 @@ RENDERER_RENDER {
 
 					if (Options.Outline) {
 						glUseProgram(OpenGL.Pipeline[Shader_Pipeline_Bones_Single_Color_ID].ID);
-						SetColorUniform(OpenGL.UBOs, White);
+						SetColorUniform(White);
 						BindTarget(Target_Outline);
 						glDrawElements(GL_TRIANGLES, ElementEntry.Count, GL_UNSIGNED_INT, 0);
 					}
 
-					ClearBoneUniforms(OpenGL.UBOs);
-					ClearModelUniforms(OpenGL.UBOs);
+					ClearBoneUniforms();
+					ClearModelUniforms();
 				}
 			} break;
 
@@ -1651,8 +1677,8 @@ RENDERER_RENDER {
 				if (ShaderCommand.Type == shader_pass_outline) {
 					openGL_framebuffer PingPongTarget = OpenGL.Targets[Target_PingPong];
 
-					SetColorUniform(OpenGL.UBOs, ShaderCommand.Color);
-					SetOutlineUniforms(OpenGL.UBOs, ShaderCommand.Width, ShaderCommand.Level);
+					SetColorUniform(ShaderCommand.Color);
+					SetOutlineUniforms(ShaderCommand.Width, ShaderCommand.Level);
 
 					uint32 ProgramID = OpenGL.Pipeline[Shader_Pipeline_Outline_ID].ID;
 					glUseProgram(ProgramID);
@@ -1696,7 +1722,7 @@ RENDERER_RENDER {
 					switch (ShaderCommand.Type) {
 						case shader_pass_kernel: {
 							ProgramID = OpenGL.ComputeShader[Compute_Shader_Kernel_ID].ProgramID;
-							SetKernelUniforms(OpenGL.UBOs, ShaderCommand.Kernel);
+							SetKernelUniforms(ShaderCommand.Kernel);
 						} break;
 						case shader_pass_outline_init: {
 							ProgramID = OpenGL.ComputeShader[Compute_Shader_Outline_Init_ID].ProgramID;
@@ -1752,7 +1778,7 @@ RENDERER_RENDER {
 				}
 				else glDisable(GL_DEPTH_TEST);
 				
-				if (Source.Multisampling) SetAntialiasingUniforms(OpenGL.UBOs, Source.Samples);
+				if (Source.Multisampling) SetAntialiasingUniforms(Source.Samples);
 				if (Source.Label == Target_Output) glDepthFunc(GL_ALWAYS);
 
 				glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);

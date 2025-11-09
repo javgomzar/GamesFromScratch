@@ -415,6 +415,7 @@ token RequireToken(tokenizer& Tokenizer, token_type Type) {
 }
 
 // Parsing
+
 unsigned int Parseuint32(tokenizer& Tokenizer) {
     token Token = RequireToken(Tokenizer, Token_Constant_Integer);
     char* End;

@@ -8,85 +8,60 @@
 // | Vertex layouts                                                                                                                               |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-ENUM(shader_type,
-    shader_type_float,
-    shader_type_vec2,
-    shader_type_vec3,
-    shader_type_vec4,
-    shader_type_int,
-    shader_type_ivec2,
-    shader_type_ivec3,
-    shader_type_ivec4,
-    shader_type_mat2,
-    shader_type_mat3,
-    shader_type_mat4
+ENUM(vertex_type,
+    vertex_type_empty,
+    vertex_type_float,
+    vertex_type_vec2,
+    vertex_type_vec3,
+    vertex_type_vec4,
+    vertex_type_int,
+    vertex_type_ivec2,
+    vertex_type_ivec3,
+    vertex_type_ivec4,
+    vertex_type_mat2,
+    vertex_type_mat3,
+    vertex_type_mat4
 );
 
-const char* ShaderTypeTokens[shader_type_count] = {
-    "float",
-    "vec2",
-    "vec3",
-    "vec4",
-    "int",
-    "ivec2",
-    "ivec3",
-    "ivec4",
-    "mat2",
-    "mat3",
-    "mat4"
-};
-
-shader_type GetShaderType(token Token) {
-    for (int i = 0; i < shader_type_count; i++) {
-        if (Token == ShaderTypeTokens[i]) {
-            return (shader_type)i;
-        }
-    }
-    char ErrorBuffer[256];
-    sprintf_s(ErrorBuffer, "Invalid shader attribute type token `%s`.", Token.Text);
-    Raise(ErrorBuffer);
-    return shader_type_count;
-}
-
-uint32 GetShaderTypeSizeInBytes(shader_type Type) {
+uint32 GetVertexTypeSizeInBytes(vertex_type Type) {
     switch (Type) {
-        case shader_type_float: { return 4; } break;
-        case shader_type_vec2:  { return 8; } break;
-        case shader_type_vec3:  { return 12; } break;
-        case shader_type_vec4:  { return 16; } break;
-        case shader_type_int:   { return 4; } break;
-        case shader_type_ivec2: { return 8; } break;
-        case shader_type_ivec3: { return 12; } break;
-        case shader_type_ivec4: { return 16; } break;
-        case shader_type_mat2:  { return 16; } break;
-        case shader_type_mat3:  { return 36; } break;
-        case shader_type_mat4:  { return 64; } break;
-        default: Raise("Invalid vertex attribute type `shader_type_count`.");
+        case vertex_type_float: { return 4; } break;
+        case vertex_type_vec2:  { return 8; } break;
+        case vertex_type_vec3:  { return 12; } break;
+        case vertex_type_vec4:  { return 16; } break;
+        case vertex_type_int:   { return 4; } break;
+        case vertex_type_ivec2: { return 8; } break;
+        case vertex_type_ivec3: { return 12; } break;
+        case vertex_type_ivec4: { return 16; } break;
+        case vertex_type_mat2:  { return 16; } break;
+        case vertex_type_mat3:  { return 36; } break;
+        case vertex_type_mat4:  { return 64; } break;
+        default: Raise("Invalid vertex attribute type.");
     }
     return 0;
 }
 
 // Returns number of elements for a given shader type. For example, output is 3 for type `vec3`.
-int GetShaderTypeSize(shader_type Type) {
+int GetVertexTypeSize(vertex_type Type) {
     switch (Type) {
-        case shader_type_float: { return 1; } break;
-        case shader_type_vec2:  { return 2; } break;
-        case shader_type_vec3:  { return 3; } break;
-        case shader_type_vec4:  { return 4; } break;
-        case shader_type_int:   { return 1; } break;
-        case shader_type_ivec2: { return 2; } break;
-        case shader_type_ivec3: { return 3; } break;
-        case shader_type_ivec4: { return 4; } break;
-        case shader_type_mat2:  { return 4; } break;
-        case shader_type_mat3:  { return 9; } break;
-        case shader_type_mat4:  { return 16; } break;
-        default: Raise("Invalid vertex attribute type `shader_type_count`.");
+        case vertex_type_float: { return 1; } break;
+        case vertex_type_vec2:  { return 2; } break;
+        case vertex_type_vec3:  { return 3; } break;
+        case vertex_type_vec4:  { return 4; } break;
+        case vertex_type_int:   { return 1; } break;
+        case vertex_type_ivec2: { return 2; } break;
+        case vertex_type_ivec3: { return 3; } break;
+        case vertex_type_ivec4: { return 4; } break;
+        case vertex_type_mat2:  { return 4; } break;
+        case vertex_type_mat3:  { return 9; } break;
+        case vertex_type_mat4:  { return 16; } break;
+        default: Raise("Invalid vertex attribute type.");
     }
     return 0;
 }
 
 struct vertex_attribute {
-    shader_type Type;
+    vertex_type Type;
     uint32 Location;
     uint32 Size;
     uint32 Offset;
@@ -119,11 +94,11 @@ struct vertex_layout {
     uint8 nAttributes;
 };
 
-void AddAttribute(vertex_layout* VertexLayout, shader_type Type) {
+void AddAttribute(vertex_layout* VertexLayout, vertex_type Type) {
     vertex_attribute* Attribute = &VertexLayout->Attributes[VertexLayout->nAttributes];
     Attribute->Location = VertexLayout->nAttributes++;
     Attribute->Type = Type;
-    Attribute->Size = GetShaderTypeSizeInBytes(Type);
+    Attribute->Size = GetVertexTypeSizeInBytes(Type);
     Attribute->Offset = VertexLayout->Stride;
     VertexLayout->Stride += Attribute->Size;
 }
@@ -137,7 +112,7 @@ vertex_layout VertexLayout(uint8 nAttributes, ...) {
     va_start(Types, nAttributes);
 
     for (int i = 0; i < nAttributes; i++) {
-        shader_type Type = va_arg(Types, shader_type);
+        vertex_type Type = va_arg(Types, vertex_type);
         AddAttribute(&Result, Type);
     }
     return Result;
