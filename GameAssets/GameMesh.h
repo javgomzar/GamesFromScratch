@@ -224,6 +224,7 @@ game_mesh LoadMesh(memory_arena* Arena, preprocessed_mesh* Preprocessed) {
         bool HasArmature = Result.Armature.nBones > 0;
         uint32 VerticesSize = GetMeshVerticesSize(Preprocessed->nVertices, HasArmature);
         Result.Vertices = PushSize(Arena, VerticesSize);
+        Result.VertexLayoutID = HasArmature ? vertex_layout_bones_id : vertex_layout_vec3_vec2_vec3_id;
         if (Preprocessed->nEdges > 0) {
             Result.Edges = PushArray(Arena, 2 * Preprocessed->nEdges, uint32);
         }

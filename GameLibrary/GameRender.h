@@ -25,7 +25,7 @@ struct element_buffer_entry {
 };
 
 struct vertex_buffer {
-    vertex_layout Layouts[vertex_layout_id_count];
+    vertex_layout* VertexLayouts;
     memory_arena Vertices[vertex_layout_id_count];
     memory_arena Elements;
     uint32 VertexCount[vertex_layout_id_count];
@@ -35,14 +35,16 @@ struct vertex_buffer {
 /* Initializes several vertex buffers and element buffers. Returns total memory used.*/
 inline memory_index InitializeVertexBuffer(
     memory_arena* Arena,
-    vertex_buffer* Buffer
+    vertex_buffer* Buffer,
+    vertex_layout* VertexLayouts
 ) {
     memory_index TotalSize = 0;
     memory_index Size = 0;
 
+    Buffer->VertexLayouts = VertexLayouts;
+
     // Vertex buffers (one per layout)
     for (int i = 0; i < vertex_layout_id_count; i++) {
-        Buffer->Layouts[i].ID = (vertex_layout_id)i;
         Buffer->VertexCount[i] = 0;
         Size = VERTEX_BUFFER_SIZE;
         Buffer->Vertices[i] = SuballocateMemoryArena(Arena, Size);
@@ -67,7 +69,7 @@ vertex_buffer_entry PushVertexEntry(vertex_buffer* VertexBuffer, uint64 VertexCo
     Entry.LayoutID = VertexLayoutID;
     Entry.Offset = VertexBuffer->VertexCount[VertexLayoutID];
     
-    memory_index Size = VertexCount * VertexBuffer->Layouts[VertexLayoutID].Stride;
+    memory_index Size = VertexCount * VertexBuffer->VertexLayouts[VertexLayoutID].Stride;
     void* Destination = PushSize(Arena, Size);
     Entry.Pointer = Destination;
 
@@ -131,8 +133,14 @@ ENUM(render_primitive,
 );
 
 FLAGS(render_flags,
-    DEPTH_TEST_RENDER_FLAG,
-    STENCIL_TEST_RENDER_FLAG
+    DEPTH_TEST_FLAG,
+    STENCIL_TEST_FLAG,
+
+    TEXT_OUTLINE_FLAG,
+    TEXT_INTERIOR_FLAG,
+    TEXT_EXTERIOR_FLAG,
+
+    HEIGHTMAP_FLAG
 );
 
 struct render_primitive_options {
@@ -158,20 +166,26 @@ struct render_primitive_command {
     element_buffer_entry ElementEntry = {0};
 };
 
-enum render_group_target {
+ENUM(render_group_target,
     Target_None,
     Target_World,
     Target_Outline,
     Target_Postprocessing_Outline,
     Target_PingPong,
     Target_Fluid,
-    Target_Output,
+    Target_Output
+);
 
-    render_group_target_count
-};
+ENUM(color_format,
+    Color_Format_R,
+    Color_Format_RG,
+    Color_Format_RGB,
+    Color_Format_RGBA
+);
 
 struct render_group_target_description {
     render_group_target Target;
+    color_format Format;
     bool Multisample;
     bool Depth;
     bool Stencil;
@@ -272,13 +286,14 @@ void InitializeRenderGroup(
     Group->Light = Light(V3(-0.5, -1, 1), White);
 
     // Vertex & element buffers
-    InitializeVertexBuffer(Arena, &Group->VertexBuffer);
+    InitializeVertexBuffer(Arena, &Group->VertexBuffer, Assets->VertexLayouts);
 
     // Render targets
     Group->RenderTargets[Target_None] = {};
 
     Group->RenderTargets[Target_World] = {
         .Target = Target_World,
+        .Format = Color_Format_RGBA,
         .Multisample = true,
         .Depth = true,
         .Stencil = false
@@ -286,6 +301,7 @@ void InitializeRenderGroup(
 
     Group->RenderTargets[Target_Outline] = {
         .Target = Target_Outline,
+        .Format = Color_Format_RGBA,
         .Multisample = true,
         .Depth = true,
         .Stencil = false
@@ -293,6 +309,7 @@ void InitializeRenderGroup(
 
     Group->RenderTargets[Target_Postprocessing_Outline] = {
         .Target = Target_Postprocessing_Outline,
+        .Format = Color_Format_RGBA,
         .Multisample = false,
         .Depth = false,
         .Stencil = false
@@ -300,6 +317,7 @@ void InitializeRenderGroup(
 
     Group->RenderTargets[Target_Output] = {
         .Target = Target_Output,
+        .Format = Color_Format_RGB,
         .Multisample = false,
         .Depth = true,
         .Stencil = false
@@ -307,6 +325,7 @@ void InitializeRenderGroup(
 
     Group->RenderTargets[Target_PingPong] = {
         .Target = Target_PingPong,
+        .Format = Color_Format_RGBA,
         .Multisample = false,
         .Depth = true,
         .Stencil = false
@@ -314,6 +333,7 @@ void InitializeRenderGroup(
 
     Group->RenderTargets[Target_Fluid] = {
         .Target = Target_Fluid,
+        .Format = Color_Format_RGB,
         .Multisample = false,
         .Depth = true,
         .Stencil = false
@@ -480,7 +500,8 @@ void PushPoint(render_group* Group, v3 Point, color Color, float Order = SORT_OR
         vertex_layout_vec3_id, 
         1,
         0,
-        Order
+        Order,
+        { .Flags = DEPTH_TEST_FLAG }
     )->Vertices;
     Vertices[0] = Point.X;
     Vertices[1] = Point.Y;
@@ -528,7 +549,7 @@ void PushLine(
         0,
         Order,
         { 
-            .Flags = DEPTH_TEST_RENDER_FLAG,
+            .Flags = DEPTH_TEST_FLAG,
             .Thickness = Thickness
         }
     )->Vertices;
@@ -560,7 +581,7 @@ void PushTriangle(
     float Order = SORT_ORDER_MESHES
 ) {
     render_primitive_options Options = {};
-    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    Options.Flags = DEPTH_TEST_FLAG;
     float* Vertices = PushPrimitiveCommand(
         Group, 
         render_primitive_triangle,
@@ -569,7 +590,7 @@ void PushTriangle(
         3,
         0,
         Order,
-        { .Flags = DEPTH_TEST_RENDER_FLAG }
+        { .Flags = DEPTH_TEST_FLAG }
     )->Vertices;
     Vertices[0] = Triangle.Points[0].X;
     Vertices[1] = Triangle.Points[0].Y;
@@ -662,7 +683,7 @@ void PushCircle(
         N+2,
         0,
         Order,
-        { .Flags = DEPTH_TEST_RENDER_FLAG }
+        { .Flags = DEPTH_TEST_FLAG }
     )->VertexEntry.Pointer;
     
     v3* Vertices = (v3*)Data;
@@ -734,7 +755,7 @@ void PushCircunference(
         N,
         0,
         Order,
-        { .Flags = DEPTH_TEST_RENDER_FLAG }
+        { .Flags = DEPTH_TEST_FLAG }
     )->Vertices;
 
     v3* Vertices = (v3*)Data;
@@ -778,7 +799,7 @@ void PushArc(
         N,
         0,
         Order,
-        { .Flags = DEPTH_TEST_RENDER_FLAG }
+        { .Flags = DEPTH_TEST_FLAG }
     )->Vertices;
 
     v3* Vertices = (v3*)Data;
@@ -842,7 +863,10 @@ void PushRect(
         vertex_layout_vec3_id,
         4,
         6,
-        Order
+        Order,
+        {
+            .Flags = DEPTH_TEST_FLAG
+        }
     );
 
     WidthAxis = normalize(WidthAxis);
@@ -985,6 +1009,7 @@ void PushBitmap() {}
 
 struct render_text_options {
     color Color        = White;
+    bool Fill          = true;
     game_font_id Font  = Font_Menlo_Regular_ID;
     float Order        = SORT_ORDER_DEBUG_OVERLAY;
     bool Outline       = false;
@@ -1053,6 +1078,7 @@ void _PushText(
                 PrimitiveOptions.Thickness = Options.OutlineWidth;
 
                 if (pCharacter->nInteriorCurves > 0) {
+                    PrimitiveOptions.Flags = TEXT_INTERIOR_FLAG;
                     render_primitive_command* Command = PushPrimitiveCommand(
                         Group,
                         render_primitive_triangle,
@@ -1068,12 +1094,13 @@ void _PushText(
                 }
 
                 if (pCharacter->nExteriorCurves > 0) {
+                    PrimitiveOptions.Flags = TEXT_EXTERIOR_FLAG;
                     render_primitive_command* Command = PushPrimitiveCommand(
                         Group,
                         render_primitive_triangle,
                         Color,
                         vertex_layout_vec2_vec2_id,
-                        0,
+                        TEXT_EXTERIOR_FLAG,
                         3 * pCharacter->nExteriorCurves,
                         SORT_ORDER_DEBUG_OVERLAY,
                         PrimitiveOptions
@@ -1082,6 +1109,7 @@ void _PushText(
                     Command->ElementEntry.Offset = pCharacter->ExteriorCurvesOffset;
                 }
 
+                PrimitiveOptions.Flags = (render_flags)0;
                 render_primitive_command* Command = PushPrimitiveCommand(
                     Group,
                     render_primitive_triangle,
@@ -1102,7 +1130,7 @@ void _PushText(
                         Options.OutlineColor,
                         vertex_layout_vec2_vec2_id,
                         3 * pCharacter->nOnCurve,
-                        0,
+                        TEXT_OUTLINE_FLAG,
                         SORT_ORDER_DEBUG_OVERLAY,
                         PrimitiveOptions
                     );
@@ -1197,7 +1225,7 @@ void PushCubeOutline(
         8,
         24,
         Order,
-        { .Flags = DEPTH_TEST_RENDER_FLAG }
+        { .Flags = DEPTH_TEST_FLAG }
     );
 
     v3* Vertices = (v3*)Result->Vertices;
@@ -1352,9 +1380,9 @@ void PushRenderTarget(
     TargetCommand.Source = Target;
     TargetCommand.DebugAttachment = false;
 
-    if (Target == Target_Outline) TargetCommand.Target = Target_Postprocessing_Outline;
-    else if (Target == Target_Output) TargetCommand.Target = Target_None;
-    else TargetCommand.Target = Target_Output;
+    if      (Target == Target_Outline) TargetCommand.Target = Target_Postprocessing_Outline;
+    else if (Target == Target_Output)  TargetCommand.Target = Target_None;
+    else                               TargetCommand.Target = Target_Output;
 
     TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
     float* Data = (float*)TargetCommand.VertexEntry.Pointer;
@@ -1452,7 +1480,32 @@ void PushOutlineShaderPass(
     float Width,
     float Order = SORT_ORDER_SHADER_PASSES
 ) {
+render_command Command;
+    Command.Type = render_shader_pass;
+    Command.Index = Group->nShaderPassCommands;
+    Command.Priority = Order;
 
+    PushCommand(Group, Command);
+
+    render_shader_pass_command ShaderCommand;
+    ShaderCommand.Type = shader_pass_outline;
+    ShaderCommand.Source = Target;
+    ShaderCommand.Target = Target;
+    ShaderCommand.Width = Width;
+    ShaderCommand.Level = 0;
+    ShaderCommand.Color = Color;
+
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
+
+    float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
+    Data[0] = -1.0f;  Data[1] = -1.0f;  Data[2] = 0.0f;  Data[3] = 0.0f;  Data[4] = 0.0f;
+    Data[5] = 1.0f;   Data[6] = -1.0f;  Data[7] = 0.0f;  Data[8] = 1.0f;  Data[9] = 0.0f;
+    Data[10] = 1.0;   Data[11] = 1.0f;  Data[12] = 0.0f; Data[13] = 1.0f; Data[14] = 1.0f;
+    Data[15] = -1.0f; Data[16] = -1.0f; Data[17] = 0.0f; Data[18] = 0.0f; Data[19] = 0.0f;
+    Data[20] = 1.0f;  Data[21] = 1.0f;  Data[22] = 0.0f; Data[23] = 1.0f; Data[24] = 1.0f;
+    Data[25] = -1.0f; Data[26] = 1.0f;  Data[27] = 0.0f; Data[28] = 0.0f; Data[29] = 1.0f;
+    
+    Group->ShaderPassCommands[Group->nShaderPassCommands++] = ShaderCommand;
 }
 
 void PushKernelShaderPass(
@@ -1508,7 +1561,7 @@ void PushMesh(
     Options.Mesh = Mesh;
     Options.Armature = Armature;
     Options.Texture = GetAsset(Group->Assets, TextureID);
-    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    Options.Flags = DEPTH_TEST_FLAG;
     Options.Outline = Outline;
     Options.Transform = Transform;
     
@@ -1603,11 +1656,6 @@ void PushHeightmap(
     game_heightmap* Heightmap,
     float Order = SORT_ORDER_MESHES
 ) {
-    render_primitive_options Options = {};
-    Options.Texture = &Heightmap->Bitmap;
-    Options.PatchParameter = 4;
-    Options.Flags = DEPTH_TEST_RENDER_FLAG;
-
     // TODO: Render heightmaps with elements
 
     float* Vertices = PushPrimitiveCommand(
@@ -1619,7 +1667,7 @@ void PushHeightmap(
         0,
         Order,
         {
-            .Flags = DEPTH_TEST_RENDER_FLAG,
+            .Flags = (render_flags)(DEPTH_TEST_FLAG | HEIGHTMAP_FLAG),
             .Texture = &Heightmap->Bitmap,
             .PatchParameter = 4,
         }
@@ -1770,7 +1818,7 @@ void PushDebugFustrum(
     double l, double r, double b, double t, double n, double f
 ) {
     render_primitive_options Options = {};
-    Options.Flags = DEPTH_TEST_RENDER_FLAG;
+    Options.Flags = DEPTH_TEST_FLAG;
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
         render_primitive_line,
@@ -1832,7 +1880,7 @@ void PushDebugGrid(render_group* Group, float Alpha) {
         0,
         SORT_ORDER_DEBUG_OVERLAY-2.0f,
         {
-            .Flags = DEPTH_TEST_RENDER_FLAG,
+            .Flags = DEPTH_TEST_FLAG,
             .Thickness = 1.0f
         }
     )->Vertices;
