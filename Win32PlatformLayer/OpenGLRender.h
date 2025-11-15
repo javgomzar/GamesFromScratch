@@ -733,31 +733,8 @@ void LoadShader(openGL_shader_id Index, const char* Path) {
 
 	// Find compatible vertex layout from assets definition
 	if (Shader->Type == Vertex_Shader) {
-		bool Found = false;
-		for (int i = 0; i < vertex_layout_id_count; i++) {
-			vertex_layout VertexLayout = OpenGL.VertexLayouts[i];
-			if (VertexLayout.nAttributes == Shader->VertexLayout.nAttributes) {
-				bool Compatible = true;
-				for (int j = 0; j < VertexLayout.nAttributes; j++) {
-					vertex_attribute Attribute = VertexLayout.Attributes[j];
-					vertex_attribute ShaderAttribute = Shader->VertexLayout.Attributes[j];
-
-					if (ShaderAttribute.Type != vertex_type_empty && ShaderAttribute.Type != Attribute.Type) {
-						Compatible = false;
-						break;
-					}
-				}
-
-				if (Compatible) {
-					Shader->VertexLayout = VertexLayout;
-					Found = true;
-				}
-			}
-
-			if (Found) break;
-		}
-
-		if (!Found) Raise("OpenGL: No compatible vertex layout was found.");
+		vertex_layout_id LayoutID = FindCompatibleVertexLayout(OpenGL.VertexLayouts, Shader->VertexLayout);
+		Shader->VertexLayout = OpenGL.VertexLayouts[LayoutID];
 	}
 
 	GLenum TypeEnum = GetShaderType(Shader->Type);

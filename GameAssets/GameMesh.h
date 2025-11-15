@@ -94,6 +94,30 @@ struct vertex_layout {
     uint8 nAttributes;
 };
 
+vertex_layout_id FindCompatibleVertexLayout(vertex_layout* VertexLayouts, vertex_layout VertexLayout) {
+    for (int i = 0; i < vertex_layout_id_count; i++) {
+        vertex_layout TestLayout = VertexLayouts[i];
+        if (TestLayout.nAttributes == VertexLayout.nAttributes) {
+            bool Compatible = true;
+            for (int j = 0; j < TestLayout.nAttributes; j++) {
+                vertex_attribute Attribute = TestLayout.Attributes[j];
+                vertex_attribute ShaderAttribute = VertexLayout.Attributes[j];
+
+                if (ShaderAttribute.Type != vertex_type_empty && ShaderAttribute.Type != Attribute.Type) {
+                    Compatible = false;
+                    break;
+                }
+            }
+
+            if (Compatible) {
+                return TestLayout.ID;
+            }
+        }
+    }
+
+    Raise("No compatible vertex layout was found.");
+}
+
 void AddAttribute(vertex_layout* VertexLayout, vertex_type Type) {
     vertex_attribute* Attribute = &VertexLayout->Attributes[VertexLayout->nAttributes];
     Attribute->Location = VertexLayout->nAttributes++;
