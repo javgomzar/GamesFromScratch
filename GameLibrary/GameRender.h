@@ -286,7 +286,7 @@ void InitializeRenderGroup(
     Group->Light = Light(V3(-0.5, -1, 1), White);
 
     // Vertex & element buffers
-    InitializeVertexBuffer(Arena, &Group->VertexBuffer, Assets->VertexLayouts);
+    InitializeVertexBuffer(Arena, &Group->VertexBuffer, Assets->VertexLayout);
 
     // Render targets
     Group->RenderTargets[Target_None] = {};

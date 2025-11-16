@@ -355,7 +355,7 @@ struct game_assets {
     game_sound Sound[game_sound_id_count];
     game_mesh Mesh[game_mesh_id_count];
     game_animation Animation[game_animation_id_count];
-    vertex_layout VertexLayouts[vertex_layout_id_count];
+    vertex_layout VertexLayout[vertex_layout_id_count];
     uint64 AssetsSize;
     //game_video Videos[1];
     uint32 nSamplers;
