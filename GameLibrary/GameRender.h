@@ -126,9 +126,8 @@ ENUM(render_primitive,
     render_primitive_point,
     render_primitive_line,
     render_primitive_line_strip,
-    render_primitive_line_loop,
     render_primitive_triangle,
-    render_primitive_triangle_fan,
+    render_primitive_triangle_strip,
     render_primitive_patches
 );
 
@@ -638,18 +637,17 @@ void PushCircle(
     int MAX_N = 62;
     int N = Clamp(nVertices, 14, MAX_N);
 
-    float* Data = PushPrimitiveCommand(
+    render_primitive_command* Command = PushPrimitiveCommand(
         Group,
-        render_primitive_triangle_fan,
+        render_primitive_triangle,
         Color,
         vertex_layout_vec2_id,
-        N+2,
-        0,
+        N+1,
+        3*N,
         Order
-    )->Vertices;
+    );
 
-    v2* Vertices = (v2*)Data;
-
+    v2* Vertices = (v2*)Command->VertexEntry.Pointer;
     double dTheta = Tau / N;
     double Theta = dTheta;
     Vertices[0] = Center;
@@ -659,7 +657,17 @@ void PushCircle(
         Vertices[i].Y = Center.Y - Radius * cos(Theta);
         Theta += dTheta;
     }
-    Vertices[N+1] = Vertices[1];
+
+    uint32* Elements = Command->ElementEntry.Pointer;
+    uint32 Offset = Command->VertexEntry.Offset;
+    for (int i = 0; i < N - 1; i++) {
+        Elements[3*i] = Offset;
+        Elements[3*i + 1] = Offset + i + 1;
+        Elements[3*i + 2] = Offset + i + 2;
+    }
+    Elements[3*N - 3] = Offset + 0;
+    Elements[3*N - 2] = Offset + N;
+    Elements[3*N - 1] = Offset + 1;
 }
 
 void PushCircle(
@@ -675,18 +683,18 @@ void PushCircle(
     int N = Clamp(nVertices, 14, MAX_N);
     basis Basis = Complete(Normal);
 
-    float* Data = (float*)PushPrimitiveCommand(
+    render_primitive_command* Command = PushPrimitiveCommand(
         Group,
-        render_primitive_triangle_fan,
+        render_primitive_triangle,
         Color,
         vertex_layout_vec3_id,
-        N+2,
-        0,
+        N+1,
+        3*N,
         Order,
         { .Flags = DEPTH_TEST_FLAG }
-    )->VertexEntry.Pointer;
+    );
     
-    v3* Vertices = (v3*)Data;
+    v3* Vertices = (v3*)Command->VertexEntry.Pointer;
 
     double dTheta = Tau / N;
     double Theta = dTheta;
@@ -696,7 +704,17 @@ void PushCircle(
         Vertices[i] = Center + Radius * (sin(Theta) * Basis.X - cos(Theta) * Basis.Y);
         Theta += dTheta;
     }
-    Vertices[N+1] = Vertices[1];
+
+    uint32* Elements = Command->ElementEntry.Pointer;
+    uint32 Offset = Command->VertexEntry.Offset;
+    for (int i = 0; i < N - 1; i++) {
+        Elements[3*i] = Offset;
+        Elements[3*i + 1] = Offset + i + 1;
+        Elements[3*i + 2] = Offset + i + 2;
+    }
+    Elements[3*N - 3] = Offset + 0;
+    Elements[3*N - 2] = Offset + N;
+    Elements[3*N - 1] = Offset + 1;
 }
 
 void PushCircunference(
@@ -713,10 +731,10 @@ void PushCircunference(
 
     float* Data = PushPrimitiveCommand(
         Group,
-        render_primitive_line_loop,
+        render_primitive_line_strip,
         Color,
         vertex_layout_vec2_id,
-        N,
+        N+1,
         0,
         Order,
         { .Thickness = Thickness }
@@ -732,6 +750,7 @@ void PushCircunference(
         Vertices[i].Y = Center.Y - Radius * cos(Theta);
         Theta += dTheta;
     }
+    Vertices[N] = V2(Center.X, Center.Y - Radius);
 }
 
 void PushCircunference(
@@ -749,10 +768,10 @@ void PushCircunference(
 
     float* Data = PushPrimitiveCommand(
         Group,
-        render_primitive_line_loop,
+        render_primitive_line,
         Color,
         vertex_layout_vec3_id,
-        N,
+        N+1,
         0,
         Order,
         { .Flags = DEPTH_TEST_FLAG }
@@ -771,6 +790,7 @@ void PushCircunference(
         Vertices[i] = Center + Radius * (sin(Theta) * Basis.X - cos(Theta) * Basis.Y);
         Theta += dTheta;
     }
+    Vertices[N] = Center - Radius * Basis.Y;
 }
 
 /*
@@ -902,10 +922,10 @@ void PushRectOutline(
 ) {
     v2* Vertices = (v2*)PushPrimitiveCommand(
         Group,
-        render_primitive_line_loop,
+        render_primitive_line_strip,
         Color,
         vertex_layout_vec2_id,
-        4,
+        5,
         0,
         Order,
         { .Thickness = Thickness }
@@ -915,6 +935,7 @@ void PushRectOutline(
     Vertices[1] = { Rect.Left + Rect.Width, Rect.Top               };
     Vertices[2] = { Rect.Left + Rect.Width, Rect.Top + Rect.Height };
     Vertices[3] = { Rect.Left             , Rect.Top + Rect.Height };
+    Vertices[4] = { Rect.Left             , Rect.Top               };
 }
 
 void PushBitmap(

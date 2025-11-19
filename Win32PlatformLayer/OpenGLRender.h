@@ -109,13 +109,12 @@ int GetSizeOf(GLenum Type) {
 
 GLenum GetRenderPrimitive(render_primitive Primitive) {
 	switch(Primitive) {
-		case render_primitive_point:        { return GL_POINTS; } break;
-		case render_primitive_line:         { return GL_LINES; } break;
-		case render_primitive_line_strip:   { return GL_LINE_STRIP; } break;
-		case render_primitive_line_loop:    { return GL_LINE_LOOP; } break;
-		case render_primitive_triangle:     { return GL_TRIANGLES; } break;
-    	case render_primitive_triangle_fan: { return GL_TRIANGLE_FAN; } break;
-    	case render_primitive_patches:      { return GL_PATCHES; } break;
+		case render_primitive_point:          { return GL_POINTS; } break;
+		case render_primitive_line:           { return GL_LINES; } break;
+		case render_primitive_line_strip:     { return GL_LINE_STRIP; } break;
+		case render_primitive_triangle:       { return GL_TRIANGLES; } break;
+		case render_primitive_triangle_strip: { return GL_TRIANGLE_STRIP; } break;
+    	case render_primitive_patches:        { return GL_PATCHES; } break;
 		default: Raise("OpenGL: Invalid render primitive.");
 	}
 	return 0;
@@ -631,7 +630,7 @@ struct openGL {
 	openGL_shader Shader[openGL_shader_id_count];
 	openGL_shader_pipeline Pipeline[openGL_shader_pipeline_id_count];
 	openGL_compute_shader ComputeShader[openGL_compute_shader_id_count];
-	vertex_layout* VertexLayouts;
+	vertex_layout* VertexLayout;
 	uint32 VAOs[vertex_layout_id_count];
 	uint32 VBOs[vertex_layout_id_count];
 	uint32 EBO;
@@ -733,8 +732,8 @@ void LoadShader(openGL_shader_id Index, const char* Path) {
 
 	// Find compatible vertex layout from assets definition
 	if (Shader->Type == Vertex_Shader) {
-		vertex_layout_id LayoutID = FindCompatibleVertexLayout(OpenGL.VertexLayouts, Shader->VertexLayout);
-		Shader->VertexLayout = OpenGL.VertexLayouts[LayoutID];
+		vertex_layout_id LayoutID = FindCompatibleVertexLayout(OpenGL.VertexLayout, Shader->VertexLayout);
+		Shader->VertexLayout = OpenGL.VertexLayout[LayoutID];
 	}
 
 	GLenum TypeEnum = GetShaderType(Shader->Type);
@@ -807,7 +806,7 @@ void LoadPipeline(openGL_shader_pipeline_id Index, int nShaders, ...) {
     openGL_shader* VertexShader = &OpenGL.Shader[ShaderIndex];
 	bool VertexLayoutFound = false;
 	for (int j = 0; j < vertex_layout_id_count; j++) {
-		if (VertexShader->VertexLayout == OpenGL.VertexLayouts[j]) {
+		if (VertexShader->VertexLayout == OpenGL.VertexLayout[j]) {
 			VertexLayoutFound = true;
 			Pipeline->VertexLayoutID = (vertex_layout_id)j;
 			break;
@@ -1165,7 +1164,7 @@ void GetWGLFunctions(HWND DummyWindow) {
 RENDERER_INITIALIZE {
 	OpenGL = {};
 	game_assets* Assets = Group->Assets;
-	OpenGL.VertexLayouts = Assets->VertexLayouts;
+	OpenGL.VertexLayout = Assets->VertexLayout;
 
 	int PixelFormatAttribs[] = {
         WGL_DRAW_TO_WINDOW_ARB,     GL_TRUE,
@@ -1314,7 +1313,7 @@ RENDERER_INITIALIZE {
 			uint32 VAO = OpenGL.VAOs[i];
 			uint32 VBO = OpenGL.VBOs[i];
 			
-			vertex_layout Layout = Group->Assets->VertexLayouts[i];
+			vertex_layout Layout = Group->Assets->VertexLayout[i];
 			memory_index Size = VERTEX_BUFFER_SIZE;
 			
 			glNamedBufferStorage(VBO, Size, 0, GL_DYNAMIC_STORAGE_BIT);
@@ -1337,7 +1336,7 @@ RENDERER_INITIALIZE {
 			glNamedBufferStorage(MeshBuffer->VBO, VerticesSize, Mesh->Vertices, 0);
 			glNamedBufferStorage(MeshBuffer->EBO, ElementsSize, Mesh->nEdges > 0 ? Mesh->Edges : Mesh->Faces, 0);
 
-			vertex_layout Layout = Assets->VertexLayouts[Mesh->VertexLayoutID];
+			vertex_layout Layout = Assets->VertexLayout[Mesh->VertexLayoutID];
 
 			EnableVertexLayout(MeshBuffer->VAO, MeshBuffer->VBO, Layout);
 			glVertexArrayElementBuffer(MeshBuffer->VAO, MeshBuffer->EBO);
@@ -1384,7 +1383,7 @@ RENDERER_INITIALIZE {
 			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, 0);
 			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, 0);
 
-			vertex_layout Layout = Assets->VertexLayouts[vertex_layout_vec2_vec2_id];
+			vertex_layout Layout = Assets->VertexLayout[vertex_layout_vec2_vec2_id];
 
 			EnableVertexLayout(FontBuffer->VAO, FontBuffer->VBO, Layout);
 			glVertexArrayElementBuffer(FontBuffer->VAO, FontBuffer->EBO);
