@@ -22,13 +22,36 @@
 // | Textures                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-GLenum OpenGLGetColorFormat(color_format Format) {
+GLenum OpenGLGetByteColorFormat(uint32 BytesPerPixel) {
+	GLenum InternalFormat = 0;
+	if      (BytesPerPixel == 1) InternalFormat = GL_R8;
+	else if (BytesPerPixel == 2) InternalFormat = GL_RG8;
+	else if (BytesPerPixel == 3) InternalFormat = GL_RGB8;
+	else if (BytesPerPixel == 4) InternalFormat = GL_RGBA8;
+	else Raise("OpenGL: Invalid bytes per pixel value for bitmap.");
+	return InternalFormat;
+}
+
+GLenum OpenGLGetByteColorFormat(color_format Format) {
+	switch (Format) {
+		case Color_Format_R:    return GL_R8;
+		case Color_Format_RG:   return GL_RG8;
+		case Color_Format_RGB:  return GL_RGB8;
+		case Color_Format_RGBA: return GL_RGBA8;
+		default: Raise("OpenGL: Invalid color format.");
+	}
+	return 0;
+}
+
+GLenum OpenGLGetFloatColorFormat(color_format Format) {
 	switch (Format) {
 		case Color_Format_R:    return GL_R32F;
 		case Color_Format_RG:   return GL_RG32F;
 		case Color_Format_RGB:  return GL_RGB32F;
 		case Color_Format_RGBA: return GL_RGBA32F;
+		default: Raise("OpenGL: Invalid color format.");
 	}
+	return 0;
 }
 
 GLenum OpenGLGetInternalFormat(GLenum Attachment) {
@@ -46,14 +69,14 @@ GLenum OpenGLGetFormat(GLenum InternalFormat) {
 	switch (InternalFormat) {
 		case GL_RGB8:
 		case GL_RGB32F:
-		{ return GL_BGR_EXT; } break;
+			{ return GL_BGR_EXT; } break;
 		case GL_RGBA8:
 		case GL_RGBA32F:
-		{ return GL_BGRA_EXT; } break;
+			{ return GL_BGRA_EXT; } break;
 		case GL_STENCIL_INDEX8: { return GL_STENCIL_INDEX; } break;
 		case GL_DEPTH_COMPONENT32F: { return GL_DEPTH_COMPONENT; } break;
 		case GL_DEPTH32F_STENCIL8: { return GL_DEPTH_STENCIL; } break;
-		default: { Assert(false); }
+		default: Raise("OpenGL: Invalid internal format.");
 	}
 
 	return 0;
@@ -68,7 +91,7 @@ GLenum GetType(GLenum InternalFormat) {
 		case GL_RGB32F:
 		case GL_DEPTH_COMPONENT32F:
 		case GL_DEPTH32F_STENCIL8: { return GL_FLOAT; } break;
-		default: { Assert(false); }
+		default: Raise("OpenGL: Invalid internal format.");
 	}
 
 	return 0;
@@ -102,7 +125,7 @@ int GetSizeOf(GLenum Type) {
 		case GL_FLOAT: return sizeof(float);
 		case GL_INT: return sizeof(int);
 		case GL_UNSIGNED_INT: return sizeof(unsigned int);
-		default: Assert(false);
+		default: Raise("OpenGL: Invalid GLenum for type.");
 	}
 	return 0;
 }
@@ -146,26 +169,10 @@ void ResizeTexture(
 	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
-void CreateTexture(
-	int Width, int Height,
-	GLuint* Handle,
-	GLenum InternalFormat,
-	GLenum Filter,
-	GLenum WrapMode,
-	void* Data = nullptr
-) {
-	glGenTextures(1, Handle);
-	ResizeTexture(Width, Height, *Handle, InternalFormat, Filter, WrapMode, Data);
-}
+// void CreateTexture(uint32 BytesPerPixel) {
 
-void CreateTexture(game_bitmap* Bitmap) {
-	GLenum InternalFormat = 0;
-	if (Bitmap->BytesPerPixel == 4) InternalFormat = GL_RGBA8;
-	else if (Bitmap->BytesPerPixel == 3) InternalFormat = GL_RGB8;
-	else Assert(false);
-
-	CreateTexture(Bitmap->Header.Width, Bitmap->Header.Height, &Bitmap->Handle, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE, Bitmap->Content);
-}
+// 	return CreateTexture(Bitmap->Header.Width, Bitmap->Header.Height, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE, Bitmap->Content);
+// }
 
 void BindTexture(uint32 ProgramID, uint32 TextureHandle, int TextureUnit) {
 	glBindTextureUnit(TextureUnit, TextureHandle);
@@ -178,14 +185,6 @@ void BindTexture(uint32 ProgramID, uint32 TextureHandle, int TextureUnit) {
 	}
 	else Raise("OpenGL: Only 0 or 1 allowed for texture unit.");
 	glUniform1i(SamplerLocation, TextureUnit);
-}
-
-void BindTexture(uint32 ProgramID, game_bitmap* Bitmap, int TextureUnit) {
-	if (Bitmap->Handle == 0) {
-		CreateTexture(Bitmap);
-	}
-
-	BindTexture(ProgramID, Bitmap->Handle, TextureUnit);
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -218,7 +217,8 @@ void CreateFramebuffer(
 
 	if (Attachment) {
 		GLenum InternalFormat = OpenGLGetInternalFormat(Attachment);
-		CreateTexture(Width, Height, AttachmentTexture, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE);
+		glGenTextures(1, AttachmentTexture);
+		ResizeTexture(Width, Height, *AttachmentTexture, InternalFormat, GL_LINEAR, GL_CLAMP_TO_EDGE);
 		glFramebufferTexture2D(GL_FRAMEBUFFER, Attachment, GL_TEXTURE_2D, *AttachmentTexture, 0);
 	}
 
@@ -244,9 +244,8 @@ void CreateFramebufferMultisampling(
 	glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, Samples, GL_RGBA32F, Width, Height, GL_TRUE);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, FramebufferTexture, 0);
 
-	GLenum Status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-	if (Status != GL_FRAMEBUFFER_COMPLETE) {
-		Assert(false);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+		Raise("OpenGL: Texture creation for multisampled framebuffer failed.");
 	}
 
 	if (Attachment) {
@@ -258,7 +257,7 @@ void CreateFramebufferMultisampling(
 		glFramebufferTexture2D(GL_FRAMEBUFFER, Attachment, GL_TEXTURE_2D_MULTISAMPLE, *AttachmentTexture, 0);
 
 		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-			Assert(false);
+			Raise("OpenGL: Texture creation for multisampled framebuffer attachment failed.");
 		}
 	}
 }
@@ -624,9 +623,11 @@ uint32 OpenGLLinkComputeShader(uint32 ShaderID) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct openGL {
-	openGL_framebuffer Targets[render_group_target_count];
-	openGL_mesh_buffer MeshBuffers[game_mesh_id_count];
-	openGL_font_buffer FontBuffers[game_font_id_count];
+	openGL_framebuffer Target[render_group_target_count];
+	openGL_mesh_buffer MeshBuffer[game_mesh_id_count];
+	openGL_font_buffer FontBuffer[game_font_id_count];
+	uint32 Texture[game_bitmap_id_count];
+	uint32 Heightmap[game_heightmap_id_count];
 	openGL_shader Shader[openGL_shader_id_count];
 	openGL_shader_pipeline Pipeline[openGL_shader_pipeline_id_count];
 	openGL_compute_shader ComputeShader[openGL_compute_shader_id_count];
@@ -1242,8 +1243,8 @@ RENDERER_INITIALIZE {
 		glGenTextures(nFramebuffers, Textures);
 
 		for (int i = 0; i < nFramebuffers; i++) {
-			OpenGL.Targets[i+1].Framebuffer = Framebuffers[i];
-			OpenGL.Targets[i+1].Texture = Textures[i];
+			OpenGL.Target[i+1].Framebuffer = Framebuffers[i];
+			OpenGL.Target[i+1].Texture = Textures[i];
 		}
 
 		glGetIntegerv(GL_MAX_PATCH_VERTICES, &OpenGL.MaxPatchParameter);
@@ -1262,7 +1263,7 @@ RENDERER_INITIALIZE {
 
 		// Framebuffers
 		for (int i = 1; i < render_group_target_count; i++) {
-			openGL_framebuffer* Framebuffer = &OpenGL.Targets[i];
+			openGL_framebuffer* Framebuffer = &OpenGL.Target[i];
 			render_group_target_description Target = Group->RenderTargets[i];
 			Framebuffer->Description = Target;
 			Framebuffer->Multisampling = Target.Multisample;
@@ -1286,7 +1287,7 @@ RENDERER_INITIALIZE {
 				&Framebuffer->AttachmentTexture
 			);
 			else {
-				GLenum InternalFormat = OpenGLGetColorFormat(Target.Format);
+				GLenum InternalFormat = OpenGLGetFloatColorFormat(Target.Format);
 				CreateFramebuffer(
 					Group->Width, Group->Height,
 					InternalFormat,
@@ -1296,6 +1297,32 @@ RENDERER_INITIALIZE {
 					&Framebuffer->AttachmentTexture
 				);
 			}
+		}
+
+	// Textures
+		glGenTextures(game_bitmap_id_count + game_heightmap_id_count, OpenGL.Texture);
+		for (int i = 0; i < game_bitmap_id_count; i++) {
+			game_bitmap* Bitmap = &Assets->Bitmap[i];
+			GLenum InternalFormat = OpenGLGetByteColorFormat(Bitmap->BytesPerPixel);
+			ResizeTexture(
+				Bitmap->Header.Width, Bitmap->Header.Height, 
+				OpenGL.Texture[i], 
+				InternalFormat, 
+				GL_LINEAR, GL_CLAMP_TO_EDGE,
+				Bitmap->Content
+			);
+		}
+
+		for (int i = 0; i < game_bitmap_id_count; i++) {
+			game_bitmap* Bitmap = &Assets->Bitmap[i];
+			GLenum InternalFormat = OpenGLGetByteColorFormat(Bitmap->BytesPerPixel);
+			ResizeTexture(
+				Bitmap->Header.Width, Bitmap->Header.Height, 
+				OpenGL.Texture[i], 
+				InternalFormat, 
+				GL_LINEAR, GL_CLAMP_TO_EDGE,
+				Bitmap->Content
+			);
 		}
 
 	// Vertex buffers
@@ -1324,7 +1351,7 @@ RENDERER_INITIALIZE {
 
 		// Mesh vertex buffers
 		for (int i = 0; i < game_mesh_id_count; i++) {
-			openGL_mesh_buffer* MeshBuffer = &OpenGL.MeshBuffers[i];
+			openGL_mesh_buffer* MeshBuffer = &OpenGL.MeshBuffer[i];
 			glCreateVertexArrays(1, &MeshBuffer->VAO);
 			glCreateBuffers(1, &MeshBuffer->VBO);
 			glCreateBuffers(1, &MeshBuffer->EBO);
@@ -1367,7 +1394,7 @@ RENDERER_INITIALIZE {
 
 		// Font vertex buffers
 		for (int i = 0; i < game_font_id_count; i++) {
-			openGL_font_buffer* FontBuffer = &OpenGL.FontBuffers[i];
+			openGL_font_buffer* FontBuffer = &OpenGL.FontBuffer[i];
 			glCreateVertexArrays(1, &FontBuffer->VAO);
 			glCreateBuffers(1, &FontBuffer->VBO);
 			glCreateBuffers(1, &FontBuffer->EBO);
@@ -1480,7 +1507,7 @@ RENDERER_INITIALIZE {
 }
 
 void BindTarget(render_group_target Target) {
-	glBindFramebuffer(GL_FRAMEBUFFER, OpenGL.Targets[Target].Framebuffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, OpenGL.Target[Target].Framebuffer);
 }
 
 void ScreenCapture(int Width, int Height) {
@@ -1520,13 +1547,13 @@ void ScreenCapture(int Width, int Height) {
 
 void ResizeWindow(int32 Width, int32 Height) {
 	for (int i = 1; i < render_group_target_count; i++) {
-		openGL_framebuffer Target = OpenGL.Targets[i];
+		openGL_framebuffer Target = OpenGL.Target[i];
 
 		if (Target.Multisampling) {
 			ResizeMultisamplebuffer(Width, Height, Target.Texture, Target.Samples, Target.Attachment, Target.AttachmentTexture);
 		}
 		else {
-			GLenum InternalFormat = OpenGLGetColorFormat(Target.Description.Format);
+			GLenum InternalFormat = OpenGLGetFloatColorFormat(Target.Description.Format);
 			ResizeFramebuffer(Width, Height, Target.Texture, InternalFormat, Target.Attachment, Target.AttachmentTexture);
 		}
 	}
@@ -1587,7 +1614,10 @@ RENDERER_RENDER {
 
 				// Uniforms
 				SetColorUniform(DrawCommand.Color);
-				if (Options.Texture) BindTexture(ProgramID, Options.Texture, 0);
+				if (Options.Texture) {
+					uint32 Handle = OpenGL.Texture[Options.Texture->ID];
+					BindTexture(ProgramID, Handle, 0);
+				}
 				if (Options.Thickness != CurrentLineWidth) {
 					CurrentLineWidth = Options.Thickness;
 					glLineWidth(Options.Thickness);
@@ -1634,10 +1664,10 @@ RENDERER_RENDER {
 
 				uint32 VAO = 0;
 				if (Options.Mesh) {
-					VAO = OpenGL.MeshBuffers[Options.Mesh->ID].VAO;
+					VAO = OpenGL.MeshBuffer[Options.Mesh->ID].VAO;
 				}
 				else if (Options.Font) {
-					VAO = OpenGL.FontBuffers[Options.Font->ID].VAO;
+					VAO = OpenGL.FontBuffer[Options.Font->ID].VAO;
 				}
 				else {
 					VAO = OpenGL.VAOs[VertexEntry.LayoutID];
@@ -1677,11 +1707,11 @@ RENDERER_RENDER {
 			case render_shader_pass: {
 				render_shader_pass_command ShaderCommand = Group->ShaderPassCommands[Command.Index];
 
-				openGL_framebuffer Target = OpenGL.Targets[ShaderCommand.Target];
+				openGL_framebuffer Target = OpenGL.Target[ShaderCommand.Target];
 
 				// Normal shaders
 				if (ShaderCommand.Type == shader_pass_outline) {
-					openGL_framebuffer PingPongTarget = OpenGL.Targets[Target_PingPong];
+					openGL_framebuffer PingPongTarget = OpenGL.Target[Target_PingPong];
 
 					// glEnable(GL_DEPTH_TEST);
 					glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
@@ -1718,7 +1748,7 @@ RENDERER_RENDER {
 
 				// Compute shaders
 				else {
-					openGL_framebuffer Source = OpenGL.Targets[ShaderCommand.Source];
+					openGL_framebuffer Source = OpenGL.Target[ShaderCommand.Source];
 
 					glBindImageTexture(0, Source.Texture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
 					glBindImageTexture(1, Target.Texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
@@ -1749,8 +1779,8 @@ RENDERER_RENDER {
 			case render_target: {
 				render_target_command TargetCommand = Group->TargetCommands[Command.Index];
 				
-				openGL_framebuffer Source = OpenGL.Targets[TargetCommand.Source];
-				openGL_framebuffer Target = OpenGL.Targets[TargetCommand.Target];
+				openGL_framebuffer Source = OpenGL.Target[TargetCommand.Source];
+				openGL_framebuffer Target = OpenGL.Target[TargetCommand.Target];
 				BindTarget(TargetCommand.Target);
 
 				openGL_shader_pipeline_id ShaderIndex = Source.Multisampling ? 

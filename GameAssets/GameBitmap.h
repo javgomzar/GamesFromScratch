@@ -78,7 +78,6 @@ struct bitmap_header_v5 {
 struct game_bitmap {
     game_bitmap_id ID;
     bitmap_header Header;
-    uint32 Handle;
     uint32 BytesPerPixel;
     uint32 Pitch;
     uint32 AlphaMask;
