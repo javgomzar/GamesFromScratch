@@ -118,6 +118,7 @@ PLATFORM_READ_ENTIRE_FILE(Win32ReadEntireFile) {
         char ErrorText[256];
         sprintf_s(ErrorText, "Error while opening file %s. Error code %d.", Path, LastError);
         Log(Error, ErrorText);
+        Result.ContentSize = 0;
     }
     return Result;
 };
