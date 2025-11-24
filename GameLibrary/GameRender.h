@@ -213,6 +213,7 @@ struct render_target_command {
     render_group_target Source;
     render_group_target Target;
     bool DebugAttachment;
+    bool Attachment; // The source's attachment will also be rendered to the target's attachment
 };
 
 enum wrap_mode {
@@ -1400,20 +1401,21 @@ void PushRenderTarget(
     render_target_command TargetCommand;
     TargetCommand.Source = Target;
     TargetCommand.DebugAttachment = false;
+    TargetCommand.Attachment = Group->RenderTargets[Target].Depth || Group->RenderTargets[Target].Stencil;
 
     if      (Target == Target_Outline) TargetCommand.Target = Target_Postprocessing_Outline;
     else if (Target == Target_Output)  TargetCommand.Target = Target_None;
     else                               TargetCommand.Target = Target_Output;
 
-    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
+    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec2_vec2_id);
     float* Data = (float*)TargetCommand.VertexEntry.Pointer;
     
-    Data[0] = -1.0f;  Data[1] = -1.0f;  Data[2] = 0.0f;  Data[3] = 0.0f;  Data[4] = 0.0f;
-    Data[5] = 1.0f;   Data[6] = -1.0f;  Data[7] = 0.0f;  Data[8] = 1.0f;  Data[9] = 0.0f;
-    Data[10] = 1.0;   Data[11] = 1.0f;  Data[12] = 0.0f; Data[13] = 1.0f; Data[14] = 1.0f;
-    Data[15] = -1.0f; Data[16] = -1.0f; Data[17] = 0.0f; Data[18] = 0.0f; Data[19] = 0.0f;
-    Data[20] = 1.0f;  Data[21] = 1.0f;  Data[22] = 0.0f; Data[23] = 1.0f; Data[24] = 1.0f;
-    Data[25] = -1.0f; Data[26] = 1.0f;  Data[27] = 0.0f; Data[28] = 0.0f; Data[29] = 1.0f;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ = -1.0f; *Data++ = 1.0f; *Data++ = 0.0f;
+    *Data++ =  1.0;  *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
 
     Group->TargetCommands[Group->nTargets++] = TargetCommand;
 }
@@ -1917,7 +1919,7 @@ void PushDebugGrid(render_group* Group, float Alpha) {
 void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, bool Attachment = false) {
     render_command Command;
     Command.Index = Group->nTargets;
-    Command.Priority = SORT_ORDER_PUSH_RENDER_TARGETS - 0.1f;
+    Command.Priority = SORT_ORDER_PUSH_RENDER_TARGETS + 0.1f;
     Command.Type = render_target;
 
     PushCommand(Group, Command);
@@ -1926,15 +1928,16 @@ void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, 
     TargetCommand.Source = Framebuffer;
     TargetCommand.Target = Target_Output;
     TargetCommand.DebugAttachment = Attachment;
-    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
+    TargetCommand.Attachment = false;
+    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec2_vec2_id);
 
     float* Vertices = (float*)TargetCommand.VertexEntry.Pointer;
-    *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f,
-    *Vertices++ = -0.5f; *Vertices++ = -1.0f; *Vertices++ = 0.0f; *Vertices++ = 1.0f; *Vertices++ = 0.0f;
-    *Vertices++ = -0.5f; *Vertices++ = -0.5f; *Vertices++ = 0.0f; *Vertices++ = 1.0f; *Vertices++ = 1.0f;
-    *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f;
-    *Vertices++ = -0.5f; *Vertices++ = -0.5f; *Vertices++ = 0.0f; *Vertices++ = 1.0f; *Vertices++ = 1.0f;
-    *Vertices++ = -1.0f; *Vertices++ = -0.5f; *Vertices++ = 0.0f; *Vertices++ = 0.0f; *Vertices++ = 1.0f;
+    *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f,
+    *Vertices++ = -0.5f; *Vertices++ = -1.0f; *Vertices++ = 1.0f; *Vertices++ = 0.0f;
+    *Vertices++ = -0.5f; *Vertices++ = -0.5f; *Vertices++ = 1.0f; *Vertices++ = 1.0f;
+    *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f;
+    *Vertices++ = -0.5f; *Vertices++ = -0.5f; *Vertices++ = 1.0f; *Vertices++ = 1.0f;
+    *Vertices++ = -1.0f; *Vertices++ = -0.5f; *Vertices++ = 0.0f; *Vertices++ = 1.0f;
 
     Group->TargetCommands[Group->nTargets++] = TargetCommand;
 }

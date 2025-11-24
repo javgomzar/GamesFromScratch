@@ -17,8 +17,6 @@ layout (location = 1) in vec2 v_texture;
 layout (location = 0) out vec4 frag_color;
 
 void main() {
-	vec4 texture_color = texture(binded_texture, v_texture);
-
-	frag_color = texture_color;
+	frag_color = texture(binded_texture, v_texture);
 	gl_FragDepth = texture(attachment_texture, v_texture).r;
 }

@@ -71,11 +71,11 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, { 0 }, Target_Outline);
     PushClear(Group, { 0 }, Target_Postprocessing_Outline);
     PushClear(Group, Magenta, Target_PingPong);
-    PushClear(Group, GetColor(1.0f, sinf(Time)*sinf(Time), 1.0f), Target_Output);
+    PushClear(Group, BackgroundBlue, Target_Output);
 
     UpdateGameState(Assets, pGameState, Input, Group->Width, Group->Height);
     
-    //GameOutputSound(Assets, SoundBuffer, pGameState, Input);
+    // GameOutputSound(Assets, SoundBuffer, pGameState, Input);
 
     // PushEntities(Group, &pGameState->Entities, Input, Time);
 

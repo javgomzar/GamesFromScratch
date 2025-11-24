@@ -858,14 +858,19 @@ void LoadPipeline(openGL_shader_pipeline_id Index, int nShaders, ...) {
 	OpenGLLinkProgram(Pipeline);
 }
 
-void ReloadShader(openGL_shader_id Index) {
+bool ReloadShader(openGL_shader_id Index, read_file_result NewFile) {
 	openGL_shader* Shader = &OpenGL.Shader[Index];
 	uint32 PreviousShaderID = Shader->ID;
 	GLenum TypeEnum = GetShaderType(Shader->Type);
-	Shader->ID = OpenGLCompileShader(TypeEnum, (char*)Shader->File.Content, Shader->File.ContentSize);
+	Shader->ID = OpenGLCompileShader(TypeEnum, (char*)NewFile.Content, NewFile.ContentSize);
+
+	char Buffer[1024] = {};
 
 	if (Shader->ID == 0) {
 		Shader->ID = PreviousShaderID;
+		sprintf_s(Buffer, "OpenGL: Shader %s failed to re-compile. Retrying next frame.", Shader->File.Path);
+		Log(Error, Buffer);
+		return false;
 	}
 	else {
 		// Re-link programs that contained this shader
@@ -873,13 +878,17 @@ void ReloadShader(openGL_shader_id Index) {
 		uint32 PreviousProgramIDs[openGL_shader_pipeline_id_count] = {};
 		for (int i = 0; i < openGL_shader_pipeline_id_count; i++) {
 			openGL_shader_pipeline* Pipeline = &OpenGL.Pipeline[i];
-			openGL_shader_id Index = Pipeline->Shader[Shader->Type];
-			openGL_shader* Shader = &OpenGL.Shader[Index];
-			if (Shader->ID == PreviousShaderID) {
+			openGL_shader_id TestIndex = Pipeline->Shader[Shader->Type];
+			if (TestIndex == Index) {
 				PreviousProgramIDs[i] = Pipeline->ID;
 				OpenGLLinkProgram(Pipeline);
 				if (Pipeline->ID == 0) {
 					FailedLink = true;
+					sprintf_s(Buffer, 
+						"OpenGL: Shader %s caused a failure in a related program's linking. Aborting recompilation. Will retry next frame.",
+						Shader->File.Path
+					);
+					Log(Error, Buffer);
 					break;
 				}
 			}
@@ -893,39 +902,49 @@ void ReloadShader(openGL_shader_id Index) {
 					Pipeline->ID = PreviousProgramIDs[i];
 				}
 				// If linking succeeded delete previous programs
-				else {
-					glDeleteProgram(PreviousProgramIDs[i]);
-				}
+				else glDeleteProgram(PreviousProgramIDs[i]);
 			}			
 		}
 
-		if (FailedLink) {
-			Shader->ID = PreviousShaderID;
-		}
-		else {
-			glDeleteShader(PreviousShaderID);
-		}
+		if (FailedLink) Shader->ID = PreviousShaderID;
+		else            glDeleteShader(PreviousShaderID);
+
+		return !FailedLink;
 	}
+
+	return true;
 }
 
-void ReloadShader(openGL_compute_shader_id Index) {
+bool ReloadShader(openGL_compute_shader_id Index, read_file_result NewFile) {
 	openGL_compute_shader* Shader = &OpenGL.ComputeShader[Index];
 	uint32 PreviousShaderID = Shader->ShaderID;
-	Shader->ShaderID = OpenGLCompileShader(GL_COMPUTE_SHADER, (char*)Shader->File.Content, Shader->File.ContentSize);
-	if (Shader->ShaderID == 0) 
+	Shader->ShaderID = OpenGLCompileShader(GL_COMPUTE_SHADER, (char*)NewFile.Content, NewFile.ContentSize);
+
+	char Buffer[1024];
+
+	if (Shader->ShaderID == 0) {
 		Shader->ShaderID = PreviousShaderID;
+		sprintf_s(Buffer, "OpenGL: Compute shader %s failed to re-compile. Retrying next frame.", Shader->File.Path);
+		Log(Error, Buffer);
+		return false;
+	}
 	else {
 		uint32 PreviousProgramID = Shader->ProgramID;
 		Shader->ProgramID = OpenGLLinkComputeShader(Shader->ShaderID);
 		if (Shader->ProgramID == 0) {
 			Shader->ProgramID = PreviousProgramID;
 			Shader->ShaderID = PreviousShaderID;
+			sprintf_s(Buffer, "OpenGL: Compute shader %s failed to link. Retrying next frame.", Shader->File.Path);
+			Log(Error, Buffer);
+			return false;
 		}
 		else {
 			glDeleteProgram(PreviousProgramID);
 			glDeleteShader(PreviousShaderID);
+			return true;
 		}
 	}
+	return true;
 }
 
 void ReloadShaders() {
@@ -934,14 +953,15 @@ void ReloadShaders() {
 
 		int64 LastWriteTime = Win32GetLastWriteTime(Shader->File.Path);
 		if (LastWriteTime > Shader->File.Timestamp) {
-			Platform.FreeFileMemory(Shader->File.Content);
-			Shader->File = Platform.ReadEntireFile(Shader->File.Path);
-			if (Shader->File.Timestamp == LastWriteTime) {
-				ReloadShader(Shader->Index);
-
-				char Buffer[256];
-				sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
-				Log(Info, Buffer);
+			read_file_result UpdatedFile = Platform.ReadEntireFile(Shader->File.Path);
+			if (UpdatedFile.ContentSize > 0) {
+				if (ReloadShader(Shader->Index, UpdatedFile)) {
+					Platform.FreeFileMemory(Shader->File.Content);
+					Shader->File = UpdatedFile;
+					char Buffer[256];
+					sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
+					Log(Info, Buffer);
+				}
 			}
 		}
 	}
@@ -951,14 +971,15 @@ void ReloadShaders() {
 
 		int64 LastWriteTime = Win32GetLastWriteTime(Shader->File.Path);
 		if (LastWriteTime > Shader->File.Timestamp) {
-			Platform.FreeFileMemory(Shader->File.Content);
-			Shader->File = Platform.ReadEntireFile(Shader->File.Path);
-			if (Shader->File.Timestamp == LastWriteTime) {
-				ReloadShader(Shader->Index);
-
-				char Buffer[256];
-				sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
-				Log(Info, Buffer);
+			read_file_result UpdatedFile = Platform.ReadEntireFile(Shader->File.Path);
+			if (UpdatedFile.ContentSize > 0) {
+				if (ReloadShader(Shader->Index, UpdatedFile)) {
+					Platform.FreeFileMemory(Shader->File.Content);
+					Shader->File = UpdatedFile;
+					char Buffer[256];
+					sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
+					Log(Info, Buffer);
+				}
 			}
 		}
 	}
@@ -1598,7 +1619,7 @@ RENDERER_RENDER {
 				glViewport(0, 0, Width, Height);
 				BindTarget((render_group_target)Command.Index);
 
-				glClearColor(Clear.Color.R, Clear.Color.G, Clear.Color.B, 4.0 * Clear.Color.Alpha);
+				glClearColor(Clear.Color.R, Clear.Color.G, Clear.Color.B, Clear.Color.Alpha);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 			} break;
 
@@ -1795,24 +1816,16 @@ RENDERER_RENDER {
 				else {
 					BindTexture(ProgramID, Source.Texture, 0);
 				}
-					
-				if (Source.Attachment) {
+				
+				if (TargetCommand.Attachment) {
 					BindTexture(ProgramID, Source.AttachmentTexture, 1);
-					if (Source.Description.Depth && Target.Description.Depth) {
-						glEnable(GL_DEPTH_TEST);
-						glDepthMask(GL_TRUE);
-						glDepthFunc(GL_LESS);
-					}
-					else {
-						glDepthFunc(GL_ALWAYS);
-					}
 
 					if (Source.Attachment == GL_STENCIL_ATTACHMENT || Source.Attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
 						glEnable(GL_STENCIL_TEST);
 						glStencilMask(GL_TRUE);
 					}
 				}
-				else glDisable(GL_DEPTH_TEST);
+				glDepthFunc(GL_ALWAYS);
 				
 				if (Source.Multisampling) SetAntialiasingUniforms(Source.Samples);
 
@@ -1823,6 +1836,8 @@ RENDERER_RENDER {
 
 				glEnable(GL_DEPTH_TEST);
 				glDepthFunc(GL_LESS);
+				BindTexture(ProgramID, 0, 0);
+				BindTexture(ProgramID, 0, 1);
 			} break;
 
 			default: Raise("OpenGL: Invalid render command type.");
