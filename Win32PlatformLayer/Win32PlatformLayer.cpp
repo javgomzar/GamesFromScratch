@@ -71,9 +71,7 @@ static void LoadXInput(void) {
         XInputGetState = (xinput_get_state*)GetProcAddress(XInputLibrary, "XInputGetState");
         XInputSetState = (xinput_set_state*)GetProcAddress(XInputLibrary, "XInputSetState");
     }
-    else {
-        // Diagnostic
-    }
+    else Raise("Couldn't load XInput DLL.");
 }
 
 

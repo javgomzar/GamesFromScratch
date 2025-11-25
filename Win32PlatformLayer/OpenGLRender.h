@@ -461,7 +461,8 @@ ENUM(openGL_shader_id,
 	No_Shader_ID,
 
     // Vertex shaders
-    Vertex_Shader_Passthrough_ID,
+    Vertex_Shader_Passthrough2_ID,
+	Vertex_Shader_Passthrough3_ID,
     Vertex_Shader_Screen_ID,
     Vertex_Shader_Screen_Texture_ID,
     Vertex_Shader_Perspective_ID,
@@ -994,7 +995,7 @@ openGL_shader_pipeline_id GetPipelineID(render_primitive_options Options) {
 		else if (Options.Flags & TEXT_EXTERIOR_FLAG) return Shader_Pipeline_Bezier_Exterior_ID;
 		else 										 return Shader_Pipeline_Solid_Text_ID;
 	}
-	else if (Options.Flags & HEIGHTMAP_FLAG) {
+	else if (Options.Heightmap) {
 		return Shader_Pipeline_Heightmap_ID;
 	}
 	else if (Options.Texture) {
@@ -1334,15 +1335,15 @@ RENDERER_INITIALIZE {
 			);
 		}
 
-		for (int i = 0; i < game_bitmap_id_count; i++) {
-			game_bitmap* Bitmap = &Assets->Bitmap[i];
-			GLenum InternalFormat = OpenGLGetByteColorFormat(Bitmap->BytesPerPixel);
+		for (int i = 0; i < game_heightmap_id_count; i++) {
+			game_heightmap* Heightmap = &Assets->Heightmap[i];
+			GLenum InternalFormat = OpenGLGetByteColorFormat(Heightmap->Bitmap.BytesPerPixel);
 			ResizeTexture(
-				Bitmap->Header.Width, Bitmap->Header.Height, 
-				OpenGL.Texture[i], 
+				Heightmap->Bitmap.Header.Width, Heightmap->Bitmap.Header.Height, 
+				OpenGL.Heightmap[i], 
 				InternalFormat, 
 				GL_LINEAR, GL_CLAMP_TO_EDGE,
-				Bitmap->Content
+				Heightmap->Bitmap.Content
 			);
 		}
 
@@ -1440,7 +1441,8 @@ RENDERER_INITIALIZE {
 	// Compiling & attaching shaders
 		OpenGL.nSamplers = 0;
 		// Vertex
-		LoadShader(Vertex_Shader_Passthrough_ID,              "GameAssets\\Shaders\\GLSL\\Vertex\\Passthrough.vert");
+		LoadShader(Vertex_Shader_Passthrough2_ID,             "GameAssets\\Shaders\\GLSL\\Vertex\\Passthrough2.vert");
+		LoadShader(Vertex_Shader_Passthrough3_ID,             "GameAssets\\Shaders\\GLSL\\Vertex\\Passthrough3.vert");
 		LoadShader(Vertex_Shader_Screen_ID,                   "GameAssets\\Shaders\\GLSL\\Vertex\\Screen.vert");
 		LoadShader(Vertex_Shader_Screen_Texture_ID,           "GameAssets\\Shaders\\GLSL\\Vertex\\ScreenTexture.vert");
 		LoadShader(Vertex_Shader_Perspective_ID,              "GameAssets\\Shaders\\GLSL\\Vertex\\Perspective.vert");
@@ -1482,26 +1484,26 @@ RENDERER_INITIALIZE {
     	LoadShader(Compute_Shader_Fluid_Init_ID,              "GameAssets\\Shaders\\GLSL\\Compute\\FluidInit.comp");
 
 		// Shader pipelines
-    	LoadPipeline(Shader_Pipeline_Antialiasing_ID,        2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Antialiasing_ID);
-    	LoadPipeline(Shader_Pipeline_Framebuffer_ID,         2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Framebuffer_Attachment_ID);
+    	LoadPipeline(Shader_Pipeline_Antialiasing_ID,        2, Vertex_Shader_Passthrough2_ID,   Fragment_Shader_Antialiasing_ID);
+    	LoadPipeline(Shader_Pipeline_Framebuffer_ID,         2, Vertex_Shader_Passthrough2_ID,   Fragment_Shader_Framebuffer_Attachment_ID);
     	LoadPipeline(Shader_Pipeline_Texture_ID,             2, Vertex_Shader_Screen_Texture_ID, Fragment_Shader_Texture_ID);
     	LoadPipeline(Shader_Pipeline_Mesh_ID,                2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Mesh_ID);
     	LoadPipeline(Shader_Pipeline_Mesh_Bones_ID,          2, Vertex_Shader_Bones_ID,          Fragment_Shader_Mesh_ID);
     	LoadPipeline(Shader_Pipeline_World_Single_Color_ID,  2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Single_Color_ID);
     	LoadPipeline(Shader_Pipeline_Screen_Single_Color_ID, 2, Vertex_Shader_Screen_ID,         Fragment_Shader_Single_Color_ID);
     	LoadPipeline(Shader_Pipeline_Bones_Single_Color_ID,  2, Vertex_Shader_Bones_ID,          Fragment_Shader_Single_Color_ID);
-    	LoadPipeline(Shader_Pipeline_Outline_ID,             2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Outline_ID);
+    	LoadPipeline(Shader_Pipeline_Outline_ID,             2, Vertex_Shader_Passthrough2_ID,   Fragment_Shader_Outline_ID);
     	LoadPipeline(Shader_Pipeline_Bezier_Exterior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Exterior_ID);
     	LoadPipeline(Shader_Pipeline_Bezier_Interior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Interior_ID);
     	LoadPipeline(Shader_Pipeline_Solid_Text_ID,          2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Single_Color_ID);
-    	LoadPipeline(Shader_Pipeline_Jump_Flood_ID,          2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Jump_Flood_ID);
+    	LoadPipeline(Shader_Pipeline_Jump_Flood_ID,          2, Vertex_Shader_Passthrough2_ID,   Fragment_Shader_Jump_Flood_ID);
     	LoadPipeline(Shader_Pipeline_Fire_ID,                2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Fire_ID);
     	LoadPipeline(Shader_Pipeline_Debug_Normals_ID,       3, Vertex_Shader_Bones_ID,
                                                                Geometry_Shader_Debug_Normals_ID, Fragment_Shader_Single_Color_ID);
     	//LoadPipeline(Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
-    	LoadPipeline(Shader_Pipeline_Heightmap_ID,           4, Vertex_Shader_Passthrough_ID, 
+    	LoadPipeline(Shader_Pipeline_Heightmap_ID,           4, Vertex_Shader_Passthrough3_ID, 
 		                                                   TESC_Heightmap_ID, TESE_Heightmap_ID, Fragment_Shader_Heightmap_ID);
-    	LoadPipeline(Shader_Pipeline_Trochoidal_ID,          4, Vertex_Shader_Passthrough_ID, 
+    	LoadPipeline(Shader_Pipeline_Trochoidal_ID,          4, Vertex_Shader_Passthrough3_ID, 
 		                                                  TESC_Heightmap_ID, TESE_Trochoidal_ID, Fragment_Shader_Sea_ID);
 		LoadPipeline(Shader_Pipeline_Text_Outline_ID,        4, Vertex_Shader_Barycentric_ID, 
 																 TESC_Bezier_ID, TESE_Bezier_ID, Fragment_Shader_Single_Color_ID);
@@ -1633,17 +1635,18 @@ RENDERER_RENDER {
 				uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
 				glUseProgram(ProgramID);
 
-				// Uniforms
+				// Texture
 				SetColorUniform(DrawCommand.Color);
+				uint32 TextureHandle = 0;
+				if (Options.Heightmap) {
+					TextureHandle = OpenGL.Heightmap[Options.Heightmap->ID];
+				}
 				if (Options.Texture) {
-					uint32 Handle = OpenGL.Texture[Options.Texture->ID];
-					BindTexture(ProgramID, Handle, 0);
+					TextureHandle = OpenGL.Texture[Options.Texture->ID];
 				}
-				if (Options.Thickness != CurrentLineWidth) {
-					CurrentLineWidth = Options.Thickness;
-					glLineWidth(Options.Thickness);
-				}
+				BindTexture(ProgramID, TextureHandle, 0);
 
+				// Uniforms
 				if (Options.Font) {
 					SetTextUniforms(Options.TextSize, Options.Pen);
 				}
@@ -1654,6 +1657,12 @@ RENDERER_RENDER {
 					}
 					matrix4 Model = Matrix(Options.Transform);
 					SetModelUniforms(Model);
+				}
+
+				// Line thickness
+				if (Options.Thickness != CurrentLineWidth) {
+					CurrentLineWidth = Options.Thickness;
+					glLineWidth(Options.Thickness);
 				}
 
 				// Depth testing and alpha blending
@@ -1731,7 +1740,7 @@ RENDERER_RENDER {
 				openGL_framebuffer Target = OpenGL.Target[ShaderCommand.Target];
 
 				// Normal shaders
-				if (ShaderCommand.Type == shader_pass_outline) {
+				if (ShaderCommand.Type == shader_pass_outline || ShaderCommand.Type == shader_pass_jump_flood) {
 					openGL_framebuffer PingPongTarget = OpenGL.Target[Target_PingPong];
 
 					// glEnable(GL_DEPTH_TEST);
@@ -1743,7 +1752,13 @@ RENDERER_RENDER {
 					glClearColor(0, 0, 0, 0);
 					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	
-					uint32 ProgramID = OpenGL.Pipeline[Shader_Pipeline_Outline_ID].ID;
+					openGL_shader_pipeline_id PipelineID;
+					switch(ShaderCommand.Type) {
+						case shader_pass_outline:    { PipelineID = Shader_Pipeline_Outline_ID; } break;
+						case shader_pass_jump_flood: { PipelineID = Shader_Pipeline_Jump_Flood_ID; } break;
+						default: Raise("OpenGL: Invalid shader pipeline ID.");
+					}
+					uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
 					glUseProgram(ProgramID);
 
 					SetColorUniform(ShaderCommand.Color);
@@ -1783,15 +1798,12 @@ RENDERER_RENDER {
 						case shader_pass_outline_init: {
 							PipelineIndex = Compute_Shader_Outline_Init_ID;
 						} break;
-						case shader_pass_jump_flood: {
-							PipelineIndex = Compute_Shader_Jump_Flood_ID;
-							SetOutlineUniforms(ShaderCommand.Width, ShaderCommand.Level);
-						} break;
 						default: Raise("OpenGL: Invalid compute shader.");
 					}
 					// if (Target.Attachment) BindTexture(ProgramID, Target.AttachmentTexture, 1);
 					uint32 ProgramID = OpenGL.ComputeShader[PipelineIndex].ProgramID;
 					glUseProgram(ProgramID);
+					
 					glDispatchCompute(Width, Height, 1);
 					glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 				}

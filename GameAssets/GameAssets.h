@@ -161,6 +161,7 @@ struct game_text {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct game_heightmap {
+    game_heightmap_id ID;
     game_bitmap Bitmap;
     uint32 nVertices;
     float* Vertices;
@@ -176,6 +177,7 @@ uint64 ComputeNeededMemoryForHeightmap(read_file_result File) {
 
 game_heightmap LoadHeightmap(memory_arena* Arena, game_asset* Asset) {
     game_heightmap Result = {};
+    Result.ID = Asset->ID.Heightmap;
 
     Result.Bitmap = LoadBitmapFile(Arena, Asset->File);
     float Width = 10.0f;

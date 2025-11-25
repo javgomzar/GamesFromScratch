@@ -879,7 +879,7 @@ void UpdateUI(
         }
         
         // Debug Framebuffer
-        PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
+        PushDebugTarget(Group, Target_Postprocessing_Outline);
     }
 
     if (UI.Tree.Current) UI.Tree.Current->Next = 0;

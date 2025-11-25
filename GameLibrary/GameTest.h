@@ -23,7 +23,7 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     PushCircunference(Group, V2(200, 70), 50.0f, White, 2.0f);
 
     // Triangles
-    triangle2 Triangle2 = { V2(320, 20), V2(270, 120), V2(370, 120) };
+    triangle2 Triangle2 = { V2(320, 20), V2(370, 120), V2(270, 120) };
     color TriangleColor = Red;
     if (IsInside(Triangle2, Input->Mouse.Cursor)) TriangleColor = Green;
     PushTriangle(Group, Triangle2, TriangleColor);
@@ -56,9 +56,6 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     // Point
     // PushPoint(Group, V3(0,0,0), Red);
 
-    // Debug grid
-    PushDebugGrid(Group, 1.0f);
-
     // Rect
     PushRect(Group, V3(0,1,0), V3(0,0,1), V3(0,1,0), 1.0f, 1.0f, Red);
 
@@ -74,7 +71,7 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
 
     // Mesh
     transform T = Transform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
-    PushMesh(Group, Mesh_Body_ID, T, Bitmap_Empty_ID, Gray, 0, false);
+    PushMesh(Group, Mesh_Body_ID, T, Bitmap_Empty_ID, Gray, 0, true);
 
     T.Translation = V3(-2, 0, 0);
     PushMesh(Group, Mesh_Tetrahedron_ID, T);

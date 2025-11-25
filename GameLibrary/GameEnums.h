@@ -60,7 +60,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 63;
+const int ENUM_VALUES_SIZE = 62;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -102,11 +102,10 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_render_primitive, "render_primitive_point", 0},
     {Debug_Type_render_primitive, "render_primitive_line", 1},
     {Debug_Type_render_primitive, "render_primitive_line_strip", 2},
-    {Debug_Type_render_primitive, "render_primitive_line_loop", 3},
-    {Debug_Type_render_primitive, "render_primitive_triangle", 4},
-    {Debug_Type_render_primitive, "render_primitive_triangle_fan", 5},
-    {Debug_Type_render_primitive, "render_primitive_patches", 6},
-    {Debug_Type_render_primitive, "render_primitive_count", 7},
+    {Debug_Type_render_primitive, "render_primitive_triangle", 3},
+    {Debug_Type_render_primitive, "render_primitive_triangle_strip", 4},
+    {Debug_Type_render_primitive, "render_primitive_patches", 5},
+    {Debug_Type_render_primitive, "render_primitive_count", 6},
     {Debug_Type_render_group_target, "Target_None", 0},
     {Debug_Type_render_group_target, "Target_World", 1},
     {Debug_Type_render_group_target, "Target_Outline", 2},

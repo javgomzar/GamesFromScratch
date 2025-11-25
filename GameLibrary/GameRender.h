@@ -146,10 +146,11 @@ struct render_primitive_options {
     render_flags Flags;
     float Thickness = 2.0f;
     transform Transform = IdentityTransform;
-    game_bitmap* Texture = NULL;
-    game_mesh* Mesh = NULL;
-    game_font* Font = NULL;
-    armature* Armature = NULL;
+    game_bitmap* Texture = nullptr;
+    game_heightmap* Heightmap = nullptr;
+    game_font* Font = nullptr;
+    game_mesh* Mesh = nullptr;
+    armature* Armature = nullptr;
     v2 Pen;
     int PatchParameter = 4;
     float TextSize = 0;
@@ -1487,13 +1488,22 @@ void PushJumpFloodShaderPass(
 
     PushCommand(Group, Command);
 
-    render_shader_pass_command ComputeShaderCommand;
-    ComputeShaderCommand.Type = shader_pass_jump_flood;
-    ComputeShaderCommand.Source = Target;
-    ComputeShaderCommand.Target = Target;
-    ComputeShaderCommand.Level = Level;
+    render_shader_pass_command ShaderCommand;
+    ShaderCommand.Type = shader_pass_jump_flood;
+    ShaderCommand.Target = Target;
+    ShaderCommand.Level = Level;
 
-    Group->ShaderPassCommands[Group->nShaderPassCommands++] = ComputeShaderCommand;
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec2_vec2_id);
+
+    float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ = -1.0f; *Data++ = 1.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
+
+    Group->ShaderPassCommands[Group->nShaderPassCommands++] = ShaderCommand;
 }
 
 void PushOutlineShaderPass(
@@ -1518,15 +1528,15 @@ render_command Command;
     ShaderCommand.Level = 0;
     ShaderCommand.Color = Color;
 
-    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec2_vec2_id);
 
     float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
-    Data[0] = -1.0f;  Data[1] = -1.0f;  Data[2] = 0.0f;  Data[3] = 0.0f;  Data[4] = 0.0f;
-    Data[5] = 1.0f;   Data[6] = -1.0f;  Data[7] = 0.0f;  Data[8] = 1.0f;  Data[9] = 0.0f;
-    Data[10] = 1.0;   Data[11] = 1.0f;  Data[12] = 0.0f; Data[13] = 1.0f; Data[14] = 1.0f;
-    Data[15] = -1.0f; Data[16] = -1.0f; Data[17] = 0.0f; Data[18] = 0.0f; Data[19] = 0.0f;
-    Data[20] = 1.0f;  Data[21] = 1.0f;  Data[22] = 0.0f; Data[23] = 1.0f; Data[24] = 1.0f;
-    Data[25] = -1.0f; Data[26] = 1.0f;  Data[27] = 0.0f; Data[28] = 0.0f; Data[29] = 1.0f;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ = -1.0f; *Data++ = 1.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
     
     Group->ShaderPassCommands[Group->nShaderPassCommands++] = ShaderCommand;
 }
@@ -1690,8 +1700,8 @@ void PushHeightmap(
         0,
         Order,
         {
-            .Flags = (render_flags)(DEPTH_TEST_FLAG | HEIGHTMAP_FLAG),
-            .Texture = &Heightmap->Bitmap,
+            .Flags = (render_flags)(DEPTH_TEST_FLAG),
+            .Heightmap = Heightmap,
             .PatchParameter = 4,
         }
     )->Vertices;
@@ -1916,7 +1926,7 @@ void PushDebugGrid(render_group* Group, float Alpha) {
     }
 }
 
-void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, bool Attachment = false) {
+void PushDebugTarget(render_group* Group, render_group_target Target, bool Attachment = false) {
     render_command Command;
     Command.Index = Group->nTargets;
     Command.Priority = SORT_ORDER_PUSH_RENDER_TARGETS + 0.1f;
@@ -1925,7 +1935,7 @@ void PushDebugFramebuffer(render_group* Group, render_group_target Framebuffer, 
     PushCommand(Group, Command);
 
     render_target_command TargetCommand = {};
-    TargetCommand.Source = Framebuffer;
+    TargetCommand.Source = Target;
     TargetCommand.Target = Target_Output;
     TargetCommand.DebugAttachment = Attachment;
     TargetCommand.Attachment = false;
