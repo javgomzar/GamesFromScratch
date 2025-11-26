@@ -344,7 +344,6 @@ void InitializeRenderGroup(
 // Render entries sorting
 float SORT_ORDER_CLEAR = 0.0f;
 float SORT_ORDER_MESHES = 100.0f;
-float SORT_ORDER_OUTLINED_MESHES = 150.0f;
 float SORT_ORDER_DEBUG_OVERLAY = 200.0f;
 float SORT_ORDER_SHADER_PASSES = 8000.0f;
 float SORT_ORDER_PUSH_RENDER_TARGETS = 9000.0f;
@@ -1587,6 +1586,7 @@ void PushMesh(
     color Color = White,
     armature* Armature = NULL,
     bool Outline = false,
+    color OutlineColor = White,
     float Order = SORT_ORDER_MESHES
 ) {
     game_mesh* Mesh = GetAsset(Group->Assets, MeshID);
@@ -1595,7 +1595,6 @@ void PushMesh(
     Options.Armature = Armature;
     Options.Texture = GetAsset(Group->Assets, TextureID);
     Options.Flags = DEPTH_TEST_FLAG;
-    Options.Outline = Outline;
     Options.Transform = Transform;
     
     // Faces
@@ -1607,7 +1606,7 @@ void PushMesh(
             Armature != NULL ? vertex_layout_vec3_vec2_vec3_id : vertex_layout_bones_id,
             Mesh->nVertices,
             3 * Mesh->nFaces,
-            SORT_ORDER_MESHES,
+            Order,
             Options
         );
     }
@@ -1622,42 +1621,55 @@ void PushMesh(
             Armature != NULL ? vertex_layout_vec3_vec2_vec3_id : vertex_layout_bones_id,
             Mesh->nVertices,
             2 * Mesh->nEdges,
-            SORT_ORDER_MESHES,
+            Order,
             Options
         );
     }
 
-    // Deal with outlines: Add necessary shader passes
-    if (Outline && !Group->PushOutline) {
-        PushRenderTarget(Group, Target_Outline, SORT_ORDER_SHADER_PASSES - 10.0f);
-        PushComputeShaderPass(
-            Group, 
-            shader_pass_outline_init, 
-            Target_Postprocessing_Outline, 
-            Target_Postprocessing_Outline, 
-            SORT_ORDER_SHADER_PASSES
+    // Outlines
+    if (Outline) {
+        Options.Outline = true;
+        PushPrimitiveCommand(
+            Group,
+            render_primitive_triangle,
+            OutlineColor,
+            Armature != NULL ? vertex_layout_vec3_vec2_vec3_id : vertex_layout_bones_id,
+            Mesh->nVertices,
+            3 * Mesh->nFaces,
+            SORT_ORDER_CLEAR,
+            Options
         );
 
-        int Shifts = 11;
-        int Level = 1 << Shifts;
-        float JumpOrder = SORT_ORDER_SHADER_PASSES;
-
-        for (int i = 0; i <= Shifts; i++) {
-            JumpOrder += 1.0f;
-            PushJumpFloodShaderPass(
+        if (!Group->PushOutline) {
+            PushRenderTarget(Group, Target_Outline, SORT_ORDER_CLEAR + 1.0f);
+            PushComputeShaderPass(
                 Group, 
-                Target_Postprocessing_Outline,
-                Level,
-                JumpOrder
+                shader_pass_outline_init, 
+                Target_Postprocessing_Outline, 
+                Target_Postprocessing_Outline, 
+                SORT_ORDER_CLEAR + 2.0f
             );
-            Level >>= 1;
+
+            int Shifts = 11;
+            int Level = 1 << Shifts;
+            float JumpOrder = SORT_ORDER_CLEAR + 3.0f;
+
+            for (int i = 0; i <= Shifts; i++) {
+                JumpOrder += 1.0f;
+                PushJumpFloodShaderPass(
+                    Group, 
+                    Target_Postprocessing_Outline,
+                    Level,
+                    JumpOrder
+                );
+                Level >>= 1;
+            }
+
+            PushOutlineShaderPass(Group, Target_Postprocessing_Outline, White, 4.0f, JumpOrder + 1.0f);
+
+            PushRenderTarget(Group, Target_Postprocessing_Outline, SORT_ORDER_SHADER_PASSES + 30.0f);
+            Group->PushOutline = true;
         }
-
-        PushOutlineShaderPass(Group, Target_Postprocessing_Outline, White, 4.0f, JumpOrder);
-        PushBlur(Group, Target_Postprocessing_Outline, JumpOrder + 1.0f);
-
-        PushRenderTarget(Group, Target_Postprocessing_Outline, SORT_ORDER_SHADER_PASSES + 30.0f);
-        Group->PushOutline = true;
     }
 
     // Debug bones rendering

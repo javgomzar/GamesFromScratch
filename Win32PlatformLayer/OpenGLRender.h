@@ -987,8 +987,10 @@ void ReloadShaders() {
 }
 
 openGL_shader_pipeline_id GetPipelineID(render_primitive_options Options) {
-	if (Options.Mesh)
-		return Options.Armature ? Shader_Pipeline_Mesh_Bones_ID : Shader_Pipeline_Mesh_ID;
+	if (Options.Mesh) {
+		if (Options.Outline) return Options.Armature ? Shader_Pipeline_Bones_Single_Color_ID : Shader_Pipeline_World_Single_Color_ID;
+		else                 return Options.Armature ? Shader_Pipeline_Mesh_Bones_ID         : Shader_Pipeline_Mesh_ID;
+	}
 	else if (Options.Font) {
 		if      (Options.Flags & TEXT_OUTLINE_FLAG)  return Shader_Pipeline_Text_Outline_ID;
 		else if (Options.Flags & TEXT_INTERIOR_FLAG) return Shader_Pipeline_Bezier_Interior_ID;
@@ -1629,7 +1631,8 @@ RENDERER_RENDER {
 				render_primitive_command DrawCommand = Group->PrimitiveCommands[Command.Index];
 				render_primitive_options Options = DrawCommand.Options;
 
-				BindTarget(Target_World);
+				if (Options.Outline) BindTarget(Target_Outline);
+				else                 BindTarget(Target_World);
 
 				openGL_shader_pipeline_id PipelineID = GetPipelineID(Options);
 				uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
@@ -1720,13 +1723,6 @@ RENDERER_RENDER {
 						glLineWidth(1.0f);
 						CurrentLineWidth = 1.0f;
 						glDrawArrays(GL_POINTS, 0, Options.Mesh->nVertices);
-					}
-
-					if (Options.Outline) {
-						glUseProgram(OpenGL.Pipeline[Shader_Pipeline_Bones_Single_Color_ID].ID);
-						SetColorUniform(White);
-						BindTarget(Target_Outline);
-						glDrawElements(GL_TRIANGLES, ElementEntry.Count, GL_UNSIGNED_INT, 0);
 					}
 
 					ClearBoneUniforms();
