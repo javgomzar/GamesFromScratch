@@ -483,7 +483,7 @@ void PushPoint(render_group* Group, v2 Point, color Color, float Order = SORT_OR
         Group,
         render_primitive_point, 
         Color,
-        vertex_layout_vec2_id, 
+        vertex_layout_v2_id, 
         1,
         0,
         Order
@@ -497,7 +497,7 @@ void PushPoint(render_group* Group, v3 Point, color Color, float Order = SORT_OR
         Group, 
         render_primitive_point,
         Color,
-        vertex_layout_vec3_id, 
+        vertex_layout_v3_id, 
         1,
         0,
         Order,
@@ -520,7 +520,7 @@ void PushLine(
         Group,
         render_primitive_line,
         Color,
-        vertex_layout_vec2_id,
+        vertex_layout_v2_id,
         2,
         0,
         Order,
@@ -544,7 +544,7 @@ void PushLine(
         Group,
         render_primitive_line,
         Color,
-        vertex_layout_vec3_id,
+        vertex_layout_v3_id,
         2,
         0,
         Order,
@@ -586,7 +586,7 @@ void PushTriangle(
         Group, 
         render_primitive_triangle,
         Color,
-        vertex_layout_vec3_id,
+        vertex_layout_v3_id,
         3,
         0,
         Order,
@@ -613,7 +613,7 @@ void PushTriangle(
         Group,
         render_primitive_triangle,
         Color,
-        vertex_layout_vec2_id,
+        vertex_layout_v2_id,
         3,
         0,
         Order
@@ -642,7 +642,7 @@ void PushCircle(
         Group,
         render_primitive_triangle,
         Color,
-        vertex_layout_vec2_id,
+        vertex_layout_v2_id,
         N+1,
         3*N,
         Order
@@ -688,7 +688,7 @@ void PushCircle(
         Group,
         render_primitive_triangle,
         Color,
-        vertex_layout_vec3_id,
+        vertex_layout_v3_id,
         N+1,
         3*N,
         Order,
@@ -734,7 +734,7 @@ void PushCircunference(
         Group,
         render_primitive_line_strip,
         Color,
-        vertex_layout_vec2_id,
+        vertex_layout_v2_id,
         N+1,
         0,
         Order,
@@ -771,7 +771,7 @@ void PushCircunference(
         Group,
         render_primitive_line,
         Color,
-        vertex_layout_vec3_id,
+        vertex_layout_v3_id,
         N+1,
         0,
         Order,
@@ -816,7 +816,7 @@ void PushArc(
         Group,
         render_primitive_line_strip,
         Color,
-        vertex_layout_vec3_id,
+        vertex_layout_v3_id,
         N,
         0,
         Order,
@@ -844,7 +844,7 @@ void PushRect(
         Group,
         render_primitive_triangle,
         Color,
-        vertex_layout_vec2_id,
+        vertex_layout_v2_id,
         4,
         6,
         Order
@@ -881,7 +881,7 @@ void PushRect(
         Group,
         render_primitive_triangle,
         Color,
-        vertex_layout_vec3_id,
+        vertex_layout_v3_id,
         4,
         6,
         Order,
@@ -925,7 +925,7 @@ void PushRectOutline(
         Group,
         render_primitive_line_strip,
         Color,
-        vertex_layout_vec2_id,
+        vertex_layout_v2_id,
         5,
         0,
         Order,
@@ -953,7 +953,7 @@ void PushBitmap(
         Group,
         render_primitive_triangle,
         White,
-        vertex_layout_vec2_vec2_id,
+        vertex_layout_v2_v2_id,
         4,
         6,
         Order,
@@ -1105,7 +1105,7 @@ void _PushText(
                         Group,
                         render_primitive_triangle,
                         Color,
-                        vertex_layout_vec2_vec2_id,
+                        vertex_layout_v2_v2_id,
                         0,
                         3 * pCharacter->nInteriorCurves,
                         SORT_ORDER_DEBUG_OVERLAY,
@@ -1121,7 +1121,7 @@ void _PushText(
                         Group,
                         render_primitive_triangle,
                         Color,
-                        vertex_layout_vec2_vec2_id,
+                        vertex_layout_v2_v2_id,
                         TEXT_EXTERIOR_FLAG,
                         3 * pCharacter->nExteriorCurves,
                         SORT_ORDER_DEBUG_OVERLAY,
@@ -1136,7 +1136,7 @@ void _PushText(
                     Group,
                     render_primitive_triangle,
                     Color,
-                    vertex_layout_vec2_vec2_id,
+                    vertex_layout_v2_v2_id,
                     0,
                     3 * pCharacter->nSolidTriangles,
                     SORT_ORDER_DEBUG_OVERLAY,
@@ -1150,7 +1150,7 @@ void _PushText(
                         Group,
                         render_primitive_patches,
                         Options.OutlineColor,
-                        vertex_layout_vec2_vec2_id,
+                        vertex_layout_v2_v2_id,
                         3 * pCharacter->nOnCurve,
                         TEXT_OUTLINE_FLAG,
                         SORT_ORDER_DEBUG_OVERLAY,
@@ -1243,7 +1243,7 @@ void PushCubeOutline(
         Group,
         render_primitive_line,
         Color,
-        vertex_layout_vec3_id,
+        vertex_layout_v3_id,
         8,
         24,
         Order,
@@ -1407,7 +1407,7 @@ void PushRenderTarget(
     else if (Target == Target_Output)  TargetCommand.Target = Target_None;
     else                               TargetCommand.Target = Target_Output;
 
-    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec2_vec2_id);
+    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
     float* Data = (float*)TargetCommand.VertexEntry.Pointer;
     
     *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
@@ -1439,7 +1439,7 @@ void PushShaderPass(
     ShaderCommand.Color = Color;
     ShaderCommand.Target = Target;
     
-    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec3_vec2_id);
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v3_v2_id);
 
     float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
     Data[0] = -1.0f;  Data[1] = -1.0f;  Data[2] = 0.0f;  Data[3] = 0.0f;  Data[4] = 0.0f;
@@ -1492,7 +1492,7 @@ void PushJumpFloodShaderPass(
     ShaderCommand.Target = Target;
     ShaderCommand.Level = Level;
 
-    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec2_vec2_id);
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
 
     float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
     *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
@@ -1527,7 +1527,7 @@ render_command Command;
     ShaderCommand.Level = 0;
     ShaderCommand.Color = Color;
 
-    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec2_vec2_id);
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
 
     float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
     *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
@@ -1603,7 +1603,7 @@ void PushMesh(
             Group,
             render_primitive_triangle,
             Color,
-            Armature != NULL ? vertex_layout_vec3_vec2_vec3_id : vertex_layout_bones_id,
+            Armature != NULL ? vertex_layout_v3_v2_v3_id : vertex_layout_bones_id,
             Mesh->nVertices,
             3 * Mesh->nFaces,
             Order,
@@ -1618,7 +1618,7 @@ void PushMesh(
             Group,
             render_primitive_line,
             Color,
-            Armature != NULL ? vertex_layout_vec3_vec2_vec3_id : vertex_layout_bones_id,
+            Armature != NULL ? vertex_layout_v3_v2_v3_id : vertex_layout_bones_id,
             Mesh->nVertices,
             2 * Mesh->nEdges,
             Order,
@@ -1633,7 +1633,7 @@ void PushMesh(
             Group,
             render_primitive_triangle,
             OutlineColor,
-            Armature != NULL ? vertex_layout_vec3_vec2_vec3_id : vertex_layout_bones_id,
+            Armature != NULL ? vertex_layout_v3_v2_v3_id : vertex_layout_bones_id,
             Mesh->nVertices,
             3 * Mesh->nFaces,
             SORT_ORDER_CLEAR,
@@ -1680,7 +1680,7 @@ void PushMesh(
             Group, 
             render_primitive_line,
             Black,
-            vertex_layout_vec3_id,
+            vertex_layout_v3_id,
             2 * Armature->nBones,
             0,
             SORT_ORDER_DEBUG_OVERLAY,
@@ -1707,7 +1707,7 @@ void PushHeightmap(
         Group, 
         render_primitive_patches,
         White,
-        vertex_layout_vec3_vec2_id, 
+        vertex_layout_v3_v2_id, 
         Heightmap->nVertices,
         0,
         Order,
@@ -1868,7 +1868,7 @@ void PushDebugFustrum(
         Group,
         render_primitive_line,
         White,
-        vertex_layout_vec3_vec2_id,
+        vertex_layout_v3_v2_id,
         9,
         24,
         SORT_ORDER_DEBUG_OVERLAY,
@@ -1920,7 +1920,7 @@ void PushDebugGrid(render_group* Group, float Alpha) {
         Group,
         render_primitive_line,
         ChangeAlpha(White, 0.5f),
-        vertex_layout_vec3_id,
+        vertex_layout_v3_id,
         nVertices,
         0,
         SORT_ORDER_DEBUG_OVERLAY-2.0f,
@@ -1951,7 +1951,7 @@ void PushDebugTarget(render_group* Group, render_group_target Target, bool Attac
     TargetCommand.Target = Target_Output;
     TargetCommand.DebugAttachment = Attachment;
     TargetCommand.Attachment = false;
-    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_vec2_vec2_id);
+    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
 
     float* Vertices = (float*)TargetCommand.VertexEntry.Pointer;
     *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = 0.0f; *Vertices++ = 0.0f,
@@ -1980,7 +1980,7 @@ void PushDebugPlot(
         Group,
         render_primitive_line_strip,
         Color,
-        vertex_layout_vec2_id,
+        vertex_layout_v2_id,
         N,
         0,
         Order,

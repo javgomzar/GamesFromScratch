@@ -4,14 +4,14 @@ void WriteAssetsFile(const char* Path) {
     game_assets Assets = {};
 
 // Vertex layouts
-    Assets.VertexLayout[vertex_layout_vec2_id]           = VertexLayout(1, vertex_type_vec2);
-    Assets.VertexLayout[vertex_layout_vec2_vec2_id]      = VertexLayout(2, vertex_type_vec2, vertex_type_vec2);
-    Assets.VertexLayout[vertex_layout_vec3_id]           = VertexLayout(1, vertex_type_vec3);
-    Assets.VertexLayout[vertex_layout_vec3_vec2_id]      = VertexLayout(2, vertex_type_vec3, vertex_type_vec2);
-    Assets.VertexLayout[vertex_layout_vec3_vec2_vec3_id] = VertexLayout(3, vertex_type_vec3, vertex_type_vec2, vertex_type_vec3);
-    Assets.VertexLayout[vertex_layout_vec3_vec4_id]      = VertexLayout(2, vertex_type_vec3, vertex_type_vec4);
-    Assets.VertexLayout[vertex_layout_vec4_id]           = VertexLayout(1, vertex_type_vec4);
-    Assets.VertexLayout[vertex_layout_bones_id]          = VertexLayout(5, vertex_type_vec3, vertex_type_vec2, vertex_type_vec3, vertex_type_ivec2, vertex_type_vec2);
+    Assets.VertexLayout[vertex_layout_v2_id]       = VertexLayout(1, vertex_type_v2);
+    Assets.VertexLayout[vertex_layout_v2_v2_id]    = VertexLayout(2, vertex_type_v2, vertex_type_v2);
+    Assets.VertexLayout[vertex_layout_v3_id]       = VertexLayout(1, vertex_type_v3);
+    Assets.VertexLayout[vertex_layout_v3_v2_id]    = VertexLayout(2, vertex_type_v3, vertex_type_v2);
+    Assets.VertexLayout[vertex_layout_v3_v2_v3_id] = VertexLayout(3, vertex_type_v3, vertex_type_v2, vertex_type_v3);
+    Assets.VertexLayout[vertex_layout_v3_v4_id]    = VertexLayout(2, vertex_type_v3, vertex_type_v4);
+    Assets.VertexLayout[vertex_layout_v4_id]       = VertexLayout(1, vertex_type_v4);
+    Assets.VertexLayout[vertex_layout_bones_id]    = VertexLayout(5, vertex_type_v3, vertex_type_v2, vertex_type_v3, vertex_type_iv2, vertex_type_v2);
     for (int i = 0; i < vertex_layout_id_count; i++) Assets.VertexLayout[i].ID = (vertex_layout_id)i;
 
 // Assets

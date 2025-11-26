@@ -847,11 +847,11 @@ void UpdateUI(
             DEBUG_VALUE(Memory->Permanent, memory_arena);
 
             memory_arena* VertexArena = Group->VertexBuffer.Vertices;
-            DEBUG_VALUE(VertexArena[vertex_layout_vec2_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_vec2_vec2_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_vec3_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_vec3_vec2_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_vec3_vec2_vec3_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v2_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v2_v2_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v3_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v3_v2_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v3_v2_v3_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_bones_id], memory_arena);
             nEntries = DebugInfo->nEntries;
             for (; i < nEntries; i++) {

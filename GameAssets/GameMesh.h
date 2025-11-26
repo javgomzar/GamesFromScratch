@@ -11,28 +11,47 @@
 ENUM(vertex_type,
     vertex_type_empty,
     vertex_type_float,
-    vertex_type_vec2,
-    vertex_type_vec3,
-    vertex_type_vec4,
+    vertex_type_v2,
+    vertex_type_v3,
+    vertex_type_v4,
     vertex_type_int,
-    vertex_type_ivec2,
-    vertex_type_ivec3,
-    vertex_type_ivec4,
+    vertex_type_iv2,
+    vertex_type_iv3,
+    vertex_type_iv4,
     vertex_type_mat2,
     vertex_type_mat3,
     vertex_type_mat4
 );
 
+bool IsFloatType(vertex_type Type) {
+    return 
+        Type == vertex_type_float ||
+        Type == vertex_type_v2 ||
+        Type == vertex_type_v3 ||
+        Type == vertex_type_v4 ||
+        Type == vertex_type_mat2 ||
+        Type == vertex_type_mat3 ||
+        Type == vertex_type_mat4;
+}
+
+bool IsIntegerType(vertex_type Type) {
+    return
+        Type == vertex_type_int ||
+        Type == vertex_type_iv2 ||
+        Type == vertex_type_iv3 ||
+        Type == vertex_type_iv4;
+}
+
 uint32 GetVertexTypeSizeInBytes(vertex_type Type) {
     switch (Type) {
         case vertex_type_float: { return 4; } break;
-        case vertex_type_vec2:  { return 8; } break;
-        case vertex_type_vec3:  { return 12; } break;
-        case vertex_type_vec4:  { return 16; } break;
+        case vertex_type_v2:  { return 8; } break;
+        case vertex_type_v3:  { return 12; } break;
+        case vertex_type_v4:  { return 16; } break;
         case vertex_type_int:   { return 4; } break;
-        case vertex_type_ivec2: { return 8; } break;
-        case vertex_type_ivec3: { return 12; } break;
-        case vertex_type_ivec4: { return 16; } break;
+        case vertex_type_iv2: { return 8; } break;
+        case vertex_type_iv3: { return 12; } break;
+        case vertex_type_iv4: { return 16; } break;
         case vertex_type_mat2:  { return 16; } break;
         case vertex_type_mat3:  { return 36; } break;
         case vertex_type_mat4:  { return 64; } break;
@@ -45,13 +64,13 @@ uint32 GetVertexTypeSizeInBytes(vertex_type Type) {
 int GetVertexTypeSize(vertex_type Type) {
     switch (Type) {
         case vertex_type_float: { return 1; } break;
-        case vertex_type_vec2:  { return 2; } break;
-        case vertex_type_vec3:  { return 3; } break;
-        case vertex_type_vec4:  { return 4; } break;
+        case vertex_type_v2:  { return 2; } break;
+        case vertex_type_v3:  { return 3; } break;
+        case vertex_type_v4:  { return 4; } break;
         case vertex_type_int:   { return 1; } break;
-        case vertex_type_ivec2: { return 2; } break;
-        case vertex_type_ivec3: { return 3; } break;
-        case vertex_type_ivec4: { return 4; } break;
+        case vertex_type_iv2: { return 2; } break;
+        case vertex_type_iv3: { return 3; } break;
+        case vertex_type_iv4: { return 4; } break;
         case vertex_type_mat2:  { return 4; } break;
         case vertex_type_mat3:  { return 9; } break;
         case vertex_type_mat4:  { return 16; } break;
@@ -76,13 +95,13 @@ bool operator!=(vertex_attribute Attribute1, vertex_attribute Attribute2) {
 }
 
 ENUM(vertex_layout_id,
-    vertex_layout_vec2_id,
-    vertex_layout_vec2_vec2_id,
-    vertex_layout_vec3_id,
-    vertex_layout_vec3_vec2_id,
-    vertex_layout_vec3_vec2_vec3_id,
-    vertex_layout_vec3_vec4_id,
-    vertex_layout_vec4_id,
+    vertex_layout_v2_id,
+    vertex_layout_v2_v2_id,
+    vertex_layout_v3_id,
+    vertex_layout_v3_v2_id,
+    vertex_layout_v3_v2_v3_id,
+    vertex_layout_v3_v4_id,
+    vertex_layout_v4_id,
     vertex_layout_bones_id
 );
 
@@ -248,7 +267,7 @@ game_mesh LoadMesh(memory_arena* Arena, preprocessed_mesh* Preprocessed) {
         bool HasArmature = Result.Armature.nBones > 0;
         uint32 VerticesSize = GetMeshVerticesSize(Preprocessed->nVertices, HasArmature);
         Result.Vertices = PushSize(Arena, VerticesSize);
-        Result.VertexLayoutID = HasArmature ? vertex_layout_bones_id : vertex_layout_vec3_vec2_vec3_id;
+        Result.VertexLayoutID = HasArmature ? vertex_layout_bones_id : vertex_layout_v3_v2_v3_id;
         if (Preprocessed->nEdges > 0) {
             Result.Edges = PushArray(Arena, 2 * Preprocessed->nEdges, uint32);
         }

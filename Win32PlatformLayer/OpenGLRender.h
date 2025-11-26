@@ -100,14 +100,14 @@ GLenum GetType(GLenum InternalFormat) {
 GLenum GetType(vertex_type Type) {
 	switch (Type) {
 		case vertex_type_float:
-		case vertex_type_vec2:
-		case vertex_type_vec3:
-		case vertex_type_vec4: 
+		case vertex_type_v2:
+		case vertex_type_v3:
+		case vertex_type_v4: 
 			{ return GL_FLOAT; } break;
 		case vertex_type_int:
-		case vertex_type_ivec2:
-		case vertex_type_ivec3:
-		case vertex_type_ivec4:
+		case vertex_type_iv2:
+		case vertex_type_iv3:
+		case vertex_type_iv4:
 			{ return GL_INT; } break;
 		case vertex_type_mat2:
 		case vertex_type_mat3:
@@ -1434,7 +1434,7 @@ RENDERER_INITIALIZE {
 			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, 0);
 			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, 0);
 
-			vertex_layout Layout = Assets->VertexLayout[vertex_layout_vec2_vec2_id];
+			vertex_layout Layout = Assets->VertexLayout[vertex_layout_v2_v2_id];
 
 			EnableVertexLayout(FontBuffer->VAO, FontBuffer->VBO, Layout);
 			glVertexArrayElementBuffer(FontBuffer->VAO, FontBuffer->EBO);
