@@ -139,7 +139,7 @@ FLAGS(render_flags,
     TEXT_INTERIOR_FLAG,
     TEXT_EXTERIOR_FLAG,
 
-    HEIGHTMAP_FLAG
+    OVERWRITE_ALPHA_FLAG
 );
 
 struct render_primitive_options {
@@ -344,6 +344,7 @@ void InitializeRenderGroup(
 // Render entries sorting
 float SORT_ORDER_CLEAR = 0.0f;
 float SORT_ORDER_MESHES = 100.0f;
+float SORT_ORDER_OUTLINED_MESHES = 150.0f;
 float SORT_ORDER_DEBUG_OVERLAY = 200.0f;
 float SORT_ORDER_SHADER_PASSES = 8000.0f;
 float SORT_ORDER_PUSH_RENDER_TARGETS = 9000.0f;
@@ -1403,9 +1404,10 @@ void PushRenderTarget(
     TargetCommand.DebugAttachment = false;
     TargetCommand.Attachment = Group->RenderTargets[Target].Depth || Group->RenderTargets[Target].Stencil;
 
-    if      (Target == Target_Outline) TargetCommand.Target = Target_Postprocessing_Outline;
-    else if (Target == Target_Output)  TargetCommand.Target = Target_None;
-    else                               TargetCommand.Target = Target_Output;
+    if      (Target == Target_Outline)                 TargetCommand.Target = Target_Postprocessing_Outline;
+    else if (Target == Target_Output)                  TargetCommand.Target = Target_None;
+    else if (Target == Target_Postprocessing_Outline)  TargetCommand.Target = Target_World;
+    else                                               TargetCommand.Target = Target_Output;
 
     TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
     float* Data = (float*)TargetCommand.VertexEntry.Pointer;
@@ -1586,8 +1588,7 @@ void PushMesh(
     color Color = White,
     armature* Armature = NULL,
     bool Outline = false,
-    color OutlineColor = White,
-    float Order = SORT_ORDER_MESHES
+    color OutlineColor = White
 ) {
     game_mesh* Mesh = GetAsset(Group->Assets, MeshID);
     render_primitive_options Options = {};
@@ -1606,7 +1607,7 @@ void PushMesh(
             Armature != NULL ? vertex_layout_v3_v2_v3_id : vertex_layout_bones_id,
             Mesh->nVertices,
             3 * Mesh->nFaces,
-            Order,
+            Outline ? SORT_ORDER_OUTLINED_MESHES : SORT_ORDER_MESHES,
             Options
         );
     }
@@ -1621,7 +1622,7 @@ void PushMesh(
             Armature != NULL ? vertex_layout_v3_v2_v3_id : vertex_layout_bones_id,
             Mesh->nVertices,
             2 * Mesh->nEdges,
-            Order,
+            Outline ? SORT_ORDER_OUTLINED_MESHES : SORT_ORDER_MESHES,
             Options
         );
     }
@@ -1667,7 +1668,7 @@ void PushMesh(
 
             PushOutlineShaderPass(Group, Target_Postprocessing_Outline, White, 4.0f, JumpOrder + 1.0f);
 
-            PushRenderTarget(Group, Target_Postprocessing_Outline, SORT_ORDER_SHADER_PASSES + 30.0f);
+            PushRenderTarget(Group, Target_Postprocessing_Outline, SORT_ORDER_OUTLINED_MESHES - 0.1f);
             Group->PushOutline = true;
         }
     }
@@ -1919,13 +1920,13 @@ void PushDebugGrid(render_group* Group, float Alpha) {
     v3* Vertices = (v3*)PushPrimitiveCommand(
         Group,
         render_primitive_line,
-        ChangeAlpha(White, 0.5f),
+        ChangeAlpha(White, 0.2f),
         vertex_layout_v3_id,
         nVertices,
         0,
-        SORT_ORDER_DEBUG_OVERLAY-2.0f,
+        SORT_ORDER_MESHES,
         {
-            .Flags = DEPTH_TEST_FLAG,
+            .Flags = (render_flags)(DEPTH_TEST_FLAG | OVERWRITE_ALPHA_FLAG),
             .Thickness = 1.0f
         }
     )->Vertices;

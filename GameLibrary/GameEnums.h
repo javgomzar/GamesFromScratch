@@ -48,7 +48,7 @@ enum render_flags {
     TEXT_OUTLINE_FLAG = 1 << 2,
     TEXT_INTERIOR_FLAG = 1 << 3,
     TEXT_EXTERIOR_FLAG = 1 << 4,
-    HEIGHTMAP_FLAG = 1 << 5,
+    OVERWRITE_ALPHA_FLAG = 1 << 5,
 };
 
 bool IsEnumType(debug_type Type) { return Type > 22 && Type < 35; }
@@ -133,7 +133,7 @@ debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {
     {Debug_Type_render_flags, "TEXT_OUTLINE_FLAG", 4},
     {Debug_Type_render_flags, "TEXT_INTERIOR_FLAG", 8},
     {Debug_Type_render_flags, "TEXT_EXTERIOR_FLAG", 16},
-    {Debug_Type_render_flags, "HEIGHTMAP_FLAG", 32},
+    {Debug_Type_render_flags, "OVERWRITE_ALPHA_FLAG", 32},
 };
 
 #endif

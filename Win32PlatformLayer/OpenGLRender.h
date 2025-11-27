@@ -1611,6 +1611,7 @@ RENDERER_RENDER {
 
 	float CurrentLineWidth = 2.0f;
 	glLineWidth(CurrentLineWidth);
+	glDepthMask(GL_TRUE);
 
 // Render entries
 	for (int i = 0; i < Group->EntryCount; i++) {
@@ -1673,8 +1674,10 @@ RENDERER_RENDER {
 					glDepthFunc(GL_LESS);
 				}
 				else glDepthFunc(GL_ALWAYS);
+				glDepthMask(GL_TRUE);
 
-				glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+				if (Options.Flags & OVERWRITE_ALPHA_FLAG) glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
+				else                                      glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
 
 				// Vertices and elements
 				GLenum Primitive = GetRenderPrimitive(DrawCommand.Primitive);
@@ -1834,6 +1837,7 @@ RENDERER_RENDER {
 					}
 				}
 				glDepthFunc(GL_ALWAYS);
+				glDepthMask(GL_FALSE);
 				
 				if (Source.Multisampling) SetAntialiasingUniforms(Source.Samples);
 
