@@ -46,7 +46,7 @@ const char* GetRendererString(renderer Renderer) {
 const char* GetRendererLibs(renderer Renderer) {
     switch(Renderer) {
         case Renderer_OpenGL:  return "glew32.lib";
-        case Renderer_DirectX: return "D3d11.lib";
+        case Renderer_DirectX: return "D3d11.lib d3dcompiler.lib";
         case Renderer_Vulkan:  return "vulkan-1.lib shaderc_combined.lib";
     }
 
