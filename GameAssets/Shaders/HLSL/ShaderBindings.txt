@@ -6,4 +6,4 @@ Constant buffers:
     - (4) Bones: Bone transforms and normal transforms.
     - (5) Outline: Outline uniforms: width, JFAlevel
     - (6) Kernel: Kernel matrix.
-    - (7) Text: DPI and points for text size.
+    - (7) Text: Pen and size.

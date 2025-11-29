@@ -1,6 +1,6 @@
 Texture2DMS<float4, 8> Texture: register(t0);
 
-cbuffer Globals : register(b0) {
+cbuffer Globals: register(b0) {
     float4x4 Projection;
     float4x4 View;
     float2 Resolution;

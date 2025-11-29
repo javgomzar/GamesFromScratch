@@ -7,7 +7,7 @@ cbuffer Globals {
     float Time;
 };
 
-cbuffer Text {
+cbuffer Text: register(b7) {
     float2 Pen;
 	float Size;
 };
