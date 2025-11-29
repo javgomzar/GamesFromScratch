@@ -307,6 +307,7 @@ void SetGlobalBuffer(int32 Width, int32 Height, camera* Camera, game_input* Inpu
         Buffer->Time = Time;
         DirectX.DeviceContext->Unmap(GlobalBuffer, 0);
         DirectX.DeviceContext->VSSetConstantBuffers(0, 1, &GlobalBuffer);
+        DirectX.DeviceContext->GSSetConstantBuffers(0, 1, &GlobalBuffer);
         DirectX.DeviceContext->PSSetConstantBuffers(0, 1, &GlobalBuffer);
     }
 }
@@ -849,11 +850,33 @@ void ReloadShader(directX_Compute_Shader* Shader) {
     }
 }
 
-
-
 void ReloadShaders() {
     for (int i = 0; i < directX_Vertex_Shader_ID_count; i++) {
         directX_Vertex_Shader* Shader = &DirectX.VertexShader[i];
+        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
+        if (LastWriteTime > Shader->File.Timestamp) {
+            ReloadShader(Shader);
+        }
+    }
+
+    // for (int i = 0; i < directX_Hull_Shader_ID_count; i++) {
+    //     directX_Hull_Shader* Shader = &DirectX.HullShader[i];
+    //     int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
+    //     if (LastWriteTime > Shader->File.Timestamp) {
+    //         ReloadShader(Shader);
+    //     }
+    // }
+
+    // for (int i = 0; i < directX_Domain_Shader_ID_count; i++) {
+    //     directX_Domain_Shader* Shader = &DirectX.DomainShader[i];
+    //     int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
+    //     if (LastWriteTime > Shader->File.Timestamp) {
+    //         ReloadShader(Shader);
+    //     }
+    // }
+
+    for (int i = 0; i < directX_Geometry_Shader_ID_count; i++) {
+        directX_Geometry_Shader* Shader = &DirectX.GeometryShader[i];
         int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
         if (LastWriteTime > Shader->File.Timestamp) {
             ReloadShader(Shader);
@@ -867,6 +890,14 @@ void ReloadShaders() {
             ReloadShader(Shader);
         }
     }
+
+    // for (int i = 0; i < directX_Compute_Shader_ID_count; i++) {
+    //     directX_Compute_Shader* Shader = &DirectX.ComputeShader[i];
+    //     int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
+    //     if (LastWriteTime > Shader->File.Timestamp) {
+    //         ReloadShader(Shader);
+    //     }
+    // }
 }
 
 RENDERER_INITIALIZE {
@@ -1334,11 +1365,14 @@ RENDERER_RENDER {
                 }
 
                 if (Options.Mesh) {
-                    DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
-                    DirectX.DeviceContext->GSSetShader(DirectX.GeometryShader[Geometry_Shader_Normal_ID].Shader, NULL, 0);
-                    DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Single_Color_ID].Shader, NULL, 0);
-
-                    SetColorBuffer(Yellow);
+                    if (Group->Debug && Group->DebugNormals) {
+                        DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+                        DirectX.DeviceContext->GSSetShader(DirectX.GeometryShader[Geometry_Shader_Normal_ID].Shader, NULL, 0);
+                        DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Single_Color_ID].Shader, NULL, 0);
+                        SetColorBuffer(Yellow);
+                        DirectX.DeviceContext->Draw(Options.Mesh->nVertices, 0);
+                        DirectX.DeviceContext->GSSetShader(NULL, NULL, 0);
+                    }
 
                     ClearTransformBuffer();
                 }
