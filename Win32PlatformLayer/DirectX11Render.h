@@ -50,13 +50,14 @@ ENUM(directX_Domain_Shader_ID,
 );
 
 ENUM(directX_Geometry_Shader_ID,
-    Geometry_Shader_Empty_ID
+    Geometry_Shader_Normal_ID
 );
 
 ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Antialiasing_ID,
     Pixel_Shader_Single_Color_ID,
-    Pixel_Shader_Texture_ID
+    Pixel_Shader_Texture_ID,
+    Pixel_Shader_Mesh_ID
 );
 
 ENUM(directX_Compute_Shader_ID,
@@ -111,10 +112,11 @@ struct alignas(16) text_buffer {
 };
 
 struct alignas(16) light_buffer {
-    float Ambient;
-    float Diffuse;
-    v3 Direction;
-    color Color;
+	alignas(16) v3 Direction;
+	alignas(16) v3 Color;
+	alignas(16) v3 CameraPosition;
+	float Ambient;
+	float Diffuse;
 };
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -309,7 +311,7 @@ void SetGlobalBuffer(int32 Width, int32 Height, camera* Camera, game_input* Inpu
     }
 }
 
-void SetLightBuffer(light Light) {
+void SetLightBuffer(light Light, v3 CameraPosition) {
     ID3D11Buffer* TextBuffer = DirectX.ConstantBuffer[light_buffer_id];
     void* MappedBuffer = GetMappedBuffer(TextBuffer);
     if (MappedBuffer) {
@@ -317,7 +319,8 @@ void SetLightBuffer(light Light) {
         Buffer->Ambient = Light.Ambient;
         Buffer->Diffuse = Light.Diffuse;
         Buffer->Direction = Light.Direction;
-        Buffer->Color = Light.Color;
+        Buffer->Color = V3(Light.Color.R, Light.Color.G, Light.Color.B);
+        Buffer->CameraPosition = CameraPosition;
         DirectX.DeviceContext->Unmap(TextBuffer, 0);
         DirectX.DeviceContext->PSSetConstantBuffers(1, 1, &TextBuffer);
     }
@@ -342,7 +345,7 @@ void SetTransformBuffer(matrix4 Model) {
         Buffer->Model = Model;
         Buffer->Normal = Matrix4(inverse(Matrix3(Model)));
         DirectX.DeviceContext->Unmap(TransformBuffer, 0);
-        DirectX.DeviceContext->VSSetConstantBuffers(1, 1, &TransformBuffer);
+        DirectX.DeviceContext->VSSetConstantBuffers(3, 1, &TransformBuffer);
     }
 }
 
@@ -358,7 +361,7 @@ void SetTextBuffer(v2 Pen, float Size) {
         Buffer->Pen = Pen;
         Buffer->Size = Size;
         DirectX.DeviceContext->Unmap(TextBuffer, 0);
-        DirectX.DeviceContext->VSSetConstantBuffers(1, 1, &TextBuffer);
+        DirectX.DeviceContext->VSSetConstantBuffers(7, 1, &TextBuffer);
     }
 }
 
@@ -427,14 +430,11 @@ void CreateInputLayout(vertex_layout Layout, directX_Vertex_Shader_ID ShaderID) 
 }
 
 ID3DBlob* CompileShader(read_file_result* File, const char* Path) {
-    *File = Platform.ReadEntireFile(Path);
+    read_file_result NewFile = Platform.ReadEntireFile(Path);
 
-    if (File->ContentSize == 0) {
-        char ErrorBuffer[1024];
-        sprintf_s(ErrorBuffer, "DirectX: Couldn't find shader file %s", Path);
-        Log(Error, ErrorBuffer);
-        return nullptr;
-    }
+    if (NewFile.ContentSize == 0) return nullptr;
+
+    *File = NewFile;
 
     const char* Extension = GetFileExtension(Path);
     const char* Target = nullptr;
@@ -467,9 +467,57 @@ ID3DBlob* CompileShader(read_file_result* File, const char* Path) {
         char ErrorBuffer[1024];
         sprintf_s(ErrorBuffer, "DirectX: Failure trying to compile shader: %s", (char*)Errors->GetBufferPointer());
         Log(Error, ErrorBuffer);
+        return nullptr;
     }
 
     return Blob;
+}
+
+void ParseVertexLayout(directX_Vertex_Shader* Shader) {
+    vertex_layout ShaderLayout = {};
+    token SemanticNames[MAX_VERTEX_ATTRIBUTES] = {};
+
+    tokenizer Tokenizer = InitTokenizer(Shader->File.Content);
+    token Token = GetToken(Tokenizer);
+    while (Token.Type != Token_End) {
+        if (Token == "struct") {
+            Token = RequireToken(Tokenizer, Token_Identifier);
+            if (Token == "VertexIn") {
+                RequireToken(Tokenizer, Token_OpenBrace);
+                
+                Token = RequireToken(Tokenizer, Token_Identifier);
+                while (Token.Type != Token_CloseBrace) {
+                    vertex_type Type = vertex_type_empty;
+                    if      (Token == "float")    Type = vertex_type_float;
+                    else if (Token == "float2")   Type = vertex_type_v2;
+                    else if (Token == "float3")   Type = vertex_type_v3;
+                    else if (Token == "float4")   Type = vertex_type_v4;
+                    else if (Token == "float2x2") Type = vertex_type_mat2;
+                    else if (Token == "float3x3") Type = vertex_type_mat3;
+                    else if (Token == "float4x4") Type = vertex_type_mat4;
+                    else if (Token == "int")      Type = vertex_type_int;
+                    else if (Token == "int2")     Type = vertex_type_iv2;
+                    else if (Token == "int3")     Type = vertex_type_iv3;
+                    else if (Token == "int4")     Type = vertex_type_iv4;
+                    else Raise("DirectX: Unknown vertex attribute type.");
+                    
+                    RequireToken(Tokenizer, Token_Identifier);
+                    RequireToken(Tokenizer, Token_Colon);
+                    SemanticNames[ShaderLayout.nAttributes] = RequireToken(Tokenizer, Token_Identifier);
+                    AddAttribute(&ShaderLayout, Type);
+                    RequireToken(Tokenizer, Token_Semicolon);
+                    Token = GetToken(Tokenizer);
+                }
+
+                vertex_layout_id LayoutID = FindCompatibleVertexLayout(DirectX.Assets->VertexLayout, ShaderLayout);
+                if (DirectX.VertexLayout[LayoutID] == NULL) {
+                    CreateInputLayout(DirectX.Assets->VertexLayout[LayoutID], Shader->ID);
+                }
+            }
+        }
+
+        Token = GetToken(Tokenizer);
+    }
 }
 
 void LoadShader(directX_Vertex_Shader_ID ID, const char* Path) {
@@ -494,52 +542,35 @@ void LoadShader(directX_Vertex_Shader_ID ID, const char* Path) {
             sprintf_s(TextBuffer, "DirectX: Vertex shader %s was successfully created.", Path);
             Log(Info, TextBuffer);
 
-            // Parsing vertex layout
-            vertex_layout ShaderLayout = {};
-            token SemanticNames[MAX_VERTEX_ATTRIBUTES] = {};
-
-            tokenizer Tokenizer = InitTokenizer(Shader->File.Content);
-            token Token = GetToken(Tokenizer);
-            while (Token.Type != Token_End) {
-                if (Token == "struct") {
-                    Token = RequireToken(Tokenizer, Token_Identifier);
-                    if (Token == "VertexIn") {
-                        RequireToken(Tokenizer, Token_OpenBrace);
-                        
-                        Token = RequireToken(Tokenizer, Token_Identifier);
-                        while (Token.Type != Token_CloseBrace) {
-                            vertex_type Type = vertex_type_empty;
-                            if      (Token == "float")    Type = vertex_type_float;
-                            else if (Token == "float2")   Type = vertex_type_v2;
-                            else if (Token == "float3")   Type = vertex_type_v3;
-                            else if (Token == "float4")   Type = vertex_type_v4;
-                            else if (Token == "float2x2") Type = vertex_type_mat2;
-                            else if (Token == "float3x3") Type = vertex_type_mat3;
-                            else if (Token == "float4x4") Type = vertex_type_mat4;
-                            else if (Token == "int")      Type = vertex_type_int;
-                            else if (Token == "int2")     Type = vertex_type_iv2;
-                            else if (Token == "int3")     Type = vertex_type_iv3;
-                            else if (Token == "int4")     Type = vertex_type_iv4;
-                            else Raise("DirectX: Unknown vertex attribute type.");
-                            
-                            RequireToken(Tokenizer, Token_Identifier);
-                            RequireToken(Tokenizer, Token_Colon);
-                            SemanticNames[ShaderLayout.nAttributes] = RequireToken(Tokenizer, Token_Identifier);
-                            AddAttribute(&ShaderLayout, Type);
-                            RequireToken(Tokenizer, Token_Semicolon);
-                            Token = GetToken(Tokenizer);
-                        }
-
-                        vertex_layout_id LayoutID = FindCompatibleVertexLayout(DirectX.Assets->VertexLayout, ShaderLayout);
-                        if (DirectX.VertexLayout[LayoutID] == NULL) {
-                            CreateInputLayout(DirectX.Assets->VertexLayout[LayoutID], ID);
-                        }
-                    }
-                }
-
-                Token = GetToken(Tokenizer);
-            }
+            ParseVertexLayout(Shader);
         }
+    }
+}
+
+void ParseSamplers(directX_Pixel_Shader* Shader) {
+    tokenizer Tokenizer = InitTokenizer(Shader->File.Content);
+    token Token = GetToken(Tokenizer);
+    while (Token.Type != Token_End) {
+        if (Token == "SamplerState") {
+            D3D11_SAMPLER_DESC SamplerDescription = {};
+            SamplerDescription.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+            SamplerDescription.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+            SamplerDescription.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+            SamplerDescription.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+            SamplerDescription.MipLODBias = 0.0f;
+            SamplerDescription.MaxAnisotropy = 1;
+            SamplerDescription.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
+            SamplerDescription.BorderColor[0] = 0;
+            SamplerDescription.BorderColor[1] = 0;
+            SamplerDescription.BorderColor[2] = 0;
+            SamplerDescription.BorderColor[3] = 0;
+            SamplerDescription.MinLOD = 0;
+            SamplerDescription.MaxLOD = D3D11_FLOAT32_MAX;
+
+            DirectX.Device->CreateSamplerState(&SamplerDescription, &Shader->Sampler);
+        }
+
+        Token = GetToken(Tokenizer);
     }
 }
 
@@ -566,30 +597,7 @@ void LoadShader(directX_Pixel_Shader_ID ID, const char* Path) {
             Log(Info, TextBuffer);
         }
 
-        tokenizer Tokenizer = InitTokenizer(Shader->File.Content);
-        token Token = GetToken(Tokenizer);
-        while (Token.Type != Token_End) {
-            if (Token == "SamplerState") {
-                D3D11_SAMPLER_DESC SamplerDescription = {};
-                SamplerDescription.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-                SamplerDescription.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-                SamplerDescription.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-                SamplerDescription.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-                SamplerDescription.MipLODBias = 0.0f;
-                SamplerDescription.MaxAnisotropy = 1;
-                SamplerDescription.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
-                SamplerDescription.BorderColor[0] = 0;
-                SamplerDescription.BorderColor[1] = 0;
-                SamplerDescription.BorderColor[2] = 0;
-                SamplerDescription.BorderColor[3] = 0;
-                SamplerDescription.MinLOD = 0;
-                SamplerDescription.MaxLOD = D3D11_FLOAT32_MAX;
-
-                DirectX.Device->CreateSamplerState(&SamplerDescription, &Shader->Sampler);
-            }
-
-            Token = GetToken(Tokenizer);
-        }
+        ParseSamplers(Shader);
     }
 }
 
@@ -693,8 +701,172 @@ void LoadShader(directX_Compute_Shader_ID ID, const char* Path) {
     }
 }
 
-void ReloadShaders() {
+void ReloadShader(directX_Vertex_Shader* Shader) {
+    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    if (Blob) {
+        ID3D11VertexShader* NewShader = nullptr;
+        HRESULT Result = DirectX.Device->CreateVertexShader(
+            Blob->GetBufferPointer(),
+            Blob->GetBufferSize(),
+            NULL,
+            &NewShader
+        );
 
+        if (SUCCEEDED(Result)) {
+            if (Shader->Shader) Shader->Shader->Release();
+            if (Shader->Blob) Shader->Blob->Release();
+            Shader->Blob = Blob;
+            Shader->Shader = NewShader;
+
+            ParseVertexLayout(Shader);
+
+            char Text[512];
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            Log(Info, Text);
+        }
+    }
+}
+
+void ReloadShader(directX_Hull_Shader* Shader) {
+    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    if (Blob) {
+        ID3D11HullShader* NewShader = nullptr;
+        HRESULT Result = DirectX.Device->CreateHullShader(
+            Blob->GetBufferPointer(),
+            Blob->GetBufferSize(),
+            NULL,
+            &NewShader
+        );
+
+        if (SUCCEEDED(Result)) {
+            if (Shader->Shader) Shader->Shader->Release();
+            if (Shader->Blob) Shader->Blob->Release();
+            Shader->Blob = Blob;
+            Shader->Shader = NewShader;
+
+            char Text[512];
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            Log(Info, Text);
+        }
+    }
+}
+
+void ReloadShader(directX_Domain_Shader* Shader) {
+    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    if (Blob) {
+        ID3D11DomainShader* NewShader = nullptr;
+        HRESULT Result = DirectX.Device->CreateDomainShader(
+            Blob->GetBufferPointer(),
+            Blob->GetBufferSize(),
+            NULL,
+            &NewShader
+        );
+
+        if (SUCCEEDED(Result)) {
+            if (Shader->Shader) Shader->Shader->Release();
+            if (Shader->Blob) Shader->Blob->Release();
+            Shader->Blob = Blob;
+            Shader->Shader = NewShader;
+
+            char Text[512];
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            Log(Info, Text);
+        }
+    }
+}
+
+void ReloadShader(directX_Geometry_Shader* Shader) {
+    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    if (Blob) {
+        ID3D11GeometryShader* NewShader = nullptr;
+        HRESULT Result = DirectX.Device->CreateGeometryShader(
+            Blob->GetBufferPointer(),
+            Blob->GetBufferSize(),
+            NULL,
+            &NewShader
+        );
+
+        if (SUCCEEDED(Result)) {
+            if (Shader->Shader) Shader->Shader->Release();
+            if (Shader->Blob) Shader->Blob->Release();
+            Shader->Blob = Blob;
+            Shader->Shader = NewShader;
+
+            char Text[512];
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            Log(Info, Text);
+        }
+    }
+}
+
+void ReloadShader(directX_Pixel_Shader* Shader) {
+    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    if (Blob) {
+        ID3D11PixelShader* NewShader = nullptr;
+        HRESULT Result = DirectX.Device->CreatePixelShader(
+            Blob->GetBufferPointer(),
+            Blob->GetBufferSize(),
+            NULL,
+            &NewShader
+        );
+
+        if (SUCCEEDED(Result)) {
+            if (Shader->Shader) Shader->Shader->Release();
+            if (Shader->Blob) Shader->Blob->Release();
+            Shader->Blob = Blob;
+            Shader->Shader = NewShader;
+
+            ParseSamplers(Shader);
+
+            char Text[512];
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            Log(Info, Text);
+        }
+    }
+}
+
+void ReloadShader(directX_Compute_Shader* Shader) {
+    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    if (Blob) {
+        ID3D11ComputeShader* NewShader = nullptr;
+        HRESULT Result = DirectX.Device->CreateComputeShader(
+            Blob->GetBufferPointer(),
+            Blob->GetBufferSize(),
+            NULL,
+            &NewShader
+        );
+
+        if (SUCCEEDED(Result)) {
+            Shader->Shader->Release();
+            Shader->Blob->Release();
+            Shader->Blob = Blob;
+            Shader->Shader = NewShader;
+
+            char Text[512];
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            Log(Info, Text);
+        }
+    }
+}
+
+
+
+void ReloadShaders() {
+    for (int i = 0; i < directX_Vertex_Shader_ID_count; i++) {
+        directX_Vertex_Shader* Shader = &DirectX.VertexShader[i];
+        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
+        if (LastWriteTime > Shader->File.Timestamp) {
+            ReloadShader(Shader);
+        }
+    }
+
+    for (int i = 0; i < directX_Pixel_Shader_ID_count; i++) {
+        directX_Pixel_Shader* Shader = &DirectX.PixelShader[i];
+        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
+        if (LastWriteTime > Shader->File.Timestamp) {
+            ReloadShader(Shader);
+        }
+    }
 }
 
 RENDERER_INITIALIZE {
@@ -950,11 +1122,15 @@ RENDERER_INITIALIZE {
     LoadShader(Vertex_Shader_Mesh_ID,                "GameAssets\\Shaders\\HLSL\\Vertex\\Mesh.vsh");
     LoadShader(Vertex_Shader_Bones_ID,               "GameAssets\\Shaders\\HLSL\\Vertex\\Bones.vsh");
     LoadShader(Vertex_Shader_Barycentric_ID,         "GameAssets\\Shaders\\HLSL\\Vertex\\Barycentric.vsh");
+
+    // Geometry
+    LoadShader(Geometry_Shader_Normal_ID,            "GameAssets\\Shaders\\HLSL\\Geometry\\Normal.gsh");
     
     // Pixel
     LoadShader(Pixel_Shader_Antialiasing_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\Antialiasing.psh");
     LoadShader(Pixel_Shader_Single_Color_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\SingleColor.psh");
     LoadShader(Pixel_Shader_Texture_ID,              "GameAssets\\Shaders\\HLSL\\Pixel\\Texture.psh");
+    LoadShader(Pixel_Shader_Mesh_ID,                 "GameAssets\\Shaders\\HLSL\\Pixel\\Mesh.psh");
 
 // Vertex buffers
     // Layout buffers
@@ -1035,8 +1211,7 @@ RENDERER_RENDER {
 
     // Constant buffers
     SetGlobalBuffer(Group->Width, Group->Height, Camera, Input, Time);
-    SetLightBuffer(Group->Light);
-    SetColorBuffer(Green);
+    SetLightBuffer(Group->Light, Camera->Position + Camera->Distance * Camera->Basis.Z);
     ClearTransformBuffer();
 
     // Render entries
@@ -1084,8 +1259,9 @@ RENDERER_RENDER {
                     }
                     else {
                         LayoutID = vertex_layout_v3_v2_v3_id;
-                        VertexShaderID = Vertex_Shader_Perspective_ID;
+                        VertexShaderID = Vertex_Shader_Mesh_ID;
                     }
+                    PixelShaderID = Pixel_Shader_Mesh_ID;
 
                     matrix4 Model = Matrix(Options.Transform);
                     SetTransformBuffer(Model);
@@ -1158,6 +1334,12 @@ RENDERER_RENDER {
                 }
 
                 if (Options.Mesh) {
+                    DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+                    DirectX.DeviceContext->GSSetShader(DirectX.GeometryShader[Geometry_Shader_Normal_ID].Shader, NULL, 0);
+                    DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Single_Color_ID].Shader, NULL, 0);
+
+                    SetColorBuffer(Yellow);
+
                     ClearTransformBuffer();
                 }
                 DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilDisabled, 1);
@@ -1196,6 +1378,9 @@ RENDERER_RENDER {
                 );
                 DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
                 DirectX.DeviceContext->Draw(TargetCommand.VertexEntry.Count, TargetCommand.VertexEntry.Offset);
+
+                ID3D11ShaderResourceView* Empty = nullptr;
+                DirectX.DeviceContext->PSSetShaderResources(0, 1, &Empty);
             } break;
         }
     }

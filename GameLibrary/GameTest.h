@@ -71,7 +71,7 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
 
     // Mesh
     transform T = Transform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
-    PushMesh(Group, Mesh_Body_ID, T, Bitmap_Empty_ID, Gray, 0, true);
+    PushMesh(Group, Mesh_Body_ID, T, Bitmap_Empty_ID, Gray, 0, false);
 
     T.Translation = V3(-2, 0, 0);
     PushMesh(Group, Mesh_Tetrahedron_ID, T);
@@ -91,5 +91,5 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     PushMesh(Group, Mesh_Sphere_ID, Transform(V3(10, 0, 0)), Bitmap_Empty_ID, Red);
 
     // Heightmap
-    PushHeightmap(Group, Heightmap_Spain_ID);
+    //PushHeightmap(Group, Heightmap_Spain_ID);
 }
