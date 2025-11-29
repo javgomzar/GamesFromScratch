@@ -20,7 +20,8 @@ struct VertexIn {
 
 struct VertexOut {
     float4 Position: SV_POSITION;
-    float2 Texture: TEXCOORD;
+    float3 WorldPosition: TEXCOORD1;
+    float2 Texture: TEXCOORD0;
     float3 Normal: NORMAL;
 };
 
@@ -28,6 +29,7 @@ VertexOut main(VertexIn vin) {
     VertexOut vout;
     
     vout.Position = mul(mul(mul(float4(vin.Position, 1.0f), Model), View), Projection);
+    vout.WorldPosition = vin.Position;
     vout.Texture = vin.Texture;
     vout.Normal = normalize(mul(float4(vin.Normal, 0.0f), Normal));
 

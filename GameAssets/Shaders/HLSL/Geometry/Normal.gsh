@@ -9,7 +9,8 @@ cbuffer Globals {
 
 struct VS_OUTPUT {
     float4 Position: SV_POSITION;
-    float2 Texture: TEXCOORD;
+    float3 WorldPosition: TEXCOORD1;
+    float2 Texture: TEXCOORD0;
     float3 Normal: NORMAL;
 };
 

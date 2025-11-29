@@ -15,6 +15,7 @@ cbuffer Color: register(b2) {
 
 struct VertexOut {
     float4 Position: SV_POSITION;
+    float3 WorldPosition: TEXCOORD1;
     float2 Texture: TEXCOORD;
     float3 Normal: NORMAL;
 };
@@ -23,7 +24,7 @@ float4 main(VertexOut vout): SV_TARGET {
     float4 Sample = Texture.Sample(Sampler, float2(vout.Texture.x, 1.0 - vout.Texture.y));
     float3 Normal = normalize(vout.Normal);
     float Diff = Diffuse * max(dot(Normal, -Direction), 0);
-    float3 ViewDirection = normalize(CameraPosition - vout.Position.xyz);
+    float3 ViewDirection = normalize(CameraPosition - vout.WorldPosition.xyz);
     float3 Reflection = reflect(Direction, Normal);
     float Spec = pow(max(dot(ViewDirection, Reflection), 0.0), 8);
 
