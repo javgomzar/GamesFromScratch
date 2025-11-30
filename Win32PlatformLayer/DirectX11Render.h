@@ -38,15 +38,16 @@ ENUM(directX_Vertex_Shader_ID,
     Vertex_Shader_Perspective_ID,
     Vertex_Shader_Perspective_Texture_ID,
     Vertex_Shader_Mesh_ID,
-    Vertex_Shader_Bones_ID
+    Vertex_Shader_Bones_ID,
+    Vertex_Shader_Heightmap_ID
 );
 
 ENUM(directX_Hull_Shader_ID,
-    Hull_Shader_Empty_ID
+    Hull_Shader_Heightmap_ID
 );
 
 ENUM(directX_Domain_Shader_ID,
-    Domain_Shader_Empty_ID
+    Domain_Shader_Heightmap_ID
 );
 
 ENUM(directX_Geometry_Shader_ID,
@@ -1153,6 +1154,13 @@ RENDERER_INITIALIZE {
     LoadShader(Vertex_Shader_Mesh_ID,                "GameAssets\\Shaders\\HLSL\\Vertex\\Mesh.vsh");
     LoadShader(Vertex_Shader_Bones_ID,               "GameAssets\\Shaders\\HLSL\\Vertex\\Bones.vsh");
     LoadShader(Vertex_Shader_Barycentric_ID,         "GameAssets\\Shaders\\HLSL\\Vertex\\Barycentric.vsh");
+    LoadShader(Vertex_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Heihgtmap.vsh");
+
+    // Hull
+    LoadShader(Hull_Shader_Heightmap_ID,             "GameAssets\\Shaders\\HLSL\\Vertex\\Heihgtmap.hsh");
+
+    // Domain
+    LoadShader(Domain_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Domain.dsh");
 
     // Geometry
     LoadShader(Geometry_Shader_Normal_ID,            "GameAssets\\Shaders\\HLSL\\Geometry\\Normal.gsh");

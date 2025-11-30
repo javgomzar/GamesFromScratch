@@ -7,3 +7,4 @@ Constant buffers:
     - (5) Outline: Outline uniforms: width, JFAlevel
     - (6) Kernel: Kernel matrix.
     - (7) Text: Pen and size.
+    - (8) Tesselation: Amount and padding.

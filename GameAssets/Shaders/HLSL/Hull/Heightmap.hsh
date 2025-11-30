@@ -1,0 +1,23 @@
+cbuffer Tessellation: register(b8) {
+    float Amount;
+    float3 Padding;
+};
+
+struct VS_OUTPUT {
+    float3 Position: POSITION;
+    float2 Texture: TEXCOORD0;
+};
+
+struct CONSTANT_OUTPUT {
+    float Edges[3]: SV_TESSFACTOR;
+    float Inside: SV_INSIDETESSFACTOR;
+};
+
+struct HS_OUTPUT {
+    float3 Position: POSITION;
+    float2 Texture: TEXCOORD0;
+};
+
+void main() {
+
+}
