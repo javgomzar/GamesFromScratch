@@ -91,5 +91,5 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     PushMesh(Group, Mesh_Sphere_ID, Transform(V3(10, 0, 0)), Bitmap_Empty_ID, Red);
 
     // Heightmap
-    //PushHeightmap(Group, Heightmap_Spain_ID);
+    PushHeightmap(Group, Heightmap_Spain_ID);
 }

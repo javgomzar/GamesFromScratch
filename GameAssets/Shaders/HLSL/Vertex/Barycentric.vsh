@@ -1,4 +1,4 @@
-cbuffer Globals {
+cbuffer Globals: register(b0) {
     float4x4 Projection;
     float4x4 View;
     float2 Resolution;
@@ -12,18 +12,18 @@ cbuffer Text: register(b7) {
 	float Size;
 };
 
-struct VertexIn {
+struct VS_IN {
     float2 Position: POSITION;
     float2 Barycentric: TEXCOORD;
 };
 
-struct VertexOut {
+struct VS_OUT {
     float4 Position: SV_POSITION;
     float2 Barycentric: TEXCOORD;
 };
 
-VertexOut main(VertexIn vin) {
-    VertexOut vout;
+VS_OUT main(VS_IN vin) {
+    VS_OUT vout;
     vout.Barycentric = vin.Barycentric;
 
     float2 Position = float2(vin.Position.x, -vin.Position.y);

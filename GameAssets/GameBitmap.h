@@ -79,7 +79,6 @@ struct bitmap_header_v5 {
 struct game_bitmap {
     game_bitmap_id ID;
     bitmap_header Header;
-    uint32 BytesPerPixel;
     uint32 Pitch;
     uint32 AlphaMask;
     uint32* Content;
@@ -117,7 +116,6 @@ game_bitmap LoadBitmapFile(memory_arena* Arena, read_file_result File) {
     bitmap_header Header = *(bitmap_header*)File.Content;
     Result.Header = Header;
     uint32 BytesPerPixel = Header.BitsPerPixel >> 3;
-    Result.BytesPerPixel = BytesPerPixel;
     Result.Pitch = Header.Width * BytesPerPixel;
     Result.Content = (uint32*)((uint8*)File.Content + Header.BitmapOffset);
 
@@ -179,19 +177,19 @@ game_bitmap LoadBitmapFile(memory_arena* Arena, read_file_result File) {
 
 void ClearBitmap(game_bitmap* Bitmap) {
     if (Bitmap->Content) {
-        int32 TotalBitmapSize = Bitmap->Header.Width * Bitmap->Header.Height * Bitmap->BytesPerPixel;
+        int32 TotalBitmapSize = 4 * Bitmap->Header.Width * Bitmap->Header.Height;
         ZeroSize(TotalBitmapSize, Bitmap->Content);
     }
 }
 
-void MakeBitmapHeader(bitmap_header* Header, int Width, int Height, int BytesPerPixel) {
+void MakeBitmapHeader(bitmap_header* Header, int Width, int Height) {
     Header->FileType = 19778;
     Header->Width = Width;
     Header->Height = Height;
     Header->BitmapOffset = 138;
     Header->Size = 124;
     Header->Planes = 1;
-    Header->BitsPerPixel = 8 * BytesPerPixel;
+    Header->BitsPerPixel = 32;
     Header->FileSize = Width * Height * Header->BitsPerPixel;
     Header->Compression = 3;
     Header->SizeOfBitmap = Width * Height * 4 + Header->BitmapOffset;
@@ -210,13 +208,12 @@ game_bitmap MakeEmptyBitmap(
 ) {
     game_bitmap Result = {};
 
-    MakeBitmapHeader(&Result.Header, Width, Height, BytesPerPixel);
+    MakeBitmapHeader(&Result.Header, Width, Height);
 
-    Result.BytesPerPixel = BytesPerPixel;
     Result.Pitch = BytesPerPixel * Width;
     Result.AlphaMask = 0xff000000;
 
-    Result.Content = (uint32*)PushSize(Arena, Width * Height * Result.BytesPerPixel);
+    Result.Content = (uint32*)PushSize(Arena, 4 * Width * Height);
     if (ClearToZero) {
         ClearBitmap(&Result);
     }
@@ -230,7 +227,7 @@ void SaveBMP(const char* Path, game_bitmap* BMP) {
     for (uint32 i = 0; i < Offset; i++) {
         Platform.AppendToFile(Path, 1, &Zero);
     }
-    Platform.AppendToFile(Path, BMP->Header.Width * BMP->Header.Height * BMP->BytesPerPixel, BMP->Content);
+    Platform.AppendToFile(Path, 4 * BMP->Header.Width * BMP->Header.Height, BMP->Content);
 }
 
 uint32* GetPixelAddress(game_bitmap* BMP, int X, int Y) {

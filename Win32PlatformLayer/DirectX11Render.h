@@ -60,7 +60,8 @@ ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Texture_ID,
     Pixel_Shader_Mesh_ID,
     Pixel_Shader_Bezier_Exterior_ID,
-    Pixel_Shader_Bezier_Interior_ID
+    Pixel_Shader_Bezier_Interior_ID,
+    Pixel_Shader_Heightmap_ID
 );
 
 ENUM(directX_Compute_Shader_ID,
@@ -78,7 +79,7 @@ ENUM(directX_Compute_Shader_ID,
 
 ShaderType(Vertex);
 ShaderType(Hull);
-ShaderType(Domain);
+ShaderType(Domain, ID3D11SamplerState* Sampler);
 ShaderType(Geometry);
 ShaderType(Pixel, ID3D11SamplerState* Sampler);
 ShaderType(Compute);
@@ -114,6 +115,10 @@ struct alignas(16) text_buffer {
     float Size;
 };
 
+struct alignas(16) tessellation_buffer {
+    float Amount;
+};
+
 struct alignas(16) light_buffer {
 	alignas(16) v3 Direction;
 	alignas(16) v3 Color;
@@ -136,7 +141,7 @@ struct directX {
     ID3D11BlendState* OverwriteAlpha;
     ID3D11BlendState* TargetBlend;
     ID3D11ShaderResourceView* Texture[game_bitmap_id_count];
-    ID3D11Texture2D* Heightmap[game_heightmap_id_count];
+    ID3D11ShaderResourceView* Heightmap[game_heightmap_id_count];
     ID3D11DepthStencilState* DepthStencilEnabled;
     ID3D11DepthStencilState* DepthStencilDisabled;
     ID3D11RasterizerState* RasterizerState;
@@ -220,7 +225,7 @@ void BindTarget(render_group_target Target) {
     DirectX.DeviceContext->OMSetRenderTargets(1, &RenderTarget->View, RenderTarget->Attachment);
 }
 
-ID3D11ShaderResourceView* CreateTexture(uint32 Width, uint32 Height, uint32 BytesPerPixel, void* Data = NULL) {
+ID3D11ShaderResourceView* CreateTexture(uint32 Width, uint32 Height, void* Data = NULL) {
     ID3D11Texture2D* Texture = NULL;
 
     D3D11_TEXTURE2D_DESC DepthBufferDescription = {};
@@ -239,8 +244,8 @@ ID3D11ShaderResourceView* CreateTexture(uint32 Width, uint32 Height, uint32 Byte
     D3D11_SUBRESOURCE_DATA ResourceData = {};
     if (Data) {
         ResourceData.pSysMem = Data;
-        ResourceData.SysMemPitch = BytesPerPixel * Width;
-        ResourceData.SysMemSlicePitch = BytesPerPixel * Width * Height;
+        ResourceData.SysMemPitch = 4 * Width;
+        ResourceData.SysMemSlicePitch = 4 * Width * Height;
     }
 
     HRESULT hResult = DirectX.Device->CreateTexture2D(&DepthBufferDescription, Data ? &ResourceData : NULL, &Texture);
@@ -310,6 +315,8 @@ void SetGlobalBuffer(int32 Width, int32 Height, camera* Camera, game_input* Inpu
         Buffer->Time = Time;
         DirectX.DeviceContext->Unmap(GlobalBuffer, 0);
         DirectX.DeviceContext->VSSetConstantBuffers(0, 1, &GlobalBuffer);
+        DirectX.DeviceContext->HSSetConstantBuffers(0, 1, &GlobalBuffer);
+        DirectX.DeviceContext->DSSetConstantBuffers(0, 1, &GlobalBuffer);
         DirectX.DeviceContext->GSSetConstantBuffers(0, 1, &GlobalBuffer);
         DirectX.DeviceContext->PSSetConstantBuffers(0, 1, &GlobalBuffer);
     }
@@ -341,7 +348,8 @@ void SetColorBuffer(color Color) {
     }
 }
 
-void SetTransformBuffer(matrix4 Model) {
+void SetTransformBuffer(transform T = IdentityTransform) {
+    matrix4 Model = Matrix(T);
     ID3D11Buffer* TransformBuffer = DirectX.ConstantBuffer[transform_buffer_id];
     void* MappedBuffer = GetMappedBuffer(TransformBuffer);
     if (MappedBuffer) {
@@ -350,11 +358,12 @@ void SetTransformBuffer(matrix4 Model) {
         Buffer->Normal = Matrix4(inverse(Matrix3(Model)));
         DirectX.DeviceContext->Unmap(TransformBuffer, 0);
         DirectX.DeviceContext->VSSetConstantBuffers(3, 1, &TransformBuffer);
+        DirectX.DeviceContext->DSSetConstantBuffers(3, 1, &TransformBuffer);
     }
 }
 
 void ClearTransformBuffer() {
-    SetTransformBuffer(Identity4);
+    SetTransformBuffer();
 }
 
 void SetTextBuffer(v2 Pen, float Size) {
@@ -551,8 +560,8 @@ void LoadShader(directX_Vertex_Shader_ID ID, const char* Path) {
     }
 }
 
-void ParseSamplers(directX_Pixel_Shader* Shader) {
-    tokenizer Tokenizer = InitTokenizer(Shader->File.Content);
+void ParseSamplers(ID3D11SamplerState** Sampler, char* Code) {
+    tokenizer Tokenizer = InitTokenizer(Code);
     token Token = GetToken(Tokenizer);
     while (Token.Type != Token_End) {
         if (Token == "SamplerState") {
@@ -571,7 +580,7 @@ void ParseSamplers(directX_Pixel_Shader* Shader) {
             SamplerDescription.MinLOD = 0;
             SamplerDescription.MaxLOD = D3D11_FLOAT32_MAX;
 
-            DirectX.Device->CreateSamplerState(&SamplerDescription, &Shader->Sampler);
+            DirectX.Device->CreateSamplerState(&SamplerDescription, Sampler);
         }
 
         Token = GetToken(Tokenizer);
@@ -599,9 +608,9 @@ void LoadShader(directX_Pixel_Shader_ID ID, const char* Path) {
         else {
             sprintf_s(TextBuffer, "DirectX: Pixel shader %s was successfully created.", Path);
             Log(Info, TextBuffer);
-        }
 
-        ParseSamplers(Shader);
+            ParseSamplers(&Shader->Sampler, (char*)Shader->File.Content);
+        }
     }
 }
 
@@ -651,6 +660,8 @@ void LoadShader(directX_Domain_Shader_ID ID, const char* Path) {
         else {
             sprintf_s(TextBuffer, "DirectX: Domain shader %s was successfully created.", Path);
             Log(Info, TextBuffer);
+
+            ParseSamplers(&Shader->Sampler, (char*)Shader->File.Content);
         }
     }
 }
@@ -820,7 +831,7 @@ void ReloadShader(directX_Pixel_Shader* Shader) {
             Shader->Blob = Blob;
             Shader->Shader = NewShader;
 
-            ParseSamplers(Shader);
+            ParseSamplers(&Shader->Sampler, (char*)Shader->File.Content);
 
             char Text[512];
             sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
@@ -862,21 +873,21 @@ void ReloadShaders() {
         }
     }
 
-    // for (int i = 0; i < directX_Hull_Shader_ID_count; i++) {
-    //     directX_Hull_Shader* Shader = &DirectX.HullShader[i];
-    //     int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
-    //     if (LastWriteTime > Shader->File.Timestamp) {
-    //         ReloadShader(Shader);
-    //     }
-    // }
+    for (int i = 0; i < directX_Hull_Shader_ID_count; i++) {
+        directX_Hull_Shader* Shader = &DirectX.HullShader[i];
+        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
+        if (LastWriteTime > Shader->File.Timestamp) {
+            ReloadShader(Shader);
+        }
+    }
 
-    // for (int i = 0; i < directX_Domain_Shader_ID_count; i++) {
-    //     directX_Domain_Shader* Shader = &DirectX.DomainShader[i];
-    //     int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
-    //     if (LastWriteTime > Shader->File.Timestamp) {
-    //         ReloadShader(Shader);
-    //     }
-    // }
+    for (int i = 0; i < directX_Domain_Shader_ID_count; i++) {
+        directX_Domain_Shader* Shader = &DirectX.DomainShader[i];
+        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
+        if (LastWriteTime > Shader->File.Timestamp) {
+            ReloadShader(Shader);
+        }
+    }
 
     for (int i = 0; i < directX_Geometry_Shader_ID_count; i++) {
         directX_Geometry_Shader* Shader = &DirectX.GeometryShader[i];
@@ -1140,8 +1151,16 @@ RENDERER_INITIALIZE {
     for (int i = 0; i < game_bitmap_id_count; i++) {
         game_bitmap* Bitmap = &Group->Assets->Bitmap[i];
         DirectX.Texture[i] = CreateTexture(
-            Bitmap->Header.Width, Bitmap->Header.Height, 
-            Bitmap->BytesPerPixel, 
+            Bitmap->Header.Width, Bitmap->Header.Height,
+            Bitmap->Content
+        );
+    }
+
+// Heightmaps
+    for (int i = 0; i < game_heightmap_id_count; i++) {
+        game_bitmap* Bitmap = &Group->Assets->Heightmap[i].Bitmap;
+        DirectX.Heightmap[i] = CreateTexture(
+            Bitmap->Header.Width, Bitmap->Header.Height,
             Bitmap->Content
         );
     }
@@ -1156,13 +1175,13 @@ RENDERER_INITIALIZE {
     LoadShader(Vertex_Shader_Mesh_ID,                "GameAssets\\Shaders\\HLSL\\Vertex\\Mesh.vsh");
     LoadShader(Vertex_Shader_Bones_ID,               "GameAssets\\Shaders\\HLSL\\Vertex\\Bones.vsh");
     LoadShader(Vertex_Shader_Barycentric_ID,         "GameAssets\\Shaders\\HLSL\\Vertex\\Barycentric.vsh");
-    LoadShader(Vertex_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Heihgtmap.vsh");
+    LoadShader(Vertex_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Heightmap.vsh");
 
     // Hull
-    LoadShader(Hull_Shader_Heightmap_ID,             "GameAssets\\Shaders\\HLSL\\Vertex\\Heihgtmap.hsh");
+    LoadShader(Hull_Shader_Heightmap_ID,             "GameAssets\\Shaders\\HLSL\\Hull\\Heightmap.hsh");
 
     // Domain
-    LoadShader(Domain_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Domain.dsh");
+    LoadShader(Domain_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Domain\\Heightmap.dsh");
 
     // Geometry
     LoadShader(Geometry_Shader_Normal_ID,            "GameAssets\\Shaders\\HLSL\\Geometry\\Normal.gsh");
@@ -1174,6 +1193,7 @@ RENDERER_INITIALIZE {
     LoadShader(Pixel_Shader_Mesh_ID,                 "GameAssets\\Shaders\\HLSL\\Pixel\\Mesh.psh");
     LoadShader(Pixel_Shader_Bezier_Exterior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierExterior.psh");
     LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
+    LoadShader(Pixel_Shader_Heightmap_ID,            "GameAssets\\Shaders\\HLSL\\Pixel\\Heightmap.psh");
 
 // Vertex buffers
     // Layout buffers
@@ -1306,8 +1326,7 @@ RENDERER_RENDER {
                     }
                     PixelShaderID = Pixel_Shader_Mesh_ID;
 
-                    matrix4 Model = Matrix(Options.Transform);
-                    SetTransformBuffer(Model);
+                    SetTransformBuffer(Options.Transform);
                 }
                 else if (Options.Font) {
                     LayoutID = vertex_layout_v2_v2_id;
@@ -1323,6 +1342,16 @@ RENDERER_RENDER {
                     Offset = PrimitiveCommand.ElementEntry.Offset;
 
                     SetTextBuffer(Options.Pen, Options.TextSize);
+                }
+                else if (Options.Heightmap) {
+                    LayoutID = vertex_layout_v3_v2_id;
+                    VertexShaderID = Vertex_Shader_Heightmap_ID;
+                    PixelShaderID = Pixel_Shader_Heightmap_ID;
+                    VertexBuffer = &DirectX.VertexBuffer[LayoutID];
+                    DirectX.DeviceContext->HSSetShader(DirectX.HullShader[Hull_Shader_Heightmap_ID].Shader, NULL, 0);
+                    DirectX.DeviceContext->DSSetShader(DirectX.DomainShader[Domain_Shader_Heightmap_ID].Shader, NULL, 0);
+
+                    SetTransformBuffer(Options.Transform);
                 }
                 else {
                     LayoutID = PrimitiveCommand.VertexEntry.LayoutID;
@@ -1356,6 +1385,11 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->PSSetSamplers(0, 1, &DirectX.PixelShader[PixelShaderID].Sampler);
                 }
 
+                if (Options.Heightmap) {
+                    DirectX.DeviceContext->DSSetShaderResources(0, 1, &DirectX.Heightmap[Options.Heightmap->ID]);
+                    DirectX.DeviceContext->DSSetSamplers(0, 1, &DirectX.DomainShader[Domain_Shader_Heightmap_ID].Sampler);
+                }
+
                 if (Options.Flags & DEPTH_TEST_FLAG) {
                     DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilEnabled, 1);
                 }
@@ -1380,6 +1414,13 @@ RENDERER_RENDER {
 
                     ClearTransformBuffer();
                 }
+
+                if (Options.Heightmap) {
+                    DirectX.DeviceContext->HSSetShader(NULL, NULL, 0);
+                    DirectX.DeviceContext->DSSetShader(NULL, NULL, 0);
+                    ClearTransformBuffer();
+                }
+
                 DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilDisabled, 1);
             } break;
 

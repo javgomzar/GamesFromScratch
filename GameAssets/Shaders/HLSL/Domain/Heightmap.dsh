@@ -1,0 +1,70 @@
+Texture2D Texture: register(t0);
+SamplerState Sampler: register(s0);
+
+cbuffer Globals: register(b0) {
+    float4x4 Projection;
+    float4x4 View;
+    float2 Resolution;
+    float2 Mouse;
+    float2 LastMouse;
+    float Time;
+};
+
+cbuffer Transforms: register(b3) {
+    float4x4 Model;
+    float4x4 Normal;
+};
+
+struct HS_OUT {
+    float3 Position: POSITION;
+    float2 Texture: TEXCOORD0;
+};
+
+struct DS_OUT {
+    float4 Position: SV_POSITION;
+    float Height: TEXCOORD;
+};
+
+struct CONSTANT_OUTPUT {
+    float Edges[4]: SV_TessFactor;
+    float Inside[2]: SV_InsideTessFactor;
+};
+
+[domain("quad")]
+DS_OUT main(
+    CONSTANT_OUTPUT ConstantPatch,
+    float2 UV: SV_DomainLocation,
+    const OutputPatch<HS_OUT, 4> Patch
+) {
+    DS_OUT Result;
+
+    float u = UV.x;
+    float v = UV.y;
+
+    float2 T00 = Patch[0].Texture;
+    float2 T01 = Patch[1].Texture;
+    float2 T10 = Patch[2].Texture;
+    float2 T11 = Patch[3].Texture;
+
+    float2 T0 = lerp(T01, T00, u);
+    float2 T1 = lerp(T11, T10, u);
+    float2 T  = lerp( T0,  T1, v);
+
+    float3 P00 = Patch[0].Position;
+    float3 P01 = Patch[1].Position;
+    float3 P10 = Patch[2].Position;
+    float3 P11 = Patch[3].Position;
+
+    float3 P0 = lerp(P01, P00, u);
+    float3 P1 = lerp(P11, P10, u);
+    float3 P  = lerp( P0,  P1, v);
+    float X = P.x;
+    float Y = P.y;
+
+    float H = 0.2f * Texture.SampleLevel(Sampler, T, 0).r;
+    P.y = H;
+
+    Result.Position = mul(mul(mul(float4(P, 1.0f), Model), View), Projection);
+    Result.Height = H;
+    return Result;
+}

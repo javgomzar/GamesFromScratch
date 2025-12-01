@@ -1,0 +1,35 @@
+struct DS_OUT {
+    float4 Position: SV_POSITION;
+    float Height: TEXCOORD;
+};
+
+float4 main(
+    DS_OUT Point
+): SV_TARGET {
+    float H = 5.0 * Point.Height;
+
+	float4 Blue = float4(0.0667f, 0.0667f, 0.4902f, 1.0f);
+	float4 Green = float4(0.0863f, 0.4549f, 0.0863f, 1.0f);
+	float4 LightBrown = float4(0.5176f, 0.451f, 0.2196f, 1.0f);
+	float4 Brown = float4(0.3059f, 0.2235f, 0.0667f, 1.0f);
+	float4 White = float4(1.0f,1.0f,1.0f,1.0f);
+
+    float4 Color;
+	if (H < 0.0001f) {
+		Color = Blue;
+	}
+	else if (H > 0.0001f && H < 0.1f) {
+		Color = lerp(Green, LightBrown, 10.0f*(H - 0.0001f));
+	}
+	else if (H > 0.1 && H < 0.2f) {
+		Color = lerp(LightBrown, Brown, 10.0f*(H - 0.1f));
+	}
+	else if (H > 0.2f && H < 0.5f) {
+		Color = lerp(Brown, White, (H - 0.2f) / 0.3f);
+	}
+	else {
+		Color = White;
+	}
+
+    return Color;
+}

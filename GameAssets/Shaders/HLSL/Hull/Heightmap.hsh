@@ -1,16 +1,11 @@
-cbuffer Tessellation: register(b8) {
-    float Amount;
-    float3 Padding;
-};
-
 struct VS_OUTPUT {
     float3 Position: POSITION;
     float2 Texture: TEXCOORD0;
 };
 
 struct CONSTANT_OUTPUT {
-    float Edges[3]: SV_TESSFACTOR;
-    float Inside: SV_INSIDETESSFACTOR;
+    float Edges[4]: SV_TessFactor;
+    float Inside[2]: SV_InsideTessFactor;
 };
 
 struct HS_OUTPUT {
@@ -18,6 +13,35 @@ struct HS_OUTPUT {
     float2 Texture: TEXCOORD0;
 };
 
-void main() {
+CONSTANT_OUTPUT PatchConstantFunction(
+    InputPatch<VS_OUTPUT, 4> Patch, 
+    uint patchID: SV_PrimitiveID
+) {
+    CONSTANT_OUTPUT Result;
+    Result.Edges[0] = 64.0f;
+    Result.Edges[1] = 64.0f;
+    Result.Edges[2] = 64.0f;
+    Result.Edges[3] = 64.0f;
 
+    Result.Inside[0] = 64.0f;
+    Result.Inside[1] = 64.0f;
+    return Result;
+}
+
+[domain("quad")]
+[partitioning("integer")]
+[outputtopology("triangle_cw")]
+[outputcontrolpoints(4)]
+[patchconstantfunc("PatchConstantFunction")]
+[maxtessfactor(64.0f)]
+HS_OUTPUT main(
+    InputPatch<VS_OUTPUT, 4> Patch,
+    uint i: SV_OutputControlPointID,
+    uint PatchID: SV_PrimitiveID
+) {
+    HS_OUTPUT Output;
+    Output.Position = Patch[i].Position;
+    Output.Texture = Patch[i].Texture;
+
+    return Output;
 }
