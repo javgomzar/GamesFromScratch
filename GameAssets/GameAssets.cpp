@@ -27,6 +27,7 @@ void WriteAssetsFile(const char* Path) {
     PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Empty.bmp", Bitmap_Empty_ID);
     PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Enemy.bmp", Bitmap_Enemy_ID);
     PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Player.bmp", Bitmap_Player_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\spain.bmp", Bitmap_Spain_ID);
 
     // Heightmaps
     PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\spain.bmp", Heightmap_Spain_ID);

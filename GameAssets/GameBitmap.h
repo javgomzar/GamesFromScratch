@@ -8,7 +8,8 @@ ENUM(game_bitmap_id,
     Bitmap_Button_ID,
     Bitmap_Empty_ID,
     Bitmap_Enemy_ID,
-    Bitmap_Player_ID
+    Bitmap_Player_ID,
+    Bitmap_Spain_ID
 );
 
 #pragma pack(push, 1)
@@ -106,9 +107,9 @@ uint64 PreprocessBitmap(bitmap_header* Header) {
     }
 
     uint64 PixelsSize = RowSize * Header->Height;
-    
     Assert(PixelsSize + Header->BitmapOffset + ExtraBytes == Header->FileSize);
-    return PixelsSize;
+
+    return 4 * Header->Width * Header->Height;
 }
 
 game_bitmap LoadBitmapFile(memory_arena* Arena, read_file_result File) {
@@ -143,14 +144,36 @@ game_bitmap LoadBitmapFile(memory_arena* Arena, read_file_result File) {
 
     uint32 RowSize = Header.Width * BytesPerPixel;
     if (Header.Size == 40 && BytesPerPixel == 3) {
-        // 4-byte alignment apparently
+        // 4-byte alignment
         RowSize = (RowSize / 4 + 1) * 4;
     }
 
-    uint64 PixelsSize = RowSize * Header.Height;
-    void* Destination = PushSize(Arena, PixelsSize);
+    uint64 PixelsSize = 4 * Header.Width * Header.Height;
+    uint32* Destination = (uint32*)PushSize(Arena, PixelsSize);
 
-    memcpy(Destination, Result.Content, PixelsSize);
+    uint8* Source = (uint8*)Result.Content;
+    for (int Row = 0; Row < Header.Height; Row++) {
+        uint32 BytesRead = 0;
+        for (int Col = 0; Col < Header.Width; Col++) {
+            uint8 R = *Source++;
+            uint8 G = *Source++;
+            uint8 B = *Source++;
+
+            uint8 A = 255;
+            if (BytesPerPixel == 4) {
+                A = *Source++;
+            }
+            uint32 Pixel = (A << 24) | (R << 16) | (G << 8) | B;
+            *Destination++ = Pixel;
+
+            BytesRead += BytesPerPixel;
+        }
+
+        if (BytesRead < RowSize) {
+            Source += RowSize - BytesRead;
+        }
+    }
+
     return Result;
 }
 

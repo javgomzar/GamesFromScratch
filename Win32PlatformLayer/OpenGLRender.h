@@ -26,7 +26,7 @@ GLenum OpenGLGetByteColorFormat(uint32 BytesPerPixel) {
 	GLenum InternalFormat = 0;
 	if      (BytesPerPixel == 1) InternalFormat = GL_R8;
 	else if (BytesPerPixel == 2) InternalFormat = GL_RG8;
-	else if (BytesPerPixel == 3) InternalFormat = GL_RGB8;
+	else if (BytesPerPixel == 3) InternalFormat = GL_RGBA8;
 	else if (BytesPerPixel == 4) InternalFormat = GL_RGBA8;
 	else Raise("OpenGL: Invalid bytes per pixel value for bitmap.");
 	return InternalFormat;
