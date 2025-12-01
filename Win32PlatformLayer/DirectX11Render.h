@@ -58,7 +58,9 @@ ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Antialiasing_ID,
     Pixel_Shader_Single_Color_ID,
     Pixel_Shader_Texture_ID,
-    Pixel_Shader_Mesh_ID
+    Pixel_Shader_Mesh_ID,
+    Pixel_Shader_Bezier_Exterior_ID,
+    Pixel_Shader_Bezier_Interior_ID
 );
 
 ENUM(directX_Compute_Shader_ID,
@@ -1170,6 +1172,8 @@ RENDERER_INITIALIZE {
     LoadShader(Pixel_Shader_Single_Color_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\SingleColor.psh");
     LoadShader(Pixel_Shader_Texture_ID,              "GameAssets\\Shaders\\HLSL\\Pixel\\Texture.psh");
     LoadShader(Pixel_Shader_Mesh_ID,                 "GameAssets\\Shaders\\HLSL\\Pixel\\Mesh.psh");
+    LoadShader(Pixel_Shader_Bezier_Exterior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierExterior.psh");
+    LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
 
 // Vertex buffers
     // Layout buffers
@@ -1306,22 +1310,14 @@ RENDERER_RENDER {
                     SetTransformBuffer(Model);
                 }
                 else if (Options.Font) {
+                    LayoutID = vertex_layout_v2_v2_id;
+                    VertexShaderID = Vertex_Shader_Barycentric_ID;
                     if (Options.Flags & TEXT_OUTLINE_FLAG)  {
-                        LayoutID = vertex_layout_v2_v2_id;
                         // TODO: Add text outline with patches
                     }
-		            else if (Options.Flags & TEXT_INTERIOR_FLAG) {
-                        LayoutID = vertex_layout_v2_v2_id;
-                        VertexShaderID = Vertex_Shader_Barycentric_ID;
-                    }
-		            else if (Options.Flags & TEXT_EXTERIOR_FLAG) {
-                        LayoutID = vertex_layout_v2_v2_id;
-                        VertexShaderID = Vertex_Shader_Barycentric_ID;
-                    }
-		            else {
-                        LayoutID = vertex_layout_v2_v2_id;
-                        VertexShaderID = Vertex_Shader_Barycentric_ID;
-                    }
+		            else if (Options.Flags & TEXT_INTERIOR_FLAG) PixelShaderID = Pixel_Shader_Bezier_Interior_ID;
+		            else if (Options.Flags & TEXT_EXTERIOR_FLAG) PixelShaderID = Pixel_Shader_Bezier_Exterior_ID;
+
                     VertexBuffer = &DirectX.FontBuffer[Options.Font->ID].VertexBuffer;
                     IndexBuffer = DirectX.FontBuffer[Options.Font->ID].IndexBuffer;
                     Offset = PrimitiveCommand.ElementEntry.Offset;

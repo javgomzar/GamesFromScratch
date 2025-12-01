@@ -1,0 +1,14 @@
+cbuffer Color: register(b2) {
+    float4 Color;
+};
+
+struct VS_OUTPUT {
+    float4 Position: SV_POSITION;
+    sample float2 Barycentric: TEXCOORD;
+};
+
+float4 main(VS_OUTPUT vout): SV_TARGET {
+    float f = 0.5 * vout.Barycentric.x + vout.Barycentric.y;
+    float s = smoothstep(-0.01, 0.01, vout.Barycentric.y - f*f);
+    return s * Color;
+}
