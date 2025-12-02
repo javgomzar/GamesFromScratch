@@ -1217,20 +1217,18 @@ void PushFillbar(
 
 void PushFillbar(
     render_group* Group,
-    char* Description,
+    basis CameraBasis,
     int Used,
     int Max,
     v3 LeftTop,
-    v3 WidthAxis,
-    v3 HeightAxis,
     float Width,
     float Height,
     color Color = Red
 ) {
     float FillPercentage = (float)Used / (float)Max;
-    PushRect(Group, LeftTop, WidthAxis, HeightAxis, Width, Height, DarkGray);
+    PushRect(Group, LeftTop, CameraBasis.X, CameraBasis.Y, Width, Height, DarkGray);
     float SmallWidth = FillPercentage * Width;
-    PushRect(Group, LeftTop, WidthAxis, HeightAxis, SmallWidth, Height, Red);
+    PushRect(Group, LeftTop + 0.01f * CameraBasis.Z, CameraBasis.X, CameraBasis.Y, SmallWidth, Height, Red);
 }
 
 void PushCubeOutline(

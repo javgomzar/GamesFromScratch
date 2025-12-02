@@ -2252,10 +2252,9 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                     v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Camera->Basis.X + V3(0, Mesh->MaxY + 0.3f, 0);
                     PushFillbar(
                         Group,
-                        Entity->Name,
+                        Camera->Basis,
                         pCharacter->Stats.HP, pCharacter->Stats.MaxHP,
                         Position,
-                        Camera->Basis.X, Camera->Basis.Y,
                         2.0f, 0.2f
                     );
 
@@ -2312,11 +2311,10 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                     float HPBarHeight = 0.2f;
                     v3 Position = Entity->Transform.Translation - 0.5f * HPBarWidth * Camera->Basis.X + V3(0, Mesh->MaxY + 0.3f, 0);
                     PushFillbar(
-                        Group, 
-                        Entity->Name, 
+                        Group,
+                        Camera->Basis,
                         pEnemy->Stats.HP, pEnemy->Stats.MaxHP,
-                        Position, 
-                        Camera->Basis.X, Camera->Basis.Y,
+                        Position,
                         2.0f, 0.2f
                     );
 
@@ -2350,8 +2348,8 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                 PushMesh(
                     Group,
                     Mesh->ID,
-                    Entity->Transform,
-                    Bitmap_Enemy_ID,
+                    DeadTransform * Entity->Transform,
+                    pEnemy->TextureID,
                     White, 0,
                     Outline
                 );
