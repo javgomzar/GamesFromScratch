@@ -1,229 +1,84 @@
 #include "GameAssets.h"
 
-#include "GameFont.cpp"
-#include "GameBitmap.cpp"
-#include "GameShader.cpp"
-#include "GameMesh.cpp"
-
-void LoadShaderPipelines(game_assets* Assets) {
-    Assets->nSamplers = 0;
-    bool UBOLoaded[SHADER_SETS][MAX_SHADER_SET_BINDINGS] = {};
-    for (int i = 0; i < game_shader_pipeline_id_count; i++) {
-        game_shader_pipeline* Pipeline = &Assets->ShaderPipeline[i];
-        
-        // Vertex layout
-        game_shader* VertexShader = GetShader(Assets, Pipeline->Pipeline[Vertex_Shader]);
-        bool VertexLayoutFound = false;
-        for (int j = 0; j < vertex_layout_id_count; j++) {
-            if (VertexShader->VertexLayout == Assets->VertexLayouts[j]) {
-                VertexLayoutFound = true;
-                Pipeline->VertexLayoutID = (vertex_layout_id)j;
-                break;
-            }
-        }
-        if (!VertexLayoutFound) {
-            Raise("Vertex layout was not found.");
-        }
-
-        // Uniform layout
-        for (int j = 0; j < game_shader_type_count; j++) {
-            if (Pipeline->IsProvided[j]) {
-                game_shader* Shader = &Assets->Shader[Pipeline->Pipeline[j]];
-                if (Assets->nSamplers < Shader->nSamplers) Assets->nSamplers = Shader->nSamplers;
-                for (int k = 0; k < Shader->nUBOs; k++) {
-                    shader_uniform_block UBO = Shader->UBO[k];
-                    Pipeline->Bindings[UBO.Set][UBO.Binding] = true;
-                    shader_uniform_block* LoadUBO = &Assets->UBOs[UBO.Set][UBO.Binding];
-                    if (UBOLoaded[UBO.Set][UBO.Binding]) {
-                        if (UBO != *LoadUBO) {
-                            Raise("Inconsistent UBO definition.");
-                        }
-                    }
-                    else {
-                        *LoadUBO = UBO;
-                        UBOLoaded[UBO.Set][UBO.Binding] = true;
-                        Assets->nBindings[UBO.Set]++;
-                    }
-                }
-
-                if (Shader->nSamplers > Assets->nSamplers) Assets->nSamplers = Shader->nSamplers;
-            }
-        }
-    }
-}
-
 void WriteAssetsFile(const char* Path) {
     game_assets Assets = {};
 
+// Vertex layouts
+    Assets.VertexLayout[vertex_layout_v2_id]       = VertexLayout(1, vertex_type_v2);
+    Assets.VertexLayout[vertex_layout_v2_v2_id]    = VertexLayout(2, vertex_type_v2, vertex_type_v2);
+    Assets.VertexLayout[vertex_layout_v3_id]       = VertexLayout(1, vertex_type_v3);
+    Assets.VertexLayout[vertex_layout_v3_v2_id]    = VertexLayout(2, vertex_type_v3, vertex_type_v2);
+    Assets.VertexLayout[vertex_layout_v3_v2_v3_id] = VertexLayout(3, vertex_type_v3, vertex_type_v2, vertex_type_v3);
+    Assets.VertexLayout[vertex_layout_v3_v4_id]    = VertexLayout(2, vertex_type_v3, vertex_type_v4);
+    Assets.VertexLayout[vertex_layout_v4_id]       = VertexLayout(1, vertex_type_v4);
+    Assets.VertexLayout[vertex_layout_bones_id]    = VertexLayout(5, vertex_type_v3, vertex_type_v2, vertex_type_v3, vertex_type_iv2, vertex_type_v2);
+    for (int i = 0; i < vertex_layout_id_count; i++) Assets.VertexLayout[i].ID = (vertex_layout_id)i;
+
 // Assets
     // Fonts
-    PushAsset(&Assets, "GameAssets\\Font\\Files\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Font\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
 
     // Text
-    PushAsset(&Assets, "GameAssets\\Text\\Files\\Test.txt", Text_Test_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Text\\Test.txt", Text_Test_ID);
 
     // Bitmaps
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Background.bmp",         Bitmap_Background_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Button.bmp",             Bitmap_Button_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Empty.bmp",              Bitmap_Empty_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Enemy.bmp",              Bitmap_Enemy_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Player.bmp",             Bitmap_Player_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Anvil.bmp",              Bitmap_Anvil_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Combat.bmp",             Bitmap_Combat_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Fire.bmp",               Bitmap_Fire_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Coin.bmp",               Bitmap_Coin_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Quest.bmp",              Bitmap_Quest_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Wizard.bmp",             Bitmap_Wizard_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Miniboss.bmp",           Bitmap_Miniboss_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Boss.bmp",               Bitmap_Boss_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Potion.bmp",             Bitmap_Potion_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Poison.bmp",             Bitmap_Poison_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Acid.bmp",               Bitmap_Acid_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Antidote.bmp",           Bitmap_Antidote_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Bomb.bmp",               Bitmap_Bomb_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Water.bmp",              Bitmap_Water_Bottle_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\LightningInABottle.bmp", Bitmap_Lightning_Bottle_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Feather.bmp",            Bitmap_Phoenix_Feather_ID);
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\Squid.bmp",              Bitmap_Squid_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Background.bmp",         Bitmap_Background_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Button.bmp",             Bitmap_Button_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Empty.bmp",              Bitmap_Empty_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Enemy.bmp",              Bitmap_Enemy_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Player.bmp",             Bitmap_Player_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Anvil.bmp",              Bitmap_Anvil_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Combat.bmp",             Bitmap_Combat_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Fire.bmp",               Bitmap_Fire_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Coin.bmp",               Bitmap_Coin_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Quest.bmp",              Bitmap_Quest_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Wizard.bmp",             Bitmap_Wizard_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Miniboss.bmp",           Bitmap_Miniboss_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Boss.bmp",               Bitmap_Boss_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Potion.bmp",             Bitmap_Potion_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Poison.bmp",             Bitmap_Poison_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Acid.bmp",               Bitmap_Acid_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Antidote.bmp",           Bitmap_Antidote_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Bomb.bmp",               Bitmap_Bomb_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Water.bmp",              Bitmap_Water_Bottle_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\LightningInABottle.bmp", Bitmap_Lightning_Bottle_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Feather.bmp",            Bitmap_Phoenix_Feather_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Squid.bmp",              Bitmap_Squid_ID);
 
     // Heightmaps
-    PushAsset(&Assets, "GameAssets\\Bitmap\\Files\\spain.bmp", Heightmap_Spain_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\spain.bmp", Heightmap_Spain_ID);
 
     // Sound
-    PushAsset(&Assets, "GameAssets\\Sound\\Files\\16agosto.wav", Sound_Test_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Sound\\16agosto.wav", Sound_Test_ID);
 
     // Meshes
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Tetrahedron.mdl",  Mesh_Tetrahedron_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Cube.mdl",         Mesh_Cube_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Octahedron.mdl",   Mesh_Octahedron_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Icosahedron.mdl",  Mesh_Icosahedron_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Dodecahedron.mdl", Mesh_Dodecahedron_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Horns.mdl",        Mesh_Horns_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Dog.mdl",          Mesh_Dog_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Sphere.mdl",       Mesh_Sphere_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Body.mdl",         Mesh_Body_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Sword.mdl",        Mesh_Sword_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Knife.mdl",        Mesh_Knife_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Shield.mdl",       Mesh_Shield_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Staff.mdl",        Mesh_Staff_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Bow.mdl",          Mesh_Bow_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Selector.mdl",     Mesh_Selector_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Dyno.mdl",         Mesh_Dyno_ID);
-    PushAsset(&Assets, "GameAssets\\Mesh\\Files\\Squid.mdl",        Mesh_Squid_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Tetrahedron.mdl",  Mesh_Tetrahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Cube.mdl",         Mesh_Cube_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Octahedron.mdl",   Mesh_Octahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Icosahedron.mdl",  Mesh_Icosahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Dodecahedron.mdl", Mesh_Dodecahedron_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Horns.mdl",        Mesh_Horns_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Dog.mdl",          Mesh_Dog_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Sphere.mdl",       Mesh_Sphere_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Body.mdl",         Mesh_Body_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Sword.mdl",        Mesh_Sword_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Knife.mdl",        Mesh_Knife_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Shield.mdl",       Mesh_Shield_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Staff.mdl",        Mesh_Staff_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Bow.mdl",          Mesh_Bow_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Selector.mdl",     Mesh_Selector_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Dyno.mdl",         Mesh_Dyno_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Mesh\\Squid.mdl",        Mesh_Squid_ID);
 
     // Animation
-    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Idle.anim",    Animation_Idle_ID);
-    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Walking.anim", Animation_Walk_ID);
-    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Jumping.anim", Animation_Jump_ID);
-    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Attack.anim",  Animation_Attack_ID);
-    PushAsset(&Assets, "GameAssets\\Animation\\Files\\Dead.anim",    Animation_Dead_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Animation\\Idle.anim",    Animation_Idle_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Animation\\Walking.anim", Animation_Walk_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Animation\\Jumping.anim", Animation_Jump_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Animation\\Attack.anim",  Animation_Attack_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Animation\\Dead.anim",    Animation_Dead_ID);
 
     // Video
     //PushAsset(&Assets, "GameAssets\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
-
-// Shaders
-    // Vertex layouts
-    Assets.VertexLayouts[vertex_layout_vec2_id]           = VertexLayout(1, shader_type_vec2);
-    Assets.VertexLayouts[vertex_layout_vec2_vec2_id]      = VertexLayout(2, shader_type_vec2, shader_type_vec2);
-    Assets.VertexLayouts[vertex_layout_vec3_id]           = VertexLayout(1, shader_type_vec3);
-    Assets.VertexLayouts[vertex_layout_vec3_vec2_id]      = VertexLayout(2, shader_type_vec3, shader_type_vec2);
-    Assets.VertexLayouts[vertex_layout_vec3_vec2_vec3_id] = VertexLayout(3, shader_type_vec3, shader_type_vec2, shader_type_vec3);
-    Assets.VertexLayouts[vertex_layout_vec3_vec4_id]      = VertexLayout(2, shader_type_vec3, shader_type_vec4);
-    Assets.VertexLayouts[vertex_layout_vec4_id]           = VertexLayout(1, shader_type_vec4);
-    Assets.VertexLayouts[vertex_layout_bones_id]          = VertexLayout(5, shader_type_vec3, shader_type_vec2, shader_type_vec3, shader_type_ivec2, shader_type_vec2);
-    for (int i = 0; i < vertex_layout_id_count; i++) Assets.VertexLayouts[i].ID = (vertex_layout_id)i;
-
-    // Vertex
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\Passthrough.vert",   Vertex_Shader_Passthrough_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\Screen.vert",        Vertex_Shader_Screen_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\ScreenTexture.vert", Vertex_Shader_Screen_Texture_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\Perspective.vert",   Vertex_Shader_Perspective_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\Bones.vert",         Vertex_Shader_Bones_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Vertex\\Barycentric.vert",   Vertex_Shader_Barycentric_ID);
-#if GAME_RENDER_API_VULKAN
-    PushShader(&Assets, "GameAssets\\Shaders\\Vertex\\VulkanTest.vert", Vertex_Shader_Vulkan_Test_ID);
-#endif
-
-    // Geometry
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Geometry\\Test.geom",         Geometry_Shader_Test_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Geometry\\DebugNormals.geom", Geometry_Shader_Debug_Normals_ID);
-
-    // Tessellation
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Tessellation\\Heightmap.tesc",  TESC_Heightmap_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Tessellation\\Bezier.tesc",     TESC_Bezier_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Tessellation\\Heightmap.tese",  TESE_Heightmap_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Tessellation\\Trochoidal.tese", TESE_Trochoidal_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Tessellation\\Bezier.tese",     TESE_Bezier_ID);
-
-    // Fragment
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Antialiasing.frag",          Fragment_Shader_Antialiasing_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\FramebufferAttachment.frag", Fragment_Shader_Framebuffer_Attachment_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Texture.frag",               Fragment_Shader_Texture_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Outline.frag",               Fragment_Shader_Outline_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\SingleColor.frag",           Fragment_Shader_Single_Color_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Kernel.frag",                Fragment_Shader_Kernel_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Mesh.frag",                  Fragment_Shader_Mesh_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\JumpFlood.frag",             Fragment_Shader_Jump_Flood_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Heightmap.frag",             Fragment_Shader_Heightmap_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Sea.frag",                   Fragment_Shader_Sea_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\BezierExterior.frag",        Fragment_Shader_Bezier_Exterior_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\BezierInterior.frag",        Fragment_Shader_Bezier_Interior_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\Fire.frag",                  Fragment_Shader_Fire_ID);
-#if GAME_RENDER_API_VULKAN
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Fragment\\VulkanTest.frag", Fragment_Shader_Vulkan_Test_ID);
-#endif
-
-    // Shader pipelines
-    PushShaderPipeline(&Assets, Shader_Pipeline_Antialiasing_ID,        2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Antialiasing_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Framebuffer_ID,         2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Framebuffer_Attachment_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Texture_ID,             2, Vertex_Shader_Screen_Texture_ID, Fragment_Shader_Texture_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Mesh_ID,                2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Mesh_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Mesh_Bones_ID,          2, Vertex_Shader_Bones_ID,          Fragment_Shader_Mesh_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_World_Single_Color_ID,  2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Single_Color_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Screen_Single_Color_ID, 2, Vertex_Shader_Screen_ID,         Fragment_Shader_Single_Color_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Bones_Single_Color_ID,  2, Vertex_Shader_Bones_ID,          Fragment_Shader_Single_Color_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Outline_ID,             2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Outline_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Bezier_Exterior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Exterior_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Bezier_Interior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Interior_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Solid_Text_ID,          2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Single_Color_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Jump_Flood_ID,          2, Vertex_Shader_Passthrough_ID,    Fragment_Shader_Jump_Flood_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Fire_ID,                2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Fire_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Debug_Normals_ID,       3,
-        Vertex_Shader_Bones_ID,
-        Geometry_Shader_Debug_Normals_ID,
-        Fragment_Shader_Single_Color_ID
-    );
-    //PushShaderPipeline(&Assets, Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
-    PushShaderPipeline(&Assets, Shader_Pipeline_Heightmap_ID, 4, 
-        Vertex_Shader_Passthrough_ID, 
-        TESC_Heightmap_ID, 
-        TESE_Heightmap_ID, 
-        Fragment_Shader_Heightmap_ID
-    );
-    PushShaderPipeline(&Assets, Shader_Pipeline_Trochoidal_ID, 4,
-        Vertex_Shader_Passthrough_ID,
-        TESC_Heightmap_ID,
-        TESE_Trochoidal_ID,
-        Fragment_Shader_Sea_ID
-    );
-    PushShaderPipeline(&Assets, Shader_Pipeline_Text_Outline_ID, 4,
-        Vertex_Shader_Barycentric_ID,
-        TESC_Bezier_ID,
-        TESE_Bezier_ID,
-        Fragment_Shader_Single_Color_ID
-    );
-
-#if GAME_RENDER_API_VULKAN
-    PushShaderPipeline(&Assets, Shader_Pipeline_Vulkan_Test_ID, 2, Vertex_Shader_Vulkan_Test_ID, Fragment_Shader_Vulkan_Test_ID);
-#endif
-    
-    // Compute
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\OutlineInit.comp", Compute_Shader_Outline_Init_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\JumpFlood.comp",   Compute_Shader_Jump_Flood_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\Test.comp",        Compute_Shader_Test_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\Kernel.comp",      Compute_Shader_Kernel_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\Fluid.comp",       Compute_Shader_Fluid_ID);
-    PushShader(&Assets, "GameAssets\\Shader\\Files\\Compute\\FluidInit.comp",   Compute_Shader_Fluid_Init_ID);
 
 // Output file
     void* FileMemory = VirtualAlloc(0, sizeof(game_assets) + Assets.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
@@ -234,19 +89,6 @@ void WriteAssetsFile(const char* Path) {
     for (int i = 0; i < Assets.Asset.Count; i++) {
         LoadAsset(&AssetArena, &Assets, &Assets.Asset.Content[i]);
     }
-
-    // Shaders
-    for (int i = 0; i < game_shader_id_count; i++) {
-        LoadShader(&AssetArena, &Assets.Shader[i]);
-    }
-
-    // Compute shaders
-    for (int i = 0; i < game_compute_shader_id_count; i++) {
-        LoadComputeShader(&AssetArena, &Assets.ComputeShader[i]);
-    }
-
-    // Shader pipelines vertex and uniform layouts
-    LoadShaderPipelines(&Assets);
 
     game_assets* OutputAssets = (game_assets*)FileMemory;
     if (OutputAssets) *OutputAssets = Assets;
@@ -321,8 +163,8 @@ void LoadAssetsFromFile(
             case Asset_Type_Mesh: {
                 game_mesh* Mesh = GetAsset(Assets, Asset.ID.Mesh);
                 Mesh->Vertices = (void*)(Assets->Memory + Asset.Offset);
-                vertex_layout Layout = Assets->VertexLayouts[Mesh->LayoutID];
-                Mesh->Edges = (uint32*)((uint8*)Mesh->Vertices + Layout.Stride * Mesh->nVertices);
+                uint32 Stride = Assets->VertexLayout[Mesh->VertexLayoutID].Stride;
+                Mesh->Edges = (uint32*)((uint8*)Mesh->Vertices + Stride * Mesh->nVertices);
                 Mesh->Faces = Mesh->Edges + Mesh->nEdges;
             } break;
 
@@ -354,21 +196,4 @@ void LoadAssetsFromFile(
     }
 
     Log(Info, "Assets loaded.");
-
-    char* Pointer = (char*)(Assets->Memory + Assets->AssetsSize);
-    for (int i = 0; i < game_shader_id_count; i++) {
-        game_shader* Shader = &Assets->Shader[i];
-
-        Shader->Code = Pointer;
-        Pointer += Shader->File.ContentSize + 1;
-    }
-
-    for (int i = 0; i < game_compute_shader_id_count; i++) {
-        game_compute_shader* Shader = &Assets->ComputeShader[i];
-
-        Shader->Code = Pointer;
-        Pointer += Shader->Size + 1;
-    }
-
-    Log(Info, "Shaders loaded.");
 }

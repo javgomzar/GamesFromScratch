@@ -84,8 +84,8 @@ int main() {
     const char* ProcessingFiles[] = {
         "GameLibrary\\GameMath.h",
         "GameAssets\\GameAssets.h",
-        "GameAssets\\Mesh\\GameMesh.h",
-        "GameAssets\\Bitmap\\GameBitmap.h",
+        "GameAssets\\GameMesh.h",
+        "GameAssets\\GameBitmap.h",
         "GameLibrary\\GameEntity.h",
         "GameLibrary\\GameLibrary.cpp",
         "GameLibrary\\GameRender.h",

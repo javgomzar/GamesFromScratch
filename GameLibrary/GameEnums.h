@@ -29,6 +29,8 @@ enum debug_type {
     Debug_Type_game_text_id,
     Debug_Type_game_heightmap_id,
     Debug_Type_game_animation_id,
+    Debug_Type_vertex_type,
+    Debug_Type_vertex_layout_id,
     Debug_Type_game_mesh_id,
     Debug_Type_game_bitmap_id,
     Debug_Type_game_entity_type,
@@ -46,6 +48,9 @@ enum debug_type {
     Debug_Type_game_state_type,
     Debug_Type_render_command_type,
     Debug_Type_render_primitive,
+    Debug_Type_render_group_target,
+    Debug_Type_color_format,
+    Debug_Type_shader_pass_type,
     Debug_Type_render_flags,
     Debug_Type_transform,
     Debug_Type_segment3,
@@ -63,12 +68,16 @@ enum debug_type {
 };
 
 enum render_flags {
-    DEPTH_TEST_RENDER_FLAG = 1 << 0,
-    STENCIL_TEST_RENDER_FLAG = 1 << 1,
+    DEPTH_TEST_FLAG = 1 << 0,
+    STENCIL_TEST_FLAG = 1 << 1,
+    TEXT_OUTLINE_FLAG = 1 << 2,
+    TEXT_INTERIOR_FLAG = 1 << 3,
+    TEXT_EXTERIOR_FLAG = 1 << 4,
+    OVERWRITE_ALPHA_FLAG = 1 << 5,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 44; }
-bool IsFlagType(debug_type Type) { return Type > 43 && Type < 45; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 49; }
+bool IsFlagType(debug_type Type) { return Type > 48 && Type < 50; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -76,7 +85,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 207;
+const int ENUM_VALUES_SIZE = 245;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -97,6 +106,28 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_animation_id, "Animation_Attack_ID", 3},
     {Debug_Type_game_animation_id, "Animation_Dead_ID", 4},
     {Debug_Type_game_animation_id, "game_animation_id_count", 5},
+    {Debug_Type_vertex_type, "vertex_type_empty", 0},
+    {Debug_Type_vertex_type, "vertex_type_float", 1},
+    {Debug_Type_vertex_type, "vertex_type_v2", 2},
+    {Debug_Type_vertex_type, "vertex_type_v3", 3},
+    {Debug_Type_vertex_type, "vertex_type_v4", 4},
+    {Debug_Type_vertex_type, "vertex_type_int", 5},
+    {Debug_Type_vertex_type, "vertex_type_iv2", 6},
+    {Debug_Type_vertex_type, "vertex_type_iv3", 7},
+    {Debug_Type_vertex_type, "vertex_type_iv4", 8},
+    {Debug_Type_vertex_type, "vertex_type_mat2", 9},
+    {Debug_Type_vertex_type, "vertex_type_mat3", 10},
+    {Debug_Type_vertex_type, "vertex_type_mat4", 11},
+    {Debug_Type_vertex_type, "vertex_type_count", 12},
+    {Debug_Type_vertex_layout_id, "vertex_layout_v2_id", 0},
+    {Debug_Type_vertex_layout_id, "vertex_layout_v2_v2_id", 1},
+    {Debug_Type_vertex_layout_id, "vertex_layout_v3_id", 2},
+    {Debug_Type_vertex_layout_id, "vertex_layout_v3_v2_id", 3},
+    {Debug_Type_vertex_layout_id, "vertex_layout_v3_v2_v3_id", 4},
+    {Debug_Type_vertex_layout_id, "vertex_layout_v3_v4_id", 5},
+    {Debug_Type_vertex_layout_id, "vertex_layout_v4_id", 6},
+    {Debug_Type_vertex_layout_id, "vertex_layout_bones_id", 7},
+    {Debug_Type_vertex_layout_id, "vertex_layout_id_count", 8},
     {Debug_Type_game_mesh_id, "Mesh_Tetrahedron_ID", 0},
     {Debug_Type_game_mesh_id, "Mesh_Cube_ID", 1},
     {Debug_Type_game_mesh_id, "Mesh_Octahedron_ID", 2},
@@ -274,23 +305,43 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_render_command_type, "render_clear", 0},
     {Debug_Type_render_command_type, "render_draw_primitive", 1},
     {Debug_Type_render_command_type, "render_shader_pass", 2},
-    {Debug_Type_render_command_type, "render_compute_shader_pass", 3},
-    {Debug_Type_render_command_type, "render_target", 4},
-    {Debug_Type_render_command_type, "render_command_type_count", 5},
+    {Debug_Type_render_command_type, "render_target", 3},
+    {Debug_Type_render_command_type, "render_command_type_count", 4},
     {Debug_Type_render_primitive, "render_primitive_point", 0},
     {Debug_Type_render_primitive, "render_primitive_line", 1},
     {Debug_Type_render_primitive, "render_primitive_line_strip", 2},
-    {Debug_Type_render_primitive, "render_primitive_line_loop", 3},
-    {Debug_Type_render_primitive, "render_primitive_triangle", 4},
-    {Debug_Type_render_primitive, "render_primitive_triangle_fan", 5},
-    {Debug_Type_render_primitive, "render_primitive_patches", 6},
-    {Debug_Type_render_primitive, "render_primitive_count", 7},
+    {Debug_Type_render_primitive, "render_primitive_triangle", 3},
+    {Debug_Type_render_primitive, "render_primitive_triangle_strip", 4},
+    {Debug_Type_render_primitive, "render_primitive_patches", 5},
+    {Debug_Type_render_primitive, "render_primitive_count", 6},
+    {Debug_Type_render_group_target, "Target_None", 0},
+    {Debug_Type_render_group_target, "Target_World", 1},
+    {Debug_Type_render_group_target, "Target_Outline", 2},
+    {Debug_Type_render_group_target, "Target_Postprocessing_Outline", 3},
+    {Debug_Type_render_group_target, "Target_PingPong", 4},
+    {Debug_Type_render_group_target, "Target_Fluid", 5},
+    {Debug_Type_render_group_target, "Target_Output", 6},
+    {Debug_Type_render_group_target, "render_group_target_count", 7},
+    {Debug_Type_color_format, "Color_Format_R", 0},
+    {Debug_Type_color_format, "Color_Format_RG", 1},
+    {Debug_Type_color_format, "Color_Format_RGB", 2},
+    {Debug_Type_color_format, "Color_Format_RGBA", 3},
+    {Debug_Type_color_format, "color_format_count", 4},
+    {Debug_Type_shader_pass_type, "shader_pass_kernel", 0},
+    {Debug_Type_shader_pass_type, "shader_pass_outline_init", 1},
+    {Debug_Type_shader_pass_type, "shader_pass_jump_flood", 2},
+    {Debug_Type_shader_pass_type, "shader_pass_outline", 3},
+    {Debug_Type_shader_pass_type, "shader_pass_type_count", 4},
 };
 
-const int FLAG_VALUES_SIZE = 2;
+const int FLAG_VALUES_SIZE = 6;
 debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {
-    {Debug_Type_render_flags, "DEPTH_TEST_RENDER_FLAG", 1},
-    {Debug_Type_render_flags, "STENCIL_TEST_RENDER_FLAG", 2},
+    {Debug_Type_render_flags, "DEPTH_TEST_FLAG", 1},
+    {Debug_Type_render_flags, "STENCIL_TEST_FLAG", 2},
+    {Debug_Type_render_flags, "TEXT_OUTLINE_FLAG", 4},
+    {Debug_Type_render_flags, "TEXT_INTERIOR_FLAG", 8},
+    {Debug_Type_render_flags, "TEXT_EXTERIOR_FLAG", 16},
+    {Debug_Type_render_flags, "OVERWRITE_ALPHA_FLAG", 32},
 };
 
 #endif

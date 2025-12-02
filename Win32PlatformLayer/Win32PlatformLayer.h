@@ -1,6 +1,9 @@
 #include "GamePlatform.h"
 #include "pch.h"
 
+#define RENDERER_INITIALIZE void InitializeRenderer(render_group* Group, HWND Window, HINSTANCE Instance, HDC DeviceContext)
+#define RENDERER_RENDER void Render(render_group* Group, camera* Camera, game_input* Input, HWND Window, double Time)
+
 system_os SystemOS = Windows;
 
 static char Environment[8192] = {};
@@ -115,6 +118,7 @@ PLATFORM_READ_ENTIRE_FILE(Win32ReadEntireFile) {
         char ErrorText[256];
         sprintf_s(ErrorText, "Error while opening file %s. Error code %d.", Path, LastError);
         Log(Error, ErrorText);
+        Result.ContentSize = 0;
     }
     return Result;
 };

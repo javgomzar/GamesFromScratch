@@ -6,15 +6,15 @@ void TestPerformance() {
     
 }
 
-void TestFluid(render_group* Group, game_input* Input, bool FirstFrame) {
-    if (FirstFrame || Input->Keyboard.R.JustPressed) {
-        PushShaderPass(Group, Compute_Shader_Fluid_Init_ID, Target_Fluid, Target_Fluid);
-    }
-    else {
-        PushShaderPass(Group, Compute_Shader_Fluid_ID, Target_Fluid, Target_Fluid);
-    }
-    PushRenderTarget(Group, Target_Fluid);
-}
+// void TestFluid(render_group* Group, game_input* Input, bool FirstFrame) {
+//     if (FirstFrame || Input->Keyboard.R.JustPressed) {
+//         PushShaderPass(Group, Compute_Shader_Fluid_Init_ID, Target_Fluid, Target_Fluid);
+//     }
+//     else {
+//         PushShaderPass(Group, Compute_Shader_Fluid_ID, Target_Fluid, Target_Fluid);
+//     }
+//     PushRenderTarget(Group, Target_Fluid);
+// }
 
 void TestRendering(render_group* Group, game_input* Input, float Time) {
 // 2D
@@ -28,7 +28,7 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     PushCircunference(Group, V2(200, 70), 50.0f, White, 2.0f);
 
     // Triangles
-    triangle2 Triangle2 = { V2(320, 20), V2(270, 120), V2(370, 120) };
+    triangle2 Triangle2 = { V2(320, 20), V2(370, 120), V2(270, 120) };
     color TriangleColor = Red;
     if (IsInside(Triangle2, Input->Mouse.Cursor)) TriangleColor = Green;
     PushTriangle(Group, Triangle2, TriangleColor);
@@ -61,9 +61,6 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     // Point
     // PushPoint(Group, V3(0,0,0), Red);
 
-    // Debug grid
-    PushDebugGrid(Group, 1.0f);
-
     // Rect
     PushRect(Group, V3(0,1,0), V3(0,0,1), V3(0,1,0), 1.0f, 1.0f, Red);
 
@@ -79,25 +76,25 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
 
     // Mesh
     transform T = Transform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
-    PushMesh(Group, Mesh_Body_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Gray, 0, true);
+    PushMesh(Group, Mesh_Body_ID, T, Bitmap_Empty_ID, Gray, 0, false);
 
     T.Translation = V3(-2, 0, 0);
-    PushMesh(Group, Mesh_Tetrahedron_ID, T, Shader_Pipeline_World_Single_Color_ID);
+    PushMesh(Group, Mesh_Tetrahedron_ID, T);
 
     T.Translation = V3(-2, 0, 2);
-    PushMesh(Group, Mesh_Cube_ID, T, Shader_Pipeline_World_Single_Color_ID);
+    PushMesh(Group, Mesh_Cube_ID, T);
 
     T.Translation = V3(-2, 0, 4);
-    PushMesh(Group, Mesh_Octahedron_ID, T, Shader_Pipeline_World_Single_Color_ID);
+    PushMesh(Group, Mesh_Octahedron_ID, T);
 
     T.Translation = V3(-2, 0, 6);
-    PushMesh(Group, Mesh_Icosahedron_ID, T, Shader_Pipeline_World_Single_Color_ID);
+    PushMesh(Group, Mesh_Icosahedron_ID, T);
 
     T.Translation = V3(-2, 0, 8.5);
-    PushMesh(Group, Mesh_Dodecahedron_ID, T, Shader_Pipeline_World_Single_Color_ID);
+    PushMesh(Group, Mesh_Dodecahedron_ID, T);
 
-    PushMesh(Group, Mesh_Sphere_ID, Transform(V3(10, 0, 0)), Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
+    PushMesh(Group, Mesh_Sphere_ID, Transform(V3(10, 0, 0)), Bitmap_Empty_ID, Red);
 
     // Heightmap
-    PushHeightmap(Group, Heightmap_Spain_ID, Shader_Pipeline_Heightmap_ID);
+    PushHeightmap(Group, Heightmap_Spain_ID);
 }

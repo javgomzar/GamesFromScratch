@@ -1,0 +1,25 @@
+Texture2DMS<float4, 8> Texture: register(t0);
+
+cbuffer Globals: register(b0) {
+    float4x4 Projection;
+    float4x4 View;
+    float2 Resolution;
+    float2 Mouse;
+    float2 LastMouse;
+    float Time;
+};
+
+struct VertexOut {
+    float4 Position: SV_POSITION;
+};
+
+float4 main(VertexOut vout): SV_Target {
+    int2 Coord = int2(vout.Position.x, vout.Position.y);
+    float4 Mean = float4(0, 0, 0, 0);
+	for (int i = 0; i < 8; i++) {
+		float4 Sample = Texture.Load(Coord, i);
+		Mean += Sample.a * Sample;
+	}
+
+    return 0.125 * Mean;
+}

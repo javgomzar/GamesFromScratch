@@ -787,7 +787,6 @@ struct prop {
     uint32 ID;
     game_mesh_id MeshID;
     game_bitmap_id Texture;
-    game_shader_pipeline_id Shader;
     color Color;
     game_entity* Entity;
 };
@@ -1071,8 +1070,7 @@ enemy* AddEnemy(game_entity_manager* EntityManager, v3 Position, enemy_type Type
 
 prop* AddProp(
     game_entity_manager* EntityManager, 
-    game_mesh_id MeshID, 
-    game_shader_pipeline_id Shader, 
+    game_mesh_id MeshID,
     color Color = White,
     v3 Position = V3(0,0,0),
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
@@ -1090,7 +1088,6 @@ prop* AddProp(
 
     prop* pProp = &EntityManager->Props.List[PropID];
     pProp->MeshID = MeshID;
-    pProp->Shader = Shader;
     pProp->Color = Color;
 
     char NameBuffer[32];
@@ -2266,7 +2263,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                         v3 SelectorPosition = Entity->Transform.Translation;
                         SelectorPosition.Y += 1.0f + 0.1f * sinf(5.0f * Time) + Mesh->MaxY;
                         transform T = Transform(SelectorPosition, Quaternion(Time, V3(0,1,0)));
-                        PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
+                        PushMesh(Group, Mesh_Selector_ID, T, Bitmap_Empty_ID, Red);
                     }
 
                     combatant* Combatant = GetCombatant(&Combat->Combatants, Entity);
@@ -2293,7 +2290,6 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                     Group,
                     Mesh_Body_ID,
                     Entity->Transform,
-                    Shader_Pipeline_Mesh_Bones_ID,
                     Bitmap_Empty_ID,
                     Color,
                     &pCharacter->Armature,
@@ -2328,7 +2324,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                         v3 SelectorPosition = Entity->Transform.Translation;
                         SelectorPosition.Y += 1.0f + 0.1f * sinf(5.0f * Time) + Mesh->MaxY;
                         transform T = Transform(SelectorPosition, Quaternion(Time, V3(0,1,0)));
-                        PushMesh(Group, Mesh_Selector_ID, T, Shader_Pipeline_Mesh_ID, Bitmap_Empty_ID, Red);
+                        PushMesh(Group, Mesh_Selector_ID, T, Bitmap_Empty_ID, Red);
                     }
 
                     combatant* Combatant = GetCombatant(&Combat->Combatants, Entity);
@@ -2353,11 +2349,10 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
 
                 PushMesh(
                     Group,
-                    pEnemy->MeshID,
-                    DeadTransform * Entity->Transform,
-                    Shader_Pipeline_Mesh_ID,
-                    pEnemy->TextureID,
-                    Color, nullptr,
+                    Mesh->ID,
+                    Entity->Transform,
+                    Bitmap_Enemy_ID,
+                    White, 0,
                     Outline
                 );
             } break;
@@ -2368,7 +2363,6 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                     Group,
                     pProp->MeshID,
                     Entity->Transform,
-                    pProp->Shader,
                     Bitmap_Empty_ID,
                     pProp->Color
                 );
@@ -2376,7 +2370,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
 
             case Entity_Type_Weapon: {
                 weapon* pWeapon = &EntityManager->Weapons.List[Entity->Index];
-                PushMesh(Group, pWeapon->MeshID, Entity->Transform, Shader_Pipeline_Mesh_ID);
+                PushMesh(Group, pWeapon->MeshID, Entity->Transform);
             } break;
         }
 

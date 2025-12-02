@@ -3,12 +3,15 @@
 #include "GameBuild.h"
 
 #if GAME_RENDER_API_OPENGL
-    #pragma comment (lib, "opengl32.lib")
     #include "OpenGLRender.h"
 #endif
 
 #if GAME_RENDER_API_VULKAN
     #include "VulkanRender.h"
+#endif
+
+#if GAME_RENDER_API_DIRECTX
+    #include "DirectX11Render.h"
 #endif
 
 #pragma comment(lib, "xaudio2.lib")
@@ -68,9 +71,7 @@ static void LoadXInput(void) {
         XInputGetState = (xinput_get_state*)GetProcAddress(XInputLibrary, "XInputGetState");
         XInputSetState = (xinput_set_state*)GetProcAddress(XInputLibrary, "XInputSetState");
     }
-    else {
-        // Diagnostic
-    }
+    else Raise("Couldn't load XInput DLL.");
 }
 
 
@@ -132,13 +133,6 @@ VOID DisplayBufferToWindow(
 
     SwapBuffers(DeviceContext);
 }
-
-#if GAME_RENDER_API_OPENGL
-    openGL RendererContext;
-#endif
-#if GAME_RENDER_API_VULKAN
-    vulkan RendererContext;
-#endif
 
 // Monitors
 struct monitor_manager {
@@ -741,10 +735,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     RecordPlayback.TotalSize = PermanentStorageSize;
     
     render_group* Group = &Memory.RenderGroup;
+    RECT Rect = { 0 };
+    GetClientRect(Window, &Rect);
     InitializeRenderGroup(
         &Memory.Permanent,
         Group,
-        Assets
+        Assets,
+        Rect.right - Rect.left,
+        Rect.bottom - Rect.top
     );
 
     // Input
@@ -758,6 +756,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     int MonitorRefreshHz = 60;
     float TargetSecondsPerFrame = 1.0f / (float)MonitorRefreshHz;
 
+    // Console for logging
+    AllocConsole();
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD ConsoleMode = 0;
+    GetConsoleMode(hConsole, &ConsoleMode);
+    SetConsoleMode(hConsole, ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+
     // Performance
     uint64 LastCounter = Platform.GetWallClock();
     uint64 LastCycleCount = __rdtsc();
@@ -766,26 +771,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Initilize render API
     InitializeRenderer(
-        &RendererContext,
-        &Memory.RenderGroup.VertexBuffer,
-        Assets,
+        Group,
         Window,
-        DeviceContext,
-        hInstance
+        hInstance,
+        DeviceContext
     );
-
-    RendererContext.DPI = GetDeviceCaps(DeviceContext, LOGPIXELSX);
 
     RefreshMonitors();
 
     ReleaseDC(Window, DeviceContext);
-
-    // Console for logging
-    AllocConsole();
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD ConsoleMode = 0;
-    GetConsoleMode(hConsole, &ConsoleMode);
-    SetConsoleMode(hConsole, ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
     // Delete old hot reloading files
     WIN32_FIND_DATAA FindData = {};
@@ -896,39 +890,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         }
 
         // Hot reloading for shaders
-        for (int i = 0; i < game_shader_id_count; i++) {
-            game_shader* Shader = GetShader(Assets, (game_shader_id)i);
-
-            int64 LastWriteTime = Win32GetLastWriteTime(Shader->File.Path);
-            if (LastWriteTime > Shader->File.Timestamp) {
-                Win32FreeFileMemory(Shader->File.Content);
-                PushShader(Assets, Shader->File.Path, Shader->ID);
-                if (Shader->File.Timestamp == LastWriteTime) {
-                    OpenGLReloadShader(&RendererContext, Assets, Shader);
-
-                    char Buffer[128];
-                    sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
-                    Log(Info, Buffer);
-                }
-            }
-        }
-
-        for (int i = 0; i < game_compute_shader_id_count; i++) {
-            game_compute_shader* Shader = GetShader(Assets, (game_compute_shader_id)i);
-
-            int64 LastWriteTime = Win32GetLastWriteTime(Shader->File.Path);
-            if (LastWriteTime > Shader->File.Timestamp) {
-                Win32FreeFileMemory(Shader->File.Content);
-                PushShader(Assets, Shader->File.Path, Shader->ID);
-                if (Shader->File.Timestamp == LastWriteTime) {
-                    OpenGLReloadShader(&RendererContext, Shader);
-
-                    char Buffer[128];
-                    sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
-                    Log(Info, Buffer);
-                }
-            }
-        }
+        ReloadShaders();
 
         // Clear transient memory
         ClearArena(&Memory.Transient);
@@ -1052,7 +1014,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         // Game function
         if (GameCode.IsValid) {
-            RECT Rect = { 0 };
             GetClientRect(Window, &Rect);
 
             if (FirstFrame) {
@@ -1066,7 +1027,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 if ((NewWidth != Memory.RenderGroup.Width || NewHeight != Memory.RenderGroup.Height)) {
                     Group->Width = NewWidth;
                     Group->Height = NewHeight;
-                    ResizeWindow(&RendererContext, NewWidth, NewHeight);
+                    ResizeWindow(NewWidth, NewHeight);
                 }
             }
 
@@ -1082,10 +1043,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             }
 
             if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F11.WasDown) {
-                ScreenCapture(&Platform, &RendererContext, Group->Width, Group->Height);
+                ScreenCapture(Group->Width, Group->Height);
             }
 
-            Render(Window, Group, &RendererContext, &Memory.Input, pGameState->ActiveCamera, pGameState->Time);
+            Render( Group, pGameState->ActiveCamera, &Memory.Input, Window, pGameState->Time);
             ClearVertexBuffer(&Memory.RenderGroup.VertexBuffer);
         }
         else {
@@ -1295,10 +1256,10 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
                 if (NewWidth != Group->Width || NewHeight != Group->Height) {
                     Group->Width = NewWidth;
                     Group->Height = NewHeight;
-                    ResizeWindow(&RendererContext, NewWidth, NewHeight);
+                    ResizeWindow(NewWidth, NewHeight);
                 }
 
-                Render(Window, Group, &RendererContext, &Memory.Input, Memory.GameState->ActiveCamera, 0.0);
+                Render(Group, Memory.GameState->ActiveCamera, &Memory.Input, Window, 0.0);
             }
 
             EndPaint(Window, &ps);

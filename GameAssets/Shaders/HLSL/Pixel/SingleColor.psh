@@ -1,0 +1,7 @@
+cbuffer Color: register(b2) {
+    float4 Color;
+};
+
+float4 main(): SV_Target {
+    return Color;
+}

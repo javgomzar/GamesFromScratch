@@ -1435,11 +1435,11 @@ void UpdateUI(
             DEBUG_VALUE(Combat->TurnsArena, memory_arena);
 
             memory_arena* VertexArena = Group->VertexBuffer.Vertices;
-            DEBUG_VALUE(VertexArena[vertex_layout_vec2_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_vec2_vec2_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_vec3_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_vec3_vec2_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_vec3_vec2_vec3_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v2_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v2_v2_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v3_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v3_v2_id], memory_arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v3_v2_v3_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_bones_id], memory_arena);
             nEntries = DebugInfo->nEntries;
             for (; i < nEntries; i++) {
@@ -1493,7 +1493,7 @@ void UpdateUI(
         }
         
         // Debug Framebuffer
-        PushDebugFramebuffer(Group, Target_Postprocessing_Outline);
+        PushDebugTarget(Group, Target_Postprocessing_Outline);
     }
 
     if (UI.Tree.Current) UI.Tree.Current->Next = 0;
