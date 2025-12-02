@@ -21,7 +21,7 @@ struct VertexOut {
 };
 
 float4 main(VertexOut vout): SV_TARGET {
-    float4 Sample = Texture.Sample(Sampler, float2(vout.Texture.x, 1.0 - vout.Texture.y));
+    float4 Sample = Texture.Sample(Sampler, float2(vout.Texture.x, vout.Texture.y));
     float3 Normal = normalize(vout.Normal);
     float Diff = Diffuse * max(dot(Normal, -Direction), 0);
     float3 ViewDirection = normalize(CameraPosition - vout.WorldPosition.xyz);
