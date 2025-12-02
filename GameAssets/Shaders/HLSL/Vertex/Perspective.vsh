@@ -12,16 +12,16 @@ cbuffer Transforms: register(b3) {
     float4x4 Normal;
 };
 
-struct VertexIn {
+struct VS_IN {
     float3 Position: POSITION;
 };
 
-struct VertexOut {
+struct VS_OUT {
     float4 Position: SV_POSITION;
 };
 
-VertexOut main(VertexIn vin) {
-    VertexOut vout;
+VS_OUT main(VS_IN vin) {
+    VS_OUT vout;
     vout.Position = mul(mul(mul(float4(vin.Position, 1.0f), Model), View), Projection);
     return vout;
 }
