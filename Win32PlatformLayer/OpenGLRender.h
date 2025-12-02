@@ -22,16 +22,6 @@
 // | Textures                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-GLenum OpenGLGetByteColorFormat(uint32 BytesPerPixel) {
-	GLenum InternalFormat = 0;
-	if      (BytesPerPixel == 1) InternalFormat = GL_R8;
-	else if (BytesPerPixel == 2) InternalFormat = GL_RG8;
-	else if (BytesPerPixel == 3) InternalFormat = GL_RGBA8;
-	else if (BytesPerPixel == 4) InternalFormat = GL_RGBA8;
-	else Raise("OpenGL: Invalid bytes per pixel value for bitmap.");
-	return InternalFormat;
-}
-
 GLenum OpenGLGetByteColorFormat(color_format Format) {
 	switch (Format) {
 		case Color_Format_R:    return GL_R8;
@@ -1324,7 +1314,7 @@ RENDERER_INITIALIZE {
 		glGenTextures(game_bitmap_id_count + game_heightmap_id_count, OpenGL.Texture);
 		for (int i = 0; i < game_bitmap_id_count; i++) {
 			game_bitmap* Bitmap = &Assets->Bitmap[i];
-			GLenum InternalFormat = OpenGLGetByteColorFormat(Bitmap->BytesPerPixel);
+			GLenum InternalFormat = GL_RGBA8;
 			ResizeTexture(
 				Bitmap->Header.Width, Bitmap->Header.Height, 
 				OpenGL.Texture[i], 
@@ -1336,7 +1326,7 @@ RENDERER_INITIALIZE {
 
 		for (int i = 0; i < game_heightmap_id_count; i++) {
 			game_heightmap* Heightmap = &Assets->Heightmap[i];
-			GLenum InternalFormat = OpenGLGetByteColorFormat(Heightmap->Bitmap.BytesPerPixel);
+			GLenum InternalFormat = GL_RGBA8;
 			ResizeTexture(
 				Heightmap->Bitmap.Header.Width, Heightmap->Bitmap.Header.Height, 
 				OpenGL.Heightmap[i], 
@@ -1536,9 +1526,8 @@ void ScreenCapture(int Width, int Height) {
     game_bitmap BMP = {};
 
     // Bitmap header
-    MakeBitmapHeader(&BMP.Header, Width, Height, 4);
+    MakeBitmapHeader(&BMP.Header, Width, Height);
 
-    BMP.BytesPerPixel = 4;
     BMP.Pitch = 4 * Width;
     BMP.AlphaMask = 0xff000000;
 
@@ -1557,7 +1546,7 @@ void ScreenCapture(int Width, int Height) {
     );
 
     // Read pixels
-    BMP.Content = (uint32*)VirtualAlloc(0, Width * Height * BMP.BytesPerPixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    BMP.Content = (uint32*)VirtualAlloc(0, 4 * Width * Height, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glReadPixels(0, 0, Width, Height, GL_BGRA, GL_UNSIGNED_BYTE, (void*)BMP.Content);
 
