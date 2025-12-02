@@ -12,18 +12,18 @@ cbuffer Transforms {
     float4x4 Normal;
 };
 
-struct VertexIn {
+struct VS_IN {
     float3 Position: POSITION;
     float2 Texture: TEXCOORD;
 };
 
-struct VertexOut {
+struct VS_OUT {
     float4 Position: SV_POSITION;
     float2 Texture: TEXCOORD;
 };
 
-VertexOut main(VertexIn vin) {
-    VertexOut vout;
+VS_OUT main(VS_IN vin) {
+    VS_OUT vout;
     vout.Position = mul(mul(mul(float4(vin.Position, 1.0f), Model), View), Projection);
     vout.Texture = vin.Texture;
     return vout;

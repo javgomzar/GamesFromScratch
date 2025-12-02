@@ -1058,9 +1058,6 @@ void ClearModelUniforms() {
 void SetBoneUniforms(armature* Armature) {
 	bone_uniforms BoneUniforms = {};
 	BoneUniforms.n_bones = Armature->nBones;
-	int Offset1 = offsetof(bone_uniforms, bone_transforms);
-	int Offset2 = offsetof(bone_uniforms, bone_normal_transforms);
-	int Offset3 = offsetof(bone_uniforms, n_bones);
 	for (int i = 0; i < Armature->nBones; i++) {
 		matrix4 BoneMatrix = Matrix(Armature->Bones[i].Transform);
 		BoneUniforms.bone_transforms[i] = BoneMatrix;

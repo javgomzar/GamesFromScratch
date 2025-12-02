@@ -89,6 +89,7 @@ ENUM(directX_constant_buffer_id,
     light_buffer_id,
     color_buffer_id,
     transform_buffer_id,
+    bone_buffer_id,
     text_buffer_id
 );
 
@@ -108,6 +109,12 @@ struct alignas(16) color_buffer {
 struct alignas(16) transform_buffer {
     matrix4 Model;
     matrix4 Normal;
+};
+
+struct alignas(16) bone_buffer {
+    matrix4 BoneTransforms[MAX_ARMATURE_BONES];
+    matrix4 BoneNormalTransforms[MAX_ARMATURE_BONES];
+    alignas(16) int nBones;
 };
 
 struct alignas(16) text_buffer {
@@ -366,6 +373,27 @@ void ClearTransformBuffer() {
     SetTransformBuffer();
 }
 
+void SetBoneBuffer(armature* Armature) {
+    ID3D11Buffer* BoneBuffer = DirectX.ConstantBuffer[bone_buffer_id];
+    void* MappedBuffer = GetMappedBuffer(BoneBuffer);
+    if (MappedBuffer) {
+        bone_buffer* Buffer = (bone_buffer*)MappedBuffer;
+        Buffer->nBones = Armature->nBones;
+        for (int i = 0; i < Armature->nBones; i++) {
+            matrix4 BoneMatrix = Matrix(Armature->Bones[i].Transform);
+            Buffer->BoneTransforms[i] = BoneMatrix;
+            Buffer->BoneNormalTransforms[i] = Matrix4(inverse(Matrix3(BoneMatrix)));
+        }
+        DirectX.DeviceContext->Unmap(BoneBuffer, 0);
+        DirectX.DeviceContext->VSSetConstantBuffers(4, 1, &BoneBuffer);
+    }
+}
+
+void ClearBoneBuffer() {
+    armature Armature = {};
+    SetBoneBuffer(&Armature);
+}
+
 void SetTextBuffer(v2 Pen, float Size) {
     ID3D11Buffer* TextBuffer = DirectX.ConstantBuffer[text_buffer_id];
     void* MappedBuffer = GetMappedBuffer(TextBuffer);
@@ -495,7 +523,7 @@ void ParseVertexLayout(directX_Vertex_Shader* Shader) {
     while (Token.Type != Token_End) {
         if (Token == "struct") {
             Token = RequireToken(Tokenizer, Token_Identifier);
-            if (Token == "VertexIn") {
+            if (Token == "VS_IN") {
                 RequireToken(Tokenizer, Token_OpenBrace);
                 
                 Token = RequireToken(Tokenizer, Token_Identifier);
@@ -1232,6 +1260,7 @@ RENDERER_INITIALIZE {
     CreateConstantBuffer(global_buffer);
     CreateConstantBuffer(color_buffer);
     CreateConstantBuffer(transform_buffer);
+    CreateConstantBuffer(bone_buffer);
     CreateConstantBuffer(text_buffer);
     CreateConstantBuffer(light_buffer);
 }
@@ -1319,6 +1348,10 @@ RENDERER_RENDER {
                     if (Options.Mesh->Armature.nBones > 0) {
                         LayoutID = vertex_layout_bones_id;
                         VertexShaderID = Vertex_Shader_Bones_ID;
+
+                        if (Options.Armature) {
+                            SetBoneBuffer(Options.Armature);
+                        }
                     }
                     else {
                         LayoutID = vertex_layout_v3_v2_v3_id;
@@ -1412,6 +1445,7 @@ RENDERER_RENDER {
                         DirectX.DeviceContext->GSSetShader(NULL, NULL, 0);
                     }
 
+                    if (Options.Armature) ClearBoneBuffer();
                     ClearTransformBuffer();
                 }
 

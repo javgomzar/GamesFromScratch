@@ -7,8 +7,6 @@ layout(location = 2) in vec3 a_normal;
 layout(location = 3) in ivec2 bone_ids;
 layout(location = 4) in vec2 bone_weights;
 
-const int MAX_BONES = 32;
-
 #ifdef VULKAN
 layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
 #else 
@@ -32,6 +30,8 @@ layout(std140, binding = 3) uniform ModelUniforms
 	mat4 model;
 	mat4 normal;
 } ModelUBO;
+
+const int MAX_BONES = 32;
 
 #ifdef VULKAN
 layout(std140, set = 1, binding = 2) uniform BoneUniforms 
