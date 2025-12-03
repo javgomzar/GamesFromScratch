@@ -39,7 +39,8 @@ ENUM(directX_Vertex_Shader_ID,
     Vertex_Shader_Perspective_Texture_ID,
     Vertex_Shader_Mesh_ID,
     Vertex_Shader_Bones_ID,
-    Vertex_Shader_Heightmap_ID
+    Vertex_Shader_Heightmap_ID,
+    Vertex_Shader_Sky_ID
 );
 
 ENUM(directX_Hull_Shader_ID,
@@ -61,7 +62,8 @@ ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Mesh_ID,
     Pixel_Shader_Bezier_Exterior_ID,
     Pixel_Shader_Bezier_Interior_ID,
-    Pixel_Shader_Heightmap_ID
+    Pixel_Shader_Heightmap_ID,
+    Pixel_Shader_Sky_ID
 );
 
 ENUM(directX_Compute_Shader_ID,
@@ -505,7 +507,7 @@ ID3DBlob* CompileShader(read_file_result* File, const char* Path) {
     );
 
     if (FAILED(Result)) {
-        char ErrorBuffer[1024];
+        char ErrorBuffer[4096];
         sprintf_s(ErrorBuffer, "DirectX: Failure trying to compile shader: %s", (char*)Errors->GetBufferPointer());
         Log(Error, ErrorBuffer);
         return nullptr;
@@ -574,7 +576,7 @@ void LoadShader(directX_Vertex_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating vertex shader %s", Path);
             Log(Error, TextBuffer);
@@ -628,7 +630,7 @@ void LoadShader(directX_Pixel_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating pixel shader %s", Path);
             Log(Error, TextBuffer);
@@ -655,7 +657,7 @@ void LoadShader(directX_Hull_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating hull shader %s", Path);
             Log(Error, TextBuffer);
@@ -680,7 +682,7 @@ void LoadShader(directX_Domain_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating domain shader %s", Path);
             Log(Error, TextBuffer);
@@ -707,7 +709,7 @@ void LoadShader(directX_Geometry_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating geometry shader %s", Path);
             Log(Error, TextBuffer);
@@ -732,7 +734,7 @@ void LoadShader(directX_Compute_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating compute shader %s", Path);
             Log(Error, TextBuffer);
@@ -1108,7 +1110,7 @@ RENDERER_INITIALIZE {
 	RasterizerDescription.DepthBiasClamp = 0.0f;
 	RasterizerDescription.DepthClipEnable = true;
 	RasterizerDescription.FillMode = D3D11_FILL_SOLID;
-	RasterizerDescription.FrontCounterClockwise = false;
+	RasterizerDescription.FrontCounterClockwise = true;
 	RasterizerDescription.MultisampleEnable = true;
 	RasterizerDescription.ScissorEnable = false;
 	RasterizerDescription.SlopeScaledDepthBias = 0.0f;
@@ -1204,6 +1206,7 @@ RENDERER_INITIALIZE {
     LoadShader(Vertex_Shader_Bones_ID,               "GameAssets\\Shaders\\HLSL\\Vertex\\Bones.vsh");
     LoadShader(Vertex_Shader_Barycentric_ID,         "GameAssets\\Shaders\\HLSL\\Vertex\\Barycentric.vsh");
     LoadShader(Vertex_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Heightmap.vsh");
+    LoadShader(Vertex_Shader_Sky_ID,                 "GameAssets\\Shaders\\HLSL\\Vertex\\Sky.vsh");
 
     // Hull
     LoadShader(Hull_Shader_Heightmap_ID,             "GameAssets\\Shaders\\HLSL\\Hull\\Heightmap.hsh");
@@ -1222,6 +1225,7 @@ RENDERER_INITIALIZE {
     LoadShader(Pixel_Shader_Bezier_Exterior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierExterior.psh");
     LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
     LoadShader(Pixel_Shader_Heightmap_ID,            "GameAssets\\Shaders\\HLSL\\Pixel\\Heightmap.psh");
+    LoadShader(Pixel_Shader_Sky_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Sky.psh");
 
 // Vertex buffers
     // Layout buffers
@@ -1305,6 +1309,7 @@ RENDERER_RENDER {
     SetGlobalBuffer(Group->Width, Group->Height, Camera, Input, Time);
     SetLightBuffer(Group->Light, Camera->Position + Camera->Distance * Camera->Basis.Z);
     ClearTransformBuffer();
+    ClearBoneBuffer();
 
     // Render entries
 	for (int i = 0; i < Group->EntryCount; i++) {
@@ -1399,6 +1404,10 @@ RENDERER_RENDER {
                     if (Options.Texture) {
                         VertexShaderID = Vertex_Shader_Screen_Texture_ID;
                         PixelShaderID = Pixel_Shader_Texture_ID;
+                    }
+                    else if (Options.Flags & SKY_FLAG) {
+                        VertexShaderID = Vertex_Shader_Sky_ID;
+                        PixelShaderID = Pixel_Shader_Sky_ID;
                     }
                 }
 

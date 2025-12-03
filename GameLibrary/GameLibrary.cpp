@@ -32,15 +32,15 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     render_group* Group = &Memory->RenderGroup;
     game_input* Input = &Memory->Input;
-    game_state* pGameState = Memory->GameState;
+    game_state* State = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
-    game_entity_state* EntityState = &pGameState->Entities;
+    game_entity_state* EntityState = &State->Entities;
     debug_info* DebugInfo = &Memory->DebugInfo;
 {
     TIMED_BLOCK;
 
-    float Time = pGameState->Time;
-    camera* ActiveCamera = pGameState->ActiveCamera;
+    float Time = State->Time;
+    camera* ActiveCamera = State->ActiveCamera;
 
     bool FirstFrame = false;
     if (!Memory->IsInitialized) {
@@ -59,9 +59,9 @@ extern "C" GAME_UPDATE(GameUpdate)
         Equip(Sword, Character);
         Equip(Shield, Character);
 
-        pGameState->Emitter = AllocateParticleEmitter(&Memory->Permanent, 200);
-        SetParticleEmitterCircle(pGameState->Emitter, V3(0,0,0), 1.0f, V3(0,1,0));
-        pGameState->Emitter->ParticleLifetime = 2.0f;
+        State->Emitter = AllocateParticleEmitter(&Memory->Permanent, 200);
+        SetParticleEmitterCircle(State->Emitter, V3(0,0,0), 1.0f, V3(0,1,0));
+        State->Emitter->ParticleLifetime = 2.0f;
 
         Memory->IsInitialized = true;
     }
@@ -73,17 +73,19 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Magenta, Target_PingPong);
     PushClear(Group, BackgroundBlue, Target_Output);
 
-    UpdateGameState(Assets, pGameState, Input, Group->Width, Group->Height);
+    UpdateGameState(Assets, State, Input, Group->Width, Group->Height);
     
-    // GameOutputSound(Assets, SoundBuffer, pGameState, Input);
+    // GameOutputSound(Assets, SoundBuffer, State, Input);
 
-    // PushEntities(Group, &pGameState->Entities, Input, Time);
+    // PushEntities(Group, &State->Entities, Input, Time);
 
     TestRendering(Group, Input, Time);
 
     // TestFluid(Group, Input, FirstFrame);
 
-    Update(Group, ActiveCamera->Position, pGameState->Emitter, pGameState->dt);
+    Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
+
+    PushSky(Group);
     
     UpdateUI(Memory, Input);
 

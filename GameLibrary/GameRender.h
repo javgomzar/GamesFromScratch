@@ -139,7 +139,8 @@ FLAGS(render_flags,
     TEXT_INTERIOR_FLAG,
     TEXT_EXTERIOR_FLAG,
 
-    OVERWRITE_ALPHA_FLAG
+    OVERWRITE_ALPHA_FLAG,
+    SKY_FLAG
 );
 
 struct render_primitive_options {
@@ -1729,6 +1730,48 @@ void PushHeightmap(
 ) {
     game_heightmap* Heightmap = GetAsset(Group->Assets, ID);
     PushHeightmap(Group, Heightmap, Order);
+}
+
+void PushSky(
+    render_group* Group
+) {
+    render_primitive_command* Command = PushPrimitiveCommand(
+        Group,
+        render_primitive_triangle,
+        White,
+        vertex_layout_v3_id,
+        8,
+        36,
+        SORT_ORDER_MESHES,
+        {
+            .Flags = (render_flags)(SKY_FLAG | DEPTH_TEST_FLAG),
+        }
+    );
+
+    v3* Vertices = (v3*)Command->Vertices;
+    *Vertices++ = V3(-1.0f, -1.0f, -1.0f);
+    *Vertices++ = V3( 1.0f, -1.0f, -1.0f);
+    *Vertices++ = V3(-1.0f, -1.0f,  1.0f);
+    *Vertices++ = V3( 1.0f, -1.0f,  1.0f);
+    *Vertices++ = V3(-1.0f,  1.0f, -1.0f);
+    *Vertices++ = V3( 1.0f,  1.0f, -1.0f);
+    *Vertices++ = V3(-1.0f,  1.0f,  1.0f);
+    *Vertices++ = V3( 1.0f,  1.0f,  1.0f);
+
+    uint32* Elements = Command->ElementEntry.Pointer;
+    uint32 Offset = Command->VertexEntry.Offset;
+    *Elements++ = Offset + 0; *Elements++ = Offset + 1; *Elements++ = Offset + 2;
+    *Elements++ = Offset + 1; *Elements++ = Offset + 2; *Elements++ = Offset + 3;
+    *Elements++ = Offset + 0; *Elements++ = Offset + 1; *Elements++ = Offset + 4;
+    *Elements++ = Offset + 1; *Elements++ = Offset + 4; *Elements++ = Offset + 5;
+    *Elements++ = Offset + 0; *Elements++ = Offset + 2; *Elements++ = Offset + 4;
+    *Elements++ = Offset + 2; *Elements++ = Offset + 4; *Elements++ = Offset + 6;
+    *Elements++ = Offset + 1; *Elements++ = Offset + 3; *Elements++ = Offset + 5;
+    *Elements++ = Offset + 3; *Elements++ = Offset + 5; *Elements++ = Offset + 7;
+    *Elements++ = Offset + 4; *Elements++ = Offset + 5; *Elements++ = Offset + 6;
+    *Elements++ = Offset + 5; *Elements++ = Offset + 6; *Elements++ = Offset + 7;
+    *Elements++ = Offset + 2; *Elements++ = Offset + 6; *Elements++ = Offset + 7;
+    *Elements++ = Offset + 2; *Elements++ = Offset + 7; *Elements++ = Offset + 3;
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+

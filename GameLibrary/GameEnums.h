@@ -49,6 +49,7 @@ enum render_flags {
     TEXT_INTERIOR_FLAG = 1 << 3,
     TEXT_EXTERIOR_FLAG = 1 << 4,
     OVERWRITE_ALPHA_FLAG = 1 << 5,
+    SKY_FLAG = 1 << 6,
 };
 
 bool IsEnumType(debug_type Type) { return Type > 22 && Type < 35; }
@@ -126,7 +127,7 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_shader_pass_type, "shader_pass_type_count", 4},
 };
 
-const int FLAG_VALUES_SIZE = 6;
+const int FLAG_VALUES_SIZE = 7;
 debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {
     {Debug_Type_render_flags, "DEPTH_TEST_FLAG", 1},
     {Debug_Type_render_flags, "STENCIL_TEST_FLAG", 2},
@@ -134,6 +135,7 @@ debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {
     {Debug_Type_render_flags, "TEXT_INTERIOR_FLAG", 8},
     {Debug_Type_render_flags, "TEXT_EXTERIOR_FLAG", 16},
     {Debug_Type_render_flags, "OVERWRITE_ALPHA_FLAG", 32},
+    {Debug_Type_render_flags, "SKY_FLAG", 64},
 };
 
 #endif
