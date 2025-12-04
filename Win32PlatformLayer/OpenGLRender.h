@@ -458,6 +458,7 @@ ENUM(openGL_shader_id,
     Vertex_Shader_Perspective_ID,
     Vertex_Shader_Bones_ID,
     Vertex_Shader_Barycentric_ID,
+	Vertex_Shader_Sky_ID,
 
     // Tessellation control shaders
     TESC_Heightmap_ID,
@@ -485,7 +486,8 @@ ENUM(openGL_shader_id,
     Fragment_Shader_Sea_ID,
     Fragment_Shader_Bezier_Exterior_ID,
     Fragment_Shader_Bezier_Interior_ID,
-    Fragment_Shader_Fire_ID
+    Fragment_Shader_Fire_ID,
+	Fragment_Shader_Sky_ID
 );
 
 struct openGL_shader {
@@ -534,7 +536,8 @@ ENUM(openGL_shader_pipeline_id,
     Shader_Pipeline_Bezier_Exterior_ID,
     Shader_Pipeline_Bezier_Interior_ID,
     Shader_Pipeline_Solid_Text_ID,
-    Shader_Pipeline_Fire_ID
+    Shader_Pipeline_Fire_ID,
+	Shader_Pipeline_Sky_ID
 );
 
 struct openGL_shader_pipeline {
@@ -993,6 +996,9 @@ openGL_shader_pipeline_id GetPipelineID(render_primitive_options Options) {
 	else if (Options.Texture) {
 		return Shader_Pipeline_Texture_ID;
 	}
+	else if (Options.Flags & SKY_FLAG) {
+		return Shader_Pipeline_Sky_ID;
+	}
 	return Options.Flags & DEPTH_TEST_FLAG ?
 		Shader_Pipeline_World_Single_Color_ID :
 		Shader_Pipeline_Screen_Single_Color_ID;
@@ -1437,6 +1443,7 @@ RENDERER_INITIALIZE {
 		LoadShader(Vertex_Shader_Perspective_ID,              "GameAssets\\Shaders\\GLSL\\Vertex\\Perspective.vert");
 		LoadShader(Vertex_Shader_Bones_ID,                    "GameAssets\\Shaders\\GLSL\\Vertex\\Bones.vert");
 		LoadShader(Vertex_Shader_Barycentric_ID,              "GameAssets\\Shaders\\GLSL\\Vertex\\Barycentric.vert");
+		LoadShader(Vertex_Shader_Sky_ID,                      "GameAssets\\Shaders\\GLSL\\Vertex\\Sky.vert");
 
 		// Geometry
 		LoadShader(Geometry_Shader_Test_ID,                   "GameAssets\\Shaders\\GLSL\\Geometry\\Test.geom");
@@ -1463,6 +1470,7 @@ RENDERER_INITIALIZE {
 		LoadShader(Fragment_Shader_Bezier_Exterior_ID,        "GameAssets\\Shaders\\GLSL\\Fragment\\BezierExterior.frag");
 		LoadShader(Fragment_Shader_Bezier_Interior_ID,        "GameAssets\\Shaders\\GLSL\\Fragment\\BezierInterior.frag");
 		LoadShader(Fragment_Shader_Fire_ID,                   "GameAssets\\Shaders\\GLSL\\Fragment\\Fire.frag");
+		LoadShader(Fragment_Shader_Sky_ID,                    "GameAssets\\Shaders\\GLSL\\Fragment\\Sky.frag");
 
 		// Compute
     	LoadShader(Compute_Shader_Outline_Init_ID,            "GameAssets\\Shaders\\GLSL\\Compute\\OutlineInit.comp");
@@ -1487,6 +1495,7 @@ RENDERER_INITIALIZE {
     	LoadPipeline(Shader_Pipeline_Solid_Text_ID,          2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Single_Color_ID);
     	LoadPipeline(Shader_Pipeline_Jump_Flood_ID,          2, Vertex_Shader_Passthrough2_ID,   Fragment_Shader_Jump_Flood_ID);
     	LoadPipeline(Shader_Pipeline_Fire_ID,                2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Fire_ID);
+		LoadPipeline(Shader_Pipeline_Sky_ID,                 2, Vertex_Shader_Sky_ID,            Fragment_Shader_Sky_ID);
     	LoadPipeline(Shader_Pipeline_Debug_Normals_ID,       3, Vertex_Shader_Bones_ID,
                                                                Geometry_Shader_Debug_Normals_ID, Fragment_Shader_Single_Color_ID);
     	//LoadPipeline(Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
