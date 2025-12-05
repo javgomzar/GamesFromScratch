@@ -145,6 +145,7 @@ struct directX {
     IDXGISwapChain* SwapChain;
     ID3D11Device* Device;
     ID3D11DeviceContext* DeviceContext;
+    ID3D11Texture2D* StagingTexture;
     directX_render_target Target[render_group_target_count];
     ID3D11BlendState* CombineAlpha;
     ID3D11BlendState* OverwriteAlpha;
@@ -237,18 +238,18 @@ void BindTarget(render_group_target Target) {
 ID3D11ShaderResourceView* CreateTexture(uint32 Width, uint32 Height, void* Data = NULL) {
     ID3D11Texture2D* Texture = NULL;
 
-    D3D11_TEXTURE2D_DESC DepthBufferDescription = {};
-    DepthBufferDescription.Width = Width;
-    DepthBufferDescription.Height = Height;
-    DepthBufferDescription.MipLevels = 1;
-    DepthBufferDescription.ArraySize = 1;
-    DepthBufferDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    DepthBufferDescription.SampleDesc.Count = 1;
-    DepthBufferDescription.SampleDesc.Quality = 0;
-    DepthBufferDescription.Usage = D3D11_USAGE_DEFAULT;
-    DepthBufferDescription.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    DepthBufferDescription.CPUAccessFlags = 0;
-    DepthBufferDescription.MiscFlags = 0;
+    D3D11_TEXTURE2D_DESC Description = {};
+    Description.Width = Width;
+    Description.Height = Height;
+    Description.MipLevels = 1;
+    Description.ArraySize = 1;
+    Description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    Description.SampleDesc.Count = 1;
+    Description.SampleDesc.Quality = 0;
+    Description.Usage = D3D11_USAGE_DEFAULT;
+    Description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    Description.CPUAccessFlags = 0;
+    Description.MiscFlags = 0;
 
     D3D11_SUBRESOURCE_DATA ResourceData = {};
     if (Data) {
@@ -257,16 +258,16 @@ ID3D11ShaderResourceView* CreateTexture(uint32 Width, uint32 Height, void* Data 
         ResourceData.SysMemSlicePitch = 4 * Width * Height;
     }
 
-    HRESULT hResult = DirectX.Device->CreateTexture2D(&DepthBufferDescription, Data ? &ResourceData : NULL, &Texture);
+    HRESULT hResult = DirectX.Device->CreateTexture2D(&Description, Data ? &ResourceData : NULL, &Texture);
     if (FAILED(hResult)) Raise("DirectX: Texture creation failed.");
 
     ID3D11ShaderResourceView* Result = NULL;
-    D3D11_SHADER_RESOURCE_VIEW_DESC Description = {};
-    Description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    Description.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    Description.Texture2D.MostDetailedMip = 0;
-    Description.Texture2D.MipLevels = -1;
-    DirectX.Device->CreateShaderResourceView(Texture, &Description, &Result);
+    D3D11_SHADER_RESOURCE_VIEW_DESC ResourceDescription = {};
+    ResourceDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    ResourceDescription.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    ResourceDescription.Texture2D.MostDetailedMip = 0;
+    ResourceDescription.Texture2D.MipLevels = -1;
+    DirectX.Device->CreateShaderResourceView(Texture, &ResourceDescription, &Result);
 
     return Result;
 }
@@ -950,51 +951,6 @@ RENDERER_INITIALIZE {
     DirectX = {};
     DirectX.Assets = Group->Assets;
 
-    // IDXGIFactory* Factory;
-    // Result = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&Factory);
-    // if (FAILED(Result)) Raise("Couldn't initialize DirectX11 factory.");
-    
-    // IDXGIAdapter* Adapter;
-    // Result = Factory->EnumAdapters(0, &Adapter);
-    // if (FAILED(Result)) Raise("Couldn't get DirectX11 adapter.");
-    // DXGI_ADAPTER_DESC AdapterDescription;
-    // Result = Adapter->GetDesc((&AdapterDescription));
-    // if (FAILED(Result)) Raise("Couldn't get DirectX11 adapter description.");
-    
-    // IDXGIOutput* Output;
-    // Result = Adapter->EnumOutputs(0, &Output);
-    // if (FAILED(Result)) Raise("Couldn't get DirectX11 output.");
-
-    // uint32 NumModes = 0;
-    // Result = Output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_INTERLACED, &NumModes, NULL);
-    // if (FAILED(Result)) Raise("Couldn't get DirectX11 display mode list size.");
-
-    // DXGI_MODE_DESC* DisplayModes = new DXGI_MODE_DESC[NumModes];
-    // Result = Output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_INTERLACED, &NumModes, DisplayModes);
-    // if (FAILED(Result)) Raise("Couldn't get DirectX11 display mode list.");
-
-    // int32 DisplayWidth = 1440;
-    // int32 DisplayHeight = 1080;
-
-    // uint32 Numerator = 0;
-    // uint32 Denominator = 1;
-    // for (int i = 0; i < NumModes; i++) {
-    //     DXGI_MODE_DESC DisplayMode = DisplayModes[i];
-    //     if (DisplayMode.Width == DisplayWidth && DisplayMode.Height == DisplayHeight) {
-    //         Numerator = DisplayMode.RefreshRate.Numerator;
-    //         Denominator = DisplayMode.RefreshRate.Denominator;
-    //     }
-    // }
-
-    // delete [] DisplayModes;
-    // DisplayModes = NULL;
-    // Output->Release();
-    // Output = NULL;
-    // Adapter->Release();
-    // Adapter = NULL;
-    // Factory->Release();
-    // Factory = NULL;
-
     DXGI_FORMAT PixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
     DXGI_SWAP_CHAIN_DESC SwapChainDescription = {};
@@ -1178,6 +1134,21 @@ RENDERER_INITIALIZE {
     }
 
 // Textures
+    DirectX.StagingTexture = NULL;
+
+    D3D11_TEXTURE2D_DESC StagingDescription;
+    DirectX.Target[Target_None].Texture->GetDesc(&StagingDescription);
+
+    StagingDescription.Usage = D3D11_USAGE_STAGING;
+    StagingDescription.BindFlags = 0;
+    StagingDescription.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    StagingDescription.MiscFlags = 0;
+
+    Result = DirectX.Device->CreateTexture2D(&StagingDescription, 0, &DirectX.StagingTexture);
+    if (FAILED(Result)) {
+        Log(Error, "DirectX: Staging texture creation failed.");
+    }
+
     for (int i = 0; i < game_bitmap_id_count; i++) {
         game_bitmap* Bitmap = &Group->Assets->Bitmap[i];
         DirectX.Texture[i] = CreateTexture(
@@ -1287,7 +1258,43 @@ void ResizeWindow(int32 Width, int32 Height) {
 }
 
 void ScreenCapture(int32 Width, int32 Height) {
+    ID3D11Texture2D* Backbuffer = DirectX.Target[Target_None].Texture;
+    DirectX.DeviceContext->CopyResource(DirectX.StagingTexture, Backbuffer);
 
+    D3D11_TEXTURE2D_DESC Desc;
+    DirectX.StagingTexture->GetDesc(&Desc);
+
+    D3D11_MAPPED_SUBRESOURCE MapInfo;
+    HRESULT Result = DirectX.DeviceContext->Map(DirectX.StagingTexture, 0, D3D11_MAP_READ, 0, &MapInfo);
+    if (FAILED(Result)) {
+        Log(Error, "DirectX: Screen capture failed");
+        return;
+    }
+
+    game_bitmap BMP = {};
+
+    // Bitmap header
+    MakeBitmapHeader(&BMP.Header, Width, Height);
+
+    BMP.Pitch = 4 * Width;
+    BMP.AlphaMask = 0xff000000;
+    BMP.Content = (uint32*)MapInfo.pData;
+
+    // File name
+    time_t t = time(nullptr);
+    struct tm tm;
+    localtime_s(&tm, &t);
+    char Filename[100];
+    sprintf_s(Filename, "Captures/Screenshot %d-%02d-%02d_%02d-%02d-%02d.bmp",
+        tm.tm_year + 1900,
+        tm.tm_mon + 1,
+        tm.tm_mday,
+        tm.tm_hour,
+        tm.tm_min,
+        tm.tm_sec
+    );
+
+    SaveBMP(Filename, &BMP);
 }
 
 RENDERER_RENDER {
