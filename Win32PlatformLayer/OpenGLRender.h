@@ -1559,7 +1559,7 @@ void ScreenCapture(int Width, int Height) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glReadPixels(0, 0, Width, Height, GL_BGRA, GL_UNSIGNED_BYTE, (void*)BMP.Content);
 
-    SaveBMP(Filename, &BMP);
+    SaveBMP(Filename, Width, Height, BMP.Header.BitmapOffset, sizeof(bitmap_header), &BMP.Header, BMP.Content);
     if (BMP.Content) {
         VirtualFree(BMP.Content, 0, MEM_RELEASE);
     }

@@ -1275,6 +1275,10 @@ void ScreenCapture(int32 Width, int32 Height) {
     bitmap_header Header = {};
     MakeBitmapHeader(&Header, Width, Height);
 
+    Header.RedMask = 0x000000ff;
+    Header.GreenMask = 0x0000ff00;
+    Header.BlueMask = 0x00ff0000;
+
     // File name
     time_t t = time(nullptr);
     struct tm tm;
@@ -1289,17 +1293,39 @@ void ScreenCapture(int32 Width, int32 Height) {
         tm.tm_sec
     );
 
-    Platform.WriteEntireFile(Filename, sizeof(Header), &Header);
-    uint32 Offset = Header.BitmapOffset - sizeof(Header);
-    char Zero = 0;
-    for (uint32 i = 0; i < Offset; i++) {
-        Platform.AppendToFile(Filename, 1, &Zero);
-    }
+    HANDLE hFile = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
+    if (hFile != INVALID_HANDLE_VALUE) {
+        uint32 Size = Header.BitmapOffset + 4 * Width * Height;
+        HANDLE hMapping = CreateFileMappingA(hFile, NULL, PAGE_READWRITE, 0, Size, NULL);
+        if (!hMapping) {
+            DWORD WinError = GetLastError();
+            Log(Error, "Memory map for file returned invalid handle.");
+            Assert(false);
+        }
 
-    uint8* Source = (uint8*)MapInfo.pData;
-    for (int i = 0; i < Header.Height; i++) {
-        Platform.AppendToFile(Filename, 4 * Header.Width, Source);
-        Source += MapInfo.RowPitch;
+        uint8* Memory = (uint8*)MapViewOfFile(hMapping, FILE_MAP_WRITE, 0, 0, Size);
+        memcpy(Memory, &Header, sizeof(bitmap_header));
+
+        uint8* PixelDst = Memory + Header.BitmapOffset;
+        uint8* Source = (uint8*)MapInfo.pData + (Height - 1)*MapInfo.RowPitch;
+        for (int i = 0; i < Height; i++) {
+            memcpy(PixelDst, Source, 4*Width);
+            Source -= MapInfo.RowPitch;
+            PixelDst += 4*Width;
+        }
+        
+        FlushViewOfFile(Memory, Size);
+        UnmapViewOfFile(Memory);
+        CloseHandle(hMapping);
+        CloseHandle(hFile);
+    }
+    else {
+        // Debug
+        DWORD WinError = GetLastError();
+        if (WinError == ERROR_PATH_NOT_FOUND) {
+            Log(Error, "Path not found.");
+        }
+        Assert(false);
     }
 
     DirectX.DeviceContext->Unmap(DirectX.StagingTexture, 0);

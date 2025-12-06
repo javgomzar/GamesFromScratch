@@ -161,7 +161,7 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
         CloseHandle(FileHandle);
     }
     else {
-        // Debug
+        DWORD WinError = GetLastError();
         Assert(false);
     }
     return Result;
@@ -252,6 +252,38 @@ platform_api Platform = {
     .RunCommand       = Win32RunCommand,
     .WaitForProcess   = Win32WaitForProcess,
 };
+
+void SaveBMP(const char* Path, int32 Width, int32 Height, uint32 Offset, uint32 HeaderSize, void* Header, void* Pixels) {
+    HANDLE hFile = CreateFileA(Path, GENERIC_READ | GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
+    if (hFile != INVALID_HANDLE_VALUE) {
+        uint32 Size = Offset + 4 * Width * Height;
+        HANDLE hMapping = CreateFileMappingA(hFile, NULL, PAGE_READWRITE, 0, Size, NULL);
+        if (!hMapping) {
+            DWORD WinError = GetLastError();
+            Log(Error, "Memory map for file returned invalid handle.");
+            Assert(false);
+        }
+
+        uint8* Memory = (uint8*)MapViewOfFile(hMapping, FILE_MAP_WRITE, 0, 0, Size);
+        memcpy(Memory, Header, HeaderSize);
+
+        uint8* PixelDst = Memory + Offset;
+        memcpy(PixelDst, Pixels, 4 * Width * Height);
+
+        FlushViewOfFile(Memory, Size);
+        UnmapViewOfFile(Memory);
+        CloseHandle(hMapping);
+        CloseHandle(hFile);
+    }
+    else {
+        // Debug
+        DWORD WinError = GetLastError();
+        if (WinError == ERROR_PATH_NOT_FOUND) {
+            Log(Error, "Path not found.");
+        }
+        Assert(false);
+    }
+}
 
 inline float GetSecondsElapsed(uint64 Start, uint64 End) {
     uint64 TimeElapsed = End - Start;
