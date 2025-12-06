@@ -11,6 +11,10 @@
 //     PushRenderTarget(Group, Target_Fluid);
 // }
 
+void TestSky(float Time, light* Light) {
+    Light->Direction = V3(-cos(0.2f * Time), -sin(0.2f * Time), 0);
+}
+
 void TestRendering(render_group* Group, game_input* Input, float Time) {
 // 2D
     // Rects

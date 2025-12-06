@@ -1271,14 +1271,9 @@ void ScreenCapture(int32 Width, int32 Height) {
         return;
     }
 
-    game_bitmap BMP = {};
-
     // Bitmap header
-    MakeBitmapHeader(&BMP.Header, Width, Height);
-
-    BMP.Pitch = 4 * Width;
-    BMP.AlphaMask = 0xff000000;
-    BMP.Content = (uint32*)MapInfo.pData;
+    bitmap_header Header = {};
+    MakeBitmapHeader(&Header, Width, Height);
 
     // File name
     time_t t = time(nullptr);
@@ -1294,7 +1289,20 @@ void ScreenCapture(int32 Width, int32 Height) {
         tm.tm_sec
     );
 
-    SaveBMP(Filename, &BMP);
+    Platform.WriteEntireFile(Filename, sizeof(Header), &Header);
+    uint32 Offset = Header.BitmapOffset - sizeof(Header);
+    char Zero = 0;
+    for (uint32 i = 0; i < Offset; i++) {
+        Platform.AppendToFile(Filename, 1, &Zero);
+    }
+
+    uint8* Source = (uint8*)MapInfo.pData;
+    for (int i = 0; i < Header.Height; i++) {
+        Platform.AppendToFile(Filename, 4 * Header.Width, Source);
+        Source += MapInfo.RowPitch;
+    }
+
+    DirectX.DeviceContext->Unmap(DirectX.StagingTexture, 0);
 }
 
 RENDERER_RENDER {

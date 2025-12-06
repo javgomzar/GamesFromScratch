@@ -83,6 +83,8 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // TestFluid(Group, Input, FirstFrame);
 
+    TestSky(State->Time, &Group->Light);
+
     Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
 
     PushSky(Group);

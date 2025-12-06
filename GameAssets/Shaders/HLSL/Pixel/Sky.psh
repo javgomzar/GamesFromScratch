@@ -19,11 +19,11 @@ static const float SCALE_HEIGHT_R = 8.5f; // in km
 static const float SCALE_HEIGHT_M = 1.2f; // in km
 static const float MAX_DISTANCE = sqrt(R_ATMOS*R_ATMOS - R_EARTH*R_EARTH);
 static const float g = 0.76f;
-static const float C_M = 3.0f * (1.0f - g*g) / (2.0f + g*g) / (8.0f * PI);
-static const float C_R = 3.0f / 16.0f / PI;
+static const float C_M = 1.5f * (1.0f - g*g) / (2.0f + g*g);
+static const float C_R = 0.7629f;
 static const int N_SAMPLES = 16;
 static const int N_SAMPLES_LIGHT = 8;
-static const float3 BetaR = float3(3.8e-3f, 13.5e-3f, 33.1e-3f);
+static const float3 BetaR = float3(5.8e-3f, 13.5e-3f, 33.1e-3f);
 static const float BetaM = 21e-3f;
 
 float4 main(VS_OUT vout): SV_TARGET {
@@ -38,7 +38,7 @@ float4 main(VS_OUT vout): SV_TARGET {
     float D = sqrt(R_ATMOS*R_ATMOS - R_EARTH*R_EARTH*(1.0f - cosA*cosA)) - R_EARTH * cosA; // in km
     
     // Rayleigh phase
-    float P_R = C_R * (1.0f + abs(mu) * mu);
+    float P_R = C_R * (1.0f + 0.9324f *abs(mu) * mu);
     // Mie phase
     float P_M = C_M * (1.0f + abs(mu) * mu) / pow(1.0f + g*g - 2.0f*g*mu, 1.5f);
 
@@ -83,7 +83,7 @@ float4 main(VS_OUT vout): SV_TARGET {
         P = P + ds * V;
     }
 
-    float3 Color = 20.0f * (P_R * sumR * BetaR + P_M * sumM * BetaM);
+    float3 Color = 1.59155f * (P_R * sumR * BetaR + P_M * sumM * BetaM);
 
     return float4(Color, 1.0);
 }
