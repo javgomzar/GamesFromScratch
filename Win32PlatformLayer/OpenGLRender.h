@@ -1731,21 +1731,19 @@ RENDERER_RENDER {
 			case render_shader_pass: {
 				render_shader_pass_command ShaderCommand = Group->ShaderPassCommands[Command.Index];
 
+				openGL_framebuffer Source = OpenGL.Target[ShaderCommand.Source];
 				openGL_framebuffer Target = OpenGL.Target[ShaderCommand.Target];
 
 				// Normal shaders
 				if (ShaderCommand.Type == shader_pass_outline || ShaderCommand.Type == shader_pass_jump_flood) {
 					openGL_framebuffer PingPongTarget = OpenGL.Target[Target_PingPong];
 
-					// glEnable(GL_DEPTH_TEST);
-					glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
-					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, PingPongTarget.Framebuffer);
-					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
-	
 					glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
-					glClearColor(0, 0, 0, 0);
-					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	
+					if (ShaderCommand.ClearTarget) {
+						glClearColor(0, 0, 0, 0);
+						glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+					}
+
 					openGL_shader_pipeline_id PipelineID;
 					switch(ShaderCommand.Type) {
 						case shader_pass_outline:    { PipelineID = Shader_Pipeline_Outline_ID; } break;
@@ -1757,8 +1755,8 @@ RENDERER_RENDER {
 
 					SetColorUniform(ShaderCommand.Color);
 					SetOutlineUniforms(ShaderCommand.Width, ShaderCommand.Level);
-					BindTexture(ProgramID, PingPongTarget.Texture, 0);
-					
+					BindTexture(ProgramID, Source.Texture, 0);
+
 					// if (Target.Attachment) {
 					// 	glActiveTexture(GL_TEXTURE1);
 					// 	glBindTexture(GL_TEXTURE_2D, PingPongTarget.AttachmentTexture);
@@ -1778,11 +1776,9 @@ RENDERER_RENDER {
 
 				// Compute shaders
 				else {
-					openGL_framebuffer Source = OpenGL.Target[ShaderCommand.Source];
-
 					glBindImageTexture(0, Source.Texture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
 					glBindImageTexture(1, Target.Texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-					
+
 					openGL_compute_shader_id PipelineIndex;
 					switch (ShaderCommand.Type) {
 						case shader_pass_kernel: {
@@ -1797,7 +1793,7 @@ RENDERER_RENDER {
 					// if (Target.Attachment) BindTexture(ProgramID, Target.AttachmentTexture, 1);
 					uint32 ProgramID = OpenGL.ComputeShader[PipelineIndex].ProgramID;
 					glUseProgram(ProgramID);
-					
+
 					glDispatchCompute(Width, Height, 1);
 					glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 				}

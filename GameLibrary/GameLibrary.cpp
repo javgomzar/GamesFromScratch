@@ -91,7 +91,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     
     UpdateUI(Memory, Input);
 
-    PushRenderTarget(Group, Target_World);
+    PushRenderTarget(Group, Target_World, Target_Output);
 
     static bool Screenshot = false;
     if (Input->Keyboard.F10.WasDown && !Input->Keyboard.F10.IsDown) {
@@ -110,7 +110,7 @@ extern "C" GAME_UPDATE(GameUpdate)
             PushRect(Group, ScreenRect, ChangeAlpha(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
-    PushRenderTarget(Group, Target_Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
+    PushRenderTarget(Group, Target_Output, Target_None, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
 }
     Memory->nTimeRecordsLibrary = __COUNTER__;
     if (Group->Debug) {

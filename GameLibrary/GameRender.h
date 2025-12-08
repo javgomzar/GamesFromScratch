@@ -208,6 +208,7 @@ struct render_shader_pass_command {
     color Color;
     int Level;
     float Width;
+    bool ClearTarget;
 };
 
 struct render_target_command {
@@ -1390,6 +1391,7 @@ void PushCubeOutline(
 
 void PushRenderTarget(
     render_group* Group,
+    render_group_target Source,
     render_group_target Target,
     float Order = SORT_ORDER_PUSH_RENDER_TARGETS
 ) {
@@ -1401,14 +1403,10 @@ void PushRenderTarget(
     PushCommand(Group, Command);
 
     render_target_command TargetCommand;
-    TargetCommand.Source = Target;
+    TargetCommand.Source = Source;
+    TargetCommand.Target = Target;
     TargetCommand.DebugAttachment = false;
-    TargetCommand.Attachment = Group->RenderTargets[Target].Depth || Group->RenderTargets[Target].Stencil;
-
-    if      (Target == Target_Outline)                 TargetCommand.Target = Target_Postprocessing_Outline;
-    else if (Target == Target_Output)                  TargetCommand.Target = Target_None;
-    else if (Target == Target_Postprocessing_Outline)  TargetCommand.Target = Target_World;
-    else                                               TargetCommand.Target = Target_Output;
+    TargetCommand.Attachment = Group->RenderTargets[Source].Depth || Group->RenderTargets[Source].Stencil;
 
     TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
     float* Data = (float*)TargetCommand.VertexEntry.Pointer;
@@ -1426,6 +1424,7 @@ void PushRenderTarget(
 void PushShaderPass(
     render_group* Group,
     shader_pass_type Type,
+    render_group_target Source,
     render_group_target Target,
     color Color,
     float Order = SORT_ORDER_SHADER_PASSES
@@ -1440,6 +1439,7 @@ void PushShaderPass(
     render_shader_pass_command ShaderCommand;
     ShaderCommand.Type = Type;
     ShaderCommand.Color = Color;
+    ShaderCommand.Source = Source;
     ShaderCommand.Target = Target;
     
     ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v3_v2_id);
@@ -1479,6 +1479,7 @@ void PushComputeShaderPass(
 
 void PushJumpFloodShaderPass(
     render_group* Group,
+    render_group_target Source,
     render_group_target Target,
     int Level,
     float Order = SORT_ORDER_SHADER_PASSES
@@ -1492,8 +1493,10 @@ void PushJumpFloodShaderPass(
 
     render_shader_pass_command ShaderCommand;
     ShaderCommand.Type = shader_pass_jump_flood;
+    ShaderCommand.Source = Source;
     ShaderCommand.Target = Target;
     ShaderCommand.Level = Level;
+    ShaderCommand.ClearTarget = true;
 
     ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
 
@@ -1510,12 +1513,13 @@ void PushJumpFloodShaderPass(
 
 void PushOutlineShaderPass(
     render_group* Group,
+    render_group_target Source,
     render_group_target Target,
     color Color,
     float Width,
     float Order = SORT_ORDER_SHADER_PASSES
 ) {
-render_command Command;
+    render_command Command;
     Command.Type = render_shader_pass;
     Command.Index = Group->nShaderPassCommands;
     Command.Priority = Order;
@@ -1524,7 +1528,7 @@ render_command Command;
 
     render_shader_pass_command ShaderCommand;
     ShaderCommand.Type = shader_pass_outline;
-    ShaderCommand.Source = Target;
+    ShaderCommand.Source = Source;
     ShaderCommand.Target = Target;
     ShaderCommand.Width = Width;
     ShaderCommand.Level = 0;
@@ -1643,7 +1647,7 @@ void PushMesh(
         );
 
         if (!Group->PushOutline) {
-            PushRenderTarget(Group, Target_Outline, SORT_ORDER_CLEAR + 1.0f);
+            PushRenderTarget(Group, Target_Outline, Target_Postprocessing_Outline, SORT_ORDER_CLEAR + 1.0f);
             PushComputeShaderPass(
                 Group, 
                 shader_pass_outline_init, 
@@ -1652,24 +1656,22 @@ void PushMesh(
                 SORT_ORDER_CLEAR + 2.0f
             );
 
-            int Shifts = 11;
+            int Shifts = 12;
             int Level = 1 << Shifts;
             float JumpOrder = SORT_ORDER_CLEAR + 3.0f;
 
+            render_group_target Outline = Target_Postprocessing_Outline;
+            render_group_target PingPong = Target_PingPong;
             for (int i = 0; i <= Shifts; i++) {
                 JumpOrder += 1.0f;
-                PushJumpFloodShaderPass(
-                    Group, 
-                    Target_Postprocessing_Outline,
-                    Level,
-                    JumpOrder
-                );
+                if (i & 1) PushJumpFloodShaderPass(Group, PingPong, Outline, Level, JumpOrder);
+                else       PushJumpFloodShaderPass(Group, Outline, PingPong, Level, JumpOrder);
                 Level >>= 1;
             }
 
-            PushOutlineShaderPass(Group, Target_Postprocessing_Outline, White, 4.0f, JumpOrder + 1.0f);
+            PushOutlineShaderPass(Group, Target_PingPong, Target_Postprocessing_Outline, White, 4.0f, JumpOrder + 1.0f);
 
-            PushRenderTarget(Group, Target_Postprocessing_Outline, SORT_ORDER_OUTLINED_MESHES - 0.1f);
+            PushRenderTarget(Group, Target_Postprocessing_Outline, Target_World, SORT_ORDER_OUTLINED_MESHES - 0.1f);
             Group->PushOutline = true;
         }
     }
