@@ -1736,8 +1736,6 @@ RENDERER_RENDER {
 
 				// Normal shaders
 				if (ShaderCommand.Type == shader_pass_outline || ShaderCommand.Type == shader_pass_jump_flood) {
-					openGL_framebuffer PingPongTarget = OpenGL.Target[Target_PingPong];
-
 					glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
 					if (ShaderCommand.ClearTarget) {
 						glClearColor(0, 0, 0, 0);
@@ -1756,19 +1754,6 @@ RENDERER_RENDER {
 					SetColorUniform(ShaderCommand.Color);
 					SetOutlineUniforms(ShaderCommand.Width, ShaderCommand.Level);
 					BindTexture(ProgramID, Source.Texture, 0);
-
-					// if (Target.Attachment) {
-					// 	glActiveTexture(GL_TEXTURE1);
-					// 	glBindTexture(GL_TEXTURE_2D, PingPongTarget.AttachmentTexture);
-					// }
-
-					// glBindVertexArray(OpenGL->QuadVAO);
-					// glDrawArrays(GL_TRIANGLES, 0, 6);
-
-					// glActiveTexture(GL_TEXTURE0);
-					// glBindTexture(GL_TEXTURE_2D, 0);
-					// glBindVertexArray(0);
-					// glUseProgram(0);
 
 					glBindVertexArray(OpenGL.VAOs[ShaderCommand.VertexEntry.LayoutID]);
 					glDrawArrays(GL_TRIANGLES, ShaderCommand.VertexEntry.Offset, ShaderCommand.VertexEntry.Count);
