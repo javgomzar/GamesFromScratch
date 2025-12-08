@@ -49,37 +49,31 @@ const float Epsilon = 0.00001f;
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
 inline int32 CustomRound(float X) {
-	return X >= 0 ? (int32)(X + 0.5f) : (int32)(X - 0.5f);
+	return X >= 0.0f ? (int32)(X + 0.5f) : (int32)(X - 0.5f);
 }
 
 inline int32 Sign(float x) {
-	if (x > 0) {
-		return 1;
-	}
-	else if (x < 0) {
-		return -1;
-	}
-	else {
-		return 0;
-	}
+	if      (x > 0) return 1;
+	else if (x < 0) return -1;
+	return 0;
 }
 
 inline float Clamp(float Value, float Min, float Max) {
-	if (Value < Min) return Min;
+	if      (Value < Min) return Min;
 	else if (Value > Max) return Max;
-	else return Value;
+	return Value;
 }
 
 inline int32 Clamp(int32 Value, int32 Min, int32 Max) {
-	if (Value < Min) return Min;
+	if      (Value < Min) return Min;
 	else if (Value > Max) return Max;
-	else return Value;
+	return Value;
 }
 
 inline uint32 Clamp(uint32 Value, uint32 Min, uint32 Max) {
-	if (Value < Min) return Min;
+	if      (Value < Min) return Min;
 	else if (Value > Max) return Max;
-	else return Value;
+	return Value;
 }
 
 /* FNV-1a hash algorithm */

@@ -2,16 +2,12 @@
 #include "GameLibrary.h"
 #include "GameBuild.h"
 
-#if GAME_RENDER_API_OPENGL
-    #include "OpenGLRender.h"
-#endif
-
-#if GAME_RENDER_API_VULKAN
-    #include "VulkanRender.h"
-#endif
-
 #if GAME_RENDER_API_DIRECTX
     #include "DirectX11Render.h"
+#elif GAME_RENDER_API_OPENGL
+    #include "OpenGLRender.h"
+#elif GAME_RENDER_API_VULKAN
+    #include "VulkanRender.h"
 #endif
 
 #pragma comment(lib, "xaudio2.lib")

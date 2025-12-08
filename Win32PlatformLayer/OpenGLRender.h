@@ -1735,53 +1735,55 @@ RENDERER_RENDER {
 				openGL_framebuffer Target = OpenGL.Target[ShaderCommand.Target];
 
 				// Normal shaders
-				if (ShaderCommand.Type == shader_pass_outline || ShaderCommand.Type == shader_pass_jump_flood) {
-					glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
-					if (ShaderCommand.ClearTarget) {
-						glClearColor(0, 0, 0, 0);
-						glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-					}
-
-					openGL_shader_pipeline_id PipelineID;
-					switch(ShaderCommand.Type) {
-						case shader_pass_outline:    { PipelineID = Shader_Pipeline_Outline_ID; } break;
-						case shader_pass_jump_flood: { PipelineID = Shader_Pipeline_Jump_Flood_ID; } break;
-						default: Raise("OpenGL: Invalid shader pipeline ID.");
-					}
-					uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
-					glUseProgram(ProgramID);
-
-					SetColorUniform(ShaderCommand.Color);
-					SetOutlineUniforms(ShaderCommand.Width, ShaderCommand.Level);
-					BindTexture(ProgramID, Source.Texture, 0);
-
-					glBindVertexArray(OpenGL.VAOs[ShaderCommand.VertexEntry.LayoutID]);
-					glDrawArrays(GL_TRIANGLES, ShaderCommand.VertexEntry.Offset, ShaderCommand.VertexEntry.Count);
+				glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+				if (ShaderCommand.ClearTarget) {
+					glClearColor(0, 0, 0, 0);
+					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 				}
 
-				// Compute shaders
-				else {
-					glBindImageTexture(0, Source.Texture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
-					glBindImageTexture(1, Target.Texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-
-					openGL_compute_shader_id PipelineIndex;
-					switch (ShaderCommand.Type) {
-						case shader_pass_kernel: {
-							PipelineIndex = Compute_Shader_Kernel_ID;
-							SetKernelUniforms(ShaderCommand.Kernel);
-						} break;
-						case shader_pass_outline_init: {
-							PipelineIndex = Compute_Shader_Outline_Init_ID;
-						} break;
-						default: Raise("OpenGL: Invalid compute shader.");
-					}
-					// if (Target.Attachment) BindTexture(ProgramID, Target.AttachmentTexture, 1);
-					uint32 ProgramID = OpenGL.ComputeShader[PipelineIndex].ProgramID;
-					glUseProgram(ProgramID);
-
-					glDispatchCompute(Width, Height, 1);
-					glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+				openGL_shader_pipeline_id PipelineID;
+				switch(ShaderCommand.Type) {
+					case shader_pass_outline:    { PipelineID = Shader_Pipeline_Outline_ID; } break;
+					case shader_pass_jump_flood: { PipelineID = Shader_Pipeline_Jump_Flood_ID; } break;
+					default: Raise("OpenGL: Invalid shader pipeline ID.");
 				}
+				uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
+				glUseProgram(ProgramID);
+
+				SetColorUniform(ShaderCommand.Color);
+				SetOutlineUniforms(ShaderCommand.Width, ShaderCommand.Level);
+				BindTexture(ProgramID, Source.Texture, 0);
+
+				glBindVertexArray(OpenGL.VAOs[ShaderCommand.VertexEntry.LayoutID]);
+				glDrawArrays(GL_TRIANGLES, ShaderCommand.VertexEntry.Offset, ShaderCommand.VertexEntry.Count);
+			} break;
+
+			case render_compute: {
+				render_compute_command ComputeCommand = Group->ComputeCommands[Command.Index];
+
+				openGL_framebuffer Source = OpenGL.Target[ComputeCommand.Source];
+				openGL_framebuffer Target = OpenGL.Target[ComputeCommand.Target];
+
+				glBindImageTexture(0, Source.Texture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
+				glBindImageTexture(1, Target.Texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
+				openGL_compute_shader_id PipelineIndex;
+				switch (ComputeCommand.Type) {
+					case compute_kernel: {
+						PipelineIndex = Compute_Shader_Kernel_ID;
+						SetKernelUniforms(ComputeCommand.Kernel);
+					} break;
+					case compute_outline_init: {
+						PipelineIndex = Compute_Shader_Outline_Init_ID;
+					} break;
+					default: Raise("OpenGL: Invalid compute shader.");
+				}
+				// if (Target.Attachment) BindTexture(ProgramID, Target.AttachmentTexture, 1);
+				uint32 ProgramID = OpenGL.ComputeShader[PipelineIndex].ProgramID;
+				glUseProgram(ProgramID);
+
+				glDispatchCompute(ComputeCommand.nGroups.X, ComputeCommand.nGroups.Y, ComputeCommand.nGroups.Z);
+				glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 			} break;
 
 			case render_target: {
