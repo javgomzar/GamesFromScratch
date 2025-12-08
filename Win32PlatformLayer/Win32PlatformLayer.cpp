@@ -45,7 +45,6 @@ HINSTANCE hInst;                                // current instance
 char szTitle[MAX_LOADSTRING];                  // The title bar text
 char szWindowClass[MAX_LOADSTRING];            // the main window class name
 
-bool Running;
 game_memory Memory;
 
 // XInput
@@ -66,7 +65,7 @@ static xinput_set_state* XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
 
 static void LoadXInput(void) {
-    HMODULE XInputLibrary = LoadLibrary(_T("xinput1_4.dll"));
+    HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
     if (XInputLibrary) {
         XInputGetState = (xinput_get_state*)GetProcAddress(XInputLibrary, "XInputGetState");
         XInputSetState = (xinput_set_state*)GetProcAddress(XInputLibrary, "XInputSetState");
@@ -524,7 +523,7 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                 // Shortcut for closing Alt+F4
                 bool AltKeyWasDown = (msg.lParam & ((uint32)1 << 29)) != 0;
                 if ((VKCode == VK_F4) && AltKeyWasDown) {
-                    Running = false;
+                    Memory.Running = false;
                     PostQuitMessage(0);
                 }
             } break;
@@ -563,7 +562,7 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
             case WM_CLOSE:
             case WM_DESTROY:
             {
-                Running = false;
+                Memory.Running = false;
                 PostQuitMessage(0);
             } break;
             default: {
@@ -812,11 +811,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     uint64 MetaprogrammingExecutionStart = 0;
     char LogBuffer[64] = {};
 
-    Running = true;
+    Memory.Running = true;
     bool FirstFrame = true;
 
     // Main loop
-    while (Running) {
+    while (Memory.Running) {
         // Hot reloading code
         if (
             !LibraryCompilation.Running && !MetaprogrammingCompilation.Running && !MetaprogrammingExecution.Running &&
@@ -1037,7 +1036,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 GameCode.Update(&Memory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer]);
 
                 if (pGameState->Exit) {
-                    Running = false; PostQuitMessage(0);
+                    Memory.Running = false; PostQuitMessage(0);
                 }
             }
 
@@ -1266,7 +1265,7 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
         } break;
         case WM_CLOSE:
         case WM_DESTROY:
-            { Running = false; PostQuitMessage(0); } break;
+            { Memory.Running = false; PostQuitMessage(0); } break;
         default:
             return DefWindowProc(Window, message, wParam, lParam);
     }

@@ -1,9 +1,11 @@
 #include "d3d11.h"
-#include "dxgi.h"
 #include "D3DCompiler.h"
 
-#pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "DXGI.lib")
+#ifdef _DEBUG
+#include "dxgidebug.h"
+#else
+#include "dxgi.h"
+#endif
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Buffers                                                                                                                                                     |
@@ -189,7 +191,7 @@ void CreateTarget(uint32 Width, uint32 Height, render_group_target_description T
     TextureDescription.CPUAccessFlags = 0;
     TextureDescription.MiscFlags = 0;
     TextureDescription.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-        
+    
     TextureDescription.SampleDesc.Quality = 0;
     TextureDescription.SampleDesc.Count = TargetDescription.Multisample ? DirectX.MSAASamples : 1;
         
@@ -977,14 +979,18 @@ RENDERER_INITIALIZE {
     SwapChainDescription.Flags = 0;
 
     D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+    UINT CreateDeviceFlags = 0;
+#ifdef _DEBUG
+    CreateDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
     Result = D3D11CreateDeviceAndSwapChain(
-        NULL, 
-        D3D_DRIVER_TYPE_HARDWARE, 
-        NULL, 
-        D3D11_CREATE_DEVICE_DEBUG, 
-        &FeatureLevel, 
-        1, 
-        D3D11_SDK_VERSION, 
+        NULL,
+        D3D_DRIVER_TYPE_HARDWARE,
+        NULL,
+        CreateDeviceFlags,
+        &FeatureLevel,
+        1,
+        D3D11_SDK_VERSION,
         &SwapChainDescription,
         &DirectX.SwapChain,
         &DirectX.Device,
@@ -1002,7 +1008,7 @@ RENDERER_INITIALIZE {
 
     // Attaching backbuffer to swap chain
     ID3D11Texture2D** Backbuffer = &DirectX.Target[Target_None].Texture;
-    Result = DirectX.SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)Backbuffer);
+    Result = DirectX.SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)Backbuffer);
     if (FAILED(Result)) Raise("Couldn't get DirectX backbuffer.");
 
     Result = DirectX.Device->CreateRenderTargetView(DirectX.Target[Target_None].Texture, NULL, &DirectX.Target[Target_None].View);
@@ -1021,8 +1027,7 @@ RENDERER_INITIALIZE {
     DepthBufferDescription.CPUAccessFlags = 0;
     DepthBufferDescription.MiscFlags = 0;
 
-    ID3D11Texture2D* DepthBuffer = NULL;
-    Result = DirectX.Device->CreateTexture2D(&DepthBufferDescription, NULL, &DepthBuffer);
+    Result = DirectX.Device->CreateTexture2D(&DepthBufferDescription, NULL, &DirectX.Target[Target_None].AttachmentTexture);
     if (FAILED(Result)) Raise("Couldn't create the depth/stencil buffer.");
 
     D3D11_DEPTH_STENCIL_DESC DepthStencilDescription = {};
@@ -1056,7 +1061,7 @@ RENDERER_INITIALIZE {
     DepthStencilViewDescription.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
     DepthStencilViewDescription.Texture2D.MipSlice = 0;
 
-    Result = DirectX.Device->CreateDepthStencilView(DepthBuffer, &DepthStencilViewDescription, &DirectX.Target[Target_None].Attachment);
+    Result = DirectX.Device->CreateDepthStencilView(DirectX.Target[Target_None].AttachmentTexture, &DepthStencilViewDescription, &DirectX.Target[Target_None].Attachment);
     if (FAILED(Result)) Raise("Couldn't create DirectX depth stencil view.");
 
     D3D11_RASTERIZER_DESC RasterizerDescription;
@@ -1254,7 +1259,69 @@ D3D_PRIMITIVE_TOPOLOGY GetRenderPrimitive(render_primitive Primitive) {
 }
 
 void ResizeWindow(int32 Width, int32 Height) {
+    HRESULT Result;
+    DirectX.DeviceContext->OMSetRenderTargets(0, 0, 0);
 
+    // Resize back buffer and corresponding depth/stencil buffer
+    DirectX.Target[Target_None].View->Release();
+    DirectX.Target[Target_None].Texture->Release();
+    DirectX.Target[Target_None].Attachment->Release();
+    DirectX.Target[Target_None].AttachmentTexture->Release();
+    Result = DirectX.SwapChain->ResizeBuffers(2, Width, Height, DXGI_FORMAT_UNKNOWN, 0);
+    if (FAILED(Result)) {
+        Log(Error, "DirectX: Swap chain buffers resizing failed.");
+    }
+    else {
+        Result = DirectX.SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&DirectX.Target[Target_None].Texture);
+        if (FAILED(Result)) Log(Error, "DirectX: Swap chain texture fetching failed.");
+        else 
+            Result = DirectX.Device->CreateRenderTargetView(DirectX.Target[Target_None].Texture, NULL, &DirectX.Target[Target_None].View);
+        
+        D3D11_TEXTURE2D_DESC DepthBufferDescription = {};
+        DepthBufferDescription.Width = Width;
+        DepthBufferDescription.Height = Height;
+        DepthBufferDescription.MipLevels = 1;
+        DepthBufferDescription.ArraySize = 1;
+        DepthBufferDescription.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        DepthBufferDescription.SampleDesc.Count = 1;
+        DepthBufferDescription.SampleDesc.Quality = 0;
+        DepthBufferDescription.Usage = D3D11_USAGE_DEFAULT;
+        DepthBufferDescription.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+        DepthBufferDescription.CPUAccessFlags = 0;
+        DepthBufferDescription.MiscFlags = 0;
+
+        Result = DirectX.Device->CreateTexture2D(&DepthBufferDescription, NULL, &DirectX.Target[Target_None].AttachmentTexture);
+        if (FAILED(Result)) Raise("DirectX: Depth/stencil buffer resize failed.");
+        else {
+            D3D11_DEPTH_STENCIL_VIEW_DESC DepthStencilViewDescription = {};
+            DepthStencilViewDescription.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+            DepthStencilViewDescription.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+            DepthStencilViewDescription.Texture2D.MipSlice = 0;
+
+            Result = DirectX.Device->CreateDepthStencilView(
+                DirectX.Target[Target_None].AttachmentTexture, 
+                &DepthStencilViewDescription, 
+                &DirectX.Target[Target_None].Attachment
+            );
+            if (FAILED(Result)) Raise("Couldn't create DirectX depth stencil view.");
+        }
+    }
+
+    for (int i = 1; i < render_group_target_count; i++) {
+        directX_render_target* Target = &DirectX.Target[i];
+        Target->View->Release();
+        Target->Texture->Release();
+        if (Target->Description.Depth || Target->Description.Stencil) {
+            Target->Attachment->Release();
+            Target->AttachmentTexture->Release();
+        }
+        Target->ShaderTexture->Release();
+        CreateTarget(Width, Height, Target->Description);
+    }
+
+    DirectX.Viewport.Width = Width;
+    DirectX.Viewport.Height = Height;
+    DirectX.DeviceContext->RSSetViewports(1, &DirectX.Viewport);
 }
 
 void ScreenCapture(int32 Width, int32 Height) {

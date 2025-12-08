@@ -66,7 +66,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         Memory->IsInitialized = true;
     }
 
-    PushClear(Group, Orange, Target_None);
+    PushClear(Group, Black, Target_None);
     PushClear(Group, { 0 }, Target_World);
     PushClear(Group, { 0 }, Target_Outline);
     PushClear(Group, { 0 }, Target_Postprocessing_Outline);
@@ -83,7 +83,7 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // TestFluid(Group, Input, FirstFrame);
 
-    TestSky(State->Time, &Group->Light);
+    // TestSky(State->Time, &Group->Light);
 
     Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
 
