@@ -71,7 +71,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, { 0 }, Target_Outline);
     PushClear(Group, { 0 }, Target_Postprocessing_Outline);
     PushClear(Group, Magenta, Target_PingPong);
-    PushClear(Group, BackgroundBlue, Target_Output);
+    PushClear(Group, Black, Target_Output);
 
     UpdateGameState(Assets, State, Input, Group->Width, Group->Height);
     

@@ -37,6 +37,7 @@ enum debug_type {
     Debug_Type_render_group_target,
     Debug_Type_color_format,
     Debug_Type_shader_pass_type,
+    Debug_Type_compute_type,
     Debug_Type_render_flags,
     Debug_Type_transform,
     Debug_Type_game_entity,
@@ -52,8 +53,8 @@ enum render_flags {
     SKY_FLAG = 1 << 6,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 35; }
-bool IsFlagType(debug_type Type) { return Type > 34 && Type < 36; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 36; }
+bool IsFlagType(debug_type Type) { return Type > 35 && Type < 37; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -61,7 +62,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 62;
+const int ENUM_VALUES_SIZE = 66;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -98,8 +99,9 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_render_command_type, "render_clear", 0},
     {Debug_Type_render_command_type, "render_draw_primitive", 1},
     {Debug_Type_render_command_type, "render_shader_pass", 2},
-    {Debug_Type_render_command_type, "render_target", 3},
-    {Debug_Type_render_command_type, "render_command_type_count", 4},
+    {Debug_Type_render_command_type, "render_compute", 3},
+    {Debug_Type_render_command_type, "render_target", 4},
+    {Debug_Type_render_command_type, "render_command_type_count", 5},
     {Debug_Type_render_primitive, "render_primitive_point", 0},
     {Debug_Type_render_primitive, "render_primitive_line", 1},
     {Debug_Type_render_primitive, "render_primitive_line_strip", 2},
@@ -120,11 +122,14 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_color_format, "Color_Format_RGB", 2},
     {Debug_Type_color_format, "Color_Format_RGBA", 3},
     {Debug_Type_color_format, "color_format_count", 4},
-    {Debug_Type_shader_pass_type, "shader_pass_kernel", 0},
-    {Debug_Type_shader_pass_type, "shader_pass_outline_init", 1},
-    {Debug_Type_shader_pass_type, "shader_pass_jump_flood", 2},
-    {Debug_Type_shader_pass_type, "shader_pass_outline", 3},
-    {Debug_Type_shader_pass_type, "shader_pass_type_count", 4},
+    {Debug_Type_shader_pass_type, "shader_pass_empty", 0},
+    {Debug_Type_shader_pass_type, "shader_pass_type_count", 1},
+    {Debug_Type_compute_type, "compute_kernel", 0},
+    {Debug_Type_compute_type, "compute_outline_init", 1},
+    {Debug_Type_compute_type, "compute_jump_flood", 2},
+    {Debug_Type_compute_type, "compute_outline", 3},
+    {Debug_Type_compute_type, "compute_fft", 4},
+    {Debug_Type_compute_type, "compute_type_count", 5},
 };
 
 const int FLAG_VALUES_SIZE = 7;

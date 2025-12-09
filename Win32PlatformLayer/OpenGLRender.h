@@ -505,8 +505,8 @@ struct openGL_shader {
 ENUM(openGL_compute_shader_id,
     Compute_Shader_Outline_Init_ID,
     Compute_Shader_Jump_Flood_ID,
+	Compute_Shader_Outline_ID,
     Compute_Shader_Kernel_ID,
-    Compute_Shader_Test_ID,
     Compute_Shader_Fluid_ID,
     Compute_Shader_Fluid_Init_ID
 );
@@ -527,8 +527,6 @@ ENUM(openGL_shader_pipeline_id,
     Shader_Pipeline_Texture_ID,
     Shader_Pipeline_Mesh_ID,
     Shader_Pipeline_Mesh_Bones_ID,
-    Shader_Pipeline_Jump_Flood_ID,
-    Shader_Pipeline_Outline_ID,
     Shader_Pipeline_Heightmap_ID,
     Shader_Pipeline_Trochoidal_ID,
     Shader_Pipeline_Text_Outline_ID,
@@ -1460,11 +1458,8 @@ RENDERER_INITIALIZE {
 		LoadShader(Fragment_Shader_Antialiasing_ID,           "GameAssets\\Shaders\\GLSL\\Fragment\\Antialiasing.frag");
 		LoadShader(Fragment_Shader_Framebuffer_Attachment_ID, "GameAssets\\Shaders\\GLSL\\Fragment\\FramebufferAttachment.frag");
 		LoadShader(Fragment_Shader_Texture_ID,                "GameAssets\\Shaders\\GLSL\\Fragment\\Texture.frag");
-		LoadShader(Fragment_Shader_Outline_ID,                "GameAssets\\Shaders\\GLSL\\Fragment\\Outline.frag");
 		LoadShader(Fragment_Shader_Single_Color_ID,           "GameAssets\\Shaders\\GLSL\\Fragment\\SingleColor.frag");
-		LoadShader(Fragment_Shader_Kernel_ID,                 "GameAssets\\Shaders\\GLSL\\Fragment\\Kernel.frag");
 		LoadShader(Fragment_Shader_Mesh_ID,                   "GameAssets\\Shaders\\GLSL\\Fragment\\Mesh.frag");
-		LoadShader(Fragment_Shader_Jump_Flood_ID,             "GameAssets\\Shaders\\GLSL\\Fragment\\JumpFlood.frag");
 		LoadShader(Fragment_Shader_Heightmap_ID,              "GameAssets\\Shaders\\GLSL\\Fragment\\Heightmap.frag");
 		LoadShader(Fragment_Shader_Sea_ID,                    "GameAssets\\Shaders\\GLSL\\Fragment\\Sea.frag");
 		LoadShader(Fragment_Shader_Bezier_Exterior_ID,        "GameAssets\\Shaders\\GLSL\\Fragment\\BezierExterior.frag");
@@ -1475,7 +1470,7 @@ RENDERER_INITIALIZE {
 		// Compute
     	LoadShader(Compute_Shader_Outline_Init_ID,            "GameAssets\\Shaders\\GLSL\\Compute\\OutlineInit.comp");
     	LoadShader(Compute_Shader_Jump_Flood_ID,              "GameAssets\\Shaders\\GLSL\\Compute\\JumpFlood.comp");
-    	LoadShader(Compute_Shader_Test_ID,                    "GameAssets\\Shaders\\GLSL\\Compute\\Test.comp");
+		LoadShader(Compute_Shader_Outline_ID,                 "GameAssets\\Shaders\\GLSL\\Compute\\Outline.comp");
     	LoadShader(Compute_Shader_Kernel_ID,                  "GameAssets\\Shaders\\GLSL\\Compute\\Kernel.comp");
     	LoadShader(Compute_Shader_Fluid_ID,                   "GameAssets\\Shaders\\GLSL\\Compute\\Fluid.comp");
     	LoadShader(Compute_Shader_Fluid_Init_ID,              "GameAssets\\Shaders\\GLSL\\Compute\\FluidInit.comp");
@@ -1489,11 +1484,9 @@ RENDERER_INITIALIZE {
     	LoadPipeline(Shader_Pipeline_World_Single_Color_ID,  2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Single_Color_ID);
     	LoadPipeline(Shader_Pipeline_Screen_Single_Color_ID, 2, Vertex_Shader_Screen_ID,         Fragment_Shader_Single_Color_ID);
     	LoadPipeline(Shader_Pipeline_Bones_Single_Color_ID,  2, Vertex_Shader_Bones_ID,          Fragment_Shader_Single_Color_ID);
-    	LoadPipeline(Shader_Pipeline_Outline_ID,             2, Vertex_Shader_Passthrough2_ID,   Fragment_Shader_Outline_ID);
     	LoadPipeline(Shader_Pipeline_Bezier_Exterior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Exterior_ID);
     	LoadPipeline(Shader_Pipeline_Bezier_Interior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Interior_ID);
     	LoadPipeline(Shader_Pipeline_Solid_Text_ID,          2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Single_Color_ID);
-    	LoadPipeline(Shader_Pipeline_Jump_Flood_ID,          2, Vertex_Shader_Passthrough2_ID,   Fragment_Shader_Jump_Flood_ID);
     	LoadPipeline(Shader_Pipeline_Fire_ID,                2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Fire_ID);
 		LoadPipeline(Shader_Pipeline_Sky_ID,                 2, Vertex_Shader_Sky_ID,            Fragment_Shader_Sky_ID);
     	LoadPipeline(Shader_Pipeline_Debug_Normals_ID,       3, Vertex_Shader_Bones_ID,
@@ -1743,8 +1736,6 @@ RENDERER_RENDER {
 
 				openGL_shader_pipeline_id PipelineID;
 				switch(ShaderCommand.Type) {
-					case shader_pass_outline:    { PipelineID = Shader_Pipeline_Outline_ID; } break;
-					case shader_pass_jump_flood: { PipelineID = Shader_Pipeline_Jump_Flood_ID; } break;
 					default: Raise("OpenGL: Invalid shader pipeline ID.");
 				}
 				uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
@@ -1775,6 +1766,15 @@ RENDERER_RENDER {
 					} break;
 					case compute_outline_init: {
 						PipelineIndex = Compute_Shader_Outline_Init_ID;
+					} break;
+					case compute_jump_flood: {
+						PipelineIndex = Compute_Shader_Jump_Flood_ID;
+						SetOutlineUniforms(0.0f, ComputeCommand.Level);
+					} break;
+					case compute_outline: {
+						PipelineIndex = Compute_Shader_Outline_ID;
+						SetOutlineUniforms(ComputeCommand.Width, 0);
+						SetColorUniform(ComputeCommand.Color);
 					} break;
 					default: Raise("OpenGL: Invalid compute shader.");
 				}

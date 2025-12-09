@@ -1,10 +1,10 @@
 #version 450
 precision highp float;
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 layout(rgba32f, binding = 0) readonly uniform image2D source;
 layout(rgba32f, binding = 1) writeonly uniform image2D target;
-layout(binding = 2) uniform sampler2D attachment_texture;
+// layout(binding = 2) uniform sampler2D attachment_texture;
 
 #ifdef VULKAN
 layout(std140, set = 0, binding = 0) uniform GlobalUniforms 
@@ -55,14 +55,14 @@ vec3 StepJFA(ivec2 p) {
 
 void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 size = imageSize(source);
+    
+    if (texelCoord.x >= size.x || texelCoord.y >= size.y) {
+        return;
+    }
+
     vec3 closest = StepJFA(texelCoord);
-    vec4 result;
-    if (closest.x < 0.) {
-        result = imageLoad(source, texelCoord);
-    }
-    else {
-        result = vec4(closest, 1.0);
-    }
+    vec4 result = closest.x < 0.0 ? imageLoad(source, texelCoord) : vec4(closest, 1.0);
 
     imageStore(target, texelCoord, result);
 }

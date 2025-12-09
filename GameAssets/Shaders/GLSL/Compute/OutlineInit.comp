@@ -20,6 +20,12 @@ const mat3 sobel_y = mat3(
 
 void main() {
 	ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+	ivec2 size = imageSize(source);
+
+	if (texelCoord.x >= size.x || texelCoord.y >= size.y) {
+		return;
+	}
+
 	vec4 image_color = imageLoad(source, texelCoord);
 	//float depth = texture(attachment_texture, texelCoord / u_resolution).r + 0.005;
 
