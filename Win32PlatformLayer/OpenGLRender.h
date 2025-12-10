@@ -1752,11 +1752,8 @@ RENDERER_RENDER {
 			case render_compute: {
 				render_compute_command ComputeCommand = Group->ComputeCommands[Command.Index];
 
-				openGL_framebuffer Source = OpenGL.Target[ComputeCommand.Source];
 				openGL_framebuffer Target = OpenGL.Target[ComputeCommand.Target];
-
-				glBindImageTexture(0, Source.Texture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
-				glBindImageTexture(1, Target.Texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+				glBindImageTexture(0, Target.Texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
 
 				openGL_compute_shader_id PipelineIndex;
 				switch (ComputeCommand.Type) {

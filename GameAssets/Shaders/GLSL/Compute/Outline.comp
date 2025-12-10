@@ -2,8 +2,7 @@
 precision highp float;
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
-layout(rgba32f, binding = 0) readonly uniform image2D source;
-layout(rgba32f, binding = 1) writeonly uniform image2D target;
+layout(rgba32f, binding = 0) uniform image2D target;
 // layout(binding = 2) uniform sampler2D attachment_texture;
 
 #ifdef VULKAN
@@ -52,13 +51,13 @@ float triangle(float x) {
 
 void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-	ivec2 size = imageSize(source);
+	ivec2 size = imageSize(target);
 
 	if (texelCoord.x >= size.x || texelCoord.y >= size.y) {
 		return;
 	}
 
-	vec4 texture_color = imageLoad(source, texelCoord);
+	vec4 texture_color = imageLoad(target, texelCoord);
 	float width = OutlineUBO.width;
 
     vec4 out_color = vec4(0., 0., 0., 0.);

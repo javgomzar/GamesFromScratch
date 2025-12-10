@@ -2,8 +2,7 @@
 precision highp float;
 
 layout (local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
-layout(rgba32f, binding = 0) readonly uniform image2D source;
-layout(rgba32f, binding = 0) writeonly uniform image2D target;
+layout(rgba32f, binding = 0) uniform image2D target;
 //layout(binding = 1) uniform sampler2D attachment_texture;
 
 const mat3 sobel_x = mat3(
@@ -20,13 +19,13 @@ const mat3 sobel_y = mat3(
 
 void main() {
 	ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-	ivec2 size = imageSize(source);
+	ivec2 size = imageSize(target);
 
 	if (texelCoord.x >= size.x || texelCoord.y >= size.y) {
 		return;
 	}
 
-	vec4 image_color = imageLoad(source, texelCoord);
+	vec4 image_color = imageLoad(target, texelCoord);
 	//float depth = texture(attachment_texture, texelCoord / u_resolution).r + 0.005;
 
 	vec4 result = vec4(0.);
@@ -43,7 +42,7 @@ void main() {
 		for (int j = 0; j < 3; ++j) {
 		for (int i = 0; i < 3; ++i) {
 			ivec2 p = texelCoord + ivec2(i-1,j-1);
-			float value = imageLoad(source, p).r;
+			float value = imageLoad(target, p).r;
 			offset_x += sobel_x[j][i] * value;
 			offset_y += sobel_y[j][i] * value;
 		}}
