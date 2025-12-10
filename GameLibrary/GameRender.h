@@ -220,7 +220,6 @@ ENUM(compute_type,
 
 struct render_compute_command {
     compute_type Type;
-    render_group_target Source;
     render_group_target Target;
     iv3 nGroups;
     matrix3 Kernel;
@@ -1498,7 +1497,6 @@ void PushOutlineInitCompute(
 
     render_compute_command ComputeCommand = {};
     ComputeCommand.Type = compute_outline_init;
-    ComputeCommand.Source = Target_Postprocessing_Outline;
     ComputeCommand.Target = Target_Postprocessing_Outline;
     ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
     ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
@@ -1521,7 +1519,6 @@ void PushJumpFloodCompute(
 
     render_compute_command ComputeCommand = {};
     ComputeCommand.Type = compute_jump_flood;
-    ComputeCommand.Source = Target_Postprocessing_Outline;
     ComputeCommand.Target = Target_Postprocessing_Outline;
     ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
     ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
@@ -1546,7 +1543,6 @@ void PushOutlineCompute(
 
     render_compute_command ComputeCommand = {};
     ComputeCommand.Type = compute_outline;
-    ComputeCommand.Source = Target_Postprocessing_Outline;
     ComputeCommand.Target = Target_Postprocessing_Outline;
     ComputeCommand.Color = Color;
     ComputeCommand.Width = Width;
@@ -1559,7 +1555,6 @@ void PushOutlineCompute(
 
 void PushKernelCompute(
     render_group* Group,
-    render_group_target Source,
     render_group_target Target,
     matrix3 Kernel,
     float Order = SORT_ORDER_SHADER_PASSES
@@ -1573,7 +1568,6 @@ void PushKernelCompute(
 
     render_compute_command ComputeCommand;
     ComputeCommand.Type = compute_kernel;
-    ComputeCommand.Source = Source;
     ComputeCommand.Target = Target;
     ComputeCommand.Kernel = Kernel;
     ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
@@ -1595,7 +1589,7 @@ void PushBlur(
     };
     Kernel *= 1.0f / 16.0f;
 
-    PushKernelCompute(Group, Target, Target, Kernel, Order);
+    PushKernelCompute(Group, Target, Kernel, Order);
 }
 
 void PushMesh(

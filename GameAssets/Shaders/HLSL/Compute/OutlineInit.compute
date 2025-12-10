@@ -1,3 +1,52 @@
-RWTexture2D<float4> Source;
-RWTexture2D<float4> Target;
+RWTexture2D<unorm float4> Target;
 
+static const float3x3 SobelX = float3x3(
+    -1., 0., 1.,
+	-2., 0., 2.,
+	-1., 0., 1.
+);
+
+static const float3x3 SobelY = float3x3(
+    -1., -2., -1.,
+	 0.,  0.,  0.,
+	 1.,  2.,  1.
+);
+
+[numthreads(16,16,1)]
+void main(int3 ThreadID: SV_DispatchThreadID) {
+    uint Width, Height;
+    Target.GetDimensions(Width, Height);
+
+    if (ThreadID.x >= Width || ThreadID.y >= Height) {
+        return;
+    }
+
+    int2 TexelCoord = ThreadID.xy;
+    float4 Result = float4(TexelCoord, 1., 1.);
+
+    float Value = Target[TexelCoord].x;
+    if (Value < 0.01) {
+        Result = float4(-1., 0., 0., 1.);
+    }
+    else {
+        float2 Offset = float2(0., 0.);
+
+        for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < 3; i++) {
+            int2 p = TexelCoord + int2(i-1, j-1);
+            float Neighbor = Target[TexelCoord].x;
+            Offset.x += SobelX[j][i] * Neighbor;
+            Offset.y += SobelY[j][i] * Neighbor;
+        }}
+
+        if (abs(Offset.x) <= 0.005 && abs(Offset.y) <= 0.005) {
+            Result = float4(TexelCoord, .1, 1.);
+        }
+        else {
+            Offset = (1. - Value) * normalize(Offset);
+            Result = float4(TexelCoord + Offset, .1, 1.);
+        }
+    }
+
+    Target[TexelCoord] = Result;
+}

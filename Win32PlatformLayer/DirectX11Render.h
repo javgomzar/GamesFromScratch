@@ -247,7 +247,8 @@ void CreateTarget(uint32 Width, uint32 Height, render_group_target_description T
         RenderTargetDepthStencilViewDescription.ViewDimension = 
             TargetDescription.Multisample ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D;
         RenderTargetDepthStencilViewDescription.Texture2D.MipSlice = 0;
-        DirectX.Device->CreateDepthStencilView(Target->AttachmentTexture, &RenderTargetDepthStencilViewDescription, &Target->Attachment);
+        Result = DirectX.Device->CreateDepthStencilView(Target->AttachmentTexture, &RenderTargetDepthStencilViewDescription, &Target->Attachment);
+        if (FAILED(Result)) Raise("DirectX: Depth/stencil view creation failed.");
     }
 }
 
@@ -525,7 +526,7 @@ ID3DBlob* CompileShader(read_file_result* File, const char* Path) {
 
     ID3DBlob* Errors = nullptr;
     ID3DBlob* Blob = nullptr;
-    UINT Flags = D3D10_SHADER_PACK_MATRIX_ROW_MAJOR;
+    UINT Flags = D3D10_SHADER_PACK_MATRIX_ROW_MAJOR | D3DCOMPILE_DEBUG;
     HRESULT Result = D3DCompile(
         File->Content, 
         File->ContentSize, 
@@ -1297,7 +1298,7 @@ D3D_PRIMITIVE_TOPOLOGY GetRenderPrimitive(render_primitive Primitive) {
 
 void ResizeWindow(int32 Width, int32 Height) {
     HRESULT Result;
-    DirectX.DeviceContext->OMSetRenderTargets(0, 0, 0);
+    DirectX.DeviceContext->OMSetRenderTargets(0, NULL, NULL);
 
     // Resize back buffer and corresponding depth/stencil buffer
     DirectX.Target[Target_None].View->Release();
@@ -1484,7 +1485,8 @@ RENDERER_RENDER {
                 else
                     DirectX.DeviceContext->OMSetBlendState(DirectX.CombineAlpha, BlendFactors, 0xffffffff);
 
-                BindTarget(Target_World);
+                if (Options.Outline) BindTarget(Target_Outline);
+				else                 BindTarget(Target_World);
 
                 vertex_layout_id LayoutID;
                 ID3D11Buffer** VertexBuffer = NULL;
@@ -1507,7 +1509,8 @@ RENDERER_RENDER {
                         LayoutID = vertex_layout_v3_v2_v3_id;
                         VertexShaderID = Vertex_Shader_Mesh_ID;
                     }
-                    PixelShaderID = Pixel_Shader_Mesh_ID;
+                    
+                    if (!Options.Outline) PixelShaderID = Pixel_Shader_Mesh_ID;
 
                     SetTransformBuffer(Options.Transform);
                 }
@@ -1646,10 +1649,22 @@ RENDERER_RENDER {
             case render_compute: {
                 render_compute_command ComputeCommand = Group->ComputeCommands[Command.Index];
 
-                directX_render_target* Source = &DirectX.Target[ComputeCommand.Source];
+                DirectX.DeviceContext->OMSetRenderTargets(0, NULL, NULL);
                 directX_render_target* Target = &DirectX.Target[ComputeCommand.Target];
 
+                directX_Compute_Shader_ID ShaderID;
+                switch(ComputeCommand.Type) {
+                    case compute_outline_init: { ShaderID = Compute_Shader_Outline_Init_ID; } break;
+                    case compute_jump_flood:   { ShaderID = Compute_Shader_Jump_Flood_ID; } break;
+                    case compute_outline:      { ShaderID = Compute_Shader_Outline_ID; } break;
+                    default: Raise("DirectX: Invalid compute shader ID.");
+                }
 
+                DirectX.DeviceContext->CSSetShader(DirectX.ComputeShader[ShaderID].Shader, NULL, 0);
+                DirectX.DeviceContext->CSSetUnorderedAccessViews(0, 1, &Target->UnorderedAccessView, NULL);
+                DirectX.DeviceContext->Dispatch(ComputeCommand.nGroups.X, ComputeCommand.nGroups.Y, ComputeCommand.nGroups.Z);
+                ID3D11UnorderedAccessView* NullUAV = 0;
+                DirectX.DeviceContext->CSSetUnorderedAccessViews(0, 1, &NullUAV, NULL);
             } break;
 
             case render_target: {
@@ -1671,8 +1686,8 @@ RENDERER_RENDER {
                 DirectX.DeviceContext->VSSetShader(VertexShader->Shader, NULL, 0);
                 DirectX.DeviceContext->PSSetShader(PixelShader->Shader, NULL, 0);
 
-                DirectX.DeviceContext->PSSetSamplers(0, 1, &PixelShader->Sampler);
                 DirectX.DeviceContext->PSSetShaderResources(0, 1, &Source->ShaderTexture);
+                DirectX.DeviceContext->PSSetSamplers(0, 1, &PixelShader->Sampler);
 
                 vertex_layout Layout = Group->Assets->VertexLayout[vertex_layout_v2_v2_id];
                 uint32 Offset = 0;
