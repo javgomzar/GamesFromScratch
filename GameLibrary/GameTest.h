@@ -11,6 +11,22 @@
 //     PushRenderTarget(Group, Target_Fluid);
 // }
 
+void TestSea(memory_arena* PermanentArena, render_group* Group) {
+    const uint32 N = 10000;
+    static float* Data = nullptr;
+
+    if (!Data) {
+        Data = PushArray(PermanentArena, N, float);
+
+        for (int i = 0; i < N; i++) {
+            float x = i;
+            Data[i] = x - floor(x);
+        }
+    }
+
+    // PushComputeShaderPass(Group, shader_pass_fft, Target_None, Target_None);
+}
+
 void TestSky(float Time, light* Light) {
     Light->Direction = V3(-cos(0.2f * Time), -sin(0.2f * Time), 0);
 }
