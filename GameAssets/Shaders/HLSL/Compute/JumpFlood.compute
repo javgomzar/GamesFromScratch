@@ -1,7 +1,50 @@
-RWTexture2D<float4> Source;
 RWTexture2D<float4> Target;
 
+cbuffer Globals: register(b0) {
+    float4x4 Projection;
+    float4x4 View;
+    float2 Resolution;
+    float2 Mouse;
+    float2 LastMouse;
+    float Time;
+};
+
+cbuffer Outline: register(b5) {
+    float OutlineWidth;
+    int Level;
+};
+
+float3 StepJFA(int2 P) {
+    float3 Closest = float3(-1.0, 0.0, 0.0);
+    double ClosestDistance =  9999999.0;
+
+    for (int y = -1; y <= 1; ++y) {
+    for (int x = -1; x <= 1; ++x) {
+        int2 t = P + Level * int2(x,y);
+        if (t.x >= 0. && t.y >= 0. && t.x <= Resolution.x && t.y <= Resolution.y) {
+            float4 StoredColor = Target[t];
+            if (StoredColor.b > 0.) { // skip computing for yet invalid seeds
+                float2 StoredPosition = StoredColor.rg;
+                double d = distance(P, StoredPosition);
+                if (ClosestDistance > d) {
+                    ClosestDistance = d;
+                    Closest = StoredColor.rgb;
+                }
+            }
+        }
+    }}
+
+    return Closest;
+}
+
 [numthreads(16,16,1)]
-void main() {
-    
+void main(int3 ThreadID: SV_DispatchThreadID) {
+    int2 TexelCoord = ThreadID.xy;
+    if (ThreadID.x >= Resolution.x || ThreadID.y >= Resolution.y) {
+        return;
+    }
+
+    float3 Closest = StepJFA(ThreadID.xy);
+    float4 Result = Closest.x < 0 ? Target[ThreadID.xy] : float4(Closest, 1.0f);
+    Target[ThreadID.xy] = Result;
 }

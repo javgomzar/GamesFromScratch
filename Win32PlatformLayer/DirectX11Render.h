@@ -204,10 +204,10 @@ void CreateTarget(uint32 Width, uint32 Height, render_group_target_description T
     TextureDescription.SampleDesc.Count = TargetDescription.Multisample ? DirectX.MSAASamples : 1;
         
     switch(TargetDescription.Format) {
-        case Color_Format_R:    { TextureDescription.Format = DXGI_FORMAT_R8_UNORM; } break;
-        case Color_Format_RG:   { TextureDescription.Format = DXGI_FORMAT_R8G8_UNORM; } break;
-        case Color_Format_RGB:  { TextureDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM; } break;
-        case Color_Format_RGBA: { TextureDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM; } break;
+        case Color_Format_R:    { TextureDescription.Format = DXGI_FORMAT_R32_FLOAT; } break;
+        case Color_Format_RG:   { TextureDescription.Format = DXGI_FORMAT_R32G32_FLOAT; } break;
+        case Color_Format_RGB:  { TextureDescription.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; } break;
+        case Color_Format_RGBA: { TextureDescription.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; } break;
         default: Raise("DirectX: Invalid color format creating render target.");
     }
 
@@ -351,6 +351,7 @@ void SetGlobalBuffer(int32 Width, int32 Height, camera* Camera, game_input* Inpu
         DirectX.DeviceContext->DSSetConstantBuffers(0, 1, &GlobalBuffer);
         DirectX.DeviceContext->GSSetConstantBuffers(0, 1, &GlobalBuffer);
         DirectX.DeviceContext->PSSetConstantBuffers(0, 1, &GlobalBuffer);
+        DirectX.DeviceContext->CSSetConstantBuffers(0, 1, &GlobalBuffer);
     }
 }
 
@@ -377,6 +378,7 @@ void SetColorBuffer(color Color) {
         Buffer->Color = Color;
         DirectX.DeviceContext->Unmap(ColorBuffer, 0);
         DirectX.DeviceContext->PSSetConstantBuffers(2, 1, &ColorBuffer);
+        DirectX.DeviceContext->CSSetConstantBuffers(2, 1, &ColorBuffer);
     }
 }
 
@@ -440,6 +442,7 @@ void SetOutlineBuffer(float Width, int Level) {
         Buffer->Level = Level;
         DirectX.DeviceContext->Unmap(OutlineBuffer, 0);
         DirectX.DeviceContext->PSSetConstantBuffers(5, 1, &OutlineBuffer);
+        DirectX.DeviceContext->CSSetConstantBuffers(5, 1, &OutlineBuffer);
     }
 }
 
@@ -917,8 +920,8 @@ void ReloadShader(directX_Compute_Shader* Shader) {
         );
 
         if (SUCCEEDED(Result)) {
-            Shader->Shader->Release();
-            Shader->Blob->Release();
+            if (Shader->Shader) Shader->Shader->Release();
+            if (Shader->Blob) Shader->Blob->Release();
             Shader->Blob = Blob;
             Shader->Shader = NewShader;
 
@@ -970,13 +973,13 @@ void ReloadShaders() {
         }
     }
 
-    // for (int i = 0; i < directX_Compute_Shader_ID_count; i++) {
-    //     directX_Compute_Shader* Shader = &DirectX.ComputeShader[i];
-    //     int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
-    //     if (LastWriteTime > Shader->File.Timestamp) {
-    //         ReloadShader(Shader);
-    //     }
-    // }
+    for (int i = 0; i < directX_Compute_Shader_ID_count; i++) {
+        directX_Compute_Shader* Shader = &DirectX.ComputeShader[i];
+        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
+        if (LastWriteTime > Shader->File.Timestamp) {
+            ReloadShader(Shader);
+        }
+    }
 }
 
 RENDERER_INITIALIZE {
@@ -1465,10 +1468,9 @@ RENDERER_RENDER {
 			case render_clear: {
 				render_clear_command Clear = Group->Clears[Command.Index];
 
-                directX_render_target* Target = &DirectX.Target[Command.Index];
-
+                directX_render_target* Target = &DirectX.Target[Clear.Target];
                 float Color[4] = { Clear.Color.R, Clear.Color.G, Clear.Color.B, Clear.Color.Alpha };
-                BindTarget((render_group_target)Command.Index);
+                BindTarget(Clear.Target);
                 
                 DirectX.DeviceContext->ClearRenderTargetView(Target->View, Color);
                 if (Target->Attachment)
@@ -1491,6 +1493,8 @@ RENDERER_RENDER {
                 vertex_layout_id LayoutID;
                 ID3D11Buffer** VertexBuffer = NULL;
                 ID3D11Buffer* IndexBuffer = NULL;
+                vertex_buffer_entry VertexEntry = PrimitiveCommand.VertexEntry;
+                element_buffer_entry ElementEntry = PrimitiveCommand.ElementEntry;
                 directX_Vertex_Shader_ID VertexShaderID = Vertex_Shader_Screen_ID;
                 directX_Pixel_Shader_ID PixelShaderID = Pixel_Shader_Single_Color_ID;
                 uint32 Offset = 0;
@@ -1525,7 +1529,7 @@ RENDERER_RENDER {
 
                     VertexBuffer = &DirectX.FontBuffer[Options.Font->ID].VertexBuffer;
                     IndexBuffer = DirectX.FontBuffer[Options.Font->ID].IndexBuffer;
-                    Offset = PrimitiveCommand.ElementEntry.Offset;
+                    Offset = ElementEntry.Offset;
 
                     SetTextBuffer(Options.Pen, Options.TextSize);
                 }
@@ -1540,12 +1544,12 @@ RENDERER_RENDER {
                     SetTransformBuffer(Options.Transform);
                 }
                 else {
-                    LayoutID = PrimitiveCommand.VertexEntry.LayoutID;
+                    LayoutID = VertexEntry.LayoutID;
                     VertexBuffer = &DirectX.VertexBuffer[LayoutID];
-                    Offset = PrimitiveCommand.VertexEntry.Offset;
-                    if (PrimitiveCommand.ElementEntry.Count > 0) {
+                    Offset = VertexEntry.Offset;
+                    if (ElementEntry.Count > 0) {
                         IndexBuffer = DirectX.IndexBuffer;
-                        Offset = PrimitiveCommand.ElementEntry.Offset;
+                        Offset = ElementEntry.Offset;
                     }
                     VertexShaderID = Options.Flags & DEPTH_TEST_FLAG ? Vertex_Shader_Perspective_ID : Vertex_Shader_Screen_ID;
                         
@@ -1584,12 +1588,12 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilEnabled, 1);
                 }
                 
-                if (PrimitiveCommand.ElementEntry.Count > 0) {
+                if (ElementEntry.Count > 0) {
                     DirectX.DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-                    DirectX.DeviceContext->DrawIndexed(PrimitiveCommand.ElementEntry.Count, Offset, 0);
+                    DirectX.DeviceContext->DrawIndexed(ElementEntry.Count, Offset, 0);
                 }
                 else {
-                    DirectX.DeviceContext->Draw(PrimitiveCommand.VertexEntry.Count, Offset);
+                    DirectX.DeviceContext->Draw(VertexEntry.Count, Offset);
                 }
 
                 if (Options.Mesh) {
@@ -1655,8 +1659,15 @@ RENDERER_RENDER {
                 directX_Compute_Shader_ID ShaderID;
                 switch(ComputeCommand.Type) {
                     case compute_outline_init: { ShaderID = Compute_Shader_Outline_Init_ID; } break;
-                    case compute_jump_flood:   { ShaderID = Compute_Shader_Jump_Flood_ID; } break;
-                    case compute_outline:      { ShaderID = Compute_Shader_Outline_ID; } break;
+                    case compute_jump_flood: { 
+                        ShaderID = Compute_Shader_Jump_Flood_ID;
+                        SetOutlineBuffer(0.0f, ComputeCommand.Level);
+                    } break;
+                    case compute_outline:{
+                        ShaderID = Compute_Shader_Outline_ID;
+                        SetOutlineBuffer(ComputeCommand.Width, 0);
+                        SetColorBuffer(ComputeCommand.Color);
+                    } break;
                     default: Raise("DirectX: Invalid compute shader ID.");
                 }
 

@@ -1,4 +1,4 @@
-cbuffer Globals {
+cbuffer Globals: register(b0) {
     float4x4 Projection;
     float4x4 View;
     float2 Resolution;
@@ -7,7 +7,7 @@ cbuffer Globals {
     float Time;
 };
 
-cbuffer Transforms {
+cbuffer Transforms: register(b3) {
     float4x4 Model;
     float4x4 Normal;
 };
