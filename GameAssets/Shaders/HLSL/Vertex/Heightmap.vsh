@@ -1,16 +1,13 @@
 struct VS_IN {
-    float3 Position: POSITION;
-    float2 Texture: TEXCOORD0;
+    float2 Position: POSITION;
 };
 
 struct VS_OUT {
     float3 Position: POSITION;
-    float2 Texture: TEXCOORD0;
 };
 
 VS_OUT main(VS_IN vin) {
     VS_OUT vout;
-	vout.Position = vin.Position;
-    vout.Texture = vin.Texture;
+	vout.Position = float3(vin.Position.x, 0.0f, vin.Position.y);
     return vout;
 }

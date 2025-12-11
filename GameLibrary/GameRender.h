@@ -499,7 +499,7 @@ render_primitive_command* PushPrimitiveCommand(
     PrimitiveCommand->Color = Color;
 
     if (nVertices > 0) {
-        if (Options.Mesh != NULL || Options.Font != NULL) {
+        if (Options.Mesh || Options.Font || Options.Heightmap) {
             PrimitiveCommand->VertexEntry.Count = nVertices;
             PrimitiveCommand->VertexEntry.LayoutID = LayoutID;
         }
@@ -510,7 +510,7 @@ render_primitive_command* PushPrimitiveCommand(
     }
 
     if (nElements > 0) {
-        if (Options.Mesh != NULL || Options.Font != NULL) {
+        if (Options.Mesh || Options.Font || Options.Heightmap) {
             PrimitiveCommand->ElementEntry.Count = nElements;
         }
         else {
@@ -1713,35 +1713,58 @@ void PushMesh(
 void PushHeightmap(
     render_group* Group, 
     game_heightmap* Heightmap,
+    v3 LeftBottom,
+    scale S,
     float Order = SORT_ORDER_MESHES
 ) {
-    // TODO: Render heightmaps with elements
+    uint32 nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
+    uint32 nElements = 4*(HEIGHTMAP_RESOLUTION-1)*(HEIGHTMAP_RESOLUTION-1);
 
-    float* Vertices = PushPrimitiveCommand(
+    PushPrimitiveCommand(
         Group, 
         render_primitive_patches,
         White,
         vertex_layout_v3_v2_id, 
-        Heightmap->nVertices,
-        0,
+        nVertices,
+        nElements,
         Order,
         {
             .Flags = (render_flags)(DEPTH_TEST_FLAG),
+            .Transform = Transform(LeftBottom, Quaternion(1.0f), S),
             .Heightmap = Heightmap,
             .PatchParameter = 4,
         }
-    )->Vertices;
-
-    memcpy(Vertices, Heightmap->Vertices, Heightmap->nVertices * 5 * sizeof(float));
+    );
 }
 
 void PushHeightmap(
     render_group* Group, 
     game_heightmap_id ID,
+    v3 LeftBottom,
+    scale S,
     float Order = SORT_ORDER_MESHES
 ) {
     game_heightmap* Heightmap = GetAsset(Group->Assets, ID);
-    PushHeightmap(Group, Heightmap, Order);
+    PushHeightmap(Group, Heightmap, LeftBottom, S, Order);
+}
+
+void GenerateHeightmapVertices(float* Vertices) {
+    float L = 1.0f / (float)HEIGHTMAP_RESOLUTION;
+    for (int i = 0; i < HEIGHTMAP_RESOLUTION; i++) {
+    for (int j = 0; j < HEIGHTMAP_RESOLUTION; j++) {
+        *Vertices++ = i * L;
+        *Vertices++ = j * L;
+    }}
+}
+
+void GenerateHeightmapElements(uint32* Elements) {
+    for (int i = 0; i < HEIGHTMAP_RESOLUTION - 1; i++) {
+    for (int j = 0; j < HEIGHTMAP_RESOLUTION - 1; j++) {
+        *Elements++ = j       + HEIGHTMAP_RESOLUTION * i;
+        *Elements++ = j       + HEIGHTMAP_RESOLUTION * (i + 1);
+        *Elements++ = (j + 1) + HEIGHTMAP_RESOLUTION * i;
+        *Elements++ = (j + 1) + HEIGHTMAP_RESOLUTION * (i + 1);
+    }}
 }
 
 void PushSky(render_group* Group) {
