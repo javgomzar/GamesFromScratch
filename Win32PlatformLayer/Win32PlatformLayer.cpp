@@ -1253,7 +1253,9 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
                     ResizeWindow(NewWidth, NewHeight);
                 }
 
+#if GAME_RENDER_API_OPENGL
                 Render(Group, Memory.GameState->ActiveCamera, &Memory.Input, Window, 0.0);
+#endif
             }
 
             EndPaint(Window, &ps);
