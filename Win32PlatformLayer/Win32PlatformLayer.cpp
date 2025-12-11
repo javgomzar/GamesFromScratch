@@ -1027,7 +1027,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
             if (!Pause) {
                 // Clear render group
-                ClearEntries(Group);
+                Clear(Group);
 
                 GameCode.Update(&Memory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer]);
 

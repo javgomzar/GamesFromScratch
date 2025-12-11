@@ -119,7 +119,18 @@ struct render_command {
     uint32 Index;
 };
 
+ENUM(render_group_target,
+    Target_None,
+    Target_World,
+    Target_Outline,
+    Target_Postprocessing_Outline,
+    Target_PingPong,
+    Target_Fluid,
+    Target_Output
+);
+
 struct render_clear_command {
+    render_group_target Target;
     color Color;
 };
 
@@ -167,16 +178,6 @@ struct render_primitive_command {
     float* Vertices = 0;
     element_buffer_entry ElementEntry = {0};
 };
-
-ENUM(render_group_target,
-    Target_None,
-    Target_World,
-    Target_Outline,
-    Target_Postprocessing_Outline,
-    Target_PingPong,
-    Target_Fluid,
-    Target_Output
-);
 
 ENUM(color_format,
     Color_Format_R,
@@ -257,7 +258,7 @@ light Light(v3 Direction, color Color = White, float Ambient = 0.5f, float Diffu
 // | Render group                                                                                                                                                     |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-const int MAX_FRAMEBUFFER_COUNT = 8;
+const int MAX_CLEAR_COMMANDS = 16;
 const int MAX_PRIMITIVE_COMMANDS = 8192;
 const int MAX_MESH_COMMANDS = 64;
 const int MAX_HEIGHTMAP_COMMANDS = 8;
@@ -268,7 +269,7 @@ const int MAX_RENDER_TARGET_COMMANDS = 16;
 
 struct render_group {
     render_command Entries[MAX_RENDER_ENTRIES];
-    render_clear_command Clears[render_group_target_count];
+    render_clear_command Clears[MAX_CLEAR_COMMANDS];
     render_primitive_command PrimitiveCommands[MAX_PRIMITIVE_COMMANDS];
     render_shader_pass_command ShaderPassCommands[MAX_SHADER_PASS_COMMANDS];
     render_compute_command ComputeCommands[MAX_COMPUTE_COMMANDS];
@@ -281,6 +282,7 @@ struct render_group {
     int32 Width;
     int32 Height;
     uint32 EntryCount;
+    uint32 nClearCommands;
     uint32 nPrimitiveCommands;
     uint32 nShaderPassCommands;
     uint32 nComputeCommands;
@@ -304,6 +306,11 @@ void InitializeRenderGroup(
 
     Group->Assets = Assets;
     Group->DebugFont = GetAsset(Assets, Font_Menlo_Regular_ID);
+    
+    Group->Debug = false;
+    Group->DebugNormals = false;
+    Group->DebugColliders = false;
+    Group->DebugBones = false;
 
     // Lighting
     Group->Light = Light(V3(-0.5, -1, 1), White);
@@ -381,7 +388,7 @@ void PushCommand(render_group* Group, render_command Command) {
     // Size check
     switch(Command.Type) {
         case render_clear: {
-            if (Command.Index >= render_group_target_count) {
+            if (Command.Index >= MAX_CLEAR_COMMANDS) {
                 Raise("Invalid target for clearing");
             }
         } break;
@@ -419,27 +426,30 @@ void PushCommand(render_group* Group, render_command Command) {
                 Swap(Group, i, j);
                 i = j;
                 j = i - 1;
+                continue;
             }
-            else {
-                break;
-            }
+            else break;
         }
     }
     Group->EntryCount++;
 }
 
-void ClearEntries(render_group* Group) {
+void Clear(render_group* Group) {
     ZeroSize(Group->EntryCount * sizeof(render_command), Group->Entries);
-    ZeroSize(render_group_target_count * sizeof(render_clear_command), Group->Clears);
+    ZeroSize(Group->nClearCommands * sizeof(render_clear_command), Group->Clears);
     ZeroSize(Group->nPrimitiveCommands * sizeof(render_primitive_command), Group->PrimitiveCommands);
     ZeroSize(Group->nShaderPassCommands * sizeof(render_shader_pass_command), Group->ShaderPassCommands);
     ZeroSize(Group->nComputeCommands * sizeof(render_compute_command), Group->ComputeCommands);
     ZeroSize(Group->nTargets * sizeof(render_target_command), Group->TargetCommands);
+
+    Group->nClearCommands = 0;
     Group->nPrimitiveCommands = 0;
     Group->nShaderPassCommands = 0;
     Group->nComputeCommands = 0;
     Group->nTargets = 0;
     Group->EntryCount = 0;
+
+    Group->PushOutline = false;
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -448,14 +458,16 @@ void ClearEntries(render_group* Group) {
 
 void PushClear(render_group* Group, color Color, render_group_target Target = Target_Output) {
     render_command Command;
-    Command.Index = Target;
+    Command.Index = Group->nClearCommands;
     Command.Priority = 0.0f;
     Command.Type = render_clear;
     PushCommand(Group, Command);
 
     render_clear_command Clear;
+    Clear.Target = Target;
     Clear.Color = Color;
-    Group->Clears[Target] = Clear;
+    
+    Group->Clears[Group->nClearCommands++] = Clear;
 }
 
 /*

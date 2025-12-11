@@ -1610,7 +1610,7 @@ RENDERER_RENDER {
 				render_clear_command Clear = Group->Clears[Command.Index];
 
 				glViewport(0, 0, Width, Height);
-				BindTarget((render_group_target)Command.Index);
+				BindTarget(Clear.Target);
 
 				glClearColor(Clear.Color.R, Clear.Color.G, Clear.Color.B, Clear.Color.Alpha);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -1687,15 +1687,9 @@ RENDERER_RENDER {
 				}
 
 				uint32 VAO = 0;
-				if (Options.Mesh) {
-					VAO = OpenGL.MeshBuffer[Options.Mesh->ID].VAO;
-				}
-				else if (Options.Font) {
-					VAO = OpenGL.FontBuffer[Options.Font->ID].VAO;
-				}
-				else {
-					VAO = OpenGL.VAOs[VertexEntry.LayoutID];
-				}
+				if      (Options.Mesh) VAO = OpenGL.MeshBuffer[Options.Mesh->ID].VAO;
+				else if (Options.Font) VAO = OpenGL.FontBuffer[Options.Font->ID].VAO;
+				else                   VAO = OpenGL.VAOs[VertexEntry.LayoutID];
 
 				glBindVertexArray(VAO);
 				if (ElementEntry.Count > 0) {
@@ -1834,10 +1828,7 @@ RENDERER_RENDER {
 		glBindVertexArray(0);
 	}
 
-	Group->PushOutline = false;
-
 	HDC hdc = GetDC(Window);
     SwapBuffers(hdc);
-
     ReleaseDC(Window, hdc);
 }
