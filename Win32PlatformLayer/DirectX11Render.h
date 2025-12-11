@@ -28,6 +28,7 @@ struct directX_vertex_buffer {
 
 typedef directX_vertex_buffer directX_mesh_buffer;
 typedef directX_vertex_buffer directX_font_buffer;
+typedef directX_vertex_buffer directX_heightmap_buffer;
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Shaders                                                                                                                                                          |
@@ -177,6 +178,7 @@ struct directX {
     ID3D11Buffer* ConstantBuffer[directX_constant_buffer_id_count];
     directX_mesh_buffer MeshBuffer[game_mesh_id_count];
     directX_font_buffer FontBuffer[game_font_id_count];
+    directX_heightmap_buffer HeightmapBuffer;
     uint32 MSAASamples;
     // float DPI;
     bool Initialized;
@@ -1276,6 +1278,17 @@ RENDERER_INITIALIZE {
         CreateBuffer(&Buffer->IndexBuffer, ElementsSize, D3D11_BIND_INDEX_BUFFER, false, Font->Elements);
     }
 
+    // Heightmap buffer
+    const int nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
+    float Vertices[2*nVertices];
+    GenerateHeightmapVertices(Vertices);
+    CreateBuffer(&DirectX.HeightmapBuffer.VertexBuffer, 2*nVertices*sizeof(float), D3D11_BIND_VERTEX_BUFFER, false, Vertices);
+
+    const int nElements = 4 * (HEIGHTMAP_RESOLUTION - 1) * (HEIGHTMAP_RESOLUTION - 1);
+    uint32 Elements[nElements];
+    GenerateHeightmapElements(Elements);
+    CreateBuffer(&DirectX.HeightmapBuffer.IndexBuffer, nElements*sizeof(uint32), D3D11_BIND_INDEX_BUFFER, false, Elements);
+
     // Constant buffers
     CreateConstantBuffer(global_buffer);
     CreateConstantBuffer(color_buffer);
@@ -1553,10 +1566,11 @@ RENDERER_RENDER {
                     SetTextBuffer(Options.Pen, Options.TextSize);
                 }
                 else if (Options.Heightmap) {
-                    LayoutID = vertex_layout_v3_v2_id;
+                    LayoutID = vertex_layout_v2_id;
                     VertexShaderID = Vertex_Shader_Heightmap_ID;
                     PixelShaderID = Pixel_Shader_Heightmap_ID;
-                    VertexBuffer = &DirectX.VertexBuffer[LayoutID];
+                    VertexBuffer = &DirectX.HeightmapBuffer.VertexBuffer;
+                    IndexBuffer = DirectX.HeightmapBuffer.IndexBuffer;
                     DirectX.DeviceContext->HSSetShader(DirectX.HullShader[Hull_Shader_Heightmap_ID].Shader, NULL, 0);
                     DirectX.DeviceContext->DSSetShader(DirectX.DomainShader[Domain_Shader_Heightmap_ID].Shader, NULL, 0);
 

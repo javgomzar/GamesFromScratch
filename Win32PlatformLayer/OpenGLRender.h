@@ -291,7 +291,15 @@ struct openGL_mesh_buffer {
 	uint32 EBO;
 };
 
-;const char* OpenGLVertexTypeTokens[vertex_type_count] = {
+struct openGL_heightmap_buffer {
+	uint32 nVertices;
+	uint32 nElements;
+	uint32 VAO;
+	uint32 VBO;
+	uint32 EBO;
+};
+
+const char* OpenGLVertexTypeTokens[vertex_type_count] = {
 	"",
     "float",
     "vec2",
@@ -459,6 +467,7 @@ ENUM(openGL_shader_id,
     Vertex_Shader_Bones_ID,
     Vertex_Shader_Barycentric_ID,
 	Vertex_Shader_Sky_ID,
+	Vertex_Shader_Heightmap_ID,
 
     // Tessellation control shaders
     TESC_Heightmap_ID,
@@ -618,6 +627,7 @@ struct openGL {
 	openGL_framebuffer Target[render_group_target_count];
 	openGL_mesh_buffer MeshBuffer[game_mesh_id_count];
 	openGL_font_buffer FontBuffer[game_font_id_count];
+	openGL_heightmap_buffer HeightmapBuffer;
 	uint32 Texture[game_bitmap_id_count];
 	uint32 Heightmap[game_heightmap_id_count];
 	openGL_shader Shader[openGL_shader_id_count];
@@ -1422,14 +1432,32 @@ RENDERER_INITIALIZE {
 				ElementsSize += 3 * sizeof(uint32) * Character->nSolidTriangles;
 			}
 
-			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, 0);
-			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, 0);
+			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, NULL);
+			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, NULL);
 
 			vertex_layout Layout = Assets->VertexLayout[vertex_layout_v2_v2_id];
-
 			EnableVertexLayout(FontBuffer->VAO, FontBuffer->VBO, Layout);
 			glVertexArrayElementBuffer(FontBuffer->VAO, FontBuffer->EBO);
 		}
+
+		// Heightmap vertices
+		openGL_heightmap_buffer* HeightmapBuffer = &OpenGL.HeightmapBuffer;
+		*HeightmapBuffer = {};
+		glCreateVertexArrays(1, &HeightmapBuffer->VAO);
+		glCreateBuffers(1, &HeightmapBuffer->VBO);
+		glCreateBuffers(1, &HeightmapBuffer->EBO);
+
+		const int nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
+		float Vertices[2*nVertices];
+		GenerateHeightmapVertices(Vertices);
+		glNamedBufferStorage(HeightmapBuffer->VBO, nVertices * 2 * sizeof(float), Vertices, NULL);
+
+		const int nElements = 4 * (HEIGHTMAP_RESOLUTION - 1) * (HEIGHTMAP_RESOLUTION - 1);
+		uint32 Elements[nElements];
+		GenerateHeightmapElements(Elements);
+		glNamedBufferStorage(HeightmapBuffer->EBO, nElements * sizeof(uint32), Elements, NULL);
+		EnableVertexLayout(HeightmapBuffer->VAO, HeightmapBuffer->VBO, Assets->VertexLayout[vertex_layout_v2_id]);
+		glVertexArrayElementBuffer(HeightmapBuffer->VAO, HeightmapBuffer->EBO);
 
 	// Compiling & attaching shaders
 		OpenGL.nSamplers = 0;
@@ -1442,6 +1470,7 @@ RENDERER_INITIALIZE {
 		LoadShader(Vertex_Shader_Bones_ID,                    "GameAssets\\Shaders\\GLSL\\Vertex\\Bones.vert");
 		LoadShader(Vertex_Shader_Barycentric_ID,              "GameAssets\\Shaders\\GLSL\\Vertex\\Barycentric.vert");
 		LoadShader(Vertex_Shader_Sky_ID,                      "GameAssets\\Shaders\\GLSL\\Vertex\\Sky.vert");
+		LoadShader(Vertex_Shader_Heightmap_ID,                "GameAssets\\Shaders\\GLSL\\Vertex\\Heightmap.vert");
 
 		// Geometry
 		LoadShader(Geometry_Shader_Test_ID,                   "GameAssets\\Shaders\\GLSL\\Geometry\\Test.geom");
@@ -1492,9 +1521,9 @@ RENDERER_INITIALIZE {
     	LoadPipeline(Shader_Pipeline_Debug_Normals_ID,       3, Vertex_Shader_Bones_ID,
                                                                Geometry_Shader_Debug_Normals_ID, Fragment_Shader_Single_Color_ID);
     	//LoadPipeline(Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
-    	LoadPipeline(Shader_Pipeline_Heightmap_ID,           4, Vertex_Shader_Passthrough3_ID, 
+    	LoadPipeline(Shader_Pipeline_Heightmap_ID,           4, Vertex_Shader_Heightmap_ID, 
 		                                                   TESC_Heightmap_ID, TESE_Heightmap_ID, Fragment_Shader_Heightmap_ID);
-    	LoadPipeline(Shader_Pipeline_Trochoidal_ID,          4, Vertex_Shader_Passthrough3_ID, 
+    	LoadPipeline(Shader_Pipeline_Trochoidal_ID,          4, Vertex_Shader_Heightmap_ID, 
 		                                                  TESC_Heightmap_ID, TESE_Trochoidal_ID, Fragment_Shader_Sea_ID);
 		LoadPipeline(Shader_Pipeline_Text_Outline_ID,        4, Vertex_Shader_Barycentric_ID, 
 																 TESC_Bezier_ID, TESE_Bezier_ID, Fragment_Shader_Single_Color_ID);
@@ -1630,26 +1659,37 @@ RENDERER_RENDER {
 				// Texture
 				SetColorUniform(DrawCommand.Color);
 				uint32 TextureHandle = 0;
-				if (Options.Heightmap) {
-					TextureHandle = OpenGL.Heightmap[Options.Heightmap->ID];
-				}
-				if (Options.Texture) {
-					TextureHandle = OpenGL.Texture[Options.Texture->ID];
-				}
+				if      (Options.Heightmap) TextureHandle = OpenGL.Heightmap[Options.Heightmap->ID];
+				else if (Options.Texture)   TextureHandle = OpenGL.Texture[Options.Texture->ID];
 				BindTexture(ProgramID, TextureHandle, 0);
 
-				// Uniforms
-				if (Options.Font) {
-					SetTextUniforms(Options.TextSize, Options.Pen);
+				// Draw subtypes
+				GLenum Primitive = GetRenderPrimitive(DrawCommand.Primitive);
+				if (DrawCommand.Primitive == render_primitive_patches) {
+					Assert(DrawCommand.Options.PatchParameter <= OpenGL.MaxPatchParameter, 
+						"OpenGL: Patch parameter in draw command is greater than max patch parameter.");
+					glPatchParameteri(GL_PATCH_VERTICES, DrawCommand.Options.PatchParameter);
 				}
-
+				
+				uint32 VAO = 0;
+				vertex_buffer_entry VertexEntry = DrawCommand.VertexEntry;
+				element_buffer_entry ElementEntry = DrawCommand.ElementEntry;
 				if (Options.Mesh) {
-					if (Options.Armature) {
-						SetBoneUniforms(Options.Armature);
-					}
+					VAO = OpenGL.MeshBuffer[Options.Mesh->ID].VAO;
+					if (Options.Armature) SetBoneUniforms(Options.Armature);
 					matrix4 Model = Matrix(Options.Transform);
 					SetModelUniforms(Model);
 				}
+				else if (Options.Font) {
+					VAO = OpenGL.FontBuffer[Options.Font->ID].VAO;
+					SetTextUniforms(Options.TextSize, Options.Pen);
+				}
+				else if (Options.Heightmap) {
+					VAO = OpenGL.HeightmapBuffer.VAO;
+					matrix4 Model = Matrix(Options.Transform);
+					SetModelUniforms(Model);
+				}
+				else VAO = OpenGL.VAOs[VertexEntry.LayoutID];
 
 				// Line thickness
 				if (Options.Thickness != CurrentLineWidth) {
@@ -1658,19 +1698,12 @@ RENDERER_RENDER {
 				}
 
 				// Depth testing and alpha blending
-				if (DrawCommand.Options.Flags & DEPTH_TEST_FLAG) {
-					glDepthFunc(GL_LESS);
-				}
-				else glDepthFunc(GL_ALWAYS);
+				if (DrawCommand.Options.Flags & DEPTH_TEST_FLAG) glDepthFunc(GL_LESS);
+				else                                             glDepthFunc(GL_ALWAYS);
 				glDepthMask(GL_TRUE);
 
 				if (Options.Flags & OVERWRITE_ALPHA_FLAG) glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
 				else                                      glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-				// Vertices and elements
-				GLenum Primitive = GetRenderPrimitive(DrawCommand.Primitive);
-				vertex_buffer_entry VertexEntry = DrawCommand.VertexEntry;
-				element_buffer_entry ElementEntry = DrawCommand.ElementEntry;
 
 				// vertex_layout DebugLayout = Group->Assets->VertexLayouts[VertexEntry.LayoutID];
 				// float DebugVertices[100];
@@ -1678,18 +1711,6 @@ RENDERER_RENDER {
 
 				// uint32 DebugElements[100];
 				// memcpy(DebugElements, (uint32*)(Group->VertexBuffer.Elements.Base) + ElementEntry.Offset, 100*sizeof(uint32));
-
-				if (DrawCommand.Primitive == render_primitive_patches) {
-					if (DrawCommand.Options.PatchParameter > OpenGL.MaxPatchParameter) {
-						Raise("OpenGL: Patch parameter in draw command is greater than max patch parameter.");
-					}
-					glPatchParameteri(GL_PATCH_VERTICES, DrawCommand.Options.PatchParameter);
-				}
-
-				uint32 VAO = 0;
-				if      (Options.Mesh) VAO = OpenGL.MeshBuffer[Options.Mesh->ID].VAO;
-				else if (Options.Font) VAO = OpenGL.FontBuffer[Options.Font->ID].VAO;
-				else                   VAO = OpenGL.VAOs[VertexEntry.LayoutID];
 
 				glBindVertexArray(VAO);
 				if (ElementEntry.Count > 0) {
@@ -1711,6 +1732,9 @@ RENDERER_RENDER {
 					}
 
 					ClearBoneUniforms();
+				}
+
+				if (Options.Mesh || Options.Heightmap) {
 					ClearModelUniforms();
 				}
 			} break;

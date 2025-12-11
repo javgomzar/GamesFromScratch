@@ -17,7 +17,6 @@ cbuffer Transforms: register(b3) {
 
 struct HS_OUT {
     float3 Position: POSITION;
-    float2 Texture: TEXCOORD0;
 };
 
 struct DS_OUT {
@@ -41,10 +40,10 @@ DS_OUT main(
     float u = UV.x;
     float v = UV.y;
 
-    float2 T00 = Patch[0].Texture;
-    float2 T01 = Patch[1].Texture;
-    float2 T10 = Patch[2].Texture;
-    float2 T11 = Patch[3].Texture;
+    float2 T00 = Patch[0].Position.xz;
+    float2 T01 = Patch[1].Position.xz;
+    float2 T10 = Patch[2].Position.xz;
+    float2 T11 = Patch[3].Position.xz;
 
     float2 T0 = lerp(T01, T00, u);
     float2 T1 = lerp(T11, T10, u);
