@@ -1303,6 +1303,23 @@ void ResizeWindow(int32 Width, int32 Height) {
     HRESULT Result;
     DirectX.DeviceContext->OMSetRenderTargets(0, NULL, NULL);
 
+    // Resize staging texture for screen capture
+    DirectX.StagingTexture->Release();
+    D3D11_TEXTURE2D_DESC StagingDescription;
+    DirectX.Target[Target_None].Texture->GetDesc(&StagingDescription);
+
+    StagingDescription.Width = Width;
+    StagingDescription.Height = Height;
+    StagingDescription.Usage = D3D11_USAGE_STAGING;
+    StagingDescription.BindFlags = 0;
+    StagingDescription.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    StagingDescription.MiscFlags = 0;
+
+    Result = DirectX.Device->CreateTexture2D(&StagingDescription, 0, &DirectX.StagingTexture);
+    if (FAILED(Result)) {
+        Log(Error, "DirectX: Staging texture creation failed.");
+    }
+
     // Resize back buffer and corresponding depth/stencil buffer
     DirectX.Target[Target_None].View->Release();
     DirectX.Target[Target_None].Texture->Release();
@@ -1348,6 +1365,7 @@ void ResizeWindow(int32 Width, int32 Height) {
         }
     }
 
+    // Resize render targets
     for (int i = 1; i < render_group_target_count; i++) {
         directX_render_target* Target = &DirectX.Target[i];
         Target->View->Release();
@@ -1360,6 +1378,7 @@ void ResizeWindow(int32 Width, int32 Height) {
         CreateTarget(Width, Height, Target->Description);
     }
 
+    // Resize viewport
     DirectX.Viewport.Width = Width;
     DirectX.Viewport.Height = Height;
     DirectX.DeviceContext->RSSetViewports(1, &DirectX.Viewport);
