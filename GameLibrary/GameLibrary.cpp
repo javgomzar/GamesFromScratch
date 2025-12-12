@@ -42,14 +42,14 @@ extern "C" GAME_UPDATE(GameUpdate)
         Memory->IsInitialized = true;
     }
 
-    PushClear(Group, Orange, Target_None);
+    PushClear(Group, Black, Target_None);
     PushClear(Group, { 0 }, Target_World);
     PushClear(Group, { 0 }, Target_Outline);
     PushClear(Group, { 0 }, Target_Postprocessing_Outline);
     PushClear(Group, Magenta, Target_PingPong);
-    PushClear(Group, BackgroundBlue, Target_Output);
+    PushClear(Group, Black, Target_Output);
 
-    UpdateEntities(Group, State, Input);
+    UpdateGameState(Group, State, Input);
     
     // GameOutputSound(Assets, SoundBuffer, State, Input);
 
@@ -59,7 +59,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     UpdateUI(Memory, Input);
 
-    PushRenderTarget(Group, Target_World);
+    PushSky(Group);
+
+    PushRenderTarget(Group, Target_World, Target_Output);
 
     static bool Screenshot = false;
     if (Input->Keyboard.F10.WasDown && !Input->Keyboard.F10.IsDown) {
@@ -78,7 +80,7 @@ extern "C" GAME_UPDATE(GameUpdate)
             PushRect(Group, ScreenRect, ChangeAlpha(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
-    PushRenderTarget(Group, Target_Output, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
+    PushRenderTarget(Group, Target_Output, Target_None, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
 }
     Memory->nTimeRecordsLibrary = __COUNTER__;
     if (Group->Debug) {

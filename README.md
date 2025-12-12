@@ -30,12 +30,15 @@ The OS interface has been abstracted in order to support different platforms. Ri
 - Custom build system with MSVC support.
 
 ## Rendering
-The rendering is done with modern OpenGL 4.5 pipelines and GLSL shaders. Vulkan support is planned for the future and started, but a lot more work needs to be done. Some of the rendering capabilities are:
+The rendering is done with modern OpenGL 4.5 pipelines and GLSL shaders. DirectX11 support is advanced but not finished yet. Vulkan support is planned for the future and started, but a lot more work needs to be done. Some of the rendering capabilities are:
 - Vectorized font rendering with Bézier curves.
 - Textured rendering of 3D meshes with Phong reflection model.
 - Heightmap rendering from texture with tessellation shaders.
 - Kernel operators on textures with compute shader.
 - Outlines for 3D meshes using the Jump Flooding Algorithm with compute shaders. Inspired by [The Quest for Very Wide Outlines](https://bgolus.medium.com/the-quest-for-very-wide-outlines-ba82ed442cd9), by Ben Golus.
+- Sky rendering with realistic Rayleigh and Mie scattering.
+
+Shaders are loaded and compiled at runtime, with hot reloading available for GLSL and HLSL shaders.
 
 ## Assets
 Custom asset system that loads all assets at startup, allocating the necessary memory. Supported asset types are:
@@ -43,8 +46,7 @@ Custom asset system that loads all assets at startup, allocating the necessary m
 - **Bitmaps**: Custom bitmap (.bmp) loading code, including GPU buffering.
 - **Meshes**: Custom format (.mdl) for 3D models, including a python script to export from Blender.
 - **Sounds**: WAV format (.wav) supported for audio.
-- **Animation**: Custom animation format (.anim) for skeletal animations. This format is not at all optimized or compressed and should not be used by anybody. It will probably be improved in the future.
-- **Shaders**: Support for loading shaders as text. The shader loading module preprocesses this text with a tokenizer and parses vertex layouts. Shaders can be hot-reloaded during gameplay.
+- **Animation**: Custom animation format (.anim) for skeletal animations. This format is not at all optimized or compressed and should not be used by anybody. It will probably be improved or abandoned in the future.
 
 ## Debugging
 Custom debugging library for code introspection and live debugging in-game. Introspection occurs in a pre-processing step before compilation, with a custom metaprogramming tool.

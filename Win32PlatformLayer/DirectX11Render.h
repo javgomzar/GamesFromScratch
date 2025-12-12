@@ -1,9 +1,11 @@
 #include "d3d11.h"
-#include "dxgi.h"
 #include "D3DCompiler.h"
 
-#pragma comment(lib, "d3d11.lib")
-#pragma comment(lib, "DXGI.lib")
+#ifdef _DEBUG
+#include "dxgidebug.h"
+#else
+#include "dxgi.h"
+#endif
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Buffers                                                                                                                                                     |
@@ -16,6 +18,7 @@ struct directX_render_target {
     ID3D11ShaderResourceView* ShaderTexture;
     ID3D11Texture2D* AttachmentTexture;
     ID3D11DepthStencilView* Attachment;
+    ID3D11UnorderedAccessView* UnorderedAccessView;
 };
 
 struct directX_vertex_buffer {
@@ -25,6 +28,7 @@ struct directX_vertex_buffer {
 
 typedef directX_vertex_buffer directX_mesh_buffer;
 typedef directX_vertex_buffer directX_font_buffer;
+typedef directX_vertex_buffer directX_heightmap_buffer;
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Shaders                                                                                                                                                          |
@@ -39,7 +43,8 @@ ENUM(directX_Vertex_Shader_ID,
     Vertex_Shader_Perspective_Texture_ID,
     Vertex_Shader_Mesh_ID,
     Vertex_Shader_Bones_ID,
-    Vertex_Shader_Heightmap_ID
+    Vertex_Shader_Heightmap_ID,
+    Vertex_Shader_Sky_ID
 );
 
 ENUM(directX_Hull_Shader_ID,
@@ -61,7 +66,8 @@ ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Mesh_ID,
     Pixel_Shader_Bezier_Exterior_ID,
     Pixel_Shader_Bezier_Interior_ID,
-    Pixel_Shader_Heightmap_ID
+    Pixel_Shader_Heightmap_ID,
+    Pixel_Shader_Sky_ID
 );
 
 ENUM(directX_Compute_Shader_ID,
@@ -90,7 +96,8 @@ ENUM(directX_constant_buffer_id,
     color_buffer_id,
     transform_buffer_id,
     bone_buffer_id,
-    text_buffer_id
+    text_buffer_id,
+    outline_buffer_id
 );
 
 struct alignas(16) global_buffer {
@@ -134,6 +141,11 @@ struct alignas(16) light_buffer {
 	float Diffuse;
 };
 
+struct alignas(16) outline_buffer {
+    float Width;
+    int Level;
+};
+
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Initialization                                                                                                                                                   |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -143,6 +155,7 @@ struct directX {
     IDXGISwapChain* SwapChain;
     ID3D11Device* Device;
     ID3D11DeviceContext* DeviceContext;
+    ID3D11Texture2D* StagingTexture;
     directX_render_target Target[render_group_target_count];
     ID3D11BlendState* CombineAlpha;
     ID3D11BlendState* OverwriteAlpha;
@@ -165,6 +178,7 @@ struct directX {
     ID3D11Buffer* ConstantBuffer[directX_constant_buffer_id_count];
     directX_mesh_buffer MeshBuffer[game_mesh_id_count];
     directX_font_buffer FontBuffer[game_font_id_count];
+    directX_heightmap_buffer HeightmapBuffer;
     uint32 MSAASamples;
     // float DPI;
     bool Initialized;
@@ -186,15 +200,16 @@ void CreateTarget(uint32 Width, uint32 Height, render_group_target_description T
     TextureDescription.CPUAccessFlags = 0;
     TextureDescription.MiscFlags = 0;
     TextureDescription.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-        
+    if (!TargetDescription.Multisample) TextureDescription.BindFlags |= D3D11_BIND_UNORDERED_ACCESS;
+    
     TextureDescription.SampleDesc.Quality = 0;
     TextureDescription.SampleDesc.Count = TargetDescription.Multisample ? DirectX.MSAASamples : 1;
         
     switch(TargetDescription.Format) {
-        case Color_Format_R:    { TextureDescription.Format = DXGI_FORMAT_R8_UNORM; } break;
-        case Color_Format_RG:   { TextureDescription.Format = DXGI_FORMAT_R8G8_UNORM; } break;
-        case Color_Format_RGB:  { TextureDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM; } break;
-        case Color_Format_RGBA: { TextureDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM; } break;
+        case Color_Format_R:    { TextureDescription.Format = DXGI_FORMAT_R32_FLOAT; } break;
+        case Color_Format_RG:   { TextureDescription.Format = DXGI_FORMAT_R32G32_FLOAT; } break;
+        case Color_Format_RGB:  { TextureDescription.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; } break;
+        case Color_Format_RGBA: { TextureDescription.Format = DXGI_FORMAT_R32G32B32A32_FLOAT; } break;
         default: Raise("DirectX: Invalid color format creating render target.");
     }
 
@@ -207,9 +222,20 @@ void CreateTarget(uint32 Width, uint32 Height, render_group_target_description T
         TargetDescription.Multisample ? D3D11_SRV_DIMENSION_TEXTURE2DMS : D3D11_SRV_DIMENSION_TEXTURE2D;
     ShaderResourceViewDescription.Texture2D.MostDetailedMip = 0;
     ShaderResourceViewDescription.Texture2D.MipLevels = -1;
-    DirectX.Device->CreateShaderResourceView(Target->Texture, &ShaderResourceViewDescription, &Target->ShaderTexture);
+    Result = DirectX.Device->CreateShaderResourceView(Target->Texture, &ShaderResourceViewDescription, &Target->ShaderTexture); 
+    if (FAILED(Result)) Raise("DirectX: Shader resource view for target texture failed.");
 
-    DirectX.Device->CreateRenderTargetView(Target->Texture, NULL, &Target->View);
+    if (!TargetDescription.Multisample) {
+        D3D11_UNORDERED_ACCESS_VIEW_DESC UAVDescription;
+        UAVDescription.Format = TextureDescription.Format;
+        UAVDescription.ViewDimension = D3D11_UAV_DIMENSION_TEXTURE2D;
+        UAVDescription.Texture2D.MipSlice = 0;
+        Result = DirectX.Device->CreateUnorderedAccessView(Target->Texture, &UAVDescription, &Target->UnorderedAccessView);
+        if (FAILED(Result)) Raise("DirectX: Unordered access view creation for target failed.");
+    }
+
+    Result = DirectX.Device->CreateRenderTargetView(Target->Texture, NULL, &Target->View);
+    if (FAILED(Result)) Raise("DirectX: Target creation failed.");
 
     if (TargetDescription.Depth || TargetDescription.Stencil) {
         TextureDescription.BindFlags = D3D11_BIND_DEPTH_STENCIL;
@@ -223,7 +249,8 @@ void CreateTarget(uint32 Width, uint32 Height, render_group_target_description T
         RenderTargetDepthStencilViewDescription.ViewDimension = 
             TargetDescription.Multisample ? D3D11_DSV_DIMENSION_TEXTURE2DMS : D3D11_DSV_DIMENSION_TEXTURE2D;
         RenderTargetDepthStencilViewDescription.Texture2D.MipSlice = 0;
-        DirectX.Device->CreateDepthStencilView(Target->AttachmentTexture, &RenderTargetDepthStencilViewDescription, &Target->Attachment);
+        Result = DirectX.Device->CreateDepthStencilView(Target->AttachmentTexture, &RenderTargetDepthStencilViewDescription, &Target->Attachment);
+        if (FAILED(Result)) Raise("DirectX: Depth/stencil view creation failed.");
     }
 }
 
@@ -235,18 +262,18 @@ void BindTarget(render_group_target Target) {
 ID3D11ShaderResourceView* CreateTexture(uint32 Width, uint32 Height, void* Data = NULL) {
     ID3D11Texture2D* Texture = NULL;
 
-    D3D11_TEXTURE2D_DESC DepthBufferDescription = {};
-    DepthBufferDescription.Width = Width;
-    DepthBufferDescription.Height = Height;
-    DepthBufferDescription.MipLevels = 1;
-    DepthBufferDescription.ArraySize = 1;
-    DepthBufferDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    DepthBufferDescription.SampleDesc.Count = 1;
-    DepthBufferDescription.SampleDesc.Quality = 0;
-    DepthBufferDescription.Usage = D3D11_USAGE_DEFAULT;
-    DepthBufferDescription.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    DepthBufferDescription.CPUAccessFlags = 0;
-    DepthBufferDescription.MiscFlags = 0;
+    D3D11_TEXTURE2D_DESC Description = {};
+    Description.Width = Width;
+    Description.Height = Height;
+    Description.MipLevels = 1;
+    Description.ArraySize = 1;
+    Description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    Description.SampleDesc.Count = 1;
+    Description.SampleDesc.Quality = 0;
+    Description.Usage = D3D11_USAGE_DEFAULT;
+    Description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    Description.CPUAccessFlags = 0;
+    Description.MiscFlags = 0;
 
     D3D11_SUBRESOURCE_DATA ResourceData = {};
     if (Data) {
@@ -255,16 +282,16 @@ ID3D11ShaderResourceView* CreateTexture(uint32 Width, uint32 Height, void* Data 
         ResourceData.SysMemSlicePitch = 4 * Width * Height;
     }
 
-    HRESULT hResult = DirectX.Device->CreateTexture2D(&DepthBufferDescription, Data ? &ResourceData : NULL, &Texture);
+    HRESULT hResult = DirectX.Device->CreateTexture2D(&Description, Data ? &ResourceData : NULL, &Texture);
     if (FAILED(hResult)) Raise("DirectX: Texture creation failed.");
 
     ID3D11ShaderResourceView* Result = NULL;
-    D3D11_SHADER_RESOURCE_VIEW_DESC Description = {};
-    Description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    Description.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    Description.Texture2D.MostDetailedMip = 0;
-    Description.Texture2D.MipLevels = -1;
-    DirectX.Device->CreateShaderResourceView(Texture, &Description, &Result);
+    D3D11_SHADER_RESOURCE_VIEW_DESC ResourceDescription = {};
+    ResourceDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    ResourceDescription.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    ResourceDescription.Texture2D.MostDetailedMip = 0;
+    ResourceDescription.Texture2D.MipLevels = -1;
+    DirectX.Device->CreateShaderResourceView(Texture, &ResourceDescription, &Result);
 
     return Result;
 }
@@ -326,6 +353,7 @@ void SetGlobalBuffer(int32 Width, int32 Height, camera* Camera, game_input* Inpu
         DirectX.DeviceContext->DSSetConstantBuffers(0, 1, &GlobalBuffer);
         DirectX.DeviceContext->GSSetConstantBuffers(0, 1, &GlobalBuffer);
         DirectX.DeviceContext->PSSetConstantBuffers(0, 1, &GlobalBuffer);
+        DirectX.DeviceContext->CSSetConstantBuffers(0, 1, &GlobalBuffer);
     }
 }
 
@@ -352,6 +380,7 @@ void SetColorBuffer(color Color) {
         Buffer->Color = Color;
         DirectX.DeviceContext->Unmap(ColorBuffer, 0);
         DirectX.DeviceContext->PSSetConstantBuffers(2, 1, &ColorBuffer);
+        DirectX.DeviceContext->CSSetConstantBuffers(2, 1, &ColorBuffer);
     }
 }
 
@@ -403,6 +432,19 @@ void SetTextBuffer(v2 Pen, float Size) {
         Buffer->Size = Size;
         DirectX.DeviceContext->Unmap(TextBuffer, 0);
         DirectX.DeviceContext->VSSetConstantBuffers(7, 1, &TextBuffer);
+    }
+}
+
+void SetOutlineBuffer(float Width, int Level) {
+    ID3D11Buffer* OutlineBuffer = DirectX.ConstantBuffer[outline_buffer_id];
+    void* MappedBuffer = GetMappedBuffer(OutlineBuffer);
+    if (MappedBuffer) {
+        outline_buffer* Buffer = (outline_buffer*)MappedBuffer;
+        Buffer->Width = Width;
+        Buffer->Level = Level;
+        DirectX.DeviceContext->Unmap(OutlineBuffer, 0);
+        DirectX.DeviceContext->PSSetConstantBuffers(5, 1, &OutlineBuffer);
+        DirectX.DeviceContext->CSSetConstantBuffers(5, 1, &OutlineBuffer);
     }
 }
 
@@ -479,17 +521,17 @@ ID3DBlob* CompileShader(read_file_result* File, const char* Path) {
 
     const char* Extension = GetFileExtension(Path);
     const char* Target = nullptr;
-    if      (strcmp(Extension, "vsh") == 0) Target = "vs_5_0";
-    else if (strcmp(Extension, "hsh") == 0) Target = "hs_5_0";
-    else if (strcmp(Extension, "dsh") == 0) Target = "ds_5_0";
-    else if (strcmp(Extension, "gsh") == 0) Target = "gs_5_0";
-    else if (strcmp(Extension, "psh") == 0) Target = "ps_5_0";
-    else if (strcmp(Extension, "csh") == 0) Target = "cs_5_0";
+    if      (strcmp(Extension, "vsh") == 0)     Target = "vs_5_0";
+    else if (strcmp(Extension, "hsh") == 0)     Target = "hs_5_0";
+    else if (strcmp(Extension, "dsh") == 0)     Target = "ds_5_0";
+    else if (strcmp(Extension, "gsh") == 0)     Target = "gs_5_0";
+    else if (strcmp(Extension, "psh") == 0)     Target = "ps_5_0";
+    else if (strcmp(Extension, "compute") == 0) Target = "cs_5_0";
     else    Raise("DirectX: Invalid shader extension.");
 
     ID3DBlob* Errors = nullptr;
     ID3DBlob* Blob = nullptr;
-    UINT Flags = D3D10_SHADER_PACK_MATRIX_ROW_MAJOR;
+    UINT Flags = D3D10_SHADER_PACK_MATRIX_ROW_MAJOR | D3DCOMPILE_DEBUG;
     HRESULT Result = D3DCompile(
         File->Content, 
         File->ContentSize, 
@@ -505,7 +547,7 @@ ID3DBlob* CompileShader(read_file_result* File, const char* Path) {
     );
 
     if (FAILED(Result)) {
-        char ErrorBuffer[1024];
+        char ErrorBuffer[4096];
         sprintf_s(ErrorBuffer, "DirectX: Failure trying to compile shader: %s", (char*)Errors->GetBufferPointer());
         Log(Error, ErrorBuffer);
         return nullptr;
@@ -574,7 +616,7 @@ void LoadShader(directX_Vertex_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating vertex shader %s", Path);
             Log(Error, TextBuffer);
@@ -628,7 +670,7 @@ void LoadShader(directX_Pixel_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating pixel shader %s", Path);
             Log(Error, TextBuffer);
@@ -655,7 +697,7 @@ void LoadShader(directX_Hull_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating hull shader %s", Path);
             Log(Error, TextBuffer);
@@ -680,7 +722,7 @@ void LoadShader(directX_Domain_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating domain shader %s", Path);
             Log(Error, TextBuffer);
@@ -707,7 +749,7 @@ void LoadShader(directX_Geometry_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating geometry shader %s", Path);
             Log(Error, TextBuffer);
@@ -732,7 +774,7 @@ void LoadShader(directX_Compute_Shader_ID ID, const char* Path) {
             &Shader->Shader
         );
 
-        char TextBuffer[1024];
+        char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating compute shader %s", Path);
             Log(Error, TextBuffer);
@@ -880,8 +922,8 @@ void ReloadShader(directX_Compute_Shader* Shader) {
         );
 
         if (SUCCEEDED(Result)) {
-            Shader->Shader->Release();
-            Shader->Blob->Release();
+            if (Shader->Shader) Shader->Shader->Release();
+            if (Shader->Blob) Shader->Blob->Release();
             Shader->Blob = Blob;
             Shader->Shader = NewShader;
 
@@ -933,13 +975,13 @@ void ReloadShaders() {
         }
     }
 
-    // for (int i = 0; i < directX_Compute_Shader_ID_count; i++) {
-    //     directX_Compute_Shader* Shader = &DirectX.ComputeShader[i];
-    //     int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
-    //     if (LastWriteTime > Shader->File.Timestamp) {
-    //         ReloadShader(Shader);
-    //     }
-    // }
+    for (int i = 0; i < directX_Compute_Shader_ID_count; i++) {
+        directX_Compute_Shader* Shader = &DirectX.ComputeShader[i];
+        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
+        if (LastWriteTime > Shader->File.Timestamp) {
+            ReloadShader(Shader);
+        }
+    }
 }
 
 RENDERER_INITIALIZE {
@@ -947,51 +989,6 @@ RENDERER_INITIALIZE {
 
     DirectX = {};
     DirectX.Assets = Group->Assets;
-
-    // IDXGIFactory* Factory;
-    // Result = CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&Factory);
-    // if (FAILED(Result)) Raise("Couldn't initialize DirectX11 factory.");
-    
-    // IDXGIAdapter* Adapter;
-    // Result = Factory->EnumAdapters(0, &Adapter);
-    // if (FAILED(Result)) Raise("Couldn't get DirectX11 adapter.");
-    // DXGI_ADAPTER_DESC AdapterDescription;
-    // Result = Adapter->GetDesc((&AdapterDescription));
-    // if (FAILED(Result)) Raise("Couldn't get DirectX11 adapter description.");
-    
-    // IDXGIOutput* Output;
-    // Result = Adapter->EnumOutputs(0, &Output);
-    // if (FAILED(Result)) Raise("Couldn't get DirectX11 output.");
-
-    // uint32 NumModes = 0;
-    // Result = Output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_INTERLACED, &NumModes, NULL);
-    // if (FAILED(Result)) Raise("Couldn't get DirectX11 display mode list size.");
-
-    // DXGI_MODE_DESC* DisplayModes = new DXGI_MODE_DESC[NumModes];
-    // Result = Output->GetDisplayModeList(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_ENUM_MODES_INTERLACED, &NumModes, DisplayModes);
-    // if (FAILED(Result)) Raise("Couldn't get DirectX11 display mode list.");
-
-    // int32 DisplayWidth = 1440;
-    // int32 DisplayHeight = 1080;
-
-    // uint32 Numerator = 0;
-    // uint32 Denominator = 1;
-    // for (int i = 0; i < NumModes; i++) {
-    //     DXGI_MODE_DESC DisplayMode = DisplayModes[i];
-    //     if (DisplayMode.Width == DisplayWidth && DisplayMode.Height == DisplayHeight) {
-    //         Numerator = DisplayMode.RefreshRate.Numerator;
-    //         Denominator = DisplayMode.RefreshRate.Denominator;
-    //     }
-    // }
-
-    // delete [] DisplayModes;
-    // DisplayModes = NULL;
-    // Output->Release();
-    // Output = NULL;
-    // Adapter->Release();
-    // Adapter = NULL;
-    // Factory->Release();
-    // Factory = NULL;
 
     DXGI_FORMAT PixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
@@ -1019,14 +1016,18 @@ RENDERER_INITIALIZE {
     SwapChainDescription.Flags = 0;
 
     D3D_FEATURE_LEVEL FeatureLevel = D3D_FEATURE_LEVEL_11_0;
+    UINT CreateDeviceFlags = 0;
+#ifdef _DEBUG
+    CreateDeviceFlags |= D3D11_CREATE_DEVICE_DEBUG;
+#endif
     Result = D3D11CreateDeviceAndSwapChain(
-        NULL, 
-        D3D_DRIVER_TYPE_HARDWARE, 
-        NULL, 
-        D3D11_CREATE_DEVICE_DEBUG, 
-        &FeatureLevel, 
-        1, 
-        D3D11_SDK_VERSION, 
+        NULL,
+        D3D_DRIVER_TYPE_HARDWARE,
+        NULL,
+        CreateDeviceFlags,
+        &FeatureLevel,
+        1,
+        D3D11_SDK_VERSION,
         &SwapChainDescription,
         &DirectX.SwapChain,
         &DirectX.Device,
@@ -1044,7 +1045,7 @@ RENDERER_INITIALIZE {
 
     // Attaching backbuffer to swap chain
     ID3D11Texture2D** Backbuffer = &DirectX.Target[Target_None].Texture;
-    Result = DirectX.SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (LPVOID*)Backbuffer);
+    Result = DirectX.SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)Backbuffer);
     if (FAILED(Result)) Raise("Couldn't get DirectX backbuffer.");
 
     Result = DirectX.Device->CreateRenderTargetView(DirectX.Target[Target_None].Texture, NULL, &DirectX.Target[Target_None].View);
@@ -1063,8 +1064,7 @@ RENDERER_INITIALIZE {
     DepthBufferDescription.CPUAccessFlags = 0;
     DepthBufferDescription.MiscFlags = 0;
 
-    ID3D11Texture2D* DepthBuffer = NULL;
-    Result = DirectX.Device->CreateTexture2D(&DepthBufferDescription, NULL, &DepthBuffer);
+    Result = DirectX.Device->CreateTexture2D(&DepthBufferDescription, NULL, &DirectX.Target[Target_None].AttachmentTexture);
     if (FAILED(Result)) Raise("Couldn't create the depth/stencil buffer.");
 
     D3D11_DEPTH_STENCIL_DESC DepthStencilDescription = {};
@@ -1098,7 +1098,7 @@ RENDERER_INITIALIZE {
     DepthStencilViewDescription.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
     DepthStencilViewDescription.Texture2D.MipSlice = 0;
 
-    Result = DirectX.Device->CreateDepthStencilView(DepthBuffer, &DepthStencilViewDescription, &DirectX.Target[Target_None].Attachment);
+    Result = DirectX.Device->CreateDepthStencilView(DirectX.Target[Target_None].AttachmentTexture, &DepthStencilViewDescription, &DirectX.Target[Target_None].Attachment);
     if (FAILED(Result)) Raise("Couldn't create DirectX depth stencil view.");
 
     D3D11_RASTERIZER_DESC RasterizerDescription;
@@ -1108,7 +1108,7 @@ RENDERER_INITIALIZE {
 	RasterizerDescription.DepthBiasClamp = 0.0f;
 	RasterizerDescription.DepthClipEnable = true;
 	RasterizerDescription.FillMode = D3D11_FILL_SOLID;
-	RasterizerDescription.FrontCounterClockwise = false;
+	RasterizerDescription.FrontCounterClockwise = true;
 	RasterizerDescription.MultisampleEnable = true;
 	RasterizerDescription.ScissorEnable = false;
 	RasterizerDescription.SlopeScaledDepthBias = 0.0f;
@@ -1176,6 +1176,21 @@ RENDERER_INITIALIZE {
     }
 
 // Textures
+    DirectX.StagingTexture = NULL;
+
+    D3D11_TEXTURE2D_DESC StagingDescription;
+    DirectX.Target[Target_None].Texture->GetDesc(&StagingDescription);
+
+    StagingDescription.Usage = D3D11_USAGE_STAGING;
+    StagingDescription.BindFlags = 0;
+    StagingDescription.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    StagingDescription.MiscFlags = 0;
+
+    Result = DirectX.Device->CreateTexture2D(&StagingDescription, 0, &DirectX.StagingTexture);
+    if (FAILED(Result)) {
+        Log(Error, "DirectX: Staging texture creation failed.");
+    }
+
     for (int i = 0; i < game_bitmap_id_count; i++) {
         game_bitmap* Bitmap = &Group->Assets->Bitmap[i];
         DirectX.Texture[i] = CreateTexture(
@@ -1204,6 +1219,7 @@ RENDERER_INITIALIZE {
     LoadShader(Vertex_Shader_Bones_ID,               "GameAssets\\Shaders\\HLSL\\Vertex\\Bones.vsh");
     LoadShader(Vertex_Shader_Barycentric_ID,         "GameAssets\\Shaders\\HLSL\\Vertex\\Barycentric.vsh");
     LoadShader(Vertex_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Heightmap.vsh");
+    LoadShader(Vertex_Shader_Sky_ID,                 "GameAssets\\Shaders\\HLSL\\Vertex\\Sky.vsh");
 
     // Hull
     LoadShader(Hull_Shader_Heightmap_ID,             "GameAssets\\Shaders\\HLSL\\Hull\\Heightmap.hsh");
@@ -1222,6 +1238,12 @@ RENDERER_INITIALIZE {
     LoadShader(Pixel_Shader_Bezier_Exterior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierExterior.psh");
     LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
     LoadShader(Pixel_Shader_Heightmap_ID,            "GameAssets\\Shaders\\HLSL\\Pixel\\Heightmap.psh");
+    LoadShader(Pixel_Shader_Sky_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Sky.psh");
+
+    // Compute
+    LoadShader(Compute_Shader_Outline_Init_ID,       "GameAssets\\Shaders\\HLSL\\Compute\\OutlineInit.compute");
+    LoadShader(Compute_Shader_Jump_Flood_ID,         "GameAssets\\Shaders\\HLSL\\Compute\\JumpFlood.compute");
+    LoadShader(Compute_Shader_Outline_ID,            "GameAssets\\Shaders\\HLSL\\Compute\\Outline.compute");
 
 // Vertex buffers
     // Layout buffers
@@ -1256,6 +1278,17 @@ RENDERER_INITIALIZE {
         CreateBuffer(&Buffer->IndexBuffer, ElementsSize, D3D11_BIND_INDEX_BUFFER, false, Font->Elements);
     }
 
+    // Heightmap buffer
+    const int nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
+    float Vertices[2*nVertices];
+    GenerateHeightmapVertices(Vertices);
+    CreateBuffer(&DirectX.HeightmapBuffer.VertexBuffer, 2*nVertices*sizeof(float), D3D11_BIND_VERTEX_BUFFER, false, Vertices);
+
+    const int nElements = 4 * (HEIGHTMAP_RESOLUTION - 1) * (HEIGHTMAP_RESOLUTION - 1);
+    uint32 Elements[nElements];
+    GenerateHeightmapElements(Elements);
+    CreateBuffer(&DirectX.HeightmapBuffer.IndexBuffer, nElements*sizeof(uint32), D3D11_BIND_INDEX_BUFFER, false, Elements);
+
     // Constant buffers
     CreateConstantBuffer(global_buffer);
     CreateConstantBuffer(color_buffer);
@@ -1263,6 +1296,7 @@ RENDERER_INITIALIZE {
     CreateConstantBuffer(bone_buffer);
     CreateConstantBuffer(text_buffer);
     CreateConstantBuffer(light_buffer);
+    CreateConstantBuffer(outline_buffer);
 }
 
 D3D_PRIMITIVE_TOPOLOGY GetRenderPrimitive(render_primitive Primitive) {
@@ -1279,11 +1313,162 @@ D3D_PRIMITIVE_TOPOLOGY GetRenderPrimitive(render_primitive Primitive) {
 }
 
 void ResizeWindow(int32 Width, int32 Height) {
+    HRESULT Result;
+    DirectX.DeviceContext->OMSetRenderTargets(0, NULL, NULL);
 
+    // Resize staging texture for screen capture
+    DirectX.StagingTexture->Release();
+    D3D11_TEXTURE2D_DESC StagingDescription;
+    DirectX.Target[Target_None].Texture->GetDesc(&StagingDescription);
+
+    StagingDescription.Width = Width;
+    StagingDescription.Height = Height;
+    StagingDescription.Usage = D3D11_USAGE_STAGING;
+    StagingDescription.BindFlags = 0;
+    StagingDescription.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    StagingDescription.MiscFlags = 0;
+
+    Result = DirectX.Device->CreateTexture2D(&StagingDescription, 0, &DirectX.StagingTexture);
+    if (FAILED(Result)) {
+        Log(Error, "DirectX: Staging texture creation failed.");
+    }
+
+    // Resize back buffer and corresponding depth/stencil buffer
+    DirectX.Target[Target_None].View->Release();
+    DirectX.Target[Target_None].Texture->Release();
+    DirectX.Target[Target_None].Attachment->Release();
+    DirectX.Target[Target_None].AttachmentTexture->Release();
+    Result = DirectX.SwapChain->ResizeBuffers(2, Width, Height, DXGI_FORMAT_UNKNOWN, 0);
+    if (FAILED(Result)) {
+        Log(Error, "DirectX: Swap chain buffers resizing failed.");
+    }
+    else {
+        Result = DirectX.SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&DirectX.Target[Target_None].Texture);
+        if (FAILED(Result)) Log(Error, "DirectX: Swap chain texture fetching failed.");
+        else 
+            Result = DirectX.Device->CreateRenderTargetView(DirectX.Target[Target_None].Texture, NULL, &DirectX.Target[Target_None].View);
+        
+        D3D11_TEXTURE2D_DESC DepthBufferDescription = {};
+        DepthBufferDescription.Width = Width;
+        DepthBufferDescription.Height = Height;
+        DepthBufferDescription.MipLevels = 1;
+        DepthBufferDescription.ArraySize = 1;
+        DepthBufferDescription.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+        DepthBufferDescription.SampleDesc.Count = 1;
+        DepthBufferDescription.SampleDesc.Quality = 0;
+        DepthBufferDescription.Usage = D3D11_USAGE_DEFAULT;
+        DepthBufferDescription.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+        DepthBufferDescription.CPUAccessFlags = 0;
+        DepthBufferDescription.MiscFlags = 0;
+
+        Result = DirectX.Device->CreateTexture2D(&DepthBufferDescription, NULL, &DirectX.Target[Target_None].AttachmentTexture);
+        if (FAILED(Result)) Raise("DirectX: Depth/stencil buffer resize failed.");
+        else {
+            D3D11_DEPTH_STENCIL_VIEW_DESC DepthStencilViewDescription = {};
+            DepthStencilViewDescription.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+            DepthStencilViewDescription.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+            DepthStencilViewDescription.Texture2D.MipSlice = 0;
+
+            Result = DirectX.Device->CreateDepthStencilView(
+                DirectX.Target[Target_None].AttachmentTexture, 
+                &DepthStencilViewDescription, 
+                &DirectX.Target[Target_None].Attachment
+            );
+            if (FAILED(Result)) Raise("Couldn't create DirectX depth stencil view.");
+        }
+    }
+
+    // Resize render targets
+    for (int i = 1; i < render_group_target_count; i++) {
+        directX_render_target* Target = &DirectX.Target[i];
+        Target->View->Release();
+        Target->Texture->Release();
+        if (Target->Description.Depth || Target->Description.Stencil) {
+            Target->Attachment->Release();
+            Target->AttachmentTexture->Release();
+        }
+        Target->ShaderTexture->Release();
+        CreateTarget(Width, Height, Target->Description);
+    }
+
+    // Resize viewport
+    DirectX.Viewport.Width = Width;
+    DirectX.Viewport.Height = Height;
+    DirectX.DeviceContext->RSSetViewports(1, &DirectX.Viewport);
 }
 
 void ScreenCapture(int32 Width, int32 Height) {
+    ID3D11Texture2D* Backbuffer = DirectX.Target[Target_None].Texture;
+    DirectX.DeviceContext->CopyResource(DirectX.StagingTexture, Backbuffer);
 
+    D3D11_TEXTURE2D_DESC Desc;
+    DirectX.StagingTexture->GetDesc(&Desc);
+
+    D3D11_MAPPED_SUBRESOURCE MapInfo;
+    HRESULT Result = DirectX.DeviceContext->Map(DirectX.StagingTexture, 0, D3D11_MAP_READ, 0, &MapInfo);
+    if (FAILED(Result)) {
+        Log(Error, "DirectX: Screen capture failed");
+        return;
+    }
+
+    // Bitmap header
+    bitmap_header Header = {};
+    MakeBitmapHeader(&Header, Width, Height);
+
+    Header.RedMask = 0x000000ff;
+    Header.GreenMask = 0x0000ff00;
+    Header.BlueMask = 0x00ff0000;
+
+    // File name
+    time_t t = time(nullptr);
+    struct tm tm;
+    localtime_s(&tm, &t);
+    char Filename[100];
+    sprintf_s(Filename, "Captures/Screenshot %d-%02d-%02d_%02d-%02d-%02d.bmp",
+        tm.tm_year + 1900,
+        tm.tm_mon + 1,
+        tm.tm_mday,
+        tm.tm_hour,
+        tm.tm_min,
+        tm.tm_sec
+    );
+
+    HANDLE hFile = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
+    if (hFile != INVALID_HANDLE_VALUE) {
+        uint32 Size = Header.BitmapOffset + 4 * Width * Height;
+        HANDLE hMapping = CreateFileMappingA(hFile, NULL, PAGE_READWRITE, 0, Size, NULL);
+        if (!hMapping) {
+            DWORD WinError = GetLastError();
+            Log(Error, "Memory map for file returned invalid handle.");
+            Assert(false);
+        }
+
+        uint8* Memory = (uint8*)MapViewOfFile(hMapping, FILE_MAP_WRITE, 0, 0, Size);
+        memcpy(Memory, &Header, sizeof(bitmap_header));
+
+        uint8* PixelDst = Memory + Header.BitmapOffset;
+        uint8* Source = (uint8*)MapInfo.pData + (Height - 1)*MapInfo.RowPitch;
+        for (int i = 0; i < Height; i++) {
+            memcpy(PixelDst, Source, 4*Width);
+            Source -= MapInfo.RowPitch;
+            PixelDst += 4*Width;
+        }
+        
+        FlushViewOfFile(Memory, Size);
+        UnmapViewOfFile(Memory);
+        CloseHandle(hMapping);
+        CloseHandle(hFile);
+    }
+    else {
+        // Debug
+        DWORD WinError = GetLastError();
+        if (WinError == ERROR_PATH_NOT_FOUND) {
+            Log(Error, "Path not found.");
+        }
+        Assert(false);
+    }
+
+    DirectX.DeviceContext->Unmap(DirectX.StagingTexture, 0);
 }
 
 RENDERER_RENDER {
@@ -1305,6 +1490,7 @@ RENDERER_RENDER {
     SetGlobalBuffer(Group->Width, Group->Height, Camera, Input, Time);
     SetLightBuffer(Group->Light, Camera->Position + Camera->Distance * Camera->Basis.Z);
     ClearTransformBuffer();
+    ClearBoneBuffer();
 
     // Render entries
 	for (int i = 0; i < Group->EntryCount; i++) {
@@ -1314,10 +1500,9 @@ RENDERER_RENDER {
 			case render_clear: {
 				render_clear_command Clear = Group->Clears[Command.Index];
 
-                directX_render_target* Target = &DirectX.Target[Command.Index];
-
+                directX_render_target* Target = &DirectX.Target[Clear.Target];
                 float Color[4] = { Clear.Color.R, Clear.Color.G, Clear.Color.B, Clear.Color.Alpha };
-                BindTarget((render_group_target)Command.Index);
+                BindTarget(Clear.Target);
                 
                 DirectX.DeviceContext->ClearRenderTargetView(Target->View, Color);
                 if (Target->Attachment)
@@ -1334,11 +1519,14 @@ RENDERER_RENDER {
                 else
                     DirectX.DeviceContext->OMSetBlendState(DirectX.CombineAlpha, BlendFactors, 0xffffffff);
 
-                BindTarget(Target_World);
+                if (Options.Outline) BindTarget(Target_Outline);
+				else                 BindTarget(Target_World);
 
                 vertex_layout_id LayoutID;
                 ID3D11Buffer** VertexBuffer = NULL;
                 ID3D11Buffer* IndexBuffer = NULL;
+                vertex_buffer_entry VertexEntry = PrimitiveCommand.VertexEntry;
+                element_buffer_entry ElementEntry = PrimitiveCommand.ElementEntry;
                 directX_Vertex_Shader_ID VertexShaderID = Vertex_Shader_Screen_ID;
                 directX_Pixel_Shader_ID PixelShaderID = Pixel_Shader_Single_Color_ID;
                 uint32 Offset = 0;
@@ -1357,7 +1545,8 @@ RENDERER_RENDER {
                         LayoutID = vertex_layout_v3_v2_v3_id;
                         VertexShaderID = Vertex_Shader_Mesh_ID;
                     }
-                    PixelShaderID = Pixel_Shader_Mesh_ID;
+                    
+                    if (!Options.Outline) PixelShaderID = Pixel_Shader_Mesh_ID;
 
                     SetTransformBuffer(Options.Transform);
                 }
@@ -1372,33 +1561,38 @@ RENDERER_RENDER {
 
                     VertexBuffer = &DirectX.FontBuffer[Options.Font->ID].VertexBuffer;
                     IndexBuffer = DirectX.FontBuffer[Options.Font->ID].IndexBuffer;
-                    Offset = PrimitiveCommand.ElementEntry.Offset;
+                    Offset = ElementEntry.Offset;
 
                     SetTextBuffer(Options.Pen, Options.TextSize);
                 }
                 else if (Options.Heightmap) {
-                    LayoutID = vertex_layout_v3_v2_id;
+                    LayoutID = vertex_layout_v2_id;
                     VertexShaderID = Vertex_Shader_Heightmap_ID;
                     PixelShaderID = Pixel_Shader_Heightmap_ID;
-                    VertexBuffer = &DirectX.VertexBuffer[LayoutID];
+                    VertexBuffer = &DirectX.HeightmapBuffer.VertexBuffer;
+                    IndexBuffer = DirectX.HeightmapBuffer.IndexBuffer;
                     DirectX.DeviceContext->HSSetShader(DirectX.HullShader[Hull_Shader_Heightmap_ID].Shader, NULL, 0);
                     DirectX.DeviceContext->DSSetShader(DirectX.DomainShader[Domain_Shader_Heightmap_ID].Shader, NULL, 0);
 
                     SetTransformBuffer(Options.Transform);
                 }
                 else {
-                    LayoutID = PrimitiveCommand.VertexEntry.LayoutID;
+                    LayoutID = VertexEntry.LayoutID;
                     VertexBuffer = &DirectX.VertexBuffer[LayoutID];
-                    Offset = PrimitiveCommand.VertexEntry.Offset;
-                    if (PrimitiveCommand.ElementEntry.Count > 0) {
+                    Offset = VertexEntry.Offset;
+                    if (ElementEntry.Count > 0) {
                         IndexBuffer = DirectX.IndexBuffer;
-                        Offset = PrimitiveCommand.ElementEntry.Offset;
+                        Offset = ElementEntry.Offset;
                     }
                     VertexShaderID = Options.Flags & DEPTH_TEST_FLAG ? Vertex_Shader_Perspective_ID : Vertex_Shader_Screen_ID;
                         
                     if (Options.Texture) {
                         VertexShaderID = Vertex_Shader_Screen_Texture_ID;
                         PixelShaderID = Pixel_Shader_Texture_ID;
+                    }
+                    else if (Options.Flags & SKY_FLAG) {
+                        VertexShaderID = Vertex_Shader_Sky_ID;
+                        PixelShaderID = Pixel_Shader_Sky_ID;
                     }
                 }
 
@@ -1427,12 +1621,12 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilEnabled, 1);
                 }
                 
-                if (PrimitiveCommand.ElementEntry.Count > 0) {
+                if (ElementEntry.Count > 0) {
                     DirectX.DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
-                    DirectX.DeviceContext->DrawIndexed(PrimitiveCommand.ElementEntry.Count, Offset, 0);
+                    DirectX.DeviceContext->DrawIndexed(ElementEntry.Count, Offset, 0);
                 }
                 else {
-                    DirectX.DeviceContext->Draw(PrimitiveCommand.VertexEntry.Count, Offset);
+                    DirectX.DeviceContext->Draw(VertexEntry.Count, Offset);
                 }
 
                 if (Options.Mesh) {
@@ -1458,6 +1652,65 @@ RENDERER_RENDER {
                 DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilDisabled, 1);
             } break;
 
+            case render_shader_pass: {
+                render_shader_pass_command ShaderCommand = Group->ShaderPassCommands[Command.Index];
+
+                directX_render_target* Source = &DirectX.Target[ShaderCommand.Source];
+                directX_render_target* Target = &DirectX.Target[ShaderCommand.Target];
+
+                // Normal shaders
+                BindTarget(ShaderCommand.Target);
+
+                DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[Vertex_Shader_Passthrough_ID].Shader, NULL, 0);
+
+                directX_Pixel_Shader_ID PixelShaderID = Pixel_Shader_Single_Color_ID;
+                switch (ShaderCommand.Type) {
+                    default: Raise("DirectX: Invalid shader pass type.");
+                }
+
+                DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[PixelShaderID].Shader, NULL, 0);
+                DirectX.DeviceContext->PSSetShaderResources(0, 1, &Source->ShaderTexture);
+                DirectX.DeviceContext->PSSetSamplers(0, 1, &DirectX.PixelShader[PixelShaderID].Sampler);
+
+                SetColorBuffer(ShaderCommand.Color);
+                SetOutlineBuffer(ShaderCommand.Width, ShaderCommand.Level);
+
+                vertex_layout_id LayoutID = vertex_layout_v2_v2_id;
+                uint32 Stride = Group->Assets->VertexLayout[LayoutID].Stride;
+                uint32 VertexOffset = 0;
+                DirectX.DeviceContext->IASetVertexBuffers(0, 1, &DirectX.VertexBuffer[LayoutID], &Stride, &VertexOffset);
+                DirectX.DeviceContext->Draw(ShaderCommand.VertexEntry.Count, ShaderCommand.VertexEntry.Offset);
+                
+            } break;
+
+            case render_compute: {
+                render_compute_command ComputeCommand = Group->ComputeCommands[Command.Index];
+
+                DirectX.DeviceContext->OMSetRenderTargets(0, NULL, NULL);
+                directX_render_target* Target = &DirectX.Target[ComputeCommand.Target];
+
+                directX_Compute_Shader_ID ShaderID;
+                switch(ComputeCommand.Type) {
+                    case compute_outline_init: { ShaderID = Compute_Shader_Outline_Init_ID; } break;
+                    case compute_jump_flood: { 
+                        ShaderID = Compute_Shader_Jump_Flood_ID;
+                        SetOutlineBuffer(0.0f, ComputeCommand.Level);
+                    } break;
+                    case compute_outline:{
+                        ShaderID = Compute_Shader_Outline_ID;
+                        SetOutlineBuffer(ComputeCommand.Width, 0);
+                        SetColorBuffer(ComputeCommand.Color);
+                    } break;
+                    default: Raise("DirectX: Invalid compute shader ID.");
+                }
+
+                DirectX.DeviceContext->CSSetShader(DirectX.ComputeShader[ShaderID].Shader, NULL, 0);
+                DirectX.DeviceContext->CSSetUnorderedAccessViews(0, 1, &Target->UnorderedAccessView, NULL);
+                DirectX.DeviceContext->Dispatch(ComputeCommand.nGroups.X, ComputeCommand.nGroups.Y, ComputeCommand.nGroups.Z);
+                ID3D11UnorderedAccessView* NullUAV = 0;
+                DirectX.DeviceContext->CSSetUnorderedAccessViews(0, 1, &NullUAV, NULL);
+            } break;
+
             case render_target: {
                 render_target_command TargetCommand = Group->TargetCommands[Command.Index];
 
@@ -1477,8 +1730,8 @@ RENDERER_RENDER {
                 DirectX.DeviceContext->VSSetShader(VertexShader->Shader, NULL, 0);
                 DirectX.DeviceContext->PSSetShader(PixelShader->Shader, NULL, 0);
 
-                DirectX.DeviceContext->PSSetSamplers(0, 1, &PixelShader->Sampler);
                 DirectX.DeviceContext->PSSetShaderResources(0, 1, &Source->ShaderTexture);
+                DirectX.DeviceContext->PSSetSamplers(0, 1, &PixelShader->Sampler);
 
                 vertex_layout Layout = Group->Assets->VertexLayout[vertex_layout_v2_v2_id];
                 uint32 Offset = 0;

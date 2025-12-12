@@ -2,16 +2,12 @@
 #include "GameLibrary.h"
 #include "GameBuild.h"
 
-#if GAME_RENDER_API_OPENGL
-    #include "OpenGLRender.h"
-#endif
-
-#if GAME_RENDER_API_VULKAN
-    #include "VulkanRender.h"
-#endif
-
 #if GAME_RENDER_API_DIRECTX
     #include "DirectX11Render.h"
+#elif GAME_RENDER_API_OPENGL
+    #include "OpenGLRender.h"
+#elif GAME_RENDER_API_VULKAN
+    #include "VulkanRender.h"
 #endif
 
 #pragma comment(lib, "xaudio2.lib")
@@ -45,7 +41,6 @@ HINSTANCE hInst;                                // current instance
 char szTitle[MAX_LOADSTRING];                  // The title bar text
 char szWindowClass[MAX_LOADSTRING];            // the main window class name
 
-bool Running;
 game_memory Memory;
 
 // XInput
@@ -66,7 +61,7 @@ static xinput_set_state* XInputSetState_ = XInputSetStateStub;
 #define XInputSetState XInputSetState_
 
 static void LoadXInput(void) {
-    HMODULE XInputLibrary = LoadLibrary(_T("xinput1_4.dll"));
+    HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
     if (XInputLibrary) {
         XInputGetState = (xinput_get_state*)GetProcAddress(XInputLibrary, "XInputGetState");
         XInputSetState = (xinput_set_state*)GetProcAddress(XInputLibrary, "XInputSetState");
@@ -524,7 +519,7 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
                 // Shortcut for closing Alt+F4
                 bool AltKeyWasDown = (msg.lParam & ((uint32)1 << 29)) != 0;
                 if ((VKCode == VK_F4) && AltKeyWasDown) {
-                    Running = false;
+                    Memory.Running = false;
                     PostQuitMessage(0);
                 }
             } break;
@@ -563,7 +558,7 @@ void ProcessPendingMessages(HWND Window, game_input* pInput, record_and_playback
             case WM_CLOSE:
             case WM_DESTROY:
             {
-                Running = false;
+                Memory.Running = false;
                 PostQuitMessage(0);
             } break;
             default: {
@@ -813,11 +808,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     uint64 MetaprogrammingExecutionStart = 0;
     char LogBuffer[64] = {};
 
-    Running = true;
+    Memory.Running = true;
     bool FirstFrame = true;
 
     // Main loop
-    while (Running) {
+    while (Memory.Running) {
         // Hot reloading code
         if (
             !LibraryCompilation.Running && !MetaprogrammingCompilation.Running && !MetaprogrammingExecution.Running &&
@@ -1033,12 +1028,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
             if (!Pause) {
                 // Clear render group
-                ClearEntries(Group);
+                Clear(Group);
 
                 GameCode.Update(&Memory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer]);
 
                 if (pGameState->Exit) {
-                    Running = false; PostQuitMessage(0);
+                    Memory.Running = false; PostQuitMessage(0);
                 }
             }
 
@@ -1259,7 +1254,9 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
                     ResizeWindow(NewWidth, NewHeight);
                 }
 
+#if GAME_RENDER_API_OPENGL
                 Render(Group, Memory.GameState->ActiveCamera, &Memory.Input, Window, 0.0);
+#endif
             }
 
             EndPaint(Window, &ps);
@@ -1267,7 +1264,7 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
         } break;
         case WM_CLOSE:
         case WM_DESTROY:
-            { Running = false; PostQuitMessage(0); } break;
+            { Memory.Running = false; PostQuitMessage(0); } break;
         default:
             return DefWindowProc(Window, message, wParam, lParam);
     }

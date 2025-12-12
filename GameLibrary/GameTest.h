@@ -16,6 +16,26 @@ void TestPerformance() {
 //     PushRenderTarget(Group, Target_Fluid);
 // }
 
+void TestSea(memory_arena* PermanentArena, render_group* Group) {
+    const uint32 N = 10000;
+    static float* Data = nullptr;
+
+    if (!Data) {
+        Data = PushArray(PermanentArena, N, float);
+
+        for (int i = 0; i < N; i++) {
+            float x = i;
+            Data[i] = x - floor(x);
+        }
+    }
+
+    // PushComputeShaderPass(Group, shader_pass_fft, Target_None, Target_None);
+}
+
+void TestSky(float Time, light* Light) {
+    Light->Direction = V3(-cos(0.2f * Time), -sin(0.2f * Time), 0);
+}
+
 void TestRendering(render_group* Group, game_input* Input, float Time) {
 // 2D
     // Rects
@@ -76,7 +96,7 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
 
     // Mesh
     transform T = Transform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
-    PushMesh(Group, Mesh_Body_ID, T, Bitmap_Empty_ID, Gray, 0, false);
+    PushMesh(Group, Mesh_Body_ID, T, Bitmap_Empty_ID, Gray, 0, true);
 
     T.Translation = V3(-2, 0, 0);
     PushMesh(Group, Mesh_Tetrahedron_ID, T);
@@ -96,5 +116,5 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     PushMesh(Group, Mesh_Sphere_ID, Transform(V3(10, 0, 0)), Bitmap_Empty_ID, Red);
 
     // Heightmap
-    PushHeightmap(Group, Heightmap_Spain_ID);
+    PushHeightmap(Group, Heightmap_Spain_ID, V3(0,0,0), Scale(100, 10, 100));
 }

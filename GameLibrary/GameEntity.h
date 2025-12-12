@@ -1926,7 +1926,7 @@ void Transition(game_state* State, game_state_type Type) {
     }
 }
 
-void UpdateEntities(render_group* Group, game_state* State, game_input* Input) {
+void UpdateGameState(render_group* Group, game_state* State, game_input* Input) {
     game_entity_manager* EntityManager = &State->EntityManager;
     game_combat* Combat = &State->Combat;
     uint32 Index = 0;

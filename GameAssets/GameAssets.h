@@ -165,16 +165,13 @@ struct game_text {
 struct game_heightmap {
     game_heightmap_id ID;
     game_bitmap Bitmap;
-    uint32 nVertices;
-    float* Vertices;
 };
 
-const int HEIGHTMAP_RESOLUTION = 20;
+const int HEIGHTMAP_RESOLUTION = 16;
 
 uint64 ComputeNeededMemoryForHeightmap(read_file_result File) {
     uint64 BitmapSize = PreprocessBitmap((bitmap_header*)File.Content);
-    uint64 VerticesSize = HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 4 * 5 * sizeof(float);
-    return BitmapSize + VerticesSize;
+    return BitmapSize;
 }
 
 game_heightmap LoadHeightmap(memory_arena* Arena, game_asset* Asset) {
@@ -182,40 +179,6 @@ game_heightmap LoadHeightmap(memory_arena* Arena, game_asset* Asset) {
     Result.ID = Asset->ID.Heightmap;
 
     Result.Bitmap = LoadBitmapFile(Arena, Asset->File);
-    float Width = 10.0f;
-    float Height = 10.0f;
-
-    Result.nVertices = HEIGHTMAP_RESOLUTION * HEIGHTMAP_RESOLUTION * 4;
-    Result.Vertices = (float*)PushSize(Arena, Result.nVertices * 5 * sizeof(float));
-    float* Pointer = Result.Vertices;
-    for (int i = 0; i < HEIGHTMAP_RESOLUTION; i++) {
-        for (int j = 0; j < HEIGHTMAP_RESOLUTION; j++) {
-            *Pointer++ = Width * (float)i / (float)HEIGHTMAP_RESOLUTION; // v.x
-            *Pointer++ = 0.0f; // v.y
-            *Pointer++ = Height * (float)j / (float)HEIGHTMAP_RESOLUTION; // v.z
-            *Pointer++ = (float)i / (float)HEIGHTMAP_RESOLUTION; // vt.x
-            *Pointer++ = (float)j / (float)HEIGHTMAP_RESOLUTION; // vt.y
-
-            *Pointer++ = Width * (float)(i + 1) / (float)HEIGHTMAP_RESOLUTION; // v.x
-            *Pointer++ = 0.0f; // v.y
-            *Pointer++ = Height * (float)j / (float)HEIGHTMAP_RESOLUTION; // v.z
-            *Pointer++ = (float)(i + 1) / (float)HEIGHTMAP_RESOLUTION; // vt.x
-            *Pointer++ = (float)j / (float)HEIGHTMAP_RESOLUTION; // vt.y
-
-            *Pointer++ = Width * (float)i / (float)HEIGHTMAP_RESOLUTION; // v.x
-            *Pointer++ = 0.0f; // v.y
-            *Pointer++ = Height * (float)(j + 1) / (float)HEIGHTMAP_RESOLUTION; // v.z
-            *Pointer++ = (float)i / (float)HEIGHTMAP_RESOLUTION; // vt.x
-            *Pointer++ = (float)(j + 1) / (float)HEIGHTMAP_RESOLUTION; // vt.y
-
-            *Pointer++ = Width * (float)(i + 1) / (float)HEIGHTMAP_RESOLUTION; // v.x
-            *Pointer++ = 0.0f; // v.y
-            *Pointer++ = Height * (float)(j + 1) / (float)HEIGHTMAP_RESOLUTION; // v.z
-            *Pointer++ = (float)(i + 1) / (float)HEIGHTMAP_RESOLUTION; // vt.x
-            *Pointer++ = (float)(j + 1) / (float)HEIGHTMAP_RESOLUTION; // vt.y
-        }
-    }
-
     return Result;
 }
 

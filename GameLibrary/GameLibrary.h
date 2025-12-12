@@ -61,6 +61,7 @@ struct game_memory {
     uint16 nTimeRecordsPlatform;
     bool IsInitialized;
     bool HotReload;
+    bool Running;
 };
 
 #include "GameUI.h"

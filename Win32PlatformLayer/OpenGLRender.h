@@ -22,16 +22,6 @@
 // | Textures                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-GLenum OpenGLGetByteColorFormat(uint32 BytesPerPixel) {
-	GLenum InternalFormat = 0;
-	if      (BytesPerPixel == 1) InternalFormat = GL_R8;
-	else if (BytesPerPixel == 2) InternalFormat = GL_RG8;
-	else if (BytesPerPixel == 3) InternalFormat = GL_RGBA8;
-	else if (BytesPerPixel == 4) InternalFormat = GL_RGBA8;
-	else Raise("OpenGL: Invalid bytes per pixel value for bitmap.");
-	return InternalFormat;
-}
-
 GLenum OpenGLGetByteColorFormat(color_format Format) {
 	switch (Format) {
 		case Color_Format_R:    return GL_R8;
@@ -301,7 +291,15 @@ struct openGL_mesh_buffer {
 	uint32 EBO;
 };
 
-;const char* OpenGLVertexTypeTokens[vertex_type_count] = {
+struct openGL_heightmap_buffer {
+	uint32 nVertices;
+	uint32 nElements;
+	uint32 VAO;
+	uint32 VBO;
+	uint32 EBO;
+};
+
+const char* OpenGLVertexTypeTokens[vertex_type_count] = {
 	"",
     "float",
     "vec2",
@@ -468,6 +466,8 @@ ENUM(openGL_shader_id,
     Vertex_Shader_Perspective_ID,
     Vertex_Shader_Bones_ID,
     Vertex_Shader_Barycentric_ID,
+	Vertex_Shader_Sky_ID,
+	Vertex_Shader_Heightmap_ID,
 
     // Tessellation control shaders
     TESC_Heightmap_ID,
@@ -495,7 +495,8 @@ ENUM(openGL_shader_id,
     Fragment_Shader_Sea_ID,
     Fragment_Shader_Bezier_Exterior_ID,
     Fragment_Shader_Bezier_Interior_ID,
-    Fragment_Shader_Fire_ID
+    Fragment_Shader_Fire_ID,
+	Fragment_Shader_Sky_ID
 );
 
 struct openGL_shader {
@@ -513,8 +514,8 @@ struct openGL_shader {
 ENUM(openGL_compute_shader_id,
     Compute_Shader_Outline_Init_ID,
     Compute_Shader_Jump_Flood_ID,
+	Compute_Shader_Outline_ID,
     Compute_Shader_Kernel_ID,
-    Compute_Shader_Test_ID,
     Compute_Shader_Fluid_ID,
     Compute_Shader_Fluid_Init_ID
 );
@@ -535,8 +536,6 @@ ENUM(openGL_shader_pipeline_id,
     Shader_Pipeline_Texture_ID,
     Shader_Pipeline_Mesh_ID,
     Shader_Pipeline_Mesh_Bones_ID,
-    Shader_Pipeline_Jump_Flood_ID,
-    Shader_Pipeline_Outline_ID,
     Shader_Pipeline_Heightmap_ID,
     Shader_Pipeline_Trochoidal_ID,
     Shader_Pipeline_Text_Outline_ID,
@@ -544,7 +543,8 @@ ENUM(openGL_shader_pipeline_id,
     Shader_Pipeline_Bezier_Exterior_ID,
     Shader_Pipeline_Bezier_Interior_ID,
     Shader_Pipeline_Solid_Text_ID,
-    Shader_Pipeline_Fire_ID
+    Shader_Pipeline_Fire_ID,
+	Shader_Pipeline_Sky_ID
 );
 
 struct openGL_shader_pipeline {
@@ -627,6 +627,7 @@ struct openGL {
 	openGL_framebuffer Target[render_group_target_count];
 	openGL_mesh_buffer MeshBuffer[game_mesh_id_count];
 	openGL_font_buffer FontBuffer[game_font_id_count];
+	openGL_heightmap_buffer HeightmapBuffer;
 	uint32 Texture[game_bitmap_id_count];
 	uint32 Heightmap[game_heightmap_id_count];
 	openGL_shader Shader[openGL_shader_id_count];
@@ -1003,6 +1004,9 @@ openGL_shader_pipeline_id GetPipelineID(render_primitive_options Options) {
 	else if (Options.Texture) {
 		return Shader_Pipeline_Texture_ID;
 	}
+	else if (Options.Flags & SKY_FLAG) {
+		return Shader_Pipeline_Sky_ID;
+	}
 	return Options.Flags & DEPTH_TEST_FLAG ?
 		Shader_Pipeline_World_Single_Color_ID :
 		Shader_Pipeline_Screen_Single_Color_ID;
@@ -1324,7 +1328,7 @@ RENDERER_INITIALIZE {
 		glGenTextures(game_bitmap_id_count + game_heightmap_id_count, OpenGL.Texture);
 		for (int i = 0; i < game_bitmap_id_count; i++) {
 			game_bitmap* Bitmap = &Assets->Bitmap[i];
-			GLenum InternalFormat = OpenGLGetByteColorFormat(Bitmap->BytesPerPixel);
+			GLenum InternalFormat = GL_RGBA8;
 			ResizeTexture(
 				Bitmap->Header.Width, Bitmap->Header.Height, 
 				OpenGL.Texture[i], 
@@ -1336,7 +1340,7 @@ RENDERER_INITIALIZE {
 
 		for (int i = 0; i < game_heightmap_id_count; i++) {
 			game_heightmap* Heightmap = &Assets->Heightmap[i];
-			GLenum InternalFormat = OpenGLGetByteColorFormat(Heightmap->Bitmap.BytesPerPixel);
+			GLenum InternalFormat = GL_RGBA8;
 			ResizeTexture(
 				Heightmap->Bitmap.Header.Width, Heightmap->Bitmap.Header.Height, 
 				OpenGL.Heightmap[i], 
@@ -1428,14 +1432,32 @@ RENDERER_INITIALIZE {
 				ElementsSize += 3 * sizeof(uint32) * Character->nSolidTriangles;
 			}
 
-			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, 0);
-			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, 0);
+			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, NULL);
+			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, NULL);
 
 			vertex_layout Layout = Assets->VertexLayout[vertex_layout_v2_v2_id];
-
 			EnableVertexLayout(FontBuffer->VAO, FontBuffer->VBO, Layout);
 			glVertexArrayElementBuffer(FontBuffer->VAO, FontBuffer->EBO);
 		}
+
+		// Heightmap vertices
+		openGL_heightmap_buffer* HeightmapBuffer = &OpenGL.HeightmapBuffer;
+		*HeightmapBuffer = {};
+		glCreateVertexArrays(1, &HeightmapBuffer->VAO);
+		glCreateBuffers(1, &HeightmapBuffer->VBO);
+		glCreateBuffers(1, &HeightmapBuffer->EBO);
+
+		const int nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
+		float Vertices[2*nVertices];
+		GenerateHeightmapVertices(Vertices);
+		glNamedBufferStorage(HeightmapBuffer->VBO, nVertices * 2 * sizeof(float), Vertices, NULL);
+
+		const int nElements = 4 * (HEIGHTMAP_RESOLUTION - 1) * (HEIGHTMAP_RESOLUTION - 1);
+		uint32 Elements[nElements];
+		GenerateHeightmapElements(Elements);
+		glNamedBufferStorage(HeightmapBuffer->EBO, nElements * sizeof(uint32), Elements, NULL);
+		EnableVertexLayout(HeightmapBuffer->VAO, HeightmapBuffer->VBO, Assets->VertexLayout[vertex_layout_v2_id]);
+		glVertexArrayElementBuffer(HeightmapBuffer->VAO, HeightmapBuffer->EBO);
 
 	// Compiling & attaching shaders
 		OpenGL.nSamplers = 0;
@@ -1447,6 +1469,8 @@ RENDERER_INITIALIZE {
 		LoadShader(Vertex_Shader_Perspective_ID,              "GameAssets\\Shaders\\GLSL\\Vertex\\Perspective.vert");
 		LoadShader(Vertex_Shader_Bones_ID,                    "GameAssets\\Shaders\\GLSL\\Vertex\\Bones.vert");
 		LoadShader(Vertex_Shader_Barycentric_ID,              "GameAssets\\Shaders\\GLSL\\Vertex\\Barycentric.vert");
+		LoadShader(Vertex_Shader_Sky_ID,                      "GameAssets\\Shaders\\GLSL\\Vertex\\Sky.vert");
+		LoadShader(Vertex_Shader_Heightmap_ID,                "GameAssets\\Shaders\\GLSL\\Vertex\\Heightmap.vert");
 
 		// Geometry
 		LoadShader(Geometry_Shader_Test_ID,                   "GameAssets\\Shaders\\GLSL\\Geometry\\Test.geom");
@@ -1463,21 +1487,19 @@ RENDERER_INITIALIZE {
 		LoadShader(Fragment_Shader_Antialiasing_ID,           "GameAssets\\Shaders\\GLSL\\Fragment\\Antialiasing.frag");
 		LoadShader(Fragment_Shader_Framebuffer_Attachment_ID, "GameAssets\\Shaders\\GLSL\\Fragment\\FramebufferAttachment.frag");
 		LoadShader(Fragment_Shader_Texture_ID,                "GameAssets\\Shaders\\GLSL\\Fragment\\Texture.frag");
-		LoadShader(Fragment_Shader_Outline_ID,                "GameAssets\\Shaders\\GLSL\\Fragment\\Outline.frag");
 		LoadShader(Fragment_Shader_Single_Color_ID,           "GameAssets\\Shaders\\GLSL\\Fragment\\SingleColor.frag");
-		LoadShader(Fragment_Shader_Kernel_ID,                 "GameAssets\\Shaders\\GLSL\\Fragment\\Kernel.frag");
 		LoadShader(Fragment_Shader_Mesh_ID,                   "GameAssets\\Shaders\\GLSL\\Fragment\\Mesh.frag");
-		LoadShader(Fragment_Shader_Jump_Flood_ID,             "GameAssets\\Shaders\\GLSL\\Fragment\\JumpFlood.frag");
 		LoadShader(Fragment_Shader_Heightmap_ID,              "GameAssets\\Shaders\\GLSL\\Fragment\\Heightmap.frag");
 		LoadShader(Fragment_Shader_Sea_ID,                    "GameAssets\\Shaders\\GLSL\\Fragment\\Sea.frag");
 		LoadShader(Fragment_Shader_Bezier_Exterior_ID,        "GameAssets\\Shaders\\GLSL\\Fragment\\BezierExterior.frag");
 		LoadShader(Fragment_Shader_Bezier_Interior_ID,        "GameAssets\\Shaders\\GLSL\\Fragment\\BezierInterior.frag");
 		LoadShader(Fragment_Shader_Fire_ID,                   "GameAssets\\Shaders\\GLSL\\Fragment\\Fire.frag");
+		LoadShader(Fragment_Shader_Sky_ID,                    "GameAssets\\Shaders\\GLSL\\Fragment\\Sky.frag");
 
 		// Compute
     	LoadShader(Compute_Shader_Outline_Init_ID,            "GameAssets\\Shaders\\GLSL\\Compute\\OutlineInit.comp");
     	LoadShader(Compute_Shader_Jump_Flood_ID,              "GameAssets\\Shaders\\GLSL\\Compute\\JumpFlood.comp");
-    	LoadShader(Compute_Shader_Test_ID,                    "GameAssets\\Shaders\\GLSL\\Compute\\Test.comp");
+		LoadShader(Compute_Shader_Outline_ID,                 "GameAssets\\Shaders\\GLSL\\Compute\\Outline.comp");
     	LoadShader(Compute_Shader_Kernel_ID,                  "GameAssets\\Shaders\\GLSL\\Compute\\Kernel.comp");
     	LoadShader(Compute_Shader_Fluid_ID,                   "GameAssets\\Shaders\\GLSL\\Compute\\Fluid.comp");
     	LoadShader(Compute_Shader_Fluid_Init_ID,              "GameAssets\\Shaders\\GLSL\\Compute\\FluidInit.comp");
@@ -1491,18 +1513,17 @@ RENDERER_INITIALIZE {
     	LoadPipeline(Shader_Pipeline_World_Single_Color_ID,  2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Single_Color_ID);
     	LoadPipeline(Shader_Pipeline_Screen_Single_Color_ID, 2, Vertex_Shader_Screen_ID,         Fragment_Shader_Single_Color_ID);
     	LoadPipeline(Shader_Pipeline_Bones_Single_Color_ID,  2, Vertex_Shader_Bones_ID,          Fragment_Shader_Single_Color_ID);
-    	LoadPipeline(Shader_Pipeline_Outline_ID,             2, Vertex_Shader_Passthrough2_ID,   Fragment_Shader_Outline_ID);
     	LoadPipeline(Shader_Pipeline_Bezier_Exterior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Exterior_ID);
     	LoadPipeline(Shader_Pipeline_Bezier_Interior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Interior_ID);
     	LoadPipeline(Shader_Pipeline_Solid_Text_ID,          2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Single_Color_ID);
-    	LoadPipeline(Shader_Pipeline_Jump_Flood_ID,          2, Vertex_Shader_Passthrough2_ID,   Fragment_Shader_Jump_Flood_ID);
     	LoadPipeline(Shader_Pipeline_Fire_ID,                2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Fire_ID);
+		LoadPipeline(Shader_Pipeline_Sky_ID,                 2, Vertex_Shader_Sky_ID,            Fragment_Shader_Sky_ID);
     	LoadPipeline(Shader_Pipeline_Debug_Normals_ID,       3, Vertex_Shader_Bones_ID,
                                                                Geometry_Shader_Debug_Normals_ID, Fragment_Shader_Single_Color_ID);
     	//LoadPipeline(Shader_Pipeline_Kernel_ID, Vertex_Shader_Framebuffer_ID, Fragment_Shader_Kernel_ID);
-    	LoadPipeline(Shader_Pipeline_Heightmap_ID,           4, Vertex_Shader_Passthrough3_ID, 
+    	LoadPipeline(Shader_Pipeline_Heightmap_ID,           4, Vertex_Shader_Heightmap_ID, 
 		                                                   TESC_Heightmap_ID, TESE_Heightmap_ID, Fragment_Shader_Heightmap_ID);
-    	LoadPipeline(Shader_Pipeline_Trochoidal_ID,          4, Vertex_Shader_Passthrough3_ID, 
+    	LoadPipeline(Shader_Pipeline_Trochoidal_ID,          4, Vertex_Shader_Heightmap_ID, 
 		                                                  TESC_Heightmap_ID, TESE_Trochoidal_ID, Fragment_Shader_Sea_ID);
 		LoadPipeline(Shader_Pipeline_Text_Outline_ID,        4, Vertex_Shader_Barycentric_ID, 
 																 TESC_Bezier_ID, TESE_Bezier_ID, Fragment_Shader_Single_Color_ID);
@@ -1536,9 +1557,8 @@ void ScreenCapture(int Width, int Height) {
     game_bitmap BMP = {};
 
     // Bitmap header
-    MakeBitmapHeader(&BMP.Header, Width, Height, 4);
+    MakeBitmapHeader(&BMP.Header, Width, Height);
 
-    BMP.BytesPerPixel = 4;
     BMP.Pitch = 4 * Width;
     BMP.AlphaMask = 0xff000000;
 
@@ -1557,11 +1577,11 @@ void ScreenCapture(int Width, int Height) {
     );
 
     // Read pixels
-    BMP.Content = (uint32*)VirtualAlloc(0, Width * Height * BMP.BytesPerPixel, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    BMP.Content = (uint32*)VirtualAlloc(0, 4 * Width * Height, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glReadPixels(0, 0, Width, Height, GL_BGRA, GL_UNSIGNED_BYTE, (void*)BMP.Content);
 
-    SaveBMP(Filename, &BMP);
+    SaveBMP(Filename, Width, Height, BMP.Header.BitmapOffset, sizeof(bitmap_header), &BMP.Header, BMP.Content);
     if (BMP.Content) {
         VirtualFree(BMP.Content, 0, MEM_RELEASE);
     }
@@ -1619,7 +1639,7 @@ RENDERER_RENDER {
 				render_clear_command Clear = Group->Clears[Command.Index];
 
 				glViewport(0, 0, Width, Height);
-				BindTarget((render_group_target)Command.Index);
+				BindTarget(Clear.Target);
 
 				glClearColor(Clear.Color.R, Clear.Color.G, Clear.Color.B, Clear.Color.Alpha);
 				glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
@@ -1639,26 +1659,37 @@ RENDERER_RENDER {
 				// Texture
 				SetColorUniform(DrawCommand.Color);
 				uint32 TextureHandle = 0;
-				if (Options.Heightmap) {
-					TextureHandle = OpenGL.Heightmap[Options.Heightmap->ID];
-				}
-				if (Options.Texture) {
-					TextureHandle = OpenGL.Texture[Options.Texture->ID];
-				}
+				if      (Options.Heightmap) TextureHandle = OpenGL.Heightmap[Options.Heightmap->ID];
+				else if (Options.Texture)   TextureHandle = OpenGL.Texture[Options.Texture->ID];
 				BindTexture(ProgramID, TextureHandle, 0);
 
-				// Uniforms
-				if (Options.Font) {
-					SetTextUniforms(Options.TextSize, Options.Pen);
+				// Draw subtypes
+				GLenum Primitive = GetRenderPrimitive(DrawCommand.Primitive);
+				if (DrawCommand.Primitive == render_primitive_patches) {
+					Assert(DrawCommand.Options.PatchParameter <= OpenGL.MaxPatchParameter, 
+						"OpenGL: Patch parameter in draw command is greater than max patch parameter.");
+					glPatchParameteri(GL_PATCH_VERTICES, DrawCommand.Options.PatchParameter);
 				}
-
+				
+				uint32 VAO = 0;
+				vertex_buffer_entry VertexEntry = DrawCommand.VertexEntry;
+				element_buffer_entry ElementEntry = DrawCommand.ElementEntry;
 				if (Options.Mesh) {
-					if (Options.Armature) {
-						SetBoneUniforms(Options.Armature);
-					}
+					VAO = OpenGL.MeshBuffer[Options.Mesh->ID].VAO;
+					if (Options.Armature) SetBoneUniforms(Options.Armature);
 					matrix4 Model = Matrix(Options.Transform);
 					SetModelUniforms(Model);
 				}
+				else if (Options.Font) {
+					VAO = OpenGL.FontBuffer[Options.Font->ID].VAO;
+					SetTextUniforms(Options.TextSize, Options.Pen);
+				}
+				else if (Options.Heightmap) {
+					VAO = OpenGL.HeightmapBuffer.VAO;
+					matrix4 Model = Matrix(Options.Transform);
+					SetModelUniforms(Model);
+				}
+				else VAO = OpenGL.VAOs[VertexEntry.LayoutID];
 
 				// Line thickness
 				if (Options.Thickness != CurrentLineWidth) {
@@ -1667,19 +1698,12 @@ RENDERER_RENDER {
 				}
 
 				// Depth testing and alpha blending
-				if (DrawCommand.Options.Flags & DEPTH_TEST_FLAG) {
-					glDepthFunc(GL_LESS);
-				}
-				else glDepthFunc(GL_ALWAYS);
+				if (DrawCommand.Options.Flags & DEPTH_TEST_FLAG) glDepthFunc(GL_LESS);
+				else                                             glDepthFunc(GL_ALWAYS);
 				glDepthMask(GL_TRUE);
 
 				if (Options.Flags & OVERWRITE_ALPHA_FLAG) glBlendFuncSeparate(GL_ONE, GL_ZERO, GL_ONE, GL_ZERO);
 				else                                      glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-
-				// Vertices and elements
-				GLenum Primitive = GetRenderPrimitive(DrawCommand.Primitive);
-				vertex_buffer_entry VertexEntry = DrawCommand.VertexEntry;
-				element_buffer_entry ElementEntry = DrawCommand.ElementEntry;
 
 				// vertex_layout DebugLayout = Group->Assets->VertexLayouts[VertexEntry.LayoutID];
 				// float DebugVertices[100];
@@ -1687,24 +1711,6 @@ RENDERER_RENDER {
 
 				// uint32 DebugElements[100];
 				// memcpy(DebugElements, (uint32*)(Group->VertexBuffer.Elements.Base) + ElementEntry.Offset, 100*sizeof(uint32));
-
-				if (DrawCommand.Primitive == render_primitive_patches) {
-					if (DrawCommand.Options.PatchParameter > OpenGL.MaxPatchParameter) {
-						Raise("OpenGL: Patch parameter in draw command is greater than max patch parameter.");
-					}
-					glPatchParameteri(GL_PATCH_VERTICES, DrawCommand.Options.PatchParameter);
-				}
-
-				uint32 VAO = 0;
-				if (Options.Mesh) {
-					VAO = OpenGL.MeshBuffer[Options.Mesh->ID].VAO;
-				}
-				else if (Options.Font) {
-					VAO = OpenGL.FontBuffer[Options.Font->ID].VAO;
-				}
-				else {
-					VAO = OpenGL.VAOs[VertexEntry.LayoutID];
-				}
 
 				glBindVertexArray(VAO);
 				if (ElementEntry.Count > 0) {
@@ -1726,6 +1732,9 @@ RENDERER_RENDER {
 					}
 
 					ClearBoneUniforms();
+				}
+
+				if (Options.Mesh || Options.Heightmap) {
 					ClearModelUniforms();
 				}
 			} break;
@@ -1733,76 +1742,63 @@ RENDERER_RENDER {
 			case render_shader_pass: {
 				render_shader_pass_command ShaderCommand = Group->ShaderPassCommands[Command.Index];
 
+				openGL_framebuffer Source = OpenGL.Target[ShaderCommand.Source];
 				openGL_framebuffer Target = OpenGL.Target[ShaderCommand.Target];
 
 				// Normal shaders
-				if (ShaderCommand.Type == shader_pass_outline || ShaderCommand.Type == shader_pass_jump_flood) {
-					openGL_framebuffer PingPongTarget = OpenGL.Target[Target_PingPong];
-
-					// glEnable(GL_DEPTH_TEST);
-					glBindFramebuffer(GL_READ_FRAMEBUFFER, Target.Framebuffer);
-					glBindFramebuffer(GL_DRAW_FRAMEBUFFER, PingPongTarget.Framebuffer);
-					glBlitFramebuffer(0, 0, Width, Height, 0, 0, Width, Height, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
-	
-					glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+				glBindFramebuffer(GL_FRAMEBUFFER, Target.Framebuffer);
+				if (ShaderCommand.ClearTarget) {
 					glClearColor(0, 0, 0, 0);
 					glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	
-					openGL_shader_pipeline_id PipelineID;
-					switch(ShaderCommand.Type) {
-						case shader_pass_outline:    { PipelineID = Shader_Pipeline_Outline_ID; } break;
-						case shader_pass_jump_flood: { PipelineID = Shader_Pipeline_Jump_Flood_ID; } break;
-						default: Raise("OpenGL: Invalid shader pipeline ID.");
-					}
-					uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
-					glUseProgram(ProgramID);
-
-					SetColorUniform(ShaderCommand.Color);
-					SetOutlineUniforms(ShaderCommand.Width, ShaderCommand.Level);
-					BindTexture(ProgramID, PingPongTarget.Texture, 0);
-					
-					// if (Target.Attachment) {
-					// 	glActiveTexture(GL_TEXTURE1);
-					// 	glBindTexture(GL_TEXTURE_2D, PingPongTarget.AttachmentTexture);
-					// }
-
-					// glBindVertexArray(OpenGL->QuadVAO);
-					// glDrawArrays(GL_TRIANGLES, 0, 6);
-
-					// glActiveTexture(GL_TEXTURE0);
-					// glBindTexture(GL_TEXTURE_2D, 0);
-					// glBindVertexArray(0);
-					// glUseProgram(0);
-
-					glBindVertexArray(OpenGL.VAOs[ShaderCommand.VertexEntry.LayoutID]);
-					glDrawArrays(GL_TRIANGLES, ShaderCommand.VertexEntry.Offset, ShaderCommand.VertexEntry.Count);
 				}
 
-				// Compute shaders
-				else {
-					openGL_framebuffer Source = OpenGL.Target[ShaderCommand.Source];
-
-					glBindImageTexture(0, Source.Texture, 0, GL_FALSE, 0, GL_READ_ONLY, GL_RGBA32F);
-					glBindImageTexture(1, Target.Texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-					
-					openGL_compute_shader_id PipelineIndex;
-					switch (ShaderCommand.Type) {
-						case shader_pass_kernel: {
-							PipelineIndex = Compute_Shader_Kernel_ID;
-							SetKernelUniforms(ShaderCommand.Kernel);
-						} break;
-						case shader_pass_outline_init: {
-							PipelineIndex = Compute_Shader_Outline_Init_ID;
-						} break;
-						default: Raise("OpenGL: Invalid compute shader.");
-					}
-					// if (Target.Attachment) BindTexture(ProgramID, Target.AttachmentTexture, 1);
-					uint32 ProgramID = OpenGL.ComputeShader[PipelineIndex].ProgramID;
-					glUseProgram(ProgramID);
-					
-					glDispatchCompute(Width, Height, 1);
-					glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+				openGL_shader_pipeline_id PipelineID;
+				switch(ShaderCommand.Type) {
+					default: Raise("OpenGL: Invalid shader pipeline ID.");
 				}
+				uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
+				glUseProgram(ProgramID);
+
+				SetColorUniform(ShaderCommand.Color);
+				SetOutlineUniforms(ShaderCommand.Width, ShaderCommand.Level);
+				BindTexture(ProgramID, Source.Texture, 0);
+
+				glBindVertexArray(OpenGL.VAOs[ShaderCommand.VertexEntry.LayoutID]);
+				glDrawArrays(GL_TRIANGLES, ShaderCommand.VertexEntry.Offset, ShaderCommand.VertexEntry.Count);
+			} break;
+
+			case render_compute: {
+				render_compute_command ComputeCommand = Group->ComputeCommands[Command.Index];
+
+				openGL_framebuffer Target = OpenGL.Target[ComputeCommand.Target];
+				glBindImageTexture(0, Target.Texture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
+
+				openGL_compute_shader_id PipelineIndex;
+				switch (ComputeCommand.Type) {
+					case compute_kernel: {
+						PipelineIndex = Compute_Shader_Kernel_ID;
+						SetKernelUniforms(ComputeCommand.Kernel);
+					} break;
+					case compute_outline_init: {
+						PipelineIndex = Compute_Shader_Outline_Init_ID;
+					} break;
+					case compute_jump_flood: {
+						PipelineIndex = Compute_Shader_Jump_Flood_ID;
+						SetOutlineUniforms(0.0f, ComputeCommand.Level);
+					} break;
+					case compute_outline: {
+						PipelineIndex = Compute_Shader_Outline_ID;
+						SetOutlineUniforms(ComputeCommand.Width, 0);
+						SetColorUniform(ComputeCommand.Color);
+					} break;
+					default: Raise("OpenGL: Invalid compute shader.");
+				}
+				// if (Target.Attachment) BindTexture(ProgramID, Target.AttachmentTexture, 1);
+				uint32 ProgramID = OpenGL.ComputeShader[PipelineIndex].ProgramID;
+				glUseProgram(ProgramID);
+
+				glDispatchCompute(ComputeCommand.nGroups.X, ComputeCommand.nGroups.Y, ComputeCommand.nGroups.Z);
+				glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 			} break;
 
 			case render_target: {
@@ -1856,10 +1852,7 @@ RENDERER_RENDER {
 		glBindVertexArray(0);
 	}
 
-	Group->PushOutline = false;
-
 	HDC hdc = GetDC(Window);
     SwapBuffers(hdc);
-
     ReleaseDC(Window, hdc);
 }

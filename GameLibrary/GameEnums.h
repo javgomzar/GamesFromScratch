@@ -47,10 +47,11 @@ enum debug_type {
     Debug_Type_room_type,
     Debug_Type_game_state_type,
     Debug_Type_render_command_type,
-    Debug_Type_render_primitive,
     Debug_Type_render_group_target,
+    Debug_Type_render_primitive,
     Debug_Type_color_format,
     Debug_Type_shader_pass_type,
+    Debug_Type_compute_type,
     Debug_Type_render_flags,
     Debug_Type_transform,
     Debug_Type_segment3,
@@ -74,10 +75,11 @@ enum render_flags {
     TEXT_INTERIOR_FLAG = 1 << 3,
     TEXT_EXTERIOR_FLAG = 1 << 4,
     OVERWRITE_ALPHA_FLAG = 1 << 5,
+    SKY_FLAG = 1 << 6,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 49; }
-bool IsFlagType(debug_type Type) { return Type > 48 && Type < 50; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 50; }
+bool IsFlagType(debug_type Type) { return Type > 49 && Type < 51; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -85,7 +87,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 245;
+const int ENUM_VALUES_SIZE = 249;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -305,15 +307,9 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_render_command_type, "render_clear", 0},
     {Debug_Type_render_command_type, "render_draw_primitive", 1},
     {Debug_Type_render_command_type, "render_shader_pass", 2},
-    {Debug_Type_render_command_type, "render_target", 3},
-    {Debug_Type_render_command_type, "render_command_type_count", 4},
-    {Debug_Type_render_primitive, "render_primitive_point", 0},
-    {Debug_Type_render_primitive, "render_primitive_line", 1},
-    {Debug_Type_render_primitive, "render_primitive_line_strip", 2},
-    {Debug_Type_render_primitive, "render_primitive_triangle", 3},
-    {Debug_Type_render_primitive, "render_primitive_triangle_strip", 4},
-    {Debug_Type_render_primitive, "render_primitive_patches", 5},
-    {Debug_Type_render_primitive, "render_primitive_count", 6},
+    {Debug_Type_render_command_type, "render_compute", 3},
+    {Debug_Type_render_command_type, "render_target", 4},
+    {Debug_Type_render_command_type, "render_command_type_count", 5},
     {Debug_Type_render_group_target, "Target_None", 0},
     {Debug_Type_render_group_target, "Target_World", 1},
     {Debug_Type_render_group_target, "Target_Outline", 2},
@@ -322,19 +318,29 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_render_group_target, "Target_Fluid", 5},
     {Debug_Type_render_group_target, "Target_Output", 6},
     {Debug_Type_render_group_target, "render_group_target_count", 7},
+    {Debug_Type_render_primitive, "render_primitive_point", 0},
+    {Debug_Type_render_primitive, "render_primitive_line", 1},
+    {Debug_Type_render_primitive, "render_primitive_line_strip", 2},
+    {Debug_Type_render_primitive, "render_primitive_triangle", 3},
+    {Debug_Type_render_primitive, "render_primitive_triangle_strip", 4},
+    {Debug_Type_render_primitive, "render_primitive_patches", 5},
+    {Debug_Type_render_primitive, "render_primitive_count", 6},
     {Debug_Type_color_format, "Color_Format_R", 0},
     {Debug_Type_color_format, "Color_Format_RG", 1},
     {Debug_Type_color_format, "Color_Format_RGB", 2},
     {Debug_Type_color_format, "Color_Format_RGBA", 3},
     {Debug_Type_color_format, "color_format_count", 4},
-    {Debug_Type_shader_pass_type, "shader_pass_kernel", 0},
-    {Debug_Type_shader_pass_type, "shader_pass_outline_init", 1},
-    {Debug_Type_shader_pass_type, "shader_pass_jump_flood", 2},
-    {Debug_Type_shader_pass_type, "shader_pass_outline", 3},
-    {Debug_Type_shader_pass_type, "shader_pass_type_count", 4},
+    {Debug_Type_shader_pass_type, "shader_pass_empty", 0},
+    {Debug_Type_shader_pass_type, "shader_pass_type_count", 1},
+    {Debug_Type_compute_type, "compute_kernel", 0},
+    {Debug_Type_compute_type, "compute_outline_init", 1},
+    {Debug_Type_compute_type, "compute_jump_flood", 2},
+    {Debug_Type_compute_type, "compute_outline", 3},
+    {Debug_Type_compute_type, "compute_fft", 4},
+    {Debug_Type_compute_type, "compute_type_count", 5},
 };
 
-const int FLAG_VALUES_SIZE = 6;
+const int FLAG_VALUES_SIZE = 7;
 debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {
     {Debug_Type_render_flags, "DEPTH_TEST_FLAG", 1},
     {Debug_Type_render_flags, "STENCIL_TEST_FLAG", 2},
@@ -342,6 +348,7 @@ debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {
     {Debug_Type_render_flags, "TEXT_INTERIOR_FLAG", 8},
     {Debug_Type_render_flags, "TEXT_EXTERIOR_FLAG", 16},
     {Debug_Type_render_flags, "OVERWRITE_ALPHA_FLAG", 32},
+    {Debug_Type_render_flags, "SKY_FLAG", 64},
 };
 
 #endif

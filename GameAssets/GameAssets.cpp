@@ -132,7 +132,6 @@ void LoadAssetsFromFile(
                 game_heightmap* Heightmap = GetAsset(Assets, Asset.ID.Heightmap);
                 Heightmap->Bitmap.Content = (uint32*)(Assets->Memory + Asset.Offset);
                 uint64 BitmapSize = PreprocessBitmap(&Heightmap->Bitmap.Header);
-                Heightmap->Vertices = (float*)(Assets->Memory + Asset.Offset + BitmapSize);
             } break;
 
             case Asset_Type_Font: {

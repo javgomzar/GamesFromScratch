@@ -7,24 +7,24 @@ cbuffer Globals: register(b0) {
     float Time;
 };
 
-cbuffer Transforms: register(b3) {
-    float4x4 Model;
-    float4x4 Normal;
-};
-
 struct VS_IN {
     float3 Position: POSITION;
-    float2 Texture: TEXCOORD;
 };
 
 struct VS_OUT {
     float4 Position: SV_POSITION;
-    float2 Texture: TEXCOORD;
+    float3 WorldPosition: TEXCOORD;
 };
 
 VS_OUT main(VS_IN vin) {
     VS_OUT vout;
-    vout.Position = mul(mul(mul(float4(vin.Position, 1.0f), Model), View), Projection);
-    vout.Texture = vin.Texture;
+
+    float4x4 SkyView = View;
+    SkyView[3] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+    
+    vout.Position = mul(mul(float4(vin.Position, 1.0f), SkyView), Projection);
+    vout.Position.z = vout.Position.w * 0.999999f;
+    vout.WorldPosition = vin.Position;
+
     return vout;
 }

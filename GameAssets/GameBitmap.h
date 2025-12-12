@@ -238,16 +238,6 @@ game_bitmap MakeEmptyBitmap(
     return Result;
 }
 
-void SaveBMP(const char* Path, game_bitmap* BMP) {
-    Platform.WriteEntireFile(Path, sizeof(BMP->Header), &BMP->Header);
-    uint32 Offset = BMP->Header.BitmapOffset - sizeof(BMP->Header);
-    char Zero = 0;
-    for (uint32 i = 0; i < Offset; i++) {
-        Platform.AppendToFile(Path, 1, &Zero);
-    }
-    Platform.AppendToFile(Path, 4 * BMP->Header.Width * BMP->Header.Height, BMP->Content);
-}
-
 uint32* GetPixelAddress(game_bitmap* BMP, int X, int Y) {
     Assert(X >= 0 && X <= BMP->Header.Width);
     Assert(Y >= 0 && Y <= BMP->Header.Height);
