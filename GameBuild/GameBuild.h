@@ -202,10 +202,25 @@ void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64
     Log(Level, LogString.c_str());
 }
 
-process_info CompileGameLibraryHot(
-    build_configuration* Configuration
-) {
-    static int nHotReloads = 0;
+process_info CompileGameLibraryHot(build_configuration* Configuration) {
+    int nHotReloads = 0;
+    WIN32_FIND_DATAA FindData;
+    HANDLE hFind = FindFirstFileA("bin\\Gamelibrary*.pdb", &FindData);
+    if (hFind != INVALID_HANDLE_VALUE) {
+        WIN32_FIND_DATAA LastData;
+        do {
+            LastData = FindData;
+        }
+        while(FindNextFileA(hFind, &FindData) != 0);
+
+        char* End = nullptr;
+        char* Number = LastData.cFileName + 11;
+        if ('0' <= Number[0] && Number[0] <= '9') {
+            nHotReloads = strtol(Number, &End, 10) + 1;
+        }
+    }
+    FindClose(hFind);
+
     const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
     std::string Command;
     switch(Configuration->Compiler) {
@@ -217,7 +232,7 @@ process_info CompileGameLibraryHot(
                 "/DLL /IMPLIB:\"bin\\GameLibrary.lib\" /PDB:\"bin\\GameLibrary{}.pdb\" "
                 "/ILK:\"bin\\GameLibrary.ilk\" /OUT:\"bin\\GameLibrary.dll\"",
                 Configuration->CompilerPath, GetCompilerFlags(MSVC, Configuration->Mode), Configuration->Include, 
-                PCHOutput, PCHOutput, Configuration->Lib, PCHOutput, nHotReloads++
+                PCHOutput, PCHOutput, Configuration->Lib, PCHOutput, nHotReloads
             );
         } break;
         default: Raise("Invalid compiler. Only MSVC supported for now.");
