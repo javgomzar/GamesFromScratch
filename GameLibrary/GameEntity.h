@@ -821,11 +821,9 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                 PushMesh(
                     Group,
                     Mesh_Body_ID,
-                    Entity->Transform,
-                    Bitmap_Empty_ID,
-                    White,
-                    &pCharacter->Armature,
-                    Outline
+                    .Armature = &pCharacter->Armature,
+                    .Transform = Entity->Transform,
+                    .Outline = Outline
                 );
             } break;
     
@@ -834,10 +832,9 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                 PushMesh(
                     Group,
                     Mesh_Enemy_ID,
-                    Entity->Transform,
-                    Bitmap_Enemy_ID,
-                    White, 0,
-                    Outline
+                    .TextureID = Bitmap_Enemy_ID,
+                    .Transform = Entity->Transform,
+                    .Outline = Outline
                 );
             } break;
 
@@ -846,9 +843,8 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                 PushMesh(
                     Group,
                     pProp->MeshID,
-                    Entity->Transform,
-                    Bitmap_Empty_ID,
-                    pProp->Color
+                    .Color = pProp->Color,
+                    .Transform = Entity->Transform
                 );
             } break;
 
@@ -856,7 +852,7 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                 weapon* pWeapon = &State->Weapons.List[Entity->Index];
                 game_mesh_id MeshID = pWeapon->Type == Weapon_Sword ? Mesh_Sword_ID : Mesh_Shield_ID;
 
-                PushMesh(Group, MeshID, Entity->Transform);
+                PushMesh(Group, MeshID, .Transform = Entity->Transform);
             } break;
         }
 

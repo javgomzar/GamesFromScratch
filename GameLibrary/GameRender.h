@@ -108,6 +108,7 @@ const int MAX_RENDER_ENTRIES = 16384;
 ENUM(render_command_type,
     render_clear,
     render_draw_primitive,
+    render_mesh,
     render_shader_pass,
     render_compute,
     render_target
@@ -162,12 +163,10 @@ struct render_primitive_options {
     game_bitmap* Texture = nullptr;
     game_heightmap* Heightmap = nullptr;
     game_font* Font = nullptr;
-    game_mesh* Mesh = nullptr;
-    armature* Armature = nullptr;
     v2 Pen;
     int PatchParameter = 4;
     float TextSize = 0;
-    bool Outline = false;
+    bool TextOutline;
 };
 
 struct render_primitive_command {
@@ -177,6 +176,19 @@ struct render_primitive_command {
     vertex_buffer_entry VertexEntry = {0};
     float* Vertices = 0;
     element_buffer_entry ElementEntry = {0};
+};
+
+struct render_mesh_options {
+    armature* Armature = nullptr;
+    color Color = White;
+    game_bitmap_id TextureID = Bitmap_Empty_ID;
+    transform Transform = IdentityTransform;
+    bool Outline = false;
+};
+
+struct render_mesh_command {
+    game_mesh_id MeshID;
+    render_mesh_options Options;
 };
 
 ENUM(color_format,
@@ -260,7 +272,7 @@ light Light(v3 Direction, color Color = White, float Ambient = 0.5f, float Diffu
 
 const int MAX_CLEAR_COMMANDS = 16;
 const int MAX_PRIMITIVE_COMMANDS = 8192;
-const int MAX_MESH_COMMANDS = 64;
+const int MAX_MESH_COMMANDS = 128;
 const int MAX_HEIGHTMAP_COMMANDS = 8;
 const int MAX_SHADER_PASS_COMMANDS = 32;
 const int MAX_COMPUTE_COMMANDS = 32;
@@ -269,8 +281,9 @@ const int MAX_RENDER_TARGET_COMMANDS = 16;
 
 struct render_group {
     render_command Entries[MAX_RENDER_ENTRIES];
-    render_clear_command Clears[MAX_CLEAR_COMMANDS];
+    render_clear_command ClearCommands[MAX_CLEAR_COMMANDS];
     render_primitive_command PrimitiveCommands[MAX_PRIMITIVE_COMMANDS];
+    render_mesh_command MeshCommands[MAX_MESH_COMMANDS];
     render_shader_pass_command ShaderPassCommands[MAX_SHADER_PASS_COMMANDS];
     render_compute_command ComputeCommands[MAX_COMPUTE_COMMANDS];
     render_target_command TargetCommands[MAX_RENDER_TARGET_COMMANDS];
@@ -283,6 +296,7 @@ struct render_group {
     int32 Height;
     uint32 EntryCount;
     uint32 nClearCommands;
+    uint32 nMeshCommands;
     uint32 nPrimitiveCommands;
     uint32 nShaderPassCommands;
     uint32 nComputeCommands;
@@ -397,6 +411,11 @@ void PushCommand(render_group* Group, render_command Command) {
                 Raise("Primitive draw command overflow.");
             }
         } break;
+        case render_mesh: {
+            if (Command.Index >= MAX_MESH_COMMANDS) {
+                Raise("Mesh command overflow.");
+            }
+        } break;
         case render_shader_pass: {
             if (Command.Index >= MAX_SHADER_PASS_COMMANDS) {
                 Raise("Shader pass command overflow.");
@@ -436,7 +455,8 @@ void PushCommand(render_group* Group, render_command Command) {
 
 void Clear(render_group* Group) {
     ZeroSize(Group->EntryCount * sizeof(render_command), Group->Entries);
-    ZeroSize(Group->nClearCommands * sizeof(render_clear_command), Group->Clears);
+    ZeroSize(Group->nClearCommands * sizeof(render_clear_command), Group->ClearCommands);
+    ZeroSize(Group->nMeshCommands * sizeof(render_mesh_command), Group->MeshCommands);
     ZeroSize(Group->nPrimitiveCommands * sizeof(render_primitive_command), Group->PrimitiveCommands);
     ZeroSize(Group->nShaderPassCommands * sizeof(render_shader_pass_command), Group->ShaderPassCommands);
     ZeroSize(Group->nComputeCommands * sizeof(render_compute_command), Group->ComputeCommands);
@@ -444,6 +464,7 @@ void Clear(render_group* Group) {
 
     Group->nClearCommands = 0;
     Group->nPrimitiveCommands = 0;
+    Group->nMeshCommands = 0;
     Group->nShaderPassCommands = 0;
     Group->nComputeCommands = 0;
     Group->nTargets = 0;
@@ -453,7 +474,186 @@ void Clear(render_group* Group) {
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-// | Push methods                                                                                                                                                     |
+// | Shaders & render targets                                                                                                                                        |
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+
+void PushRenderTarget(
+    render_group* Group,
+    render_group_target Source,
+    render_group_target Target,
+    float Order = SORT_ORDER_PUSH_RENDER_TARGETS
+) {
+    render_command Command;
+    Command.Index = Group->nTargets;
+    Command.Priority = Order;
+    Command.Type = render_target;
+
+    PushCommand(Group, Command);
+
+    render_target_command TargetCommand;
+    TargetCommand.Source = Source;
+    TargetCommand.Target = Target;
+    TargetCommand.DebugAttachment = false;
+    TargetCommand.Attachment = Group->RenderTargets[Source].Depth || Group->RenderTargets[Source].Stencil;
+
+    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
+    float* Data = (float*)TargetCommand.VertexEntry.Pointer;
+    
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ = -1.0f; *Data++ = 1.0f; *Data++ = 0.0f;
+    *Data++ =  1.0;  *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
+
+    Group->TargetCommands[Group->nTargets++] = TargetCommand;
+}
+
+void PushShaderPass(
+    render_group* Group,
+    shader_pass_type Type,
+    render_group_target Source,
+    render_group_target Target,
+    color Color,
+    float Order = SORT_ORDER_SHADER_PASSES
+) {
+    render_command Command;
+    Command.Type = render_shader_pass;
+    Command.Index = Group->nShaderPassCommands;
+    Command.Priority = Order;
+
+    PushCommand(Group, Command);
+
+    render_shader_pass_command ShaderCommand;
+    ShaderCommand.Type = Type;
+    ShaderCommand.Color = Color;
+    ShaderCommand.Source = Source;
+    ShaderCommand.Target = Target;
+    
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v3_v2_id);
+
+    float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
+    Data[0] = -1.0f;  Data[1] = -1.0f;  Data[2] = 0.0f;  Data[3] = 0.0f;  Data[4] = 0.0f;
+    Data[5] = 1.0f;   Data[6] = -1.0f;  Data[7] = 0.0f;  Data[8] = 1.0f;  Data[9] = 0.0f;
+    Data[10] = 1.0;   Data[11] = 1.0f;  Data[12] = 0.0f; Data[13] = 1.0f; Data[14] = 1.0f;
+    Data[15] = -1.0f; Data[16] = -1.0f; Data[17] = 0.0f; Data[18] = 0.0f; Data[19] = 0.0f;
+    Data[20] = 1.0f;  Data[21] = 1.0f;  Data[22] = 0.0f; Data[23] = 1.0f; Data[24] = 1.0f;
+    Data[25] = -1.0f; Data[26] = 1.0f;  Data[27] = 0.0f; Data[28] = 0.0f; Data[29] = 1.0f;
+    
+    Group->ShaderPassCommands[Group->nShaderPassCommands++] = ShaderCommand;
+}
+
+void PushOutlineInitCompute(
+    render_group* Group,
+    render_group_target Target,
+    float Order = 0.0f
+) {
+    render_command Command = {};
+    Command.Type = render_compute;
+    Command.Index = Group->nComputeCommands;
+    Command.Priority = Order;
+
+    PushCommand(Group, Command);
+
+    render_compute_command ComputeCommand = {};
+    ComputeCommand.Type = compute_outline_init;
+    ComputeCommand.Target = Target_Postprocessing_Outline;
+    ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Z = 1;
+
+    Group->ComputeCommands[Group->nComputeCommands++] = ComputeCommand;
+}
+
+void PushJumpFloodCompute(
+    render_group* Group,
+    int Level,
+    float Order = 0.0f
+) {
+    render_command Command = {};
+    Command.Type = render_compute;
+    Command.Index = Group->nComputeCommands;
+    Command.Priority = Order;
+
+    PushCommand(Group, Command);
+
+    render_compute_command ComputeCommand = {};
+    ComputeCommand.Type = compute_jump_flood;
+    ComputeCommand.Target = Target_Postprocessing_Outline;
+    ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Z = 1;
+    ComputeCommand.Level = Level;
+
+    Group->ComputeCommands[Group->nComputeCommands++] = ComputeCommand;
+}
+
+void PushOutlineCompute(
+    render_group* Group,
+    color Color,
+    float Width,
+    float Order = 0.0f
+) {
+    render_command Command = {};
+    Command.Type = render_compute;
+    Command.Index = Group->nComputeCommands;
+    Command.Priority = Order;
+
+    PushCommand(Group, Command);
+
+    render_compute_command ComputeCommand = {};
+    ComputeCommand.Type = compute_outline;
+    ComputeCommand.Target = Target_Postprocessing_Outline;
+    ComputeCommand.Color = Color;
+    ComputeCommand.Width = Width;
+    ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Z = 1;
+
+    Group->ComputeCommands[Group->nComputeCommands++] = ComputeCommand;
+}
+
+void PushKernelCompute(
+    render_group* Group,
+    render_group_target Target,
+    matrix3 Kernel,
+    float Order = SORT_ORDER_SHADER_PASSES
+) {
+    render_command Command;
+    Command.Type = render_compute;
+    Command.Index = Group->nComputeCommands;
+    Command.Priority = Order;
+
+    PushCommand(Group, Command);
+
+    render_compute_command ComputeCommand;
+    ComputeCommand.Type = compute_kernel;
+    ComputeCommand.Target = Target;
+    ComputeCommand.Kernel = Kernel;
+    ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Z = 1;
+
+    Group->ComputeCommands[Group->nComputeCommands++] = ComputeCommand;
+}
+
+void PushBlur(
+    render_group* Group,
+    render_group_target Target,
+    float Order = SORT_ORDER_SHADER_PASSES
+) {
+    matrix3 Kernel = {
+        1, 2, 1,
+        2, 4, 2,
+        1, 2, 1
+    };
+    Kernel *= 1.0f / 16.0f;
+
+    PushKernelCompute(Group, Target, Kernel, Order);
+}
+
+// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
+// | Render commands                                                                                                                                                  |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 void PushClear(render_group* Group, color Color, render_group_target Target = Target_Output) {
@@ -467,7 +667,7 @@ void PushClear(render_group* Group, color Color, render_group_target Target = Ta
     Clear.Target = Target;
     Clear.Color = Color;
     
-    Group->Clears[Group->nClearCommands++] = Clear;
+    Group->ClearCommands[Group->nClearCommands++] = Clear;
 }
 
 /*
@@ -499,7 +699,7 @@ render_primitive_command* PushPrimitiveCommand(
     PrimitiveCommand->Color = Color;
 
     if (nVertices > 0) {
-        if (Options.Mesh || Options.Font || Options.Heightmap) {
+        if (Options.Font || Options.Heightmap) {
             PrimitiveCommand->VertexEntry.Count = nVertices;
             PrimitiveCommand->VertexEntry.LayoutID = LayoutID;
         }
@@ -510,7 +710,7 @@ render_primitive_command* PushPrimitiveCommand(
     }
 
     if (nElements > 0) {
-        if (Options.Mesh || Options.Font || Options.Heightmap) {
+        if (Options.Font || Options.Heightmap) {
             PrimitiveCommand->ElementEntry.Count = nElements;
         }
         else {
@@ -1070,8 +1270,6 @@ void PushBitmap(
     PushBitmap(Group, Bitmap, Rect, Order, Mode, Size, Offset, false);
 }
 
-void PushBitmap() {}
-
 struct render_text_options {
     color Color        = White;
     bool Fill          = true;
@@ -1138,7 +1336,7 @@ void _PushText(
                 PrimitiveOptions.Font = Font;
                 PrimitiveOptions.TextSize = Size;
                 PrimitiveOptions.PatchParameter = 3;
-                PrimitiveOptions.Outline = Options.Outline;
+                PrimitiveOptions.TextOutline = Options.Outline;
                 PrimitiveOptions.Pen = Pen;
                 PrimitiveOptions.Thickness = Options.OutlineWidth;
 
@@ -1425,245 +1623,35 @@ void PushCubeOutline(
 //     PushLine(Group, Position + V2(0.0, LowerLineStart), Position + V2(0.0, 60.0), Color, 2.0, Order);
 // }
 
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-// | Shaders & render targets                                                                                                                                        |
-// +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
-
-void PushRenderTarget(
-    render_group* Group,
-    render_group_target Source,
-    render_group_target Target,
-    float Order = SORT_ORDER_PUSH_RENDER_TARGETS
-) {
-    render_command Command;
-    Command.Index = Group->nTargets;
-    Command.Priority = Order;
-    Command.Type = render_target;
-
-    PushCommand(Group, Command);
-
-    render_target_command TargetCommand;
-    TargetCommand.Source = Source;
-    TargetCommand.Target = Target;
-    TargetCommand.DebugAttachment = false;
-    TargetCommand.Attachment = Group->RenderTargets[Source].Depth || Group->RenderTargets[Source].Stencil;
-
-    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
-    float* Data = (float*)TargetCommand.VertexEntry.Pointer;
-    
-    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
-    *Data++ =  1.0f; *Data++ = -1.0f; *Data++ = 1.0f; *Data++ = 0.0f;
-    *Data++ =  1.0;  *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
-    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
-    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
-    *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
-
-    Group->TargetCommands[Group->nTargets++] = TargetCommand;
-}
-
-void PushShaderPass(
-    render_group* Group,
-    shader_pass_type Type,
-    render_group_target Source,
-    render_group_target Target,
-    color Color,
-    float Order = SORT_ORDER_SHADER_PASSES
-) {
-    render_command Command;
-    Command.Type = render_shader_pass;
-    Command.Index = Group->nShaderPassCommands;
-    Command.Priority = Order;
-
-    PushCommand(Group, Command);
-
-    render_shader_pass_command ShaderCommand;
-    ShaderCommand.Type = Type;
-    ShaderCommand.Color = Color;
-    ShaderCommand.Source = Source;
-    ShaderCommand.Target = Target;
-    
-    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v3_v2_id);
-
-    float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
-    Data[0] = -1.0f;  Data[1] = -1.0f;  Data[2] = 0.0f;  Data[3] = 0.0f;  Data[4] = 0.0f;
-    Data[5] = 1.0f;   Data[6] = -1.0f;  Data[7] = 0.0f;  Data[8] = 1.0f;  Data[9] = 0.0f;
-    Data[10] = 1.0;   Data[11] = 1.0f;  Data[12] = 0.0f; Data[13] = 1.0f; Data[14] = 1.0f;
-    Data[15] = -1.0f; Data[16] = -1.0f; Data[17] = 0.0f; Data[18] = 0.0f; Data[19] = 0.0f;
-    Data[20] = 1.0f;  Data[21] = 1.0f;  Data[22] = 0.0f; Data[23] = 1.0f; Data[24] = 1.0f;
-    Data[25] = -1.0f; Data[26] = 1.0f;  Data[27] = 0.0f; Data[28] = 0.0f; Data[29] = 1.0f;
-    
-    Group->ShaderPassCommands[Group->nShaderPassCommands++] = ShaderCommand;
-}
-
-void PushOutlineInitCompute(
-    render_group* Group,
-    render_group_target Target,
-    float Order = 0.0f
-) {
-    render_command Command = {};
-    Command.Type = render_compute;
-    Command.Index = Group->nComputeCommands;
-    Command.Priority = Order;
-
-    PushCommand(Group, Command);
-
-    render_compute_command ComputeCommand = {};
-    ComputeCommand.Type = compute_outline_init;
-    ComputeCommand.Target = Target_Postprocessing_Outline;
-    ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
-    ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
-    ComputeCommand.nGroups.Z = 1;
-
-    Group->ComputeCommands[Group->nComputeCommands++] = ComputeCommand;
-}
-
-void PushJumpFloodCompute(
-    render_group* Group,
-    int Level,
-    float Order = 0.0f
-) {
-    render_command Command = {};
-    Command.Type = render_compute;
-    Command.Index = Group->nComputeCommands;
-    Command.Priority = Order;
-
-    PushCommand(Group, Command);
-
-    render_compute_command ComputeCommand = {};
-    ComputeCommand.Type = compute_jump_flood;
-    ComputeCommand.Target = Target_Postprocessing_Outline;
-    ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
-    ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
-    ComputeCommand.nGroups.Z = 1;
-    ComputeCommand.Level = Level;
-
-    Group->ComputeCommands[Group->nComputeCommands++] = ComputeCommand;
-}
-
-void PushOutlineCompute(
-    render_group* Group,
-    color Color,
-    float Width,
-    float Order = 0.0f
-) {
-    render_command Command = {};
-    Command.Type = render_compute;
-    Command.Index = Group->nComputeCommands;
-    Command.Priority = Order;
-
-    PushCommand(Group, Command);
-
-    render_compute_command ComputeCommand = {};
-    ComputeCommand.Type = compute_outline;
-    ComputeCommand.Target = Target_Postprocessing_Outline;
-    ComputeCommand.Color = Color;
-    ComputeCommand.Width = Width;
-    ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
-    ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
-    ComputeCommand.nGroups.Z = 1;
-
-    Group->ComputeCommands[Group->nComputeCommands++] = ComputeCommand;
-}
-
-void PushKernelCompute(
-    render_group* Group,
-    render_group_target Target,
-    matrix3 Kernel,
-    float Order = SORT_ORDER_SHADER_PASSES
-) {
-    render_command Command;
-    Command.Type = render_compute;
-    Command.Index = Group->nComputeCommands;
-    Command.Priority = Order;
-
-    PushCommand(Group, Command);
-
-    render_compute_command ComputeCommand;
-    ComputeCommand.Type = compute_kernel;
-    ComputeCommand.Target = Target;
-    ComputeCommand.Kernel = Kernel;
-    ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
-    ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
-    ComputeCommand.nGroups.Z = 1;
-
-    Group->ComputeCommands[Group->nComputeCommands++] = ComputeCommand;
-}
-
-void PushBlur(
-    render_group* Group,
-    render_group_target Target,
-    float Order = SORT_ORDER_SHADER_PASSES
-) {
-    matrix3 Kernel = {
-        1, 2, 1,
-        2, 4, 2,
-        1, 2, 1
-    };
-    Kernel *= 1.0f / 16.0f;
-
-    PushKernelCompute(Group, Target, Kernel, Order);
-}
-
-void PushMesh(
+void _PushMesh(
     render_group* Group,
     game_mesh_id MeshID,
-    transform Transform,
-    game_bitmap_id TextureID = Bitmap_Empty_ID,
-    color Color = White,
-    armature* Armature = NULL,
-    bool Outline = false,
-    color OutlineColor = White
+    render_mesh_options Options
 ) {
-    game_mesh* Mesh = GetAsset(Group->Assets, MeshID);
-    render_primitive_options Options = {};
-    Options.Mesh = Mesh;
-    Options.Armature = Armature;
-    Options.Texture = GetAsset(Group->Assets, TextureID);
-    Options.Flags = DEPTH_TEST_FLAG;
-    Options.Transform = Transform;
     
-    // Faces
-    if (Mesh->nFaces > 0) {
-        PushPrimitiveCommand(
-            Group,
-            render_primitive_triangle,
-            Color,
-            Armature != NULL ? vertex_layout_v3_v2_v3_id : vertex_layout_bones_id,
-            Mesh->nVertices,
-            3 * Mesh->nFaces,
-            Outline ? SORT_ORDER_OUTLINED_MESHES : SORT_ORDER_MESHES,
-            Options
-        );
-    }
+    render_command Command = {};
+    Command.Type = render_mesh;
+    Command.Priority = Options.Outline ? SORT_ORDER_OUTLINED_MESHES : SORT_ORDER_MESHES;
+    Command.Index = Group->nMeshCommands++;
+    PushCommand(Group, Command);
 
-    // Edges
-    if (Mesh->nEdges > 0) {
-        uint32* MeshEdges = Mesh->Edges;
-        PushPrimitiveCommand(
-            Group,
-            render_primitive_line,
-            Color,
-            Armature != NULL ? vertex_layout_v3_v2_v3_id : vertex_layout_bones_id,
-            Mesh->nVertices,
-            2 * Mesh->nEdges,
-            Outline ? SORT_ORDER_OUTLINED_MESHES : SORT_ORDER_MESHES,
-            Options
-        );
-    }
+    render_mesh_command* MeshCommand = &Group->MeshCommands[Command.Index];
+    MeshCommand->MeshID = MeshID;
+    MeshCommand->Options = Options;
+    MeshCommand->Options.Outline = false;
 
     // Outlines
-    if (Outline) {
-        Options.Outline = true;
-        PushPrimitiveCommand(
-            Group,
-            render_primitive_triangle,
-            OutlineColor,
-            Armature != NULL ? vertex_layout_v3_v2_v3_id : vertex_layout_bones_id,
-            Mesh->nVertices,
-            3 * Mesh->nFaces,
-            SORT_ORDER_CLEAR,
-            Options
-        );
+    if (Options.Outline) {
+        render_command OutlineCommand = {};
+        OutlineCommand.Type = render_mesh;
+        OutlineCommand.Priority = SORT_ORDER_CLEAR + 1.0f;
+        OutlineCommand.Index = Group->nMeshCommands++;
+        PushCommand(Group, OutlineCommand);
+
+        render_mesh_command* OutlineMeshCommand = &Group->MeshCommands[OutlineCommand.Index];
+        MeshCommand->MeshID = MeshID;
+        OutlineMeshCommand->Options.Transform = Options.Transform;
+        OutlineMeshCommand->Options.Outline = true;
 
         if (!Group->PushOutline) {
             PushRenderTarget(Group, Target_Outline, Target_Postprocessing_Outline, SORT_ORDER_CLEAR + 1.0f);
@@ -1687,28 +1675,30 @@ void PushMesh(
     }
 
     // Debug bones rendering
-    if (Group->Debug && Group->DebugBones && Armature != NULL) {
-        Options = {};
-        Options.Thickness = 2.5f;
+    if (Group->Debug && Group->DebugBones && Options.Armature) {
+        render_primitive_options PrimitiveOptions = {};
+        PrimitiveOptions.Thickness = 2.5f;
         v3* Vertices = (v3*)PushPrimitiveCommand(
             Group, 
             render_primitive_line,
             Black,
             vertex_layout_v3_id,
-            2 * Armature->nBones,
+            2 * Options.Armature->nBones,
             0,
             SORT_ORDER_DEBUG_OVERLAY,
-            Options
+            PrimitiveOptions
         )->Vertices;
 
-        for (int i = 0; i < Armature->nBones; i++) {
-            bone Bone = Armature->Bones[i];
+        for (int i = 0; i < Options.Armature->nBones; i++) {
+            bone Bone = Options.Armature->Bones[i];
             transform BoneTransform = Bone.Transform;
-            Vertices[2*i] = BoneTransform * Transform * Bone.Segment.Head;
-            Vertices[2*i+1] = BoneTransform * Transform * Bone.Segment.Tail;
+            Vertices[2*i] = BoneTransform * Options.Transform * Bone.Segment.Head;
+            Vertices[2*i+1] = BoneTransform * Options.Transform * Bone.Segment.Tail;
         }
     }
 }
+
+#define PushMesh(Group, MeshID, ...) _PushMesh(Group, MeshID, { __VA_ARGS__ })
 
 void PushHeightmap(
     render_group* Group, 

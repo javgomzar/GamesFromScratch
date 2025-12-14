@@ -4,9 +4,9 @@
 #define GAME_BITMAP
 
 ENUM(game_bitmap_id,
+    Bitmap_Empty_ID,
     Bitmap_Background_ID,
     Bitmap_Button_ID,
-    Bitmap_Empty_ID,
     Bitmap_Enemy_ID,
     Bitmap_Player_ID,
     Bitmap_Spain_ID

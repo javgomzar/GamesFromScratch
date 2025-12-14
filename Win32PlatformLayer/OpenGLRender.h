@@ -988,11 +988,7 @@ void ReloadShaders() {
 }
 
 openGL_shader_pipeline_id GetPipelineID(render_primitive_options Options) {
-	if (Options.Mesh) {
-		if (Options.Outline) return Options.Armature ? Shader_Pipeline_Bones_Single_Color_ID : Shader_Pipeline_World_Single_Color_ID;
-		else                 return Options.Armature ? Shader_Pipeline_Mesh_Bones_ID         : Shader_Pipeline_Mesh_ID;
-	}
-	else if (Options.Font) {
+	if (Options.Font) {
 		if      (Options.Flags & TEXT_OUTLINE_FLAG)  return Shader_Pipeline_Text_Outline_ID;
 		else if (Options.Flags & TEXT_INTERIOR_FLAG) return Shader_Pipeline_Bezier_Interior_ID;
 		else if (Options.Flags & TEXT_EXTERIOR_FLAG) return Shader_Pipeline_Bezier_Exterior_ID;
@@ -1636,7 +1632,7 @@ RENDERER_RENDER {
 
 		switch(Command.Type) {
 			case render_clear: {
-				render_clear_command Clear = Group->Clears[Command.Index];
+				render_clear_command Clear = Group->ClearCommands[Command.Index];
 
 				glViewport(0, 0, Width, Height);
 				BindTarget(Clear.Target);
@@ -1649,8 +1645,7 @@ RENDERER_RENDER {
 				render_primitive_command DrawCommand = Group->PrimitiveCommands[Command.Index];
 				render_primitive_options Options = DrawCommand.Options;
 
-				if (Options.Outline) BindTarget(Target_Outline);
-				else                 BindTarget(Target_World);
+				BindTarget(Target_World);
 
 				openGL_shader_pipeline_id PipelineID = GetPipelineID(Options);
 				uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
@@ -1674,13 +1669,7 @@ RENDERER_RENDER {
 				uint32 VAO = 0;
 				vertex_buffer_entry VertexEntry = DrawCommand.VertexEntry;
 				element_buffer_entry ElementEntry = DrawCommand.ElementEntry;
-				if (Options.Mesh) {
-					VAO = OpenGL.MeshBuffer[Options.Mesh->ID].VAO;
-					if (Options.Armature) SetBoneUniforms(Options.Armature);
-					matrix4 Model = Matrix(Options.Transform);
-					SetModelUniforms(Model);
-				}
-				else if (Options.Font) {
+				if (Options.Font) {
 					VAO = OpenGL.FontBuffer[Options.Font->ID].VAO;
 					SetTextUniforms(Options.TextSize, Options.Pen);
 				}
@@ -1721,22 +1710,57 @@ RENDERER_RENDER {
 					glDrawArrays(Primitive, VertexEntry.Offset, VertexEntry.Count);
 				}
 
-				if (Options.Mesh) {
-					if (Group->Debug && Group->DebugNormals) {
-						SetColorUniform(Yellow);
-
-						glUseProgram(OpenGL.Pipeline[Shader_Pipeline_Debug_Normals_ID].ID);
-						glLineWidth(1.0f);
-						CurrentLineWidth = 1.0f;
-						glDrawArrays(GL_POINTS, 0, Options.Mesh->nVertices);
-					}
-
-					ClearBoneUniforms();
-				}
-
-				if (Options.Mesh || Options.Heightmap) {
+				if (Options.Heightmap) {
 					ClearModelUniforms();
 				}
+			} break;
+
+			case render_mesh: {
+				render_mesh_command MeshCommand = Group->MeshCommands[Command.Index];
+				render_mesh_options Options = MeshCommand.Options;
+
+				game_mesh* Mesh = GetAsset(Group->Assets, MeshCommand.MeshID);
+
+				openGL_shader_pipeline_id PipelineID = Options.Armature ? Shader_Pipeline_Mesh_Bones_ID : Shader_Pipeline_Mesh_ID;
+				if (Options.Outline) {
+					BindTarget(Target_Outline);
+					PipelineID = Options.Armature ? Shader_Pipeline_Bones_Single_Color_ID : Shader_Pipeline_World_Single_Color_ID;
+				}
+				else BindTarget(Target_World);
+
+				uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
+				glUseProgram(ProgramID);
+
+				glDepthFunc(GL_LESS);
+				glDepthMask(GL_TRUE);
+
+				SetColorUniform(Options.Color);
+				uint32 TextureHandle = OpenGL.Texture[Options.TextureID];
+				BindTexture(ProgramID, TextureHandle, 0);
+				if (Options.Armature) SetBoneUniforms(Options.Armature);
+				matrix4 Model = Matrix(Options.Transform);
+				SetModelUniforms(Model);
+
+				glBindVertexArray(OpenGL.MeshBuffer[MeshCommand.MeshID].VAO);
+				if (Mesh->nFaces > 0) glDrawElements(GL_TRIANGLES, 3*Mesh->nFaces, GL_UNSIGNED_INT, 0);
+				if (Mesh->nEdges > 0) {
+					if (CurrentLineWidth != 2.0f) {
+						CurrentLineWidth = 2.0f;
+						glLineWidth(2.0f);
+					}
+					glDrawElements(GL_LINES, 2*Mesh->nEdges, GL_UNSIGNED_INT, 0);
+				}
+				if (Group->Debug && Group->DebugNormals) {
+					SetColorUniform(Yellow);
+
+					glUseProgram(OpenGL.Pipeline[Shader_Pipeline_Debug_Normals_ID].ID);
+					glLineWidth(1.0f);
+					CurrentLineWidth = 1.0f;
+					glDrawArrays(GL_POINTS, 0, Mesh->nVertices);
+				}
+
+				if (Options.Armature) ClearBoneUniforms();
+				ClearModelUniforms();
 			} break;
 
 			case render_shader_pass: {

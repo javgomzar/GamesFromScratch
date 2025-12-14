@@ -1498,7 +1498,7 @@ RENDERER_RENDER {
 
 		switch(Command.Type) {
 			case render_clear: {
-				render_clear_command Clear = Group->Clears[Command.Index];
+				render_clear_command Clear = Group->ClearCommands[Command.Index];
 
                 directX_render_target* Target = &DirectX.Target[Clear.Target];
                 float Color[4] = { Clear.Color.R, Clear.Color.G, Clear.Color.B, Clear.Color.Alpha };
@@ -1519,8 +1519,7 @@ RENDERER_RENDER {
                 else
                     DirectX.DeviceContext->OMSetBlendState(DirectX.CombineAlpha, BlendFactors, 0xffffffff);
 
-                if (Options.Outline) BindTarget(Target_Outline);
-				else                 BindTarget(Target_World);
+                BindTarget(Target_World);
 
                 vertex_layout_id LayoutID;
                 ID3D11Buffer** VertexBuffer = NULL;
@@ -1530,27 +1529,7 @@ RENDERER_RENDER {
                 directX_Vertex_Shader_ID VertexShaderID = Vertex_Shader_Screen_ID;
                 directX_Pixel_Shader_ID PixelShaderID = Pixel_Shader_Single_Color_ID;
                 uint32 Offset = 0;
-                if (Options.Mesh) {
-                    VertexBuffer = &DirectX.MeshBuffer[Options.Mesh->ID].VertexBuffer;
-                    IndexBuffer = DirectX.MeshBuffer[Options.Mesh->ID].IndexBuffer;
-                    if (Options.Mesh->Armature.nBones > 0) {
-                        LayoutID = vertex_layout_bones_id;
-                        VertexShaderID = Vertex_Shader_Bones_ID;
-
-                        if (Options.Armature) {
-                            SetBoneBuffer(Options.Armature);
-                        }
-                    }
-                    else {
-                        LayoutID = vertex_layout_v3_v2_v3_id;
-                        VertexShaderID = Vertex_Shader_Mesh_ID;
-                    }
-                    
-                    if (!Options.Outline) PixelShaderID = Pixel_Shader_Mesh_ID;
-
-                    SetTransformBuffer(Options.Transform);
-                }
-                else if (Options.Font) {
+                if (Options.Font) {
                     LayoutID = vertex_layout_v2_v2_id;
                     VertexShaderID = Vertex_Shader_Barycentric_ID;
                     if (Options.Flags & TEXT_OUTLINE_FLAG)  {
@@ -1629,20 +1608,6 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->Draw(VertexEntry.Count, Offset);
                 }
 
-                if (Options.Mesh) {
-                    if (Group->Debug && Group->DebugNormals) {
-                        DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
-                        DirectX.DeviceContext->GSSetShader(DirectX.GeometryShader[Geometry_Shader_Normal_ID].Shader, NULL, 0);
-                        DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Single_Color_ID].Shader, NULL, 0);
-                        SetColorBuffer(Yellow);
-                        DirectX.DeviceContext->Draw(Options.Mesh->nVertices, 0);
-                        DirectX.DeviceContext->GSSetShader(NULL, NULL, 0);
-                    }
-
-                    if (Options.Armature) ClearBoneBuffer();
-                    ClearTransformBuffer();
-                }
-
                 if (Options.Heightmap) {
                     DirectX.DeviceContext->HSSetShader(NULL, NULL, 0);
                     DirectX.DeviceContext->DSSetShader(NULL, NULL, 0);
@@ -1650,6 +1615,74 @@ RENDERER_RENDER {
                 }
 
                 DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilDisabled, 1);
+            } break;
+
+            case render_mesh: {
+                render_mesh_command MeshCommand = Group->MeshCommands[Command.Index];
+                render_mesh_options Options = MeshCommand.Options;
+
+                game_mesh* Mesh = GetAsset(Group->Assets, MeshCommand.MeshID);
+
+                ID3D11Buffer** VertexBuffer = &DirectX.MeshBuffer[MeshCommand.MeshID].VertexBuffer;
+                ID3D11Buffer* IndexBuffer = DirectX.MeshBuffer[MeshCommand.MeshID].IndexBuffer;
+                vertex_layout_id LayoutID = vertex_layout_v3_v2_v3_id;
+                directX_Vertex_Shader_ID VertexShaderID = Vertex_Shader_Mesh_ID;
+                directX_Pixel_Shader_ID PixelShaderID = Pixel_Shader_Mesh_ID;
+                if (Mesh->Armature.nBones > 0) {
+                    LayoutID = vertex_layout_bones_id;
+                    VertexShaderID = Vertex_Shader_Bones_ID;
+
+                    if (Options.Armature) {
+                        SetBoneBuffer(Options.Armature);
+                    }
+                }
+
+                if (Options.Outline) {
+                    BindTarget(Target_Outline);
+                    PixelShaderID = Pixel_Shader_Single_Color_ID;
+                }
+                else BindTarget(Target_World);
+                
+                SetTransformBuffer(Options.Transform);
+                SetColorBuffer(Options.Color);
+
+                DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilEnabled, 1);
+
+                DirectX.DeviceContext->PSSetShaderResources(0, 1, &DirectX.Texture[Options.TextureID]);
+                DirectX.DeviceContext->PSSetSamplers(0, 1, &DirectX.PixelShader[PixelShaderID].Sampler);
+
+                DirectX.DeviceContext->IASetInputLayout(DirectX.VertexLayout[LayoutID]);
+                DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[VertexShaderID].Shader, NULL, 0);
+                DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[PixelShaderID].Shader, NULL, 0);
+            
+                uint32 Stride = Group->Assets->VertexLayout[LayoutID].Stride;
+
+                uint32 VertexOffset = 0;
+                if (Mesh->nFaces > 0) {
+                    DirectX.DeviceContext->IASetVertexBuffers(0, 1, VertexBuffer, &Stride, &VertexOffset);
+                    DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                    DirectX.DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+                    DirectX.DeviceContext->DrawIndexed(3*Mesh->nFaces, 0, 0);
+                }
+
+                if (Mesh->nEdges > 0) {
+                    DirectX.DeviceContext->IASetVertexBuffers(0, 1, VertexBuffer, &Stride, &VertexOffset);
+                    DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_LINELIST);
+                    DirectX.DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+                    DirectX.DeviceContext->DrawIndexed(2*Mesh->nEdges, 3*Mesh->nFaces, 0);
+                }
+
+                if (!Options.Outline && Group->Debug && Group->DebugNormals) {
+                    DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
+                    DirectX.DeviceContext->GSSetShader(DirectX.GeometryShader[Geometry_Shader_Normal_ID].Shader, NULL, 0);
+                    DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Single_Color_ID].Shader, NULL, 0);
+                    SetColorBuffer(Yellow);
+                    DirectX.DeviceContext->Draw(Mesh->nVertices, 0);
+                    DirectX.DeviceContext->GSSetShader(NULL, NULL, 0);
+                }
+
+                if (Options.Armature) ClearBoneBuffer();
+                ClearTransformBuffer();
             } break;
 
             case render_shader_pass: {

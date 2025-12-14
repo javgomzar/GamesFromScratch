@@ -62,7 +62,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 66;
+const int ENUM_VALUES_SIZE = 67;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -98,10 +98,11 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_character_action_id, "character_action_id_count", 4},
     {Debug_Type_render_command_type, "render_clear", 0},
     {Debug_Type_render_command_type, "render_draw_primitive", 1},
-    {Debug_Type_render_command_type, "render_shader_pass", 2},
-    {Debug_Type_render_command_type, "render_compute", 3},
-    {Debug_Type_render_command_type, "render_target", 4},
-    {Debug_Type_render_command_type, "render_command_type_count", 5},
+    {Debug_Type_render_command_type, "render_mesh", 2},
+    {Debug_Type_render_command_type, "render_shader_pass", 3},
+    {Debug_Type_render_command_type, "render_compute", 4},
+    {Debug_Type_render_command_type, "render_target", 5},
+    {Debug_Type_render_command_type, "render_command_type_count", 6},
     {Debug_Type_render_group_target, "Target_None", 0},
     {Debug_Type_render_group_target, "Target_World", 1},
     {Debug_Type_render_group_target, "Target_Outline", 2},
