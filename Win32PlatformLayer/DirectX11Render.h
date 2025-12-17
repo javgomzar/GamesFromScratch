@@ -657,9 +657,6 @@ void LoadShader(directX_Vertex_Shader_ID ID, const char* Path) {
             Log(Error, TextBuffer);
         }
         else {
-            sprintf_s(TextBuffer, "DirectX: Vertex shader %s was successfully created.", Path);
-            Log(Info, TextBuffer);
-
             ParseVertexLayout(Shader);
         }
     }
@@ -711,9 +708,6 @@ void LoadShader(directX_Pixel_Shader_ID ID, const char* Path) {
             Log(Error, TextBuffer);
         }
         else {
-            sprintf_s(TextBuffer, "DirectX: Pixel shader %s was successfully created.", Path);
-            Log(Info, TextBuffer);
-
             ParseSamplers(&Shader->Sampler, (char*)Shader->File.Content);
         }
     }
@@ -737,10 +731,6 @@ void LoadShader(directX_Hull_Shader_ID ID, const char* Path) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating hull shader %s", Path);
             Log(Error, TextBuffer);
         }
-        else {
-            sprintf_s(TextBuffer, "DirectX: Hull shader %s was successfully created.", Path);
-            Log(Info, TextBuffer);
-        }
     }
 }
 
@@ -763,9 +753,6 @@ void LoadShader(directX_Domain_Shader_ID ID, const char* Path) {
             Log(Error, TextBuffer);
         }
         else {
-            sprintf_s(TextBuffer, "DirectX: Domain shader %s was successfully created.", Path);
-            Log(Info, TextBuffer);
-
             ParseSamplers(&Shader->Sampler, (char*)Shader->File.Content);
         }
     }
@@ -789,10 +776,6 @@ void LoadShader(directX_Geometry_Shader_ID ID, const char* Path) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating geometry shader %s", Path);
             Log(Error, TextBuffer);
         }
-        else {
-            sprintf_s(TextBuffer, "DirectX: Geometry shader %s was successfully created.", Path);
-            Log(Info, TextBuffer);
-        }
     }
 }
 
@@ -813,10 +796,6 @@ void LoadShader(directX_Compute_Shader_ID ID, const char* Path) {
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating compute shader %s", Path);
             Log(Error, TextBuffer);
-        }
-        else {
-            sprintf_s(TextBuffer, "DirectX: Compute shader %s was successfully created.", Path);
-            Log(Info, TextBuffer);
         }
     }
 }
