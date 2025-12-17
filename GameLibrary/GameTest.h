@@ -70,7 +70,7 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
 
     // const char* TestString = "!\"#$%&'()*+,-./0123456789:;<=>?@\nABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\nabcdefghijklmnopqrstuvwxyz{|}~";
     // game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    // PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), Font_Menlo_Regular_ID, TestString, White, Points, Options);
+    // PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Outline = false, .Points = Points);
 
 // 3D
     // Point
