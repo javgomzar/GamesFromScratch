@@ -7,27 +7,28 @@ cbuffer Globals: register(b0) {
     float Time;
 };
 
-cbuffer Text: register(b7) {
-    float2 Pen;
-	float Size;
-};
-
 struct VS_IN {
     float2 Position: POSITION;
-    float2 Barycentric: TEXCOORD;
+    float2 Barycentric: TEXCOORD0;
+    float3 Text: TEXCOORD1;
+    float4 Color: COLOR;
 };
 
 struct VS_OUT {
     float4 Position: SV_POSITION;
-    float2 Barycentric: TEXCOORD;
+    float2 Barycentric: TEXCOORD0;
+    float3 Text: TEXCOORD1;
+    float4 Color: COLOR;
 };
 
 VS_OUT main(VS_IN vin) {
     VS_OUT vout;
     vout.Barycentric = vin.Barycentric;
+    vout.Text = vin.Text;
+    vout.Color = vin.Color;
 
     float2 Position = float2(vin.Position.x, -vin.Position.y);
-	float2 Sized = Pen + Size * vin.Position;
+	float2 Sized = vin.Text.xy + vin.Text.z * vin.Position;
     float2 Result = (2 * float2(Sized.x, -Sized.y) / Resolution) + float2(-1.0, 1.0);
 	vout.Position = float4(Result, 0.0, 1.0);
     return vout;

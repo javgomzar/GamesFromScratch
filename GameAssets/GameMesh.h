@@ -113,7 +113,7 @@ struct vertex_layout {
     uint8 nAttributes;
 };
 
-vertex_layout_id FindCompatibleVertexLayout(vertex_layout* VertexLayouts, vertex_layout VertexLayout) {
+bool FindCompatibleVertexLayout(vertex_layout* VertexLayouts, vertex_layout VertexLayout, vertex_layout_id* Result = nullptr) {
     for (int i = 0; i < vertex_layout_id_count; i++) {
         vertex_layout TestLayout = VertexLayouts[i];
         if (TestLayout.nAttributes == VertexLayout.nAttributes) {
@@ -129,12 +129,14 @@ vertex_layout_id FindCompatibleVertexLayout(vertex_layout* VertexLayouts, vertex
             }
 
             if (Compatible) {
-                return TestLayout.ID;
+                if (Result) *Result = TestLayout.ID;
+                return true;
             }
         }
     }
 
-    Raise("No compatible vertex layout was found.");
+    Result = nullptr;
+    return false;
 }
 
 void AddAttribute(vertex_layout* VertexLayout, vertex_type Type) {

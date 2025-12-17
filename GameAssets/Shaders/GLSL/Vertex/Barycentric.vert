@@ -15,27 +15,21 @@ layout(std140, binding = 0) uniform GlobalUniforms
 	float time;
 } GlobalUBO;
 
-#ifdef VULKAN
-layout(std140, set = 2, binding = 2) uniform TextUniforms 
-#else 
-layout(std140, binding = 8) uniform TextUniforms 
-#endif
-{
-    vec2 Pen;
-	float Size;
-} TextUBO;
-
 layout(location = 0) in vec2 a_position;
 layout(location = 1) in vec2 a_barycentric;
+layout(location = 2) in vec3 a_text;
+layout(location = 3) in vec4 a_color;
 
 layout(location = 0) out vec2 barycentric;
+layout(location = 1) out vec4 color;
 
 void main() {
     barycentric = a_barycentric;
+	color = a_color;
 
-	vec2 sized = TextUBO.Pen + TextUBO.Size * a_position;
-    vec2 result = (2 * vec2(sized.x, -sized.y) / GlobalUBO.resolution) + vec2(-1.0, 1.0);
+	vec2 sized = a_text.xy + a_text.z * a_position;
+    vec2 result = (2 * vec2(sized.x, -sized.y) / GlobalUBO.resolution) + vec2(-1, 1);
 
-	gl_Position = vec4(result, 0, 1.0);
-	gl_PointSize = 10.0f;
+	gl_Position = vec4(result, 0, 1);
+	gl_PointSize = 10;
 }

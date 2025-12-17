@@ -19,7 +19,7 @@ struct vertex_buffer_entry {
 };
 
 struct element_buffer_entry {
-    memory_index Offset;
+    uint32 Offset;
     uint32 Count;
     uint32* Pointer;
 };
@@ -99,6 +99,40 @@ void ClearVertexBuffer(vertex_buffer* Buffer) {
     Buffer->ElementCount = 0;
 }
 
+const memory_index TEXT_BUFFER_SIZE = Kilobytes(16);
+
+struct text_buffer {
+    memory_arena Instances[game_font_id_count][FONT_CHARACTERS_COUNT];
+    uint32 Count[game_font_id_count][FONT_CHARACTERS_COUNT];
+};
+
+void InitializeTextBuffer(memory_arena* Arena, text_buffer* TextBuffer) {
+    for (int Font = 0; Font < game_font_id_count; Font++) {
+        for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+            TextBuffer->Instances[Font][c] = SuballocateMemoryArena(Arena, TEXT_BUFFER_SIZE);
+            TextBuffer->Count[Font][c] = 0;
+        }
+    }
+}
+
+void ClearTextBuffer(text_buffer* TextBuffer) {
+    for (int Font = 0; Font < game_font_id_count; Font++) {
+        for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+            ClearArena(&TextBuffer->Instances[Font][c]);
+            TextBuffer->Count[Font][c] = 0;
+        }
+    }
+}
+
+void PushTextEntry(text_buffer* TextBuffer, game_font_id FontID, char Char, v2 Pen, float Size, color Color = White) {
+    memory_arena* Arena = &TextBuffer->Instances[FontID][Char - '!'];
+    float* Data = PushArray(Arena, 7, float);
+    *Data++ = Pen.X; *Data++ = Pen.Y;
+    *Data++ = Size;
+    *Data++ = Color.R; *Data++ = Color.G; *Data++ = Color.B; *Data++ = Color.Alpha;
+    TextBuffer->Count[FontID][Char - '!']++;
+}
+
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Render entries                                                                                                                               |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -108,6 +142,7 @@ const int MAX_RENDER_ENTRIES = 16384;
 ENUM(render_command_type,
     render_clear,
     render_draw_primitive,
+    render_text,
     render_mesh,
     render_shader_pass,
     render_compute,
@@ -149,8 +184,6 @@ FLAGS(render_flags,
     STENCIL_TEST_FLAG,
 
     TEXT_OUTLINE_FLAG,
-    TEXT_INTERIOR_FLAG,
-    TEXT_EXTERIOR_FLAG,
 
     OVERWRITE_ALPHA_FLAG,
     SKY_FLAG
@@ -166,7 +199,6 @@ struct render_primitive_options {
     v2 Pen;
     int PatchParameter = 4;
     float TextSize = 0;
-    bool TextOutline;
 };
 
 struct render_primitive_command {
@@ -176,6 +208,15 @@ struct render_primitive_command {
     vertex_buffer_entry VertexEntry = {0};
     float* Vertices = 0;
     element_buffer_entry ElementEntry = {0};
+};
+
+struct render_text_options {
+    color Color        = White;
+    game_font_id Font  = Font_Menlo_Regular_ID;
+    bool Outline       = false;
+    color OutlineColor = Black;
+    float OutlineWidth = 2.0f;
+    float Points       = 20.0f;
 };
 
 struct render_mesh_options {
@@ -289,6 +330,7 @@ struct render_group {
     render_target_command TargetCommands[MAX_RENDER_TARGET_COMMANDS];
     render_group_target_description RenderTargets[render_group_target_count];
     vertex_buffer VertexBuffer;
+    text_buffer TextBuffer;
     light Light;
     game_assets* Assets;
     game_font* DebugFont;
@@ -306,6 +348,7 @@ struct render_group {
     bool DebugBones;
     bool DebugColliders;
     bool PushOutline;
+    bool RenderText;
 };
 
 void InitializeRenderGroup(
@@ -331,6 +374,9 @@ void InitializeRenderGroup(
 
     // Vertex & element buffers
     InitializeVertexBuffer(Arena, &Group->VertexBuffer, Assets->VertexLayout);
+
+    // Text buffer
+    InitializeTextBuffer(Arena, &Group->TextBuffer);
 
     // Render targets
     Group->RenderTargets[Target_None] = {};
@@ -431,6 +477,11 @@ void PushCommand(render_group* Group, render_command Command) {
                 Raise("Render target command overflow.");
             }
         } break;
+        case render_text:
+            if (!Group->RenderText) {
+                Group->RenderText = true;
+                break;
+            }
         default: Raise("Invalid render command type.");
     }
 
@@ -471,6 +522,10 @@ void Clear(render_group* Group) {
     Group->EntryCount = 0;
 
     Group->PushOutline = false;
+    Group->RenderText = false;
+    
+    ClearVertexBuffer(&Group->VertexBuffer);
+    ClearTextBuffer(&Group->TextBuffer);
 }
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -699,7 +754,7 @@ render_primitive_command* PushPrimitiveCommand(
     PrimitiveCommand->Color = Color;
 
     if (nVertices > 0) {
-        if (Options.Font || Options.Heightmap) {
+        if (Options.Heightmap) {
             PrimitiveCommand->VertexEntry.Count = nVertices;
             PrimitiveCommand->VertexEntry.LayoutID = LayoutID;
         }
@@ -710,7 +765,7 @@ render_primitive_command* PushPrimitiveCommand(
     }
 
     if (nElements > 0) {
-        if (Options.Font || Options.Heightmap) {
+        if (Options.Heightmap) {
             PrimitiveCommand->ElementEntry.Count = nElements;
         }
         else {
@@ -1270,24 +1325,21 @@ void PushBitmap(
     PushBitmap(Group, Bitmap, Rect, Order, Mode, Size, Offset, false);
 }
 
-struct render_text_options {
-    color Color        = White;
-    bool Fill          = true;
-    game_font_id Font  = Font_Menlo_Regular_ID;
-    float Order        = SORT_ORDER_DEBUG_OVERLAY;
-    bool Outline       = false;
-    color OutlineColor = Black;
-    float OutlineWidth = 2.0f;
-    float Points       = 20.0f;
-    bool Wrapped       = false;
-};
-
 void _PushText(
     render_group* Group,
     v2 Position,
     const char* String,
     render_text_options Options = {}
 ) {
+    if (!Group->RenderText) {
+        render_command Command = {};
+        Command.Type = render_text;
+        Command.Index = 0;
+        Command.Priority = SORT_ORDER_DEBUG_OVERLAY + 7000.0f;
+
+        PushCommand(Group, Command);
+    }
+
     uint32 nCharacters = 0;
     uint32 StringLength = strlen(String);
     for (int i = 0; i < StringLength; i++) {
@@ -1326,65 +1378,20 @@ void _PushText(
         else if ('!' <= c && c <= '~') {
             game_font_character* pCharacter = Font->Characters + (c - '!');
             float HorizontalAdvance = pCharacter->Width * Size;
-            if (Options.Wrapped && (Pen.X + HorizontalAdvance > Group->Width)) {
-                Pen.X = Position.X;
-                Pen.Y += LineJump;
-            }
+            // if (Options.Wrapped && (Pen.X + HorizontalAdvance > Group->Width)) {
+            //     Pen.X = Position.X;
+            //     Pen.Y += LineJump;
+            // }
 
             if (pCharacter->nContours > 0) {
                 render_primitive_options PrimitiveOptions = {};
                 PrimitiveOptions.Font = Font;
                 PrimitiveOptions.TextSize = Size;
                 PrimitiveOptions.PatchParameter = 3;
-                PrimitiveOptions.TextOutline = Options.Outline;
                 PrimitiveOptions.Pen = Pen;
                 PrimitiveOptions.Thickness = Options.OutlineWidth;
 
-                if (pCharacter->nInteriorCurves > 0) {
-                    PrimitiveOptions.Flags = TEXT_INTERIOR_FLAG;
-                    render_primitive_command* Command = PushPrimitiveCommand(
-                        Group,
-                        render_primitive_triangle,
-                        Color,
-                        vertex_layout_v2_v2_id,
-                        0,
-                        3 * pCharacter->nInteriorCurves,
-                        SORT_ORDER_DEBUG_OVERLAY,
-                        PrimitiveOptions
-                    );
-
-                    Command->ElementEntry.Offset = pCharacter->InteriorCurvesOffset;
-                }
-
-                if (pCharacter->nExteriorCurves > 0) {
-                    PrimitiveOptions.Flags = TEXT_EXTERIOR_FLAG;
-                    render_primitive_command* Command = PushPrimitiveCommand(
-                        Group,
-                        render_primitive_triangle,
-                        Color,
-                        vertex_layout_v2_v2_id,
-                        TEXT_EXTERIOR_FLAG,
-                        3 * pCharacter->nExteriorCurves,
-                        SORT_ORDER_DEBUG_OVERLAY,
-                        PrimitiveOptions
-                    );
-    
-                    Command->ElementEntry.Offset = pCharacter->ExteriorCurvesOffset;
-                }
-
-                PrimitiveOptions.Flags = (render_flags)0;
-                render_primitive_command* Command = PushPrimitiveCommand(
-                    Group,
-                    render_primitive_triangle,
-                    Color,
-                    vertex_layout_v2_v2_id,
-                    0,
-                    3 * pCharacter->nSolidTriangles,
-                    SORT_ORDER_DEBUG_OVERLAY,
-                    PrimitiveOptions
-                );
-    
-                Command->ElementEntry.Offset = pCharacter->SolidTrianglesOffset;
+                PushTextEntry(&Group->TextBuffer, Options.Font, c, Pen, Size, Options.Color);
 
                 if (Options.Outline) {
                     render_primitive_command* Command = PushPrimitiveCommand(
@@ -1649,8 +1656,9 @@ void _PushMesh(
         PushCommand(Group, OutlineCommand);
 
         render_mesh_command* OutlineMeshCommand = &Group->MeshCommands[OutlineCommand.Index];
-        MeshCommand->MeshID = MeshID;
+        OutlineMeshCommand->MeshID = MeshID;
         OutlineMeshCommand->Options.Transform = Options.Transform;
+        OutlineMeshCommand->Options.Color = White;
         OutlineMeshCommand->Options.Outline = true;
 
         if (!Group->PushOutline) {

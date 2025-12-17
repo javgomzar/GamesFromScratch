@@ -27,8 +27,13 @@ struct directX_vertex_buffer {
 };
 
 typedef directX_vertex_buffer directX_mesh_buffer;
-typedef directX_vertex_buffer directX_font_buffer;
 typedef directX_vertex_buffer directX_heightmap_buffer;
+
+struct directX_font_buffer {
+    ID3D11Buffer* VertexBuffer;
+    ID3D11Buffer* IndexBuffer;
+    ID3D11Buffer* InstanceBuffer;
+};
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Shaders                                                                                                                                                          |
@@ -62,6 +67,7 @@ ENUM(directX_Geometry_Shader_ID,
 ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Antialiasing_ID,
     Pixel_Shader_Single_Color_ID,
+    Pixel_Shader_Attrib_Color_ID,
     Pixel_Shader_Texture_ID,
     Pixel_Shader_Mesh_ID,
     Pixel_Shader_Bezier_Exterior_ID,
@@ -96,7 +102,7 @@ ENUM(directX_constant_buffer_id,
     color_buffer_id,
     transform_buffer_id,
     bone_buffer_id,
-    text_buffer_id,
+    text_outline_buffer_id,
     outline_buffer_id
 );
 
@@ -124,7 +130,7 @@ struct alignas(16) bone_buffer {
     alignas(16) int nBones;
 };
 
-struct alignas(16) text_buffer {
+struct alignas(16) text_outline_buffer {
     v2 Pen;
     float Size;
 };
@@ -167,6 +173,7 @@ struct directX {
     ID3D11RasterizerState* RasterizerState;
     D3D11_VIEWPORT Viewport;
     ID3D11InputLayout* VertexLayout[vertex_layout_id_count];
+    ID3D11InputLayout* FontInstancedLayout;
     ID3D11Buffer* VertexBuffer[vertex_layout_id_count];
     ID3D11Buffer* IndexBuffer;
     directX_Vertex_Shader VertexShader[directX_Vertex_Shader_ID_count];
@@ -424,10 +431,10 @@ void ClearBoneBuffer() {
 }
 
 void SetTextBuffer(v2 Pen, float Size) {
-    ID3D11Buffer* TextBuffer = DirectX.ConstantBuffer[text_buffer_id];
+    ID3D11Buffer* TextBuffer = DirectX.ConstantBuffer[text_outline_buffer_id];
     void* MappedBuffer = GetMappedBuffer(TextBuffer);
     if (MappedBuffer) {
-        text_buffer* Buffer = (text_buffer*)MappedBuffer;
+        text_outline_buffer* Buffer = (text_outline_buffer*)MappedBuffer;
         Buffer->Pen = Pen;
         Buffer->Size = Size;
         DirectX.DeviceContext->Unmap(TextBuffer, 0);
@@ -592,9 +599,37 @@ void ParseVertexLayout(directX_Vertex_Shader* Shader) {
                     Token = GetToken(Tokenizer);
                 }
 
-                vertex_layout_id LayoutID = FindCompatibleVertexLayout(DirectX.Assets->VertexLayout, ShaderLayout);
-                if (DirectX.VertexLayout[LayoutID] == NULL) {
-                    CreateInputLayout(DirectX.Assets->VertexLayout[LayoutID], Shader->ID);
+                if (Shader->ID == Vertex_Shader_Barycentric_ID) {
+                    D3D11_INPUT_ELEMENT_DESC FontInstancedLayoutDescription[4] = {
+                        {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+                        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 2*sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0},
+                        {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1},
+                        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 3*sizeof(float), D3D11_INPUT_PER_INSTANCE_DATA, 1}
+                    };
+
+                    HRESULT Result = DirectX.Device->CreateInputLayout(
+                        FontInstancedLayoutDescription,
+                        4,
+                        DirectX.VertexShader[Vertex_Shader_Barycentric_ID].Blob->GetBufferPointer(),
+                        DirectX.VertexShader[Vertex_Shader_Barycentric_ID].Blob->GetBufferSize(),
+                        &DirectX.FontInstancedLayout
+                    );
+
+                    if (FAILED(Result)) {
+                        Log(Error, "DirectX: Instanced vertex layout creation for font rendering failed.");
+                    }
+                }
+                else {
+                    vertex_layout_id LayoutID;
+                    bool Found = FindCompatibleVertexLayout(DirectX.Assets->VertexLayout, ShaderLayout, &LayoutID);
+                    if (Found && DirectX.VertexLayout[LayoutID] == NULL) {
+                        CreateInputLayout(DirectX.Assets->VertexLayout[LayoutID], Shader->ID);
+                    }
+                    if (!Found) {
+                        char ErrorBuffer[128];
+                        sprintf_s(ErrorBuffer, "DirectX: Could not find compatible vertex layout for shader %s.", Shader->File.Path);
+                        Log(Warn, ErrorBuffer);
+                    }
                 }
             }
         }
@@ -1233,6 +1268,7 @@ RENDERER_INITIALIZE {
     // Pixel
     LoadShader(Pixel_Shader_Antialiasing_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\Antialiasing.psh");
     LoadShader(Pixel_Shader_Single_Color_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\SingleColor.psh");
+    LoadShader(Pixel_Shader_Attrib_Color_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\AttribColor.psh");
     LoadShader(Pixel_Shader_Texture_ID,              "GameAssets\\Shaders\\HLSL\\Pixel\\Texture.psh");
     LoadShader(Pixel_Shader_Mesh_ID,                 "GameAssets\\Shaders\\HLSL\\Pixel\\Mesh.psh");
     LoadShader(Pixel_Shader_Bezier_Exterior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierExterior.psh");
@@ -1267,15 +1303,16 @@ RENDERER_INITIALIZE {
     for (int i = 0; i < game_font_id_count; i++) {
         game_font* Font = &Group->Assets->Font[i];
 
-        directX_font_buffer* Buffer = &DirectX.FontBuffer[i];
+        directX_font_buffer* FontBuffer = &DirectX.FontBuffer[i];
         uint64 VerticesSize = 4 * sizeof(float) * 3 * Font->nOnCurve;
         uint64 ElementsSize = 3 * sizeof(uint32) * (Font->nPoints - Font->nOnCurve);
         for (int j = 0; j < FONT_CHARACTERS_COUNT; j++) {
             game_font_character* Character = &Font->Characters[j];
             ElementsSize += 3 * sizeof(uint32) * Character->nSolidTriangles;
         }
-        CreateBuffer(&Buffer->VertexBuffer, VerticesSize, D3D11_BIND_VERTEX_BUFFER, false, Font->Vertices);
-        CreateBuffer(&Buffer->IndexBuffer, ElementsSize, D3D11_BIND_INDEX_BUFFER, false, Font->Elements);
+        CreateBuffer(&FontBuffer->VertexBuffer, VerticesSize, D3D11_BIND_VERTEX_BUFFER, false, Font->Vertices);
+        CreateBuffer(&FontBuffer->IndexBuffer, ElementsSize, D3D11_BIND_INDEX_BUFFER, false, Font->Elements);
+        CreateBuffer(&FontBuffer->InstanceBuffer, TEXT_BUFFER_SIZE, D3D11_BIND_VERTEX_BUFFER, true);
     }
 
     // Heightmap buffer
@@ -1294,7 +1331,7 @@ RENDERER_INITIALIZE {
     CreateConstantBuffer(color_buffer);
     CreateConstantBuffer(transform_buffer);
     CreateConstantBuffer(bone_buffer);
-    CreateConstantBuffer(text_buffer);
+    CreateConstantBuffer(text_outline_buffer);
     CreateConstantBuffer(light_buffer);
     CreateConstantBuffer(outline_buffer);
 }
@@ -1535,8 +1572,6 @@ RENDERER_RENDER {
                     if (Options.Flags & TEXT_OUTLINE_FLAG)  {
                         // TODO: Add text outline with patches
                     }
-		            else if (Options.Flags & TEXT_INTERIOR_FLAG) PixelShaderID = Pixel_Shader_Bezier_Interior_ID;
-		            else if (Options.Flags & TEXT_EXTERIOR_FLAG) PixelShaderID = Pixel_Shader_Bezier_Exterior_ID;
 
                     VertexBuffer = &DirectX.FontBuffer[Options.Font->ID].VertexBuffer;
                     IndexBuffer = DirectX.FontBuffer[Options.Font->ID].IndexBuffer;
@@ -1683,6 +1718,82 @@ RENDERER_RENDER {
 
                 if (Options.Armature) ClearBoneBuffer();
                 ClearTransformBuffer();
+            } break;
+
+            case render_text: {
+                BindTarget(Target_World);
+
+                DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilDisabled, 1);
+                DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[Vertex_Shader_Barycentric_ID].Shader, NULL, 0);
+                DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                DirectX.DeviceContext->IASetInputLayout(DirectX.FontInstancedLayout);
+
+                for (int FontID = 0; FontID < game_font_id_count; FontID++) {
+                    game_font* Font = GetAsset(Group->Assets, (game_font_id)FontID);
+                    directX_font_buffer* FontBuffer = &DirectX.FontBuffer[FontID];
+                    
+                    uint32 Stride = 4*sizeof(float);
+                    uint32 Offset = 0;
+
+                    DirectX.DeviceContext->IASetVertexBuffers(0, 1, &FontBuffer->VertexBuffer, &Stride, &Offset);
+                    DirectX.DeviceContext->IASetIndexBuffer(FontBuffer->IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+                    Stride = 7*sizeof(float);
+
+                    for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+                        uint32 Count = Group->TextBuffer.Count[FontID][c];
+                        if (Count > 0) {
+                            game_font_character* pCharacter = &Font->Characters[c];
+                            void* MappedBuffer = GetMappedBuffer(FontBuffer->InstanceBuffer);
+                            if (MappedBuffer) {
+                                memcpy(
+                                    MappedBuffer, 
+                                    Group->TextBuffer.Instances[FontID][c].Base, 
+                                    Group->TextBuffer.Instances[FontID][c].Used
+                                );
+                                DirectX.DeviceContext->Unmap(FontBuffer->InstanceBuffer, 0);
+
+                                DirectX.DeviceContext->IASetVertexBuffers(1, 1, &FontBuffer->InstanceBuffer, &Stride, &Offset);
+
+                                // Solid triangles
+                                if (pCharacter->nSolidTriangles > 0) {
+                                    DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Attrib_Color_ID].Shader, NULL, 0);
+                                    DirectX.DeviceContext->DrawIndexedInstanced(
+                                        3*pCharacter->nSolidTriangles,
+                                        Count,
+                                        pCharacter->SolidTrianglesOffset,
+                                        0,
+                                        0
+                                    );
+                                }
+
+                                // Exterior curves
+                                if (pCharacter->nExteriorCurves > 0) {
+                                    DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Bezier_Exterior_ID].Shader, NULL, 0);
+                                    DirectX.DeviceContext->DrawIndexedInstanced(
+                                        3*pCharacter->nExteriorCurves,
+                                        Count,
+                                        pCharacter->ExteriorCurvesOffset,
+                                        0,
+                                        0
+                                    );
+                                }
+
+                                // Interior curves
+                                if (pCharacter->nInteriorCurves > 0) {
+                                    DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Bezier_Interior_ID].Shader, NULL, 0);
+                                    DirectX.DeviceContext->DrawIndexedInstanced(
+                                        3*pCharacter->nInteriorCurves,
+                                        Count,
+                                        pCharacter->InteriorCurvesOffset,
+                                        0,
+                                        0
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
             } break;
 
             case render_shader_pass: {
