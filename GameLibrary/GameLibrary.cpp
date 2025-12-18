@@ -85,19 +85,13 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // PushEntities(Group, &State->Entities, Input, Time);
 
-    TestRendering(Group, Input, Time);
+    // TestRendering(Group, Input, Time);
 
     // TestFluid(Group, Input, FirstFrame);
 
     // TestSky(State->Time, &Group->Light);
 
-    // TestFFT(Group, &Memory->Permanent, Time);
-
-    float X[15] = {};
-
-    for (int i = 0; i < 15; i++) {
-        X[i] = BitReverseFloat(i+1);
-    }
+    TestFFT(Group, &Memory->Permanent, Time);
 
     // Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
 

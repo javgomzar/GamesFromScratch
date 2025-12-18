@@ -124,7 +124,7 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
     }
 
     for (int i = 0; i < N; i++) {
-        Signal[i] = 5.0f;
+        Signal[i] = sin(0.1f*i);
         InputData[i].r = Signal[i];
         InputData[i].i = 0.0f;
     }
@@ -144,6 +144,11 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
     FFT(N, InputData, OutputData);
     End = Platform.GetWallClock();
 
+    for (int i = 0; i < N; i++) {
+        ModulusFFT[i] = modulus(OutputData[i]);
+        PhaseFFT[i] = 5.0f * phase(OutputData[i]);
+    }
+
     float FFTms = 1000.0f * GetSecondsElapsed(Start, End);
     
     PushText(Group, V2(200, 620), "Signal");
@@ -157,6 +162,6 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
 
     sprintf_s(TextBuffer, "FFT: %.2f ms", FFTms);
     PushText(Group, V2(1000, 620), TextBuffer);
-    PushDebugPlot(Group, N, ModulusDFT, V2(600, 500), 1);
-    PushDebugPlot(Group, N, PhaseDFT, V2(600, 550), 1);
+    PushDebugPlot(Group, N, ModulusFFT, V2(1000, 500), 1);
+    PushDebugPlot(Group, N, PhaseFFT, V2(1000, 550), 1);
 }

@@ -2427,16 +2427,13 @@ uint32 BitReverse(uint32 X, uint32 log2N) {
 
 /*
 	Takes an unsigned number and flips its digits around the decimal point to return a float in [0, 1).
-	Example: 110 -> 0.011
+	Example: BitReverseFloat of 3 (110 in binary) = 0.011 in binary = 0.75
 */
 float BitReverseFloat(uint32 X) {
 	unsigned long FirstOne;
 	_BitScanForward(&FirstOne, X);
 
-	unsigned long LastOne;
-	_BitScanReverse(&LastOne, X);
-
-	uint32 Mantissa = BitReverse(X) >> 7;
+	uint32 Mantissa = (BitReverse(X) << (1 + FirstOne)) >> 9;
 	int8 Exponent = -FirstOne-1;
 
 	float Result = CreateFloat(false, Exponent, Mantissa);
@@ -2466,17 +2463,35 @@ void FFT_Butterfly(
 	for (int k1 = 0; k1 < 1 << Radix; k1++) {
 		complex Sum = Complex(0,0);
 		for (int j1 = 0; j1 < 1 << Radix; j1++) {
-			Sum += 0;
+			Sum += expi(j1*(BitReverseFloat(k1) + BitReverseFloat(k0 << Radix))) * Input[c0*k0 + c1*j1 + k2];
 		}
-
+		Output[c0*k0 + c1*k1 + k2] = Sum;
 	}}
 }
 
 void FFT(uint32 N, complex* Input, complex* Output) {
 	uint32 log2N = log2(N);
 
-	for (int i = 0; i < log2N; i++) {
+	uint32 m[] = {2, 2, 2, 2};
+	uint32 n[] = {0, 2, 4, 6, 8};
 
+	complex v[9][256] = {};
+	memcpy(v[0], Input, 256*sizeof(complex));
+
+	for (int p = 0; p < 4; p++)
+	for (int k0 = 0; k0 < 1 << n[p]; k0++)
+	for (int k1 = 0; k1 < 1 << m[p]; k1++)
+	for (int k2 = 0; k2 < 1 << log2N - m[p] - n[p]; k2++) {
+		complex Sum = Complex(0,0);
+		for (int j1 = 0; j1 < 1 << m[p]; j1++) {
+			Sum += expi(Tau*j1*BitReverseFloat(k1)) * expi(Tau*j1*BitReverseFloat(k0<<m[p])) * 
+				v[n[p]][(k0<<(log2N-n[p]))+(j1<<(log2N-n[p]-m[p])) + k2];
+		}
+		v[n[p+1]][(k0<<(log2N-n[p])) + (k1<<(log2N-n[p]-m[p])) + k2] = Sum;
+	}
+
+	for (uint32 i = 0; i < N; i++) {
+		Output[i] = v[8][BitReverse(i, log2N)];
 	}
 }
 
