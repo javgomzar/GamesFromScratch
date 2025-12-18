@@ -171,6 +171,28 @@ float Normal(float Mean, float StdDeviation) {
 	return Mean + StdDeviation * Normal();
 }
 
+uint32 log2(uint32 X) {
+	unsigned long Result;
+	_BitScanReverse(&Result, X);
+	return Result;
+}
+
+uint32 log2(uint64 X) {
+	unsigned long Result;
+	_BitScanReverse64(&Result, X);
+	return Result;
+}
+
+/*
+	IEEE-754 floating-point standard from sign, exponent and mantissa.
+*/
+float CreateFloat(bool Negative, int8 Exponent, uint32 Mantissa) {
+	float Result = 0;
+	uint32* Value = (uint32*)&Result;
+	*Value = (Negative << 31) | ((Exponent + 127) << 23) | (Mantissa & 0x7FFFFF);
+	return Result;
+}
+
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | 2D                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
@@ -1147,11 +1169,11 @@ matrix4 GetWorldProjectionMatrix(float Width, float Height) {
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
 struct complex {
-	double r; // Real part
-	double i; // Imaginary part
+	float r; // Real part
+	float i; // Imaginary part
 };
 
-complex Complex(double r, double i) {
+complex Complex(float r, float i) {
 	return {r, i};
 }
 
@@ -1162,86 +1184,90 @@ inline complex conjugate(complex A) {
 	};
 }
 
-inline complex operator+(complex A, double B) {
+inline complex operator+(complex A, float B) {
 	return {
 		A.r + B,
 		A.i
 	};
 }
 
-inline complex& operator+=(complex& A, double B) {
+inline complex& operator+=(complex& A, float B) {
 	A.r += B;
 	return A;
 }
 
-inline complex operator+(double A, complex B) {
+inline complex operator+(float A, complex B) {
 	return {
 		A + B.r,
 		B.i
 	};
 }
 
-inline complex operator-(double A, complex B) {
+inline complex operator-(float A, complex B) {
 	return {
 		A - B.r,
 		B.i
 	};
 }
 
-inline complex operator-(complex A, double B) {
+inline complex operator-(complex A, float B) {
 	return {
 		A.r - B,
 		A.i
 	};
 }
 
-inline complex& operator-=(complex& A, double B) {
+inline complex& operator-=(complex& A, float B) {
 	A.r -= B;
 	return A;
 }
 
-inline complex operator*(complex A, double C) {
+inline complex operator*(complex A, float C) {
 	return {
 		A.r * C,
 		A.i * C
 	};
 }
 
-inline complex operator*(double C, complex A) {
+inline complex operator*(float C, complex A) {
 	return {
 		A.r * C,
 		A.i * C
 	};
 }
 
-inline complex& operator*=(complex& A, double B) {
+inline complex& operator*=(complex& A, float B) {
 	A.r *= B;
 	A.i *= B;
 	return A;
 }
 
-inline complex operator/(complex A, double C) {
+inline complex operator/(complex A, float C) {
 	return {
 		A.r / C,
 		A.i / C
 	};
 }
 
-inline complex& operator/=(complex& A, double B) {
+inline complex& operator/=(complex& A, float B) {
 	A.r /= B;
 	A.i /= B;
 	return A;
 }
 
-inline double modulus(complex A) {
+inline float modulus(complex A) {
 	return sqrt(A.r * A.r + A.i * A.i);
+}
+
+inline float phase(complex A) {
+	return atan2f(A.i, A.r);
 }
 
 inline complex inverse(complex A) {
 	return conjugate(A) / (A.r * A.r + A.i * A.i);
 }
 
-inline complex expi(double Alpha) {
+inline complex expi(float Alpha) {
 	return {
 		cos(Alpha),
 		sin(Alpha)
@@ -1290,7 +1316,7 @@ inline complex operator/(complex A, complex B) {
 	return A * inverse(B);
 }
 
-inline complex operator/(double A, complex B) {
+inline complex operator/(float A, complex B) {
 	return A * inverse(B);
 }
 
@@ -2380,6 +2406,78 @@ uv3 ParseUV3(tokenizer& Tokenizer) {
     Result.Y = Parseuint32(Tokenizer);
     Result.Z = Parseuint32(Tokenizer);
     return Result;
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Fast Fourier Transform                                                                                                                       |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+uint32 BitReverse(uint32 X) {
+    X = ((X & 0x55555555) << 1) | ((X & 0xAAAAAAAA) >> 1);
+    X = ((X & 0x33333333) << 2) | ((X & 0xCCCCCCCC) >> 2);
+    X = ((X & 0x0F0F0F0F) << 4) | ((X & 0xF0F0F0F0) >> 4);
+    X = ((X & 0x00FF00FF) << 8) | ((X & 0xFF00FF00) >> 8);
+    X = (X << 16) | (X >> 16);
+    return X;
+}
+
+uint32 BitReverse(uint32 X, uint32 log2N) {
+	return BitReverse(X) >> (32 - log2N);
+}
+
+/*
+	Takes an unsigned number and flips its digits around the decimal point to return a float in [0, 1).
+	Example: 110 -> 0.011
+*/
+float BitReverseFloat(uint32 X) {
+	unsigned long FirstOne;
+	_BitScanForward(&FirstOne, X);
+
+	unsigned long LastOne;
+	_BitScanReverse(&LastOne, X);
+
+	uint32 Mantissa = BitReverse(X) >> 7;
+	int8 Exponent = -FirstOne-1;
+
+	float Result = CreateFloat(false, Exponent, Mantissa);
+	return Result;
+}
+
+void DFT(uint32 N, complex* Input, complex* Output) {
+	for (int i = 0; i < N; i++) {
+		complex Result = Complex(0,0);
+		for (int j = 0; j < N; j++) {
+			Result += Input[j]*expi(-Tau*j*i/N);
+		}
+		Output[i] = Result;
+	}
+}
+
+void FFT_Butterfly(
+	int Radix,
+	complex* Input,
+	complex* Output,
+	int k0,
+	int c0
+) {
+	int c1 = c0 >> Radix;
+
+	for (int k2 = 0; k2 < c1; k2++) {
+	for (int k1 = 0; k1 < 1 << Radix; k1++) {
+		complex Sum = Complex(0,0);
+		for (int j1 = 0; j1 < 1 << Radix; j1++) {
+			Sum += 0;
+		}
+
+	}}
+}
+
+void FFT(uint32 N, complex* Input, complex* Output) {
+	uint32 log2N = log2(N);
+
+	for (int i = 0; i < log2N; i++) {
+
+	}
 }
 
 #endif

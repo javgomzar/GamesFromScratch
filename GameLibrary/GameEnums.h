@@ -46,9 +46,10 @@ enum debug_type {
 enum render_flags {
     DEPTH_TEST_FLAG = 1 << 0,
     STENCIL_TEST_FLAG = 1 << 1,
-    TEXT_OUTLINE_FLAG = 1 << 2,
-    OVERWRITE_ALPHA_FLAG = 1 << 3,
+    OVERWRITE_ALPHA_FLAG = 1 << 2,
+    TEXT_OUTLINE_FLAG = 1 << 3,
     SKY_FLAG = 1 << 4,
+    WATER_FLAG = 1 << 5,
 };
 
 bool IsEnumType(debug_type Type) { return Type > 22 && Type < 36; }
@@ -132,13 +133,14 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_compute_type, "compute_type_count", 5},
 };
 
-const int FLAG_VALUES_SIZE = 5;
+const int FLAG_VALUES_SIZE = 6;
 debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {
     {Debug_Type_render_flags, "DEPTH_TEST_FLAG", 1},
     {Debug_Type_render_flags, "STENCIL_TEST_FLAG", 2},
-    {Debug_Type_render_flags, "TEXT_OUTLINE_FLAG", 4},
-    {Debug_Type_render_flags, "OVERWRITE_ALPHA_FLAG", 8},
+    {Debug_Type_render_flags, "OVERWRITE_ALPHA_FLAG", 4},
+    {Debug_Type_render_flags, "TEXT_OUTLINE_FLAG", 8},
     {Debug_Type_render_flags, "SKY_FLAG", 16},
+    {Debug_Type_render_flags, "WATER_FLAG", 32},
 };
 
 #endif

@@ -57,7 +57,8 @@ ENUM(directX_Hull_Shader_ID,
 );
 
 ENUM(directX_Domain_Shader_ID,
-    Domain_Shader_Heightmap_ID
+    Domain_Shader_Heightmap_ID,
+    Domain_Shader_Water_ID
 );
 
 ENUM(directX_Geometry_Shader_ID,
@@ -73,7 +74,8 @@ ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Bezier_Exterior_ID,
     Pixel_Shader_Bezier_Interior_ID,
     Pixel_Shader_Heightmap_ID,
-    Pixel_Shader_Sky_ID
+    Pixel_Shader_Sky_ID,
+    Pixel_Shader_Water_ID
 );
 
 ENUM(directX_Compute_Shader_ID,
@@ -1213,6 +1215,26 @@ RENDERER_INITIALIZE {
         );
     }
 
+    ID3D11Texture2D* FFTTexture = NULL;
+
+    D3D11_TEXTURE2D_DESC Description = {};
+    Description.Width = 1024;
+    Description.Height = 1024;
+    Description.MipLevels = 1;
+    Description.ArraySize = 1;
+    Description.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    Description.SampleDesc.Count = 1;
+    Description.SampleDesc.Quality = 0;
+    Description.Usage = D3D11_USAGE_DEFAULT;
+    Description.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+    Description.CPUAccessFlags = 0;
+    Description.MiscFlags = 0;
+
+    Result = DirectX.Device->CreateTexture2D(&StagingDescription, 0, &DirectX.StagingTexture);
+    if (FAILED(Result)) {
+        Log(Error, "DirectX: Staging texture creation failed.");
+    }
+
 // Heightmaps
     for (int i = 0; i < game_heightmap_id_count; i++) {
         game_bitmap* Bitmap = &Group->Assets->Heightmap[i].Bitmap;
@@ -1240,6 +1262,7 @@ RENDERER_INITIALIZE {
 
     // Domain
     LoadShader(Domain_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Domain\\Heightmap.dsh");
+    LoadShader(Domain_Shader_Water_ID,               "GameAssets\\Shaders\\HLSL\\Domain\\Water.dsh");
 
     // Geometry
     LoadShader(Geometry_Shader_Normal_ID,            "GameAssets\\Shaders\\HLSL\\Geometry\\Normal.gsh");
@@ -1254,6 +1277,7 @@ RENDERER_INITIALIZE {
     LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
     LoadShader(Pixel_Shader_Heightmap_ID,            "GameAssets\\Shaders\\HLSL\\Pixel\\Heightmap.psh");
     LoadShader(Pixel_Shader_Sky_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Sky.psh");
+    LoadShader(Pixel_Shader_Water_ID,               "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
 
     // Compute
     LoadShader(Compute_Shader_Outline_Init_ID,       "GameAssets\\Shaders\\HLSL\\Compute\\OutlineInit.compute");
@@ -1569,6 +1593,17 @@ RENDERER_RENDER {
 
                     SetTransformBuffer(Options.Transform);
                 }
+                else if (Options.Flags & WATER_FLAG) {
+                    LayoutID = vertex_layout_v2_id;
+                    VertexShaderID = Vertex_Shader_Heightmap_ID;
+                    PixelShaderID = Pixel_Shader_Water_ID;
+                    VertexBuffer = &DirectX.HeightmapBuffer.VertexBuffer;
+                    IndexBuffer = DirectX.HeightmapBuffer.IndexBuffer;
+                    DirectX.DeviceContext->HSSetShader(DirectX.HullShader[Hull_Shader_Heightmap_ID].Shader, NULL, 0);
+                    DirectX.DeviceContext->DSSetShader(DirectX.DomainShader[Domain_Shader_Water_ID].Shader, NULL, 0);
+
+                    SetTransformBuffer(Options.Transform);
+                }
                 else {
                     LayoutID = VertexEntry.LayoutID;
                     VertexBuffer = &DirectX.VertexBuffer[LayoutID];
@@ -1622,7 +1657,7 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->Draw(VertexEntry.Count, Offset);
                 }
 
-                if (Options.Heightmap) {
+                if (Options.Heightmap || Options.Flags & WATER_FLAG) {
                     DirectX.DeviceContext->HSSetShader(NULL, NULL, 0);
                     DirectX.DeviceContext->DSSetShader(NULL, NULL, 0);
                     ClearTransformBuffer();

@@ -26,6 +26,12 @@ extern "C" GAME_UPDATE(GameUpdate)
         RNG.State = RNG.Seed;
 
         TimeRecords = (time_record*)&Memory->TimeRecordsLibrary;
+
+#ifdef _WIN32
+        LARGE_INTEGER PerfCountFrequencyResult;
+        QueryPerformanceFrequency(&PerfCountFrequencyResult);
+        Platform.PerformanceCounterFrequency = PerfCountFrequencyResult.QuadPart;
+#endif
         
         Memory->HotReload = false;
     }
@@ -85,7 +91,15 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // TestSky(State->Time, &Group->Light);
 
-    Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
+    // TestFFT(Group, &Memory->Permanent, Time);
+
+    float X[15] = {};
+
+    for (int i = 0; i < 15; i++) {
+        X[i] = BitReverseFloat(i+1);
+    }
+
+    // Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
 
     PushSky(Group);
     

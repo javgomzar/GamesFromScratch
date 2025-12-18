@@ -1,35 +1,6 @@
 #include "GamePlatform.h"
 #include "GameRender.h"
 
-// void TestFluid(render_group* Group, game_input* Input, bool FirstFrame) {
-//     if (FirstFrame || Input->Keyboard.R.JustPressed) {
-//         PushShaderPass(Group, Compute_Shader_Fluid_Init_ID, Target_Fluid, Target_Fluid);
-//     }
-//     else {
-//         PushShaderPass(Group, Compute_Shader_Fluid_ID, Target_Fluid, Target_Fluid);
-//     }
-//     PushRenderTarget(Group, Target_Fluid);
-// }
-
-void TestSea(memory_arena* PermanentArena, render_group* Group) {
-    const uint32 N = 10000;
-    static float* Data = nullptr;
-
-    if (!Data) {
-        Data = PushArray(PermanentArena, N, float);
-
-        for (int i = 0; i < N; i++) {
-            float x = i;
-            Data[i] = x - floor(x);
-        }
-    }
-
-    // PushComputeShaderPass(Group, shader_pass_fft, Target_None, Target_None);
-}
-
-void TestSky(float Time, light* Light) {
-    Light->Direction = V3(-cos(0.2f * Time), -sin(0.2f * Time), 0);
-}
 
 void TestRendering(render_group* Group, game_input* Input, float Time) {
 // 2D
@@ -112,4 +83,80 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
 
     // Heightmap
     PushHeightmap(Group, Heightmap_Spain_ID, V3(0,0,0), Scale(10, 1, 10));
+}
+
+void TestSky(float Time, light* Light) {
+    Light->Direction = V3(-cos(0.2f * Time), -sin(0.2f * Time), 0);
+}
+
+// void TestFluid(render_group* Group, game_input* Input, bool FirstFrame) {
+//     if (FirstFrame || Input->Keyboard.R.JustPressed) {
+//         PushShaderPass(Group, Compute_Shader_Fluid_Init_ID, Target_Fluid, Target_Fluid);
+//     }
+//     else {
+//         PushShaderPass(Group, Compute_Shader_Fluid_ID, Target_Fluid, Target_Fluid);
+//     }
+//     PushRenderTarget(Group, Target_Fluid);
+// }
+
+void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
+    uint32 N = 256;
+    
+    static bool Initialized = false;
+    static float* Signal = nullptr;
+    static complex* InputData = nullptr;
+    static complex* OutputData = nullptr;
+    static float* ModulusDFT = nullptr;
+    static float* PhaseDFT = nullptr;
+    static float* ModulusFFT = nullptr;
+    static float* PhaseFFT = nullptr;
+
+    if (!Initialized) {
+        Signal = PushArray(Arena, N, float);
+        InputData = PushArray(Arena, N, complex);
+        OutputData = PushArray(Arena, N, complex);
+        ModulusDFT = PushArray(Arena, N, float);
+        PhaseDFT = PushArray(Arena, N, float);
+        ModulusFFT = PushArray(Arena, N, float);
+        PhaseFFT = PushArray(Arena, N, float);
+
+        Initialized = true;
+    }
+
+    for (int i = 0; i < N; i++) {
+        Signal[i] = 5.0f;
+        InputData[i].r = Signal[i];
+        InputData[i].i = 0.0f;
+    }
+
+    uint64 Start = Platform.GetWallClock();
+    DFT(N, InputData, OutputData);
+    uint64 End = Platform.GetWallClock();
+
+    float DFTms = 1000.0f * GetSecondsElapsed(Start, End);
+
+    for (int i = 0; i < N; i++) {
+        ModulusDFT[i] = modulus(OutputData[i]);
+        PhaseDFT[i] = 5.0f * phase(OutputData[i]);
+    }
+
+    Start = Platform.GetWallClock();
+    FFT(N, InputData, OutputData);
+    End = Platform.GetWallClock();
+
+    float FFTms = 1000.0f * GetSecondsElapsed(Start, End);
+    
+    PushText(Group, V2(200, 620), "Signal");
+    PushDebugPlot(Group, N, Signal, V2(200, 500), 1);
+    
+    char TextBuffer[128];
+    sprintf_s(TextBuffer, "DFT: %.2f ms", DFTms);
+    PushText(Group, V2(600, 620), TextBuffer);
+    PushDebugPlot(Group, N, ModulusDFT, V2(600, 500), 1);
+    PushDebugPlot(Group, N, PhaseDFT, V2(600, 550), 1);
+
+    sprintf_s(TextBuffer, "FFT: %.2f ms", FFTms);
+    PushText(Group, V2(1000, 620), TextBuffer);
+    PushDebugPlot(Group, N, ModulusDFT, V2(600, 500), 1);
+    PushDebugPlot(Group, N, PhaseDFT, V2(600, 550), 1);
 }

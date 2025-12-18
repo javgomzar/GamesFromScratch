@@ -182,11 +182,12 @@ ENUM(render_primitive,
 FLAGS(render_flags,
     DEPTH_TEST_FLAG,
     STENCIL_TEST_FLAG,
+    OVERWRITE_ALPHA_FLAG,
 
     TEXT_OUTLINE_FLAG,
 
-    OVERWRITE_ALPHA_FLAG,
-    SKY_FLAG
+    SKY_FLAG,
+    WATER_FLAG
 );
 
 struct render_primitive_options {
@@ -274,6 +275,7 @@ ENUM(compute_type,
 
 struct render_compute_command {
     compute_type Type;
+    render_group_target Source;
     render_group_target Target;
     iv3 nGroups;
     matrix3 Kernel;
@@ -707,6 +709,29 @@ void PushBlur(
     PushKernelCompute(Group, Target, Kernel, Order);
 }
 
+void PushFFT(
+    render_group* Group, 
+    render_group_target Source,
+    render_group_target Target
+) {
+    render_command Command;
+    Command.Type = render_compute;
+    Command.Index = Group->nComputeCommands;
+    Command.Priority = SORT_ORDER_CLEAR;
+
+    PushCommand(Group, Command);
+
+    render_compute_command ComputeCommand;
+    ComputeCommand.Type = compute_fft;
+    ComputeCommand.Source = Source;
+    ComputeCommand.Target = Target;
+    ComputeCommand.nGroups.X = 1024 / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Y = 1024 / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Z = 1;
+
+    Group->ComputeCommands[Group->nComputeCommands++] = ComputeCommand;
+}
+
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Render commands                                                                                                                                                  |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -754,7 +779,7 @@ render_primitive_command* PushPrimitiveCommand(
     PrimitiveCommand->Color = Color;
 
     if (nVertices > 0) {
-        if (Options.Heightmap) {
+        if (Options.Heightmap || Options.Flags & WATER_FLAG) {
             PrimitiveCommand->VertexEntry.Count = nVertices;
             PrimitiveCommand->VertexEntry.LayoutID = LayoutID;
         }
@@ -765,7 +790,7 @@ render_primitive_command* PushPrimitiveCommand(
     }
 
     if (nElements > 0) {
-        if (Options.Heightmap) {
+        if (Options.Heightmap || Options.Flags & WATER_FLAG) {
             PrimitiveCommand->ElementEntry.Count = nElements;
         }
         else {
@@ -1746,6 +1771,26 @@ void PushHeightmap(
     PushHeightmap(Group, Heightmap, LeftBottom, S, Order);
 }
 
+void PushWater(render_group* Group, v3 Position, scale S) {
+    uint32 nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
+    uint32 nElements = 4*(HEIGHTMAP_RESOLUTION-1)*(HEIGHTMAP_RESOLUTION-1);
+
+    PushPrimitiveCommand(
+        Group, 
+        render_primitive_patches,
+        White,
+        vertex_layout_v3_v2_id, 
+        nVertices,
+        nElements,
+        SORT_ORDER_MESHES,
+        {
+            .Flags = (render_flags)(DEPTH_TEST_FLAG | WATER_FLAG),
+            .Transform = Transform(Position, Quaternion(1.0f), S),
+            .PatchParameter = 4,
+        }
+    );
+}
+
 void GenerateHeightmapVertices(float* Vertices) {
     float L = 1.0f / (float)HEIGHTMAP_RESOLUTION;
     for (int i = 0; i < HEIGHTMAP_RESOLUTION; i++) {
@@ -2064,7 +2109,7 @@ void PushDebugPlot(
 
     float X = 0;
     for (int i = 0; i < N; i++) {
-        Vertices[N] = Position + V2(X, -Data[i]);
+        Vertices[i] = Position + V2(X, -Data[i]);
         X += dx;
     }
 }
