@@ -2440,6 +2440,7 @@ float BitReverseFloat(uint32 X) {
 	return Result;
 }
 
+// Direct unoptimized calculation of Discrete Fourier Transform
 void DFT(uint32 N, complex* Input, complex* Output) {
 	for (int i = 0; i < N; i++) {
 		complex Result = Complex(0,0);
@@ -2450,6 +2451,7 @@ void DFT(uint32 N, complex* Input, complex* Output) {
 	}
 }
 
+// General butterfly subroutine
 void FFT_Butterfly(
 	int Radix,
 	complex* Input,
@@ -2459,40 +2461,67 @@ void FFT_Butterfly(
 ) {
 	int c1 = c0 >> Radix;
 
-	for (int k2 = 0; k2 < c1; k2++) {
+	for (int k2 = 0; k2 < c1; k2++)
 	for (int k1 = 0; k1 < 1 << Radix; k1++) {
 		complex Sum = Complex(0,0);
 		for (int j1 = 0; j1 < 1 << Radix; j1++) {
-			Sum += expi(j1*(BitReverseFloat(k1) + BitReverseFloat(k0 << Radix))) * Input[c0*k0 + c1*j1 + k2];
+			Sum += expi(Tau*j1*(BitReverseFloat(k1) + BitReverseFloat(k0 << Radix))) * Input[c0*k0 + c1*j1 + k2];
 		}
 		Output[c0*k0 + c1*k1 + k2] = Sum;
-	}}
+	}
+}
+
+// Specialized in-place radix-4 butterfly operation
+
+
+void FFT4_0Weights(complex* Input, complex* Output, int c0) {
+	int c1 = c0 >> 2;
+
+	complex a0, a1, a2, a3;
+	complex b0, b1, b2, b3;
+	complex d0, d1, d2, d3;
+
+	for (int k2 = 0; k2 < c1; k2++) {
+		a0 = Input[k2];
+		a1 = Input[k2+c1];
+		a2 = Input[k2+2*c1];
+		a3 = Input[k2+3*c1];
+
+		b0 = a0 + a2;
+		b1 = a1 + a3;
+		b2 = a0 - a2;
+		b3 = a1 - a3;
+
+		d0 = b0 + b1;
+		d1 = b0 - b1;
+		d2.r = b2.r - b3.i;
+		d2.i = b2.i + b3.r;
+		d3.r = b2.i + b3.r;
+		d3.i = b2.i - b3.r;
+
+		Output[k2] = d0;
+		Output[k2+c1] = d1;
+		Output[k2+2*c1] = d2;
+		Output[k2+3*c1] = d3;
+	}
 }
 
 void FFT(uint32 N, complex* Input, complex* Output) {
 	uint32 log2N = log2(N);
 
-	uint32 m[] = {2, 2, 2, 2};
 	uint32 n[] = {0, 2, 4, 6, 8};
 
-	complex v[9][256] = {};
-	memcpy(v[0], Input, 256*sizeof(complex));
+	if (log2N & 1) FFT_Butterfly(3, Input, Output, 0, N);
+	else           FFT4_0Weights(Input, Output, N);
 
-	for (int p = 0; p < 4; p++)
-	for (int k0 = 0; k0 < 1 << n[p]; k0++)
-	for (int k1 = 0; k1 < 1 << m[p]; k1++)
-	for (int k2 = 0; k2 < 1 << log2N - m[p] - n[p]; k2++) {
-		complex Sum = Complex(0,0);
-		for (int j1 = 0; j1 < 1 << m[p]; j1++) {
-			Sum += expi(Tau*j1*BitReverseFloat(k1)) * expi(Tau*j1*BitReverseFloat(k0<<m[p])) * 
-				v[n[p]][(k0<<(log2N-n[p]))+(j1<<(log2N-n[p]-m[p])) + k2];
-		}
-		v[n[p+1]][(k0<<(log2N-n[p])) + (k1<<(log2N-n[p]-m[p])) + k2] = Sum;
+	for (int p = 1; p < 4; p++)
+	for (int k0 = 0; k0 < 1 << n[p]; k0++) {
+		FFT_Butterfly(2, Output, Output, k0, 1<<log2N-n[p]);
 	}
 
-	for (uint32 i = 0; i < N; i++) {
-		Output[i] = v[8][BitReverse(i, log2N)];
-	}
+	// for (uint32 i = 0; i < N; i++) {
+	// 	Output[i] = v[8][BitReverse(i, log2N)];
+	// }
 }
 
 #endif
