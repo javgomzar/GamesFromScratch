@@ -37,12 +37,14 @@ const float Pi = 3.1415926535897932f;
 const float Tau = 6.2831853071795865f;
 
 // Twelfth root of 2, important for music
-const float twroot = 1.0594630943592952646f;
+const float TwelfthRootTwo = 1.0594630943592952646f;
+const float SqRootTwo = 1.41421356237f;
+const float SqRootTwoInv = .7071067811865475244f;
 
 const float Degrees = Pi / 180.0f;
 
 // Smallest meaningful difference between floats, important for avoiding floating point rounding errors.
-const float Epsilon = 0.00001f;
+const float Epsilon = .00001f;
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | Arithmetic                                                                                                                             |
@@ -2451,77 +2453,50 @@ void DFT(uint32 N, complex* Input, complex* Output) {
 	}
 }
 
-// General butterfly subroutine
-void FFT_Butterfly(
-	int Radix,
-	complex* Input,
-	complex* Output,
-	int k0,
-	int c0
-) {
-	int c1 = c0 >> Radix;
+// Twiddle factors preparation
+void PrepareTwiddleFactors(uint32 N, complex* Twiddle) {
+	Twiddle[0] = Complex(1.0f, 0.0f);
+	Twiddle[N >> 1] = Complex(-1.0f, 0.0f);
+	Twiddle[N >> 2] = Complex(0.0f, -1.0f);
+	Twiddle[3*(N >> 2)] = Complex(0.0f, 1.0f);
 
-	for (int k2 = 0; k2 < c1; k2++)
-	for (int k1 = 0; k1 < 1 << Radix; k1++) {
-		complex Sum = Complex(0,0);
-		for (int j1 = 0; j1 < 1 << Radix; j1++) {
-			Sum += expi(Tau*j1*(BitReverseFloat(k1) + BitReverseFloat(k0 << Radix))) * Input[c0*k0 + c1*j1 + k2];
-		}
-		Output[c0*k0 + c1*k1 + k2] = Sum;
+	for (int i = 0; i < N; i++) {
+		if      (i == 0)          Twiddle[i] = Complex(1.0f, 0.0f);
+		else if (i == N >> 1)     Twiddle[i] = Complex(-1.0f, 0.0f);
+		else if (i == N >> 2)     Twiddle[i] = Complex(0.0f, -1.0f);
+		else if (i == 3*(N >> 2)) Twiddle[i] = Complex(0.0f, 1.0f);
+		else                      Twiddle[i] = expi(-Tau*i/N);
 	}
 }
 
-// Specialized in-place radix-4 butterfly operation
+void FFT_Butterfly(uint32 Stride, complex* Data, complex Twiddle) {
+	complex X0 = Data[0];
+	complex X1 = Data[Stride];
 
-
-void FFT4_0Weights(complex* Input, complex* Output, int c0) {
-	int c1 = c0 >> 2;
-
-	complex a0, a1, a2, a3;
-	complex b0, b1, b2, b3;
-	complex d0, d1, d2, d3;
-
-	for (int k2 = 0; k2 < c1; k2++) {
-		a0 = Input[k2];
-		a1 = Input[k2+c1];
-		a2 = Input[k2+2*c1];
-		a3 = Input[k2+3*c1];
-
-		b0 = a0 + a2;
-		b1 = a1 + a3;
-		b2 = a0 - a2;
-		b3 = a1 - a3;
-
-		d0 = b0 + b1;
-		d1 = b0 - b1;
-		d2.r = b2.r - b3.i;
-		d2.i = b2.i + b3.r;
-		d3.r = b2.i + b3.r;
-		d3.i = b2.i - b3.r;
-
-		Output[k2] = d0;
-		Output[k2+c1] = d1;
-		Output[k2+2*c1] = d2;
-		Output[k2+3*c1] = d3;
-	}
+	Data[0]      = X0 + Twiddle*X1;
+	Data[Stride] = X0 - Twiddle*X1;
 }
 
-void FFT(uint32 N, complex* Input, complex* Output) {
+void FFT(uint32 N, complex* Input, complex* Output, complex* Twiddle) {
 	uint32 log2N = log2(N);
-
-	uint32 n[] = {0, 2, 4, 6, 8};
-
-	if (log2N & 1) FFT_Butterfly(3, Input, Output, 0, N);
-	else           FFT4_0Weights(Input, Output, N);
-
-	for (int p = 1; p < 4; p++)
-	for (int k0 = 0; k0 < 1 << n[p]; k0++) {
-		FFT_Butterfly(2, Output, Output, k0, 1<<log2N-n[p]);
+	
+	// Bit reverse input
+	for (int i = 0; i < N; i++) {
+		Output[i] = Input[BitReverse(i, log2N)];
 	}
 
-	// for (uint32 i = 0; i < N; i++) {
-	// 	Output[i] = v[8][BitReverse(i, log2N)];
-	// }
+	// FFT stages
+	uint32 Stride = 1;
+	uint32 TwiddleStride = N >> 1;
+	for (int p = 0; p < log2N; p++) {		
+		for (int Block = 0; Block < N; Block += Stride << 1)
+		for (int k = 0; k < Stride; k++) {
+			FFT_Butterfly(Stride, &Output[Block + k], Twiddle[k * TwiddleStride]);
+		}
+		
+		Stride <<= 1;
+		TwiddleStride >>= 1;
+	}
 }
 
 #endif

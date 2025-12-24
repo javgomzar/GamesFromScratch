@@ -106,6 +106,7 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
     static float* Signal = nullptr;
     static complex* InputData = nullptr;
     static complex* OutputData = nullptr;
+    static complex* Twiddle = nullptr;
     static float* ModulusDFT = nullptr;
     static float* PhaseDFT = nullptr;
     static float* ModulusFFT = nullptr;
@@ -115,18 +116,21 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
         Signal = PushArray(Arena, N, float);
         InputData = PushArray(Arena, N, complex);
         OutputData = PushArray(Arena, N, complex);
+        Twiddle = PushArray(Arena, N, complex);
         ModulusDFT = PushArray(Arena, N, float);
         PhaseDFT = PushArray(Arena, N, float);
         ModulusFFT = PushArray(Arena, N, float);
         PhaseFFT = PushArray(Arena, N, float);
 
-        Initialized = true;
-    }
+        for (int i = 0; i < N; i++) {
+            Signal[i] = sin(0.333333f*i);
+            InputData[i].r = Signal[i];
+            InputData[i].i = 0.0f;
+        }
 
-    for (int i = 0; i < N; i++) {
-        Signal[i] = sin(0.1f*i);
-        InputData[i].r = Signal[i];
-        InputData[i].i = 0.0f;
+        PrepareTwiddleFactors(N, Twiddle);
+
+        Initialized = true;
     }
 
     uint64 Start = Platform.GetWallClock();
@@ -141,7 +145,7 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
     }
 
     Start = Platform.GetWallClock();
-    FFT(N, InputData, OutputData);
+    FFT(N, InputData, OutputData, Twiddle);
     End = Platform.GetWallClock();
 
     for (int i = 0; i < N; i++) {
@@ -151,17 +155,17 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
 
     float FFTms = 1000.0f * GetSecondsElapsed(Start, End);
     
-    PushText(Group, V2(200, 620), "Signal");
-    PushDebugPlot(Group, N, Signal, V2(200, 500), 1);
+    PushText(Group, V2(200, 320), "Signal");
+    PushDebugPlot(Group, N, Signal, V2(200, 200), 1);
     
     char TextBuffer[128];
     sprintf_s(TextBuffer, "DFT: %.2f ms", DFTms);
-    PushText(Group, V2(600, 620), TextBuffer);
-    PushDebugPlot(Group, N, ModulusDFT, V2(600, 500), 1);
-    PushDebugPlot(Group, N, PhaseDFT, V2(600, 550), 1);
+    PushText(Group, V2(600, 320), TextBuffer);
+    PushDebugPlot(Group, N, ModulusDFT, V2(600, 200), 1);
+    PushDebugPlot(Group, N, PhaseDFT, V2(600, 250), 1);
 
     sprintf_s(TextBuffer, "FFT: %.2f ms", FFTms);
-    PushText(Group, V2(1000, 620), TextBuffer);
-    PushDebugPlot(Group, N, ModulusFFT, V2(1000, 500), 1);
-    PushDebugPlot(Group, N, PhaseFFT, V2(1000, 550), 1);
+    PushText(Group, V2(1000, 320), TextBuffer);
+    PushDebugPlot(Group, N, ModulusFFT, V2(1000, 200), 1);
+    PushDebugPlot(Group, N, PhaseFFT, V2(1000, 250), 1);
 }
