@@ -1,30 +1,57 @@
-RWTexture2D<float4> Source;
 RWTexture2D<float4> Target;
 
-uint BitReverse(uint x) {
-    x = ((x & 0x55555555) << 1) | ((x & 0xAAAAAAAA) >> 1);
-    x = ((x & 0x33333333) << 2) | ((x & 0xCCCCCCCC) >> 2);
-    x = ((x & 0x0F0F0F0F) << 4) | ((x & 0xF0F0F0F0) >> 4);
-    x = ((x & 0x00FF00FF) << 8) | ((x & 0xFF00FF00) >> 8);
-    x = (x << 16) | (x >> 16);
-    return x;
-}
+static const float Tau = 6.28318530718f; // 2*Pi
+
+cbuffer FFT: register(b10) {
+    uint N;
+    uint Direction;
+    uint Stage;
+};
 
 float2 ComplexMul(float2 z, float2 w) {
     return float2(z.x * w.x - z.y * w.y, z.x * w.y + z.y * w.x);
 }
 
-cbuffer FFT {
-    uint N;
-};
+float2 GetTwiddle(uint k, uint n) {
+    float Angle = Tau * k / n;
+    return float2(cos(Angle), sin(Angle));
+}
 
 [numthreads(16,16,1)]
 void main(int3 ThreadID: SV_DispatchThreadID) {
-    int2 TexelCoord = ThreadID.xy;
+    uint StageSize = 1 << Stage;
+    uint SubSize = StageSize << 1;
+    
+    // Vertical
+    if (Direction) {
+        uint BlockIndex = ThreadID.y / StageSize;
+        uint k = ThreadID.y % StageSize;
 
-    float2 Sample = Target[TexelCoord].rg;
+        uint Index0 = BlockIndex * SubSize + k;
+        uint Index1 = BlockIndex * SubSize + k + StageSize;
+        
+        float2 z0 = Target[int2(ThreadID.x, Index0)].rg;
+        float2 z1 = Target[int2(ThreadID.x, Index1)].rg;
+        
+        float2 Twiddle = GetTwiddle(k, SubSize);
+        
+        Target[int2(ThreadID.x, Index0)] = float4(z0 + ComplexMul(Twiddle, z1), 0.0f, 1.0f);
+        Target[int2(ThreadID.x, Index1)] = float4(z0 - ComplexMul(Twiddle, z1), 0.0f, 1.0f);
+    }
+    // Horizontal
+    else {
+        uint BlockIndex = ThreadID.x / StageSize;
+        uint k = ThreadID.x % StageSize;
 
-    float2 Result = 
-
-    Target[ThreadID.xy] = Result;
+        uint Index0 = BlockIndex * SubSize + k;
+        uint Index1 = BlockIndex * SubSize + k + StageSize;
+        
+        float2 z0 = Target[int2(Index0, ThreadID.y)].rg;
+        float2 z1 = Target[int2(Index1, ThreadID.y)].rg;
+        
+        float2 Twiddle = GetTwiddle(k, SubSize);
+        
+        Target[int2(Index0, ThreadID.y)] = float4(z0 + ComplexMul(Twiddle, z1), 0.0f, 1.0f);
+        Target[int2(Index1, ThreadID.y)] = float4(z0 - ComplexMul(Twiddle, z1), 0.0f, 1.0f);
+    }
 }

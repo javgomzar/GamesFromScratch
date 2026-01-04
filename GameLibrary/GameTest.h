@@ -169,3 +169,36 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
     PushDebugPlot(Group, N, ModulusFFT, V2(1000, 200), 1);
     PushDebugPlot(Group, N, PhaseFFT, V2(1000, 250), 1);
 }
+
+void TestSea(render_group* Group) {
+    v2 Wind = V2(10, 10);
+    PushWater(Group, V3(0,0,0), Scale(10, 1, 10), Wind);
+
+    render_command Command;
+    Command.Index = Group->nTargets;
+    Command.Priority = SORT_ORDER_DEBUG_OVERLAY;
+    Command.Type = render_target;
+
+    PushCommand(Group, Command);
+
+    render_target_command TargetCommand;
+    TargetCommand.Source = Target_Sea;
+    TargetCommand.Target = Target_World;
+    TargetCommand.DebugAttachment = false;
+    TargetCommand.Attachment = false;
+
+    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
+    float* Data = (float*)TargetCommand.VertexEntry.Pointer;
+
+    float MaxX = 2.0f*(1024.0f/Group->Width) - 1.0f;
+    float MinY = 2.0f*(-1024.0f/Group->Height) + 1.0f;
+    
+    *Data++ = -1.0f; *Data++ =  MinY; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  MaxX; *Data++ =  MinY; *Data++ = 1.0f; *Data++ = 0.0f;
+    *Data++ =  MaxX; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ =  MinY; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  MaxX; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
+
+    Group->TargetCommands[Group->nTargets++] = TargetCommand;
+}

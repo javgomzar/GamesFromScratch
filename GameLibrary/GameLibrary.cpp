@@ -91,9 +91,11 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // TestSky(State->Time, &Group->Light);
 
-    TestFFT(Group, &Memory->Permanent, Time);
+    // TestFFT(Group, &Memory->Permanent, Time);
 
     // Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
+
+    TestSea(Group);
 
     PushSky(Group);
     

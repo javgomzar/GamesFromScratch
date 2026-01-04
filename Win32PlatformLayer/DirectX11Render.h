@@ -75,13 +75,17 @@ ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Bezier_Interior_ID,
     Pixel_Shader_Heightmap_ID,
     Pixel_Shader_Sky_ID,
+    Pixel_Shader_FFT_ID,
+    Pixel_Shader_FFT_Noormalize_ID,
     Pixel_Shader_Water_ID
 );
 
 ENUM(directX_Compute_Shader_ID,
     Compute_Shader_Outline_Init_ID,
     Compute_Shader_Jump_Flood_ID,
-    Compute_Shader_Outline_ID
+    Compute_Shader_Outline_ID,
+    Compute_Shader_Phillips_ID,
+    Compute_Shader_FFT_Normalize_ID
 );
 
 #define ShaderType(Type, ...) struct directX_##Type##_Shader { \
@@ -105,7 +109,9 @@ ENUM(directX_constant_buffer_id,
     transform_buffer_id,
     bone_buffer_id,
     text_outline_buffer_id,
-    outline_buffer_id
+    outline_buffer_id,
+    sea_buffer_id,
+    fft_buffer_id
 );
 
 struct alignas(16) global_buffer {
@@ -152,6 +158,17 @@ struct alignas(16) light_buffer {
 struct alignas(16) outline_buffer {
     float Width;
     int Level;
+};
+
+struct alignas(16) sea_buffer {
+    v2 Wind;
+    v2 Dimensions;
+};
+
+struct alignas(16) fft_buffer {
+    uint32 N;
+    uint32 Direction;
+    uint32 Stage;
 };
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -454,6 +471,32 @@ void SetOutlineBuffer(float Width, int Level) {
         DirectX.DeviceContext->Unmap(OutlineBuffer, 0);
         DirectX.DeviceContext->PSSetConstantBuffers(5, 1, &OutlineBuffer);
         DirectX.DeviceContext->CSSetConstantBuffers(5, 1, &OutlineBuffer);
+    }
+}
+
+void SetSeaBuffer(v2 Wind, v2 Dimensions) {
+    ID3D11Buffer* SeaBuffer = DirectX.ConstantBuffer[sea_buffer_id];
+    void* MappedBuffer = GetMappedBuffer(SeaBuffer);
+    if (MappedBuffer) {
+        sea_buffer* Buffer = (sea_buffer*)MappedBuffer;
+        Buffer->Wind = Wind;
+        Buffer->Dimensions = Dimensions;
+        DirectX.DeviceContext->Unmap(SeaBuffer, 0);
+        DirectX.DeviceContext->CSSetConstantBuffers(9, 1, &SeaBuffer);
+    }
+}
+
+void SetFFTBuffer(uint32 N, bool Vertical, uint32 Stage) {
+    ID3D11Buffer* FFTBuffer = DirectX.ConstantBuffer[fft_buffer_id];
+    void* MappedBuffer = GetMappedBuffer(FFTBuffer);
+    if (MappedBuffer) {
+        fft_buffer* Buffer = (fft_buffer*)MappedBuffer;
+        Buffer->N = N;
+        Buffer->Stage = Stage;
+        Buffer->Direction = Vertical ? 1 : 0;
+        DirectX.DeviceContext->Unmap(FFTBuffer, 0);
+        DirectX.DeviceContext->CSSetConstantBuffers(10, 1, &FFTBuffer);
+        DirectX.DeviceContext->PSSetConstantBuffers(10, 1, &FFTBuffer);
     }
 }
 
@@ -1188,7 +1231,12 @@ RENDERER_INITIALIZE {
 
 // Render targets
     for (int i = 1; i < render_group_target_count; i++) {
-        CreateTarget(Group->Width, Group->Height, Group->RenderTargets[i]);
+        int32 Width = Group->Width;
+        int32 Height = Group->Height;
+        if (i == Target_Sea || i == Target_Sea_PingPong) {
+            Width = 1024; Height = 1024;
+        }
+        CreateTarget(Width, Height, Group->RenderTargets[i]);
     }
 
 // Textures
@@ -1277,12 +1325,15 @@ RENDERER_INITIALIZE {
     LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
     LoadShader(Pixel_Shader_Heightmap_ID,            "GameAssets\\Shaders\\HLSL\\Pixel\\Heightmap.psh");
     LoadShader(Pixel_Shader_Sky_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Sky.psh");
-    LoadShader(Pixel_Shader_Water_ID,               "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
+    LoadShader(Pixel_Shader_FFT_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\FFT.psh");
+    LoadShader(Pixel_Shader_Water_ID,                "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
 
     // Compute
     LoadShader(Compute_Shader_Outline_Init_ID,       "GameAssets\\Shaders\\HLSL\\Compute\\OutlineInit.compute");
     LoadShader(Compute_Shader_Jump_Flood_ID,         "GameAssets\\Shaders\\HLSL\\Compute\\JumpFlood.compute");
     LoadShader(Compute_Shader_Outline_ID,            "GameAssets\\Shaders\\HLSL\\Compute\\Outline.compute");
+    LoadShader(Compute_Shader_Phillips_ID,           "GameAssets\\Shaders\\HLSL\\Compute\\Phillips.compute");
+    LoadShader(Compute_Shader_FFT_Normalize_ID,      "GameAssets\\Shaders\\HLSL\\Compute\\FFTNormalize.compute");
 
 // Vertex buffers
     // Layout buffers
@@ -1337,6 +1388,8 @@ RENDERER_INITIALIZE {
     CreateConstantBuffer(text_outline_buffer);
     CreateConstantBuffer(light_buffer);
     CreateConstantBuffer(outline_buffer);
+    CreateConstantBuffer(sea_buffer);
+    CreateConstantBuffer(fft_buffer);
 }
 
 D3D_PRIMITIVE_TOPOLOGY GetRenderPrimitive(render_primitive Primitive) {
@@ -1420,15 +1473,17 @@ void ResizeWindow(int32 Width, int32 Height) {
 
     // Resize render targets
     for (int i = 1; i < render_group_target_count; i++) {
-        directX_render_target* Target = &DirectX.Target[i];
-        Target->View->Release();
-        Target->Texture->Release();
-        if (Target->Description.Depth || Target->Description.Stencil) {
-            Target->Attachment->Release();
-            Target->AttachmentTexture->Release();
+        if (i != Target_Sea && i != Target_Sea_PingPong) {
+            directX_render_target* Target = &DirectX.Target[i];
+            Target->View->Release();
+            Target->Texture->Release();
+            if (Target->Description.Depth || Target->Description.Stencil) {
+                Target->Attachment->Release();
+                Target->AttachmentTexture->Release();
+            }
+            Target->ShaderTexture->Release();
+            CreateTarget(Width, Height, Target->Description);
         }
-        Target->ShaderTexture->Release();
-        CreateTarget(Width, Height, Target->Description);
     }
 
     // Resize viewport
@@ -1816,29 +1871,47 @@ RENDERER_RENDER {
                 directX_render_target* Source = &DirectX.Target[ShaderCommand.Source];
                 directX_render_target* Target = &DirectX.Target[ShaderCommand.Target];
 
-                // Normal shaders
                 BindTarget(ShaderCommand.Target);
-
-                DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[Vertex_Shader_Passthrough_ID].Shader, NULL, 0);
-
+                
+                vertex_layout_id LayoutID = vertex_layout_v2_v2_id;
+                directX_Vertex_Shader_ID VertexShaderID = Vertex_Shader_Passthrough_ID;
                 directX_Pixel_Shader_ID PixelShaderID = Pixel_Shader_Single_Color_ID;
                 switch (ShaderCommand.Type) {
+                    case shader_pass_fft: {
+                        PixelShaderID = Pixel_Shader_FFT_ID;
+                        SetFFTBuffer(1024, ShaderCommand.Vertical, ShaderCommand.Stage);
+
+                        D3D11_VIEWPORT Viewport;
+                        Viewport.Width = 1024.0f;
+                        Viewport.Height = 1024.0f;
+                        Viewport.MinDepth = 0.0f;
+                        Viewport.MaxDepth = 1.0f;
+                        Viewport.TopLeftX = 0.0f;
+                        Viewport.TopLeftY = 0.0f;
+
+                        DirectX.DeviceContext->RSSetViewports(1, &Viewport);
+                    } break;
                     default: Raise("DirectX: Invalid shader pass type.");
                 }
 
+                DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[VertexShaderID].Shader, NULL, 0);
                 DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[PixelShaderID].Shader, NULL, 0);
                 DirectX.DeviceContext->PSSetShaderResources(0, 1, &Source->ShaderTexture);
                 DirectX.DeviceContext->PSSetSamplers(0, 1, &DirectX.PixelShader[PixelShaderID].Sampler);
 
-                SetColorBuffer(ShaderCommand.Color);
-                SetOutlineBuffer(ShaderCommand.Width, ShaderCommand.Level);
-
-                vertex_layout_id LayoutID = vertex_layout_v2_v2_id;
                 uint32 Stride = Group->Assets->VertexLayout[LayoutID].Stride;
                 uint32 VertexOffset = 0;
+                DirectX.DeviceContext->IASetInputLayout(DirectX.VertexLayout[LayoutID]);
                 DirectX.DeviceContext->IASetVertexBuffers(0, 1, &DirectX.VertexBuffer[LayoutID], &Stride, &VertexOffset);
+                DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
                 DirectX.DeviceContext->Draw(ShaderCommand.VertexEntry.Count, ShaderCommand.VertexEntry.Offset);
-                
+
+                ID3D11ShaderResourceView* EmptyShaderResource = NULL;
+                DirectX.DeviceContext->PSSetShaderResources(0, 1, &EmptyShaderResource);
+
+                if (ShaderCommand.Type == shader_pass_fft) {
+                    DirectX.DeviceContext->RSSetViewports(1, &DirectX.Viewport);
+                }
             } break;
 
             case render_compute: {
@@ -1858,6 +1931,14 @@ RENDERER_RENDER {
                         ShaderID = Compute_Shader_Outline_ID;
                         SetOutlineBuffer(ComputeCommand.Width, 0);
                         SetColorBuffer(ComputeCommand.Color);
+                    } break;
+                    case compute_phillips: {
+                        ShaderID = Compute_Shader_Phillips_ID;
+                        SetSeaBuffer(ComputeCommand.Wind, V2(10, 10));
+                    } break;
+                    case compute_fft_normalize: {
+                        ShaderID = Compute_Shader_FFT_Normalize_ID;
+                        SetFFTBuffer(1024, false, 0);
                     } break;
                     default: Raise("DirectX: Invalid compute shader ID.");
                 }

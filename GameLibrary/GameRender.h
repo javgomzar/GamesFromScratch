@@ -162,6 +162,8 @@ ENUM(render_group_target,
     Target_Postprocessing_Outline,
     Target_PingPong,
     Target_Fluid,
+    Target_Sea,
+    Target_Sea_PingPong,
     Target_Output
 );
 
@@ -249,7 +251,9 @@ struct render_group_target_description {
 };
 
 ENUM(shader_pass_type,
-    shader_pass_empty
+    shader_pass_fft,
+    shader_pass_height_spectrum,
+    shader_pass_choppy_spectrum
 );
 
 struct render_shader_pass_command {
@@ -257,9 +261,8 @@ struct render_shader_pass_command {
     shader_pass_type Type;
     render_group_target Source;
     render_group_target Target;
-    color Color;
-    int Level;
-    float Width;
+    uint32 Stage;
+    bool Vertical;
     bool ClearTarget;
 };
 
@@ -270,18 +273,19 @@ ENUM(compute_type,
     compute_outline_init,
     compute_jump_flood,
     compute_outline,
-    compute_fft
+    compute_phillips,
+    compute_fft_normalize
 );
 
 struct render_compute_command {
     compute_type Type;
-    render_group_target Source;
     render_group_target Target;
     iv3 nGroups;
     matrix3 Kernel;
     color Color;
     int Level;
     float Width;
+    v2 Wind;
 };
 
 struct render_target_command {
@@ -430,6 +434,22 @@ void InitializeRenderGroup(
         .Depth = true,
         .Stencil = false
     };
+
+    Group->RenderTargets[Target_Sea] = {
+        .Target = Target_Sea,
+        .Format = Color_Format_RGBA,
+        .Multisample = false,
+        .Depth = false,
+        .Stencil = false
+    };
+
+    Group->RenderTargets[Target_Sea_PingPong] = {
+        .Target = Target_Sea_PingPong,
+        .Format = Color_Format_RGBA,
+        .Multisample = false,
+        .Depth = false,
+        .Stencil = false
+    };
 }
 
 // Render entries sorting
@@ -558,7 +578,7 @@ void PushRenderTarget(
     
     *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
     *Data++ =  1.0f; *Data++ = -1.0f; *Data++ = 1.0f; *Data++ = 0.0f;
-    *Data++ =  1.0;  *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
     *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
     *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
     *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
@@ -566,12 +586,12 @@ void PushRenderTarget(
     Group->TargetCommands[Group->nTargets++] = TargetCommand;
 }
 
-void PushShaderPass(
+void PushFFT(
     render_group* Group,
-    shader_pass_type Type,
     render_group_target Source,
     render_group_target Target,
-    color Color,
+    uint32 Stage,
+    bool Vertical,
     float Order = SORT_ORDER_SHADER_PASSES
 ) {
     render_command Command;
@@ -582,20 +602,21 @@ void PushShaderPass(
     PushCommand(Group, Command);
 
     render_shader_pass_command ShaderCommand;
-    ShaderCommand.Type = Type;
-    ShaderCommand.Color = Color;
+    ShaderCommand.Type = shader_pass_fft;
     ShaderCommand.Source = Source;
     ShaderCommand.Target = Target;
+    ShaderCommand.Vertical = Vertical;
+    ShaderCommand.Stage = Stage;
     
-    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v3_v2_id);
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
 
     float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
-    Data[0] = -1.0f;  Data[1] = -1.0f;  Data[2] = 0.0f;  Data[3] = 0.0f;  Data[4] = 0.0f;
-    Data[5] = 1.0f;   Data[6] = -1.0f;  Data[7] = 0.0f;  Data[8] = 1.0f;  Data[9] = 0.0f;
-    Data[10] = 1.0;   Data[11] = 1.0f;  Data[12] = 0.0f; Data[13] = 1.0f; Data[14] = 1.0f;
-    Data[15] = -1.0f; Data[16] = -1.0f; Data[17] = 0.0f; Data[18] = 0.0f; Data[19] = 0.0f;
-    Data[20] = 1.0f;  Data[21] = 1.0f;  Data[22] = 0.0f; Data[23] = 1.0f; Data[24] = 1.0f;
-    Data[25] = -1.0f; Data[26] = 1.0f;  Data[27] = 0.0f; Data[28] = 0.0f; Data[29] = 1.0f;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ = -1.0f; *Data++ = 1.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
     
     Group->ShaderPassCommands[Group->nShaderPassCommands++] = ShaderCommand;
 }
@@ -709,11 +730,7 @@ void PushBlur(
     PushKernelCompute(Group, Target, Kernel, Order);
 }
 
-void PushFFT(
-    render_group* Group, 
-    render_group_target Source,
-    render_group_target Target
-) {
+void PushPhillipsSpectrumCompute(render_group* Group, v2 Wind) {
     render_command Command;
     Command.Type = render_compute;
     Command.Index = Group->nComputeCommands;
@@ -722,9 +739,27 @@ void PushFFT(
     PushCommand(Group, Command);
 
     render_compute_command ComputeCommand;
-    ComputeCommand.Type = compute_fft;
-    ComputeCommand.Source = Source;
-    ComputeCommand.Target = Target;
+    ComputeCommand.Type = compute_phillips;
+    ComputeCommand.Target = Target_Sea;
+    ComputeCommand.Wind = Wind;
+    ComputeCommand.nGroups.X = 1024 / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Y = 512 / COMPUTE_GROUP_SIZE;
+    ComputeCommand.nGroups.Z = 1;
+
+    Group->ComputeCommands[Group->nComputeCommands++] = ComputeCommand;
+}
+
+void PushFFTNormalizeCompute(render_group* Group, float Order) {
+    render_command Command;
+    Command.Type = render_compute;
+    Command.Index = Group->nComputeCommands;
+    Command.Priority = Order;
+
+    PushCommand(Group, Command);
+
+    render_compute_command ComputeCommand;
+    ComputeCommand.Type = compute_fft_normalize;
+    ComputeCommand.Target = Target_Sea;
     ComputeCommand.nGroups.X = 1024 / COMPUTE_GROUP_SIZE;
     ComputeCommand.nGroups.Y = 1024 / COMPUTE_GROUP_SIZE;
     ComputeCommand.nGroups.Z = 1;
@@ -1771,9 +1806,28 @@ void PushHeightmap(
     PushHeightmap(Group, Heightmap, LeftBottom, S, Order);
 }
 
-void PushWater(render_group* Group, v3 Position, scale S) {
+void PushWater(render_group* Group, v3 Position, scale S, v2 Wind) {
     uint32 nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
     uint32 nElements = 4*(HEIGHTMAP_RESOLUTION-1)*(HEIGHTMAP_RESOLUTION-1);
+
+    PushPhillipsSpectrumCompute(Group, Wind);
+
+    float Order = SORT_ORDER_CLEAR;
+    for (int i = 0; i < 10; i++) {
+        Order += 0.1f;
+        render_group_target Source = i & 1 ? Target_Sea_PingPong : Target_Sea;
+        render_group_target Target = i & 1 ? Target_Sea : Target_Sea_PingPong;
+        PushFFT(Group, Source, Target, i, false, Order);
+    }
+
+    for (int i = 0; i < 10; i++) {
+        Order += 0.1f;
+        render_group_target Source = i & 1 ? Target_Sea_PingPong : Target_Sea;
+        render_group_target Target = i & 1 ? Target_Sea : Target_Sea_PingPong;
+        PushFFT(Group, Source, Target, i, true, Order);
+    }
+
+    // PushFFTNormalizeCompute(Group, Order + 0.1f);
 
     PushPrimitiveCommand(
         Group, 

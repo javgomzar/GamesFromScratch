@@ -1,4 +1,0 @@
-cbuffer Outline: register(b5) {
-    float Width;
-    int Level;
-};

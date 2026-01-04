@@ -2488,7 +2488,7 @@ void FFT(uint32 N, complex* Input, complex* Output, complex* Twiddle) {
 	// FFT stages
 	uint32 Stride = 1;
 	uint32 TwiddleStride = N >> 1;
-	for (int p = 0; p < log2N; p++) {		
+	for (int p = 0; p < log2N; p++) {
 		for (int Block = 0; Block < N; Block += Stride << 1)
 		for (int k = 0; k < Stride; k++) {
 			FFT_Butterfly(Stride, &Output[Block + k], Twiddle[k * TwiddleStride]);

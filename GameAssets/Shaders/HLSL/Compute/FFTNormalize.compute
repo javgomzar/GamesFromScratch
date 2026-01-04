@@ -1,0 +1,16 @@
+RWTexture2D<float4> Target;
+
+static const float Tau = 6.28318530718f; // 2*Pi
+
+cbuffer FFT: register(b10) {
+    uint N;
+    uint Direction;
+    uint Stage;
+};
+
+[numthreads(16,16,1)]
+void main(int3 ThreadID: SV_DispatchThreadID) {
+    int2 TexCoord = ThreadID.xy;
+    float2 Value = Target[TexCoord].rg;
+    Target[TexCoord] = float4(Value, 0.0f, 1.0f);
+}

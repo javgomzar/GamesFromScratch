@@ -8,3 +8,5 @@ Constant buffers:
     - (6) Kernel: Kernel matrix.
     - (7) Text: Pen and size.
     - (8) Tesselation: Amount and padding.
+    - (9) Sea: Wind and dimensions
+    - (10) FFT: N, direction, stage
