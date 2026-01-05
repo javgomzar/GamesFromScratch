@@ -1429,7 +1429,7 @@ struct scale {
 	float Z;
 };
 
-inline scale Scale(float X = 1.0, float Y = 1.0, float Z = 1.0) {
+inline scale GetScale(float X = 1.0, float Y = 1.0, float Z = 1.0) {
 	return { X, Y, Z };
 };
 
@@ -1438,7 +1438,7 @@ inline scale operator*(float C, scale S) {
 }
 
 inline scale operator*(scale S, scale T) {
-	return Scale(S.X * T.X, S.Y * T.Y, S.Z * T.Z);
+	return GetScale(S.X * T.X, S.Y * T.Y, S.Z * T.Z);
 }
 
 inline v3 operator*(scale Scale, v3 Vector) {
@@ -1468,51 +1468,55 @@ struct transform {
 	quaternion Rotation;
 };
 
-transform IdentityTransform = { V3(0,0,0), Scale(), Quaternion(1.0f) };
+transform IdentityTransform = { V3(0,0,0), GetScale(), Quaternion(1.0f) };
 
-inline transform Transform(quaternion Rotation, v3 Translation = V3(0.0, 0.0, 0.0), scale Scaling = Scale()) {
+inline transform GetTransform(quaternion Rotation, v3 Translation = V3(0.0, 0.0, 0.0), scale Scaling = GetScale()) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline transform Transform(v3 Translation, quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = Scale()) {
+inline transform GetTransform(v3 Translation, quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = GetScale()) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline v3 operator*(transform T, v3 Vector) {
-	return T.Rotation * (T.Scale * Vector) + T.Translation;
+inline v3 operator*(transform Transform, v3 Vector) {
+	return Transform.Rotation * (Transform.Scale * Vector) + Transform.Translation;
 }
 
-inline v4 operator*(transform T, v4 Vector) {
-	return V4(T.Rotation * (T.Scale * V3(Vector.X, Vector.Y, Vector.Z)) + Vector.W * T.Translation, Vector.W);
+inline v4 operator*(transform Transform, v4 Vector) {
+	return V4(Transform.Rotation * (Transform.Scale * V3(Vector.X, Vector.Y, Vector.Z)) + Vector.W * Transform.Translation, Vector.W);
 }
 
-inline basis operator*(transform T, basis Basis) {
-	return T.Rotation * Basis;
+inline basis operator*(transform Transform, basis Basis) {
+	return Transform.Rotation * Basis;
 }
 
-inline transform operator*(transform T, transform U) {
+inline transform operator*(transform Transform1, transform Transform2) {
 	transform Result = { 0 };
-	Result.Scale = T.Scale * U.Scale;
-	Result.Translation = U.Translation + U.Rotation * T.Translation;
-	Result.Rotation = T.Rotation * U.Rotation;
+	Result.Scale = Transform1.Scale * Transform2.Scale;
+	Result.Translation = Transform2.Translation + Transform2.Rotation * Transform1.Translation;
+	Result.Rotation = Transform1.Rotation * Transform2.Rotation;
 	return Result;
 }
 
-inline bool operator==(transform T, transform U) {
-	return T.Translation == U.Translation && T.Scale == U.Scale && T.Rotation == U.Rotation;
+inline bool operator==(transform Transform1, transform Transform2) {
+	return Transform1.Translation == Transform2.Translation && 
+	       Transform1.Scale == Transform2.Scale && 
+		   Transform1.Rotation == Transform2.Rotation;
 }
 
-inline bool operator!=(transform T, transform U) {
-	return T.Translation != U.Translation || T.Scale == U.Scale || T.Rotation == U.Rotation;
+inline bool operator!=(transform Transform1, transform Transform2) {
+	return Transform1.Translation != Transform2.Translation || 
+	       Transform1.Scale == Transform2.Scale || 
+		   Transform1.Rotation == Transform2.Rotation;
 }
 
-inline matrix4 Matrix(transform T) {
-	matrix3 Rotation = Matrix(T.Rotation);
+inline matrix4 Matrix(transform Transform) {
+	matrix3 Rotation = Matrix(Transform.Rotation);
 	matrix4 Result;
-	Result.X = T.Scale.X * V4(Rotation.X,0);
-	Result.Y = T.Scale.Y * V4(Rotation.Y,0);
-	Result.Z = T.Scale.Z * V4(Rotation.Z,0);
-	Result.W = V4(T.Translation, 1.0f);
+	Result.X = Transform.Scale.X * V4(Rotation.X,0);
+	Result.Y = Transform.Scale.Y * V4(Rotation.Y,0);
+	Result.Z = Transform.Scale.Z * V4(Rotation.Z,0);
+	Result.W = V4(Transform.Translation, 1.0f);
 	return Result;
 }
 
@@ -1748,8 +1752,8 @@ struct segment3 {
 	v3 Tail;
 };
 
-inline segment3 operator*(transform T, segment3 S) {
-	return { T * S.Head, T * S.Tail };
+inline segment3 operator*(transform Transform, segment3 Segment) {
+	return { Transform * Segment.Head, Transform * Segment.Tail };
 }
 
 /*

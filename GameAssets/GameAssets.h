@@ -230,7 +230,7 @@ void Update(game_animator* Animator) {
             bone* Bone = &Armature->Bones[i];
             Bone->Transform.Translation = V3(0,0,0);
             Bone->Transform.Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
-            Bone->Transform.Scale = Scale();
+            Bone->Transform.Scale = GetScale();
         }
     }
 }

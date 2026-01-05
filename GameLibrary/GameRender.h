@@ -1508,7 +1508,7 @@ void PushFillbar(
 void PushCubeOutline(
     render_group* Group,
     v3 Position,
-    scale Size = Scale(1.0),
+    scale Scale = GetScale(1.0),
     color Color = White,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -1524,13 +1524,13 @@ void PushCubeOutline(
     );
 
     v3* Vertices = (v3*)Result->Vertices;
-    Vertices[0] = Position + V3(0.0, Size.Y, Size.Z);
-    Vertices[1] = Position + V3(Size.X, Size.Y, Size.Z);
-    Vertices[2] = Position + V3(0.0, 0.0, Size.Z);
-    Vertices[3] = Position + V3(Size.X, 0.0, Size.Z);
-    Vertices[4] = Position + V3(Size.X, 0.0, 0.0);
-    Vertices[5] = Position + V3(Size.X, Size.Y, 0.0);
-    Vertices[6] = Position + V3(0.0, Size.Y, 0.0);
+    Vertices[0] = Position + V3(0.0, Scale.Y, Scale.Z);
+    Vertices[1] = Position + V3(Scale.X, Scale.Y, Scale.Z);
+    Vertices[2] = Position + V3(0.0, 0.0, Scale.Z);
+    Vertices[3] = Position + V3(Scale.X, 0.0, Scale.Z);
+    Vertices[4] = Position + V3(Scale.X, 0.0, 0.0);
+    Vertices[5] = Position + V3(Scale.X, Scale.Y, 0.0);
+    Vertices[6] = Position + V3(0.0, Scale.Y, 0.0);
     Vertices[7] = Position + V3(0.0, 0.0, 0.0);
 
     uint32 VertexOffset = Result->VertexEntry.Offset;
@@ -1753,7 +1753,7 @@ void PushHeightmap(
         Order,
         {
             .Flags = (render_flags)(DEPTH_TEST_FLAG),
-            .Transform = Transform(LeftBottom, Quaternion(1.0f), S),
+            .Transform = GetTransform(LeftBottom, Quaternion(1.0f), S),
             .Heightmap = Heightmap,
             .PatchParameter = 4,
         }
@@ -1785,7 +1785,7 @@ void PushWater(render_group* Group, v3 Position, scale S) {
         SORT_ORDER_MESHES,
         {
             .Flags = (render_flags)(DEPTH_TEST_FLAG | WATER_FLAG),
-            .Transform = Transform(Position, Quaternion(1.0f), S),
+            .Transform = GetTransform(Position, Quaternion(1.0f), S),
             .PatchParameter = 4,
         }
     );
@@ -1854,15 +1854,15 @@ void PushSky(render_group* Group) {
 // | Entities                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void PushCollider(render_group* Group, collider Collider, transform T, color Color) {
-    v3 Position = T.Translation + Collider.Offset;
+void PushCollider(render_group* Group, collider Collider, transform Transform, color Color) {
+    v3 Position = Transform.Translation + Collider.Offset;
     switch (Collider.Type) {
         case Rect_Collider: {
             PushRectOutline(Group, Rectangle(Collider), Color);
         } break;
 
         case Cube_Collider: {
-            PushCubeOutline(Group, Position, Scale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), Color);
+            PushCubeOutline(Group, Position, GetScale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), Color);
         } break;
 
         case Sphere_Collider: {
@@ -1872,8 +1872,8 @@ void PushCollider(render_group* Group, collider Collider, transform T, color Col
         } break;
 
         case Capsule_Collider: {
-            v3 Head = T * Collider.Capsule.Segment.Head;
-            v3 Tail = T * Collider.Capsule.Segment.Tail;
+            v3 Head = Transform * Collider.Capsule.Segment.Head;
+            v3 Tail = Transform * Collider.Capsule.Segment.Tail;
 
             segment3 TransformedSegment = { Head, Tail };
             transform ST = SegmentTransform(TransformedSegment);
@@ -1910,7 +1910,7 @@ void PushCollider(render_group* Group, collider Collider, transform T, color Col
             Basis.Z = Temp;
             PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color);
 
-            Collider.Capsule.Segment = T * Collider.Capsule.Segment;
+            Collider.Capsule.Segment = Transform * Collider.Capsule.Segment;
         } break;
 
         default: Assert(false);

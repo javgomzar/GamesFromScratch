@@ -61,28 +61,28 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     PushTriangle(Group, Triangle3, Red);
 
     // Mesh
-    transform T = Transform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
-    PushMesh(Group, Mesh_Body_ID, .Color = Gray, .Transform = T, .Outline = true);
+    transform Transform = GetTransform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
+    PushMesh(Group, Mesh_Body_ID, .Color = Gray, .Transform = Transform, .Outline = true);
 
-    T.Translation = V3(-2, 0, 0);
-    PushMesh(Group, Mesh_Tetrahedron_ID, .Transform = T);
+    Transform.Translation = V3(-2, 0, 0);
+    PushMesh(Group, Mesh_Tetrahedron_ID, .Transform = Transform);
 
-    T.Translation = V3(-2, 0, 2);
-    PushMesh(Group, Mesh_Cube_ID, .Transform = T);
+    Transform.Translation = V3(-2, 0, 2);
+    PushMesh(Group, Mesh_Cube_ID, .Transform = Transform);
 
-    T.Translation = V3(-2, 0, 4);
-    PushMesh(Group, Mesh_Octahedron_ID, .Transform = T);
+    Transform.Translation = V3(-2, 0, 4);
+    PushMesh(Group, Mesh_Octahedron_ID, .Transform = Transform);
 
-    T.Translation = V3(-2, 0, 6);
-    PushMesh(Group, Mesh_Icosahedron_ID, .Transform = T);
+    Transform.Translation = V3(-2, 0, 6);
+    PushMesh(Group, Mesh_Icosahedron_ID, .Transform = Transform);
 
-    T.Translation = V3(-2, 0, 8.5);
-    PushMesh(Group, Mesh_Dodecahedron_ID, .Transform = T);
+    Transform.Translation = V3(-2, 0, 8.5);
+    PushMesh(Group, Mesh_Dodecahedron_ID, .Transform = Transform);
 
-    PushMesh(Group, Mesh_Sphere_ID, .Color = Red, .Transform = Transform(V3(10, 0, 0)));
+    PushMesh(Group, Mesh_Sphere_ID, .Color = Red, .Transform = GetTransform(V3(10, 0, 0)));
 
     // Heightmap
-    PushHeightmap(Group, Heightmap_Spain_ID, V3(0,0,0), Scale(10, 1, 10));
+    PushHeightmap(Group, Heightmap_Spain_ID, V3(0,0,0), GetScale(10, 1, 10));
 }
 
 void TestSky(float Time, light* Light) {
