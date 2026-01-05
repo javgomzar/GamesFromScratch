@@ -1728,8 +1728,10 @@ void _PushMesh(
         for (int i = 0; i < Options.Armature->nBones; i++) {
             bone Bone = Options.Armature->Bones[i];
             transform BoneTransform = Bone.Transform;
-            Vertices[2*i] = BoneTransform * Options.Transform * Bone.Segment.Head;
-            Vertices[2*i+1] = BoneTransform * Options.Transform * Bone.Segment.Tail;
+            v3 Head = BoneTransform * Options.Transform * Bone.Segment.Head;
+            v3 Tail = BoneTransform * Options.Transform * Bone.Segment.Tail;
+            Vertices[2*i] = Head;
+            Vertices[2*i+1] = Tail;
         }
     }
 }

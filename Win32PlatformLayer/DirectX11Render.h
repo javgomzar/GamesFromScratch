@@ -1608,7 +1608,7 @@ RENDERER_RENDER {
                     LayoutID = vertex_layout_v3_id;
                     VertexShaderID = Vertex_Shader_Perspective_ID;
                     PixelShaderID = Pixel_Shader_Single_Color_ID;
-                    VertexBuffer = &DirectX.HeightmapBuffer.VertexBuffer;
+                    VertexBuffer = &DirectX.VertexBuffer[LayoutID];
                 }
                 else {
                     LayoutID = VertexEntry.LayoutID;
