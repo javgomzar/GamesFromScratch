@@ -1092,7 +1092,7 @@ void PushCircunference(
 
     float* Data = PushPrimitiveCommand(
         Group,
-        render_primitive_line,
+        render_primitive_line_strip,
         Color,
         vertex_layout_v3_id,
         N+1,
