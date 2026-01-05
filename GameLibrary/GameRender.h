@@ -163,6 +163,7 @@ ENUM(render_group_target,
     Target_PingPong,
     Target_Fluid,
     Target_Sea,
+    Target_Sea_Normal,
     Target_Sea_PingPong,
     Target_Output
 );
@@ -252,8 +253,8 @@ struct render_group_target_description {
 
 ENUM(shader_pass_type,
     shader_pass_fft,
-    shader_pass_height_spectrum,
-    shader_pass_choppy_spectrum
+    shader_pass_choppy_spectrum,
+    shader_pass_water_normal
 );
 
 struct render_shader_pass_command {
@@ -261,6 +262,7 @@ struct render_shader_pass_command {
     shader_pass_type Type;
     render_group_target Source;
     render_group_target Target;
+    scale Scale;
     uint32 Stage;
     bool Vertical;
     bool ClearTarget;
@@ -284,6 +286,7 @@ struct render_compute_command {
     matrix3 Kernel;
     color Color;
     int Level;
+    scale Scale;
     float Width;
     v2 Wind;
 };
@@ -357,34 +360,7 @@ struct render_group {
     bool RenderText;
 };
 
-void InitializeRenderGroup(
-    memory_arena* Arena,
-    render_group* Group, 
-    game_assets* Assets,
-    int32 Width,
-    int32 Height
-) {
-    Group->Width = Width;
-    Group->Height = Height;
-
-    Group->Assets = Assets;
-    Group->DebugFont = GetAsset(Assets, Font_Menlo_Regular_ID);
-    
-    Group->Debug = false;
-    Group->DebugNormals = false;
-    Group->DebugColliders = false;
-    Group->DebugBones = false;
-
-    // Lighting
-    Group->Light = Light(V3(-0.5, -1, 1), White);
-
-    // Vertex & element buffers
-    InitializeVertexBuffer(Arena, &Group->VertexBuffer, Assets->VertexLayout);
-
-    // Text buffer
-    InitializeTextBuffer(Arena, &Group->TextBuffer);
-
-    // Render targets
+void InitializeRenderTargets(render_group* Group) {
     Group->RenderTargets[Target_None] = {};
 
     Group->RenderTargets[Target_World] = {
@@ -450,6 +426,45 @@ void InitializeRenderGroup(
         .Depth = false,
         .Stencil = false
     };
+
+    Group->RenderTargets[Target_Sea_Normal] = {
+        .Target = Target_Sea_Normal,
+        .Format = Color_Format_RGBA,
+        .Multisample = false,
+        .Depth = false,
+        .Stencil = false
+    };
+}
+
+void InitializeRenderGroup(
+    memory_arena* Arena,
+    render_group* Group, 
+    game_assets* Assets,
+    int32 Width,
+    int32 Height
+) {
+    Group->Width = Width;
+    Group->Height = Height;
+
+    Group->Assets = Assets;
+    Group->DebugFont = GetAsset(Assets, Font_Menlo_Regular_ID);
+    
+    Group->Debug = false;
+    Group->DebugNormals = false;
+    Group->DebugColliders = false;
+    Group->DebugBones = false;
+
+    // Lighting
+    Group->Light = Light(V3(-0.5, -1, 1), White);
+
+    // Vertex & element buffers
+    InitializeVertexBuffer(Arena, &Group->VertexBuffer, Assets->VertexLayout);
+
+    // Text buffer
+    InitializeTextBuffer(Arena, &Group->TextBuffer);
+
+    // Render targets
+    InitializeRenderTargets(Group);
 }
 
 // Render entries sorting
@@ -621,6 +636,33 @@ void PushFFT(
     Group->ShaderPassCommands[Group->nShaderPassCommands++] = ShaderCommand;
 }
 
+void PushWaterNormal(render_group* Group, scale Scale, float Order) {
+    render_command Command;
+    Command.Type = render_shader_pass;
+    Command.Index = Group->nShaderPassCommands;
+    Command.Priority = Order;
+
+    PushCommand(Group, Command);
+
+    render_shader_pass_command ShaderCommand;
+    ShaderCommand.Type = shader_pass_water_normal;
+    ShaderCommand.Source = Target_Sea;
+    ShaderCommand.Target = Target_Sea_Normal;
+    ShaderCommand.Scale = Scale;
+    
+    ShaderCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
+
+    float* Data = (float*)ShaderCommand.VertexEntry.Pointer;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ = -1.0f; *Data++ = 1.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ = -1.0f; *Data++ = 0.0f; *Data++ = 0.0f;
+    *Data++ =  1.0f; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
+
+    Group->ShaderPassCommands[Group->nShaderPassCommands++] = ShaderCommand;
+}
+
 void PushOutlineInitCompute(
     render_group* Group,
     render_group_target Target,
@@ -730,7 +772,7 @@ void PushBlur(
     PushKernelCompute(Group, Target, Kernel, Order);
 }
 
-void PushPhillipsSpectrumCompute(render_group* Group, v2 Wind) {
+void PushPhillipsSpectrumCompute(render_group* Group, scale S, v2 Wind) {
     render_command Command;
     Command.Type = render_compute;
     Command.Index = Group->nComputeCommands;
@@ -742,6 +784,7 @@ void PushPhillipsSpectrumCompute(render_group* Group, v2 Wind) {
     ComputeCommand.Type = compute_phillips;
     ComputeCommand.Target = Target_Sea;
     ComputeCommand.Wind = Wind;
+    ComputeCommand.Scale = S;
     ComputeCommand.nGroups.X = 1024 / COMPUTE_GROUP_SIZE;
     ComputeCommand.nGroups.Y = 512 / COMPUTE_GROUP_SIZE;
     ComputeCommand.nGroups.Z = 1;
@@ -1543,7 +1586,7 @@ void PushFillbar(
 void PushCubeOutline(
     render_group* Group,
     v3 Position,
-    scale Size = Scale(1.0),
+    scale Size = GetScale(1.0),
     color Color = White,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -1788,7 +1831,7 @@ void PushHeightmap(
         Order,
         {
             .Flags = (render_flags)(DEPTH_TEST_FLAG),
-            .Transform = Transform(LeftBottom, Quaternion(1.0f), S),
+            .Transform = GetTransform(LeftBottom, Quaternion(1.0f), S),
             .Heightmap = Heightmap,
             .PatchParameter = 4,
         }
@@ -1806,28 +1849,28 @@ void PushHeightmap(
     PushHeightmap(Group, Heightmap, LeftBottom, S, Order);
 }
 
-void PushWater(render_group* Group, v3 Position, scale S, v2 Wind) {
+void PushWater(render_group* Group, v3 Position, scale Scale, v2 Wind) {
     uint32 nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
     uint32 nElements = 4*(HEIGHTMAP_RESOLUTION-1)*(HEIGHTMAP_RESOLUTION-1);
 
-    PushPhillipsSpectrumCompute(Group, Wind);
+    PushPhillipsSpectrumCompute(Group, Scale, Wind);
 
     float Order = SORT_ORDER_CLEAR;
     for (int i = 0; i < 10; i++) {
-        Order += 0.1f;
         render_group_target Source = i & 1 ? Target_Sea_PingPong : Target_Sea;
         render_group_target Target = i & 1 ? Target_Sea : Target_Sea_PingPong;
-        PushFFT(Group, Source, Target, i, false, Order);
+        PushFFT(Group, Source, Target, i, false, Order += 0.1f);
     }
 
     for (int i = 0; i < 10; i++) {
-        Order += 0.1f;
         render_group_target Source = i & 1 ? Target_Sea_PingPong : Target_Sea;
         render_group_target Target = i & 1 ? Target_Sea : Target_Sea_PingPong;
-        PushFFT(Group, Source, Target, i, true, Order);
+        PushFFT(Group, Source, Target, i, true, Order += 0.1f);
     }
 
-    // PushFFTNormalizeCompute(Group, Order + 0.1f);
+    PushFFTNormalizeCompute(Group, Order += 0.1f);
+
+    PushWaterNormal(Group, Scale, Order += 0.1f);
 
     PushPrimitiveCommand(
         Group, 
@@ -1839,7 +1882,7 @@ void PushWater(render_group* Group, v3 Position, scale S, v2 Wind) {
         SORT_ORDER_MESHES,
         {
             .Flags = (render_flags)(DEPTH_TEST_FLAG | WATER_FLAG),
-            .Transform = Transform(Position, Quaternion(1.0f), S),
+            .Transform = GetTransform(Position, Quaternion(1.0f), Scale),
             .PatchParameter = 4,
         }
     );
@@ -1908,15 +1951,15 @@ void PushSky(render_group* Group) {
 // | Entities                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void PushCollider(render_group* Group, collider Collider, transform T, color Color) {
-    v3 Position = T.Translation + Collider.Offset;
+void PushCollider(render_group* Group, collider Collider, transform Transform, color Color) {
+    v3 Position = Transform.Translation + Collider.Offset;
     switch (Collider.Type) {
         case Rect_Collider: {
             PushRectOutline(Group, Rectangle(Collider), Color);
         } break;
 
         case Cube_Collider: {
-            PushCubeOutline(Group, Position, Scale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), Color);
+            PushCubeOutline(Group, Position, GetScale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), Color);
         } break;
 
         case Sphere_Collider: {
@@ -1926,8 +1969,8 @@ void PushCollider(render_group* Group, collider Collider, transform T, color Col
         } break;
 
         case Capsule_Collider: {
-            v3 Head = T * Collider.Capsule.Segment.Head;
-            v3 Tail = T * Collider.Capsule.Segment.Tail;
+            v3 Head = Transform * Collider.Capsule.Segment.Head;
+            v3 Tail = Transform * Collider.Capsule.Segment.Tail;
 
             segment3 TransformedSegment = { Head, Tail };
             transform ST = SegmentTransform(TransformedSegment);
@@ -1964,7 +2007,7 @@ void PushCollider(render_group* Group, collider Collider, transform T, color Col
             Basis.Z = Temp;
             PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color);
 
-            Collider.Capsule.Segment = T * Collider.Capsule.Segment;
+            Collider.Capsule.Segment = Transform * Collider.Capsule.Segment;
         } break;
 
         default: Assert(false);

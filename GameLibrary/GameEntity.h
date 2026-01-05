@@ -37,7 +37,7 @@ struct game_entity {
 
 game_entity Entity(
     const char* Name,
-    transform T = Transform(V3(0,0,0)),
+    transform Transform = GetTransform(V3(0,0,0)),
     v3 Velocity = V3(0,0,0),
     collider Collider = SphereCollider(V3(0.0f, 0.0f, 0.0f), 1.0f),
     bool Active = true
@@ -45,7 +45,7 @@ game_entity Entity(
     game_entity Result = {0};
     Result.ID = -1;
     strcpy_s(Result.Name, Name);
-    Result.Transform = T;
+    Result.Transform = Transform;
     Result.Velocity = Velocity;
     Result.Active = Active;
     Result.Collider = Collider;
@@ -166,11 +166,11 @@ struct weapon {
 };
 
 transform WeaponTransforms[weapon_type_count] = {
-    Transform(
+    GetTransform(
         V3(0.5f,2.0f,0),
         Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
     ),
-    Transform(
+    GetTransform(
         V3(-0.7f,2.2f,0),
         Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0))
     ),
@@ -355,7 +355,7 @@ game_entity* AddEntity(
     collider Collider,
     v3 Position = V3(0,0,0),
     quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f),
-    scale S = Scale(),
+    scale Scale = GetScale(),
     bool Active = true
 ) {
     Assert(State->Entities.Count < MAX_ENTITIES);
@@ -363,7 +363,7 @@ game_entity* AddEntity(
     // If any ID is free, use it
     game_entity* Entity = Insert(&State->Entities);
     Entity->Type = Type;
-    Entity->Transform = Transform(Position, Rotation, S);
+    Entity->Transform = GetTransform(Position, Rotation, Scale);
     Entity->Active = Active;
     Entity->Collider = Collider;
     Entity->Parent = NULL;
@@ -447,7 +447,7 @@ camera* AddCamera(
     sprintf_s(NameBuffer, "Camera %d", Cam->ID);
 
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
-    game_entity* Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), Cam->ID == 0);
+    game_entity* Entity = AddEntity(State, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, GetScale(), Cam->ID == 0);
     Entity->Index = Cam->ID;
     Cam->Entity = Entity;
 
@@ -483,7 +483,7 @@ character* AddCharacter(game_assets* Assets, game_entity_state* State, v3 Positi
         CapsuleCollider(V3(0,0.6f,0), V3(0,3.0f,0), 0.8f),
         Position, 
         Rotation, 
-        Scale()
+        GetScale()
     );
     pCharacter->Entity->Index = CharacterID;
 
@@ -506,7 +506,7 @@ enemy* AddEnemy(game_entity_state* State, v3 Position) {
     sprintf_s(NameBuffer, "Enemy %d", EnemyID);
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
-    pEnemy->Entity = AddEntity(State, NameBuffer, Entity_Type_Enemy, SphereCollider(V3(0,0,0), 1.5f), Position, Rotation, Scale());
+    pEnemy->Entity = AddEntity(State, NameBuffer, Entity_Type_Enemy, SphereCollider(V3(0,0,0), 1.5f), Position, Rotation, GetScale());
     pEnemy->Entity->Index = EnemyID;
     return pEnemy;
 }
@@ -517,7 +517,7 @@ prop* AddProp(
     color Color = White,
     v3 Position = V3(0,0,0),
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
-    scale S = Scale()
+    scale Scale = GetScale()
 ) {
     Assert(State->Props.Count < MAX_PROPS);
     // If any ID is free, use it
@@ -536,7 +536,7 @@ prop* AddProp(
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Prop %d", PropID);
 
-    pProp->Entity = AddEntity(State, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, S);
+    pProp->Entity = AddEntity(State, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, Scale);
     pProp->Entity->Index = PropID;
     return pProp;
 }
@@ -547,7 +547,7 @@ weapon* AddWeapon(
     color Color = White,
     v3 Position = V3(0,0,0),
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
-    scale S = Scale()
+    scale S = GetScale()
 ) {
     Assert(State->Weapons.Count < MAX_PROPS);
     // If any ID is free, use it

@@ -77,7 +77,8 @@ ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Sky_ID,
     Pixel_Shader_FFT_ID,
     Pixel_Shader_FFT_Noormalize_ID,
-    Pixel_Shader_Water_ID
+    Pixel_Shader_Water_ID,
+    Pixel_Shader_Water_Normal_ID
 );
 
 ENUM(directX_Compute_Shader_ID,
@@ -161,8 +162,8 @@ struct alignas(16) outline_buffer {
 };
 
 struct alignas(16) sea_buffer {
+    v3 Dimensions;
     v2 Wind;
-    v2 Dimensions;
 };
 
 struct alignas(16) fft_buffer {
@@ -474,15 +475,16 @@ void SetOutlineBuffer(float Width, int Level) {
     }
 }
 
-void SetSeaBuffer(v2 Wind, v2 Dimensions) {
+void SetSeaBuffer(v2 Wind, scale Dimensions) {
     ID3D11Buffer* SeaBuffer = DirectX.ConstantBuffer[sea_buffer_id];
     void* MappedBuffer = GetMappedBuffer(SeaBuffer);
     if (MappedBuffer) {
         sea_buffer* Buffer = (sea_buffer*)MappedBuffer;
         Buffer->Wind = Wind;
-        Buffer->Dimensions = Dimensions;
+        Buffer->Dimensions = V3(Dimensions.X, Dimensions.Y, Dimensions.Z);
         DirectX.DeviceContext->Unmap(SeaBuffer, 0);
         DirectX.DeviceContext->CSSetConstantBuffers(9, 1, &SeaBuffer);
+        DirectX.DeviceContext->PSSetConstantBuffers(9, 1, &SeaBuffer);
     }
 }
 
@@ -1233,7 +1235,7 @@ RENDERER_INITIALIZE {
     for (int i = 1; i < render_group_target_count; i++) {
         int32 Width = Group->Width;
         int32 Height = Group->Height;
-        if (i == Target_Sea || i == Target_Sea_PingPong) {
+        if (i == Target_Sea || i == Target_Sea_PingPong || i == Target_Sea_Normal) {
             Width = 1024; Height = 1024;
         }
         CreateTarget(Width, Height, Group->RenderTargets[i]);
@@ -1327,6 +1329,7 @@ RENDERER_INITIALIZE {
     LoadShader(Pixel_Shader_Sky_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Sky.psh");
     LoadShader(Pixel_Shader_FFT_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\FFT.psh");
     LoadShader(Pixel_Shader_Water_ID,                "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
+    LoadShader(Pixel_Shader_Water_Normal_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\WaterNormal.psh");
 
     // Compute
     LoadShader(Compute_Shader_Outline_Init_ID,       "GameAssets\\Shaders\\HLSL\\Compute\\OutlineInit.compute");
@@ -1473,7 +1476,7 @@ void ResizeWindow(int32 Width, int32 Height) {
 
     // Resize render targets
     for (int i = 1; i < render_group_target_count; i++) {
-        if (i != Target_Sea && i != Target_Sea_PingPong) {
+        if (i != Target_Sea && i != Target_Sea_PingPong && i != Target_Sea_Normal) {
             directX_render_target* Target = &DirectX.Target[i];
             Target->View->Release();
             Target->Texture->Release();
@@ -1699,6 +1702,13 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->DSSetShaderResources(0, 1, &DirectX.Heightmap[Options.Heightmap->ID]);
                     DirectX.DeviceContext->DSSetSamplers(0, 1, &DirectX.DomainShader[Domain_Shader_Heightmap_ID].Sampler);
                 }
+                else if (Options.Flags & WATER_FLAG) {
+                    DirectX.DeviceContext->DSSetShaderResources(0, 1, &DirectX.Target[Target_Sea].ShaderTexture);
+                    DirectX.DeviceContext->DSSetSamplers(0, 1, &DirectX.DomainShader[Domain_Shader_Heightmap_ID].Sampler);
+
+                    DirectX.DeviceContext->PSSetShaderResources(0, 1, &DirectX.Target[Target_Sea_Normal].ShaderTexture);
+                    DirectX.DeviceContext->PSSetSamplers(0, 1, &DirectX.PixelShader[Pixel_Shader_Water_ID].Sampler);
+                }
 
                 if (Options.Flags & DEPTH_TEST_FLAG) {
                     DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilEnabled, 1);
@@ -1713,8 +1723,12 @@ RENDERER_RENDER {
                 }
 
                 if (Options.Heightmap || Options.Flags & WATER_FLAG) {
+                    ID3D11ShaderResourceView* EmptyResource = NULL;
+                    DirectX.DeviceContext->DSSetShaderResources(0, 1, &EmptyResource);
+                    
                     DirectX.DeviceContext->HSSetShader(NULL, NULL, 0);
                     DirectX.DeviceContext->DSSetShader(NULL, NULL, 0);
+
                     ClearTransformBuffer();
                 }
 
@@ -1891,6 +1905,21 @@ RENDERER_RENDER {
 
                         DirectX.DeviceContext->RSSetViewports(1, &Viewport);
                     } break;
+                    case shader_pass_water_normal: {
+                        PixelShaderID = Pixel_Shader_Water_Normal_ID;
+                        SetFFTBuffer(1024, ShaderCommand.Vertical, ShaderCommand.Stage);
+                        SetSeaBuffer(V2(0, 0), ShaderCommand.Scale);
+
+                        D3D11_VIEWPORT Viewport;
+                        Viewport.Width = 1024.0f;
+                        Viewport.Height = 1024.0f;
+                        Viewport.MinDepth = 0.0f;
+                        Viewport.MaxDepth = 1.0f;
+                        Viewport.TopLeftX = 0.0f;
+                        Viewport.TopLeftY = 0.0f;
+
+                        DirectX.DeviceContext->RSSetViewports(1, &Viewport);
+                    } break;
                     default: Raise("DirectX: Invalid shader pass type.");
                 }
 
@@ -1909,7 +1938,7 @@ RENDERER_RENDER {
                 ID3D11ShaderResourceView* EmptyShaderResource = NULL;
                 DirectX.DeviceContext->PSSetShaderResources(0, 1, &EmptyShaderResource);
 
-                if (ShaderCommand.Type == shader_pass_fft) {
+                if (ShaderCommand.Type == shader_pass_fft || ShaderCommand.Type == shader_pass_water_normal) {
                     DirectX.DeviceContext->RSSetViewports(1, &DirectX.Viewport);
                 }
             } break;
@@ -1934,7 +1963,7 @@ RENDERER_RENDER {
                     } break;
                     case compute_phillips: {
                         ShaderID = Compute_Shader_Phillips_ID;
-                        SetSeaBuffer(ComputeCommand.Wind, V2(10, 10));
+                        SetSeaBuffer(ComputeCommand.Wind, ComputeCommand.Scale);
                     } break;
                     case compute_fft_normalize: {
                         ShaderID = Compute_Shader_FFT_Normalize_ID;

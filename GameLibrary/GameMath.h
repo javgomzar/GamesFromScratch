@@ -1429,7 +1429,7 @@ struct scale {
 	float Z;
 };
 
-inline scale Scale(float X = 1.0, float Y = 1.0, float Z = 1.0) {
+inline scale GetScale(float X = 1.0, float Y = 1.0, float Z = 1.0) {
 	return { X, Y, Z };
 };
 
@@ -1438,7 +1438,7 @@ inline scale operator*(float C, scale S) {
 }
 
 inline scale operator*(scale S, scale T) {
-	return Scale(S.X * T.X, S.Y * T.Y, S.Z * T.Z);
+	return GetScale(S.X * T.X, S.Y * T.Y, S.Z * T.Z);
 }
 
 inline v3 operator*(scale Scale, v3 Vector) {
@@ -1468,13 +1468,13 @@ struct transform {
 	quaternion Rotation;
 };
 
-transform IdentityTransform = { V3(0,0,0), Scale(), Quaternion(1.0f) };
+transform IdentityTransform = { V3(0,0,0), GetScale(), Quaternion(1.0f) };
 
-inline transform Transform(quaternion Rotation, v3 Translation = V3(0.0, 0.0, 0.0), scale Scaling = Scale()) {
+inline transform GetTransform(quaternion Rotation, v3 Translation = V3(0.0, 0.0, 0.0), scale Scaling = GetScale()) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline transform Transform(v3 Translation, quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = Scale()) {
+inline transform GetTransform(v3 Translation, quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = GetScale()) {
 	return { Translation, Scaling, Rotation };
 }
 

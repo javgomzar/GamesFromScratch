@@ -1,10 +1,36 @@
+Texture2D Texture: register(t0);
+SamplerState Sampler: register(s0);
+
+cbuffer Light: register(b1) {
+	float3 Direction;
+	float3 LightColor;
+	float3 CameraPosition;
+	float Ambient;
+	float Diffuse;
+};
+
+cbuffer Sea: register(b9) {
+    float3 Dimensions;
+    float2 Wind;
+};
+
 struct DS_OUT {
     float4 OutPosition: SV_POSITION;
     float3 Position: POSITION;
+    float2 Texture: TEXCOORD0;
 };
 
 float4 main(DS_OUT vout): SV_TARGET {
-    float4 Color = float4(-vout.Position.y, 0, vout.Position.y, 1);
+    float3 Normal = Texture.Sample(Sampler, vout.Texture).rgb;
 
-    return Color;
+    float3 ViewDirection = normalize(CameraPosition - vout.Position.xyz);
+    float Fresnel = 0.02 + 0.98 * pow(1.0 - dot(Normal, ViewDirection), 5.0);
+
+    float3 SkyColor = float3(0.4,0.66,0.82);
+    float3 WaterColor = float3(0.2,0.4,0.6);
+    
+    float Diff = Diffuse * clamp(dot(Normal, -Direction), 0.0, 1.0);
+    float3 Water = WaterColor * SkyColor * Diff;
+
+    return float4(Fresnel*SkyColor + Water,1);
 }

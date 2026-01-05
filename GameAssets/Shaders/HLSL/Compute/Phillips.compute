@@ -1,4 +1,4 @@
-static const float A = 55.0f;
+static const float A = 200.0f;
 static const float Tau = 6.28318530718f; // 2*Pi
 static const float g = 9.807f;           // Gravitational constant, in m/s^2
 
@@ -14,8 +14,8 @@ cbuffer Globals: register(b0) {
 };
 
 cbuffer Sea: register(b9) {
+    float3 Dimensions;
     float2 Wind;
-    float2 Dimensions;
 };
 
 float random (float2 p) {
@@ -50,7 +50,7 @@ float2 WaveVector(float2 Coord, float2 k) {
     float Value = 0.0f;
     if (k_sq != 0.0f) {
         float Cos = dot(normalize(Wind), normalize(k));
-        Value = A * abs(Cos) * exp(Cos) * exp(-1.0f / (k_sq * L * L)) / k_sq;
+        Value = A * abs(Cos) * exp(-1.0f / (k_sq * L * L)) / k_sq;
     }
 
     float2 Result = Value * normal(Coord / 1024.0f);
@@ -63,7 +63,7 @@ void main(int3 ThreadID: SV_DispatchThreadID) {
     int2 Coord1 = 1023 - ThreadID.xy;
 
     float dx = 1024.0f / Dimensions.x;
-    float dz = 1024.0f / Dimensions.y;
+    float dz = 1024.0f / Dimensions.z;
 
     float2 k0 = Tau * (float2(Coord0) - 512.0f) / float2(dx, dz);
     float2 k1 = Tau * (float2(Coord1) - 512.0f) / float2(dx, dz);

@@ -3,8 +3,8 @@ static const float Tau = 6.28318530718f; // 2*Pi
 Texture2D Texture: register(t0);
 
 cbuffer Sea: register(b9) {
+    float3 Dimensions;
     float2 Wind;
-    float2 Dimensions;
 };
 
 struct VS_OUT {

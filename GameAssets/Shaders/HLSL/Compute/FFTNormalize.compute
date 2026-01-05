@@ -11,6 +11,8 @@ cbuffer FFT: register(b10) {
 [numthreads(16,16,1)]
 void main(int3 ThreadID: SV_DispatchThreadID) {
     int2 TexCoord = ThreadID.xy;
-    float2 Value = Target[TexCoord].rg;
-    Target[TexCoord] = float4(Value, 0.0f, 1.0f);
+    float2 Z = Target[TexCoord].rg;
+    float Module = length(Z) / (N*N);
+    float Phase = atan2(Z.y, Z.x);
+    Target[TexCoord] = float4(Module*float3(1.0f, 1.0f, 1.0f), 1.0f);
 }

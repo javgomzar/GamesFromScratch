@@ -1,3 +1,6 @@
+Texture2D Texture: register(t0);
+SamplerState Sampler: register(s0);
+
 cbuffer Globals: register(b0) {
     float4x4 Projection;
     float4x4 View;
@@ -12,6 +15,11 @@ cbuffer Transforms: register(b3) {
     float4x4 Normal;
 };
 
+cbuffer Sea: register(b9) {
+    float3 Dimensions;
+    float2 Wind;
+};
+
 struct HS_OUT {
     float3 Position: POSITION;
 };
@@ -19,25 +27,13 @@ struct HS_OUT {
 struct DS_OUT {
     float4 OutPosition: SV_POSITION;
     float3 Position: POSITION;
+    float2 Texture: TEXCOORD0;
 };
 
 struct CONSTANT_OUTPUT {
     float Edges[4]: SV_TessFactor;
     float Inside[2]: SV_InsideTessFactor;
 };
-
-static const float  g = 9.807f;                  // gravitational constant, in m/s^2
-static const float  Tau = 6.28318530718f;        // 2*pi
-static const float  T = 20.0f;                   // Time period for repetition in seconds
-static const float  w_0 = Tau / T;               // Base angular frequency
-static const int    N = 128;                     // FFT samples
-static const float  V = 1;                       // Wind speed in m/s
-static const float2 W = normalize(float2(1, 0)); // Wind direction
-static const float  A = sqrt(2.0f);
-
-float rand (float2 st, float i) {
-    return frac(sin(dot(st, float2(127.1,311.7)) + i * 43.758) * 43758.5453);
-}
 
 [domain("quad")]
 DS_OUT main(
@@ -63,28 +59,15 @@ DS_OUT main(
     float X = P.x;
     float Z = P.z;
 
-    float h = 0;
-    for (int i = -N/2; i <= N/2; i++) {
-    for (int j = -N/2; j <= N/2; j++) {
-        float2 k = Tau * float2(i, j) / L;
-        float w_k = floor(sqrt(g*length(k)) / w_0) * w_0;
-
-        float c = abs(dot(normalize(k), W));
-        float k_sq_inv = 1.0f / dot(k, k);
-
-        float P = A * exp(-0.5f*k_sq_inv*g*g / V*V*V*V) * c;
-
-        float Theta = Tau * rand(float2(X,Z),i + N*j);
-        float R = sqrt(-2.0f * log(rand(float2(X,Z),i + N*j + N*N)));
-
-        // h += R * cos(dot(k,float2(X,Z)) + Theta);
-    }}
-
-    float Y = h;
+    float H = Texture.SampleLevel(Sampler, P.xz, 0).r;
+    float Y = H;
 
     P = float3(X,Y,Z);
 
-    Result.OutPosition = mul(mul(mul(float4(P, 1.0f), Model), View), Projection);
-    Result.Position = P;
+    float4 WorldPosition = mul(float4(P, 1.0f), Model);
+
+    Result.OutPosition = mul(mul(WorldPosition, View), Projection);
+    Result.Position = WorldPosition.xyz;
+    Result.Texture = P.xz;
     return Result;
 }

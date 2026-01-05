@@ -1,0 +1,36 @@
+Texture2D Texture: register(t0);
+SamplerState Sampler: register(s0);
+
+cbuffer Sea: register(b9) {
+    float3 Dimensions;
+    float2 Wind;
+};
+
+cbuffer FFT: register(b10) {
+    uint N;
+    uint Direction;
+    uint Stage;
+};
+
+struct VS_OUT {
+    float4 Position: SV_POSITION;
+    float2 Texture: TEXCOORD0;
+};
+
+float4 main(VS_OUT vout): SV_Target {
+    float Texel = 1.0f / N;
+    float2 TexelSize = Dimensions.xz / N;
+
+    float3 Center = Texture.Sample(Sampler, vout.Texture).rgb;
+    float3 Left  = float3(-TexelSize.x, 0.0f, 0.0f) + Texture.Sample(Sampler, vout.Texture - float2(Texel, 0.0f)).r*float3(0.0f, 1.0f, 0.0f) - Center;
+    float3 Right = float3(TexelSize.x, 0.0f, 0.0f)  + Texture.Sample(Sampler, vout.Texture + float2(Texel, 0.0f)).r*float3(0.0f, 1.0f, 0.0f) - Center;
+    float3 Top   = float3(0.0f, 0.0f, -TexelSize.y) + Texture.Sample(Sampler, vout.Texture - float2(0.0f, Texel)).r*float3(0.0f, 1.0f, 0.0f) - Center;
+    float3 Bot   = float3(0.0f, 0.0f, TexelSize.y)  + Texture.Sample(Sampler, vout.Texture + float2(0.0f, Texel)).r*float3(0.0f, 1.0f, 0.0f) - Center;
+
+    float3 LeftTop = cross(Top, Left);
+    float3 RightTop = cross(Right, Top);
+    float3 LeftBot = cross(Left, Bot);
+    float3 RightBot = cross(Bot, Right);
+
+    return float4(normalize(LeftTop + RightTop + LeftBot + RightBot), 1.0f);
+}

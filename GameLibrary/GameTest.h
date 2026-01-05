@@ -61,7 +61,7 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     PushTriangle(Group, Triangle3, Red);
 
     // Mesh
-    transform T = Transform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
+    transform T = GetTransform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
     PushMesh(Group, Mesh_Body_ID, .Color = Gray, .Transform = T, .Outline = true);
 
     T.Translation = V3(-2, 0, 0);
@@ -79,10 +79,10 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     T.Translation = V3(-2, 0, 8.5);
     PushMesh(Group, Mesh_Dodecahedron_ID, .Transform = T);
 
-    PushMesh(Group, Mesh_Sphere_ID, .Color = Red, .Transform = Transform(V3(10, 0, 0)));
+    PushMesh(Group, Mesh_Sphere_ID, .Color = Red, .Transform = GetTransform(V3(10, 0, 0)));
 
     // Heightmap
-    PushHeightmap(Group, Heightmap_Spain_ID, V3(0,0,0), Scale(10, 1, 10));
+    PushHeightmap(Group, Heightmap_Spain_ID, V3(0,0,0), GetScale(10, 1, 10));
 }
 
 void TestSky(float Time, light* Light) {
@@ -172,33 +172,63 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
 
 void TestSea(render_group* Group) {
     v2 Wind = V2(10, 10);
-    PushWater(Group, V3(0,0,0), Scale(10, 1, 10), Wind);
+    PushWater(Group, V3(0,0,0), GetScale(10, 1, 10), Wind);
 
-    render_command Command;
-    Command.Index = Group->nTargets;
-    Command.Priority = SORT_ORDER_DEBUG_OVERLAY;
-    Command.Type = render_target;
+    // // Debug water texture
+    // render_command Command;
+    // Command.Index = Group->nTargets;
+    // Command.Priority = SORT_ORDER_DEBUG_OVERLAY;
+    // Command.Type = render_target;
 
-    PushCommand(Group, Command);
+    // PushCommand(Group, Command);
 
-    render_target_command TargetCommand;
-    TargetCommand.Source = Target_Sea;
-    TargetCommand.Target = Target_World;
-    TargetCommand.DebugAttachment = false;
-    TargetCommand.Attachment = false;
+    // render_target_command TargetCommand;
+    // TargetCommand.Source = Target_Sea;
+    // TargetCommand.Target = Target_World;
+    // TargetCommand.DebugAttachment = false;
+    // TargetCommand.Attachment = false;
 
-    TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
-    float* Data = (float*)TargetCommand.VertexEntry.Pointer;
+    // TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
+    // float* Data = (float*)TargetCommand.VertexEntry.Pointer;
 
-    float MaxX = 2.0f*(1024.0f/Group->Width) - 1.0f;
-    float MinY = 2.0f*(-1024.0f/Group->Height) + 1.0f;
+    // float MaxX = 2.0f*(1024.0f/Group->Width) - 1.0f;
+    // float MinY = 2.0f*(-1024.0f/Group->Height) + 1.0f;
     
-    *Data++ = -1.0f; *Data++ =  MinY; *Data++ = 0.0f; *Data++ = 0.0f;
-    *Data++ =  MaxX; *Data++ =  MinY; *Data++ = 1.0f; *Data++ = 0.0f;
-    *Data++ =  MaxX; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
-    *Data++ = -1.0f; *Data++ =  MinY; *Data++ = 0.0f; *Data++ = 0.0f;
-    *Data++ =  MaxX; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
-    *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
+    // *Data++ = -1.0f; *Data++ =  MinY; *Data++ = 0.0f; *Data++ = 0.0f;
+    // *Data++ =  MaxX; *Data++ =  MinY; *Data++ = 1.0f; *Data++ = 0.0f;
+    // *Data++ =  MaxX; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    // *Data++ = -1.0f; *Data++ =  MinY; *Data++ = 0.0f; *Data++ = 0.0f;
+    // *Data++ =  MaxX; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    // *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
 
-    Group->TargetCommands[Group->nTargets++] = TargetCommand;
+    // Group->TargetCommands[Group->nTargets++] = TargetCommand;
+
+    // // Debug water normals
+    // render_command Command;
+    // Command.Index = Group->nTargets;
+    // Command.Priority = SORT_ORDER_DEBUG_OVERLAY;
+    // Command.Type = render_target;
+
+    // PushCommand(Group, Command);
+
+    // render_target_command TargetCommand;
+    // TargetCommand.Source = Target_Sea_Normal;
+    // TargetCommand.Target = Target_World;
+    // TargetCommand.DebugAttachment = false;
+    // TargetCommand.Attachment = false;
+
+    // TargetCommand.VertexEntry = PushVertexEntry(&Group->VertexBuffer, 6, vertex_layout_v2_v2_id);
+    // float* Data = (float*)TargetCommand.VertexEntry.Pointer;
+
+    // float MaxX = 2.0f*(1024.0f/Group->Width) - 1.0f;
+    // float MinY = 2.0f*(-1024.0f/Group->Height) + 1.0f;
+    
+    // *Data++ = -1.0f; *Data++ =  MinY; *Data++ = 0.0f; *Data++ = 0.0f;
+    // *Data++ =  MaxX; *Data++ =  MinY; *Data++ = 1.0f; *Data++ = 0.0f;
+    // *Data++ =  MaxX; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    // *Data++ = -1.0f; *Data++ =  MinY; *Data++ = 0.0f; *Data++ = 0.0f;
+    // *Data++ =  MaxX; *Data++ =  1.0f; *Data++ = 1.0f; *Data++ = 1.0f;
+    // *Data++ = -1.0f; *Data++ =  1.0f; *Data++ = 0.0f; *Data++ = 1.0f;
+
+    // Group->TargetCommands[Group->nTargets++] = TargetCommand;
 }

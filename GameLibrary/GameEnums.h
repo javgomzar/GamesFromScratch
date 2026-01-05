@@ -61,7 +61,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 73;
+const int ENUM_VALUES_SIZE = 74;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -110,9 +110,10 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_render_group_target, "Target_PingPong", 4},
     {Debug_Type_render_group_target, "Target_Fluid", 5},
     {Debug_Type_render_group_target, "Target_Sea", 6},
-    {Debug_Type_render_group_target, "Target_Sea_PingPong", 7},
-    {Debug_Type_render_group_target, "Target_Output", 8},
-    {Debug_Type_render_group_target, "render_group_target_count", 9},
+    {Debug_Type_render_group_target, "Target_Sea_Normal", 7},
+    {Debug_Type_render_group_target, "Target_Sea_PingPong", 8},
+    {Debug_Type_render_group_target, "Target_Output", 9},
+    {Debug_Type_render_group_target, "render_group_target_count", 10},
     {Debug_Type_render_primitive, "render_primitive_point", 0},
     {Debug_Type_render_primitive, "render_primitive_line", 1},
     {Debug_Type_render_primitive, "render_primitive_line_strip", 2},
@@ -126,8 +127,8 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_color_format, "Color_Format_RGBA", 3},
     {Debug_Type_color_format, "color_format_count", 4},
     {Debug_Type_shader_pass_type, "shader_pass_fft", 0},
-    {Debug_Type_shader_pass_type, "shader_pass_height_spectrum", 1},
-    {Debug_Type_shader_pass_type, "shader_pass_choppy_spectrum", 2},
+    {Debug_Type_shader_pass_type, "shader_pass_choppy_spectrum", 1},
+    {Debug_Type_shader_pass_type, "shader_pass_water_normal", 2},
     {Debug_Type_shader_pass_type, "shader_pass_type_count", 3},
     {Debug_Type_compute_type, "compute_kernel", 0},
     {Debug_Type_compute_type, "compute_outline_init", 1},
