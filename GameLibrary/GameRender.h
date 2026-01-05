@@ -186,6 +186,8 @@ FLAGS(render_flags,
 
     TEXT_OUTLINE_FLAG,
 
+    DEBUG_BONES_FLAG,
+
     SKY_FLAG,
     WATER_FLAG
 );
@@ -1711,6 +1713,7 @@ void _PushMesh(
     if (Group->Debug && Group->DebugBones && Options.Armature) {
         render_primitive_options PrimitiveOptions = {};
         PrimitiveOptions.Thickness = 2.5f;
+        PrimitiveOptions.Flags = DEBUG_BONES_FLAG;
         v3* Vertices = (v3*)PushPrimitiveCommand(
             Group, 
             render_primitive_line,

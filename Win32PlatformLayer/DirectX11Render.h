@@ -1604,6 +1604,12 @@ RENDERER_RENDER {
 
                     SetTransformBuffer(Options.Transform);
                 }
+                else if (Options.Flags & DEBUG_BONES_FLAG) {
+                    LayoutID = vertex_layout_v3_id;
+                    VertexShaderID = Vertex_Shader_Perspective_ID;
+                    PixelShaderID = Pixel_Shader_Single_Color_ID;
+                    VertexBuffer = &DirectX.HeightmapBuffer.VertexBuffer;
+                }
                 else {
                     LayoutID = VertexEntry.LayoutID;
                     VertexBuffer = &DirectX.VertexBuffer[LayoutID];
