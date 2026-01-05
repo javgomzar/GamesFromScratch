@@ -1041,8 +1041,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ScreenCapture(Group->Width, Group->Height);
             }
 
-            Render( Group, pGameState->ActiveCamera, &Memory.Input, Window, pGameState->Time);
-            ClearVertexBuffer(&Memory.RenderGroup.VertexBuffer);
+            Render(Group, pGameState->ActiveCamera, &Memory.Input, Window, pGameState->Time);
         }
         else {
             Log(Error, "Could not update state due to invalid game code.");

@@ -1208,9 +1208,9 @@ void UpdateTradeUI(
                 Transition(State, Game_State_Map);
             }
             
-            transform T = Transform(Camera->Position - Camera->Basis.Z);
-            T.Scale = Scale(5.0f, 5.0f, 5.0f);
-            T.Rotation = Quaternion(Camera->Angle * Degrees, V3(0, 1, 0));
+            transform Transform = GetTransform(Camera->Position - Camera->Basis.Z);
+            Transform.Scale = GetScale(5.0f, 5.0f, 5.0f);
+            Transform.Rotation = Quaternion(Camera->Angle * Degrees, V3(0, 1, 0));
         } break;
 
         case Room_Type_Blacksmith: {

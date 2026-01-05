@@ -1,0 +1,90 @@
+cbuffer Globals: register(b0) {
+    float4x4 Projection;
+    float4x4 View;
+    float2 Resolution;
+    float2 Mouse;
+    float2 LastMouse;
+    float Time;
+};
+
+cbuffer Transforms: register(b3) {
+    float4x4 Model;
+    float4x4 Normal;
+};
+
+struct HS_OUT {
+    float3 Position: POSITION;
+};
+
+struct DS_OUT {
+    float4 OutPosition: SV_POSITION;
+    float3 Position: POSITION;
+};
+
+struct CONSTANT_OUTPUT {
+    float Edges[4]: SV_TessFactor;
+    float Inside[2]: SV_InsideTessFactor;
+};
+
+static const float  g = 9.807f;                  // gravitational constant, in m/s^2
+static const float  Tau = 6.28318530718f;        // 2*pi
+static const float  T = 20.0f;                   // Time period for repetition in seconds
+static const float  w_0 = Tau / T;               // Base angular frequency
+static const int    N = 128;                     // FFT samples
+static const float  V = 1;                       // Wind speed in m/s
+static const float2 W = normalize(float2(1, 0)); // Wind direction
+static const float  A = sqrt(2.0f);
+
+float rand (float2 st, float i) {
+    return frac(sin(dot(st, float2(127.1,311.7)) + i * 43.758) * 43758.5453);
+}
+
+[domain("quad")]
+DS_OUT main(
+    CONSTANT_OUTPUT ConstantPatch,
+    float2 UV: SV_DomainLocation,
+    const OutputPatch<HS_OUT, 4> Patch
+) {
+    DS_OUT Result;
+
+    float u = UV.x;
+    float v = UV.y;
+
+    float3 P00 = Patch[0].Position;
+    float3 P01 = Patch[1].Position;
+    float3 P10 = Patch[2].Position;
+    float3 P11 = Patch[3].Position;
+
+    float3 P0 = lerp(P01, P00, u);
+    float3 P1 = lerp(P11, P10, u);
+    float3 P  = lerp(P0,  P1, v);
+
+    float2 L = float2(10, 10);
+    float X = P.x;
+    float Z = P.z;
+
+    float h = 0;
+    for (int i = -N/2; i <= N/2; i++) {
+    for (int j = -N/2; j <= N/2; j++) {
+        float2 k = Tau * float2(i, j) / L;
+        float w_k = floor(sqrt(g*length(k)) / w_0) * w_0;
+
+        float c = abs(dot(normalize(k), W));
+        float k_sq_inv = 1.0f / dot(k, k);
+
+        float P = A * exp(-0.5f*k_sq_inv*g*g / V*V*V*V) * c;
+
+        float Theta = Tau * rand(float2(X,Z),i + N*j);
+        float R = sqrt(-2.0f * log(rand(float2(X,Z),i + N*j + N*N)));
+
+        // h += R * cos(dot(k,float2(X,Z)) + Theta);
+    }}
+
+    float Y = h;
+
+    P = float3(X,Y,Z);
+
+    Result.OutPosition = mul(mul(mul(float4(P, 1.0f), Model), View), Projection);
+    Result.Position = P;
+    return Result;
+}

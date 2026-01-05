@@ -12,6 +12,12 @@ extern "C" GAME_UPDATE(GameUpdate)
         RNG.State = RNG.Seed;
 
         TimeRecords = (time_record*)&Memory->TimeRecordsLibrary;
+
+#ifdef _WIN32
+        LARGE_INTEGER PerfCountFrequencyResult;
+        QueryPerformanceFrequency(&PerfCountFrequencyResult);
+        Platform.PerformanceCounterFrequency = PerfCountFrequencyResult.QuadPart;
+#endif
         
         Memory->HotReload = false;
     }

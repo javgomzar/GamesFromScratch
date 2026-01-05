@@ -1,40 +1,6 @@
 #include "GamePlatform.h"
 #include "GameRender.h"
 
-void TestPerformance() {
-    TIMED_BLOCK;
-    
-}
-
-// void TestFluid(render_group* Group, game_input* Input, bool FirstFrame) {
-//     if (FirstFrame || Input->Keyboard.R.JustPressed) {
-//         PushShaderPass(Group, Compute_Shader_Fluid_Init_ID, Target_Fluid, Target_Fluid);
-//     }
-//     else {
-//         PushShaderPass(Group, Compute_Shader_Fluid_ID, Target_Fluid, Target_Fluid);
-//     }
-//     PushRenderTarget(Group, Target_Fluid);
-// }
-
-void TestSea(memory_arena* PermanentArena, render_group* Group) {
-    const uint32 N = 10000;
-    static float* Data = nullptr;
-
-    if (!Data) {
-        Data = PushArray(PermanentArena, N, float);
-
-        for (int i = 0; i < N; i++) {
-            float x = i;
-            Data[i] = x - floor(x);
-        }
-    }
-
-    // PushComputeShaderPass(Group, shader_pass_fft, Target_None, Target_None);
-}
-
-void TestSky(float Time, light* Light) {
-    Light->Direction = V3(-cos(0.2f * Time), -sin(0.2f * Time), 0);
-}
 
 void TestRendering(render_group* Group, game_input* Input, float Time) {
 // 2D
@@ -75,7 +41,7 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
 
     // const char* TestString = "!\"#$%&'()*+,-./0123456789:;<=>?@\nABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\nabcdefghijklmnopqrstuvwxyz{|}~";
     // game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    // PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), Font_Menlo_Regular_ID, TestString, White, Points, Options);
+    // PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Outline = false, .Points = Points);
 
 // 3D
     // Point
@@ -95,26 +61,111 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     PushTriangle(Group, Triangle3, Red);
 
     // Mesh
-    transform T = Transform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
-    PushMesh(Group, Mesh_Body_ID, T, Bitmap_Empty_ID, Gray, 0, true);
+    transform Transform = GetTransform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
+    PushMesh(Group, Mesh_Body_ID, .Color = Gray, .Transform = Transform, .Outline = true);
 
-    T.Translation = V3(-2, 0, 0);
-    PushMesh(Group, Mesh_Tetrahedron_ID, T);
+    Transform.Translation = V3(-2, 0, 0);
+    PushMesh(Group, Mesh_Tetrahedron_ID, .Transform = Transform);
 
-    T.Translation = V3(-2, 0, 2);
-    PushMesh(Group, Mesh_Cube_ID, T);
+    Transform.Translation = V3(-2, 0, 2);
+    PushMesh(Group, Mesh_Cube_ID, .Transform = Transform);
 
-    T.Translation = V3(-2, 0, 4);
-    PushMesh(Group, Mesh_Octahedron_ID, T);
+    Transform.Translation = V3(-2, 0, 4);
+    PushMesh(Group, Mesh_Octahedron_ID, .Transform = Transform);
 
-    T.Translation = V3(-2, 0, 6);
-    PushMesh(Group, Mesh_Icosahedron_ID, T);
+    Transform.Translation = V3(-2, 0, 6);
+    PushMesh(Group, Mesh_Icosahedron_ID, .Transform = Transform);
 
-    T.Translation = V3(-2, 0, 8.5);
-    PushMesh(Group, Mesh_Dodecahedron_ID, T);
+    Transform.Translation = V3(-2, 0, 8.5);
+    PushMesh(Group, Mesh_Dodecahedron_ID, .Transform = Transform);
 
-    PushMesh(Group, Mesh_Sphere_ID, Transform(V3(10, 0, 0)), Bitmap_Empty_ID, Red);
+    PushMesh(Group, Mesh_Sphere_ID, .Color = Red, .Transform = GetTransform(V3(10, 0, 0)));
 
     // Heightmap
-    PushHeightmap(Group, Heightmap_Spain_ID, V3(0,0,0), Scale(100, 10, 100));
+    PushHeightmap(Group, Heightmap_Spain_ID, V3(0,0,0), GetScale(10, 1, 10));
+}
+
+void TestSky(float Time, light* Light) {
+    Light->Direction = V3(-cos(0.2f * Time), -sin(0.2f * Time), 0);
+}
+
+// void TestFluid(render_group* Group, game_input* Input, bool FirstFrame) {
+//     if (FirstFrame || Input->Keyboard.R.JustPressed) {
+//         PushShaderPass(Group, Compute_Shader_Fluid_Init_ID, Target_Fluid, Target_Fluid);
+//     }
+//     else {
+//         PushShaderPass(Group, Compute_Shader_Fluid_ID, Target_Fluid, Target_Fluid);
+//     }
+//     PushRenderTarget(Group, Target_Fluid);
+// }
+
+void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
+    uint32 N = 256;
+    
+    static bool Initialized = false;
+    static float* Signal = nullptr;
+    static complex* InputData = nullptr;
+    static complex* OutputData = nullptr;
+    static complex* Twiddle = nullptr;
+    static float* ModulusDFT = nullptr;
+    static float* PhaseDFT = nullptr;
+    static float* ModulusFFT = nullptr;
+    static float* PhaseFFT = nullptr;
+
+    if (!Initialized) {
+        Signal = PushArray(Arena, N, float);
+        InputData = PushArray(Arena, N, complex);
+        OutputData = PushArray(Arena, N, complex);
+        Twiddle = PushArray(Arena, N, complex);
+        ModulusDFT = PushArray(Arena, N, float);
+        PhaseDFT = PushArray(Arena, N, float);
+        ModulusFFT = PushArray(Arena, N, float);
+        PhaseFFT = PushArray(Arena, N, float);
+
+        for (int i = 0; i < N; i++) {
+            Signal[i] = sin(0.333333f*i);
+            InputData[i].r = Signal[i];
+            InputData[i].i = 0.0f;
+        }
+
+        PrepareTwiddleFactors(N, Twiddle);
+
+        Initialized = true;
+    }
+
+    uint64 Start = Platform.GetWallClock();
+    DFT(N, InputData, OutputData);
+    uint64 End = Platform.GetWallClock();
+
+    float DFTms = 1000.0f * GetSecondsElapsed(Start, End);
+
+    for (int i = 0; i < N; i++) {
+        ModulusDFT[i] = modulus(OutputData[i]);
+        PhaseDFT[i] = 5.0f * phase(OutputData[i]);
+    }
+
+    Start = Platform.GetWallClock();
+    FFT(N, InputData, OutputData, Twiddle);
+    End = Platform.GetWallClock();
+
+    for (int i = 0; i < N; i++) {
+        ModulusFFT[i] = modulus(OutputData[i]);
+        PhaseFFT[i] = 5.0f * phase(OutputData[i]);
+    }
+
+    float FFTms = 1000.0f * GetSecondsElapsed(Start, End);
+    
+    PushText(Group, V2(200, 320), "Signal");
+    PushDebugPlot(Group, N, Signal, V2(200, 200), 1);
+    
+    char TextBuffer[128];
+    sprintf_s(TextBuffer, "DFT: %.2f ms", DFTms);
+    PushText(Group, V2(600, 320), TextBuffer);
+    PushDebugPlot(Group, N, ModulusDFT, V2(600, 200), 1);
+    PushDebugPlot(Group, N, PhaseDFT, V2(600, 250), 1);
+
+    sprintf_s(TextBuffer, "FFT: %.2f ms", FFTms);
+    PushText(Group, V2(1000, 320), TextBuffer);
+    PushDebugPlot(Group, N, ModulusFFT, V2(1000, 200), 1);
+    PushDebugPlot(Group, N, PhaseFFT, V2(1000, 250), 1);
 }

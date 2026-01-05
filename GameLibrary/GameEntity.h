@@ -37,7 +37,7 @@ struct game_entity {
 
 game_entity Entity(
     const char* Name,
-    transform T = Transform(V3(0,0,0)),
+    transform Transform = GetTransform(V3(0,0,0)),
     v3 Velocity = V3(0,0,0),
     collider Collider = SphereCollider(V3(0.0f, 0.0f, 0.0f), 1.0f),
     bool Active = true
@@ -45,7 +45,7 @@ game_entity Entity(
     game_entity Result = {0};
     Result.ID = -1;
     strcpy_s(Result.Name, Name);
-    Result.Transform = T;
+    Result.Transform = Transform;
     Result.Velocity = Velocity;
     Result.Active = Active;
     Result.Collider = Collider;
@@ -575,7 +575,7 @@ weapon WeaponTemplates[weapon_type_count] = {
         Weapon_Sword,
         Mesh_Sword_ID,
         CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
-        Transform(
+        GetTransform(
             V3(0.5f,2.0f,0),
             Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
         )
@@ -584,7 +584,7 @@ weapon WeaponTemplates[weapon_type_count] = {
         Weapon_Shield,
         Mesh_Shield_ID,
         CapsuleCollider(V3(0,-0.3,0), V3(0,0.7,0), 1.0f),
-        Transform(
+        GetTransform(
             V3(-0.7f,2.2f,0),
             Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0))
         )
@@ -593,10 +593,10 @@ weapon WeaponTemplates[weapon_type_count] = {
         Weapon_Staff,
         Mesh_Staff_ID,
         CapsuleCollider(V3(0,-4.5,0), V3(0,2,0), 0.5f),
-        Transform(
+        GetTransform(
             V3(0.4f,2.0f,1.0f),
             Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0)),
-            Scale(0.75, 0.75, 0.75)
+            GetScale(0.75, 0.75, 0.75)
         ),
         true
     },
@@ -604,7 +604,7 @@ weapon WeaponTemplates[weapon_type_count] = {
         Weapon_Bow,
         Mesh_Bow_ID,
         CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
-        Transform(
+        GetTransform(
             V3(0.5f,2.0f,0),
             Quaternion(0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
         )
@@ -613,7 +613,7 @@ weapon WeaponTemplates[weapon_type_count] = {
         Weapon_Knife,
         Mesh_Knife_ID,
         CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f),
-        Transform(
+        GetTransform(
             V3(0.5f,2.0f,0),
             Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
         ),
@@ -818,7 +818,7 @@ game_entity* AddEntity(
     collider Collider,
     v3 Position = V3(0,0,0),
     quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f),
-    scale S = Scale(),
+    scale Scale = GetScale(),
     bool Active = true
 ) {
     Assert(Entities->Count < MAX_ENTITIES);
@@ -826,7 +826,7 @@ game_entity* AddEntity(
     // If any ID is free, use it
     game_entity* Entity = Insert(Entities);
     Entity->Type = Type;
-    Entity->Transform = Transform(Position, Rotation, S);
+    Entity->Transform = GetTransform(Position, Rotation, Scale);
     Entity->Active = Active;
     Entity->Collider = Collider;
     Entity->Parent = NULL;
@@ -932,7 +932,7 @@ camera* AddCamera(
     sprintf_s(NameBuffer, "Camera %d", Cam->ID);
 
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
-    game_entity* Entity = AddEntity(&EntityManager->Entities, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, Scale(), Cam->ID == 0);
+    game_entity* Entity = AddEntity(&EntityManager->Entities, NameBuffer, Entity_Type_Camera, SphereCollider(Position, 1.0f), Position, Rotation, GetScale(), Cam->ID == 0);
     Entity->Index = Cam->ID;
     Cam->Entity = Entity;
 
@@ -945,7 +945,7 @@ weapon* AddWeapon(
     color Color = White,
     v3 Position = V3(0,0,0),
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
-    scale S = Scale()
+    scale Scale = GetScale()
 ) {
     Assert(EntityManager->Weapons.Count < MAX_WEAPONS);
 
@@ -965,7 +965,7 @@ weapon* AddWeapon(
         pWeapon->Collider,
         Position, 
         Rotation, 
-        S
+        Scale
     );
     pWeapon->Entity->Index = pWeapon->ID;
     return pWeapon;
@@ -987,7 +987,7 @@ character* AddCharacter(game_entity_manager* EntityManager, character_class Clas
         CapsuleCollider(V3(0,0.6f,0), V3(0,4.0f,0), 0.8f),
         Position, 
         Rotation, 
-        Scale()
+        GetScale()
     );
     pCharacter->Entity->Index = pCharacter->ID;
 
@@ -1063,7 +1063,7 @@ enemy* AddEnemy(game_entity_manager* EntityManager, v3 Position, enemy_type Type
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
     collider Collider = EnemyColliders[Type];
-    pEnemy->Entity = AddEntity(&EntityManager->Entities, NameBuffer, Entity_Type_Enemy, Collider, Position, Rotation, Scale());
+    pEnemy->Entity = AddEntity(&EntityManager->Entities, NameBuffer, Entity_Type_Enemy, Collider, Position, Rotation, GetScale());
     pEnemy->Entity->Index = pEnemy->ID;
     return pEnemy;
 }
@@ -1074,7 +1074,7 @@ prop* AddProp(
     color Color = White,
     v3 Position = V3(0,0,0),
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
-    scale S = Scale()
+    scale Scale = GetScale()
 ) {
     Assert(EntityManager->Props.Count < MAX_PROPS);
     // If any ID is free, use it
@@ -1093,7 +1093,15 @@ prop* AddProp(
     char NameBuffer[32];
     sprintf_s(NameBuffer, "Prop %d", PropID);
 
-    pProp->Entity = AddEntity(&EntityManager->Entities, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, S);
+    pProp->Entity = AddEntity(
+        &EntityManager->Entities, 
+        NameBuffer, 
+        Entity_Type_Prop, 
+        SphereCollider(V3(0,0,0), 5.0f), 
+        Position, 
+        Rotation, 
+        Scale
+    );
     pProp->Entity->Index = PropID;
     return pProp;
 }
@@ -2055,7 +2063,7 @@ void UpdateGameState(render_group* Group, game_state* State, game_input* Input) 
     // Rotation
         Cam->Basis = GetCameraBasis(Cam->Angle, Cam->Pitch);
         quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(-1,0,0));
-        transform Test = Transform(Rotation);
+        transform Test = GetTransform(Rotation);
         matrix4 MatrixT = Matrix(Test);
         Cam->View = GetViewMatrix(Cam);
 
@@ -2261,8 +2269,8 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                     if (Combat->Turn.Attacker->Entity == Entity) {
                         v3 SelectorPosition = Entity->Transform.Translation;
                         SelectorPosition.Y += 1.0f + 0.1f * sinf(5.0f * Time) + Mesh->MaxY;
-                        transform T = Transform(SelectorPosition, Quaternion(Time, V3(0,1,0)));
-                        PushMesh(Group, Mesh_Selector_ID, T, Bitmap_Empty_ID, Red);
+                        transform Transform = GetTransform(SelectorPosition, Quaternion(Time, V3(0,1,0)));
+                        PushMesh(Group, Mesh_Selector_ID, .Color = Red, .Transform = Transform);
                     }
 
                     combatant* Combatant = GetCombatant(&Combat->Combatants, Entity);
@@ -2288,11 +2296,10 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                 PushMesh(
                     Group,
                     Mesh_Body_ID,
-                    Entity->Transform,
-                    Bitmap_Empty_ID,
-                    Color,
-                    &pCharacter->Armature,
-                    Outline
+                    .Armature = &pCharacter->Armature,
+                    .Color = Color,
+                    .Transform = Entity->Transform,
+                    .Outline = Outline
                 );
             } break;
     
@@ -2321,8 +2328,8 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                     if (Combat->Turn.Attacker->Entity == Entity) {
                         v3 SelectorPosition = Entity->Transform.Translation;
                         SelectorPosition.Y += 1.0f + 0.1f * sinf(5.0f * Time) + Mesh->MaxY;
-                        transform T = Transform(SelectorPosition, Quaternion(Time, V3(0,1,0)));
-                        PushMesh(Group, Mesh_Selector_ID, T, Bitmap_Empty_ID, Red);
+                        transform Transform = GetTransform(SelectorPosition, Quaternion(Time, V3(0,1,0)));
+                        PushMesh(Group, Mesh_Selector_ID, .Color = Red, .Transform = Transform);
                     }
 
                     combatant* Combatant = GetCombatant(&Combat->Combatants, Entity);
@@ -2348,10 +2355,10 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                 PushMesh(
                     Group,
                     Mesh->ID,
-                    DeadTransform * Entity->Transform,
-                    pEnemy->TextureID,
-                    White, 0,
-                    Outline
+                    .Color = White,
+                    .TextureID = pEnemy->TextureID,
+                    .Transform = DeadTransform * Entity->Transform,
+                    .Outline = Outline
                 );
             } break;
 
@@ -2360,15 +2367,14 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
                 PushMesh(
                     Group,
                     pProp->MeshID,
-                    Entity->Transform,
-                    Bitmap_Empty_ID,
-                    pProp->Color
+                    .Color = pProp->Color,
+                    .Transform = Entity->Transform
                 );
             } break;
 
             case Entity_Type_Weapon: {
                 weapon* pWeapon = &EntityManager->Weapons.List[Entity->Index];
-                PushMesh(Group, pWeapon->MeshID, Entity->Transform);
+                PushMesh(Group, pWeapon->MeshID, .Transform = Entity->Transform);
             } break;
         }
 

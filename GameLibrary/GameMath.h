@@ -40,12 +40,14 @@ const float sqrt2 = 1.41421356237f;
 const float sqrt3 = 1.73205080757f;
 const float goldenRatio = 0.61803398875f;
 // Twelfth root of 2, important for music
-const float twelfthRootOf2 = 1.0594630943592952646f;
+const float TwelfthRootTwo = 1.0594630943592952646f;
+const float SqRootTwo = 1.41421356237f;
+const float SqRootTwoInv = .7071067811865475244f;
 
 const float Degrees = Pi / 180.0f;
 
 // Smallest meaningful difference between floats, important for avoiding floating point rounding errors.
-const float Epsilon = 0.00001f;
+const float Epsilon = .00001f;
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | Arithmetic                                                                                                                             |
@@ -172,6 +174,28 @@ float Normal() {
 
 float Normal(float Mean, float StdDeviation) {
 	return Mean + StdDeviation * Normal();
+}
+
+uint32 log2(uint32 X) {
+	unsigned long Result;
+	_BitScanReverse(&Result, X);
+	return Result;
+}
+
+uint32 log2(uint64 X) {
+	unsigned long Result;
+	_BitScanReverse64(&Result, X);
+	return Result;
+}
+
+/*
+	IEEE-754 floating-point standard from sign, exponent and mantissa.
+*/
+float CreateFloat(bool Negative, int8 Exponent, uint32 Mantissa) {
+	float Result = 0;
+	uint32* Value = (uint32*)&Result;
+	*Value = (Negative << 31) | ((Exponent + 127) << 23) | (Mantissa & 0x7FFFFF);
+	return Result;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
@@ -1150,11 +1174,11 @@ matrix4 GetWorldProjectionMatrix(float Width, float Height) {
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
 struct complex {
-	double r; // Real part
-	double i; // Imaginary part
+	float r; // Real part
+	float i; // Imaginary part
 };
 
-complex Complex(double r, double i) {
+complex Complex(float r, float i) {
 	return {r, i};
 }
 
@@ -1165,86 +1189,90 @@ inline complex conjugate(complex A) {
 	};
 }
 
-inline complex operator+(complex A, double B) {
+inline complex operator+(complex A, float B) {
 	return {
 		A.r + B,
 		A.i
 	};
 }
 
-inline complex& operator+=(complex& A, double B) {
+inline complex& operator+=(complex& A, float B) {
 	A.r += B;
 	return A;
 }
 
-inline complex operator+(double A, complex B) {
+inline complex operator+(float A, complex B) {
 	return {
 		A + B.r,
 		B.i
 	};
 }
 
-inline complex operator-(double A, complex B) {
+inline complex operator-(float A, complex B) {
 	return {
 		A - B.r,
 		B.i
 	};
 }
 
-inline complex operator-(complex A, double B) {
+inline complex operator-(complex A, float B) {
 	return {
 		A.r - B,
 		A.i
 	};
 }
 
-inline complex& operator-=(complex& A, double B) {
+inline complex& operator-=(complex& A, float B) {
 	A.r -= B;
 	return A;
 }
 
-inline complex operator*(complex A, double C) {
+inline complex operator*(complex A, float C) {
 	return {
 		A.r * C,
 		A.i * C
 	};
 }
 
-inline complex operator*(double C, complex A) {
+inline complex operator*(float C, complex A) {
 	return {
 		A.r * C,
 		A.i * C
 	};
 }
 
-inline complex& operator*=(complex& A, double B) {
+inline complex& operator*=(complex& A, float B) {
 	A.r *= B;
 	A.i *= B;
 	return A;
 }
 
-inline complex operator/(complex A, double C) {
+inline complex operator/(complex A, float C) {
 	return {
 		A.r / C,
 		A.i / C
 	};
 }
 
-inline complex& operator/=(complex& A, double B) {
+inline complex& operator/=(complex& A, float B) {
 	A.r /= B;
 	A.i /= B;
 	return A;
 }
 
-inline double modulus(complex A) {
+inline float modulus(complex A) {
 	return sqrt(A.r * A.r + A.i * A.i);
+}
+
+inline float phase(complex A) {
+	return atan2f(A.i, A.r);
 }
 
 inline complex inverse(complex A) {
 	return conjugate(A) / (A.r * A.r + A.i * A.i);
 }
 
-inline complex expi(double Alpha) {
+inline complex expi(float Alpha) {
 	return {
 		cos(Alpha),
 		sin(Alpha)
@@ -1293,7 +1321,7 @@ inline complex operator/(complex A, complex B) {
 	return A * inverse(B);
 }
 
-inline complex operator/(double A, complex B) {
+inline complex operator/(float A, complex B) {
 	return A * inverse(B);
 }
 
@@ -1404,7 +1432,7 @@ struct scale {
 	float Z;
 };
 
-inline scale Scale(float X = 1.0, float Y = 1.0, float Z = 1.0) {
+inline scale GetScale(float X = 1.0, float Y = 1.0, float Z = 1.0) {
 	return { X, Y, Z };
 };
 
@@ -1413,7 +1441,7 @@ inline scale operator*(float C, scale S) {
 }
 
 inline scale operator*(scale S, scale T) {
-	return Scale(S.X * T.X, S.Y * T.Y, S.Z * T.Z);
+	return GetScale(S.X * T.X, S.Y * T.Y, S.Z * T.Z);
 }
 
 inline v3 operator*(scale Scale, v3 Vector) {
@@ -1443,51 +1471,55 @@ struct transform {
 	quaternion Rotation;
 };
 
-transform IdentityTransform = { V3(0,0,0), Scale(), Quaternion(1.0f) };
+transform IdentityTransform = { V3(0,0,0), GetScale(), Quaternion(1.0f) };
 
-inline transform Transform(quaternion Rotation, v3 Translation = V3(0.0, 0.0, 0.0), scale Scaling = Scale()) {
+inline transform GetTransform(quaternion Rotation, v3 Translation = V3(0.0, 0.0, 0.0), scale Scaling = GetScale()) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline transform Transform(v3 Translation, quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = Scale()) {
+inline transform GetTransform(v3 Translation, quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = GetScale()) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline v3 operator*(transform T, v3 Vector) {
-	return T.Rotation * (T.Scale * Vector) + T.Translation;
+inline v3 operator*(transform Transform, v3 Vector) {
+	return Transform.Rotation * (Transform.Scale * Vector) + Transform.Translation;
 }
 
-inline v4 operator*(transform T, v4 Vector) {
-	return V4(T.Rotation * (T.Scale * V3(Vector.X, Vector.Y, Vector.Z)) + Vector.W * T.Translation, Vector.W);
+inline v4 operator*(transform Transform, v4 Vector) {
+	return V4(Transform.Rotation * (Transform.Scale * V3(Vector.X, Vector.Y, Vector.Z)) + Vector.W * Transform.Translation, Vector.W);
 }
 
-inline basis operator*(transform T, basis Basis) {
-	return T.Rotation * Basis;
+inline basis operator*(transform Transform, basis Basis) {
+	return Transform.Rotation * Basis;
 }
 
-inline transform operator*(transform T, transform U) {
+inline transform operator*(transform Transform1, transform Transform2) {
 	transform Result = { 0 };
-	Result.Scale = T.Scale * U.Scale;
-	Result.Translation = U.Translation + U.Rotation * T.Translation;
-	Result.Rotation = T.Rotation * U.Rotation;
+	Result.Scale = Transform1.Scale * Transform2.Scale;
+	Result.Translation = Transform2.Translation + Transform2.Rotation * Transform1.Translation;
+	Result.Rotation = Transform1.Rotation * Transform2.Rotation;
 	return Result;
 }
 
-inline bool operator==(transform T, transform U) {
-	return T.Translation == U.Translation && T.Scale == U.Scale && T.Rotation == U.Rotation;
+inline bool operator==(transform Transform1, transform Transform2) {
+	return Transform1.Translation == Transform2.Translation && 
+	       Transform1.Scale == Transform2.Scale && 
+		   Transform1.Rotation == Transform2.Rotation;
 }
 
-inline bool operator!=(transform T, transform U) {
-	return T.Translation != U.Translation || T.Scale == U.Scale || T.Rotation == U.Rotation;
+inline bool operator!=(transform Transform1, transform Transform2) {
+	return Transform1.Translation != Transform2.Translation || 
+	       Transform1.Scale == Transform2.Scale || 
+		   Transform1.Rotation == Transform2.Rotation;
 }
 
-inline matrix4 Matrix(transform T) {
-	matrix3 Rotation = Matrix(T.Rotation);
+inline matrix4 Matrix(transform Transform) {
+	matrix3 Rotation = Matrix(Transform.Rotation);
 	matrix4 Result;
-	Result.X = T.Scale.X * V4(Rotation.X,0);
-	Result.Y = T.Scale.Y * V4(Rotation.Y,0);
-	Result.Z = T.Scale.Z * V4(Rotation.Z,0);
-	Result.W = V4(T.Translation, 1.0f);
+	Result.X = Transform.Scale.X * V4(Rotation.X,0);
+	Result.Y = Transform.Scale.Y * V4(Rotation.Y,0);
+	Result.Z = Transform.Scale.Z * V4(Rotation.Z,0);
+	Result.W = V4(Transform.Translation, 1.0f);
 	return Result;
 }
 
@@ -1724,8 +1756,8 @@ struct segment3 {
 	v3 Tail;
 };
 
-inline segment3 operator*(transform T, segment3 S) {
-	return { T * S.Head, T * S.Tail };
+inline segment3 operator*(transform Transform, segment3 Segment) {
+	return { Transform * Segment.Head, Transform * Segment.Tail };
 }
 
 /*
@@ -2384,6 +2416,95 @@ uv3 ParseUV3(tokenizer& Tokenizer) {
     Result.Y = Parseuint32(Tokenizer);
     Result.Z = Parseuint32(Tokenizer);
     return Result;
+}
+
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Fast Fourier Transform                                                                                                                       |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+
+uint32 BitReverse(uint32 X) {
+    X = ((X & 0x55555555) << 1) | ((X & 0xAAAAAAAA) >> 1);
+    X = ((X & 0x33333333) << 2) | ((X & 0xCCCCCCCC) >> 2);
+    X = ((X & 0x0F0F0F0F) << 4) | ((X & 0xF0F0F0F0) >> 4);
+    X = ((X & 0x00FF00FF) << 8) | ((X & 0xFF00FF00) >> 8);
+    X = (X << 16) | (X >> 16);
+    return X;
+}
+
+uint32 BitReverse(uint32 X, uint32 log2N) {
+	return BitReverse(X) >> (32 - log2N);
+}
+
+/*
+	Takes an unsigned number and flips its digits around the decimal point to return a float in [0, 1).
+	Example: BitReverseFloat of 3 (110 in binary) = 0.011 in binary = 0.75
+*/
+float BitReverseFloat(uint32 X) {
+	unsigned long FirstOne;
+	_BitScanForward(&FirstOne, X);
+
+	uint32 Mantissa = (BitReverse(X) << (1 + FirstOne)) >> 9;
+	int8 Exponent = -FirstOne-1;
+
+	float Result = CreateFloat(false, Exponent, Mantissa);
+	return Result;
+}
+
+// Direct unoptimized calculation of Discrete Fourier Transform
+void DFT(uint32 N, complex* Input, complex* Output) {
+	for (int i = 0; i < N; i++) {
+		complex Result = Complex(0,0);
+		for (int j = 0; j < N; j++) {
+			Result += Input[j]*expi(-Tau*j*i/N);
+		}
+		Output[i] = Result;
+	}
+}
+
+// Twiddle factors preparation
+void PrepareTwiddleFactors(uint32 N, complex* Twiddle) {
+	Twiddle[0] = Complex(1.0f, 0.0f);
+	Twiddle[N >> 1] = Complex(-1.0f, 0.0f);
+	Twiddle[N >> 2] = Complex(0.0f, -1.0f);
+	Twiddle[3*(N >> 2)] = Complex(0.0f, 1.0f);
+
+	for (int i = 0; i < N; i++) {
+		if      (i == 0)          Twiddle[i] = Complex(1.0f, 0.0f);
+		else if (i == N >> 1)     Twiddle[i] = Complex(-1.0f, 0.0f);
+		else if (i == N >> 2)     Twiddle[i] = Complex(0.0f, -1.0f);
+		else if (i == 3*(N >> 2)) Twiddle[i] = Complex(0.0f, 1.0f);
+		else                      Twiddle[i] = expi(-Tau*i/N);
+	}
+}
+
+void FFT_Butterfly(uint32 Stride, complex* Data, complex Twiddle) {
+	complex X0 = Data[0];
+	complex X1 = Data[Stride];
+
+	Data[0]      = X0 + Twiddle*X1;
+	Data[Stride] = X0 - Twiddle*X1;
+}
+
+void FFT(uint32 N, complex* Input, complex* Output, complex* Twiddle) {
+	uint32 log2N = log2(N);
+	
+	// Bit reverse input
+	for (int i = 0; i < N; i++) {
+		Output[i] = Input[BitReverse(i, log2N)];
+	}
+
+	// FFT stages
+	uint32 Stride = 1;
+	uint32 TwiddleStride = N >> 1;
+	for (int p = 0; p < log2N; p++) {		
+		for (int Block = 0; Block < N; Block += Stride << 1)
+		for (int k = 0; k < Stride; k++) {
+			FFT_Butterfly(Stride, &Output[Block + k], Twiddle[k * TwiddleStride]);
+		}
+		
+		Stride <<= 1;
+		TwiddleStride >>= 1;
+	}
 }
 
 #endif

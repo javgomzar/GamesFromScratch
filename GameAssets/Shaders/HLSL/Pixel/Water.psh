@@ -1,0 +1,10 @@
+struct DS_OUT {
+    float4 OutPosition: SV_POSITION;
+    float3 Position: POSITION;
+};
+
+float4 main(DS_OUT vout): SV_TARGET {
+    float4 Color = float4(-vout.Position.y, 0, vout.Position.y, 1);
+
+    return Color;
+}

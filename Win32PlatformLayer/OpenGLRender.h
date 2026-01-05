@@ -282,6 +282,7 @@ struct openGL_font_buffer {
 	memory_index Size;
 	uint32 VAO;
 	uint32 VBO;
+	uint32 InstanceVBO;
 	uint32 EBO;
 };
 
@@ -485,6 +486,7 @@ ENUM(openGL_shader_id,
     // Fragment shaders
     Fragment_Shader_Antialiasing_ID,
     Fragment_Shader_Single_Color_ID,
+	Fragment_Shader_Attrib_Color_ID,
     Fragment_Shader_Texture_ID,
     Fragment_Shader_Framebuffer_Attachment_ID,
     Fragment_Shader_Outline_ID,
@@ -735,8 +737,15 @@ void LoadShader(openGL_shader_id Index, const char* Path) {
 
 	// Find compatible vertex layout from assets definition
 	if (Shader->Type == Vertex_Shader) {
-		vertex_layout_id LayoutID = FindCompatibleVertexLayout(OpenGL.VertexLayout, Shader->VertexLayout);
-		Shader->VertexLayout = OpenGL.VertexLayout[LayoutID];
+		vertex_layout_id LayoutID;
+		bool Found = FindCompatibleVertexLayout(OpenGL.VertexLayout, Shader->VertexLayout, &LayoutID);
+		if (Found) Shader->VertexLayout = OpenGL.VertexLayout[LayoutID];
+		else {
+			char ErrorBuffer[128];
+			sprintf_s(ErrorBuffer, "OpenGL: No compatible vertex layout was found for shader %s.", Shader->File.Path);
+			Log(Warn, ErrorBuffer);
+			Shader->VertexLayout = {};
+		}
 	}
 
 	GLenum TypeEnum = GetShaderType(Shader->Type);
@@ -808,14 +817,13 @@ void LoadPipeline(openGL_shader_pipeline_id Index, int nShaders, ...) {
 	Pipeline->Shader[Vertex_Shader] = ShaderIndex;
     openGL_shader* VertexShader = &OpenGL.Shader[ShaderIndex];
 	bool VertexLayoutFound = false;
-	for (int j = 0; j < vertex_layout_id_count; j++) {
-		if (VertexShader->VertexLayout == OpenGL.VertexLayout[j]) {
+	for (int i = 0; i < vertex_layout_id_count; i++) {
+		if (VertexShader->VertexLayout == OpenGL.VertexLayout[i]) {
 			VertexLayoutFound = true;
-			Pipeline->VertexLayoutID = (vertex_layout_id)j;
+			Pipeline->VertexLayoutID = (vertex_layout_id)i;
 			break;
 		}
 	}
-	Assert(VertexLayoutFound, "Vertex layout was not found.");
 
 	// Other shaders
     for (int i = 1; i < nShaders; i++) {
@@ -844,7 +852,7 @@ void LoadPipeline(openGL_shader_pipeline_id Index, int nShaders, ...) {
 				openGL_shader_uniform_block* LoadUBO = &OpenGL.UBOs[UBO.Binding];
 				if (UBOLoaded[UBO.Binding]) {
 					if (UBO != *LoadUBO) {
-						Raise("Inconsistent UBO definition.");
+						Raise("OpenGL: Inconsistent UBO definition.");
 					}
 				}
 				else {
@@ -988,15 +996,8 @@ void ReloadShaders() {
 }
 
 openGL_shader_pipeline_id GetPipelineID(render_primitive_options Options) {
-	if (Options.Mesh) {
-		if (Options.Outline) return Options.Armature ? Shader_Pipeline_Bones_Single_Color_ID : Shader_Pipeline_World_Single_Color_ID;
-		else                 return Options.Armature ? Shader_Pipeline_Mesh_Bones_ID         : Shader_Pipeline_Mesh_ID;
-	}
-	else if (Options.Font) {
-		if      (Options.Flags & TEXT_OUTLINE_FLAG)  return Shader_Pipeline_Text_Outline_ID;
-		else if (Options.Flags & TEXT_INTERIOR_FLAG) return Shader_Pipeline_Bezier_Interior_ID;
-		else if (Options.Flags & TEXT_EXTERIOR_FLAG) return Shader_Pipeline_Bezier_Exterior_ID;
-		else 										 return Shader_Pipeline_Solid_Text_ID;
+	if (Options.Font) {
+		return Shader_Pipeline_Text_Outline_ID;
 	}
 	else if (Options.Heightmap) {
 		return Shader_Pipeline_Heightmap_ID;
@@ -1421,8 +1422,7 @@ RENDERER_INITIALIZE {
 		for (int i = 0; i < game_font_id_count; i++) {
 			openGL_font_buffer* FontBuffer = &OpenGL.FontBuffer[i];
 			glCreateVertexArrays(1, &FontBuffer->VAO);
-			glCreateBuffers(1, &FontBuffer->VBO);
-			glCreateBuffers(1, &FontBuffer->EBO);
+			glCreateBuffers(3, &FontBuffer->VBO);
 
 			game_font* Font = &Assets->Font[i];
 			uint64 VerticesSize = 4 * sizeof(float) * 3 * Font->nOnCurve;
@@ -1434,9 +1434,34 @@ RENDERER_INITIALIZE {
 
 			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, NULL);
 			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, NULL);
+			glNamedBufferStorage(FontBuffer->InstanceVBO, TEXT_BUFFER_SIZE, NULL, GL_DYNAMIC_STORAGE_BIT);
 
-			vertex_layout Layout = Assets->VertexLayout[vertex_layout_v2_v2_id];
-			EnableVertexLayout(FontBuffer->VAO, FontBuffer->VBO, Layout);
+			// Position
+			glEnableVertexArrayAttrib(FontBuffer->VAO, 0);
+			glVertexArrayAttribFormat(FontBuffer->VAO, 0, 2, GL_FLOAT, GL_FALSE, 0);
+			glVertexArrayAttribBinding(FontBuffer->VAO, 0, 0);
+
+			// Barycentric
+			glEnableVertexArrayAttrib(FontBuffer->VAO, 1);
+			glVertexArrayAttribFormat(FontBuffer->VAO, 1, 2, GL_FLOAT, GL_FALSE, 2*sizeof(float));
+			glVertexArrayAttribBinding(FontBuffer->VAO, 1, 0);
+
+			glVertexArrayVertexBuffer(FontBuffer->VAO, 0, FontBuffer->VBO, 0, 4*sizeof(float));
+
+			// Instance attributes
+			// Pen + Size
+			glEnableVertexArrayAttrib(FontBuffer->VAO, 2);
+			glVertexArrayAttribFormat(FontBuffer->VAO, 2, 3, GL_FLOAT, GL_FALSE, 0);
+			glVertexArrayAttribBinding(FontBuffer->VAO, 2, 1);
+			
+			// Color
+			glEnableVertexArrayAttrib(FontBuffer->VAO, 3);
+			glVertexArrayAttribFormat(FontBuffer->VAO, 3, 4, GL_FLOAT, GL_FALSE, 3*sizeof(float));
+			glVertexArrayAttribBinding(FontBuffer->VAO, 3, 1);
+			
+			glVertexArrayBindingDivisor(FontBuffer->VAO, 1, 1);
+			glVertexArrayVertexBuffer(FontBuffer->VAO, 1, FontBuffer->InstanceVBO, 0, 7*sizeof(float));
+
 			glVertexArrayElementBuffer(FontBuffer->VAO, FontBuffer->EBO);
 		}
 
@@ -1488,6 +1513,7 @@ RENDERER_INITIALIZE {
 		LoadShader(Fragment_Shader_Framebuffer_Attachment_ID, "GameAssets\\Shaders\\GLSL\\Fragment\\FramebufferAttachment.frag");
 		LoadShader(Fragment_Shader_Texture_ID,                "GameAssets\\Shaders\\GLSL\\Fragment\\Texture.frag");
 		LoadShader(Fragment_Shader_Single_Color_ID,           "GameAssets\\Shaders\\GLSL\\Fragment\\SingleColor.frag");
+		LoadShader(Fragment_Shader_Attrib_Color_ID,           "GameAssets\\Shaders\\GLSL\\Fragment\\AttribColor.frag");
 		LoadShader(Fragment_Shader_Mesh_ID,                   "GameAssets\\Shaders\\GLSL\\Fragment\\Mesh.frag");
 		LoadShader(Fragment_Shader_Heightmap_ID,              "GameAssets\\Shaders\\GLSL\\Fragment\\Heightmap.frag");
 		LoadShader(Fragment_Shader_Sea_ID,                    "GameAssets\\Shaders\\GLSL\\Fragment\\Sea.frag");
@@ -1515,7 +1541,7 @@ RENDERER_INITIALIZE {
     	LoadPipeline(Shader_Pipeline_Bones_Single_Color_ID,  2, Vertex_Shader_Bones_ID,          Fragment_Shader_Single_Color_ID);
     	LoadPipeline(Shader_Pipeline_Bezier_Exterior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Exterior_ID);
     	LoadPipeline(Shader_Pipeline_Bezier_Interior_ID,     2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Bezier_Interior_ID);
-    	LoadPipeline(Shader_Pipeline_Solid_Text_ID,          2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Single_Color_ID);
+    	LoadPipeline(Shader_Pipeline_Solid_Text_ID,          2, Vertex_Shader_Barycentric_ID,    Fragment_Shader_Attrib_Color_ID);
     	LoadPipeline(Shader_Pipeline_Fire_ID,                2, Vertex_Shader_Perspective_ID,    Fragment_Shader_Fire_ID);
 		LoadPipeline(Shader_Pipeline_Sky_ID,                 2, Vertex_Shader_Sky_ID,            Fragment_Shader_Sky_ID);
     	LoadPipeline(Shader_Pipeline_Debug_Normals_ID,       3, Vertex_Shader_Bones_ID,
@@ -1636,7 +1662,7 @@ RENDERER_RENDER {
 
 		switch(Command.Type) {
 			case render_clear: {
-				render_clear_command Clear = Group->Clears[Command.Index];
+				render_clear_command Clear = Group->ClearCommands[Command.Index];
 
 				glViewport(0, 0, Width, Height);
 				BindTarget(Clear.Target);
@@ -1649,8 +1675,7 @@ RENDERER_RENDER {
 				render_primitive_command DrawCommand = Group->PrimitiveCommands[Command.Index];
 				render_primitive_options Options = DrawCommand.Options;
 
-				if (Options.Outline) BindTarget(Target_Outline);
-				else                 BindTarget(Target_World);
+				BindTarget(Target_World);
 
 				openGL_shader_pipeline_id PipelineID = GetPipelineID(Options);
 				uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
@@ -1674,13 +1699,7 @@ RENDERER_RENDER {
 				uint32 VAO = 0;
 				vertex_buffer_entry VertexEntry = DrawCommand.VertexEntry;
 				element_buffer_entry ElementEntry = DrawCommand.ElementEntry;
-				if (Options.Mesh) {
-					VAO = OpenGL.MeshBuffer[Options.Mesh->ID].VAO;
-					if (Options.Armature) SetBoneUniforms(Options.Armature);
-					matrix4 Model = Matrix(Options.Transform);
-					SetModelUniforms(Model);
-				}
-				else if (Options.Font) {
+				if (Options.Font) {
 					VAO = OpenGL.FontBuffer[Options.Font->ID].VAO;
 					SetTextUniforms(Options.TextSize, Options.Pen);
 				}
@@ -1714,29 +1733,126 @@ RENDERER_RENDER {
 
 				glBindVertexArray(VAO);
 				if (ElementEntry.Count > 0) {
-					void* ByteOffset = (void*)((ElementEntry.Offset) * sizeof(uint32));
+					void* ByteOffset = (void*)(ElementEntry.Offset * sizeof(uint32));
 					glDrawElements(Primitive, ElementEntry.Count, GL_UNSIGNED_INT, ByteOffset);
 				}
 				else {
 					glDrawArrays(Primitive, VertexEntry.Offset, VertexEntry.Count);
 				}
 
-				if (Options.Mesh) {
-					if (Group->Debug && Group->DebugNormals) {
-						SetColorUniform(Yellow);
-
-						glUseProgram(OpenGL.Pipeline[Shader_Pipeline_Debug_Normals_ID].ID);
-						glLineWidth(1.0f);
-						CurrentLineWidth = 1.0f;
-						glDrawArrays(GL_POINTS, 0, Options.Mesh->nVertices);
-					}
-
-					ClearBoneUniforms();
-				}
-
-				if (Options.Mesh || Options.Heightmap) {
+				if (Options.Heightmap) {
 					ClearModelUniforms();
 				}
+			} break;
+
+			case render_mesh: {
+				render_mesh_command MeshCommand = Group->MeshCommands[Command.Index];
+				render_mesh_options Options = MeshCommand.Options;
+
+				game_mesh* Mesh = GetAsset(Group->Assets, MeshCommand.MeshID);
+
+				openGL_shader_pipeline_id PipelineID = Mesh->Armature.nBones > 0 ? Shader_Pipeline_Mesh_Bones_ID : Shader_Pipeline_Mesh_ID;
+				if (Options.Outline) {
+					BindTarget(Target_Outline);
+					PipelineID = Mesh->Armature.nBones > 0 ? Shader_Pipeline_Bones_Single_Color_ID : Shader_Pipeline_World_Single_Color_ID;
+				}
+				else BindTarget(Target_World);
+
+				uint32 ProgramID = OpenGL.Pipeline[PipelineID].ID;
+				glUseProgram(ProgramID);
+
+				glDepthFunc(GL_LESS);
+				glDepthMask(GL_TRUE);
+
+				SetColorUniform(Options.Color);
+				uint32 TextureHandle = OpenGL.Texture[Options.TextureID];
+				BindTexture(ProgramID, TextureHandle, 0);
+				if (Options.Armature) SetBoneUniforms(Options.Armature);
+				matrix4 Model = Matrix(Options.Transform);
+				SetModelUniforms(Model);
+
+				glBindVertexArray(OpenGL.MeshBuffer[MeshCommand.MeshID].VAO);
+				if (Mesh->nFaces > 0) glDrawElements(GL_TRIANGLES, 3*Mesh->nFaces, GL_UNSIGNED_INT, 0);
+				if (Mesh->nEdges > 0) {
+					if (CurrentLineWidth != 2.0f) {
+						CurrentLineWidth = 2.0f;
+						glLineWidth(2.0f);
+					}
+					glDrawElements(GL_LINES, 2*Mesh->nEdges, GL_UNSIGNED_INT, 0);
+				}
+				if (Group->Debug && Group->DebugNormals) {
+					SetColorUniform(Yellow);
+
+					glUseProgram(OpenGL.Pipeline[Shader_Pipeline_Debug_Normals_ID].ID);
+					glLineWidth(1.0f);
+					CurrentLineWidth = 1.0f;
+					glDrawArrays(GL_POINTS, 0, Mesh->nVertices);
+				}
+
+				if (Options.Armature) ClearBoneUniforms();
+				ClearModelUniforms();
+			} break;
+
+			case render_text: {
+				BindTarget(Target_World);
+
+				for (int FontID = 0; FontID < game_font_id_count; FontID++) {
+					game_font* Font = GetAsset(Group->Assets, (game_font_id)FontID);
+					openGL_font_buffer* FontBuffer = &OpenGL.FontBuffer[FontID];
+					for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+						uint32 Count = Group->TextBuffer.Count[FontID][c];
+						if (Count > 0) {
+							game_font_character* pCharacter = &Font->Characters[c];
+							glNamedBufferSubData(
+								FontBuffer->InstanceVBO, 0,
+								Group->TextBuffer.Instances[FontID][c].Used,
+								Group->TextBuffer.Instances[FontID][c].Base
+							);
+
+							glBindVertexArray(FontBuffer->VAO);
+
+							// Solid triangles
+							if (pCharacter->nSolidTriangles > 0) {
+								glUseProgram(OpenGL.Pipeline[Shader_Pipeline_Solid_Text_ID].ID);
+								void* ByteOffset = (void*)(pCharacter->SolidTrianglesOffset * sizeof(uint32));
+								glDrawElementsInstanced(
+									GL_TRIANGLES, 
+									3 * pCharacter->nSolidTriangles, 
+									GL_UNSIGNED_INT,
+									ByteOffset,
+									Count
+								);
+							}
+
+							// Exterior Bezier curves
+							if (pCharacter->nExteriorCurves > 0) {
+								glUseProgram(OpenGL.Pipeline[Shader_Pipeline_Bezier_Exterior_ID].ID);
+								void* ByteOffset = (void*)(pCharacter->ExteriorCurvesOffset * sizeof(uint32));
+								glDrawElementsInstanced(
+									GL_TRIANGLES,
+									3 * pCharacter->nExteriorCurves,
+									GL_UNSIGNED_INT,
+									ByteOffset,
+									Count
+								);
+							}
+
+							// Interior Bezier curves
+							if (pCharacter->nInteriorCurves > 0) {
+								glUseProgram(OpenGL.Pipeline[Shader_Pipeline_Bezier_Interior_ID].ID);
+								void* ByteOffset = (void*)(pCharacter->InteriorCurvesOffset * sizeof(uint32));
+								glDrawElementsInstanced(
+									GL_TRIANGLES,
+									3 * pCharacter->nInteriorCurves,
+									GL_UNSIGNED_INT,
+									ByteOffset,
+									Count
+								);
+							}
+						}
+					}
+				}
+
 			} break;
 
 			case render_shader_pass: {
