@@ -1123,12 +1123,8 @@ void UpdateTradeUI(
             );
 
             static character* Character = nullptr;
-            static magic_affinity Affinity = Magic_Affinity_None;
+            static element Element = Element_None;
             static spell_id SelectedSpell = Spell_Empty;
-
-            DEBUG_POINTER(Character, character);
-            DEBUG_VALUE(Affinity, magic_affinity);
-            DEBUG_VALUE(SelectedSpell, spell_id);
 
             if (Character == nullptr) {
                 UIText("Select character to learn spell", .AlignmentX = ui_alignment_center);
@@ -1147,17 +1143,17 @@ void UpdateTradeUI(
                     }
                 }
             }
-            else if (Affinity == Magic_Affinity_None) {
+            else if (Element == Element_None) {
                 UIText("Select spell affinity", .AlignmentX = ui_alignment_center);
-                for (int i = 1; i < magic_affinity_count; i++) {
+                for (int i = 1; i < element_count; i++) {
                     if (UIButton(MagicAffinityNames[i])) {
-                        Affinity = (magic_affinity)i;
+                        Element = (element)i;
                         break;
                     }
                 }
             }
             else if (SelectedSpell == Spell_Empty) {
-                int nSpells = nSpellsForAffinity[Affinity];
+                int nSpells = 1; // TODO: This is wrong
                 for (int i = 1; i < nSpells; i++) {
                     spell Spell = Spells[i];
                     bool Known = false;
@@ -1190,7 +1186,7 @@ void UpdateTradeUI(
                         if (UIButton(Spell.Name)) {
                             Character->Spells[i] = SelectedSpell;
                             Character = nullptr;
-                            Affinity = Magic_Affinity_None;
+                            Element = Element_None;
                             SelectedSpell = Spell_Empty;
                             Transition(State, Game_State_Map);
                         }
@@ -1198,7 +1194,7 @@ void UpdateTradeUI(
                 }
                 else {
                     Character = nullptr;
-                    Affinity = Magic_Affinity_None;
+                    Element = Element_None;
                     SelectedSpell = Spell_Empty;
                     Transition(State, Game_State_Map);
                 }
