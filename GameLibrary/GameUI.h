@@ -798,8 +798,8 @@ void UpdateMainMenuUI(
 ) {
     game_state* State = Memory->GameState;
 
-    UIText("Untitled game", .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_center, .Points = 100);
     static bool Settings = false, ClassSelection = false;
+    if (!ClassSelection) UIText("Untitled game", .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_center, .Points = 100);
     
     {
         ui_menu StartMenu = UIMenu(
