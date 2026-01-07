@@ -31,7 +31,7 @@ extern GAMELIBRARY_API int nGameLibrary;
 #include "GameAssets.h"
 #include "GameRender.h"
 #include "Particles.h"
-#include "GameEntity.h"
+#include "GameState.h"
 #include "GameDebug.h"
 #include "GameTest.h"
 
