@@ -1,0 +1,21 @@
+Texture2D Texture: register(t0);
+SamplerState Sampler: register(s0);
+
+cbuffer Board: register(b9) {
+    int Width;
+    int Height;
+};
+
+struct VertexOut {
+    float4 SVPosition: SV_POSITION;
+    float2 UV: TEXCOORD0;
+};
+
+static const float3 Yellow = float3(1.0f, 1.0f, 0.0f);
+static const float3 Gray = float3(0.5f, 0.5f, 0.5f);
+
+float4 main(VertexOut vout): SV_TARGET {
+    int2 Coord = vout.UV * int2(Width, Height);
+    float Value = Texture[Coord];
+    return float4(Value > 0 ? Yellow : Gray, 1.0f);
+}

@@ -75,7 +75,8 @@ ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Bezier_Interior_ID,
     Pixel_Shader_Heightmap_ID,
     Pixel_Shader_Sky_ID,
-    Pixel_Shader_Water_ID
+    Pixel_Shader_Water_ID,
+    Pixel_Shader_Board_ID
 );
 
 ENUM(directX_Compute_Shader_ID,
@@ -105,7 +106,8 @@ ENUM(directX_constant_buffer_id,
     transform_buffer_id,
     bone_buffer_id,
     text_outline_buffer_id,
-    outline_buffer_id
+    outline_buffer_id,
+    board_buffer_id
 );
 
 struct alignas(16) global_buffer {
@@ -154,6 +156,11 @@ struct alignas(16) outline_buffer {
     int Level;
 };
 
+struct alignas(16) board_buffer {
+    int Width;
+    int Height;
+};
+
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Initialization                                                                                                                                                   |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -164,6 +171,8 @@ struct directX {
     ID3D11Device* Device;
     ID3D11DeviceContext* DeviceContext;
     ID3D11Texture2D* StagingTexture;
+    ID3D11Texture2D* BoardTexture;
+    ID3D11ShaderResourceView* BoardResourceView;
     directX_render_target Target[render_group_target_count];
     ID3D11BlendState* CombineAlpha;
     ID3D11BlendState* OverwriteAlpha;
@@ -454,6 +463,18 @@ void SetOutlineBuffer(float Width, int Level) {
         DirectX.DeviceContext->Unmap(OutlineBuffer, 0);
         DirectX.DeviceContext->PSSetConstantBuffers(5, 1, &OutlineBuffer);
         DirectX.DeviceContext->CSSetConstantBuffers(5, 1, &OutlineBuffer);
+    }
+}
+
+void SetBoardBuffer(int Width, int Height) {
+    ID3D11Buffer* BoardBuffer = DirectX.ConstantBuffer[board_buffer_id];
+    void* MappedBuffer = GetMappedBuffer(BoardBuffer);
+    if (MappedBuffer) {
+        board_buffer* Buffer = (board_buffer*)MappedBuffer;
+        Buffer->Width = Width;
+        Buffer->Height = Height;
+        DirectX.DeviceContext->Unmap(BoardBuffer, 0);
+        DirectX.DeviceContext->PSSetConstantBuffers(9, 1, &BoardBuffer);
     }
 }
 
@@ -1215,25 +1236,31 @@ RENDERER_INITIALIZE {
         );
     }
 
-    ID3D11Texture2D* FFTTexture = NULL;
-
     D3D11_TEXTURE2D_DESC Description = {};
-    Description.Width = 1024;
-    Description.Height = 1024;
+    Description.Width = INITIAL_BOARD_WIDTH;
+    Description.Height = INITIAL_BOARD_HEIGHT;
     Description.MipLevels = 1;
     Description.ArraySize = 1;
-    Description.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    Description.Format = DXGI_FORMAT_R8_UNORM;
     Description.SampleDesc.Count = 1;
     Description.SampleDesc.Quality = 0;
-    Description.Usage = D3D11_USAGE_DEFAULT;
-    Description.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
-    Description.CPUAccessFlags = 0;
+    Description.Usage = D3D11_USAGE_DYNAMIC;
+    Description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    Description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
     Description.MiscFlags = 0;
 
-    Result = DirectX.Device->CreateTexture2D(&StagingDescription, 0, &DirectX.StagingTexture);
+    Result = DirectX.Device->CreateTexture2D(&Description, 0, &DirectX.BoardTexture);
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Staging texture creation failed.");
+        Log(Error, "DirectX: Board texture creation faield.");
     }
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC ShaderResourceViewDescription = {};
+    ShaderResourceViewDescription.Format = Description.Format;
+    ShaderResourceViewDescription.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    ShaderResourceViewDescription.Texture2D.MostDetailedMip = 0;
+    ShaderResourceViewDescription.Texture2D.MipLevels = -1;
+    Result = DirectX.Device->CreateShaderResourceView(DirectX.BoardTexture, &ShaderResourceViewDescription, &DirectX.BoardResourceView); 
+    if (FAILED(Result)) Raise("DirectX: Shader resource view for board texture failed.");
 
 // Heightmaps
     for (int i = 0; i < game_heightmap_id_count; i++) {
@@ -1277,7 +1304,8 @@ RENDERER_INITIALIZE {
     LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
     LoadShader(Pixel_Shader_Heightmap_ID,            "GameAssets\\Shaders\\HLSL\\Pixel\\Heightmap.psh");
     LoadShader(Pixel_Shader_Sky_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Sky.psh");
-    LoadShader(Pixel_Shader_Water_ID,               "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
+    LoadShader(Pixel_Shader_Water_ID,                "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
+    LoadShader(Pixel_Shader_Board_ID,                "GameAssets\\Shaders\\HLSL\\Pixel\\Board.psh");
 
     // Compute
     LoadShader(Compute_Shader_Outline_Init_ID,       "GameAssets\\Shaders\\HLSL\\Compute\\OutlineInit.compute");
@@ -1337,6 +1365,7 @@ RENDERER_INITIALIZE {
     CreateConstantBuffer(text_outline_buffer);
     CreateConstantBuffer(light_buffer);
     CreateConstantBuffer(outline_buffer);
+    CreateConstantBuffer(board_buffer);
 }
 
 D3D_PRIMITIVE_TOPOLOGY GetRenderPrimitive(render_primitive Primitive) {
@@ -1593,16 +1622,12 @@ RENDERER_RENDER {
 
                     SetTransformBuffer(Options.Transform);
                 }
-                else if (Options.Flags & WATER_FLAG) {
-                    LayoutID = vertex_layout_v2_id;
-                    VertexShaderID = Vertex_Shader_Heightmap_ID;
-                    PixelShaderID = Pixel_Shader_Water_ID;
-                    VertexBuffer = &DirectX.HeightmapBuffer.VertexBuffer;
-                    IndexBuffer = DirectX.HeightmapBuffer.IndexBuffer;
-                    DirectX.DeviceContext->HSSetShader(DirectX.HullShader[Hull_Shader_Heightmap_ID].Shader, NULL, 0);
-                    DirectX.DeviceContext->DSSetShader(DirectX.DomainShader[Domain_Shader_Water_ID].Shader, NULL, 0);
-
-                    SetTransformBuffer(Options.Transform);
+                else if (Options.Flags & BOARD_FLAG) {
+                    LayoutID = vertex_layout_v2_v2_id;
+                    VertexShaderID = Vertex_Shader_Screen_Texture_ID;
+                    PixelShaderID = Pixel_Shader_Board_ID;
+                    VertexBuffer = &DirectX.VertexBuffer[LayoutID];
+                    IndexBuffer = DirectX.IndexBuffer;
                 }
                 else if (Options.Flags & DEBUG_BONES_FLAG) {
                     LayoutID = vertex_layout_v3_id;
@@ -1645,6 +1670,24 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->PSSetShaderResources(0, 1, &DirectX.Texture[Options.Texture->ID]);
                     DirectX.DeviceContext->PSSetSamplers(0, 1, &DirectX.PixelShader[PixelShaderID].Sampler);
                 }
+                else if (Options.Flags & BOARD_FLAG) {
+                    D3D11_MAPPED_SUBRESOURCE MappedResource;
+                    HRESULT Result = DirectX.DeviceContext->Map(DirectX.BoardTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &MappedResource);
+
+                    if (SUCCEEDED(Result)) {
+                        uint8* Destination = (uint8*)MappedResource.pData;
+                        uint8* Source = (uint8*)Options.BoardData;
+                        for (int i = 0; i < INITIAL_BOARD_HEIGHT; i++) {
+                            memcpy(Destination + i*MappedResource.RowPitch, Source + INITIAL_BOARD_HEIGHT*i, INITIAL_BOARD_WIDTH);
+                        }
+                    }
+                    DirectX.DeviceContext->Unmap(DirectX.BoardTexture, 0);
+
+                    SetBoardBuffer(INITIAL_BOARD_WIDTH, INITIAL_BOARD_HEIGHT);
+
+                    DirectX.DeviceContext->PSSetShaderResources(0, 1, &DirectX.BoardResourceView);
+                    DirectX.DeviceContext->PSSetSamplers(0, 1, &DirectX.PixelShader[PixelShaderID].Sampler);
+                }
 
                 if (Options.Heightmap) {
                     DirectX.DeviceContext->DSSetShaderResources(0, 1, &DirectX.Heightmap[Options.Heightmap->ID]);
@@ -1663,7 +1706,7 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->Draw(VertexEntry.Count, Offset);
                 }
 
-                if (Options.Heightmap || Options.Flags & WATER_FLAG) {
+                if (Options.Heightmap) {
                     DirectX.DeviceContext->HSSetShader(NULL, NULL, 0);
                     DirectX.DeviceContext->DSSetShader(NULL, NULL, 0);
                     ClearTransformBuffer();

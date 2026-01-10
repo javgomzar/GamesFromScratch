@@ -750,11 +750,11 @@ void UpdateUI(
     game_input* Input
 ) {
     render_group* Group = &Memory->RenderGroup;
-    game_state* pGameState = (game_state*)Memory->Permanent.Base;
-    game_entity_state* EntityState = &pGameState->Entities;
-    float Time = pGameState->Time;
+    game_state* State = Memory->GameState;
+    board* Board = &State->Board;
+    float Time = State->Time;
     debug_info* DebugInfo = &Memory->DebugInfo;
-    camera* Camera = pGameState->ActiveCamera;
+    camera* Camera = &State->ActiveCamera;
 
     BeginContext(Memory, Input);
 
@@ -787,8 +787,49 @@ void UpdateUI(
         }
 
         if (UIButton("Exit")) {
-            pGameState->Exit = true;
+            State->Exit = true;
         }
+    }
+
+    {
+        ui_menu PlayMenu = UIMenu(
+            "Play menu", 
+            .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_max, 
+            .MarginX = 60.0f,
+            .Stack = axis_x,
+        );
+        
+        if (UIButton("Play")) {
+            Board->Simulating = true;
+        }
+
+        if (UIButton("Stop")) {
+            Board->Simulating = false;
+        }
+
+        if (UIButton("Clear")) {
+            Board->Clearing = true;
+        }
+
+        if (!PlayMenu.Element->Hovered && !Board->Simulating) {
+            float Left = 0.5f*Group->Width - 0.5f*Board->Width*CELL_SIZE;
+            float Top = 0.5f*Group->Height - 0.5f*Board->Height*CELL_SIZE;
+
+            int32 MouseRow = (Input->Mouse.Cursor.Y - Top) / CELL_SIZE;
+            int32 MouseCol = (Input->Mouse.Cursor.X - Left) / CELL_SIZE;
+            
+            if (IsValidCell(Board, MouseRow, MouseCol)) {
+                if (Input->Mouse.LeftClick.IsDown) {
+                    SetCell(Board, MouseRow, MouseCol, true);
+                }
+
+                if (Input->Mouse.RightClick.IsDown) {
+                    SetCell(Board, MouseRow, MouseCol, false);
+                }
+            }
+        }
+
+        DEBUG_VALUE(State->Board.Simulating, bool);
     }
 
     // Debug UI
@@ -804,7 +845,7 @@ void UpdateUI(
     if (Group->Debug) {
         // Handle input
         if (DebugAlpha < 1.0) {
-            double x = (pGameState->dt - 1.8) / 1.1;
+            double x = (State->dt - 1.8) / 1.1;
             DebugAlpha += 0.5 * exp(- x * x);
         }
         else DebugAlpha = 1.0;
@@ -853,24 +894,6 @@ void UpdateUI(
             DEBUG_VALUE(VertexArena[vertex_layout_v3_v2_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_v3_v2_v3_id], memory_arena);
             DEBUG_VALUE(VertexArena[vertex_layout_bones_id], memory_arena);
-            nEntries = DebugInfo->nEntries;
-            for (; i < nEntries; i++) {
-                debug_entry* Entry = &DebugInfo->Entries[i];
-                UIDebugValue(Entry);
-            }
-        }
-
-        if (UIDropdown(Entities)) {
-            game_entity* Entities[MAX_ENTITIES] = {};
-            uint32 nEntities = 0;
-            uint32 Index = 0;
-            while (nEntities < EntityState->Entities.Count && Index < MAX_ENTITIES) {
-                game_entity* Entity = &EntityState->Entities.List[Index++];
-                if (Entity->Active) {
-                    Entities[nEntities++] = Entity;
-                }
-            }
-            DEBUG_POINTER_ARRAY(Entities, EntityState->Entities.Count, game_entity);
             nEntries = DebugInfo->nEntries;
             for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];

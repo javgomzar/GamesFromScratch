@@ -40,34 +40,27 @@ extern "C" GAME_UPDATE(GameUpdate)
     game_input* Input = &Memory->Input;
     game_state* State = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
-    game_entity_state* EntityState = &State->Entities;
     debug_info* DebugInfo = &Memory->DebugInfo;
 {
     TIMED_BLOCK;
 
     float Time = State->Time;
-    camera* ActiveCamera = State->ActiveCamera;
+    camera* ActiveCamera = &State->ActiveCamera;
 
     bool FirstFrame = false;
     if (!Memory->IsInitialized) {
         FirstFrame = true;
 
-        //TestPerformance();
-
         // Initialize entities
-        ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
+        ActiveCamera->Distance = 1.0f;
+        ActiveCamera->Position = V3(0,0,0);
+        ActiveCamera->Angle = 0.0f;
+        ActiveCamera->Pitch = 45.0f;
+        ActiveCamera->Basis = GetCameraBasis(ActiveCamera->Angle, ActiveCamera->Pitch);
+        ActiveCamera->View = GetViewMatrix(ActiveCamera);
         ActiveCamera->OnAir = true;
-        character* Character = AddCharacter(Assets, EntityState, V3(0,0,0), 100);
-        prop* Prop = AddProp(EntityState, Mesh_Sphere_ID, Red, V3(0,0,5), Quaternion(1.0), GetScale(10,1,1));
-        enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));
-        weapon* Sword = AddWeapon(EntityState, Weapon_Sword, White, V3(-5,0,0));
-        weapon* Shield = AddWeapon(EntityState, Weapon_Shield, White, V3(-10,0,0));
-        Equip(Sword, Character);
-        Equip(Shield, Character);
 
-        State->Emitter = AllocateParticleEmitter(&Memory->Permanent, 200);
-        SetParticleEmitterCircle(State->Emitter, V3(0,0,0), 1.0f, V3(0,1,0));
-        State->Emitter->ParticleLifetime = 2.0f;
+        Initialize(&State->Board, INITIAL_BOARD_WIDTH, INITIAL_BOARD_HEIGHT);
 
         Memory->IsInitialized = true;
     }
@@ -79,11 +72,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Magenta, Target_PingPong);
     PushClear(Group, Black, Target_Output);
 
-    UpdateGameState(Assets, State, Input, Group->Width, Group->Height);
+    UpdateGameState(Group, State, Input);
     
     // GameOutputSound(Assets, SoundBuffer, State, Input);
-
-    PushEntities(Group, ActiveCamera, State, Input, Time);
 
     // TestRendering(Group, Input, Time);
 

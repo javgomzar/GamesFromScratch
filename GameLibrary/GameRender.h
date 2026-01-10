@@ -189,10 +189,11 @@ FLAGS(render_flags,
     DEBUG_BONES_FLAG,
 
     SKY_FLAG,
-    WATER_FLAG
+    BOARD_FLAG
 );
 
 struct render_primitive_options {
+    void* BoardData = nullptr;
     render_flags Flags;
     float Thickness = 2.0f;
     transform Transform = IdentityTransform;
@@ -781,7 +782,7 @@ render_primitive_command* PushPrimitiveCommand(
     PrimitiveCommand->Color = Color;
 
     if (nVertices > 0) {
-        if (Options.Heightmap || Options.Flags & WATER_FLAG) {
+        if (Options.Heightmap) {
             PrimitiveCommand->VertexEntry.Count = nVertices;
             PrimitiveCommand->VertexEntry.LayoutID = LayoutID;
         }
@@ -792,7 +793,7 @@ render_primitive_command* PushPrimitiveCommand(
     }
 
     if (nElements > 0) {
-        if (Options.Heightmap || Options.Flags & WATER_FLAG) {
+        if (Options.Heightmap) {
             PrimitiveCommand->ElementEntry.Count = nElements;
         }
         else {
@@ -1774,26 +1775,6 @@ void PushHeightmap(
 ) {
     game_heightmap* Heightmap = GetAsset(Group->Assets, ID);
     PushHeightmap(Group, Heightmap, LeftBottom, S, Order);
-}
-
-void PushWater(render_group* Group, v3 Position, scale S) {
-    uint32 nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
-    uint32 nElements = 4*(HEIGHTMAP_RESOLUTION-1)*(HEIGHTMAP_RESOLUTION-1);
-
-    PushPrimitiveCommand(
-        Group, 
-        render_primitive_patches,
-        White,
-        vertex_layout_v3_v2_id, 
-        nVertices,
-        nElements,
-        SORT_ORDER_MESHES,
-        {
-            .Flags = (render_flags)(DEPTH_TEST_FLAG | WATER_FLAG),
-            .Transform = GetTransform(Position, Quaternion(1.0f), S),
-            .PatchParameter = 4,
-        }
-    );
 }
 
 void GenerateHeightmapVertices(float* Vertices) {
