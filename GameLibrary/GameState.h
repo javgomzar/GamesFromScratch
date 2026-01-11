@@ -636,6 +636,10 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
 
             Cam->Angle -= AngularVelocity * Offset.X;
             Cam->Pitch += AngularVelocity * Offset.Y;
+
+            if (Cam->Pitch > 0.0f) {
+                Cam->Pitch = 0.0f;
+            }
         }
 
         if (Input->Mode == Controller) {
