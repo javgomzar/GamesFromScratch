@@ -189,6 +189,7 @@ FLAGS(render_flags,
     DEBUG_BONES_FLAG,
 
     SKY_FLAG,
+    DEBUG_GRID_FLAG,
     WATER_FLAG
 );
 
@@ -2039,27 +2040,77 @@ void PushDebugFustrum(
 }
 
 void PushDebugGrid(render_group* Group, float Alpha) {
-    const int nVertices = 404;
+    const int nParallels = 10;
+    const int nMeridians = 20;
+    
+    basis Basis = {
+        1, 0, 0,
+        0, 0, 1,
+        0, 1, 0,
+    };
+    
+    color Color = ChangeAlpha(White, 0.2);
+    
+    for (int i = 0; i < nParallels; i++) {
+        int N = 64*(2 - (0.2 * i - 1)*(0.2 * i - 1));
+        float Latitude = (i + 1) * 90 * Degrees / nParallels;
+        v3 Center = V3(0, cosf(Latitude), 0);
+        float Radius = sinf(Latitude);
+        
+        float* Data = PushPrimitiveCommand(
+            Group,
+            render_primitive_line_strip,
+            Color,
+            vertex_layout_v3_id,
+            N+1,
+            0,
+            SORT_ORDER_DEBUG_OVERLAY,
+            { .Flags = (render_flags)(DEPTH_TEST_FLAG | DEBUG_GRID_FLAG) }
+        )->Vertices;
 
-    v3* Vertices = (v3*)PushPrimitiveCommand(
-        Group,
-        render_primitive_line,
-        ChangeAlpha(White, 0.2f),
-        vertex_layout_v3_id,
-        nVertices,
-        0,
-        SORT_ORDER_MESHES,
-        {
-            .Flags = (render_flags)(DEPTH_TEST_FLAG | OVERWRITE_ALPHA_FLAG),
-            .Thickness = 1.0f
+        v3* Vertices = (v3*)Data;
+
+        double dTheta = Tau / N;
+        double Theta = dTheta;
+        Vertices[0] = Center - Radius * Basis.Y;
+        for (int i = 1; i < N; i++) {
+            Vertices[i] = Center + Radius * (sin(Theta) * Basis.X - cos(Theta) * Basis.Y);
+            Theta += dTheta;
         }
-    )->Vertices;
+        Vertices[N] = Center - Radius * Basis.Y;
+    }
 
-    for (int i = 0; i <= 100; i++) {
-        Vertices[4*i  ] = V3(50-i, 0, -50);
-        Vertices[4*i+1] = V3(50-i, 0, 50);
-        Vertices[4*i+2] = V3(-50, 0, 50-i);
-        Vertices[4*i+3] = V3(50, 0, 50-i);
+    v3 Center = V3(0,0,0);
+    for (int i = 0; i < nMeridians; i++) {
+        int N = 2;
+        
+        float Longitude = i * Tau / nMeridians;
+        v3 Normal = V3(cos(Longitude), 0.0, sin(Longitude));
+        Basis.X = V3(-sin(Longitude), 0.0, cos(Longitude));
+        Basis.Y = V3(0,-1,0);
+        Basis.Z = Normal;
+        
+        float* Data = PushPrimitiveCommand(
+            Group,
+            render_primitive_line_strip,
+            Color,
+            vertex_layout_v3_id,
+            N+1,
+            0,
+            SORT_ORDER_DEBUG_OVERLAY,
+            { .Flags = (render_flags)(DEPTH_TEST_FLAG | DEBUG_GRID_FLAG) }
+        )->Vertices;
+
+        v3* Vertices = (v3*)Data;
+
+        double dTheta = 0.5 * Tau / N;
+        double Theta = dTheta;
+        Vertices[0] = Center - Basis.Y;
+        for (int i = 1; i < N; i++) {
+            Vertices[i] = Center + (sin(Theta) * Basis.X - cos(Theta) * Basis.Y);
+            Theta += dTheta;
+        }
+        Vertices[N] = Center - Basis.Y;
     }
 }
 

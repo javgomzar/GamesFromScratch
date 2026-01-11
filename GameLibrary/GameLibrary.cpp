@@ -55,7 +55,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         //TestPerformance();
 
         // Initialize entities
-        ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
+        ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, -90.0f);
         ActiveCamera->OnAir = true;
 
         Memory->IsInitialized = true;

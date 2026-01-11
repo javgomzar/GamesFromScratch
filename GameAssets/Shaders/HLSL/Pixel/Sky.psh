@@ -11,15 +11,23 @@ struct VS_OUT {
     float3 WorldPosition: TEXCOORD;
 };
 
+static const float  Tau = 6.28318530718f; // 2*pi
+
+// Colors
+static const float3 Black = float3(0, 0, 0);
+static const float3 White = float3(1.0, 1.0, 1.0);
+static const float3 Gray = 0.1 * White;
+static const float3 NightColor = float3(0.02, 0.02, 0.04);
+
+// Debug grid
+static const float VERTICAL_RESOLUTION = 10;
+
 float4 main(VS_OUT vout): SV_TARGET {
     float3 V = normalize(vout.WorldPosition);
 
-    float3 Color = float3(0,0,0);
+    float3 Color = Black;
 
     float t = smoothstep(-0.5, 0.5, V.y);
-    float3 NightColor = float3(0.02, 0.02, 0.04);
-    float3 Gray = float3(0.1, 0.1, 0.1);
-
     Color = smoothstep(-0.1, 0.1, V.y) * (t * NightColor + (1 - t) * Gray);
 
     return float4(Color, 1.0);

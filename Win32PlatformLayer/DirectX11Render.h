@@ -49,7 +49,8 @@ ENUM(directX_Vertex_Shader_ID,
     Vertex_Shader_Mesh_ID,
     Vertex_Shader_Bones_ID,
     Vertex_Shader_Heightmap_ID,
-    Vertex_Shader_Sky_ID
+    Vertex_Shader_Sky_ID,
+    Vertex_Shader_Debug_Grid_ID
 );
 
 ENUM(directX_Hull_Shader_ID,
@@ -1256,6 +1257,7 @@ RENDERER_INITIALIZE {
     LoadShader(Vertex_Shader_Barycentric_ID,         "GameAssets\\Shaders\\HLSL\\Vertex\\Barycentric.vsh");
     LoadShader(Vertex_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Heightmap.vsh");
     LoadShader(Vertex_Shader_Sky_ID,                 "GameAssets\\Shaders\\HLSL\\Vertex\\Sky.vsh");
+    LoadShader(Vertex_Shader_Debug_Grid_ID,          "GameAssets\\Shaders\\HLSL\\Vertex\\DebugGrid.vsh");
 
     // Hull
     LoadShader(Hull_Shader_Heightmap_ID,             "GameAssets\\Shaders\\HLSL\\Hull\\Heightmap.hsh");
@@ -1627,6 +1629,9 @@ RENDERER_RENDER {
                     else if (Options.Flags & SKY_FLAG) {
                         VertexShaderID = Vertex_Shader_Sky_ID;
                         PixelShaderID = Pixel_Shader_Sky_ID;
+                    }
+                    else if (Options.Flags & DEBUG_GRID_FLAG) {
+                        VertexShaderID = Vertex_Shader_Debug_Grid_ID;
                     }
                 }
 

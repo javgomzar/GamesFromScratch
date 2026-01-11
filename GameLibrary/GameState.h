@@ -640,6 +640,10 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
             if (Cam->Pitch > 0.0f) {
                 Cam->Pitch = 0.0f;
             }
+
+            if (Cam->Pitch < -90.0f) {
+                Cam->Pitch = -90.0f;
+            }
         }
 
         if (Input->Mode == Controller) {
