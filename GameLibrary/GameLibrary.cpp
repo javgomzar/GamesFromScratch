@@ -58,6 +58,9 @@ extern "C" GAME_UPDATE(GameUpdate)
         ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, -90.0f);
         ActiveCamera->OnAir = true;
 
+        State->Latitude = 45;
+        State->Longitude = 0;
+
         Memory->IsInitialized = true;
     }
 

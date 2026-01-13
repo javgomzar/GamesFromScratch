@@ -596,7 +596,8 @@ struct game_state {
     game_entity_state Entities;
     particle_emitter* Emitter;
     camera* ActiveCamera;
-    character* ControlledCharacter;
+    float Latitude;
+    float Longitude;
     double dt;
     float Time;
     bool Exit;
@@ -692,125 +693,6 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
         Cam->Position += State->dt * Cam->Entity->Velocity;
 
         break;
-    }
-    
-// Characters ______________________________________________________________________________________________________________________________
-    Index = 0;
-    uint32 nCharacters = EntityState->Characters.Count;
-    for (int i = 0; i < EntityState->Characters.Count; i++) {
-        character* Character = &EntityState->Characters.List[i];
-
-        if (Character->Armature.nBones == 0) {
-            Character->Armature = GetAsset(Assets, Mesh_Body_ID)->Armature;
-            Character->Animator.Armature = &Character->Armature;
-            Character->Animator.Animation = GetAsset(Assets, Animation_Idle_ID);
-            Character->Animator.Loop = true;
-            Character->Animator.Active = true;
-            Character->Action.ID = Character_Action_Idle_ID;
-            Character->Action.Loop = true;
-        }
-        
-        Character->Entity->Collided = false;
-
-        Update(&Character->Animator);
-    }
-    
-// Movement _______________________________________________________________________________________________________________________
-    if (State->ControlledCharacter != NULL && State->ControlledCharacter->Entity != NULL) {
-        character* Character = State->ControlledCharacter;
-
-        // Actions
-        character_action_id PastAction = Character->Action.ID;
-        Character->Action = GetCharacterAction(Character, Input);
-        character_action_id NewAction = Character->Action.ID;
-        Character->Animator.Animation = GetAsset(Assets, Character->Action.AnimationID);
-
-        if (PastAction == Character_Action_Jump_ID) {
-            Character->Entity->Collider.Capsule.Segment.Head += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
-            Character->Entity->Collider.Capsule.Segment.Tail += V3(0,Character->Armature.Bones[0].Transform.Translation.Y,0);
-        }
-
-        if (PastAction == Character_Action_Attack_ID && NewAction == Character_Action_Idle_ID) {
-            Character->Entity->Transform.Translation += Character->Entity->Transform.Rotation * V3(0,0,2);
-        }
-
-        Character->Entity->Velocity = V3(0, 0, 0);
-
-        if (Character->Action.ID == Character_Action_Walk_ID || Character->Action.ID == Character_Action_Jump_ID) {
-            v3 Direction = V3(0,0,0);
-            float Speed = 20.0f;
-            if (Input->Mode == Keyboard) {
-                bool Left = Input->Keyboard.A.IsDown;
-                bool Right = Input->Keyboard.D.IsDown;
-                bool Up = Input->Keyboard.W.IsDown;
-                bool Down = Input->Keyboard.S.IsDown;
-                if (Right) { Direction.X += 1.0; }
-                if (Left)  { Direction.X -= 1.0; }
-                if (Up) { Direction.Z += 1.0; }
-                if (Down) { Direction.Z -= 1.0; }
-                Direction = normalize(Direction);
-            }
-            else if (Input->Mode == Controller) {
-                v2 Normalized = normalize(Input->Controller.LeftJoystick);
-                Direction.X = Normalized.X;
-                Direction.Z = Normalized.Y;
-                Speed = 20.0f * modulus(Input->Controller.LeftJoystick);
-            }
-
-            basis HorizontalBasis = GetCameraBasis(State->ActiveCamera->Angle, 0);
-            
-            // Direction is in coordinates relative to camera
-            float Angle = atan2f(-Direction.X, Direction.Z);
-            Direction = Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z;
-            Character->Entity->Velocity = Speed * Direction;
-            Character->Entity->Transform.Rotation = Quaternion(State->ActiveCamera->Angle * Degrees + Angle, V3(0,1,0));
-        }
-        Character->Entity->Transform.Translation += State->dt * Character->Entity->Velocity;
-    }
-
-// Enemies _________________________________________________________________________________________________________________________________
-    Index = 0;
-    uint32 nEnemies = EntityState->Enemies.Count;
-    while (nEnemies > 0) {
-        enemy* pEnemy = &EntityState->Enemies.List[Index++];
-        if (pEnemy->Entity != NULL) nEnemies--;
-        else continue;
-
-        pEnemy->Entity->Transform.Translation.Y = 3.2 + sin(3 * State->Time);
-
-        v3 FacingDirection = V3(-1,0,0);
-        if (State->ControlledCharacter != NULL && State->ControlledCharacter->Entity != NULL) {
-            FacingDirection = State->ControlledCharacter->Entity->Transform.Translation - pEnemy->Entity->Transform.Translation;
-        }
-        float Angle = atan2f(FacingDirection.Z, FacingDirection.X);
-        pEnemy->Entity->Transform.Rotation = Quaternion(Angle, V3(0,1,0));
-    }
-
-// Weapons _________________________________________________________________________________________________________________________________
-    Index = 0;
-    uint32 nWeapons = EntityState->Enemies.Count;
-    while (nEnemies > 0) {
-        weapon* pWeapon = &EntityState->Weapons.List[Index++];
-        if (pWeapon->ParentBone == -1) {
-            pWeapon->Entity->Transform.Rotation = Quaternion(State->Time, V3(0,1,0));
-        }
-
-        pWeapon->Entity->Collided = false;
-
-        if (State->ControlledCharacter != NULL && State->ControlledCharacter->Entity != NULL) {
-            bool Collision = Collide(pWeapon->Entity, State->ControlledCharacter->Entity);
-            if (pWeapon->Entity->Parent == NULL && Collision) {
-                State->ControlledCharacter->Entity->Collided = true;
-                pWeapon->Entity->Collided = true;
-                Equip(pWeapon, State->ControlledCharacter);
-            }
-    
-            if (pWeapon->ParentBone > 0) {
-                bone Bone = State->ControlledCharacter->Armature.Bones[pWeapon->ParentBone];
-                transform Transform = WeaponTransforms[pWeapon->Type];
-                pWeapon->Entity->Transform = Transform * Bone.Transform * State->ControlledCharacter->Entity->Transform;
-            }
-        }
     }
 }
 

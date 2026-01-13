@@ -1160,6 +1160,36 @@ void PushArc(
     }
 }
 
+void PushSkyArc(
+    render_group* Group, 
+    basis Basis, 
+    double Angle, 
+    color Color, 
+    int nVertices = 32,
+    float Order = SORT_ORDER_DEBUG_OVERLAY
+) {
+    float* Data = PushPrimitiveCommand(
+        Group,
+        render_primitive_line_strip,
+        Color,
+        vertex_layout_v3_id,
+        nVertices,
+        0,
+        Order,
+        { .Flags = (render_flags)(DEPTH_TEST_FLAG | DEBUG_GRID_FLAG | OVERWRITE_ALPHA_FLAG) }
+    )->Vertices;
+
+    v3* Vertices = (v3*)Data;
+
+    double dTheta = Angle * Degrees / (nVertices-1);
+    double Theta = dTheta;
+    Vertices[0] = Basis.X;
+    for (int i = 1; i < nVertices; i++) {
+        Vertices[i] = cos(Theta) * Basis.X + sin(Theta) * Basis.Y;
+        Theta += dTheta;
+    }
+}
+
 void PushRect(
     render_group* Group,
     rectangle Rect,
@@ -2039,9 +2069,9 @@ void PushDebugFustrum(
     *Elements++ = 7; *Elements++ = 8;
 }
 
-void PushDebugGrid(render_group* Group, float Alpha) {
+void PushDebugGrid(render_group* Group, float Latitude) {
     const int nParallels = 10;
-    const int nMeridians = 20;
+    const int nMeridians = 10;
     
     basis Basis = {
         1, 0, 0,
@@ -2049,7 +2079,7 @@ void PushDebugGrid(render_group* Group, float Alpha) {
         0, 1, 0,
     };
     
-    color Color = ChangeAlpha(White, 0.2);
+    color Color = ChangeAlpha(White, 0.1);
     
     for (int i = 0; i < nParallels; i++) {
         int N = 64*(2 - (0.2 * i - 1)*(0.2 * i - 1));
@@ -2080,38 +2110,23 @@ void PushDebugGrid(render_group* Group, float Alpha) {
         Vertices[N] = Center - Radius * Basis.Y;
     }
 
-    v3 Center = V3(0,0,0);
     for (int i = 0; i < nMeridians; i++) {
-        int N = 2;
-        
-        float Longitude = i * Tau / nMeridians;
-        v3 Normal = V3(cos(Longitude), 0.0, sin(Longitude));
+        double Longitude = 0.5 * i * Tau / nMeridians;
         Basis.X = V3(-sin(Longitude), 0.0, cos(Longitude));
-        Basis.Y = V3(0,-1,0);
-        Basis.Z = Normal;
+        Basis.Y = V3(0,1,0);
+        Basis.Z = V3(cos(Longitude), 0.0, sin(Longitude));
         
-        float* Data = PushPrimitiveCommand(
-            Group,
-            render_primitive_line_strip,
-            Color,
-            vertex_layout_v3_id,
-            N+1,
-            0,
-            SORT_ORDER_DEBUG_OVERLAY,
-            { .Flags = (render_flags)(DEPTH_TEST_FLAG | DEBUG_GRID_FLAG) }
-        )->Vertices;
-
-        v3* Vertices = (v3*)Data;
-
-        double dTheta = 0.5 * Tau / N;
-        double Theta = dTheta;
-        Vertices[0] = Center - Basis.Y;
-        for (int i = 1; i < N; i++) {
-            Vertices[i] = Center + (sin(Theta) * Basis.X - cos(Theta) * Basis.Y);
-            Theta += dTheta;
-        }
-        Vertices[N] = Center - Basis.Y;
+        PushSkyArc(Group, Basis, 180, Color, 3);
     }
+
+    // Equator
+    int N = 31;
+    
+    Basis.X = V3(1,0,0);
+    Basis.Y = V3(0.0, sin(Latitude*Degrees), -cos(Latitude*Degrees));
+    Basis.Z = V3(0.0, -cos(Latitude*Degrees), -sin(Latitude*Degrees));
+    
+    PushSkyArc(Group, Basis, 180, ChangeAlpha(Green, 0.2));
 }
 
 void PushDebugTarget(render_group* Group, render_group_target Target, bool Attachment = false) {

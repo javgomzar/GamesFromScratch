@@ -750,11 +750,11 @@ void UpdateUI(
     game_input* Input
 ) {
     render_group* Group = &Memory->RenderGroup;
-    game_state* pGameState = (game_state*)Memory->Permanent.Base;
-    game_entity_state* EntityState = &pGameState->Entities;
-    float Time = pGameState->Time;
+    game_state* State = (game_state*)Memory->Permanent.Base;
+    game_entity_state* EntityState = &State->Entities;
+    float Time = State->Time;
     debug_info* DebugInfo = &Memory->DebugInfo;
-    camera* Camera = pGameState->ActiveCamera;
+    camera* Camera = State->ActiveCamera;
 
     BeginContext(Memory, Input);
 
@@ -787,7 +787,7 @@ void UpdateUI(
         }
 
         if (UIButton("Exit")) {
-            pGameState->Exit = true;
+            State->Exit = true;
         }
     }
 
@@ -804,7 +804,7 @@ void UpdateUI(
     if (Group->Debug) {
         // Handle input
         if (DebugAlpha < 1.0) {
-            double x = (pGameState->dt - 1.8) / 1.1;
+            double x = (State->dt - 1.8) / 1.1;
             DebugAlpha += 0.5 * exp(- x * x);
         }
         else DebugAlpha = 1.0;
@@ -813,7 +813,7 @@ void UpdateUI(
         if (Input->Keyboard.B.JustPressed) Group->DebugBones = !Group->DebugBones;
         if (Input->Keyboard.C.JustPressed) Group->DebugColliders = !Group->DebugColliders;
         
-        PushDebugGrid(Group, DebugAlpha);
+        PushDebugGrid(Group, State->Latitude);
 
         // Axes
         v2 XAxis = V2(cos(Camera->Angle * Degrees), sin(Camera->Angle * Degrees) * sin(Camera->Pitch * Degrees));
