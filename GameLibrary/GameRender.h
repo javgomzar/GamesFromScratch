@@ -199,9 +199,7 @@ struct render_primitive_options {
     game_bitmap* Texture = nullptr;
     game_heightmap* Heightmap = nullptr;
     game_font* Font = nullptr;
-    v2 Pen;
     int PatchParameter = 4;
-    float TextSize = 0;
 };
 
 struct render_primitive_command {
@@ -1411,28 +1409,22 @@ void _PushText(
             // }
 
             if (pCharacter->nContours > 0) {
-                render_primitive_options PrimitiveOptions = {};
-                PrimitiveOptions.Font = Font;
-                PrimitiveOptions.TextSize = Size;
-                PrimitiveOptions.PatchParameter = 3;
-                PrimitiveOptions.Pen = Pen;
-                PrimitiveOptions.Thickness = Options.OutlineWidth;
-
                 PushTextEntry(&Group->TextBuffer, Options.Font, c, Pen, Size, Options.Color);
 
                 if (Options.Outline) {
-                    render_primitive_command* Command = PushPrimitiveCommand(
-                        Group,
-                        render_primitive_patches,
-                        Options.OutlineColor,
-                        vertex_layout_v2_v2_id,
-                        3 * pCharacter->nOnCurve,
-                        TEXT_OUTLINE_FLAG,
-                        SORT_ORDER_DEBUG_OVERLAY,
-                        PrimitiveOptions
-                    );
+                    // TODO: Add text outline back
+                    // render_primitive_command* Command = PushPrimitiveCommand(
+                    //     Group,
+                    //     render_primitive_patches,
+                    //     Options.OutlineColor,
+                    //     vertex_layout_v2_v2_id,
+                    //     3 * pCharacter->nOnCurve,
+                    //     TEXT_OUTLINE_FLAG,
+                    //     SORT_ORDER_DEBUG_OVERLAY,
+                    //     PrimitiveOptions
+                    // );
 
-                    Command->VertexEntry.Offset = pCharacter->VertexOffset;
+                    // Command->VertexEntry.Offset = pCharacter->VertexOffset;
                 }
             }
 
