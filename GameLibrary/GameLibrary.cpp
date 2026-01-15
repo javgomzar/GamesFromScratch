@@ -58,8 +58,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, -90.0f);
         ActiveCamera->OnAir = true;
 
-        State->Latitude = 45;
-        State->Longitude = 0;
+        Initialize(State, &Memory->Permanent);
 
         Memory->IsInitialized = true;
     }
@@ -75,19 +74,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     
     // GameOutputSound(Assets, SoundBuffer, State, Input);
 
-    PushEntities(Group, ActiveCamera, State, Input, Time);
-
-    // TestRendering(Group, Input, Time);
-
-    // TestFluid(Group, Input, FirstFrame);
-
-    // TestSky(State->Time, &Group->Light);
-
-    // TestFFT(Group, &Memory->Permanent, Time);
-
-    // Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
-
     PushSky(Group);
+    PushStars(Group, State);
 
     DEBUG_VALUE(State->ActiveCamera->Pitch, float);
     

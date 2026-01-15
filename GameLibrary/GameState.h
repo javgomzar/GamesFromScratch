@@ -13,11 +13,7 @@
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 ENUM(game_entity_type,
-    Entity_Type_Character,
-    Entity_Type_Enemy,
-    Entity_Type_Camera,
-    Entity_Type_Prop,
-    Entity_Type_Weapon
+    Entity_Type_Camera
 );
 
 INTROSPECT
@@ -137,215 +133,15 @@ const int MAX_CAMERAS = 16;
 DefineFreeList(MAX_CAMERAS, camera);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Enemies                                                                                                                                      |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-struct enemy {
-    uint32 ID;
-    game_entity* Entity;
-};
-
-const int MAX_ENEMIES = 32;
-DefineFreeList(MAX_ENEMIES, enemy);
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Weapons                                                                                                                                      |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-ENUM(weapon_type,
-    Weapon_Sword,
-    Weapon_Shield
-);
-
-struct weapon {
-    uint32 ID;
-    weapon_type Type;
-    color Color;
-    game_entity* Entity;
-    int ParentBone;
-};
-
-transform WeaponTransforms[weapon_type_count] = {
-    GetTransform(
-        V3(0.5f,2.0f,0),
-        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
-    ),
-    GetTransform(
-        V3(-0.7f,2.2f,0),
-        Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0))
-    ),
-};
-
-const int MAX_WEAPONS = 32;
-DefineFreeList(MAX_WEAPONS, weapon);
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Character                                                                                                                                    |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-ENUM(character_action_id,
-    Character_Action_Idle_ID,
-    Character_Action_Walk_ID,
-    Character_Action_Jump_ID,
-    Character_Action_Attack_ID
-);
-
-struct character_action {
-    character_action_id ID;
-    game_animation_id AnimationID;
-    bool Loop;
-};
-
-enum character_class {
-    Knight_Class,
-    Rogue_Class,
-    Hunter_Class,
-    Wizard_Class,
-    Bard_Class,
-    Priest_Class
-};
-
-struct character {
-    uint32 ID;
-    armature Armature;
-    game_animator Animator;
-    game_entity* Entity;
-    weapon* LeftHand;
-    weapon* RightHand;
-    character_action Action;
-};
-
-character_action CharacterAction(character_action_id ID) {
-    character_action Result = {};
-    Result.ID = ID;
-
-    switch(ID) {
-        case Character_Action_Idle_ID: {
-            Result.AnimationID = Animation_Idle_ID;
-            Result.Loop = true;
-        } break;
-        case Character_Action_Walk_ID: {
-            Result.AnimationID = Animation_Walk_ID;
-            Result.Loop = true;
-        } break;
-        case Character_Action_Jump_ID: {
-            Result.AnimationID = Animation_Jump_ID;
-        } break;
-        case Character_Action_Attack_ID: {
-            Result.AnimationID = Animation_Attack_ID;
-        } break;
-        default: Assert(false);
-    }
-
-    return Result;
-}
-
-character_action GetCharacterAction(character* Character, game_input* Input) {
-    bool JumpingInput = Input->Mode == Keyboard && Input->Keyboard.Space.JustPressed ||
-                        Input->Mode == Controller && Input->Controller.BButton.JustPressed;
-
-    bool AttackInput = Input->Mode == Keyboard && Input->Keyboard.E.JustPressed ||
-                       Input->Mode == Controller && Input->Controller.XButton.JustPressed;
-
-    bool KeyboardMoving = Input->Keyboard.W.IsDown != Input->Keyboard.S.IsDown ||
-                          Input->Keyboard.A.IsDown != Input->Keyboard.D.IsDown;
-    bool ControllerMoving = fabs(Input->Controller.LeftJoystick.X) > 0.1 || fabs(Input->Controller.LeftJoystick.Y) > 0.1;
-    bool MovingInput = (Input->Mode == Keyboard && KeyboardMoving) ||
-                       (Input->Mode == Controller && ControllerMoving);
-
-    character_action Result = Character->Action;
-    if (AttackInput) {
-        OutputDebugStringA("A");
-    }
-
-    switch(Character->Action.ID) {
-        case Character_Action_Idle_ID: {
-            Character->Animator.Active = true;
-            if (JumpingInput || MovingInput || AttackInput) {
-                Character->Animator.CurrentFrame = 0;
-            }
-
-            if     (JumpingInput) Result = CharacterAction(Character_Action_Jump_ID);
-            else if (MovingInput) Result = CharacterAction(Character_Action_Walk_ID);
-            else if (AttackInput) Result = CharacterAction(Character_Action_Attack_ID);
-        } break;
-        case Character_Action_Walk_ID: {
-            if (JumpingInput) {
-                Result = CharacterAction(Character_Action_Jump_ID);
-                Character->Animator.CurrentFrame = 0;
-            }
-            else if (AttackInput) {
-                Result = CharacterAction(Character_Action_Attack_ID);
-                Character->Animator.CurrentFrame = 0;
-            }
-            else if (!MovingInput) {
-                Character->Animator.Active = false;
-                Result = CharacterAction(Character_Action_Idle_ID);
-            }
-        } break;
-        case Character_Action_Jump_ID: {
-            if (!Character->Animator.Active) {
-                Result = CharacterAction(Character_Action_Idle_ID);
-                Character->Animator.CurrentFrame = 0;
-            }
-        } break;
-        case Character_Action_Attack_ID: {
-            if (!Character->Animator.Active) {
-                Result = CharacterAction(Character_Action_Idle_ID);
-                Character->Animator.CurrentFrame = 0;
-            }
-        } break;
-        default: Raise("Invalid character action");
-    }
-
-    Character->Animator.Loop = Result.Loop;
-    return Result;
-}
-
-void Equip(weapon* Weapon, character* Character) {
-    Weapon->Entity->Parent = Character->Entity;
-    if (Weapon->Type == Weapon_Sword) {
-        Character->RightHand = Weapon;
-        Weapon->ParentBone = 8;
-    }
-    else if (Weapon->Type == Weapon_Shield) {
-        Character->LeftHand = Weapon;
-        Weapon->ParentBone = 2;
-    }
-}
-
-const int MAX_CHARACTERS = 8;
-DefineFreeList(MAX_CHARACTERS, character);
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Props                                                                                                                                        |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-
-struct prop {
-    uint32 ID;
-    game_mesh_id MeshID;
-    game_bitmap_id Texture;
-    color Color;
-    game_entity* Entity;
-};
-
-const int MAX_PROPS = 32;
-DefineFreeList(MAX_PROPS, prop);
-
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Entity List                                                                                                                                  |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-const int32 MAX_ENTITIES = MAX_CAMERAS + MAX_CHARACTERS + MAX_ENEMIES + MAX_PROPS;
+const int MAX_ENTITIES = 16;
 DefineFreeList(MAX_ENTITIES, game_entity);
 
 struct game_entity_state {
     game_entity_list Entities;
     camera_list Cameras;
-    character_list Characters;
-    enemy_list Enemies;
-    prop_list Props;
-    weapon_list Weapons;
 };
 
 game_entity* AddEntity(
@@ -379,22 +175,6 @@ void RemoveEntity(game_entity_state* State, int EntityID) {
     switch(Entity->Type) {
         case Entity_Type_Camera: {
             Remove(&State->Cameras, Entity->Index);
-        } break;
-
-        case Entity_Type_Character: {
-            Remove(&State->Characters, Entity->Index);
-        } break;
-
-        case Entity_Type_Enemy: {
-            Remove(&State->Enemies, Entity->Index);
-        } break;
-
-        case Entity_Type_Prop: {
-            Remove(&State->Props, Entity->Index);
-        } break;
-
-        case Entity_Type_Weapon: {
-            Remove(&State->Weapons, Entity->Index);
         } break;
 
         default: Raise("Invalid entity type.");
@@ -463,130 +243,20 @@ camera* AddCamera(
     return Cam;
 }
 
-character* AddCharacter(game_assets* Assets, game_entity_state* State, v3 Position, int MaxHP) {
-    Assert(State->Characters.Count < MAX_CHARACTERS);
-    // If any ID is free, use it
-    int CharacterID = -1;
-    if (State->Characters.nFreeIDs > 0) {
-        CharacterID = State->Characters.FreeIDs[State->Characters.nFreeIDs - 1];
-        State->Characters.FreeIDs[State->Characters.nFreeIDs-- - 1] = -1;
-        State->Characters.Count++;
-    }
-    else CharacterID = State->Characters.Count++;
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
+// | Stars                                                                                                                                        |
+// +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-    character* pCharacter = &State->Characters.List[CharacterID];
-    pCharacter->Animator.Active = false;
-    pCharacter->Animator.Animation = GetAsset(Assets, Animation_Walk_ID);
-    game_mesh* Mesh = GetAsset(Assets, Mesh_Body_ID);
-    pCharacter->Armature = Mesh->Armature;
-    pCharacter->Animator.Armature = &pCharacter->Armature;
+struct star {
+    char Name[64];
+    int Index;
+    float Hue;
+    float Intensity;
+    float RightAscension;
+    float Declination;
+};
 
-    char NameBuffer[32];
-    sprintf_s(NameBuffer, "Character %d", CharacterID);
-
-    quaternion Rotation = Quaternion(1.5f * Pi, V3(0,1,0));
-    pCharacter->Entity = AddEntity(
-        State, 
-        NameBuffer, 
-        Entity_Type_Character,
-        CapsuleCollider(V3(0,0.6f,0), V3(0,3.0f,0), 0.8f),
-        Position, 
-        Rotation, 
-        GetScale()
-    );
-    pCharacter->Entity->Index = CharacterID;
-
-    return pCharacter;
-}
-
-enemy* AddEnemy(game_entity_state* State, v3 Position) {
-    Assert(State->Characters.Count < MAX_ENEMIES);
-    // If any ID is free, use it
-    int EnemyID = -1;
-    if (State->Enemies.nFreeIDs > 0) {
-        EnemyID = State->Enemies.FreeIDs[State->Enemies.nFreeIDs - 1];
-        State->Enemies.FreeIDs[State->Enemies.nFreeIDs-- - 1] = -1;
-        State->Enemies.Count++;
-    }
-    else EnemyID = State->Enemies.Count++;
-
-    enemy* pEnemy = &State->Enemies.List[EnemyID];
-    char NameBuffer[32];
-    sprintf_s(NameBuffer, "Enemy %d", EnemyID);
-
-    quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
-    pEnemy->Entity = AddEntity(State, NameBuffer, Entity_Type_Enemy, SphereCollider(V3(0,0,0), 1.5f), Position, Rotation, GetScale());
-    pEnemy->Entity->Index = EnemyID;
-    return pEnemy;
-}
-
-prop* AddProp(
-    game_entity_state* State, 
-    game_mesh_id MeshID,
-    color Color = White,
-    v3 Position = V3(0,0,0),
-    quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
-    scale Scale = GetScale()
-) {
-    Assert(State->Props.Count < MAX_PROPS);
-    // If any ID is free, use it
-    int PropID = -1;
-    if (State->Props.nFreeIDs > 0) {
-        PropID = State->Props.FreeIDs[State->Props.nFreeIDs - 1];
-        State->Props.FreeIDs[State->Props.nFreeIDs-- - 1] = -1;
-        State->Props.Count++;
-    }
-    else PropID = State->Props.Count++;
-
-    prop* pProp = &State->Props.List[PropID];
-    pProp->MeshID = MeshID;
-    pProp->Color = Color;
-
-    char NameBuffer[32];
-    sprintf_s(NameBuffer, "Prop %d", PropID);
-
-    pProp->Entity = AddEntity(State, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, Scale);
-    pProp->Entity->Index = PropID;
-    return pProp;
-}
-
-weapon* AddWeapon(   
-    game_entity_state* State,
-    weapon_type Type,
-    color Color = White,
-    v3 Position = V3(0,0,0),
-    quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0),
-    scale Scale = GetScale()
-) {
-    Assert(State->Weapons.Count < MAX_PROPS);
-    // If any ID is free, use it
-    weapon* pWeapon = Insert(&State->Weapons);
-    pWeapon->Type = Type;
-    pWeapon->ParentBone = -1;
-    pWeapon->Color = Color;
-
-    char NameBuffer[32];
-    sprintf_s(NameBuffer, "Weapon %d", pWeapon->ID);
-
-    collider Collider;
-    switch (pWeapon->Type) {
-        case Weapon_Sword: Collider = CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.5f); break;
-        case Weapon_Shield: Collider = CapsuleCollider(V3(0,-0.3,0), V3(0,0.7,0), 1.0f); break;
-        default: Assert(false);
-    }
-
-    pWeapon->Entity = AddEntity(
-        State, 
-        NameBuffer, 
-        Entity_Type_Weapon,
-        Collider,
-        Position, 
-        Rotation, 
-        Scale
-    );
-    pWeapon->Entity->Index = pWeapon->ID;
-    return pWeapon;
-}
+const int MAX_STARS = 1024;
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Game state                                                                                                                                   |
@@ -596,12 +266,40 @@ struct game_state {
     game_entity_state Entities;
     particle_emitter* Emitter;
     camera* ActiveCamera;
+    int nStars;
+    star Stars[MAX_STARS];
+    float* StarsBuffer;
     float Latitude;
     float Longitude;
     double dt;
     float Time;
     bool Exit;
+    bool Debug;
 };
+
+void Initialize(game_state* State, memory_arena* Arena) {
+    State->Latitude = 45;
+    State->Longitude = 0;
+
+    // Initialize stars
+    // State->nStars = 1;
+    // star* Star = State->Stars;
+    // Star->Index = 0;
+    // sprintf_s(Star->Name, "Star %d", 0);
+    // Star->RightAscension = 0;
+    // Star->Declination = 45;
+
+    State->nStars = 700;
+    for (int i = 0; i < State->nStars; i++) {
+        star* Star = &State->Stars[i];
+        Star->Index = i;
+        sprintf_s(Star->Name, "Star %d", i);
+        Star->RightAscension = RandFloat(0.0f, 24.0f);
+        Star->Declination = RandFloat(0.0f, 90.0f);
+    }
+
+    State->StarsBuffer = PushArray(Arena, MAX_STARS * 7, float);
+}
 
 void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, float Width, float Height) {
     game_entity_state* EntityState = &State->Entities;
@@ -638,12 +336,14 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
             Cam->Angle -= AngularVelocity * Offset.X;
             Cam->Pitch += AngularVelocity * Offset.Y;
 
-            if (Cam->Pitch > 0.0f) {
-                Cam->Pitch = 0.0f;
-            }
-
-            if (Cam->Pitch < -90.0f) {
-                Cam->Pitch = -90.0f;
+            if (!State->Debug) {
+                if (Cam->Pitch > 0.0f) {
+                    Cam->Pitch = 0.0f;
+                }
+    
+                if (Cam->Pitch < -90.0f) {
+                    Cam->Pitch = -90.0f;
+                }
             }
         }
 
@@ -696,68 +396,35 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
     }
 }
 
-void PushEntities(render_group* Group, camera* Camera, game_state* GameState, game_input* Input, float Time) {
-    game_entity_state* State = &GameState->Entities;
-    game_assets* Assets = Group->Assets;
-
-    basis Basis = Camera->Basis;
-    ray Ray = MouseRay(Group->Width, Group->Height, Camera->Position + Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
-    int i = 0;
-    int nEntities = State->Entities.Count;
-    while (nEntities > 0 && i < MAX_ENTITIES) {
-        game_entity* Entity = &State->Entities.List[i++];
-
-        if (Entity->Active) nEntities--;
-        else continue;
-
-        collider Collider = Entity->Transform * Entity->Collider;
-        Entity->Hovered = Raycast(Ray, Collider);
-        bool Outline = Entity->Hovered;
-        switch(Entity->Type) {
-            case Entity_Type_Character: {
-                character* pCharacter = &State->Characters.List[Entity->Index];
-                game_mesh* Mesh = GetAsset(Assets, Mesh_Body_ID);
-                PushMesh(
-                    Group,
-                    Mesh_Body_ID,
-                    .Armature = &pCharacter->Armature,
-                    .Transform = Entity->Transform,
-                    .Outline = Outline
-                );
-            } break;
-    
-            case Entity_Type_Enemy: {
-                enemy* pEnemy = &State->Enemies.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    Mesh_Enemy_ID,
-                    .TextureID = Bitmap_Enemy_ID,
-                    .Transform = Entity->Transform,
-                    .Outline = Outline
-                );
-            } break;
-
-            case Entity_Type_Prop: {
-                prop* pProp = &State->Props.List[Entity->Index];
-                PushMesh(
-                    Group,
-                    pProp->MeshID,
-                    .Color = pProp->Color,
-                    .Transform = Entity->Transform
-                );
-            } break;
-
-            case Entity_Type_Weapon: {
-                weapon* pWeapon = &State->Weapons.List[Entity->Index];
-                game_mesh_id MeshID = pWeapon->Type == Weapon_Sword ? Mesh_Sword_ID : Mesh_Shield_ID;
-
-                PushMesh(Group, MeshID, .Transform = Entity->Transform);
-            } break;
+void PushStars(render_group* Group, game_state* State) {
+    float* Vertices = (float*)PushPrimitiveCommand(
+        Group, 
+        render_primitive_triangle, 
+        White, 
+        vertex_layout_v2_v2_id,
+        6,
+        0,
+        SORT_ORDER_DEBUG_OVERLAY,
+        {
+            .Flags = STAR_FLAG
         }
+    )->Vertices;
 
-        if (Group->Debug && Group->DebugColliders && Entity->Type != Entity_Type_Camera) {
-            PushCollider(Group, Entity->Collider, Entity->Transform, Entity->Collided ? Red : Yellow);
-        }
+    *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = -1.0f;
+    *Vertices++ =  1.0f; *Vertices++ = -1.0f; *Vertices++ =  1.0f; *Vertices++ = -1.0f;
+    *Vertices++ = -1.0f; *Vertices++ =  1.0f; *Vertices++ = -1.0f; *Vertices++ =  1.0f;
+    *Vertices++ =  1.0f; *Vertices++ = -1.0f; *Vertices++ =  1.0f; *Vertices++ = -1.0f;
+    *Vertices++ = -1.0f; *Vertices++ =  1.0f; *Vertices++ = -1.0f; *Vertices++ =  1.0f;
+    *Vertices++ =  1.0f; *Vertices++ =  1.0f; *Vertices++ =  1.0f; *Vertices++ =  1.0f;
+
+    for (int i = 0; i < State->nStars; i++) {
+        State->StarsBuffer[7*i]   = State->Stars[i].RightAscension;
+        State->StarsBuffer[7*i+1] = State->Stars[i].Declination;
+        State->StarsBuffer[7*i+2] = 100.0f; // Size
+        State->StarsBuffer[7*i+3] = 1.0f; // Color R
+        State->StarsBuffer[7*i+4] = 1.0f; // Color G
+        State->StarsBuffer[7*i+5] = 1.0f; // Color B
+        State->StarsBuffer[7*i+6] = 1.0f; // Color A
     }
 }
 

@@ -50,7 +50,8 @@ ENUM(directX_Vertex_Shader_ID,
     Vertex_Shader_Bones_ID,
     Vertex_Shader_Heightmap_ID,
     Vertex_Shader_Sky_ID,
-    Vertex_Shader_Debug_Grid_ID
+    Vertex_Shader_Debug_Grid_ID,
+    Vertex_Shader_Astronomy_ID
 );
 
 ENUM(directX_Hull_Shader_ID,
@@ -63,7 +64,8 @@ ENUM(directX_Domain_Shader_ID,
 );
 
 ENUM(directX_Geometry_Shader_ID,
-    Geometry_Shader_Normal_ID
+    Geometry_Shader_Normal_ID,
+    Geometry_Shader_Rect_ID
 );
 
 ENUM(directX_Pixel_Shader_ID,
@@ -76,7 +78,8 @@ ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Bezier_Interior_ID,
     Pixel_Shader_Heightmap_ID,
     Pixel_Shader_Sky_ID,
-    Pixel_Shader_Water_ID
+    Pixel_Shader_Water_ID,
+    Pixel_Shader_Star_ID
 );
 
 ENUM(directX_Compute_Shader_ID,
@@ -621,6 +624,9 @@ void ParseVertexLayout(directX_Vertex_Shader* Shader) {
                     if (FAILED(Result)) {
                         Log(Error, "DirectX: Instanced vertex layout creation for font rendering failed.");
                     }
+                }
+                else if (Shader->ID == Vertex_Shader_Astronomy_ID) {
+                    // Uses the font instanced layout
                 }
                 else {
                     vertex_layout_id LayoutID;
@@ -1258,6 +1264,7 @@ RENDERER_INITIALIZE {
     LoadShader(Vertex_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Heightmap.vsh");
     LoadShader(Vertex_Shader_Sky_ID,                 "GameAssets\\Shaders\\HLSL\\Vertex\\Sky.vsh");
     LoadShader(Vertex_Shader_Debug_Grid_ID,          "GameAssets\\Shaders\\HLSL\\Vertex\\DebugGrid.vsh");
+    LoadShader(Vertex_Shader_Astronomy_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Astronomy.vsh");
 
     // Hull
     LoadShader(Hull_Shader_Heightmap_ID,             "GameAssets\\Shaders\\HLSL\\Hull\\Heightmap.hsh");
@@ -1268,6 +1275,7 @@ RENDERER_INITIALIZE {
 
     // Geometry
     LoadShader(Geometry_Shader_Normal_ID,            "GameAssets\\Shaders\\HLSL\\Geometry\\Normal.gsh");
+    LoadShader(Geometry_Shader_Rect_ID,              "GameAssets\\Shaders\\HLSL\\Geometry\\Rect.gsh");
     
     // Pixel
     LoadShader(Pixel_Shader_Antialiasing_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\Antialiasing.psh");
@@ -1279,7 +1287,8 @@ RENDERER_INITIALIZE {
     LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
     LoadShader(Pixel_Shader_Heightmap_ID,            "GameAssets\\Shaders\\HLSL\\Pixel\\Heightmap.psh");
     LoadShader(Pixel_Shader_Sky_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Sky.psh");
-    LoadShader(Pixel_Shader_Water_ID,               "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
+    LoadShader(Pixel_Shader_Water_ID,                "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
+    LoadShader(Pixel_Shader_Star_ID,                 "GameAssets\\Shaders\\HLSL\\Pixel\\Star.psh");
 
     // Compute
     LoadShader(Compute_Shader_Outline_Init_ID,       "GameAssets\\Shaders\\HLSL\\Compute\\OutlineInit.compute");
@@ -1630,8 +1639,12 @@ RENDERER_RENDER {
                         VertexShaderID = Vertex_Shader_Sky_ID;
                         PixelShaderID = Pixel_Shader_Sky_ID;
                     }
-                    else if (Options.Flags & DEBUG_GRID_FLAG) {
+                    else if (Options.Flags & SKY_DEPTH_FLAG) {
                         VertexShaderID = Vertex_Shader_Debug_Grid_ID;
+                    }
+                    else if (Options.Flags & STAR_FLAG) {
+                        VertexShaderID = Vertex_Shader_Astronomy_ID;
+                        PixelShaderID = Pixel_Shader_Star_ID;
                     }
                 }
 
@@ -1663,6 +1676,9 @@ RENDERER_RENDER {
                 if (ElementEntry.Count > 0) {
                     DirectX.DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
                     DirectX.DeviceContext->DrawIndexed(ElementEntry.Count, Offset, 0);
+                }
+                else if (Options.Flags & STAR_FLAG) {
+                    // DO INSTANCED RENDERING OF STARS
                 }
                 else {
                     DirectX.DeviceContext->Draw(VertexEntry.Count, Offset);

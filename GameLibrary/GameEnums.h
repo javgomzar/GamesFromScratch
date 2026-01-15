@@ -32,8 +32,6 @@ enum debug_type {
     Debug_Type_game_heightmap_id,
     Debug_Type_game_animation_id,
     Debug_Type_game_entity_type,
-    Debug_Type_weapon_type,
-    Debug_Type_character_action_id,
     Debug_Type_render_command_type,
     Debug_Type_render_group_target,
     Debug_Type_render_primitive,
@@ -52,12 +50,13 @@ enum render_flags {
     TEXT_OUTLINE_FLAG = 1 << 3,
     DEBUG_BONES_FLAG = 1 << 4,
     SKY_FLAG = 1 << 5,
-    DEBUG_GRID_FLAG = 1 << 6,
-    WATER_FLAG = 1 << 7,
+    SKY_DEPTH_FLAG = 1 << 6,
+    STAR_FLAG = 1 << 7,
+    WATER_FLAG = 1 << 8,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 38; }
-bool IsFlagType(debug_type Type) { return Type > 37 && Type < 39; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 36; }
+bool IsFlagType(debug_type Type) { return Type > 35 && Type < 37; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -65,7 +64,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 90;
+const int ENUM_VALUES_SIZE = 78;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_vertex_type, "vertex_type_empty", 0},
     {Debug_Type_vertex_type, "vertex_type_float", 1},
@@ -107,20 +106,8 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_animation_id, "Animation_Jump_ID", 2},
     {Debug_Type_game_animation_id, "Animation_Attack_ID", 3},
     {Debug_Type_game_animation_id, "game_animation_id_count", 4},
-    {Debug_Type_game_entity_type, "Entity_Type_Character", 0},
-    {Debug_Type_game_entity_type, "Entity_Type_Enemy", 1},
-    {Debug_Type_game_entity_type, "Entity_Type_Camera", 2},
-    {Debug_Type_game_entity_type, "Entity_Type_Prop", 3},
-    {Debug_Type_game_entity_type, "Entity_Type_Weapon", 4},
-    {Debug_Type_game_entity_type, "game_entity_type_count", 5},
-    {Debug_Type_weapon_type, "Weapon_Sword", 0},
-    {Debug_Type_weapon_type, "Weapon_Shield", 1},
-    {Debug_Type_weapon_type, "weapon_type_count", 2},
-    {Debug_Type_character_action_id, "Character_Action_Idle_ID", 0},
-    {Debug_Type_character_action_id, "Character_Action_Walk_ID", 1},
-    {Debug_Type_character_action_id, "Character_Action_Jump_ID", 2},
-    {Debug_Type_character_action_id, "Character_Action_Attack_ID", 3},
-    {Debug_Type_character_action_id, "character_action_id_count", 4},
+    {Debug_Type_game_entity_type, "Entity_Type_Camera", 0},
+    {Debug_Type_game_entity_type, "game_entity_type_count", 1},
     {Debug_Type_render_command_type, "render_clear", 0},
     {Debug_Type_render_command_type, "render_draw_primitive", 1},
     {Debug_Type_render_command_type, "render_text", 2},
@@ -159,7 +146,7 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_compute_type, "compute_type_count", 5},
 };
 
-const int FLAG_VALUES_SIZE = 8;
+const int FLAG_VALUES_SIZE = 9;
 debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {
     {Debug_Type_render_flags, "DEPTH_TEST_FLAG", 1},
     {Debug_Type_render_flags, "STENCIL_TEST_FLAG", 2},
@@ -167,8 +154,9 @@ debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {
     {Debug_Type_render_flags, "TEXT_OUTLINE_FLAG", 8},
     {Debug_Type_render_flags, "DEBUG_BONES_FLAG", 16},
     {Debug_Type_render_flags, "SKY_FLAG", 32},
-    {Debug_Type_render_flags, "DEBUG_GRID_FLAG", 64},
-    {Debug_Type_render_flags, "WATER_FLAG", 128},
+    {Debug_Type_render_flags, "SKY_DEPTH_FLAG", 64},
+    {Debug_Type_render_flags, "STAR_FLAG", 128},
+    {Debug_Type_render_flags, "WATER_FLAG", 256},
 };
 
 #endif

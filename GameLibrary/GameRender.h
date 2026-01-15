@@ -189,7 +189,8 @@ FLAGS(render_flags,
     DEBUG_BONES_FLAG,
 
     SKY_FLAG,
-    DEBUG_GRID_FLAG,
+    SKY_DEPTH_FLAG,
+    STAR_FLAG,
     WATER_FLAG
 );
 
@@ -1176,7 +1177,7 @@ void PushSkyArc(
         nVertices,
         0,
         Order,
-        { .Flags = (render_flags)(DEPTH_TEST_FLAG | DEBUG_GRID_FLAG | OVERWRITE_ALPHA_FLAG) }
+        { .Flags = (render_flags)(DEPTH_TEST_FLAG | SKY_DEPTH_FLAG | OVERWRITE_ALPHA_FLAG) }
     )->Vertices;
 
     v3* Vertices = (v3*)Data;
@@ -2071,7 +2072,7 @@ void PushDebugFustrum(
 
 void PushDebugGrid(render_group* Group, float Latitude) {
     const int nParallels = 10;
-    const int nMeridians = 10;
+    const int nMeridians = 12;
     
     basis Basis = {
         1, 0, 0,
@@ -2095,7 +2096,7 @@ void PushDebugGrid(render_group* Group, float Latitude) {
             N+1,
             0,
             SORT_ORDER_DEBUG_OVERLAY,
-            { .Flags = (render_flags)(DEPTH_TEST_FLAG | DEBUG_GRID_FLAG) }
+            { .Flags = (render_flags)(DEPTH_TEST_FLAG | SKY_DEPTH_FLAG) }
         )->Vertices;
 
         v3* Vertices = (v3*)Data;

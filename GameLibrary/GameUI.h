@@ -799,6 +799,7 @@ void UpdateUI(
     ) {
         Group->Debug = !Group->Debug;
         if (!Group->Debug) DebugAlpha = 0.0;
+        State->Debug = Group->Debug;
     }
     
     if (Group->Debug) {

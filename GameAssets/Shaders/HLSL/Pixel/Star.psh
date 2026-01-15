@@ -1,0 +1,13 @@
+Texture2D Texture: register(t0);
+SamplerState Sampler: register(s0);
+
+struct VertexOut {
+    float4 Position: SV_POSITION;
+    float2 UV: TEXCOORD0;
+};
+
+float4 main(VertexOut vout): SV_TARGET {
+    float r = sqrt(dot(vout.UV, vout.UV));
+    float3 Color = float3(1, 1, 1);
+    return float4(Color, 1.0 - r);
+}

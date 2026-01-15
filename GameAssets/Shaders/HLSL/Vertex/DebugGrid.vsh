@@ -22,7 +22,7 @@ VS_OUT main(VS_IN vin) {
     float4x4 SkyView = View;
     SkyView[3] = float4(0.0f, 0.0f, 0.0f, 1.0f);
     
-    vout.Position = mul(mul(float4(vin.Position, 1.0f), SkyView), Projection);
+    vout.Position = mul(mul(float4(vin.Position, 0.0f), SkyView), Projection);
     vout.Position.z = vout.Position.w * 0.9999f;
     vout.WorldPosition = vin.Position;
 
