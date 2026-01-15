@@ -623,9 +623,9 @@ void ParseVertexLayout(directX_Vertex_Shader* Shader) {
                 }
                 else {
                     vertex_layout_id LayoutID;
-                    bool Found = FindCompatibleVertexLayout(DirectX.Assets->VertexLayout, ShaderLayout, &LayoutID);
+                    bool Found = FindCompatibleVertexLayout(ShaderLayout, &LayoutID);
                     if (Found && DirectX.VertexLayout[LayoutID] == NULL) {
-                        CreateInputLayout(DirectX.Assets->VertexLayout[LayoutID], Shader->ID);
+                        CreateInputLayout(VertexLayouts[LayoutID], Shader->ID);
                     }
                     if (!Found) {
                         char ErrorBuffer[128];
@@ -1569,20 +1569,7 @@ RENDERER_RENDER {
                 directX_Vertex_Shader_ID VertexShaderID = Vertex_Shader_Screen_ID;
                 directX_Pixel_Shader_ID PixelShaderID = Pixel_Shader_Single_Color_ID;
                 uint32 Offset = 0;
-                if (Options.Font) {
-                    LayoutID = vertex_layout_v2_v2_id;
-                    VertexShaderID = Vertex_Shader_Barycentric_ID;
-                    if (Options.Flags & TEXT_OUTLINE_FLAG)  {
-                        // TODO: Add text outline with patches
-                    }
-
-                    VertexBuffer = &DirectX.FontBuffer[Options.Font->ID].VertexBuffer;
-                    IndexBuffer = DirectX.FontBuffer[Options.Font->ID].IndexBuffer;
-                    Offset = ElementEntry.Offset;
-
-                    SetTextBuffer(Options.Pen, Options.TextSize);
-                }
-                else if (Options.Heightmap) {
+                if (Options.Heightmap) {
                     LayoutID = vertex_layout_v2_id;
                     VertexShaderID = Vertex_Shader_Heightmap_ID;
                     PixelShaderID = Pixel_Shader_Heightmap_ID;
@@ -1619,7 +1606,7 @@ RENDERER_RENDER {
                         Offset = ElementEntry.Offset;
                     }
                     VertexShaderID = Options.Flags & DEPTH_TEST_FLAG ? Vertex_Shader_Perspective_ID : Vertex_Shader_Screen_ID;
-                        
+                    
                     if (Options.Texture) {
                         VertexShaderID = Vertex_Shader_Screen_Texture_ID;
                         PixelShaderID = Pixel_Shader_Texture_ID;
@@ -1636,7 +1623,7 @@ RENDERER_RENDER {
                 DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[VertexShaderID].Shader, NULL, 0);
                 DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[PixelShaderID].Shader, NULL, 0);
             
-                uint32 Stride = Group->Assets->VertexLayout[LayoutID].Stride;
+                uint32 Stride = VertexLayouts[LayoutID].Stride;
                 uint32 VertexOffset = 0;
                 DirectX.DeviceContext->IASetVertexBuffers(0, 1, VertexBuffer, &Stride, &VertexOffset);
                 DirectX.DeviceContext->IASetPrimitiveTopology(GetRenderPrimitive(PrimitiveCommand.Primitive));
@@ -1710,7 +1697,7 @@ RENDERER_RENDER {
                 DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[VertexShaderID].Shader, NULL, 0);
                 DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[PixelShaderID].Shader, NULL, 0);
             
-                uint32 Stride = Group->Assets->VertexLayout[LayoutID].Stride;
+                uint32 Stride = VertexLayouts[LayoutID].Stride;
 
                 uint32 VertexOffset = 0;
                 if (Mesh->nFaces > 0) {
@@ -1840,7 +1827,7 @@ RENDERER_RENDER {
                 SetOutlineBuffer(ShaderCommand.Width, ShaderCommand.Level);
 
                 vertex_layout_id LayoutID = vertex_layout_v2_v2_id;
-                uint32 Stride = Group->Assets->VertexLayout[LayoutID].Stride;
+                uint32 Stride = VertexLayouts[LayoutID].Stride;
                 uint32 VertexOffset = 0;
                 DirectX.DeviceContext->IASetVertexBuffers(0, 1, &DirectX.VertexBuffer[LayoutID], &Stride, &VertexOffset);
                 DirectX.DeviceContext->Draw(ShaderCommand.VertexEntry.Count, ShaderCommand.VertexEntry.Offset);
@@ -1897,7 +1884,7 @@ RENDERER_RENDER {
                 DirectX.DeviceContext->PSSetShaderResources(0, 1, &Source->ShaderTexture);
                 DirectX.DeviceContext->PSSetSamplers(0, 1, &PixelShader->Sampler);
 
-                vertex_layout Layout = Group->Assets->VertexLayout[vertex_layout_v2_v2_id];
+                vertex_layout Layout = VertexLayouts[vertex_layout_v2_v2_id];
                 uint32 Offset = 0;
                 DirectX.DeviceContext->IASetVertexBuffers(
                     0, 

@@ -33,11 +33,7 @@ struct vertex_buffer {
 };
 
 /* Initializes several vertex buffers and element buffers. Returns total memory used.*/
-inline memory_index InitializeVertexBuffer(
-    memory_arena* Arena,
-    vertex_buffer* Buffer,
-    vertex_layout* VertexLayouts
-) {
+inline memory_index InitializeVertexBuffer(vertex_buffer* Buffer, memory_arena* Arena) {
     memory_index TotalSize = 0;
     memory_index Size = 0;
 
@@ -198,7 +194,6 @@ struct render_primitive_options {
     transform Transform = IdentityTransform;
     game_bitmap* Texture = nullptr;
     game_heightmap* Heightmap = nullptr;
-    game_font* Font = nullptr;
     int PatchParameter = 4;
 };
 
@@ -375,7 +370,7 @@ void InitializeRenderGroup(
     Group->Light = Light(V3(-0.5, -1, 1), White);
 
     // Vertex & element buffers
-    InitializeVertexBuffer(Arena, &Group->VertexBuffer, Assets->VertexLayout);
+    InitializeVertexBuffer(&Group->VertexBuffer, Arena);
 
     // Text buffer
     InitializeTextBuffer(Arena, &Group->TextBuffer);

@@ -25,8 +25,6 @@ enum debug_type {
     Debug_Type_color,
     Debug_Type_collider,
     Debug_Type_memory_arena,
-    Debug_Type_vertex_type,
-    Debug_Type_vertex_layout_id,
     Debug_Type_game_asset_type,
     Debug_Type_game_text_id,
     Debug_Type_game_heightmap_id,
@@ -55,8 +53,8 @@ enum render_flags {
     WATER_FLAG = 1 << 6,
 };
 
-bool IsEnumType(debug_type Type) { return Type > 22 && Type < 38; }
-bool IsFlagType(debug_type Type) { return Type > 37 && Type < 39; }
+bool IsEnumType(debug_type Type) { return Type > 22 && Type < 36; }
+bool IsFlagType(debug_type Type) { return Type > 35 && Type < 37; }
 
 struct debug_enum_value {
     debug_type EnumType;
@@ -64,30 +62,8 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 90;
+const int ENUM_VALUES_SIZE = 68;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
-    {Debug_Type_vertex_type, "vertex_type_empty", 0},
-    {Debug_Type_vertex_type, "vertex_type_float", 1},
-    {Debug_Type_vertex_type, "vertex_type_v2", 2},
-    {Debug_Type_vertex_type, "vertex_type_v3", 3},
-    {Debug_Type_vertex_type, "vertex_type_v4", 4},
-    {Debug_Type_vertex_type, "vertex_type_int", 5},
-    {Debug_Type_vertex_type, "vertex_type_iv2", 6},
-    {Debug_Type_vertex_type, "vertex_type_iv3", 7},
-    {Debug_Type_vertex_type, "vertex_type_iv4", 8},
-    {Debug_Type_vertex_type, "vertex_type_mat2", 9},
-    {Debug_Type_vertex_type, "vertex_type_mat3", 10},
-    {Debug_Type_vertex_type, "vertex_type_mat4", 11},
-    {Debug_Type_vertex_type, "vertex_type_count", 12},
-    {Debug_Type_vertex_layout_id, "vertex_layout_v2_id", 0},
-    {Debug_Type_vertex_layout_id, "vertex_layout_v2_v2_id", 1},
-    {Debug_Type_vertex_layout_id, "vertex_layout_v3_id", 2},
-    {Debug_Type_vertex_layout_id, "vertex_layout_v3_v2_id", 3},
-    {Debug_Type_vertex_layout_id, "vertex_layout_v3_v2_v3_id", 4},
-    {Debug_Type_vertex_layout_id, "vertex_layout_v3_v4_id", 5},
-    {Debug_Type_vertex_layout_id, "vertex_layout_v4_id", 6},
-    {Debug_Type_vertex_layout_id, "vertex_layout_bones_id", 7},
-    {Debug_Type_vertex_layout_id, "vertex_layout_id_count", 8},
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
     {Debug_Type_game_asset_type, "Asset_Type_Heightmap", 2},
