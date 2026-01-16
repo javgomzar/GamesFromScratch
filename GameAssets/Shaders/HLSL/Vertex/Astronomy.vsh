@@ -36,7 +36,7 @@ VS_OUT main(VS_IN vin) {
     
     float3 Position = float3(cos(RightAscension) * cos(Declination), sin(Declination), sin(RightAscension) * cos(Declination));
     float4 SkyPosition = mul(mul(float4(Position, 1.0f), SkyView), Projection);
-    SkyPosition.z = vout.Position.w * 0.99f;
+    SkyPosition.z = SkyPosition.w * 0.99f;
 
     vout.Position = SkyPosition + Size * float4(vin.Position, 0.0, 0.0);
 
