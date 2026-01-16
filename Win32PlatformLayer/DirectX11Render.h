@@ -35,6 +35,11 @@ struct directX_font_buffer {
     ID3D11Buffer* InstanceBuffer;
 };
 
+ENUM(instanced_layout_id,
+    instanced_layout_text_id,
+    instanced_layout_test_id
+);
+
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Shaders                                                                                                                                                          |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -49,7 +54,8 @@ ENUM(directX_Vertex_Shader_ID,
     Vertex_Shader_Mesh_ID,
     Vertex_Shader_Bones_ID,
     Vertex_Shader_Heightmap_ID,
-    Vertex_Shader_Sky_ID
+    Vertex_Shader_Sky_ID,
+    Vertex_Shader_Test_ID
 );
 
 ENUM(directX_Hull_Shader_ID,
@@ -175,7 +181,7 @@ struct directX {
     ID3D11RasterizerState* RasterizerState;
     D3D11_VIEWPORT Viewport;
     ID3D11InputLayout* VertexLayout[vertex_layout_id_count];
-    ID3D11InputLayout* FontInstancedLayout;
+    ID3D11InputLayout* InstancedLayout[instanced_layout_id_count];
     ID3D11Buffer* VertexBuffer[vertex_layout_id_count];
     ID3D11Buffer* IndexBuffer;
     directX_Vertex_Shader VertexShader[directX_Vertex_Shader_ID_count];
@@ -521,6 +527,39 @@ void CreateInputLayout(vertex_layout Layout, directX_Vertex_Shader_ID ShaderID) 
     );
 }
 
+void CreateInputLayout(instanced_layout_id LayoutID) {
+    directX_Vertex_Shader_ID VertexShaderID;
+    D3D11_INPUT_ELEMENT_DESC LayoutDescription[MAX_VERTEX_ATTRIBUTES];
+    switch (LayoutID) {
+        case instanced_layout_text_id: {
+            VertexShaderID = Vertex_Shader_Barycentric_ID;
+
+            // Per vertex
+            LayoutDescription[0] = {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};
+            LayoutDescription[1] = {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 2*sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0};
+
+            // Per instance
+            LayoutDescription[2] = {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1};
+            LayoutDescription[3] = {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 3*sizeof(float), D3D11_INPUT_PER_INSTANCE_DATA, 1};
+        } break;
+        case instanced_layout_test_id: {
+            VertexShaderID = Vertex_Shader_Test_ID;
+        } break;
+    }
+
+    HRESULT Result = DirectX.Device->CreateInputLayout(
+        LayoutDescription,
+        4,
+        DirectX.VertexShader[VertexShaderID].Blob->GetBufferPointer(),
+        DirectX.VertexShader[VertexShaderID].Blob->GetBufferSize(),
+        &DirectX.InstancedLayout[LayoutID]
+    );
+
+    if (FAILED(Result)) {
+        Log(Error, "DirectX: Instanced vertex layout creation failed.");
+    }
+}
+
 ID3DBlob* CompileShader(read_file_result* File, const char* Path) {
     read_file_result NewFile = Platform.ReadEntireFile(Path);
 
@@ -601,37 +640,15 @@ void ParseVertexLayout(directX_Vertex_Shader* Shader) {
                     Token = GetToken(Tokenizer);
                 }
 
-                if (Shader->ID == Vertex_Shader_Barycentric_ID) {
-                    D3D11_INPUT_ELEMENT_DESC FontInstancedLayoutDescription[4] = {
-                        {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-                        {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 2*sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0},
-                        {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1},
-                        {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 3*sizeof(float), D3D11_INPUT_PER_INSTANCE_DATA, 1}
-                    };
-
-                    HRESULT Result = DirectX.Device->CreateInputLayout(
-                        FontInstancedLayoutDescription,
-                        4,
-                        DirectX.VertexShader[Vertex_Shader_Barycentric_ID].Blob->GetBufferPointer(),
-                        DirectX.VertexShader[Vertex_Shader_Barycentric_ID].Blob->GetBufferSize(),
-                        &DirectX.FontInstancedLayout
-                    );
-
-                    if (FAILED(Result)) {
-                        Log(Error, "DirectX: Instanced vertex layout creation for font rendering failed.");
-                    }
+                vertex_layout_id LayoutID;
+                bool Found = FindCompatibleVertexLayout(ShaderLayout, &LayoutID);
+                if (Found && DirectX.VertexLayout[LayoutID] == NULL) {
+                    CreateInputLayout(VertexLayouts[LayoutID], Shader->ID);
                 }
-                else {
-                    vertex_layout_id LayoutID;
-                    bool Found = FindCompatibleVertexLayout(ShaderLayout, &LayoutID);
-                    if (Found && DirectX.VertexLayout[LayoutID] == NULL) {
-                        CreateInputLayout(VertexLayouts[LayoutID], Shader->ID);
-                    }
-                    if (!Found) {
-                        char ErrorBuffer[128];
-                        sprintf_s(ErrorBuffer, "DirectX: Could not find compatible vertex layout for shader %s.", Shader->File.Path);
-                        Log(Warn, ErrorBuffer);
-                    }
+                if (!Found) {
+                    char ErrorBuffer[128];
+                    sprintf_s(ErrorBuffer, "DirectX: Could not find compatible vertex layout for shader %s.", Shader->File.Path);
+                    Log(Warn, ErrorBuffer);
                 }
             }
         }
@@ -1256,6 +1273,7 @@ RENDERER_INITIALIZE {
     LoadShader(Vertex_Shader_Barycentric_ID,         "GameAssets\\Shaders\\HLSL\\Vertex\\Barycentric.vsh");
     LoadShader(Vertex_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Heightmap.vsh");
     LoadShader(Vertex_Shader_Sky_ID,                 "GameAssets\\Shaders\\HLSL\\Vertex\\Sky.vsh");
+    LoadShader(Vertex_Shader_Test_ID,                "GameAssets\\Shaders\\HLSL\\Vertex\\Test.vsh");
 
     // Hull
     LoadShader(Hull_Shader_Heightmap_ID,             "GameAssets\\Shaders\\HLSL\\Hull\\Heightmap.hsh");
@@ -1290,6 +1308,10 @@ RENDERER_INITIALIZE {
         CreateBuffer(&DirectX.VertexBuffer[i], VERTEX_BUFFER_SIZE, D3D11_BIND_VERTEX_BUFFER, true);
     }
     CreateBuffer(&DirectX.IndexBuffer, ELEMENT_BUFFER_SIZE, D3D11_BIND_INDEX_BUFFER, true);
+
+    for (int i = 0; i < instanced_layout_id_count; i++) {
+        CreateInputLayout((instanced_layout_id)i);
+    }
 
     // Mesh buffers
     for (int i = 0; i < game_mesh_id_count; i++) {
@@ -1552,6 +1574,9 @@ RENDERER_RENDER {
             case render_draw_primitive: {
                 render_primitive_command PrimitiveCommand = Group->PrimitiveCommands[Command.Index];
                 render_primitive_options Options = PrimitiveCommand.Options;
+                vertex_buffer_entry VertexEntry = PrimitiveCommand.VertexEntry;
+                element_buffer_entry ElementEntry = PrimitiveCommand.ElementEntry;
+                instance_buffer_entry InstanceEntry = PrimitiveCommand.InstanceEntry;
 
                 float BlendFactors[4] = {};
                 if (Options.Flags & OVERWRITE_ALPHA_FLAG) 
@@ -1564,8 +1589,7 @@ RENDERER_RENDER {
                 vertex_layout_id LayoutID;
                 ID3D11Buffer** VertexBuffer = NULL;
                 ID3D11Buffer* IndexBuffer = NULL;
-                vertex_buffer_entry VertexEntry = PrimitiveCommand.VertexEntry;
-                element_buffer_entry ElementEntry = PrimitiveCommand.ElementEntry;
+                ID3D11Buffer* InstanceBuffer = NULL;
                 directX_Vertex_Shader_ID VertexShaderID = Vertex_Shader_Screen_ID;
                 directX_Pixel_Shader_ID PixelShaderID = Pixel_Shader_Single_Color_ID;
                 uint32 Offset = 0;
@@ -1601,10 +1625,16 @@ RENDERER_RENDER {
                     LayoutID = VertexEntry.LayoutID;
                     VertexBuffer = &DirectX.VertexBuffer[LayoutID];
                     Offset = VertexEntry.Offset;
+
                     if (ElementEntry.Count > 0) {
                         IndexBuffer = DirectX.IndexBuffer;
                         Offset = ElementEntry.Offset;
                     }
+
+                    if (InstanceEntry.Count > 0) {
+                        InstanceBuffer = DirectX.VertexBuffer[InstanceEntry.LayoutID];
+                    }
+
                     VertexShaderID = Options.Flags & DEPTH_TEST_FLAG ? Vertex_Shader_Perspective_ID : Vertex_Shader_Screen_ID;
                     
                     if (Options.Texture) {
@@ -1733,7 +1763,7 @@ RENDERER_RENDER {
                 DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilDisabled, 1);
                 DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[Vertex_Shader_Barycentric_ID].Shader, NULL, 0);
                 DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-                DirectX.DeviceContext->IASetInputLayout(DirectX.FontInstancedLayout);
+                DirectX.DeviceContext->IASetInputLayout(DirectX.InstancedLayout[instanced_layout_text_id]);
 
                 for (int FontID = 0; FontID < game_font_id_count; FontID++) {
                     game_font* Font = GetAsset(Group->Assets, (game_font_id)FontID);
