@@ -80,12 +80,16 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Black, Target_Output);
 
     UpdateGameState(Assets, State, Input, Group->Width, Group->Height);
+
+    PushSky(Group);
     
     // GameOutputSound(Assets, SoundBuffer, State, Input);
 
-    PushEntities(Group, ActiveCamera, State, Input, Time);
+    // PushEntities(Group, ActiveCamera, State, Input, Time);
 
     // TestRendering(Group, Input, Time);
+
+    // TestInstancedRendering(Group);
 
     // TestFluid(Group, Input, FirstFrame);
 
@@ -94,8 +98,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     // TestFFT(Group, &Memory->Permanent, Time);
 
     // Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
-
-    PushSky(Group);
     
     UpdateUI(Memory, Input);
 

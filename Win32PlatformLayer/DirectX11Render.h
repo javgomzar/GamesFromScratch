@@ -81,6 +81,7 @@ ENUM(directX_Pixel_Shader_ID,
     Pixel_Shader_Bezier_Interior_ID,
     Pixel_Shader_Heightmap_ID,
     Pixel_Shader_Sky_ID,
+    Pixel_Shader_Test_ID,
     Pixel_Shader_Water_ID
 );
 
@@ -529,27 +530,30 @@ void CreateInputLayout(vertex_layout Layout, directX_Vertex_Shader_ID ShaderID) 
 
 void CreateInputLayout(instanced_layout_id LayoutID) {
     directX_Vertex_Shader_ID VertexShaderID;
+    uint32 nAttributes = 0;
     D3D11_INPUT_ELEMENT_DESC LayoutDescription[MAX_VERTEX_ATTRIBUTES];
     switch (LayoutID) {
         case instanced_layout_text_id: {
             VertexShaderID = Vertex_Shader_Barycentric_ID;
+            nAttributes = 4;
 
-            // Per vertex
-            LayoutDescription[0] = {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0};
-            LayoutDescription[1] = {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 2*sizeof(float), D3D11_INPUT_PER_VERTEX_DATA, 0};
-
-            // Per instance
-            LayoutDescription[2] = {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1};
-            LayoutDescription[3] = {"COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 3*sizeof(float), D3D11_INPUT_PER_INSTANCE_DATA, 1};
+            LayoutDescription[0] = {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 0,               D3D11_INPUT_PER_VERTEX_DATA,   0};
+            LayoutDescription[1] = {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 2*sizeof(float), D3D11_INPUT_PER_VERTEX_DATA,   0};
+            LayoutDescription[2] = {"TEXCOORD", 1, DXGI_FORMAT_R32G32B32_FLOAT,    1, 0,               D3D11_INPUT_PER_INSTANCE_DATA, 1};
+            LayoutDescription[3] = {"COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 3*sizeof(float), D3D11_INPUT_PER_INSTANCE_DATA, 1};
         } break;
         case instanced_layout_test_id: {
             VertexShaderID = Vertex_Shader_Test_ID;
+            nAttributes = 2;
+
+            LayoutDescription[0] = {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA,   0};
+            LayoutDescription[1] = {"POSITION", 1, DXGI_FORMAT_R32G32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1};
         } break;
     }
 
     HRESULT Result = DirectX.Device->CreateInputLayout(
         LayoutDescription,
-        4,
+        nAttributes,
         DirectX.VertexShader[VertexShaderID].Blob->GetBufferPointer(),
         DirectX.VertexShader[VertexShaderID].Blob->GetBufferSize(),
         &DirectX.InstancedLayout[LayoutID]
@@ -1295,7 +1299,8 @@ RENDERER_INITIALIZE {
     LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
     LoadShader(Pixel_Shader_Heightmap_ID,            "GameAssets\\Shaders\\HLSL\\Pixel\\Heightmap.psh");
     LoadShader(Pixel_Shader_Sky_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Sky.psh");
-    LoadShader(Pixel_Shader_Water_ID,               "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
+    LoadShader(Pixel_Shader_Test_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Test.psh");
+    LoadShader(Pixel_Shader_Water_ID,                "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
 
     // Compute
     LoadShader(Compute_Shader_Outline_Init_ID,       "GameAssets\\Shaders\\HLSL\\Compute\\OutlineInit.compute");
@@ -1649,7 +1654,15 @@ RENDERER_RENDER {
 
                 SetColorBuffer(PrimitiveCommand.Color);
 
-                DirectX.DeviceContext->IASetInputLayout(DirectX.VertexLayout[LayoutID]);
+                if (InstanceEntry.Count > 0) {
+                    DirectX.DeviceContext->IASetInputLayout(DirectX.InstancedLayout[instanced_layout_test_id]);
+                    VertexShaderID = Vertex_Shader_Test_ID;
+                    PixelShaderID = Pixel_Shader_Test_ID;
+                }
+                else {
+                    DirectX.DeviceContext->IASetInputLayout(DirectX.VertexLayout[LayoutID]);
+                }
+
                 DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[VertexShaderID].Shader, NULL, 0);
                 DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[PixelShaderID].Shader, NULL, 0);
             
@@ -1672,7 +1685,29 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilEnabled, 1);
                 }
                 
-                if (ElementEntry.Count > 0) {
+                if (InstanceEntry.Count > 0) {
+                    uint32 InstanceStride = VertexLayouts[InstanceEntry.LayoutID].Stride;
+                    DirectX.DeviceContext->IASetVertexBuffers(1, 1, &InstanceBuffer, &InstanceStride, &VertexOffset);
+
+                    if (ElementEntry.Count > 0) {
+                        DirectX.DeviceContext->DrawIndexedInstanced(
+                            ElementEntry.Count,
+                            InstanceEntry.Count,
+                            ElementEntry.Offset,
+                            VertexEntry.Offset,
+                            InstanceEntry.Offset
+                        );
+                    }
+                    else {
+                        DirectX.DeviceContext->DrawInstanced(
+                            VertexEntry.Count,
+                            InstanceEntry.Count,
+                            VertexEntry.Offset,
+                            InstanceEntry.Offset
+                        );
+                    }
+                }
+                else if (ElementEntry.Count > 0) {
                     DirectX.DeviceContext->IASetIndexBuffer(IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
                     DirectX.DeviceContext->DrawIndexed(ElementEntry.Count, Offset, 0);
                 }

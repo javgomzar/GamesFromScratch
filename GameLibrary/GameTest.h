@@ -4,7 +4,13 @@
 void TestInstancedRendering(render_group* Group) {
     int nInstances = 100;
     render_primitive_command* Command = PushPrimitiveCommand(
-        Group, render_primitive_triangle, vertex_layout_v2_id, 6, .InstanceLayoutID = vertex_layout_v2_id, .nInstances = nInstances
+        Group,
+        render_primitive_triangle,
+        vertex_layout_v2_id,
+        6,
+        .InstanceLayoutID = vertex_layout_v2_id,
+        .nInstances = nInstances,
+        .Order = SORT_ORDER_DEBUG_OVERLAY
     );
 
     float* Vertices = Command->Vertices;
@@ -16,9 +22,10 @@ void TestInstancedRendering(render_group* Group) {
     *Vertices++ = 0.0; *Vertices++ = 1.0;
 
     float* Instances = (float*)Command->InstanceEntry.Pointer;
-    for (int i = 0; i < nInstances; i++) {
+    for (int i = 0; i < 10; i++)
+    for (int j = 0; j < 10; j++) {
         *Instances++ = i * Group->Width / 10;
-        *Instances++ = i * Group->Height / 10;
+        *Instances++ = j * Group->Height / 10;
     }
 }
 
