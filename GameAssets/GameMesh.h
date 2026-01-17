@@ -1,5 +1,6 @@
 #include "GamePlatform.h"
 #include "GameMath.h"
+#include "GameVertex.h"
 
 #ifndef GAME_MESH
 #define GAME_MESH

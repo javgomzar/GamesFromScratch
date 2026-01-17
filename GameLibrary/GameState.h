@@ -268,7 +268,6 @@ struct game_state {
     camera* ActiveCamera;
     int nStars;
     star Stars[MAX_STARS];
-    float* StarsBuffer;
     float Latitude;
     float Longitude;
     double dt;
@@ -297,8 +296,6 @@ void Initialize(game_state* State, memory_arena* Arena) {
         Star->RightAscension = RandFloat(0.0f, 24.0f);
         Star->Declination = RandFloat(0.0f, 90.0f);
     }
-
-    State->StarsBuffer = PushArray(Arena, MAX_STARS * 7, float);
 }
 
 void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, float Width, float Height) {
@@ -397,34 +394,31 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
 }
 
 void PushStars(render_group* Group, game_state* State) {
-    float* Vertices = (float*)PushPrimitiveCommand(
+    render_primitive_command* Command = PushPrimitiveCommand(
         Group, 
-        render_primitive_triangle, 
-        White, 
-        vertex_layout_v2_v2_id,
+        render_primitive_triangle,
+        vertex_layout_v2_id,
         6,
-        0,
-        SORT_ORDER_DEBUG_OVERLAY,
-        {
-            .Flags = STAR_FLAG
-        }
-    )->Vertices;
+        .Flags = STAR_FLAG,
+        .InstanceLayoutID = vertex_layout_v4_id,
+        .nInstances = State->nStars,
+        .Order = SORT_ORDER_DEBUG_OVERLAY
+    );
 
-    *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = -1.0f; *Vertices++ = -1.0f;
-    *Vertices++ =  1.0f; *Vertices++ = -1.0f; *Vertices++ =  1.0f; *Vertices++ = -1.0f;
-    *Vertices++ = -1.0f; *Vertices++ =  1.0f; *Vertices++ = -1.0f; *Vertices++ =  1.0f;
-    *Vertices++ =  1.0f; *Vertices++ = -1.0f; *Vertices++ =  1.0f; *Vertices++ = -1.0f;
-    *Vertices++ = -1.0f; *Vertices++ =  1.0f; *Vertices++ = -1.0f; *Vertices++ =  1.0f;
-    *Vertices++ =  1.0f; *Vertices++ =  1.0f; *Vertices++ =  1.0f; *Vertices++ =  1.0f;
+    float* Vertices = (float*)Command->VertexEntry.Pointer;
+    *Vertices++ = -1.0f; *Vertices++ = -1.0f;
+    *Vertices++ =  1.0f; *Vertices++ = -1.0f;
+    *Vertices++ = -1.0f; *Vertices++ =  1.0f;
+    *Vertices++ =  1.0f; *Vertices++ = -1.0f;
+    *Vertices++ = -1.0f; *Vertices++ =  1.0f;
+    *Vertices++ =  1.0f; *Vertices++ =  1.0f;
 
+    float* Instances = (float*)Command->InstanceEntry.Pointer;
     for (int i = 0; i < State->nStars; i++) {
-        State->StarsBuffer[7*i]   = State->Stars[i].RightAscension;
-        State->StarsBuffer[7*i+1] = State->Stars[i].Declination;
-        State->StarsBuffer[7*i+2] = 100.0f; // Size
-        State->StarsBuffer[7*i+3] = 1.0f; // Color R
-        State->StarsBuffer[7*i+4] = 1.0f; // Color G
-        State->StarsBuffer[7*i+5] = 1.0f; // Color B
-        State->StarsBuffer[7*i+6] = 1.0f; // Color A
+        *Instances++ = State->Stars[i].RightAscension;
+        *Instances++ = State->Stars[i].Declination;
+        *Instances++ = 100.0f; // Size
+        *Instances++ = 0.0f;   // Hue
     }
 }
 

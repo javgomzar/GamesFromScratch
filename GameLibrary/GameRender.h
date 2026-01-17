@@ -18,6 +18,8 @@ struct vertex_buffer_entry {
     void* Pointer;
 };
 
+typedef vertex_buffer_entry instance_buffer_entry;
+
 struct element_buffer_entry {
     uint32 Offset;
     uint32 Count;
@@ -25,7 +27,6 @@ struct element_buffer_entry {
 };
 
 struct vertex_buffer {
-    vertex_layout* VertexLayouts;
     memory_arena Vertices[vertex_layout_id_count];
     memory_arena Elements;
     uint32 VertexCount[vertex_layout_id_count];
@@ -33,15 +34,9 @@ struct vertex_buffer {
 };
 
 /* Initializes several vertex buffers and element buffers. Returns total memory used.*/
-inline memory_index InitializeVertexBuffer(
-    memory_arena* Arena,
-    vertex_buffer* Buffer,
-    vertex_layout* VertexLayouts
-) {
+inline memory_index InitializeVertexBuffer(vertex_buffer* Buffer, memory_arena* Arena) {
     memory_index TotalSize = 0;
     memory_index Size = 0;
-
-    Buffer->VertexLayouts = VertexLayouts;
 
     // Vertex buffers (one per layout)
     for (int i = 0; i < vertex_layout_id_count; i++) {
@@ -61,19 +56,19 @@ inline memory_index InitializeVertexBuffer(
     return TotalSize;
 }
 
-vertex_buffer_entry PushVertexEntry(vertex_buffer* VertexBuffer, uint64 VertexCount, vertex_layout_id VertexLayoutID) {
-    memory_arena* Arena = &VertexBuffer->Vertices[VertexLayoutID];
+vertex_buffer_entry PushVertexEntry(vertex_buffer* VertexBuffer, uint64 Count, vertex_layout_id LayoutID) {
+    memory_arena* Arena = &VertexBuffer->Vertices[LayoutID];
     
     vertex_buffer_entry Entry;
-    Entry.Count = VertexCount;
-    Entry.LayoutID = VertexLayoutID;
-    Entry.Offset = VertexBuffer->VertexCount[VertexLayoutID];
+    Entry.Count = Count;
+    Entry.LayoutID = LayoutID;
+    Entry.Offset = VertexBuffer->VertexCount[LayoutID];
     
-    memory_index Size = VertexCount * VertexBuffer->VertexLayouts[VertexLayoutID].Stride;
+    memory_index Size = Count * VertexLayouts[LayoutID].Stride;
     void* Destination = PushSize(Arena, Size);
     Entry.Pointer = Destination;
 
-    VertexBuffer->VertexCount[VertexLayoutID] += VertexCount;
+    VertexBuffer->VertexCount[LayoutID] += Count;
     return Entry;
 }
 
@@ -88,6 +83,10 @@ element_buffer_entry PushElementEntry(vertex_buffer* VertexBuffer, uint64 Elemen
 
     VertexBuffer->ElementCount += ElementCount;
     return Entry;
+}
+
+instance_buffer_entry PushInstanceEntry(vertex_buffer* VertexBuffer, uint64 Count, vertex_layout_id LayoutID) {
+    return PushVertexEntry(VertexBuffer, Count, LayoutID);
 }
 
 void ClearVertexBuffer(vertex_buffer* Buffer) {
@@ -194,25 +193,37 @@ FLAGS(render_flags,
     WATER_FLAG
 );
 
+struct render_primitive_optional_arguments {
+    color Color = White;
+    render_flags Flags;
+    game_heightmap* Heightmap = nullptr;
+    vertex_layout_id InstanceLayoutID;
+    int nElements = 0;
+    int nInstances = 0;
+    float Order = 0.0f;
+    int PatchParameter = 4;
+    game_bitmap* Texture = nullptr;
+    float Thickness = 2.0f;
+    transform Transform = IdentityTransform;
+};
+
 struct render_primitive_options {
     render_flags Flags;
     float Thickness = 2.0f;
     transform Transform = IdentityTransform;
     game_bitmap* Texture = nullptr;
     game_heightmap* Heightmap = nullptr;
-    game_font* Font = nullptr;
-    v2 Pen;
     int PatchParameter = 4;
-    float TextSize = 0;
 };
 
 struct render_primitive_command {
     render_primitive Primitive = render_primitive_point;
+    vertex_buffer_entry VertexEntry = {0};
+    element_buffer_entry ElementEntry = {0};
+    instance_buffer_entry InstanceEntry = {0};
+    float* Vertices = 0;
     render_primitive_options Options;
     color Color;
-    vertex_buffer_entry VertexEntry = {0};
-    float* Vertices = 0;
-    element_buffer_entry ElementEntry = {0};
 };
 
 struct render_text_options {
@@ -379,7 +390,7 @@ void InitializeRenderGroup(
     Group->Light = Light(V3(-0.5, -1, 1), White);
 
     // Vertex & element buffers
-    InitializeVertexBuffer(Arena, &Group->VertexBuffer, Assets->VertexLayout);
+    InitializeVertexBuffer(&Group->VertexBuffer, Arena);
 
     // Text buffer
     InitializeTextBuffer(Arena, &Group->TextBuffer);
@@ -759,31 +770,38 @@ void PushClear(render_group* Group, color Color, render_group_target Target = Ta
     If `nElements > 0`, it will also return a `uint32` pointer to which to write element data. In this case, the `VertexOffset`
     unsigned integer should be added to the element data. This return member will be valid even if `nElements == 0`.
 */
-render_primitive_command* PushPrimitiveCommand(
+render_primitive_command* _PushPrimitiveCommand(
     render_group* Group,
     render_primitive Primitive,
-    color Color,
     vertex_layout_id LayoutID,
     uint32 nVertices,
-    uint32 nElements = 0,
-    float Order = 0.0,
-    render_primitive_options Options = {}
+    render_primitive_optional_arguments Arguments
 ) {
     render_command Command;
     Command.Index = Group->nPrimitiveCommands;
-    Command.Priority = Order;
+    Command.Priority = Arguments.Order;
     Command.Type = render_draw_primitive;
 
     PushCommand(Group, Command);
 
     render_primitive_command* PrimitiveCommand = &Group->PrimitiveCommands[Group->nPrimitiveCommands++];
     *PrimitiveCommand = {};
-    PrimitiveCommand->Options = Options;
+    PrimitiveCommand->Options = {
+        .Flags = Arguments.Flags,
+        .Thickness = Arguments.Thickness,
+        .Transform = Arguments.Transform,
+        .Texture = Arguments.Texture,
+        .Heightmap = Arguments.Heightmap,
+        .PatchParameter = Arguments.PatchParameter,
+    };
     PrimitiveCommand->Primitive = Primitive;
-    PrimitiveCommand->Color = Color;
+    PrimitiveCommand->Color = Arguments.Color;
+
+    int nElements = Arguments.nElements;
+    int nInstances = Arguments.nInstances;
 
     if (nVertices > 0) {
-        if (Options.Heightmap || Options.Flags & WATER_FLAG) {
+        if (Arguments.Heightmap || Arguments.Flags & WATER_FLAG) {
             PrimitiveCommand->VertexEntry.Count = nVertices;
             PrimitiveCommand->VertexEntry.LayoutID = LayoutID;
         }
@@ -794,7 +812,7 @@ render_primitive_command* PushPrimitiveCommand(
     }
 
     if (nElements > 0) {
-        if (Options.Heightmap || Options.Flags & WATER_FLAG) {
+        if (Arguments.Heightmap || Arguments.Flags & WATER_FLAG) {
             PrimitiveCommand->ElementEntry.Count = nElements;
         }
         else {
@@ -802,18 +820,23 @@ render_primitive_command* PushPrimitiveCommand(
         }
     }
 
+    if (nInstances > 0) {
+        PrimitiveCommand->InstanceEntry = PushInstanceEntry(&Group->VertexBuffer, nInstances, Arguments.InstanceLayoutID);
+    }
+
     return PrimitiveCommand;
 }
+
+#define PushPrimitiveCommand(Group, Primitive, LayoutID, nVertices, ...) _PushPrimitiveCommand(Group, Primitive, LayoutID, nVertices, { __VA_ARGS__ })
 
 void PushPoint(render_group* Group, v2 Point, color Color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
     float* Vertices = (float*)PushPrimitiveCommand(
         Group,
         render_primitive_point, 
-        Color,
         vertex_layout_v2_id, 
         1,
-        0,
-        Order
+        .Color = Color,
+        .Order = Order
     )->VertexEntry.Pointer;
     Vertices[0] = Point.X;
     Vertices[1] = Point.Y;
@@ -823,12 +846,11 @@ void PushPoint(render_group* Group, v3 Point, color Color, float Order = SORT_OR
     float* Vertices = PushPrimitiveCommand(
         Group, 
         render_primitive_point,
-        Color,
         vertex_layout_v3_id, 
         1,
-        0,
-        Order,
-        { .Flags = DEPTH_TEST_FLAG }
+        .Color = Color,
+        .Flags = DEPTH_TEST_FLAG,
+        .Order = Order
     )->Vertices;
     Vertices[0] = Point.X;
     Vertices[1] = Point.Y;
@@ -846,12 +868,11 @@ void PushLine(
     float* Vertices = PushPrimitiveCommand(
         Group,
         render_primitive_line,
-        Color,
         vertex_layout_v2_id,
         2,
-        0,
-        Order,
-        { .Thickness = Thickness }
+        .Color = Color,
+        .Order = Order,
+        .Thickness = Thickness
     )->Vertices;
     Vertices[0] = Start.X;
     Vertices[1] = Start.Y;
@@ -870,15 +891,12 @@ void PushLine(
     float* Vertices = PushPrimitiveCommand(
         Group,
         render_primitive_line,
-        Color,
         vertex_layout_v3_id,
         2,
-        0,
-        Order,
-        { 
-            .Flags = DEPTH_TEST_FLAG,
-            .Thickness = Thickness
-        }
+        .Color = Color,
+        .Flags = DEPTH_TEST_FLAG,
+        .Order = Order,
+        .Thickness = Thickness
     )->Vertices;
     Vertices[0] = {Start.X};
     Vertices[1] = {Start.Y};
@@ -912,12 +930,11 @@ void PushTriangle(
     float* Vertices = PushPrimitiveCommand(
         Group, 
         render_primitive_triangle,
-        Color,
         vertex_layout_v3_id,
         3,
-        0,
-        Order,
-        { .Flags = DEPTH_TEST_FLAG }
+        .Color = Color,
+        .Flags = DEPTH_TEST_FLAG,
+        .Order = Order
     )->Vertices;
     Vertices[0] = Triangle.Points[0].X;
     Vertices[1] = Triangle.Points[0].Y;
@@ -939,11 +956,10 @@ void PushTriangle(
     float* Vertices = PushPrimitiveCommand(
         Group,
         render_primitive_triangle,
-        Color,
         vertex_layout_v2_id,
         3,
-        0,
-        Order
+        .Color = Color,
+        .Order = Order
     )->Vertices;
 
     Vertices[0] = Triangle.Points[0].X;
@@ -968,11 +984,11 @@ void PushCircle(
     render_primitive_command* Command = PushPrimitiveCommand(
         Group,
         render_primitive_triangle,
-        Color,
         vertex_layout_v2_id,
         N+1,
-        3*N,
-        Order
+        .Color = Color,
+        .nElements = 3*N,
+        .Order = Order
     );
 
     v2* Vertices = (v2*)Command->VertexEntry.Pointer;
@@ -1014,12 +1030,12 @@ void PushCircle(
     render_primitive_command* Command = PushPrimitiveCommand(
         Group,
         render_primitive_triangle,
-        Color,
         vertex_layout_v3_id,
         N+1,
-        3*N,
-        Order,
-        { .Flags = DEPTH_TEST_FLAG }
+        .Color = Color,
+        .Flags = DEPTH_TEST_FLAG,
+        .nElements = 3*N,
+        .Order = Order,
     );
     
     v3* Vertices = (v3*)Command->VertexEntry.Pointer;
@@ -1060,12 +1076,11 @@ void PushCircunference(
     float* Data = PushPrimitiveCommand(
         Group,
         render_primitive_line_strip,
-        Color,
         vertex_layout_v2_id,
         N+1,
-        0,
-        Order,
-        { .Thickness = Thickness }
+        .Color = Color,
+        .Order = Order,
+        .Thickness = Thickness
     )->Vertices;
 
     v2* Vertices = (v2*)Data;
@@ -1097,12 +1112,11 @@ void PushCircunference(
     float* Data = PushPrimitiveCommand(
         Group,
         render_primitive_line_strip,
-        Color,
         vertex_layout_v3_id,
         N+1,
-        0,
-        Order,
-        { .Flags = DEPTH_TEST_FLAG }
+        .Color = Color,
+        .Flags = DEPTH_TEST_FLAG,
+        .Order = Order
     )->Vertices;
 
     v3* Vertices = (v3*)Data;
@@ -1142,12 +1156,11 @@ void PushArc(
     float* Data = PushPrimitiveCommand(
         Group,
         render_primitive_line_strip,
-        Color,
         vertex_layout_v3_id,
         N,
-        0,
-        Order,
-        { .Flags = DEPTH_TEST_FLAG }
+        .Color = Color,
+        .Flags = DEPTH_TEST_FLAG,
+        .Order = Order
     )->Vertices;
 
     v3* Vertices = (v3*)Data;
@@ -1172,12 +1185,11 @@ void PushSkyArc(
     float* Data = PushPrimitiveCommand(
         Group,
         render_primitive_line_strip,
-        Color,
         vertex_layout_v3_id,
         nVertices,
-        0,
-        Order,
-        { .Flags = (render_flags)(DEPTH_TEST_FLAG | SKY_DEPTH_FLAG | OVERWRITE_ALPHA_FLAG) }
+        .Color = Color,
+        .Flags = (render_flags)(DEPTH_TEST_FLAG | SKY_DEPTH_FLAG | OVERWRITE_ALPHA_FLAG),
+        .Order = Order,
     )->Vertices;
 
     v3* Vertices = (v3*)Data;
@@ -1200,11 +1212,11 @@ void PushRect(
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
         render_primitive_triangle,
-        Color,
         vertex_layout_v2_id,
         4,
-        6,
-        Order
+        .Color = Color,
+        .nElements = 6,
+        .Order = Order
     );
 
     v2* Vertices = (v2*)Result->Vertices;
@@ -1237,14 +1249,12 @@ void PushRect(
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
         render_primitive_triangle,
-        Color,
         vertex_layout_v3_id,
         4,
-        6,
-        Order,
-        {
-            .Flags = DEPTH_TEST_FLAG
-        }
+        .Color = Color,
+        .Flags = DEPTH_TEST_FLAG,
+        .nElements = 6,
+        .Order = Order
     );
 
     WidthAxis = normalize(WidthAxis);
@@ -1281,12 +1291,11 @@ void PushRectOutline(
     v2* Vertices = (v2*)PushPrimitiveCommand(
         Group,
         render_primitive_line_strip,
-        Color,
         vertex_layout_v2_id,
         5,
-        0,
-        Order,
-        { .Thickness = Thickness }
+        .Color = Color,
+        .Order = Order,
+        .Thickness = Thickness
     )->Vertices;
     
     Vertices[0] = { Rect.Left             , Rect.Top               };
@@ -1309,12 +1318,11 @@ void PushBitmap(
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
         render_primitive_triangle,
-        White,
         vertex_layout_v2_v2_id,
         4,
-        6,
-        Order,
-        { .Texture = Bitmap }
+        .nElements = 6,
+        .Order = Order,
+        .Texture = Bitmap
     );
 
     int Width = Bitmap->Header.Width;
@@ -1443,28 +1451,22 @@ void _PushText(
             // }
 
             if (pCharacter->nContours > 0) {
-                render_primitive_options PrimitiveOptions = {};
-                PrimitiveOptions.Font = Font;
-                PrimitiveOptions.TextSize = Size;
-                PrimitiveOptions.PatchParameter = 3;
-                PrimitiveOptions.Pen = Pen;
-                PrimitiveOptions.Thickness = Options.OutlineWidth;
-
                 PushTextEntry(&Group->TextBuffer, Options.Font, c, Pen, Size, Options.Color);
 
                 if (Options.Outline) {
-                    render_primitive_command* Command = PushPrimitiveCommand(
-                        Group,
-                        render_primitive_patches,
-                        Options.OutlineColor,
-                        vertex_layout_v2_v2_id,
-                        3 * pCharacter->nOnCurve,
-                        TEXT_OUTLINE_FLAG,
-                        SORT_ORDER_DEBUG_OVERLAY,
-                        PrimitiveOptions
-                    );
+                    // TODO: Add text outline back
+                    // render_primitive_command* Command = PushPrimitiveCommand(
+                    //     Group,
+                    //     render_primitive_patches,
+                    //     Options.OutlineColor,
+                    //     vertex_layout_v2_v2_id,
+                    //     3 * pCharacter->nOnCurve,
+                    //     TEXT_OUTLINE_FLAG,
+                    //     SORT_ORDER_DEBUG_OVERLAY,
+                    //     PrimitiveOptions
+                    // );
 
-                    Command->VertexEntry.Offset = pCharacter->VertexOffset;
+                    // Command->VertexEntry.Offset = pCharacter->VertexOffset;
                 }
             }
 
@@ -1549,12 +1551,12 @@ void PushCubeOutline(
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
         render_primitive_line,
-        Color,
         vertex_layout_v3_id,
         8,
-        24,
-        Order,
-        { .Flags = DEPTH_TEST_FLAG }
+        .Color = Color,
+        .Flags = DEPTH_TEST_FLAG,
+        .nElements = 24,
+        .Order = Order
     );
 
     v3* Vertices = (v3*)Result->Vertices;
@@ -1743,18 +1745,15 @@ void _PushMesh(
 
     // Debug bones rendering
     if (Group->Debug && Group->DebugBones && Options.Armature) {
-        render_primitive_options PrimitiveOptions = {};
-        PrimitiveOptions.Thickness = 2.5f;
-        PrimitiveOptions.Flags = DEBUG_BONES_FLAG;
         v3* Vertices = (v3*)PushPrimitiveCommand(
             Group, 
             render_primitive_line,
-            Black,
             vertex_layout_v3_id,
             2 * Options.Armature->nBones,
-            0,
-            SORT_ORDER_DEBUG_OVERLAY,
-            PrimitiveOptions
+            .Color = Black,
+            .Flags = DEBUG_BONES_FLAG,
+            .Order = SORT_ORDER_DEBUG_OVERLAY,
+            .Thickness = 2.5f
         )->Vertices;
 
         for (int i = 0; i < Options.Armature->nBones; i++) {
@@ -1777,23 +1776,20 @@ void PushHeightmap(
     scale S,
     float Order = SORT_ORDER_MESHES
 ) {
-    uint32 nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
-    uint32 nElements = 4*(HEIGHTMAP_RESOLUTION-1)*(HEIGHTMAP_RESOLUTION-1);
+    int nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
+    int nElements = 4*(HEIGHTMAP_RESOLUTION-1)*(HEIGHTMAP_RESOLUTION-1);
 
     PushPrimitiveCommand(
         Group, 
         render_primitive_patches,
-        White,
         vertex_layout_v3_v2_id, 
         nVertices,
-        nElements,
-        Order,
-        {
-            .Flags = (render_flags)(DEPTH_TEST_FLAG),
-            .Transform = GetTransform(LeftBottom, Quaternion(1.0f), S),
-            .Heightmap = Heightmap,
-            .PatchParameter = 4,
-        }
+        .Flags = (render_flags)(DEPTH_TEST_FLAG),
+        .Heightmap = Heightmap,
+        .nElements = nElements,
+        .Order = Order,
+        .PatchParameter = 4,
+        .Transform = GetTransform(LeftBottom, Quaternion(1.0f), S)
     );
 }
 
@@ -1809,22 +1805,19 @@ void PushHeightmap(
 }
 
 void PushWater(render_group* Group, v3 Position, scale S) {
-    uint32 nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
-    uint32 nElements = 4*(HEIGHTMAP_RESOLUTION-1)*(HEIGHTMAP_RESOLUTION-1);
+    int nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
+    int nElements = 4*(HEIGHTMAP_RESOLUTION-1)*(HEIGHTMAP_RESOLUTION-1);
 
     PushPrimitiveCommand(
         Group, 
         render_primitive_patches,
-        White,
         vertex_layout_v3_v2_id, 
         nVertices,
-        nElements,
-        SORT_ORDER_MESHES,
-        {
-            .Flags = (render_flags)(DEPTH_TEST_FLAG | WATER_FLAG),
-            .Transform = GetTransform(Position, Quaternion(1.0f), S),
-            .PatchParameter = 4,
-        }
+        .Flags = (render_flags)(DEPTH_TEST_FLAG | WATER_FLAG),
+        .nElements = nElements,
+        .Order = SORT_ORDER_MESHES,
+        .PatchParameter = 4,
+        .Transform = GetTransform(Position, Quaternion(1.0f), S),
     );
 }
 
@@ -1851,14 +1844,11 @@ void PushSky(render_group* Group) {
     render_primitive_command* Command = PushPrimitiveCommand(
         Group,
         render_primitive_triangle,
-        White,
         vertex_layout_v3_id,
         8,
-        36,
-        SORT_ORDER_MESHES,
-        {
-            .Flags = (render_flags)(SKY_FLAG | DEPTH_TEST_FLAG),
-        }
+        .Flags = (render_flags)(SKY_FLAG | DEPTH_TEST_FLAG),
+        .nElements = 36,
+        .Order = SORT_ORDER_MESHES
     );
 
     v3* Vertices = (v3*)Command->Vertices;
@@ -2019,17 +2009,14 @@ void PushDebugFustrum(
     v3 Position,
     double l, double r, double b, double t, double n, double f
 ) {
-    render_primitive_options Options = {};
-    Options.Flags = DEPTH_TEST_FLAG;
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
         render_primitive_line,
-        White,
         vertex_layout_v3_v2_id,
         9,
-        24,
-        SORT_ORDER_DEBUG_OVERLAY,
-        Options
+        .Flags = DEPTH_TEST_FLAG,
+        .nElements = 24,
+        .Order = SORT_ORDER_DEBUG_OVERLAY,
     );
 
     v3 nv = -n * CameraBasis.Z;
@@ -2091,12 +2078,11 @@ void PushDebugGrid(render_group* Group, float Latitude) {
         float* Data = PushPrimitiveCommand(
             Group,
             render_primitive_line_strip,
-            Color,
             vertex_layout_v3_id,
             N+1,
-            0,
-            SORT_ORDER_DEBUG_OVERLAY,
-            { .Flags = (render_flags)(DEPTH_TEST_FLAG | SKY_DEPTH_FLAG) }
+            .Color = Color,
+            .Flags = (render_flags)(DEPTH_TEST_FLAG | SKY_DEPTH_FLAG),
+            .Order = SORT_ORDER_DEBUG_OVERLAY
         )->Vertices;
 
         v3* Vertices = (v3*)Data;
@@ -2166,17 +2152,14 @@ void PushDebugPlot(
     float Thickness = 2.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
-    render_primitive_options Options = {};
-    Options.Thickness = Thickness;
     v2* Vertices = (v2*)PushPrimitiveCommand(
         Group,
         render_primitive_line_strip,
-        Color,
         vertex_layout_v2_id,
         N,
-        0,
-        Order,
-        Options
+        .Color = Color,
+        .Order = Order,
+        .Thickness = Thickness
     )->Vertices;
 
     float X = 0;

@@ -1,6 +1,33 @@
 #include "GamePlatform.h"
 #include "GameRender.h"
 
+void TestInstancedRendering(render_group* Group) {
+    int nInstances = 100;
+    render_primitive_command* Command = PushPrimitiveCommand(
+        Group,
+        render_primitive_triangle,
+        vertex_layout_v2_id,
+        6,
+        .InstanceLayoutID = vertex_layout_v2_id,
+        .nInstances = nInstances,
+        .Order = SORT_ORDER_DEBUG_OVERLAY
+    );
+
+    float* Vertices = Command->Vertices;
+    *Vertices++ = 0.0; *Vertices++ = 0.0;
+    *Vertices++ = 0.0; *Vertices++ = 1.0;
+    *Vertices++ = 1.0; *Vertices++ = 0.0;
+    *Vertices++ = 1.0; *Vertices++ = 1.0;
+    *Vertices++ = 1.0; *Vertices++ = 0.0;
+    *Vertices++ = 0.0; *Vertices++ = 1.0;
+
+    float* Instances = (float*)Command->InstanceEntry.Pointer;
+    for (int i = 0; i < 10; i++)
+    for (int j = 0; j < 10; j++) {
+        *Instances++ = i * Group->Width / 10;
+        *Instances++ = j * Group->Height / 10;
+    }
+}
 
 void TestRendering(render_group* Group, game_input* Input, float Time) {
 // 2D

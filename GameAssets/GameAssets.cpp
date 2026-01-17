@@ -3,17 +3,6 @@
 void WriteAssetsFile(const char* Path) {
     game_assets Assets = {};
 
-// Vertex layouts
-    Assets.VertexLayout[vertex_layout_v2_id]       = VertexLayout(1, vertex_type_v2);
-    Assets.VertexLayout[vertex_layout_v2_v2_id]    = VertexLayout(2, vertex_type_v2, vertex_type_v2);
-    Assets.VertexLayout[vertex_layout_v3_id]       = VertexLayout(1, vertex_type_v3);
-    Assets.VertexLayout[vertex_layout_v3_v2_id]    = VertexLayout(2, vertex_type_v3, vertex_type_v2);
-    Assets.VertexLayout[vertex_layout_v3_v2_v3_id] = VertexLayout(3, vertex_type_v3, vertex_type_v2, vertex_type_v3);
-    Assets.VertexLayout[vertex_layout_v3_v4_id]    = VertexLayout(2, vertex_type_v3, vertex_type_v4);
-    Assets.VertexLayout[vertex_layout_v4_id]       = VertexLayout(1, vertex_type_v4);
-    Assets.VertexLayout[vertex_layout_bones_id]    = VertexLayout(5, vertex_type_v3, vertex_type_v2, vertex_type_v3, vertex_type_iv2, vertex_type_v2);
-    for (int i = 0; i < vertex_layout_id_count; i++) Assets.VertexLayout[i].ID = (vertex_layout_id)i;
-
 // Assets
     // Fonts
     PushAsset(&Assets, "GameAssets\\Files\\Font\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
@@ -139,7 +128,7 @@ void LoadAssetsFromFile(
             case Asset_Type_Mesh: {
                 game_mesh* Mesh = GetAsset(Assets, Asset.ID.Mesh);
                 Mesh->Vertices = (void*)(Assets->Memory + Asset.Offset);
-                uint32 Stride = Assets->VertexLayout[Mesh->VertexLayoutID].Stride;
+                uint32 Stride = VertexLayouts[Mesh->VertexLayoutID].Stride;
                 Mesh->Edges = (uint32*)((uint8*)Mesh->Vertices + Stride * Mesh->nVertices);
                 Mesh->Faces = Mesh->Edges + Mesh->nEdges;
             } break;

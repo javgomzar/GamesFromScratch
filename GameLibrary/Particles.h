@@ -105,24 +105,24 @@ void AddParticle(particle_emitter* Emitter) {
     }
 }
 
-void Update(render_group* Group, v3 CameraPosition, particle_emitter* Emitter, float dt) {
-    AddParticle(Emitter);
+// void Update(render_group* Group, v3 CameraPosition, particle_emitter* Emitter, float dt) {
+//     v3* Vertices = (v3*)PushPrimitiveCommand(Group, render_primitive_point, vertex_layout_v3_id, Emitter->Count)->Vertices;
 
-    for (int i = 0; i < Emitter->Size; i++) {
-        particle* Particle = &Emitter->Particles[i];
-        if (Particle->Time > 0) {
-            v3 AngularVelocity = 0.01f * cross(Emitter->Circle.Normal, Particle->Position);
-            Particle->Velocity.X = AngularVelocity.X;
-            Particle->Velocity.Z = AngularVelocity.Z;
+//     for (int i = 0; i < Emitter->Size; i++) {
+//         particle* Particle = &Emitter->Particles[i];
+//         if (Particle->Time > 0) {
+//             v3 AngularVelocity = 0.01f * cross(Emitter->Circle.Normal, Particle->Position);
+//             Particle->Velocity.X = AngularVelocity.X;
+//             Particle->Velocity.Z = AngularVelocity.Z;
 
-            Particle->Position += Particle->Velocity;
-            Particle->Color = HSV2RGB(1.0f + 0.2f * (Particle->Time / Emitter->ParticleLifetime), 1.0f, 1.0f, 1.0f);
-            PushPoint(Group, Particle->Position, Particle->Color, SORT_ORDER_DEBUG_OVERLAY - distance(Particle->Position, CameraPosition));
+//             Particle->Position += Particle->Velocity;
+//             Particle->Color = HSV2RGB(1.0f + 0.2f * (Particle->Time / Emitter->ParticleLifetime), 1.0f, 1.0f, 1.0f);
+//             PushPoint(Group, Particle->Position, Particle->Color, SORT_ORDER_DEBUG_OVERLAY - distance(Particle->Position, CameraPosition));
 
-            Particle->Time -= dt;
-            if (Particle->Time < 0) Particle->Time = 0;
-        }
-    }
-}
+//             Particle->Time -= dt;
+//             if (Particle->Time < 0) Particle->Time = 0;
+//         }
+//     }
+// }
 
 #endif

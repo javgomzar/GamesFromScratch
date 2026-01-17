@@ -71,6 +71,8 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Black, Target_Output);
 
     UpdateGameState(Assets, State, Input, Group->Width, Group->Height);
+
+    PushSky(Group);
     
     // GameOutputSound(Assets, SoundBuffer, State, Input);
 
