@@ -676,7 +676,11 @@ inline v4 operator*(float C, v4 A) {
 }
 
  inline v4 operator*(v4 A, v4 B) {
-	 return V4(A.X * B.X, A.Y * B.Y, A.Z * B.Z, A.W * B.W);
+	return V4(A.X * B.X, A.Y * B.Y, A.Z * B.Z, A.W * B.W);
+ }
+
+ inline v4 operator/(v4 A, float C) {
+	return { A.X / C, A.Y / C, A.Z / C, A.W / C };
  }
 
 inline v4& operator+=(v4& A, v4 B) {
@@ -702,6 +706,15 @@ inline v4& operator*=(v4& A, float C) {
 	A.W *= C;
 	return A;
 }
+
+inline v4& operator/=(v4& A, float C) {
+	A.X /= C;
+	A.Y /= C;
+	A.Z /= C;
+	A.W /= C;
+	return A;
+}
+
 
 inline float dot(v4 A, v4 B) {
 	return A.X * B.X + A.Y * B.Y + A.Z * B.Z + A.W * B.W;
