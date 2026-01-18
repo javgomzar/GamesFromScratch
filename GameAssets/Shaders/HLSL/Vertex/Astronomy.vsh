@@ -10,35 +10,33 @@ cbuffer Globals: register(b0) {
 };
 
 struct VS_IN {
-    float2 Position: POSITION;
-    float2 UV: TEXCOORD0;
-    float3 Coordinates: TEXCOORD1;
-    float4 Color: COLOR;
+    float2 Position: POSITION0;
+    float4 Properties: POSITION1;
 };
 
 struct VS_OUT {
     float4 Position: SV_POSITION;
     float2 UV: TEXCOORD0;
-    float4 Color: COLOR;
+    float Hue: COLOR;
 };
 
 VS_OUT main(VS_IN vin) {
     VS_OUT vout;
-    vout.UV = vin.UV;
-    vout.Color = vin.Color;
+    vout.UV = vin.Position;
+    vout.Hue = vin.Properties.z;
 
     float4x4 SkyView = View;
     SkyView[3] = float4(0.0f, 0.0f, 0.0f, 1.0f);
 
-    float RightAscension = Tau * vin.Coordinates.x / 24.0;
-    float Declination = Tau * vin.Coordinates.y / 360.0f;
-    float Size = vin.Coordinates.z;
+    float RightAscension = Tau * vin.Properties.x / 24.0;
+    float Declination = Tau * vin.Properties.y / 360.0f;
+    float Size = vin.Properties.w;
     
     float3 Position = float3(cos(RightAscension) * cos(Declination), sin(Declination), sin(RightAscension) * cos(Declination));
     float4 SkyPosition = mul(mul(float4(Position, 1.0f), SkyView), Projection);
     SkyPosition.z = SkyPosition.w * 0.99f;
 
-    vout.Position = SkyPosition + Size * float4(vin.Position, 0.0, 0.0);
+    vout.Position = SkyPosition + Size * float4(vin.Position / Resolution, 0.0, 0.0);
 
     return vout;
 }

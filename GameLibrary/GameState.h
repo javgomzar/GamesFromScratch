@@ -276,7 +276,7 @@ struct game_state {
     bool Debug;
 };
 
-void Initialize(game_state* State, memory_arena* Arena) {
+void Initialize(game_state* State) {
     State->Latitude = 45;
     State->Longitude = 0;
 
@@ -287,6 +287,8 @@ void Initialize(game_state* State, memory_arena* Arena) {
     // sprintf_s(Star->Name, "Star %d", 0);
     // Star->RightAscension = 0;
     // Star->Declination = 45;
+    // Star->Hue = 0.0f;
+    // Star->Intensity = 20.0f;
 
     State->nStars = 700;
     for (int i = 0; i < State->nStars; i++) {
@@ -294,7 +296,9 @@ void Initialize(game_state* State, memory_arena* Arena) {
         Star->Index = i;
         sprintf_s(Star->Name, "Star %d", i);
         Star->RightAscension = RandFloat(0.0f, 24.0f);
-        Star->Declination = RandFloat(0.0f, 90.0f);
+        Star->Declination = asinf(RandFloat(0.0f, 1.0f)) / Degrees;
+        Star->Hue = RandFloat();
+        Star->Intensity = RandFloat(1.0f, 10.0f);
     }
 }
 
@@ -393,13 +397,13 @@ void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, 
     }
 }
 
-void PushStars(render_group* Group, game_state* State) {
+void PushStars(render_group* Group, game_state* State, game_input* Input) {
     render_primitive_command* Command = PushPrimitiveCommand(
         Group, 
         render_primitive_triangle,
         vertex_layout_v2_id,
         6,
-        .Flags = STAR_FLAG,
+        .Flags = (render_flags)(STAR_FLAG),
         .InstanceLayoutID = vertex_layout_v4_id,
         .nInstances = State->nStars,
         .Order = SORT_ORDER_DEBUG_OVERLAY
@@ -413,12 +417,67 @@ void PushStars(render_group* Group, game_state* State) {
     *Vertices++ = -1.0f; *Vertices++ =  1.0f;
     *Vertices++ =  1.0f; *Vertices++ =  1.0f;
 
+    matrix4 Projection = GetWorldProjectionMatrix(Group->Width, Group->Height);
+    matrix4 View = State->ActiveCamera->View;
+    View.W = V4(0, 0, 0, 1);
+
     float* Instances = (float*)Command->InstanceEntry.Pointer;
     for (int i = 0; i < State->nStars; i++) {
-        *Instances++ = State->Stars[i].RightAscension;
-        *Instances++ = State->Stars[i].Declination;
-        *Instances++ = 100.0f; // Size
-        *Instances++ = 0.0f;   // Hue
+        star* Star = &State->Stars[i];
+
+        float RightAscension = Tau * Star->RightAscension / 24.0;
+        float Declination = Star->Declination * Degrees;
+
+        v4 Position = V4(
+            cos(RightAscension) * cos(Declination), 
+            sin(Declination), 
+            sin(RightAscension) * cos(Declination),
+            1.0f
+        );
+        v4 DevicePosition = Position * View * Projection;
+        DevicePosition /= DevicePosition.W;
+
+        if (
+            DevicePosition.X >= -1.1f && DevicePosition.X <=  1.1f &&
+            DevicePosition.Y >= -1.1f && DevicePosition.Y <=  1.1f &&
+            DevicePosition.Z < 0.0f
+        ) {
+            v2 ScreenPosition = V2(
+                0.5f * (1.0f + DevicePosition.X) * Group->Width,
+                0.5f * (1.0f - DevicePosition.Y) * Group->Height
+            );
+
+            float OutlineSize = Star->Intensity + 10.0f;
+            rectangle Rect = { 
+                ScreenPosition.X - 0.5f*OutlineSize, 
+                ScreenPosition.Y - 0.5f*OutlineSize, 
+                OutlineSize, 
+                OutlineSize 
+            };
+
+            bool Hovered = IsIn(Rect, Input->Mouse.Cursor);
+            float IntensityIncrease = 0.0f;
+            if (Hovered) {
+                IntensityIncrease = 20.0f;
+            }
+            
+            if (Group->Debug) {
+                color OutlineColor = White;
+                if (Hovered) {
+                    OutlineColor = Yellow;
+                    char Buffer[128];
+                    sprintf_s(Buffer, "ID: %d\nRA: %.3f\nDEC: %.3f\nSIZE: %.3f", 
+                        Star->Index, Star->RightAscension, Star->Declination, Star->Intensity);
+                        PushText(Group, ScreenPosition + 0.5f * V2(OutlineSize + 20.0f, OutlineSize), Buffer);
+                }
+                PushRectOutline(Group, Rect, OutlineColor);
+            }
+
+            *Instances++ = Star->RightAscension;
+            *Instances++ = Star->Declination;
+            *Instances++ = Star->Hue;                           // Hue        
+            *Instances++ = Star->Intensity + IntensityIncrease; // Size
+        }
     }
 }
 

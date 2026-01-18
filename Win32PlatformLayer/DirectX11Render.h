@@ -548,8 +548,8 @@ void CreateInputLayout(instanced_layout_id LayoutID) {
             VertexShaderID = Vertex_Shader_Astronomy_ID;
             nAttributes = 2;
 
-            LayoutDescription[0] = {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA,   0};
-            LayoutDescription[1] = {"POSITION", 1, DXGI_FORMAT_R32G32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1};
+            LayoutDescription[0] = {"POSITION", 0, DXGI_FORMAT_R32G32_FLOAT,       0, 0, D3D11_INPUT_PER_VERTEX_DATA,   0};
+            LayoutDescription[1] = {"POSITION", 1, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D11_INPUT_PER_INSTANCE_DATA, 1};
         } break;
     }
 
@@ -1695,6 +1695,7 @@ RENDERER_RENDER {
                 }
                 
                 if (InstanceEntry.Count > 0) {
+                    DirectX.DeviceContext->OMSetBlendState(DirectX.CombineAlpha, BlendFactors, 0xffffffff);
                     uint32 InstanceStride = VertexLayouts[InstanceEntry.LayoutID].Stride;
                     DirectX.DeviceContext->IASetVertexBuffers(1, 1, &InstanceBuffer, &InstanceStride, &VertexOffset);
 

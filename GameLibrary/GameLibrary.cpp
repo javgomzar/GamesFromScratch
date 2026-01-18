@@ -21,9 +21,12 @@ void TestPerformance() {
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
 {
+    game_state* State = Memory->GameState;
     if (Memory->HotReload) {
         RNG.Seed = SeedRNG();
         RNG.State = RNG.Seed;
+
+        Initialize(State);
 
         TimeRecords = (time_record*)&Memory->TimeRecordsLibrary;
 
@@ -38,7 +41,6 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     render_group* Group = &Memory->RenderGroup;
     game_input* Input = &Memory->Input;
-    game_state* State = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
     game_entity_state* EntityState = &State->Entities;
     debug_info* DebugInfo = &Memory->DebugInfo;
@@ -58,7 +60,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, -90.0f);
         ActiveCamera->OnAir = true;
 
-        Initialize(State, &Memory->Permanent);
+        Initialize(State);
 
         Memory->IsInitialized = true;
     }
@@ -73,11 +75,9 @@ extern "C" GAME_UPDATE(GameUpdate)
     UpdateGameState(Assets, State, Input, Group->Width, Group->Height);
 
     PushSky(Group);
+    PushStars(Group, State, Input);
     
     // GameOutputSound(Assets, SoundBuffer, State, Input);
-
-    PushSky(Group);
-    PushStars(Group, State);
 
     DEBUG_VALUE(State->ActiveCamera->Pitch, float);
     

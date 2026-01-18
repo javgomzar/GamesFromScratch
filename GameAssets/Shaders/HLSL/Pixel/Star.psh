@@ -1,13 +1,15 @@
-Texture2D Texture: register(t0);
-SamplerState Sampler: register(s0);
-
-struct VertexOut {
+struct VS_OUT {
     float4 Position: SV_POSITION;
     float2 UV: TEXCOORD0;
+    float Hue: COLOR;
 };
 
-float4 main(VertexOut vout): SV_TARGET {
+float4 main(VS_OUT vout): SV_TARGET {
     float r = sqrt(dot(vout.UV, vout.UV));
-    float3 Color = float3(1, 1, 1);
-    return float4(Color, 1.0 - r);
+
+    float h = vout.Hue * 6.0;
+    float3 Color = saturate(float3(abs(h - 3.0) - 1.0, 2.0 - abs(h - 2.0), 2.0 - abs(h - 4.0)));
+    float3 Star = lerp(float3(1, 1, 1), Color, pow(r, 5));
+
+    return float4(Star, clamp(1.0 - r, 0.0, 1.0));
 }
