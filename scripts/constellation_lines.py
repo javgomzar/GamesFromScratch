@@ -35,7 +35,7 @@ with open("GameAssets/Files/Text/ModernSkyculture.json", encoding='utf-8') as f:
                 star_ids.add(id)
     
     constellations_string = json.dumps(parsed_constellations).replace("]}, ", "]},\n")
-    with open("scripts/constellations.json", "w", encoding="utf-8") as c_file:
+    with open("GameAssets/Files/Text/constellations.json", "w", encoding="utf-8") as c_file:
         c_file.write(constellations_string)
 
     for id in star_ids:
@@ -56,5 +56,5 @@ with open("GameAssets/Files/Text/ModernSkyculture.json", encoding='utf-8') as f:
             print(f"NO MATCH: {id}")
 
     stars_string = json.dumps(parsed_stars).replace("}, ", "},\n")
-    with open("scripts/stars.json", 'w', encoding="utf-8") as s_file:
+    with open("GameAssets/Files/Text/stars.json", 'w', encoding="utf-8") as s_file:
         s_file.write(stars_string)

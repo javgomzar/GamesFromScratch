@@ -250,13 +250,36 @@ camera* AddCamera(
 struct star {
     char Name[64];
     int Index;
+    v2 ScreenPosition;
     float Hue;
     float Intensity;
     float RightAscension;
     float Declination;
+    bool RenderEdge;
 };
 
 const int MAX_STARS = 1024;
+const int MAX_EDGE_INDICES = 1024;
+
+void AddEdge(int32* Edges, int* nEdges, int32 StartIndex, int32 EndIndex) {
+    if (StartIndex != EndIndex) {
+        for (int i = 0; i < *nEdges; i++) {
+            int32 CheckStart = Edges[2*i];
+            int32 CheckEnd = Edges[2*i+1];
+    
+            if (
+                CheckStart == StartIndex && CheckEnd == EndIndex || 
+                CheckEnd == StartIndex && CheckStart == EndIndex
+            ) {
+                return;
+            }
+        }
+    
+        Edges[2 * (*nEdges)] = StartIndex;
+        Edges[2 * (*nEdges) + 1] = EndIndex;
+        *nEdges += 1;
+    }
+}
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Game state                                                                                                                                   |
@@ -268,6 +291,10 @@ struct game_state {
     camera* ActiveCamera;
     int nStars;
     star Stars[MAX_STARS];
+    int32 StartIndex;
+    v2 StartScreenPosition;
+    int32* Edges;
+    int nEdges;
     float Latitude;
     float Longitude;
     double dt;
@@ -276,30 +303,101 @@ struct game_state {
     bool Debug;
 };
 
-void Initialize(game_state* State) {
+void Initialize(game_assets* Assets, game_state* State, memory_arena* Permanent) {
     State->Latitude = 45;
     State->Longitude = 0;
 
-    // Initialize stars
-    // State->nStars = 1;
-    // star* Star = State->Stars;
-    // Star->Index = 0;
-    // sprintf_s(Star->Name, "Star %d", 0);
-    // Star->RightAscension = 0;
-    // Star->Declination = 45;
-    // Star->Hue = 0.0f;
-    // Star->Intensity = 20.0f;
+    State->StartIndex = -1;
+    State->StartScreenPosition = V2(0, 0);
 
-    State->nStars = 700;
-    for (int i = 0; i < State->nStars; i++) {
-        star* Star = &State->Stars[i];
-        Star->Index = i;
-        sprintf_s(Star->Name, "Star %d", i);
-        Star->RightAscension = RandFloat(0.0f, 24.0f);
-        Star->Declination = asinf(RandFloat(0.0f, 1.0f)) / Degrees;
-        Star->Hue = RandFloat();
-        Star->Intensity = RandFloat(1.0f, 10.0f);
+    if (!State->Edges) {
+        State->Edges = PushArray(Permanent, MAX_EDGE_INDICES, int32);
+        State->nEdges = 0;
     }
+
+    // Initialize stars
+
+    // Random initialization
+    // State->nStars = 700;
+    // for (int i = 0; i < State->nStars; i++) {
+    //     star* Star = &State->Stars[i];
+    //     Star->Index = i;
+    //     sprintf_s(Star->Name, "Star %d", i);
+    //     Star->RightAscension = RandFloat(0.0f, 24.0f);
+    //     Star->Declination = asinf(RandFloat(0.0f, 1.0f)) / Degrees;
+    //     Star->Hue = RandFloat();
+    //     Star->Intensity = RandFloat(1.0f, 10.0f);
+    // }
+
+    // File initialization
+    State->nStars = 0;
+    game_text* Stars = GetAsset(Assets, Text_Stars_ID);
+
+    tokenizer Tokenizer = InitTokenizer(Stars->Content);
+
+    RequireToken(Tokenizer, Token_OpenBracket);
+    while (GetToken(Tokenizer).Type == Token_OpenBrace) {
+        star* Star = &State->Stars[State->nStars];
+        Star->Index = State->nStars++;
+        Star->Intensity = 5.0f;
+
+        // HIP
+        RequireToken(Tokenizer, Token_String);
+        RequireToken(Tokenizer, Token_Colon);
+        RequireToken(Tokenizer, Token_Constant_Integer);
+        RequireToken(Tokenizer, Token_Comma);
+
+        // Name
+        RequireToken(Tokenizer, Token_String);
+        RequireToken(Tokenizer, Token_Colon);
+        token Name = RequireToken(Tokenizer, Token_String);
+        strncpy_s(Star->Name, Name.Text, Name.Length);
+        RequireToken(Tokenizer, Token_Comma);
+
+        // Right ascension
+        RequireToken(Tokenizer, Token_String);
+        RequireToken(Tokenizer, Token_Colon);
+        Star->RightAscension = ParseFloat(Tokenizer);
+        RequireToken(Tokenizer, Token_Comma);
+
+        // Declination
+        RequireToken(Tokenizer, Token_String);
+        RequireToken(Tokenizer, Token_Colon);
+        Star->Declination = ParseFloat(Tokenizer);
+        RequireToken(Tokenizer, Token_Comma);
+
+        // B
+        RequireToken(Tokenizer, Token_String);
+        RequireToken(Tokenizer, Token_Colon);
+        if (Tokenizer.At[1] == 'N') {
+            RequireToken(Tokenizer, Token_Identifier);
+        }
+        else {
+            float B = ParseFloat(Tokenizer);
+        }
+        RequireToken(Tokenizer, Token_Comma);
+
+        // V
+        RequireToken(Tokenizer, Token_String);
+        RequireToken(Tokenizer, Token_Colon);
+        if (Tokenizer.At[1] == 'N') {
+            RequireToken(Tokenizer, Token_Identifier);
+        }
+        else {
+            float V = ParseFloat(Tokenizer);
+        }
+        RequireToken(Tokenizer, Token_CloseBrace);
+        
+        token Token = GetToken(Tokenizer);
+        if (Token.Type == Token_CloseBracket) {
+            break;
+        }
+        else {
+            Assert(Token.Type == Token_Comma);
+        }
+    }
+
+    Log(Info, "Stars JSON parsed.");
 }
 
 void UpdateGameState(game_assets* Assets, game_state* State, game_input* Input, float Width, float Height) {
@@ -436,17 +534,18 @@ void PushStars(render_group* Group, game_state* State, game_input* Input) {
         );
         v4 DevicePosition = Position * View * Projection;
         DevicePosition /= DevicePosition.W;
+        v2 ScreenPosition = V2(
+            0.5f * (1.0f + DevicePosition.X) * Group->Width,
+            0.5f * (1.0f - DevicePosition.Y) * Group->Height
+        );
+        Star->ScreenPosition = ScreenPosition;
+        Star->RenderEdge = DevicePosition.Z < 0.0f;
 
         if (
             DevicePosition.X >= -1.1f && DevicePosition.X <=  1.1f &&
             DevicePosition.Y >= -1.1f && DevicePosition.Y <=  1.1f &&
             DevicePosition.Z < 0.0f
         ) {
-            v2 ScreenPosition = V2(
-                0.5f * (1.0f + DevicePosition.X) * Group->Width,
-                0.5f * (1.0f - DevicePosition.Y) * Group->Height
-            );
-
             float OutlineSize = Star->Intensity + 10.0f;
             rectangle Rect = { 
                 ScreenPosition.X - 0.5f*OutlineSize, 
@@ -459,6 +558,19 @@ void PushStars(render_group* Group, game_state* State, game_input* Input) {
             float IntensityIncrease = 0.0f;
             if (Hovered) {
                 IntensityIncrease = 20.0f;
+
+                if (State->StartIndex >= 0) {
+                    if (Input->Mouse.LeftClick.IsDown) {
+                        AddEdge(State->Edges, &State->nEdges, State->StartIndex, Star->Index);
+
+                        State->StartIndex = Star->Index;
+                        State->StartScreenPosition = Star->ScreenPosition;
+                    }
+                }
+                else if (Input->Mouse.LeftClick.JustPressed) {
+                    State->StartIndex = Star->Index;
+                    State->StartScreenPosition = Star->ScreenPosition;
+                }
             }
             
             if (Group->Debug) {
@@ -479,6 +591,55 @@ void PushStars(render_group* Group, game_state* State, game_input* Input) {
             *Instances++ = Star->Intensity + IntensityIncrease; // Size
         }
     }
+
+    if (State->StartIndex >= 0) {
+        if (Input->Mouse.LeftClick.IsDown) {
+            State->StartScreenPosition = State->Stars[State->StartIndex].ScreenPosition;
+            PushLine(Group, State->StartScreenPosition, Input->Mouse.Cursor, White);
+        }
+        else {
+            State->StartIndex = -1;
+            State->StartScreenPosition = V2(0, 0);
+        }
+    }
+
+    if (State->nEdges > 0) {
+        uint32 nRenderEdges = 0;
+        for (int i = 0; i < State->nEdges; i++) {
+            uint32 Start = State->Edges[2*i];
+            uint32 End = State->Edges[2*i+1];
+
+            star* StartStar = &State->Stars[Start];
+            star* EndStar = &State->Stars[End];
+
+            if (StartStar->RenderEdge && EndStar->RenderEdge) {
+                nRenderEdges++;
+            }
+        }
+
+        if (nRenderEdges > 0) {
+            v2* Vertices = (v2*)PushPrimitiveCommand(
+                Group, 
+                render_primitive_line, 
+                vertex_layout_v2_id, 
+                2*nRenderEdges,
+                .Order = SORT_ORDER_DEBUG_OVERLAY
+            )->Vertices;
+    
+            for (int i = 0; i < State->nEdges; i++) {
+                uint32 Start = State->Edges[2*i];
+                uint32 End = State->Edges[2*i+1];
+
+                star* StartStar = &State->Stars[Start];
+                star* EndStar = &State->Stars[End];
+
+                if (StartStar->RenderEdge && EndStar->RenderEdge) {
+                    *Vertices++ = StartStar->ScreenPosition;
+                    *Vertices++ = EndStar->ScreenPosition;
+                }
+            }
+        }
+    } 
 }
 
 #endif

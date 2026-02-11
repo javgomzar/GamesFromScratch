@@ -8,7 +8,8 @@ void WriteAssetsFile(const char* Path) {
     PushAsset(&Assets, "GameAssets\\Files\\Font\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
 
     // Text
-    PushAsset(&Assets, "GameAssets\\Files\\Text\\Test.txt", Text_Test_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Text\\constellations.json", Text_Constellations_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Text\\stars.json", Text_Stars_ID);
 
     // Bitmaps
     PushAsset(&Assets, "GameAssets\\Files\\Bitmap\\Background.bmp", Bitmap_Background_ID);

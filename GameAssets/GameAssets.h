@@ -28,7 +28,8 @@ ENUM(game_asset_type,
 );
 
 ENUM(game_text_id,
-    Text_Test_ID
+    Text_Constellations_ID,
+    Text_Stars_ID
 );
 
 ENUM(game_heightmap_id,

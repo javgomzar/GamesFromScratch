@@ -62,7 +62,7 @@ struct debug_enum_value {
     int Value;
 };
 
-const int ENUM_VALUES_SIZE = 56;
+const int ENUM_VALUES_SIZE = 57;
 debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Text", 0},
     {Debug_Type_game_asset_type, "Asset_Type_Bitmap", 1},
@@ -73,8 +73,9 @@ debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {
     {Debug_Type_game_asset_type, "Asset_Type_Mesh", 6},
     {Debug_Type_game_asset_type, "Asset_Type_Animation", 7},
     {Debug_Type_game_asset_type, "game_asset_type_count", 8},
-    {Debug_Type_game_text_id, "Text_Test_ID", 0},
-    {Debug_Type_game_text_id, "game_text_id_count", 1},
+    {Debug_Type_game_text_id, "Text_Constellations_ID", 0},
+    {Debug_Type_game_text_id, "Text_Stars_ID", 1},
+    {Debug_Type_game_text_id, "game_text_id_count", 2},
     {Debug_Type_game_heightmap_id, "Heightmap_Spain_ID", 0},
     {Debug_Type_game_heightmap_id, "game_heightmap_id_count", 1},
     {Debug_Type_game_animation_id, "Animation_Idle_ID", 0},
