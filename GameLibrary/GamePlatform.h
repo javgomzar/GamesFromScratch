@@ -16,6 +16,18 @@ typedef int64_t int64;
 
 typedef size_t memory_index;
 
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
+#endif
+
+#define Kilobytes(Value) ((Value)*1024)
+#define Megabytes(Value) (Kilobytes(Value)*1024)
+#define Gigabytes(Value) ((uint64)Megabytes(Value)*1024)
+
 #define INTROSPECT
 
 #define ENUM_START(Name) enum Name {
