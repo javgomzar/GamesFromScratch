@@ -595,6 +595,9 @@ typedef PLATFORM_FILE_EXISTS(platform_file_exists);
 #define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Path)
 typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
 
+#define PLATFORM_READ_FILE_CHUNK(name) void* name(const char* Path, int Offset, int ChunkSize)
+typedef PLATFORM_READ_FILE_CHUNK(platform_read_file_chunk);
+
 #define PLATFORM_WRITE_ENTIRE_FILE(name) bool name(const char* Path, uint64 MemorySize, void* Memory)
 typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
 
@@ -629,6 +632,7 @@ typedef PLATFORM_WAIT_FOR_PROCESS(platform_wait_for_process);
 struct platform_api {
     platform_file_exists*         FileExists;
     platform_read_entire_file*    ReadEntireFile;
+    platform_read_file_chunk*     ReadFileChunk;
     platform_write_entire_file*   WriteEntireFile;
     platform_free_file_memory*    FreeFileMemory;
     platform_append_to_file*      AppendToFile;

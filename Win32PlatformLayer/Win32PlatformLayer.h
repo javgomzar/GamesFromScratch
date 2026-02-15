@@ -88,22 +88,40 @@ PLATFORM_FREE_FILE_MEMORY(Win32FreeFileMemory) {
 }
 
 PLATFORM_READ_ENTIRE_FILE(Win32ReadEntireFile) {
+    char ErrorText[256];
+    
     read_file_result Result = {};
     Result.Path = Path;
+
     HANDLE FileHandle = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
         LARGE_INTEGER FileSize;
         if (GetFileSizeEx(FileHandle, &FileSize)) {
-            Result.Content = VirtualAlloc(0, FileSize.QuadPart, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-            if (Result.Content) {
-                DWORD BytesRead;
-                if (ReadFile(FileHandle, Result.Content, FileSize.QuadPart, &BytesRead, 0)) {
-                    Result.ContentSize = FileSize.QuadPart;
+            if (FileSize.QuadPart > 0) {
+                Result.Content = VirtualAlloc(0, FileSize.QuadPart, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+                if (Result.Content) {
+                    DWORD BytesRead;
+                    if (ReadFile(FileHandle, Result.Content, FileSize.QuadPart, &BytesRead, NULL)) {
+                        if (BytesRead != FileSize.QuadPart) {
+                            sprintf_s(ErrorText, "Couldn't read whole file %s", Path);
+                            Log(Error, ErrorText);
+                        }
+                        Result.ContentSize = min(BytesRead, FileSize.QuadPart);
+                    }
+                    else {
+                        Win32FreeFileMemory(Result.Content);
+                        Result.Content = 0;
+                        Result.ContentSize = 0;
+
+                        DWORD WinError = GetLastError();
+                        sprintf_s(ErrorText, "Couldn't read file %s. Error %d.", Path, WinError);
+                        Log(Error, ErrorText);
+                    }
                 }
-                else {
-                    Win32FreeFileMemory(Result.Content);
-                    Result.Content = 0;
-                }
+            }
+            else {
+                sprintf_s(ErrorText, "File %s is empty.", Path);
+                Log(Warn, ErrorText);
             }
         }
 
@@ -114,16 +132,59 @@ PLATFORM_READ_ENTIRE_FILE(Win32ReadEntireFile) {
         CloseHandle(FileHandle);
     }
     else {
-        DWORD LastError = GetLastError();
-        char ErrorText[256];
-        sprintf_s(ErrorText, "Error while opening file %s. Error code %d.", Path, LastError);
+        DWORD WinError = GetLastError();
+        if (WinError == ERROR_PATH_NOT_FOUND) {
+            sprintf_s(ErrorText, "Path %s not found.", Path);
+        }
+        else {
+            sprintf_s(ErrorText, "Couldn't read file %s. Error %d.", Path, WinError);
+        }
         Log(Error, ErrorText);
-        Result.ContentSize = 0;
     }
     return Result;
 };
 
+PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
+    char ErrorText[256];
+
+    HANDLE FileHandle = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
+    if (FileHandle != INVALID_HANDLE_VALUE) {
+        DWORD Position = SetFilePointer(FileHandle, Offset, NULL, FILE_BEGIN);
+        if (Position == INVALID_SET_FILE_POINTER) {
+            return NULL;
+        }
+        
+        DWORD BytesRead;
+        void* Destination = VirtualAlloc(0, ChunkSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        if (ReadFile(FileHandle, Destination, ChunkSize, &BytesRead, NULL) && BytesRead == ChunkSize) {
+            sprintf_s(ErrorText, "%d bytes read from file %s", BytesRead, Path);
+            Log(Info, ErrorText);
+        }
+        else {
+            sprintf_s(ErrorText, "Couldn't read chunk from file %s", Path);
+            Log(Error, ErrorText);
+            Win32FreeFileMemory(Destination);
+            Destination = NULL;
+        }
+        CloseHandle(FileHandle);
+        return Destination;
+    }
+
+    DWORD WinError = GetLastError();
+    if (WinError == ERROR_PATH_NOT_FOUND) {
+        sprintf_s(ErrorText, "Path %s not found.", Path);
+    }
+    else {
+        sprintf_s(ErrorText, "Couldn't read file %s. Error %d.", Path, WinError);
+    }
+    Log(Error, ErrorText);
+
+    return NULL;
+}
+
 PLATFORM_WRITE_ENTIRE_FILE(Win32WriteEntireFile) {
+    char ErrorText[256];
+
     bool Result = false;
     HANDLE FileHandle = CreateFileA(Path, GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
@@ -137,9 +198,12 @@ PLATFORM_WRITE_ENTIRE_FILE(Win32WriteEntireFile) {
         // Debug
         DWORD WinError = GetLastError();
         if (WinError == ERROR_PATH_NOT_FOUND) {
-            Log(Error, "Path not found.");
+            sprintf_s(ErrorText, "Path %s not found.", Path);
         }
-        Assert(false);
+        else {
+            sprintf_s(ErrorText, "Couldn't write to file %s. Error %d.", Path, WinError);
+        }
+        Log(Error, ErrorText);
     }
     return Result;
 }
