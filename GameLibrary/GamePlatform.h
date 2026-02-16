@@ -595,11 +595,14 @@ typedef PLATFORM_FILE_EXISTS(platform_file_exists);
 #define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Path)
 typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
 
-#define PLATFORM_READ_FILE_CHUNK(name) void* name(const char* Path, int Offset, int ChunkSize)
+#define PLATFORM_READ_FILE_CHUNK(name) void* name(const char* Path, uint64 Offset, uint64 ChunkSize)
 typedef PLATFORM_READ_FILE_CHUNK(platform_read_file_chunk);
 
 #define PLATFORM_WRITE_ENTIRE_FILE(name) bool name(const char* Path, uint64 MemorySize, void* Memory)
 typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
+
+#define PLATFORM_WRITE_FILE_CHUNK(name) bool name(const char* Path, uint64 Offset, uint64 ChunkSize, void* Memory)
+typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_file_chunk);
 
 #define PLATFORM_APPEND_TO_FILE(name) bool name(const char* Path, uint64 MemorySize, void* Memory)
 typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
@@ -634,6 +637,7 @@ struct platform_api {
     platform_read_entire_file*    ReadEntireFile;
     platform_read_file_chunk*     ReadFileChunk;
     platform_write_entire_file*   WriteEntireFile;
+    platform_write_file_chunk*    WriteFileChunk;
     platform_free_file_memory*    FreeFileMemory;
     platform_append_to_file*      AppendToFile;
     platform_copy_file*           Copy;

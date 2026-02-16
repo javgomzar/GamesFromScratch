@@ -149,8 +149,11 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
 
     HANDLE FileHandle = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
-        DWORD Position = SetFilePointer(FileHandle, Offset, NULL, FILE_BEGIN);
-        if (Position == INVALID_SET_FILE_POINTER) {
+        LARGE_INTEGER LargeOffset;
+        LargeOffset.QuadPart = Offset;
+        if (!SetFilePointerEx(FileHandle, LargeOffset, NULL, FILE_BEGIN)) {
+            sprintf_s(ErrorText, "Couldn't set file pointer to offset %I64u at file %s", Offset, Path);
+            Log(Error, ErrorText);
             return NULL;
         }
         
@@ -184,8 +187,8 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
 
 PLATFORM_WRITE_ENTIRE_FILE(Win32WriteEntireFile) {
     char ErrorText[256];
-
     bool Result = false;
+
     HANDLE FileHandle = CreateFileA(Path, GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
         DWORD BytesWritten;
@@ -208,26 +211,75 @@ PLATFORM_WRITE_ENTIRE_FILE(Win32WriteEntireFile) {
     return Result;
 }
 
-PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
+PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
+    char ErrorText[256];
     bool Result = false;
+
+    HANDLE FileHandle = CreateFileA(Path, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
+    if (FileHandle != INVALID_HANDLE_VALUE) {
+        LARGE_INTEGER LargeOffset;
+        LargeOffset.QuadPart = Offset;
+        if (SetFilePointerEx(FileHandle, LargeOffset, NULL, FILE_BEGIN)) {
+            DWORD BytesWritten;
+            if (WriteFile(FileHandle, Memory, ChunkSize, &BytesWritten, NULL)) {
+                sprintf_s(ErrorText, "%d bytes written to file %s", BytesWritten, Path);
+                Result = BytesWritten == ChunkSize;
+                Log(Result ? Info : Error, ErrorText);
+            }
+        }
+        else {
+            sprintf_s(ErrorText, "Couldn't set file pointer to %I64u at file %s", Offset, Path);
+            Log(Error, ErrorText);
+        }
+        CloseHandle(FileHandle);
+    }
+
+    if (!Result) {
+        DWORD WinError = GetLastError();
+        if (WinError == ERROR_PATH_NOT_FOUND) {
+            sprintf_s(ErrorText, "Path %s not found.", Path);
+        }
+        else {
+            sprintf_s(ErrorText, "Couldn't write to file %s. Error %d.", Path, WinError);
+        }
+        Log(Error, ErrorText);
+    }
+
+    return Result;
+}
+
+PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
+    char ErrorText[256];
+    bool Result = false;
+
     HANDLE FileHandle = CreateFileA(Path, FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
         if (SetFilePointerEx(FileHandle, { 0 }, NULL, FILE_END)) {
             DWORD BytesWritten;
             if (WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0)) {
-                Result = true;
+                sprintf_s(ErrorText, "%d bytes written to file %s", BytesWritten, Path);
+                Result = BytesWritten == MemorySize;
+                Log(Result ? Info : Error, ErrorText);
             }
         }
         else {
-            Assert(false);
+            sprintf_s(ErrorText, "Couldn't set file pointer to end at file %s", Path);
+            Log(Error, ErrorText);
         }
-
         CloseHandle(FileHandle);
     }
-    else {
+    
+    if (!Result) {
         DWORD WinError = GetLastError();
-        Assert(false);
+        if (WinError == ERROR_PATH_NOT_FOUND) {
+            sprintf_s(ErrorText, "Path %s not found.", Path);
+        }
+        else {
+            sprintf_s(ErrorText, "Couldn't append to file %s. Error %d.", Path, WinError);
+        }
+        Log(Error, ErrorText);
     }
+
     return Result;
 }
 
