@@ -1,5 +1,13 @@
 #include "GamePlatform.h"
 #include "GameRender.h"
+#include "GameData.h"
+
+
+void TestData() {
+    game_data_manager Manager = InitializeDataManager("GameData\\Data\\test");
+
+    CloseDataManager(Manager);
+}
 
 void TestInstancedRendering(render_group* Group) {
     int nInstances = 100;

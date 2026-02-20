@@ -8,6 +8,9 @@
 GameAssets/Files
 GameAssets/game_assets
 
+# Game data
+GameData/Data
+
 # Captures
 Captures/*
 
