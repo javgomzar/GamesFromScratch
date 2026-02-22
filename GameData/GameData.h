@@ -22,7 +22,7 @@ ENUM(game_data_page_type,
     row_data_page
 );
 
-struct game_data_page {
+struct game_data_page_header {
     game_data_page_type Type;
     game_data_page_id ID;
     uint32 FreeSpace;
@@ -30,50 +30,68 @@ struct game_data_page {
     uint32 Size;
     uint32 nSlots;
     game_data_slot_id NextSlotID;
+};
 
+struct game_data_page {
+    game_data_page_header* Header;
     game_data_slot* Slots;
 };
 
-game_data_page* AllocateDataPage(memory_arena* Arena) {
-    game_data_page* Result = (game_data_page*)PushSize(Arena, GAME_DATA_PAGE_SIZE);
-    Result->Type = blank_data_page;
-    Result->ID = 0;
-    Result->CheckSum = 0;
-    Result->Size = sizeof(game_data_page);
-    Result->FreeSpace = GAME_DATA_PAGE_SIZE - Result->Size;
-    Result->nSlots = 0;
-    Result->Slots = (game_data_slot*)((uint8*)Result + sizeof(game_data_page));
-    Result->NextSlotID = 1;
+game_data_page CreateDataPage(
+    memory_arena* Arena, 
+    game_data_page_type Type, 
+    game_data_page_id ID
+) {
+    game_data_page Result = {};
+    Result.Header = (game_data_page_header*)PushSize(Arena, GAME_DATA_PAGE_SIZE);
+    Result.Header->Type = Type;
+    Result.Header->ID = ID;
+    Result.Header->CheckSum = 0;
+    Result.Header->Size = sizeof(game_data_page_header);
+    Result.Header->FreeSpace = GAME_DATA_PAGE_SIZE - Result.Header->Size;
+    Result.Header->nSlots = 0;
+    Result.Header->NextSlotID = 1;
+    Result.Slots = (game_data_slot*)((uint8*)Result.Header + sizeof(game_data_page_header));
+
+    return Result;
 }
 
-game_data_slot* AddSlot(game_data_page* Page, uint16 Size) {
-    Assert(Page->Type != blank_data_page);
-    Assert(Page->FreeSpace > Size + sizeof(game_data_slot));
+game_data_slot* AddSlot(game_data_page Page, uint16 Size) {
+    Assert(Page.Header->Type != blank_data_page);
+    Assert(Page.Header->FreeSpace > Size + sizeof(game_data_slot));
 
-    game_data_slot* Result = Page->Slots + Page->nSlots++;
-    Page->FreeSpace -= sizeof(game_data_slot);
+    game_data_slot* Result = Page.Slots + Page.Header->nSlots++;
+    Page.Header->Size += sizeof(game_data_slot);
+    Page.Header->FreeSpace -= sizeof(game_data_slot);
     
-    Result->ID = Page->NextSlotID++;
+    Result->ID = Page.Header->NextSlotID++;
     Result->Size = Size;
     Result->Deleted = false;
 
-    Page->FreeSpace -= Size;
-    Result->Offset = sizeof(game_data_page) + Page->nSlots * sizeof(game_data_slot) + Page->FreeSpace;
+    Page.Header->Size += Size;
+    Page.Header->FreeSpace -= Size;
+    Result->Offset = sizeof(game_data_page) + Page.Header->nSlots * sizeof(game_data_slot) + Page.Header->FreeSpace;
+
+    return Result;
 }
 
-bool DeleteSlot(game_data_page* Page, game_data_slot_id ID) {
-    for (int i = 0; i < Page->nSlots; i++) {
-        if (Page->Slots[i].ID == ID) {
-            if (Page->Slots[i].Deleted) {
-                return false;
-            }
-            else {
-                Page->Slots[i].Deleted = true;
-                return true;
-            }
+bool DeleteSlot(game_data_page Page, game_data_slot_id ID) {
+    for (int i = 0; i < Page.Header->nSlots; i++) {
+        if (Page.Slots[i].ID == ID) {
+            Page.Slots[i].Deleted = true;
+            return true;
         }
     }
     return false;
+}
+
+game_data_slot* GetSlot(game_data_page Page, game_data_slot_id ID) {
+    for (int i = 0; i < Page.Header->nSlots; i++) {
+        if (Page.Slots[i].ID == ID) {
+            return &Page.Slots[i];
+        }
+    }
+    return nullptr;
 }
 
 typedef uint32 game_data_file_id;
@@ -115,6 +133,8 @@ game_data_manager InitializeDataManager(const char* Path) {
     else {
 
     }
+
+    return {};
 }
 
 void CloseDataManager(game_data_manager Manager) {
@@ -131,6 +151,8 @@ game_data_file* CreateDataFile(game_data_manager* Manager, const char* Path) {
     else {
 
     }
+
+    return nullptr;
 }
 
 

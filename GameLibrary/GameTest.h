@@ -4,9 +4,27 @@
 
 
 void TestData() {
-    game_data_manager Manager = InitializeDataManager("GameData\\Data\\test");
+    memory_arena Arena = AllocateMemoryArena(Kilobytes(8));
 
-    CloseDataManager(Manager);
+    game_data_page Page = CreateDataPage(&Arena, row_data_page, 1);
+
+    char TestText[128] = "This is a test text.";
+    int TextLength = strlen(TestText);
+
+    game_data_slot* Slot = AddSlot(Page, TextLength);
+
+    uint8* Pointer = (uint8*)Page.Header + Slot->Offset;
+    memcpy(Pointer, TestText, TextLength);
+
+    game_data_slot* ReadSlot = GetSlot(Page, Slot->ID);
+    char* ReadPointer = (char*)Page.Header + Slot->Offset;
+
+    Log(Info, ReadPointer);
+
+    Assert(Page.Header->Size == TextLength + sizeof(game_data_page_header) + sizeof(game_data_slot));
+
+    FreeMemoryArena(&Arena);
+    Log(Info, "Data test ended.");
 }
 
 void TestInstancedRendering(render_group* Group) {
