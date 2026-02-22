@@ -97,16 +97,19 @@ game_data_slot* GetSlot(game_data_page Page, game_data_slot_id ID) {
 typedef uint32 game_data_file_id;
 struct game_data_file_header {
     char MagicNumber[2];
-    uint32 HeaderSize;
     game_data_file_id ID;
     uint32 nPages;
 };
 
-struct game_data_file {
-    game_data_file_header Header;
-    
-    read_file_result File;
-};
+game_data_file_header* GetFileHeader(const char* Path) {
+    game_data_file_header* Result = (game_data_file_header*)Platform.ReadFileChunk(Path, 0, sizeof(game_data_file_header));
+    bool Corrupted = Result->MagicNumber[0] != 'G' || Result->MagicNumber[1] != 'D';
+    if (Corrupted) {
+        Result = nullptr;
+        Log(Error, "File is corrupted");
+    }
+    return Result;
+}
 
 /*
     128-bit identifier for arbitrary data. Each of the members of an ID must be greater than zero.
@@ -140,30 +143,6 @@ game_data_manager InitializeDataManager(const char* Path) {
 void CloseDataManager(game_data_manager Manager) {
 
 }
-
-game_data_file* CreateDataFile(game_data_manager* Manager, const char* Path) {    
-    if (Platform.FileExists(Path)) {
-        game_data_file_header* Header = (game_data_file_header*)Platform.ReadFileChunk(Path, 0, sizeof(game_data_file_header));
-        if (Header->MagicNumber[0] != 'G' || Header->MagicNumber[1] != 'D') {
-            Log(Error, "File already exists and is not a valid data file.");
-        }
-    }
-    else {
-
-    }
-
-    return nullptr;
-}
-
-
-
-
-
-
-
-
-
-
 
 enum game_data_type {
     data_type_bool,
