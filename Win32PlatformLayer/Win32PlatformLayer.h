@@ -77,14 +77,25 @@ void Log(log_level Level, const char* Content) {
     }
 }
 
-PLATFORM_FILE_EXISTS(Win32FileExists) {
-    return GetFileAttributesA(Path) != INVALID_FILE_ATTRIBUTES;
+PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
+    void* Result = VirtualAlloc(0, Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    if (!Result) {
+        DWORD ErrorCode = GetLastError();
+        char ErrorText[128];
+        sprintf_s(ErrorText, "Couldn't allocate %I64u bytes. Error %d.", Size, ErrorCode);
+        Log(Error, ErrorText);
+    }
+    return Result;
 }
 
-PLATFORM_FREE_FILE_MEMORY(Win32FreeFileMemory) {
+PLATFORM_FREE_MEMORY(Win32FreeMemory) {
     if (Memory) {
         VirtualFree(Memory, 0, MEM_RELEASE);
     }
+}
+
+PLATFORM_FILE_EXISTS(Win32FileExists) {
+    return GetFileAttributesA(Path) != INVALID_FILE_ATTRIBUTES;
 }
 
 PLATFORM_READ_ENTIRE_FILE(Win32ReadEntireFile) {
@@ -98,7 +109,7 @@ PLATFORM_READ_ENTIRE_FILE(Win32ReadEntireFile) {
         LARGE_INTEGER FileSize;
         if (GetFileSizeEx(FileHandle, &FileSize)) {
             if (FileSize.QuadPart > 0) {
-                Result.Content = VirtualAlloc(0, FileSize.QuadPart, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+                Result.Content = Win32AllocateMemory(FileSize.QuadPart);
                 if (Result.Content) {
                     DWORD BytesRead;
                     if (ReadFile(FileHandle, Result.Content, FileSize.QuadPart, &BytesRead, NULL)) {
@@ -109,7 +120,7 @@ PLATFORM_READ_ENTIRE_FILE(Win32ReadEntireFile) {
                         Result.ContentSize = min(BytesRead, FileSize.QuadPart);
                     }
                     else {
-                        Win32FreeFileMemory(Result.Content);
+                        Win32FreeMemory(Result.Content);
                         Result.Content = 0;
                         Result.ContentSize = 0;
 
@@ -158,7 +169,7 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         }
         
         DWORD BytesRead;
-        void* Destination = VirtualAlloc(0, ChunkSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+        void* Destination = Win32AllocateMemory(ChunkSize);
         if (ReadFile(FileHandle, Destination, ChunkSize, &BytesRead, NULL) && BytesRead == ChunkSize) {
             sprintf_s(ErrorText, "%d bytes read from file %s", BytesRead, Path);
             Log(Info, ErrorText);
@@ -166,7 +177,7 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         else {
             sprintf_s(ErrorText, "Couldn't read chunk from file %s", Path);
             Log(Error, ErrorText);
-            Win32FreeFileMemory(Destination);
+            Win32FreeMemory(Destination);
             Destination = NULL;
         }
         CloseHandle(FileHandle);
@@ -283,12 +294,12 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
     return Result;
 }
 
-PLATFORM_COPY_FILE(Win32CopyFile) {
+PLATFORM_COPY_FILE(Win32FileCopy) {
     bool CopyResult = CopyFileA(Source, Destination, FALSE);
     return CopyResult;
 }
 
-PLATFORM_DELETE_FILE(Win32DeleteFile) {
+PLATFORM_DELETE_FILE(Win32FileDelete) {
     bool CopyResult = DeleteFileA(Path);
     return CopyResult;
 }
@@ -356,17 +367,20 @@ PLATFORM_WAIT_FOR_PROCESS(Win32WaitForProcess) {
 }
 
 platform_api Platform = {
-    .FileExists       = Win32FileExists,
-    .ReadEntireFile   = Win32ReadEntireFile,
-    .WriteEntireFile  = Win32WriteEntireFile,
-    .FreeFileMemory   = Win32FreeFileMemory,
-    .AppendToFile     = Win32AppendToFile,
-    .Copy             = Win32CopyFile,
-    .Delete           = Win32DeleteFile,
+    .AllocateMemory = Win32AllocateMemory,
+    .FreeMemory = Win32FreeMemory,
+    .FileExists = Win32FileExists,
+    .ReadEntireFile = Win32ReadEntireFile,
+    .ReadFileChunk = Win32ReadFileChunk,
+    .WriteEntireFile = Win32WriteEntireFile,
+    .WriteFileChunk = Win32WriteFileChunk,
+    .AppendToFile = Win32AppendToFile,
+    .FileCopy = Win32FileCopy,
+    .FileDelete = Win32FileDelete,
     .GetLastWriteTime = Win32GetLastWriteTime,
-    .GetWallClock     = Win32GetWallClock,
-    .RunCommand       = Win32RunCommand,
-    .WaitForProcess   = Win32WaitForProcess,
+    .GetWallClock = Win32GetWallClock,
+    .RunCommand = Win32RunCommand,
+    .WaitForProcess = Win32WaitForProcess,
 };
 
 void SaveBMP(const char* Path, int32 Width, int32 Height, uint32 Offset, uint32 HeaderSize, void* Header, void* Pixels) {

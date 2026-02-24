@@ -47,7 +47,7 @@ void WriteAssetsFile(const char* Path) {
     //PushAsset(&Assets, "GameAssets\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
 
 // Output file
-    void* FileMemory = VirtualAlloc(0, sizeof(game_assets) + Assets.TotalSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    void* FileMemory = Platform.AllocateMemory(sizeof(game_assets) + Assets.TotalSize);
     Assets.Memory = (uint8*)FileMemory + sizeof(game_assets);
     memory_arena AssetArena = MemoryArena(Assets.TotalSize, (uint8*)Assets.Memory);
 

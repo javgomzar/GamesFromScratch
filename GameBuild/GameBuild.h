@@ -191,7 +191,7 @@ void ReadBuildConfiguration(const char* ConfigurationFilePath, build_configurati
         Token = GetToken(Tokenizer);
     }
 
-    Platform.FreeFileMemory(ConfigFile.Content);
+    Platform.FreeMemory(ConfigFile.Content);
 }
 
 void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64 End) {

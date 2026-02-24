@@ -89,46 +89,6 @@ struct OFFSCREENBUFFER {
 OFFSCREENBUFFER BackBuffer;
 WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
 
-// Software render
-VOID ResizeDIBSection(OFFSCREENBUFFER* Buffer, int Width, int Height) {
-
-    //if (Buffer->Memory) {
-    //    VirtualFree(Buffer->Memory, 0, MEM_RELEASE);
-    //}
-
-    Buffer->Width = Width;
-    Buffer->Height = Height;
-
-    //Buffer->Info.bmiHeader.biSize = sizeof(Buffer->Info.bmiHeader);
-    //Buffer->Info.bmiHeader.biWidth = Buffer->Width;
-    //Buffer->Info.bmiHeader.biHeight = -Buffer->Height;
-    //Buffer->Info.bmiHeader.biPlanes = 1;
-    //Buffer->Info.bmiHeader.biBitCount = 32;
-    //Buffer->Info.bmiHeader.biCompression = BI_RGB;
-    //Buffer->Info.bmiHeader.biSizeImage = 0;
-
-    //int BitmapMemorySize = Buffer->BytesPerPixel * Width * Height;
-    //Buffer->Memory = VirtualAlloc(0, BitmapMemorySize, MEM_COMMIT, PAGE_READWRITE);
-
-    Buffer->Pitch = Width * Buffer->BytesPerPixel;
-}
-
-VOID DisplayBufferToWindow(
-    OFFSCREENBUFFER* Buffer, HDC DeviceContext, int Width, int Height
-) {
-    /*
-    StretchDIBits(DeviceContext,
-        0, 0, Width, Height,
-        0, 0, Buffer->Width, Buffer->Height,
-        Buffer->Memory,
-        &Buffer->Info,
-        DIB_RGB_COLORS,
-        SRCCOPY
-    );*/
-
-    SwapBuffers(DeviceContext);
-}
-
 // Monitors
 struct monitor_manager {
     monitor_info MonitorInfo[MAX_SUPPORTED_MONITORS];
@@ -347,7 +307,7 @@ static void InitXAudio2(int nBuffers,
             uint32 AudioBytes = BufferSize * pWaveFormat->nChannels * (pWaveFormat->wBitsPerSample / 8);
             for (int i = 0; i < nBuffers; i++) {
                 Buffers[i].AudioBytes = AudioBytes;
-                Buffers[i].pAudioData = (BYTE*)VirtualAlloc(0, AudioBytes, MEM_COMMIT, PAGE_READWRITE);
+                Buffers[i].pAudioData = (BYTE*)Win32AllocateMemory(AudioBytes);
                 Buffers[i].PlayBegin = 0;
                 Buffers[i].PlayLength = BufferSize;
                 Buffers[i].Flags = 0;
@@ -585,7 +545,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
     char ErrorText[256];
     DWORD LastError = 0;
 
-    bool CopyResult = Platform.Copy(SourceDLLName, TempDLLName);
+    bool CopyResult = Win32FileCopy(SourceDLLName, TempDLLName);
     if (!CopyResult) {
         LastError = GetLastError();
         if (LastError == ERROR_SHARING_VIOLATION) {
@@ -593,7 +553,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
             do {
                 Log(Warn, "Retrying game code loading after sharing violation.");
                 Sleep(100);
-                CopyResult = Platform.Copy(SourceDLLName, TempDLLName);
+                CopyResult = Win32FileCopy(SourceDLLName, TempDLLName);
                 Retries++;
                 if (Retries > 100) {
                     Log(Error, "Max number of retries reached.");
@@ -701,9 +661,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     game_code GameCode = { 0 };
     LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
-    LPVOID BaseAddress = 0;
     memory_index PermanentStorageSize = Megabytes(64);
-    void* GameMemoryBlock = VirtualAlloc(BaseAddress, PermanentStorageSize, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    void* GameMemoryBlock = Win32AllocateMemory(PermanentStorageSize);
     Memory.Permanent = MemoryArena(PermanentStorageSize, (uint8*)GameMemoryBlock);
     TimeRecords = (time_record*)&Memory.TimeRecordsPlatform;
     Memory.HotReload = true;
@@ -786,7 +745,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         ) {
             char Buffer[64] = {};
             sprintf_s(Buffer, "bin\\%s", FindData.cFileName);
-            bool Result = Platform.Delete(Buffer);
+            bool Result = Win32FileDelete(Buffer);
             if (Result) {
                 sprintf_s(Buffer, "Deleted old PDB file bin\\%s.", FindData.cFileName);
                 Log(Info, Buffer);
@@ -1045,9 +1004,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         else {
             Log(Error, "Could not update state due to invalid game code.");
         }
-
-        // DebugSyncDisplay(&Buffer, &GameSoundBuffers[currentBuffer]);
-        // DisplayBufferToWindow(&BackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
 
         XAUDIO2_VOICE_STATE VoiceState;
         pSourceVoice->GetState(&VoiceState);

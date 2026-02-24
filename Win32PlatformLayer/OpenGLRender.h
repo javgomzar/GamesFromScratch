@@ -1603,13 +1603,13 @@ void ScreenCapture(int Width, int Height) {
     );
 
     // Read pixels
-    BMP.Content = (uint32*)VirtualAlloc(0, 4 * Width * Height, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+    BMP.Content = (uint32*)Win32AllocateMemory(4 * Width * Height);
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glReadPixels(0, 0, Width, Height, GL_BGRA, GL_UNSIGNED_BYTE, (void*)BMP.Content);
 
     SaveBMP(Filename, Width, Height, BMP.Header.BitmapOffset, sizeof(bitmap_header), &BMP.Header, BMP.Content);
     if (BMP.Content) {
-        VirtualFree(BMP.Content, 0, MEM_RELEASE);
+        Win32FreeMemory(BMP.Content, 0, MEM_RELEASE);
     }
 }
 

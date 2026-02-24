@@ -524,7 +524,7 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
     Log(Info, LogBuffer);
     uint64 UsedMemory = Arena->Used - Asset->Offset;
     Assert(Asset->MemoryNeeded == UsedMemory);
-    Platform.FreeFileMemory(Asset->File.Content);
+    Platform.FreeMemory(Asset->File.Content);
     Asset->File.Content = 0;
 }
 

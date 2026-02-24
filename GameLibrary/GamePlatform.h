@@ -589,6 +589,12 @@ enum system_os {
     Linux,
 };
 
+#define PLATFORM_ALLOCATE_MEMORY(name) void* name(memory_index Size)
+typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory);
+
+#define PLATFORM_FREE_MEMORY(name) void name(void* Memory)
+typedef PLATFORM_FREE_MEMORY(platform_free_memory);
+
 #define PLATFORM_FILE_EXISTS(name) bool name(const char* Path)
 typedef PLATFORM_FILE_EXISTS(platform_file_exists);
 
@@ -602,7 +608,7 @@ typedef PLATFORM_READ_FILE_CHUNK(platform_read_file_chunk);
 typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
 
 #define PLATFORM_WRITE_FILE_CHUNK(name) bool name(const char* Path, uint64 Offset, uint64 ChunkSize, void* Memory)
-typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_file_chunk);
+typedef PLATFORM_WRITE_FILE_CHUNK(platform_write_file_chunk);
 
 #define PLATFORM_APPEND_TO_FILE(name) bool name(const char* Path, uint64 MemorySize, void* Memory)
 typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
@@ -612,9 +618,6 @@ typedef PLATFORM_COPY_FILE(platform_copy_file);
 
 #define PLATFORM_DELETE_FILE(name) bool name(const char* Path)
 typedef PLATFORM_DELETE_FILE(platform_delete_file);
-
-#define PLATFORM_FREE_FILE_MEMORY(name) void name(void* Memory)
-typedef PLATFORM_FREE_FILE_MEMORY(platform_free_file_memory);
 
 #define PLATFORM_GET_LAST_WRITE_TIME(name) int64 name(const char* Path)
 typedef PLATFORM_GET_LAST_WRITE_TIME(platform_get_last_write_time);
@@ -633,15 +636,16 @@ typedef PLATFORM_RUN_COMMAND(platform_run_command);
 typedef PLATFORM_WAIT_FOR_PROCESS(platform_wait_for_process);
 
 struct platform_api {
+    platform_allocate_memory*     AllocateMemory;
+    platform_free_memory*         FreeMemory;
     platform_file_exists*         FileExists;
     platform_read_entire_file*    ReadEntireFile;
     platform_read_file_chunk*     ReadFileChunk;
     platform_write_entire_file*   WriteEntireFile;
     platform_write_file_chunk*    WriteFileChunk;
-    platform_free_file_memory*    FreeFileMemory;
     platform_append_to_file*      AppendToFile;
-    platform_copy_file*           Copy;
-    platform_delete_file*         Delete;
+    platform_copy_file*           FileCopy;
+    platform_delete_file*         FileDelete;
     platform_get_last_write_time* GetLastWriteTime;
     platform_get_wall_clock*      GetWallClock;
     platform_run_command*         RunCommand;
