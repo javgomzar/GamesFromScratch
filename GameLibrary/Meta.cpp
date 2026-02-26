@@ -86,6 +86,7 @@ int main() {
         "GameAssets\\GameAssets.h",
         "GameLibrary\\GameState.h",
         "GameLibrary\\GameRender.h",
+        "GameLibrary\\GameUI.h",
     };
 
     char Buffer[256];
@@ -240,10 +241,11 @@ int main() {
                         Bit++;
                     }
                     else if (Token.Type == Token_Equal) {
-                        FlagDeclarations += std::string("    ") + std::string(FlagValueText);
+                        FlagDeclarations += std::string("    ") + std::string(FlagValueText) + std::string(" = ");
                         Token = GetToken(Tokenizer);
                         while (Token.Type != Token_Comma && Token.Type != Token_CloseParen) {
                             FlagDeclarations += std::string(Token.Text, Token.Length);
+                            Token = GetToken(Tokenizer);
                         }
                         FlagDeclarations += std::string(",\n");
                     }
