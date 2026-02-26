@@ -1,6 +1,8 @@
 #ifndef GAME_UI
 #define GAME_UI
 
+#include <xxhash.h>
+
 enum ui_axis {
     axis_x,
     axis_y
@@ -78,6 +80,8 @@ enum {
     STACK_CHILDREN_Y_UI_FLAG = 1 << 3,
 };
 
+typedef uint64 ui_element_id;
+
 struct ui_element {
     char Name[64];
     ui_element* Parent;
@@ -93,7 +97,7 @@ struct ui_element {
     float Points;
     float Scroll;
 
-    uint32 ID;
+    ui_element_id ID;
     uint32 Index;
 
     ui_size Size[2];
@@ -121,7 +125,7 @@ struct ui_context {
     render_group* Group;
     game_input* Input;
     debug_info* DebugInfo;
-    stack<uint32> IDStack;
+    stack<ui_element_id> IDStack;
     uint32 CurrentIndex;
 };
 
@@ -136,13 +140,13 @@ void UISizeText(const char * Text, int Points, ui_size* Sizes) {
     Sizes[axis_y].Value = Rect.Height;
 }
 
-void PushID(uint32 ID) {
+void PushID(ui_element_id ID) {
     UI.IDStack.Push(ID);
     UI.CurrentIndex = 0;
 }
 
-void PushID(char* String) {
-    PushID(Hash(String));
+void PushID(const char* String) {
+    PushID(XXH64(String, strlen(String), 0));
 }
 
 void PopID() {
@@ -150,7 +154,7 @@ void PopID() {
     UI.CurrentIndex = 0;
 }
 
-uint32 GetID(const char* String) {
+ui_element_id GetID(const char* String) {
     uint32 i = 0;
     bool UseIndex = false;
     while (String[i]) {
@@ -162,13 +166,13 @@ uint32 GetID(const char* String) {
         i++;
     }
 
-    uint32 StackHash = 2166136261u;
+    uint64 StackHash = 2166136261u;
     for (int j = 0; j < UI.IDStack.n; j++) {
-        uint32 ID = UI.IDStack[j];
+        ui_element_id ID = UI.IDStack[j];
         StackHash ^= ID;
         StackHash *= 16777619u;
     }
-    uint32 TextHash = Hash(String);
+    uint64 TextHash = XXH64(String, strlen(String), 0);
     StackHash ^= TextHash;
     StackHash *= 16777619u;
     if (UseIndex) {
@@ -206,7 +210,7 @@ struct ui_element_options {
     ui_alignment AlignmentX = ui_alignment_free;
     ui_alignment AlignmentY = ui_alignment_free;
     color Color             = White;
-    ui_flags Flags          = 0;
+    ui_flags Flags          = (ui_flags)0;
     game_font_id Font       = Font_Menlo_Regular_ID;
     float MarginX           = 0.0f;
     float MarginY           = 0.0f;
