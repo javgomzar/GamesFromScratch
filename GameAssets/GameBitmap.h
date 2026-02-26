@@ -111,13 +111,13 @@ uint64 PreprocessBitmap(bitmap_header* Header) {
     return 4 * Header->Width * Header->Height;
 }
 
-game_bitmap LoadBitmapFile(memory_arena* Arena, read_file_result File) {
+game_bitmap LoadBitmapFile(memory_arena* Arena, void* FileContent) {
     game_bitmap Result = {};
-    bitmap_header Header = *(bitmap_header*)File.Content;
+    bitmap_header Header = *(bitmap_header*)FileContent;
     Result.Header = Header;
     uint32 BytesPerPixel = Header.BitsPerPixel >> 3;
     Result.Pitch = Header.Width * BytesPerPixel;
-    Result.Content = (uint32*)((uint8*)File.Content + Header.BitmapOffset);
+    Result.Content = (uint32*)((uint8*)FileContent + Header.BitmapOffset);
 
     bool HasAlpha = false;
     if (Result.Header.BitsPerPixel == 32 && Result.Header.Compression == 3) {

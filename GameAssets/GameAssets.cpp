@@ -70,10 +70,10 @@ void LoadAssetsFromFile(
     game_assets* Assets, 
     const char* Path
 ) {
-    read_file_result AssetsFile = Platform.ReadEntireFile(Path);
+    void* AssetsFileContent = Platform.ReadEntireFile(Path);
 
-    *Assets = *(game_assets*)AssetsFile.Content;
-    Assets->Memory = (uint8*)AssetsFile.Content + sizeof(game_assets);
+    *Assets = *(game_assets*)AssetsFileContent;
+    Assets->Memory = (uint8*)AssetsFileContent + sizeof(game_assets);
 
     for (int i = 0; i < ASSET_COUNT; i++) {
         game_asset Asset = Assets->Asset.Content[i];

@@ -74,7 +74,6 @@ inline uint32 Hash(void* Data, memory_index Size) {
     return Hash;
 }
 
-/* FNV-1a hash algorithm */
 inline uint32 Hash(const char* String) {
 	uint32 Hash = 2166136261u;
     while (*String) {

@@ -39,7 +39,7 @@ void Log(log_level Level, const char* Content) {
 
     // Logging
     switch (LOG_MODE) {
-        case File:
+        case File_Log_Mode:
         {
             HANDLE FileHandle = CreateFileA("log.log", FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
             if (FileHandle != INVALID_HANDLE_VALUE) {
@@ -59,7 +59,7 @@ void Log(log_level Level, const char* Content) {
             CloseHandle(FileHandle);
         } break;
 
-        case Terminal:
+        case Terminal_Log_Mode:
         {
             HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
             SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
@@ -98,65 +98,29 @@ PLATFORM_FILE_EXISTS(Win32FileExists) {
     return GetFileAttributesA(Path) != INVALID_FILE_ATTRIBUTES;
 }
 
-PLATFORM_READ_ENTIRE_FILE(Win32ReadEntireFile) {
-    char ErrorText[256];
-    
-    read_file_result Result = {};
+PLATFORM_GET_FILE_INFO(Win32GetFileInfo) {
+    file_info Result = {};
     Result.Path = Path;
 
-    HANDLE FileHandle = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
+    WIN32_FIND_DATAA FindData = {};
+    HANDLE FileHandle = FindFirstFileA(Path, &FindData);
     if (FileHandle != INVALID_HANDLE_VALUE) {
-        LARGE_INTEGER FileSize;
-        if (GetFileSizeEx(FileHandle, &FileSize)) {
-            if (FileSize.QuadPart > 0) {
-                Result.Content = Win32AllocateMemory(FileSize.QuadPart);
-                if (Result.Content) {
-                    DWORD BytesRead;
-                    if (ReadFile(FileHandle, Result.Content, FileSize.QuadPart, &BytesRead, NULL)) {
-                        if (BytesRead != FileSize.QuadPart) {
-                            sprintf_s(ErrorText, "Couldn't read whole file %s", Path);
-                            Log(Error, ErrorText);
-                        }
-                        Result.ContentSize = min(BytesRead, FileSize.QuadPart);
-                    }
-                    else {
-                        Win32FreeMemory(Result.Content);
-                        Result.Content = 0;
-                        Result.ContentSize = 0;
-
-                        DWORD WinError = GetLastError();
-                        sprintf_s(ErrorText, "Couldn't read file %s. Error %d.", Path, WinError);
-                        Log(Error, ErrorText);
-                    }
-                }
-            }
-            else {
-                sprintf_s(ErrorText, "File %s is empty.", Path);
-                Log(Warn, ErrorText);
-            }
-        }
-
-        WIN32_FIND_DATAA Data;
-        HANDLE hFind = FindFirstFileA(Path, &Data);
-        *(FILETIME*)&Result.Timestamp = Data.ftLastWriteTime;
-
-        CloseHandle(FileHandle);
+        *(FILETIME*)&Result.Timestamp = FindData.ftLastWriteTime;
+        ULARGE_INTEGER Size = {FindData.nFileSizeLow, FindData.nFileSizeHigh};
+        Result.Size = Size.QuadPart;
+        FindClose(FileHandle);
     }
-    else {
-        DWORD WinError = GetLastError();
-        if (WinError == ERROR_PATH_NOT_FOUND) {
-            sprintf_s(ErrorText, "Path %s not found.", Path);
-        }
-        else {
-            sprintf_s(ErrorText, "Couldn't read file %s. Error %d.", Path, WinError);
-        }
-        Log(Error, ErrorText);
-    }
+
     return Result;
-};
+}
 
 PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
     char ErrorText[256];
+
+    file_chunk_info Result = {};
+    Result.ChunkSize = ChunkSize;
+    Result.Offset = Offset;
+    Result.Info = Win32GetFileInfo(Path);
 
     HANDLE FileHandle = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
@@ -165,23 +129,20 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         if (!SetFilePointerEx(FileHandle, LargeOffset, NULL, FILE_BEGIN)) {
             sprintf_s(ErrorText, "Couldn't set file pointer to offset %I64u at file %s", Offset, Path);
             Log(Error, ErrorText);
-            return NULL;
+            return Result;
         }
         
         DWORD BytesRead;
-        void* Destination = Win32AllocateMemory(ChunkSize);
-        if (ReadFile(FileHandle, Destination, ChunkSize, &BytesRead, NULL) && BytesRead == ChunkSize) {
+        if (ReadFile(FileHandle, Memory, ChunkSize, &BytesRead, NULL) && BytesRead == ChunkSize) {
             sprintf_s(ErrorText, "%d bytes read from file %s", BytesRead, Path);
             Log(Info, ErrorText);
         }
         else {
             sprintf_s(ErrorText, "Couldn't read chunk from file %s", Path);
             Log(Error, ErrorText);
-            Win32FreeMemory(Destination);
-            Destination = NULL;
         }
         CloseHandle(FileHandle);
-        return Destination;
+        return Result;
     }
 
     DWORD WinError = GetLastError();
@@ -193,32 +154,6 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
     }
     Log(Error, ErrorText);
 
-    return NULL;
-}
-
-PLATFORM_WRITE_ENTIRE_FILE(Win32WriteEntireFile) {
-    char ErrorText[256];
-    bool Result = false;
-
-    HANDLE FileHandle = CreateFileA(Path, GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
-    if (FileHandle != INVALID_HANDLE_VALUE) {
-        DWORD BytesWritten;
-        if (WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0)) {
-            Result = true;
-        }
-        CloseHandle(FileHandle);
-    }
-    else {
-        // Debug
-        DWORD WinError = GetLastError();
-        if (WinError == ERROR_PATH_NOT_FOUND) {
-            sprintf_s(ErrorText, "Path %s not found.", Path);
-        }
-        else {
-            sprintf_s(ErrorText, "Couldn't write to file %s. Error %d.", Path, WinError);
-        }
-        Log(Error, ErrorText);
-    }
     return Result;
 }
 
@@ -267,9 +202,9 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
     if (FileHandle != INVALID_HANDLE_VALUE) {
         if (SetFilePointerEx(FileHandle, { 0 }, NULL, FILE_END)) {
             DWORD BytesWritten;
-            if (WriteFile(FileHandle, Memory, MemorySize, &BytesWritten, 0)) {
+            if (WriteFile(FileHandle, Memory, Size, &BytesWritten, 0)) {
                 sprintf_s(ErrorText, "%d bytes written to file %s", BytesWritten, Path);
-                Result = BytesWritten == MemorySize;
+                Result = BytesWritten == Size;
                 Log(Result ? Info : Error, ErrorText);
             }
         }
@@ -302,19 +237,6 @@ PLATFORM_COPY_FILE(Win32FileCopy) {
 PLATFORM_DELETE_FILE(Win32FileDelete) {
     bool CopyResult = DeleteFileA(Path);
     return CopyResult;
-}
-
-PLATFORM_GET_LAST_WRITE_TIME(Win32GetLastWriteTime) {
-    int64 Result = 0;
-
-    WIN32_FIND_DATAA FindData = {};
-    HANDLE FileHandle = FindFirstFileA(Path, &FindData);
-    if (FileHandle != INVALID_HANDLE_VALUE) {
-        *(FILETIME*)&Result = FindData.ftLastWriteTime;
-        FindClose(FileHandle);
-    }
-
-    return Result;
 }
 
 PLATFORM_GET_WALL_CLOCK(Win32GetWallClock) {
@@ -370,14 +292,12 @@ platform_api Platform = {
     .AllocateMemory = Win32AllocateMemory,
     .FreeMemory = Win32FreeMemory,
     .FileExists = Win32FileExists,
-    .ReadEntireFile = Win32ReadEntireFile,
+    .GetFileInfo = Win32GetFileInfo,
     .ReadFileChunk = Win32ReadFileChunk,
-    .WriteEntireFile = Win32WriteEntireFile,
     .WriteFileChunk = Win32WriteFileChunk,
     .AppendToFile = Win32AppendToFile,
     .FileCopy = Win32FileCopy,
     .FileDelete = Win32FileDelete,
-    .GetLastWriteTime = Win32GetLastWriteTime,
     .GetWallClock = Win32GetWallClock,
     .RunCommand = Win32RunCommand,
     .WaitForProcess = Win32WaitForProcess,

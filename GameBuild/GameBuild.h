@@ -77,8 +77,8 @@ struct build_configuration {
 };
 
 void ReadBuildConfiguration(const char* ConfigurationFilePath, build_configuration* Configuration) {
-    read_file_result ConfigFile = Platform.ReadEntireFile(ConfigurationFilePath);
-    tokenizer Tokenizer = InitTokenizer(ConfigFile.Content);
+    void* ConfigFile = Platform.ReadEntireFile(ConfigurationFilePath);
+    tokenizer Tokenizer = InitTokenizer(ConfigFile);
     token Token = GetToken(Tokenizer);
 
     while(Token.Type != Token_End) {
@@ -191,7 +191,7 @@ void ReadBuildConfiguration(const char* ConfigurationFilePath, build_configurati
         Token = GetToken(Tokenizer);
     }
 
-    Platform.FreeMemory(ConfigFile.Content);
+    Platform.FreeMemory(ConfigFile);
 }
 
 void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64 End) {

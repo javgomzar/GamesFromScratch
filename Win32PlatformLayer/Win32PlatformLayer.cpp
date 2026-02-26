@@ -573,8 +573,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
         Result->Update = (game_update*)GetProcAddress(Result->GameCodeDLL, "GameUpdate");
         Result->IsValid = (Result->Update);
 
-        int64 LastWriteTime = Win32GetLastWriteTime(SourceDLLName);
-        Result->DLLLastWriteTime = LastWriteTime;
+        Result->DLLLastWriteTime = Win32GetFileInfo(SourceDLLName).Timestamp;
     }
     else {
         LastError = GetLastError();
@@ -717,7 +716,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     SetConsoleMode(hConsole, ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
     // Performance
-    uint64 LastCounter = Platform.GetWallClock();
+    uint64 LastCounter = Win32GetWallClock();
     uint64 LastCycleCount = __rdtsc();
 
     HDC DeviceContext = GetDC(Window);
@@ -777,37 +776,37 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             (Input->Keyboard.Control.JustPressed && Input->Keyboard.H.IsDown ||
              Input->Keyboard.Control.IsDown      && Input->Keyboard.H.JustPressed)
         ) {
-            int64 MetaprogrammingSourceTimestamp = Platform.GetLastWriteTime(BuildConfiguration.MetaprogrammingCodePath);
-            int64 MetaprogrammingBinaryTimestamp = Platform.GetLastWriteTime(MetaFile);
+            int64 MetaprogrammingSourceTimestamp = Win32GetFileInfo(BuildConfiguration.MetaprogrammingCodePath).Timestamp;
+            int64 MetaprogrammingBinaryTimestamp = Win32GetFileInfo(MetaFile).Timestamp;
     
             if (MetaprogrammingSourceTimestamp > MetaprogrammingBinaryTimestamp) {
-                MetaprogrammingCompilationStart = Platform.GetWallClock();
+                MetaprogrammingCompilationStart = Win32GetWallClock();
                 MetaprogrammingCompilation = CompileMetaprogramming(&BuildConfiguration);
             }
             else {
-                MetaprogrammingExecutionStart = Platform.GetWallClock();
-                MetaprogrammingExecution = Platform.RunCommand(MetaFile);
+                MetaprogrammingExecutionStart = Win32GetWallClock();
+                MetaprogrammingExecution = Win32RunCommand(MetaFile);
             }
         }
 
         if (MetaprogrammingCompilation.Running) {
-            int32 WaitResult = Platform.WaitForProcess(&MetaprogrammingCompilation, 0);
+            int32 WaitResult = Win32WaitForProcess(&MetaprogrammingCompilation, 0);
             if (WaitResult >= 0) {
-                uint64 End = Platform.GetWallClock();
+                uint64 End = Win32GetWallClock();
                 LogCompilationResult("Metaprogramming", WaitResult, MetaprogrammingCompilationStart, End);
                 MetaprogrammingCompilationStart = 0;
 
                 if (WaitResult == 0) {
-                    MetaprogrammingExecutionStart = Platform.GetWallClock();
-                    MetaprogrammingExecution = Platform.RunCommand(MetaFile);
+                    MetaprogrammingExecutionStart = Win32GetWallClock();
+                    MetaprogrammingExecution = Win32RunCommand(MetaFile);
                 }
             }
         }
 
         if (MetaprogrammingExecution.Running) {
-            int32 WaitResult = Platform.WaitForProcess(&MetaprogrammingExecution, 0);
+            int32 WaitResult = Win32WaitForProcess(&MetaprogrammingExecution, 0);
             if (WaitResult >= 0) {
-                uint64 End = Platform.GetWallClock();
+                uint64 End = Win32GetWallClock();
                 float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
                 log_level Level = WaitResult == 0 ? Info : Error;
                 if (WaitResult == 0) sprintf_s(LogBuffer, "Metaprogramming executed in %.2f milliseconds.", 1000.0f * Time);
@@ -816,22 +815,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 MetaprogrammingExecutionStart = 0;
 
                 if (WaitResult == 0) {
-                    LibraryCompilationStart = Platform.GetWallClock();
+                    LibraryCompilationStart = Win32GetWallClock();
                     LibraryCompilation = CompileGameLibraryHot(&BuildConfiguration);
                 }
             }
         }
 
         if (LibraryCompilation.Running) {
-            int32 WaitResult = Platform.WaitForProcess(&LibraryCompilation, 0);
+            int32 WaitResult = Win32WaitForProcess(&LibraryCompilation, 0);
             if (WaitResult >= 0) {
-                uint64 End = Platform.GetWallClock();
+                uint64 End = Win32GetWallClock();
                 LogCompilationResult("Game library", WaitResult, LibraryCompilationStart, End);
                 LibraryCompilationStart = 0;
             }
         }
         
-        int64 NewDLLWriteTime = Platform.GetLastWriteTime(SourceDLLName);
+        int64 NewDLLWriteTime = Win32GetFileInfo(SourceDLLName).Timestamp;
         if (NewDLLWriteTime > GameCode.DLLLastWriteTime) {
             static int Loads = 0;
             UnloadGameCode(&GameCode);
@@ -1030,7 +1029,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         uint64 CyclesElapsed = EndCycleCount - LastCycleCount;
         float UsedMCyclesPerFrame = (float)CyclesElapsed / 1000000.0f;
 
-        float WorkSecsElapsed = GetSecondsElapsed(LastCounter, Platform.GetWallClock());
+        float WorkSecsElapsed = GetSecondsElapsed(LastCounter, Win32GetWallClock());
         float UsedTime_ms = 1000.0f * WorkSecsElapsed;
 
         float SecsElapsedPerFrame = WorkSecsElapsed;
@@ -1038,7 +1037,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             while (SecsElapsedPerFrame < (TargetSecondsPerFrame - 0.0005f)) {
                 // if sleep granular : DWORD SleepMs = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecsElapsedPerFrame));
                 //Sleep(SleepMs);
-                SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, Platform.GetWallClock());
+                SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, Win32GetWallClock());
             }
         }
         else {
@@ -1074,10 +1073,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         while (SecsElapsedPerFrame < TargetSecondsPerFrame) {
             // if sleep granular : DWORD SleepMs = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecsElapsedPerFrame));
             //Sleep(SleepMs);
-            SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, Platform.GetWallClock());
+            SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, Win32GetWallClock());
         }
 
-        uint64 EndCounter = Platform.GetWallClock();
+        uint64 EndCounter = Win32GetWallClock();
         LastCounter = EndCounter;
         LastCycleCount = EndCycleCount;
 

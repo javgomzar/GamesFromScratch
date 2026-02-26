@@ -69,7 +69,8 @@ struct game_font_character {
 
 struct preprocessed_font {
     uint64 Size;
-    read_file_result File;
+    file_info FileInfo;
+    void* FileContent;
     uint32 GlyphOffsets[FONT_CHARACTERS_COUNT];
     uint32 LocaOffset;
     uint32 GlyfOffset;
@@ -679,7 +680,7 @@ bool IsInside(glyph_polygon P, v2 Q) {
 
 const float DPI = 96.0f;
 
-preprocessed_font PreprocessFont(read_file_result File);
+preprocessed_font PreprocessFont(file_info FileInfo);
 game_font LoadFont(memory_arena* Arena, preprocessed_font* Font);
 //glyph_triangulation ComputeTriangulation(memory_arena* Arena, game_font* Font);
 
@@ -817,13 +818,12 @@ int16 GetTTFCoordinate(bool IsShort, bool RepeatOrPositive, int16 Last, uint8*& 
 // | Font preprocessing                                                                                                                       |
 // +------------------------------------------------------------------------------------------------------------------------------------------+
 
-preprocessed_font PreprocessFont(read_file_result File) {
+preprocessed_font PreprocessFont(file_info FileInfo, void* FileContent) {
     using namespace ttf;
 
     preprocessed_font Result = {};
-    Result.File = File;
-
-    uint8* FilePointer = (uint8*)File.Content;
+    Result.FileContent = FileContent;
+    uint8* FilePointer = (uint8*)FileContent;
 
     font_header Header = ParseTTFHeader(FilePointer);
     Assert(Header.SFNTVersion == 0x00010000);
@@ -1175,7 +1175,7 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
     Result.MinY = Font->MinY;
     Result.MaxY = Font->MaxY;
 
-    uint8* FilePointer = (uint8*)Font->File.Content;
+    uint8* FilePointer = (uint8*)Font->FileContent;
 
     uint32* GlyphOffsets = new uint32[Font->nGlyphs+1];
     uint32* LocationsTable = (uint32*)(FilePointer + Font->LocaOffset);

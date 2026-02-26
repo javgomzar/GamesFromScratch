@@ -55,19 +55,21 @@ struct game_mesh {
 };
 
 struct preprocessed_mesh {
-    read_file_result File;
+    file_info FileInfo;
+    void* FileContent;
     uint32 nVertices;
     uint32 nEdges;
     uint32 nFaces;
     uint32 nBones;
 };
 
-preprocessed_mesh PreprocessMesh(read_file_result File) {
+preprocessed_mesh PreprocessMesh(file_info FileInfo, void* FileContent) {
     preprocessed_mesh Result = {};
-    Result.File = File;
+    Result.FileInfo = FileInfo;
+    Result.FileContent = FileContent;
 
-    if (File.ContentSize > 0) {
-        tokenizer Tokenizer = InitTokenizer(File.Content);
+    if (Result.FileInfo.Size > 0) {
+        tokenizer Tokenizer = InitTokenizer(Result.FileContent);
 
         token Token = RequireToken(Tokenizer, Token_Identifier);
         while (Token.Type == Token_Identifier) {
@@ -89,8 +91,8 @@ uint32 GetMeshVerticesSize(uint32 nVertices, bool HasArmature) {
 game_mesh LoadMesh(memory_arena* Arena, preprocessed_mesh* Preprocessed) {
     game_mesh Result = {};
 
-    if (Preprocessed->File.ContentSize > 0) {
-        tokenizer Tokenizer = InitTokenizer(Preprocessed->File.Content);
+    if (Preprocessed->FileInfo.Size > 0) {
+        tokenizer Tokenizer = InitTokenizer(Preprocessed->FileContent);
         AdvanceUntilLine(Tokenizer, 2);
 
         Result.nVertices = Preprocessed->nVertices;

@@ -56,7 +56,8 @@ union game_asset_id {
 struct game_asset {
     game_asset_id ID;
     game_asset_type Type;
-    read_file_result File;
+    file_info FileInfo;
+    void* FileContent;
     uint64 MemoryNeeded;
     uint64 Offset;
 };
@@ -167,8 +168,8 @@ struct game_heightmap {
 
 const int HEIGHTMAP_RESOLUTION = 16;
 
-uint64 ComputeNeededMemoryForHeightmap(read_file_result File) {
-    uint64 BitmapSize = PreprocessBitmap((bitmap_header*)File.Content);
+uint64 ComputeNeededMemoryForHeightmap(void* FileContent) {
+    uint64 BitmapSize = PreprocessBitmap((bitmap_header*)FileContent);
     return BitmapSize;
 }
 
@@ -176,7 +177,7 @@ game_heightmap LoadHeightmap(memory_arena* Arena, game_asset* Asset) {
     game_heightmap Result = {};
     Result.ID = Asset->ID.Heightmap;
 
-    Result.Bitmap = LoadBitmapFile(Arena, Asset->File);
+    Result.Bitmap = LoadBitmapFile(Arena, Asset->FileContent);
     return Result;
 }
 
@@ -245,15 +246,13 @@ void GetAnimationSizes(void* Content, uint32* nFrames, uint32* nBones) {
     }
 }
 
-uint64 ComputeNeededMemoryForAnimation(read_file_result File) {
+uint64 ComputeNeededMemoryForAnimation(void* FileContent) {
     uint64 Result = 0;
 
-    if (File.ContentSize > 0) {
-        uint32 nFrames = 0, nBones = 0;
-        GetAnimationSizes(File.Content, &nFrames, &nBones);
+    uint32 nFrames = 0, nBones = 0;
+    GetAnimationSizes(FileContent, &nFrames, &nBones);
 
-        Result = nFrames * nBones * 10 * sizeof(float);
-    }
+    Result = nFrames * nBones * 10 * sizeof(float);
     return Result;
 }
 
@@ -261,11 +260,11 @@ game_animation LoadAnimation(memory_arena* Arena, game_asset* Asset) {
     game_animation Result = {};
     Result.ID = Asset->ID.Animation;
 
-    GetAnimationSizes(Asset->File.Content, &Result.nFrames, &Result.nBones);
+    GetAnimationSizes(Asset->FileContent, &Result.nFrames, &Result.nBones);
 
     Result.Content = PushArray(Arena, Result.nFrames * Result.nBones * 10, float);
 
-    tokenizer Tokenizer = InitTokenizer(Asset->File.Content);
+    tokenizer Tokenizer = InitTokenizer(Asset->FileContent);
     AdvanceUntilLine(Tokenizer, 2);
     
     float* pOut = Result.Content;
@@ -350,9 +349,9 @@ void PushAsset(game_assets* Assets, const char* Path, game_text_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Text;
     Asset.ID.Text = ID;
-    Asset.File = Platform.ReadEntireFile(Path);
-    Assert(Asset.File.ContentSize > 0);
-    Asset.MemoryNeeded = Asset.File.ContentSize + 1;
+    Asset.FileContent = Platform.ReadEntireFile(Path, &Asset.FileInfo);
+    Assert(Asset.FileInfo.Size > 0);
+    Asset.MemoryNeeded = Asset.FileInfo.Size + 1;
     
     Append(&Assets->Asset, Asset);
     Assets->TotalSize += Asset.MemoryNeeded;
@@ -363,10 +362,10 @@ void PushAsset(game_assets* Assets, const char* Path, game_sound_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Sound;
     Asset.ID.Sound = ID;
-    Asset.File = Platform.ReadEntireFile(Path);
-    Assert(Asset.File.ContentSize > 0);
+    Asset.FileContent = Platform.ReadEntireFile(Path, &Asset.FileInfo);
+    Assert(Asset.FileInfo.Size > 0);
 
-    preprocessed_sound Preprocessed = PreprocessSound(Asset.File);
+    preprocessed_sound Preprocessed = PreprocessSound(Asset.FileContent);
     PreprocessedAssets.Sound[ID] = Preprocessed;
     Asset.MemoryNeeded = Preprocessed.Size;
 
@@ -379,9 +378,9 @@ void PushAsset(game_assets* Assets, const char* Path, game_bitmap_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Bitmap;
     Asset.ID.Bitmap = ID;
-    Asset.File = Platform.ReadEntireFile(Path);
-    Assert(Asset.File.ContentSize > 0);
-    Asset.MemoryNeeded = PreprocessBitmap((bitmap_header*)Asset.File.Content);
+    Asset.FileContent = Platform.ReadEntireFile(Path, &Asset.FileInfo);
+    Assert(Asset.FileInfo.Size > 0);
+    Asset.MemoryNeeded = PreprocessBitmap((bitmap_header*)Asset.FileContent);
 
     Append(&Assets->Asset, Asset);
     Assets->TotalSize += Asset.MemoryNeeded;
@@ -392,9 +391,9 @@ void PushAsset(game_assets* Assets, const char* Path, game_heightmap_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Heightmap;
     Asset.ID.Heightmap = ID;
-    Asset.File = Platform.ReadEntireFile(Path);
-    Assert(Asset.File.ContentSize > 0);
-    Asset.MemoryNeeded = ComputeNeededMemoryForHeightmap(Asset.File);
+    Asset.FileContent = Platform.ReadEntireFile(Path, &Asset.FileInfo);
+    Assert(Asset.FileInfo.Size > 0);
+    Asset.MemoryNeeded = ComputeNeededMemoryForHeightmap(Asset.FileContent);
 
     Append(&Assets->Asset, Asset);
     Assets->TotalSize += Asset.MemoryNeeded;
@@ -405,9 +404,9 @@ void PushAsset(game_assets* Assets, const char* Path, game_font_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Font;
     Asset.ID.Font = ID;
-    Asset.File = Platform.ReadEntireFile(Path);
-    Assert(Asset.File.ContentSize > 0);
-    preprocessed_font Preprocessed = PreprocessFont(Asset.File);
+    Asset.FileContent = Platform.ReadEntireFile(Path, &Asset.FileInfo);
+    Assert(Asset.FileInfo.Size > 0);
+    preprocessed_font Preprocessed = PreprocessFont(Asset.FileInfo, Asset.FileContent);
     PreprocessedAssets.Font[ID] = Preprocessed;
     Asset.MemoryNeeded = Preprocessed.Size;
 
@@ -420,10 +419,10 @@ void PushAsset(game_assets* Assets, const char* Path, game_mesh_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Mesh;
     Asset.ID.Mesh = ID;
-    Asset.File = Platform.ReadEntireFile(Path);
-    Assert(Asset.File.ContentSize > 0);
+    Asset.FileContent = Platform.ReadEntireFile(Path, &Asset.FileInfo);
+    Assert(Asset.FileInfo.Size > 0);
 
-    preprocessed_mesh Preprocessed = PreprocessMesh(Asset.File);
+    preprocessed_mesh Preprocessed = PreprocessMesh(Asset.FileInfo, Asset.FileContent);
     Asset.MemoryNeeded = 0;
     if (Preprocessed.nBones > 0) Asset.MemoryNeeded += Preprocessed.nVertices * (10 * sizeof(float) + 2 * sizeof(int32));
     else                         Asset.MemoryNeeded += Preprocessed.nVertices * 8 * sizeof(float);
@@ -441,9 +440,9 @@ void PushAsset(game_assets* Assets, const char* Path, game_animation_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Animation;
     Asset.ID.Animation = ID;
-    Asset.File = Platform.ReadEntireFile(Path);
-    Assert(Asset.File.ContentSize > 0);
-    Asset.MemoryNeeded = ComputeNeededMemoryForAnimation(Asset.File);
+    Asset.FileContent = Platform.ReadEntireFile(Path, &Asset.FileInfo);
+    Assert(Asset.FileInfo.Size > 0);
+    Asset.MemoryNeeded = ComputeNeededMemoryForAnimation(Asset.FileContent);
 
     Append(&Assets->Asset, Asset);
     Assets->TotalSize += Asset.MemoryNeeded;
@@ -454,9 +453,9 @@ void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Video;
     Asset.ID.Video = ID;
-    Asset.File = Platform.ReadEntireFile(Path);
-    Assert(Asset.File.ContentSize > 0);
-    Asset.MemoryNeeded = Asset.File.ContentSize;
+    Asset.FileContent = Platform.ReadEntireFile(Path, &Asset.FileInfo);
+    Assert(Asset.FileInfo.Size > 0);
+    Asset.MemoryNeeded = Asset.FileInfo.Size;
 
     Append(&Assets->Asset, Asset);
     Assets->TotalSize += Asset.MemoryNeeded;
@@ -473,8 +472,8 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
             Assets->Text[ID.Text].ID = ID.Text;
             Assets->Text[ID.Text].Size = Asset->MemoryNeeded;
             Assets->Text[ID.Text].Content = TextContent;
-            memcpy(TextContent, Asset->File.Content, Asset->MemoryNeeded);
-            sprintf_s(LogBuffer, "Loaded text %s.", Asset->File.Path);
+            memcpy(TextContent, Asset->FileContent, Asset->MemoryNeeded);
+            sprintf_s(LogBuffer, "Loaded text %s.", Asset->FileInfo.Path);
         } break;
 
         // case Asset_Type_Video: {
@@ -483,49 +482,49 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
         // } break;
 
         case Asset_Type_Bitmap: {
-            Assets->Bitmap[ID.Bitmap] = LoadBitmapFile(Arena, Asset->File);
+            Assets->Bitmap[ID.Bitmap] = LoadBitmapFile(Arena, Asset->FileContent);
             Assets->Bitmap[ID.Bitmap].ID = ID.Bitmap;
-            sprintf_s(LogBuffer, "Loaded bitmap %s.", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded bitmap %s.", Asset->FileInfo.Path);
         } break;
 
         case Asset_Type_Heightmap: {
             Assets->Heightmap[ID.Heightmap] = LoadHeightmap(Arena, Asset);
-            sprintf_s(LogBuffer, "Loaded heightmap %s.", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded heightmap %s.", Asset->FileInfo.Path);
         } break;
 
         case Asset_Type_Font: {
             Assets->Font[ID.Font] = LoadFont(Arena, &PreprocessedAssets.Font[ID.Font]);
             Assets->Font[ID.Font].ID = ID.Font;
-            sprintf_s(LogBuffer, "Loaded font %s.", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded font %s.", Asset->FileInfo.Path);
         } break;
 
         case Asset_Type_Sound: {
             Assets->Sound[ID.Sound] = LoadSound(Arena, &PreprocessedAssets.Sound[ID.Sound]);
             Assets->Sound[ID.Sound].ID = ID.Sound;
-            sprintf_s(LogBuffer, "Loaded sound %s.", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded sound %s.", Asset->FileInfo.Path);
         } break;
 
         case Asset_Type_Mesh: {
             Assets->Mesh[ID.Mesh] = LoadMesh(Arena, &PreprocessedAssets.Mesh[ID.Sound]);
             Assets->Mesh[ID.Mesh].ID = ID.Mesh;
-            sprintf_s(LogBuffer, "Loaded mesh %s.", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded mesh %s.", Asset->FileInfo.Path);
         } break;
 
         case Asset_Type_Animation: {
             Assets->Animation[ID.Animation] = LoadAnimation(Arena, Asset);
-            sprintf_s(LogBuffer, "Loaded animation %s.", Asset->File.Path);
+            sprintf_s(LogBuffer, "Loaded animation %s.", Asset->FileInfo.Path);
         } break;
 
         default: {
-            sprintf_s(LogBuffer, "Asset ignored %s.", Asset->File.Path);
+            sprintf_s(LogBuffer, "Asset ignored %s.", Asset->FileInfo.Path);
         }
     }
 
     Log(Info, LogBuffer);
     uint64 UsedMemory = Arena->Used - Asset->Offset;
     Assert(Asset->MemoryNeeded == UsedMemory);
-    Platform.FreeMemory(Asset->File.Content);
-    Asset->File.Content = 0;
+    Platform.FreeMemory(Asset->FileContent);
+    Asset->FileContent = nullptr;
 }
 
 

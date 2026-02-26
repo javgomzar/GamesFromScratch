@@ -93,7 +93,8 @@ ENUM(directX_Compute_Shader_ID,
 
 #define ShaderType(Type, ...) struct directX_##Type##_Shader { \
     directX_##Type##_Shader_ID ID; \
-    read_file_result File; \
+    file_info FileInfo; \
+    void* FileContent; \
     ID3D11##Type##Shader* Shader; \
     ID3DBlob* Blob; \
     __VA_ARGS__; }
@@ -564,12 +565,8 @@ void CreateInputLayout(instanced_layout_id LayoutID) {
     }
 }
 
-ID3DBlob* CompileShader(read_file_result* File, const char* Path) {
-    read_file_result NewFile = Platform.ReadEntireFile(Path);
-
-    if (NewFile.ContentSize == 0) return nullptr;
-
-    *File = NewFile;
+ID3DBlob* CompileShader(memory_index Size, void** FileContent, const char* Path) {
+    *FileContent = Platform.ReadEntireFile(Path);
 
     const char* Extension = GetFileExtension(Path);
     const char* Target = nullptr;
@@ -585,9 +582,9 @@ ID3DBlob* CompileShader(read_file_result* File, const char* Path) {
     ID3DBlob* Blob = nullptr;
     UINT Flags = D3D10_SHADER_PACK_MATRIX_ROW_MAJOR | D3DCOMPILE_DEBUG;
     HRESULT Result = D3DCompile(
-        File->Content, 
-        File->ContentSize, 
-        File->Path, 
+        *FileContent, 
+        Size, 
+        Path, 
         NULL, 
         NULL, 
         "main",
@@ -612,7 +609,7 @@ void ParseVertexLayout(directX_Vertex_Shader* Shader) {
     vertex_layout ShaderLayout = {};
     token SemanticNames[MAX_VERTEX_ATTRIBUTES] = {};
 
-    tokenizer Tokenizer = InitTokenizer(Shader->File.Content);
+    tokenizer Tokenizer = InitTokenizer(Shader->FileContent);
     token Token = GetToken(Tokenizer);
     while (Token.Type != Token_End) {
         if (Token == "struct") {
@@ -651,7 +648,7 @@ void ParseVertexLayout(directX_Vertex_Shader* Shader) {
                 }
                 if (!Found) {
                     char ErrorBuffer[128];
-                    sprintf_s(ErrorBuffer, "DirectX: Could not find compatible vertex layout for shader %s.", Shader->File.Path);
+                    sprintf_s(ErrorBuffer, "DirectX: Could not find compatible vertex layout for shader %s.", Shader->FileInfo.Path);
                     Log(Warn, ErrorBuffer);
                 }
             }
@@ -664,7 +661,8 @@ void ParseVertexLayout(directX_Vertex_Shader* Shader) {
 void LoadShader(directX_Vertex_Shader_ID ID, const char* Path) {
     directX_Vertex_Shader* Shader = &DirectX.VertexShader[ID];
     Shader->ID = ID;
-    ID3DBlob* Blob = CompileShader(&Shader->File, Path);
+    Shader->FileInfo = Platform.GetFileInfo(Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Path);
     if (Blob) {
         Shader->Blob = Blob;
         HRESULT Result = DirectX.Device->CreateVertexShader(
@@ -715,7 +713,8 @@ void ParseSamplers(ID3D11SamplerState** Sampler, char* Code) {
 void LoadShader(directX_Pixel_Shader_ID ID, const char* Path) {
     directX_Pixel_Shader* Shader = &DirectX.PixelShader[ID];
     Shader->ID = ID;
-    ID3DBlob* Blob = CompileShader(&Shader->File, Path);
+    Shader->FileInfo = Platform.GetFileInfo(Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Path);
     if (Blob) {
         Shader->Blob = Blob;
         HRESULT Result = DirectX.Device->CreatePixelShader(
@@ -731,7 +730,7 @@ void LoadShader(directX_Pixel_Shader_ID ID, const char* Path) {
             Log(Error, TextBuffer);
         }
         else {
-            ParseSamplers(&Shader->Sampler, (char*)Shader->File.Content);
+            ParseSamplers(&Shader->Sampler, (char*)Shader->FileContent);
         }
     }
 }
@@ -739,7 +738,8 @@ void LoadShader(directX_Pixel_Shader_ID ID, const char* Path) {
 void LoadShader(directX_Hull_Shader_ID ID, const char* Path) {
     directX_Hull_Shader* Shader = &DirectX.HullShader[ID];
     Shader->ID = ID;
-    ID3DBlob* Blob = CompileShader(&Shader->File, Path);
+    Shader->FileInfo = Platform.GetFileInfo(Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Path);
     if (Blob) {
         Shader->Blob = Blob;
         HRESULT Result = DirectX.Device->CreateHullShader(
@@ -760,7 +760,8 @@ void LoadShader(directX_Hull_Shader_ID ID, const char* Path) {
 void LoadShader(directX_Domain_Shader_ID ID, const char* Path) {
     directX_Domain_Shader* Shader = &DirectX.DomainShader[ID];
     Shader->ID = ID;
-    ID3DBlob* Blob = CompileShader(&Shader->File, Path);
+    Shader->FileInfo = Platform.GetFileInfo(Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Path);
     if (Blob) {
         Shader->Blob = Blob;
         HRESULT Result = DirectX.Device->CreateDomainShader(
@@ -776,7 +777,7 @@ void LoadShader(directX_Domain_Shader_ID ID, const char* Path) {
             Log(Error, TextBuffer);
         }
         else {
-            ParseSamplers(&Shader->Sampler, (char*)Shader->File.Content);
+            ParseSamplers(&Shader->Sampler, (char*)Shader->FileContent);
         }
     }
 }
@@ -784,7 +785,8 @@ void LoadShader(directX_Domain_Shader_ID ID, const char* Path) {
 void LoadShader(directX_Geometry_Shader_ID ID, const char* Path) {
     directX_Geometry_Shader* Shader = &DirectX.GeometryShader[ID];
     Shader->ID = ID;
-    ID3DBlob* Blob = CompileShader(&Shader->File, Path);
+    Shader->FileInfo = Platform.GetFileInfo(Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Path);
     if (Blob) {
         Shader->Blob = Blob;
         HRESULT Result = DirectX.Device->CreateGeometryShader(
@@ -805,7 +807,8 @@ void LoadShader(directX_Geometry_Shader_ID ID, const char* Path) {
 void LoadShader(directX_Compute_Shader_ID ID, const char* Path) {
     directX_Compute_Shader* Shader = &DirectX.ComputeShader[ID];
     Shader->ID = ID;
-    ID3DBlob* Blob = CompileShader(&Shader->File, Path);
+    Shader->FileInfo = Platform.GetFileInfo(Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Path);
     if (Blob) {
         Shader->Blob = Blob;
         HRESULT Result = DirectX.Device->CreateComputeShader(
@@ -824,7 +827,7 @@ void LoadShader(directX_Compute_Shader_ID ID, const char* Path) {
 }
 
 void ReloadShader(directX_Vertex_Shader* Shader) {
-    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Shader->FileInfo.Path);
     if (Blob) {
         ID3D11VertexShader* NewShader = nullptr;
         HRESULT Result = DirectX.Device->CreateVertexShader(
@@ -843,14 +846,14 @@ void ReloadShader(directX_Vertex_Shader* Shader) {
             ParseVertexLayout(Shader);
 
             char Text[512];
-            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
             Log(Info, Text);
         }
     }
 }
 
 void ReloadShader(directX_Hull_Shader* Shader) {
-    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Shader->FileInfo.Path);
     if (Blob) {
         ID3D11HullShader* NewShader = nullptr;
         HRESULT Result = DirectX.Device->CreateHullShader(
@@ -867,14 +870,14 @@ void ReloadShader(directX_Hull_Shader* Shader) {
             Shader->Shader = NewShader;
 
             char Text[512];
-            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
             Log(Info, Text);
         }
     }
 }
 
 void ReloadShader(directX_Domain_Shader* Shader) {
-    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Shader->FileInfo.Path);
     if (Blob) {
         ID3D11DomainShader* NewShader = nullptr;
         HRESULT Result = DirectX.Device->CreateDomainShader(
@@ -891,14 +894,14 @@ void ReloadShader(directX_Domain_Shader* Shader) {
             Shader->Shader = NewShader;
 
             char Text[512];
-            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
             Log(Info, Text);
         }
     }
 }
 
 void ReloadShader(directX_Geometry_Shader* Shader) {
-    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Shader->FileInfo.Path);
     if (Blob) {
         ID3D11GeometryShader* NewShader = nullptr;
         HRESULT Result = DirectX.Device->CreateGeometryShader(
@@ -915,14 +918,14 @@ void ReloadShader(directX_Geometry_Shader* Shader) {
             Shader->Shader = NewShader;
 
             char Text[512];
-            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
             Log(Info, Text);
         }
     }
 }
 
 void ReloadShader(directX_Pixel_Shader* Shader) {
-    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Shader->FileInfo.Path);
     if (Blob) {
         ID3D11PixelShader* NewShader = nullptr;
         HRESULT Result = DirectX.Device->CreatePixelShader(
@@ -938,17 +941,17 @@ void ReloadShader(directX_Pixel_Shader* Shader) {
             Shader->Blob = Blob;
             Shader->Shader = NewShader;
 
-            ParseSamplers(&Shader->Sampler, (char*)Shader->File.Content);
+            ParseSamplers(&Shader->Sampler, (char*)Shader->FileContent);
 
             char Text[512];
-            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
             Log(Info, Text);
         }
     }
 }
 
 void ReloadShader(directX_Compute_Shader* Shader) {
-    ID3DBlob* Blob = CompileShader(&Shader->File, Shader->File.Path);
+    ID3DBlob* Blob = CompileShader(Shader->FileInfo.Size, &Shader->FileContent, Shader->FileInfo.Path);
     if (Blob) {
         ID3D11ComputeShader* NewShader = nullptr;
         HRESULT Result = DirectX.Device->CreateComputeShader(
@@ -965,7 +968,7 @@ void ReloadShader(directX_Compute_Shader* Shader) {
             Shader->Shader = NewShader;
 
             char Text[512];
-            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->File.Path);
+            sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
             Log(Info, Text);
         }
     }
@@ -974,48 +977,54 @@ void ReloadShader(directX_Compute_Shader* Shader) {
 void ReloadShaders() {
     for (int i = 0; i < directX_Vertex_Shader_ID_count; i++) {
         directX_Vertex_Shader* Shader = &DirectX.VertexShader[i];
-        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
-        if (LastWriteTime > Shader->File.Timestamp) {
+        file_info NewFileInfo = Platform.GetFileInfo(Shader->FileInfo.Path);
+        if (NewFileInfo.Size > 0 && NewFileInfo.Timestamp > Shader->FileInfo.Timestamp) {
+            Shader->FileInfo = NewFileInfo;
             ReloadShader(Shader);
         }
     }
 
     for (int i = 0; i < directX_Hull_Shader_ID_count; i++) {
         directX_Hull_Shader* Shader = &DirectX.HullShader[i];
-        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
-        if (LastWriteTime > Shader->File.Timestamp) {
+        file_info NewFileInfo = Platform.GetFileInfo(Shader->FileInfo.Path);
+        if (NewFileInfo.Size > 0 && NewFileInfo.Timestamp > Shader->FileInfo.Timestamp) {
+            Shader->FileInfo = NewFileInfo;
             ReloadShader(Shader);
         }
     }
 
     for (int i = 0; i < directX_Domain_Shader_ID_count; i++) {
         directX_Domain_Shader* Shader = &DirectX.DomainShader[i];
-        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
-        if (LastWriteTime > Shader->File.Timestamp) {
+        file_info NewFileInfo = Platform.GetFileInfo(Shader->FileInfo.Path);
+        if (NewFileInfo.Size > 0 && NewFileInfo.Timestamp > Shader->FileInfo.Timestamp) {
+            Shader->FileInfo = NewFileInfo;
             ReloadShader(Shader);
         }
     }
 
     for (int i = 0; i < directX_Geometry_Shader_ID_count; i++) {
         directX_Geometry_Shader* Shader = &DirectX.GeometryShader[i];
-        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
-        if (LastWriteTime > Shader->File.Timestamp) {
+        file_info NewFileInfo = Platform.GetFileInfo(Shader->FileInfo.Path);
+        if (NewFileInfo.Size > 0 && NewFileInfo.Timestamp > Shader->FileInfo.Timestamp) {
+            Shader->FileInfo = NewFileInfo;
             ReloadShader(Shader);
         }
     }
 
     for (int i = 0; i < directX_Pixel_Shader_ID_count; i++) {
         directX_Pixel_Shader* Shader = &DirectX.PixelShader[i];
-        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
-        if (LastWriteTime > Shader->File.Timestamp) {
+        file_info NewFileInfo = Platform.GetFileInfo(Shader->FileInfo.Path);
+        if (NewFileInfo.Size > 0 && NewFileInfo.Timestamp > Shader->FileInfo.Timestamp) {
+            Shader->FileInfo = NewFileInfo;
             ReloadShader(Shader);
         }
     }
 
     for (int i = 0; i < directX_Compute_Shader_ID_count; i++) {
         directX_Compute_Shader* Shader = &DirectX.ComputeShader[i];
-        int64 LastWriteTime = Platform.GetLastWriteTime(Shader->File.Path);
-        if (LastWriteTime > Shader->File.Timestamp) {
+        file_info NewFileInfo = Platform.GetFileInfo(Shader->FileInfo.Path);
+        if (NewFileInfo.Size > 0 && NewFileInfo.Timestamp > Shader->FileInfo.Timestamp) {
+            Shader->FileInfo = NewFileInfo;
             ReloadShader(Shader);
         }
     }

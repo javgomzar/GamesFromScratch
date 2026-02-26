@@ -42,8 +42,8 @@ struct preprocessed_sound {
     int16* Data;
 };
 
-preprocessed_sound PreprocessSound(read_file_result File) {
-    unsigned long* Pointer = (unsigned long*)File.Content;
+preprocessed_sound PreprocessSound(void* FileContent) {
+    unsigned long* Pointer = (unsigned long*)FileContent;
 
     unsigned long ChunkType = *Pointer++;
     if (ChunkType != 'FFIR') {

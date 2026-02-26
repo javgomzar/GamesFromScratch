@@ -92,13 +92,15 @@ inline void Assert(bool assertion, const char* Message = "") {
 #endif
 }
 
-// +---------------------------------------------------------------------------------------------------------------------------------+
-// | Logging                                                                                                                         |
-// +---------------------------------------------------------------------------------------------------------------------------------+
+/*
++---------------------------------------------------------------------------------------------------------------------------------+
+| Logging                                                                                                                         |
++---------------------------------------------------------------------------------------------------------------------------------+
+*/
 
 enum log_mode {
-    File,
-    Terminal
+    File_Log_Mode,
+    Terminal_Log_Mode
 };
 
 enum log_level {
@@ -107,13 +109,15 @@ enum log_level {
     Error
 };
 
-log_mode LOG_MODE = Terminal;
+log_mode LOG_MODE = Terminal_Log_Mode;
 
 void Log(log_level Level, const char* Content);
 
-// +---------------------------------------------------------------------------------------------------------------------------------+
-// | Memory arenas                                                                                                                   |
-// +---------------------------------------------------------------------------------------------------------------------------------+
+/*
++---------------------------------------------------------------------------------------------------------------------------------+
+| Memory arenas                                                                                                                   |
++---------------------------------------------------------------------------------------------------------------------------------+
+*/
 
 struct memory_arena {
     memory_index Size;
@@ -180,9 +184,11 @@ inline char* PushString(memory_arena* Arena, const char* String) {
     return PushArray(Arena, strlen(String) + 1, char);
 }
 
-// +------------------------------------------------------------------------------------------------------------------------------------------+
-// | Data structures                                                                                                                          |
-// +------------------------------------------------------------------------------------------------------------------------------------------+
+/*
++------------------------------------------------------------------------------------------------------------------------------------------+
+| Data structures                                                                                                                          |
++------------------------------------------------------------------------------------------------------------------------------------------+
+*/
 
 /*
     Stack. Memory for elements must be previously allocated.
@@ -433,15 +439,22 @@ public:
     }
 };
 
-// +---------------------------------------------------------------------------------------------------------------------------------+
-// | File IO                                                                                                                         |
-// +---------------------------------------------------------------------------------------------------------------------------------+
+/*
++---------------------------------------------------------------------------------------------------------------------------------+
+| File IO                                                                                                                         |
++---------------------------------------------------------------------------------------------------------------------------------+
+*/
 
-struct read_file_result {
+struct file_info {
     const char* Path;
     int64 Timestamp;
-    uint32 ContentSize;
-    void* Content;
+    memory_index Size;
+};
+
+struct file_chunk_info {
+    file_info Info;
+    memory_index ChunkSize;
+    memory_index Offset;
 };
 
 const char* GetFileExtension(const char* Path) {
@@ -477,9 +490,11 @@ struct record_and_playback {
     uint64 TotalSize;
 };
 
-// +------------------------------------------------------------------------------------------------------------------------------------------+
-// | Monitor info                                                                                                                             |
-// +------------------------------------------------------------------------------------------------------------------------------------------+
+/*
++------------------------------------------------------------------------------------------------------------------------------------------+
+| Monitor info                                                                                                                             |
++------------------------------------------------------------------------------------------------------------------------------------------+
+*/
 
 const uint8 MAX_SUPPORTED_MONITORS = 8;
 
@@ -502,9 +517,11 @@ struct monitor_info {
     bool IsPrimary;
 };
 
-// +------------------------------------------------------------------------------------------------------------------------------------------+
-// | Multithreading                                                                                                                           |
-// +------------------------------------------------------------------------------------------------------------------------------------------+
+/*
++------------------------------------------------------------------------------------------------------------------------------------------+
+| Multithreading                                                                                                                           |
++------------------------------------------------------------------------------------------------------------------------------------------+
+*/
 
 struct process_info {
     void* Handle;
@@ -580,9 +597,11 @@ struct process_info {
 //    }
 // }
 
-// +------------------------------------------------------------------------------------------------------------------------------------------+
-// | OS Platform                                                                                                                              |
-// +------------------------------------------------------------------------------------------------------------------------------------------+
+/*
++------------------------------------------------------------------------------------------------------------------------------------------+
+| OS Platform                                                                                                                              |
++------------------------------------------------------------------------------------------------------------------------------------------+
+*/
 
 enum system_os {
     Windows,
@@ -598,19 +617,13 @@ typedef PLATFORM_FREE_MEMORY(platform_free_memory);
 #define PLATFORM_FILE_EXISTS(name) bool name(const char* Path)
 typedef PLATFORM_FILE_EXISTS(platform_file_exists);
 
-#define PLATFORM_READ_ENTIRE_FILE(name) read_file_result name(const char* Path)
-typedef PLATFORM_READ_ENTIRE_FILE(platform_read_entire_file);
-
-#define PLATFORM_READ_FILE_CHUNK(name) void* name(const char* Path, uint64 Offset, uint64 ChunkSize)
+#define PLATFORM_READ_FILE_CHUNK(name) file_chunk_info name(const char* Path, memory_index Offset, memory_index ChunkSize, void* Memory)
 typedef PLATFORM_READ_FILE_CHUNK(platform_read_file_chunk);
 
-#define PLATFORM_WRITE_ENTIRE_FILE(name) bool name(const char* Path, uint64 MemorySize, void* Memory)
-typedef PLATFORM_WRITE_ENTIRE_FILE(platform_write_entire_file);
-
-#define PLATFORM_WRITE_FILE_CHUNK(name) bool name(const char* Path, uint64 Offset, uint64 ChunkSize, void* Memory)
+#define PLATFORM_WRITE_FILE_CHUNK(name) bool name(const char* Path, memory_index Offset, memory_index ChunkSize, void* Memory)
 typedef PLATFORM_WRITE_FILE_CHUNK(platform_write_file_chunk);
 
-#define PLATFORM_APPEND_TO_FILE(name) bool name(const char* Path, uint64 MemorySize, void* Memory)
+#define PLATFORM_APPEND_TO_FILE(name) bool name(const char* Path, uint64 Size, void* Memory)
 typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
 
 #define PLATFORM_COPY_FILE(name) bool name(const char* Source, const char* Destination)
@@ -619,8 +632,8 @@ typedef PLATFORM_COPY_FILE(platform_copy_file);
 #define PLATFORM_DELETE_FILE(name) bool name(const char* Path)
 typedef PLATFORM_DELETE_FILE(platform_delete_file);
 
-#define PLATFORM_GET_LAST_WRITE_TIME(name) int64 name(const char* Path)
-typedef PLATFORM_GET_LAST_WRITE_TIME(platform_get_last_write_time);
+#define PLATFORM_GET_FILE_INFO(name) file_info name(const char* Path)
+typedef PLATFORM_GET_FILE_INFO(platform_get_file_info);
 
 /*
     This function should be accompanied by a QueryPerformanceFrequency function that sets the
@@ -639,18 +652,35 @@ struct platform_api {
     platform_allocate_memory*     AllocateMemory;
     platform_free_memory*         FreeMemory;
     platform_file_exists*         FileExists;
-    platform_read_entire_file*    ReadEntireFile;
+    platform_get_file_info*       GetFileInfo;
     platform_read_file_chunk*     ReadFileChunk;
-    platform_write_entire_file*   WriteEntireFile;
     platform_write_file_chunk*    WriteFileChunk;
     platform_append_to_file*      AppendToFile;
     platform_copy_file*           FileCopy;
     platform_delete_file*         FileDelete;
-    platform_get_last_write_time* GetLastWriteTime;
     platform_get_wall_clock*      GetWallClock;
     platform_run_command*         RunCommand;
     platform_wait_for_process*    WaitForProcess;
     uint64                        PerformanceCounterFrequency;
+
+    void* ReadEntireFile(const char* Path, file_info* FileInfo = nullptr) {
+        file_info Info = GetFileInfo(Path);
+        if (FileInfo) {
+            *FileInfo = Info;
+        }
+
+        if (Info.Size > 0) {
+            void* Result = AllocateMemory(Info.Size);
+
+            file_chunk_info ChunkInfo = ReadFileChunk(Path, 0, Info.Size, Result);
+            return Result;
+        }
+        return nullptr;
+    }
+
+    bool WriteEntireFile(const char* Path, memory_index Size, void* Memory) {
+        return WriteFileChunk(Path, 0, Size, Memory);
+    }
 };
 
 #ifdef _WIN32
