@@ -2,6 +2,10 @@
 #include "GameLibrary.h"
 #include "GameBuild.h"
 
+#define XXH_STATIC_LINKING_ONLY
+#define XXH_IMPLEMENTATION
+#include "xxhash.h"
+
 #if GAME_RENDER_API_DIRECTX
     #include "DirectX11Render.h"
 #elif GAME_RENDER_API_OPENGL
