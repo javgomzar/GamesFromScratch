@@ -565,9 +565,11 @@ public:
 +---------------------------------------------------------------------------------------------------------------------------------+
 */
 
+#define MAX_PATH_LENGTH 256
+
 struct file_info {
-    const char* Path;
-    int64 Timestamp;
+    char Path[MAX_PATH_LENGTH];
+    int64 Timestamp; 
     memory_index Size;
 };
 

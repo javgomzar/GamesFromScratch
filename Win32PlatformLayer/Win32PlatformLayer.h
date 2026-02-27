@@ -100,7 +100,7 @@ PLATFORM_FILE_EXISTS(Win32FileExists) {
 
 PLATFORM_GET_FILE_INFO(Win32GetFileInfo) {
     file_info Result = {};
-    Result.Path = Path;
+    strcpy_s(Result.Path, Path);
 
     WIN32_FIND_DATAA FindData = {};
     HANDLE FileHandle = FindFirstFileA(Path, &FindData);
