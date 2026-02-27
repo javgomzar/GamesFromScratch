@@ -94,20 +94,117 @@ game_data_slot* GetSlot(game_data_page Page, game_data_slot_id ID) {
     return nullptr;
 }
 
+/*
++---------------------------------------------------------------------------------------------------------------------------------+
+| Files                                                                                                                           |
++---------------------------------------------------------------------------------------------------------------------------------+
+*/
+
 typedef uint32 game_data_file_id;
+
 struct game_data_file_header {
     char MagicNumber[2];
     game_data_file_id ID;
+    uint32 HeaderSize;
+    uint32 Offset;
     uint32 nPages;
 };
 
-game_data_file_header* GetFileHeader(const char* Path) {
-    game_data_file_header* Result = (game_data_file_header*)Platform.ReadFileChunk(Path, 0, sizeof(game_data_file_header));
-    bool Corrupted = Result->MagicNumber[0] != 'G' || Result->MagicNumber[1] != 'D';
-    if (Corrupted) {
-        Result = nullptr;
-        Log(Error, "File is corrupted");
+bool IsValid(game_data_file_header Header) {
+    return Header.MagicNumber[0] == 'G' && Header.MagicNumber[1] == 'D';
+}
+
+game_data_file_header CreateFileHeader(game_data_file_id ID) {
+    game_data_file_header Result = {};
+    Result.MagicNumber[0] = 'G';
+    Result.MagicNumber[1] = 'D';
+    Result.HeaderSize = sizeof(game_data_file_header);
+    Result.Offset = sizeof(game_data_file_header);
+    Result.nPages = 0;
+    Result.ID = ID;
+    return Result;
+}
+
+game_data_file_header GetFileHeader(const char* Path) {
+    game_data_file_header Result = {};
+    file_chunk_info Info = Platform.ReadFileChunk(Path, 0, sizeof(game_data_file_header), &Result);
+    bool Valid = IsValid(Result);
+    if (!Valid) {
+        Log(Error, "File is corrupted.");
     }
+    return Result;
+}
+
+struct game_data_file {
+    game_data_file_header Header;
+    file_info Info;
+};
+
+struct game_data_file_manager {
+    game_data_file* Files;
+    uint32 Count;
+    uint32 Size;
+    game_data_file_id NextID;
+};
+
+game_data_file_manager CreateDataFileManager() {
+    game_data_file_manager Result = {};
+    Result.Size = 32;
+    Result.Files = (game_data_file*)calloc(Result.Size, sizeof(game_data_file));
+    Result.Count = 0;
+    Result.NextID = 1;
+
+    return Result;
+}
+void CloseDataFileManager(game_data_file_manager* Manager) {
+    free(Manager->Files);
+    Manager->Files = nullptr;
+}
+
+game_data_file* AddDataFile(game_data_file_manager* Manager, const char* Path) {
+    game_data_file* Result = nullptr;
+    if (Manager->Count + 1 == Manager->Size) {
+        Manager->Size *= 2;
+        Manager->Files = (game_data_file*)realloc(Manager->Files, Manager->Size);
+    }
+    Result = Manager->Files + Manager->Count++;
+    Result->Header = CreateFileHeader(Manager->NextID++);
+
+    return Result;
+}
+
+game_data_file* GetFile(game_data_file_manager* Manager, game_data_file_id ID) {
+    game_data_file* Result = nullptr;
+    for (int i = 0; i < Manager->Count; i++) {
+        game_data_file* File = Manager->Files + i;
+        if (File->Header.ID == ID) {
+            Result = File;
+            break;
+        }
+    }
+    return Result;
+}
+
+game_data_file* GetFile(game_data_file_manager* Manager, const char* Path) {
+    game_data_file* Result = nullptr;
+    bool Exists = Platform.FileExists(Path);
+    if (Exists) {
+        game_data_file_header Header = GetFileHeader(Path);
+
+        if (IsValid(Header)) {
+            Result = GetFile(Manager, Header.ID);
+            if (Result) {
+                return Result;
+            }
+            Result = AddDataFile(Manager, Path);
+            Header.ID = Result->Header.ID;
+            Result->Header = Header;
+            return Result;
+        }
+    }
+    Result = AddDataFile(Manager, Path);
+    Platform.WriteEntireFile(Path, sizeof(game_data_file_header), &Result->Header);
+    Result->Info = Platform.GetFileInfo(Path);
     return Result;
 }
 
@@ -122,33 +219,44 @@ struct game_data_id {
     operator bool() const { return FileID && PageID && SlotID; }
 };
 
-struct game_data_manager {
-    memory_arena FilesArena;
-    uint32 nFiles;
-    game_data_file_id NextFileID;
-
+struct game_data_frame {
+    game_data_file_id FileID;
+    game_data_page_id PageID;
+    uint8 FrameIndex;
+    uint8 References;
+    bool Dirty;
+    bool Pinned;
 };
 
-game_data_manager InitializeDataManager(const char* Path) {
-    if (Platform.FileExists(Path)) {
+#define GAME_DATA_FILE_PATH_LENGTH 256
 
-    }
-    else {
+#define GAME_DATA_FRAME_POOL_SIZE 128
 
-    }
+struct game_data_manager {
+    game_data_file_manager FileManager;
+    game_data_frame Frames[GAME_DATA_FRAME_POOL_SIZE];
+    uint8* FramePool;
+};
 
-    return {};
+game_data_manager CreateDataManager() {
+    game_data_manager Result = {};
+
+    memory_index FramePoolSize = GAME_DATA_FRAME_POOL_SIZE * GAME_DATA_PAGE_SIZE;
+    Result.FramePool = (uint8*)Platform.AllocateMemory(FramePoolSize);
+
+    return Result;
 }
 
 void CloseDataManager(game_data_manager Manager) {
-
+    Platform.FreeMemory(Manager.FramePool);
 }
 
 enum game_data_type {
     data_type_bool,
     data_type_int,
     data_type_float,
-    data_type_string
+    data_type_string,
+    data_type_binary
 };
 
 uint32 GetSize(game_data_type Type) {

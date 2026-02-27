@@ -3,6 +3,12 @@
 #include "GameData.h"
 
 
+void TestDataFileManager() {
+    game_data_file_manager Manager = CreateDataFileManager();
+
+    CloseDataFileManager(&Manager);
+}
+
 void TestData() {
     memory_arena Arena = AllocateMemoryArena(Kilobytes(8));
 
