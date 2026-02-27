@@ -4,6 +4,8 @@
 #include <string>
 #include <format>
 
+#include "xxhash.h"
+
 typedef uint8_t uint8;
 typedef uint16_t uint16;
 typedef uint32_t uint32;
@@ -436,6 +438,108 @@ public:
 
     void Clear() {
         Header->n = 0;
+    }
+};
+
+template <typename T> class hash_table {
+private:
+    uint32 Size;
+    uint32 Used;
+    struct entry {
+        uint64 Hash;
+        const char* Key;
+        T Value;
+    }* Entries;
+
+    uint64 Hash(const char* Key) {
+        return XXH64(Key, strlen(Key), 0);
+    }
+
+    bool Resize() {
+        uint32 NewSize = 2*Size;
+        void* NewContent = calloc(NewSize, sizeof(entry));
+        if (NewContent) {
+            entry* NewEntries = (entry*)NewContent;
+            for (int i = 0; i < Size; i++) {
+                entry* Entry = Entries + i;
+                if (Entry->Key) {
+                    uint32 NewIndex = Entry->Hash % NewSize;
+                    entry* NewEntry = NewEntries + NewIndex;
+                    while (NewEntry->Key) {
+                        NewIndex = (NewIndex + 1) % NewSize;
+                        NewEntry = NewEntries + NewIndex;
+                    }
+                    *NewEntry = *Entry;
+                }
+            }
+            free(Entries);
+            Entries = NewEntries;
+            Size = NewSize;
+        }
+        return NewContent != nullptr;
+    }
+
+    entry* Search(uint64 H, const char* Key) {
+        uint32 Index = H % Size;
+        entry* Entry = Entries + Index;
+        if (Entry->Key == nullptr) {
+            return Entry;
+        }
+        while (Entry->Key) {
+            if (H == Entry->Hash) {
+                if (strcmp(Entry->Key, Key) == 0) {
+                    return Entry;
+                }
+            }
+            Index = (Index + 1) % Size;
+            Entry = Entries + Index;
+        }
+        return Entry;
+    }
+
+public:
+    hash_table(uint32 SizeExponent = 6) {
+        Used = 0;
+        Size = 1 << SizeExponent;
+        Entries = (entry*)calloc(Size, sizeof(entry));
+    }
+
+    ~hash_table() {
+        free(Entries);
+    }
+
+    void Insert(const char* Key, T Value) {
+        uint64 H = Hash(Key);
+        entry* Entry = Search(H, Key);
+        if (Entry->Key == nullptr) {
+            Used += 1;
+            if (Used >= 0.75f * Size) {
+                Resize();
+                Entry = Search(H, Key);
+            }
+        }
+        Entry->Hash = H;
+        Entry->Key = Key;
+        Entry->Value = Value;
+    }
+
+    void Delete(const char* Key) {
+        uint64 H = Hash(Key);
+        entry* Entry = Search(H, Key);
+        if (Entry->Key) {
+            Entry->Hash = 0;
+            Entry->Key = nullptr;
+            Entry->Value = {};
+
+            Used -= 1;
+        }
+    }
+
+    T Get(const char* Key) {
+        uint64 H = Hash(Key);
+        entry* Entry = Search(H, Key);
+        Assert(Entry->Key);
+        return Entry->Value;
     }
 };
 
