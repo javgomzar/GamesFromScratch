@@ -450,6 +450,7 @@ private:
         const char* Key;
         T Value;
     }* Entries;
+    bool* Deleted;
 
     uint64 Hash(const char* Key) {
         return XXH64(Key, strlen(Key), 0);
@@ -475,26 +476,38 @@ private:
             free(Entries);
             Entries = NewEntries;
             Size = NewSize;
+            bool* NewDeleted = (bool*)calloc(NewSize, sizeof(bool));
+            if (NewDeleted) {
+                free(Deleted);
+                Deleted = NewDeleted;
+            }
+            else {
+                Assert(false);
+            }
+        }
+        else {
+            Assert(false);
         }
         return NewContent != nullptr;
     }
 
-    entry* Search(uint64 H, const char* Key) {
+    uint32 Search(uint64 H, const char* Key, bool CanBeDeleted = false) {
         uint32 Index = H % Size;
         entry* Entry = Entries + Index;
         if (Entry->Key == nullptr) {
-            return Entry;
+            return Index;
         }
         while (Entry->Key) {
-            if (H == Entry->Hash) {
-                if (strcmp(Entry->Key, Key) == 0) {
-                    return Entry;
-                }
+            if (
+                CanBeDeleted && Deleted[Index] || 
+                !Deleted[Index] && H == Entry->Hash && strcmp(Entry->Key, Key) == 0
+            ) {
+                return Index;
             }
             Index = (Index + 1) % Size;
             Entry = Entries + Index;
         }
-        return Entry;
+        return Index;
     }
 
 public:
@@ -502,6 +515,7 @@ public:
         Used = 0;
         Size = 1 << SizeExponent;
         Entries = (entry*)calloc(Size, sizeof(entry));
+        Deleted = (bool*)calloc(Size, sizeof(bool));
     }
 
     ~hash_table() {
@@ -510,13 +524,17 @@ public:
 
     void Insert(const char* Key, T Value) {
         uint64 H = Hash(Key);
-        entry* Entry = Search(H, Key);
+        uint32 Index = Search(H, Key, true);
+        entry* Entry = Entries + Index;
         if (Entry->Key == nullptr) {
             Used += 1;
             if (Used >= 0.75f * Size) {
                 Resize();
-                Entry = Search(H, Key);
+                Entry = Entries + Search(H, Key);
             }
+        }
+        else if (Deleted[Index]) {
+            Deleted[Index] = false;
         }
         Entry->Hash = H;
         Entry->Key = Key;
@@ -525,19 +543,17 @@ public:
 
     void Delete(const char* Key) {
         uint64 H = Hash(Key);
-        entry* Entry = Search(H, Key);
-        if (Entry->Key) {
-            Entry->Hash = 0;
-            Entry->Key = nullptr;
-            Entry->Value = {};
-
-            Used -= 1;
+        uint32 Index = Search(H, Key);
+        entry* Entry = Entries + Index;
+        if (Entry->Key && !Deleted[Index]) {
+            Deleted[Index] = true;
         }
     }
 
     T Get(const char* Key) {
         uint64 H = Hash(Key);
-        entry* Entry = Search(H, Key);
+        uint32 Index = Search(H, Key);
+        entry* Entry = Entries + Index;
         Assert(Entry->Key);
         return Entry->Value;
     }
