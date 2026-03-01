@@ -59,6 +59,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         //TestPerformance();
 
         TestData();
+        TestDataFileManager();
 
         // Initialize entities
         ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);

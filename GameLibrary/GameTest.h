@@ -4,9 +4,14 @@
 
 
 void TestDataFileManager() {
-    game_data_file_manager Manager = CreateDataFileManager();
+    game_data_file_manager Manager = InitializeDataFileManager("GameData\\Data\\data_file_manager");
 
-    CloseDataFileManager(&Manager);
+    game_data_file* TestFile1 = GetOrCreateDataFile(&Manager, "GameData\\Data\\test_file_1");
+
+    game_data_file* TestFile2 = GetOrCreateDataFile(&Manager, "GameData\\Data\\test_file_1");
+    Assert(TestFile2 == TestFile1);
+
+    CloseDataFileManager(Manager);
 }
 
 void TestData() {

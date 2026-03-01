@@ -141,14 +141,16 @@ struct game_data_file {
 };
 
 struct game_data_file_manager {
+    char Directory[MAX_PATH_LENGTH];
     game_data_file* Files;
     uint32 Count;
     uint32 Size;
     game_data_file_id NextID;
 };
 
-game_data_file_manager CreateDataFileManager() {
+game_data_file_manager CreateDataFileManager(const char* Directory) {
     game_data_file_manager Result = {};
+    strcpy_s(Result.Directory, Directory);
     Result.Size = 32;
     Result.Files = (game_data_file*)calloc(Result.Size, sizeof(game_data_file));
     Result.Count = 0;
@@ -156,9 +158,51 @@ game_data_file_manager CreateDataFileManager() {
 
     return Result;
 }
-void CloseDataFileManager(game_data_file_manager* Manager) {
-    free(Manager->Files);
-    Manager->Files = nullptr;
+
+void SaveDataFileManager(game_data_file_manager Manager) {
+    uint32 FileSize = 3 * sizeof(uint32) + Manager.Count * sizeof(game_data_file);
+    void* Memory = calloc(1, FileSize);
+
+    uint32* Pointer = (uint32*)Memory;
+    *Pointer++ = Manager.Count;
+    *Pointer++ = Manager.Size;
+    *Pointer++ = Manager.NextID;
+    memcpy(Pointer, Manager.Files, Manager.Count * sizeof(game_data_file));
+
+    Platform.WriteEntireFile(Manager.Directory, FileSize, Memory);
+    free(Memory);
+}
+
+game_data_file_manager ReadDataFileManager(const char* Directory) {
+    game_data_file_manager Result = {};
+    strcpy_s(Result.Directory, Directory);
+    
+    file_info File;
+    void* ReadMemory = Platform.ReadEntireFile(Directory, &File);
+
+    uint32* Pointer = (uint32*)ReadMemory;
+    Result.Count = *Pointer++;
+    Result.Size = *Pointer++;
+    Result.NextID = *Pointer++;
+
+    Result.Files = (game_data_file*)calloc(Result.Size, sizeof(game_data_file));
+    memcpy(Result.Files, Pointer, Result.Count * sizeof(game_data_file));
+
+    Platform.FreeMemory(ReadMemory);
+
+    return Result;
+}
+
+game_data_file_manager InitializeDataFileManager(const char* Directory) {
+    if (Platform.FileExists(Directory)) {
+        return ReadDataFileManager(Directory);
+    }
+    return CreateDataFileManager(Directory);
+}
+
+void CloseDataFileManager(game_data_file_manager Manager) {
+    SaveDataFileManager(Manager);
+    free(Manager.Files);
 }
 
 game_data_file* AddDataFile(game_data_file_manager* Manager, const char* Path) {
@@ -173,7 +217,7 @@ game_data_file* AddDataFile(game_data_file_manager* Manager, const char* Path) {
     return Result;
 }
 
-game_data_file* GetFile(game_data_file_manager* Manager, game_data_file_id ID) {
+game_data_file* GetDataFile(game_data_file_manager* Manager, game_data_file_id ID) {
     game_data_file* Result = nullptr;
     for (int i = 0; i < Manager->Count; i++) {
         game_data_file* File = Manager->Files + i;
@@ -185,14 +229,14 @@ game_data_file* GetFile(game_data_file_manager* Manager, game_data_file_id ID) {
     return Result;
 }
 
-game_data_file* GetFile(game_data_file_manager* Manager, const char* Path) {
+game_data_file* GetOrCreateDataFile(game_data_file_manager* Manager, const char* Path) {
     game_data_file* Result = nullptr;
     bool Exists = Platform.FileExists(Path);
     if (Exists) {
         game_data_file_header Header = GetFileHeader(Path);
 
         if (IsValid(Header)) {
-            Result = GetFile(Manager, Header.ID);
+            Result = GetDataFile(Manager, Header.ID);
             if (Result) {
                 return Result;
             }

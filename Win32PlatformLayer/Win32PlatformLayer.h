@@ -161,7 +161,7 @@ PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
     char ErrorText[256];
     bool Result = false;
 
-    HANDLE FileHandle = CreateFileA(Path, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
+    HANDLE FileHandle = CreateFileA(Path, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
         LARGE_INTEGER LargeOffset;
         LargeOffset.QuadPart = Offset;
