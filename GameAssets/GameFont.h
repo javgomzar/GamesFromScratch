@@ -1259,10 +1259,10 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                 }
 
                 if (Flags & ARGS_ARE_XY_VALUES) {
-                    // if (Flags & ROUND_XY_TO_GRID) {
-                    //     // TODO: Round to pixel grid
-                    //     Raise("Not implemented");
-                    // }
+                    if (Flags & ROUND_XY_TO_GRID) {
+                        // TODO: Round to pixel grid
+                        Raise("Not implemented");
+                    }
 
                     if (Flags & SCALED_COMPONENT_OFFSET) {
                         v2 ComponentOffset = V2(X, Y);
@@ -1277,10 +1277,10 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                     Raise("Not implemented");
                 }
 
-                // if (Flags & USE_MY_METRICS) {
-                //     // TODO: Use the metrics of this component
-                //     Raise("Not implemented");
-                // }
+                if (Flags & USE_MY_METRICS) {
+                    // TODO: Use the metrics of this component
+                    Raise("Not implemented");
+                }
 
                 if (nChildren == 1) {
                     GlyphData = GlyfTable + GlyphOffsets[ChildGlyphIndex];
