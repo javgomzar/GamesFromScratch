@@ -759,8 +759,9 @@ float GetTextWidth(const char* Text, game_font* Font, float Points) {
 void FillGlyphOffsets(uint32* GlyphOffsets, uint32* LocationsTable, int16 IndexToLocFormat, uint16 nGlyphs) {
     switch(IndexToLocFormat) {
         case 0: {
+            uint16* ShortLocationsTable = (uint16*)LocationsTable;
             for (int i = 0; i <= nGlyphs; i++) {
-                GlyphOffsets[i] = (uint32)BigEndian(LocationsTable[i]) << 1;
+                GlyphOffsets[i] = (uint32)BigEndian(ShortLocationsTable[i]) << 1;
             }
         } break;
         case 1: {
@@ -1002,6 +1003,7 @@ preprocessed_font PreprocessFont(file_info FileInfo, void* FileContent) {
         if (c != ' ') Result.GlyphIDs[c - '!'] = GlyphID;
 
         uint32 Offset = GlyphOffsets[GlyphID];
+        Assert(Offset < FileInfo.Size);
         uint32 GlyphLength = GlyphOffsets[GlyphID + 1] - Offset;
         uint8* GlyphData = GlyfTable + Offset;
         if (GlyphLength > 0) {
