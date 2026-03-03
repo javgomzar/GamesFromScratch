@@ -7,7 +7,7 @@
 #include "GameFont.h"
 #include "GameBitmap.h"
 #include "GameSound.h"
-#include "GameVideo.h"
+// #include "GameVideo.h"
 #include "GameMesh.h"
 
 /*
@@ -50,7 +50,7 @@ union game_asset_id {
     game_font_id Font;
     game_mesh_id Mesh;
     game_animation_id Animation;
-    game_video_id Video;
+//  game_video_id Video;
 };
 
 struct game_asset {
@@ -305,8 +305,8 @@ const uint32 ASSET_COUNT =
     game_heightmap_id_count +
     game_font_id_count +
     game_mesh_id_count +
-    game_animation_id_count + 
-    game_video_id_count;
+    game_animation_id_count; // + 
+//    game_video_id_count;
 
 ArrayDefinition(ASSET_COUNT, game_asset)
 
@@ -449,6 +449,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_animation_id ID) {
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
+/*
 void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Video;
@@ -461,6 +462,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
     Assets->TotalSize += Asset.MemoryNeeded;
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
+*/
 
 void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
     Asset->Offset = Arena->Used;

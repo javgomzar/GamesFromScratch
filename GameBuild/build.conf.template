@@ -9,7 +9,6 @@ RENDERER=DirectX
 
 INCLUDE=
 .\Linking\include;
-.\Linking\include\ffmpeg;
 {VULKAN_INSTALLATION_FOLDER}\{VULKAN_VERSION}\Include;
 {VISUAL_STUDIO_INSTALLATION_FOLDER}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\{MSVC_VERSION}\include;
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\Include\{WINDOWS_SDK_VERSION}\ucrt;
@@ -23,7 +22,6 @@ INCLUDE=
 
 LIB=
 .\Linking\lib;
-.\Linking\lib\ffmpeg;
 {VULKAN_INSTALLATION_FOLDER}\{VULKAN_VERSION}\Include;
 {VISUAL_STUDIO_INSTALLATION_FOLDER}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\{MSVC_VERSION}\lib\x64;
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\lib\{WINDOWS_SDK_VERSION}\um\x64;
