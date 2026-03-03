@@ -1,8 +1,8 @@
 #include "GamePlatform.h"
 #include "GameMath.h"
 
-#ifndef GAME_FONTS
-#define GAME_FONTS
+#ifndef GAME_FONT
+#define GAME_FONT
 
 #include <vector>
 
