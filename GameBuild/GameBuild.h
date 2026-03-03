@@ -78,120 +78,126 @@ struct build_configuration {
 
 void ReadBuildConfiguration(const char* ConfigurationFilePath, build_configuration* Configuration) {
     void* ConfigFile = Platform.ReadEntireFile(ConfigurationFilePath);
-    tokenizer Tokenizer = InitTokenizer(ConfigFile);
-    token Token = GetToken(Tokenizer);
-
-    while(Token.Type != Token_End) {
-        // Comments
-        if (Token.Type == Token_Pound) {
-            AdvanceUntilNextLine(Tokenizer);
-        }
-
-        else if (Token.Type == Token_Identifier) {
-            // Mode
-            if (Token == "MODE") {
-                RequireToken(Tokenizer, Token_Equal);
-                token ModeToken = RequireToken(Tokenizer, Token_Identifier);
-                Configuration->Mode = GetBuildMode(ModeToken);
+    if (ConfigFile) {
+        tokenizer Tokenizer = InitTokenizer(ConfigFile);
+        token Token = GetToken(Tokenizer);
+    
+        while(Token.Type != Token_End) {
+            // Comments
+            if (Token.Type == Token_Pound) {
+                AdvanceUntilNextLine(Tokenizer);
             }
-
-            // Compiler
-            else if (Token == "COMPILER") {
-                RequireToken(Tokenizer, Token_Equal);
-                Configuration->Compiler = GetCompiler(RequireToken(Tokenizer, Token_Identifier));
-            }
-
-            // Compiler path
-            else if (Token == "COMPILER_PATH") {
-                RequireToken(Tokenizer, Token_Equal);
-                int PathLength = ParsePath(Tokenizer.At);
-                for (int i = 0; i < PathLength; i++) {
-                    Configuration->CompilerPath[i] = Tokenizer.At[0];
-                    Advance(Tokenizer);
+    
+            else if (Token.Type == Token_Identifier) {
+                // Mode
+                if (Token == "MODE") {
+                    RequireToken(Tokenizer, Token_Equal);
+                    token ModeToken = RequireToken(Tokenizer, Token_Identifier);
+                    Configuration->Mode = GetBuildMode(ModeToken);
+                }
+    
+                // Compiler
+                else if (Token == "COMPILER") {
+                    RequireToken(Tokenizer, Token_Equal);
+                    Configuration->Compiler = GetCompiler(RequireToken(Tokenizer, Token_Identifier));
+                }
+    
+                // Compiler path
+                else if (Token == "COMPILER_PATH") {
+                    RequireToken(Tokenizer, Token_Equal);
+                    int PathLength = ParsePath(Tokenizer.At);
+                    for (int i = 0; i < PathLength; i++) {
+                        Configuration->CompilerPath[i] = Tokenizer.At[0];
+                        Advance(Tokenizer);
+                    }
+                }
+    
+                // Include
+                else if (Token == "INCLUDE") {
+                    RequireToken(Tokenizer, Token_Equal);
+                    int IncludeLength = sizeof(Configuration->Include);
+                    int Index = 0;
+                    do {
+                        AdvanceUntilNextLine(Tokenizer);
+                        Configuration->Include[Index++] = '/';
+                        Configuration->Include[Index++] = 'I';
+                        Configuration->Include[Index++] = '\"';
+                        int PathLength = ParsePath(Tokenizer.At);
+                        for (int i = 0; i < PathLength; i++) {
+                            if (Index >= IncludeLength) Raise("Include text buffer has been filled.");
+                            Configuration->Include[Index++] = Tokenizer.At[0];
+                            Advance(Tokenizer);
+                        }
+                        Configuration->Include[Index++] = '\"';
+                        if (Tokenizer.At[0] != ';') break;
+                        Configuration->Include[Index++] = ' ';
+                    } while (true);
+                }
+    
+                // Lib
+                else if (Token == "LIB") {
+                    RequireToken(Tokenizer, Token_Equal);
+                    int LibpathLength = sizeof(Configuration->Lib);
+                    int Index = 0;
+                    do {
+                        AdvanceUntilNextLine(Tokenizer);
+                        Configuration->Lib[Index++] = '/';
+                        Configuration->Lib[Index++] = 'L';
+                        Configuration->Lib[Index++] = 'I';
+                        Configuration->Lib[Index++] = 'B';
+                        Configuration->Lib[Index++] = 'P';
+                        Configuration->Lib[Index++] = 'A';
+                        Configuration->Lib[Index++] = 'T';
+                        Configuration->Lib[Index++] = 'H';
+                        Configuration->Lib[Index++] = ':';
+                        Configuration->Lib[Index++] = '\"';
+                        int PathLength = ParsePath(Tokenizer.At);
+                        for (int i = 0; i < PathLength; i++) {
+                            if (Index >= LibpathLength) Raise("Libpath text buffer has been filled.");
+                            Configuration->Lib[Index++] = Tokenizer.At[0];
+                            Advance(Tokenizer);
+                        }
+                        Configuration->Lib[Index++] = '\"';
+                        if (Tokenizer.At[0] != ';') break;
+                        Configuration->Lib[Index++] = ' ';
+                    } while (true);
+                }
+    
+                // Metaprogramming source file
+                else if (Token == "META") {
+                    Configuration->Preprocess = true;
+                    RequireToken(Tokenizer, Token_Equal);
+                    int MetaprogrammingFilePathLength = ParsePath(Tokenizer.At);
+                    strncpy_s(Configuration->MetaprogrammingCodePath, Tokenizer.At, MetaprogrammingFilePathLength);
+                    AdvanceUntilNextLine(Tokenizer);
+                }
+    
+                // Precompiled headers
+                else if (Token == "PRECOMPILED_HEADERS_PATH") {
+                    RequireToken(Tokenizer, Token_Equal);
+                    Configuration->PCH = true;
+                    int PCHPathLength = ParsePath(Tokenizer.At);
+                    strncpy_s(Configuration->PCHPath, Tokenizer.At, PCHPathLength);
+                    AdvanceUntilNextLine(Tokenizer);
+                }
+    
+                // Renderer
+                else if (Token == "RENDERER") {
+                    RequireToken(Tokenizer, Token_Equal);
+                    token RendererToken = RequireToken(Tokenizer, Token_Identifier);
+                    Configuration->Renderer = GetRenderer(RendererToken);
                 }
             }
-
-            // Include
-            else if (Token == "INCLUDE") {
-                RequireToken(Tokenizer, Token_Equal);
-                int IncludeLength = sizeof(Configuration->Include);
-                int Index = 0;
-                do {
-                    AdvanceUntilNextLine(Tokenizer);
-                    Configuration->Include[Index++] = '/';
-                    Configuration->Include[Index++] = 'I';
-                    Configuration->Include[Index++] = '\"';
-                    int PathLength = ParsePath(Tokenizer.At);
-                    for (int i = 0; i < PathLength; i++) {
-                        if (Index >= IncludeLength) Raise("Include text buffer has been filled.");
-                        Configuration->Include[Index++] = Tokenizer.At[0];
-                        Advance(Tokenizer);
-                    }
-                    Configuration->Include[Index++] = '\"';
-                    if (Tokenizer.At[0] != ';') break;
-                    Configuration->Include[Index++] = ' ';
-                } while (true);
-            }
-
-            // Lib
-            else if (Token == "LIB") {
-                RequireToken(Tokenizer, Token_Equal);
-                int LibpathLength = sizeof(Configuration->Lib);
-                int Index = 0;
-                do {
-                    AdvanceUntilNextLine(Tokenizer);
-                    Configuration->Lib[Index++] = '/';
-                    Configuration->Lib[Index++] = 'L';
-                    Configuration->Lib[Index++] = 'I';
-                    Configuration->Lib[Index++] = 'B';
-                    Configuration->Lib[Index++] = 'P';
-                    Configuration->Lib[Index++] = 'A';
-                    Configuration->Lib[Index++] = 'T';
-                    Configuration->Lib[Index++] = 'H';
-                    Configuration->Lib[Index++] = ':';
-                    Configuration->Lib[Index++] = '\"';
-                    int PathLength = ParsePath(Tokenizer.At);
-                    for (int i = 0; i < PathLength; i++) {
-                        if (Index >= LibpathLength) Raise("Libpath text buffer has been filled.");
-                        Configuration->Lib[Index++] = Tokenizer.At[0];
-                        Advance(Tokenizer);
-                    }
-                    Configuration->Lib[Index++] = '\"';
-                    if (Tokenizer.At[0] != ';') break;
-                    Configuration->Lib[Index++] = ' ';
-                } while (true);
-            }
-
-            // Metaprogramming source file
-            else if (Token == "META") {
-                Configuration->Preprocess = true;
-                RequireToken(Tokenizer, Token_Equal);
-                int MetaprogrammingFilePathLength = ParsePath(Tokenizer.At);
-                strncpy_s(Configuration->MetaprogrammingCodePath, Tokenizer.At, MetaprogrammingFilePathLength);
-                AdvanceUntilNextLine(Tokenizer);
-            }
-
-            // Precompiled headers
-            else if (Token == "PRECOMPILED_HEADERS_PATH") {
-                RequireToken(Tokenizer, Token_Equal);
-                Configuration->PCH = true;
-                int PCHPathLength = ParsePath(Tokenizer.At);
-                strncpy_s(Configuration->PCHPath, Tokenizer.At, PCHPathLength);
-                AdvanceUntilNextLine(Tokenizer);
-            }
-
-            // Renderer
-            else if (Token == "RENDERER") {
-                RequireToken(Tokenizer, Token_Equal);
-                token RendererToken = RequireToken(Tokenizer, Token_Identifier);
-                Configuration->Renderer = GetRenderer(RendererToken);
-            }
+    
+            Token = GetToken(Tokenizer);
         }
-
-        Token = GetToken(Tokenizer);
+    
+        Platform.FreeMemory(ConfigFile);
     }
-
-    Platform.FreeMemory(ConfigFile);
+    else {
+        std::string ErrorText = std::format("Build configuration file {} not found.", ConfigurationFilePath);
+        Raise(ErrorText.data());
+    }
 }
 
 void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64 End) {
@@ -228,9 +234,9 @@ process_info CompileGameLibraryHot(build_configuration* Configuration) {
             Command = std::format(
                 "{} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {} {} "
                 "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" "
-                "/link {} avcodec.lib avformat.lib avutil.lib swscale.lib bin\\{}.obj "
-                "/DLL /IMPLIB:\"bin\\GameLibrary.lib\" /PDB:\"bin\\GameLibrary{}.pdb\" "
-                "/ILK:\"bin\\GameLibrary.ilk\" /OUT:\"bin\\GameLibrary.dll\"",
+                "/link {} bin\\{}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\""
+                "/PDB:\"bin\\GameLibrary{}.pdb\" /ILK:\"bin\\GameLibrary.ilk\" "
+                "/OUT:\"bin\\GameLibrary.dll\"",
                 Configuration->CompilerPath, GetCompilerFlags(MSVC, Configuration->Mode), Configuration->Include, 
                 PCHOutput, PCHOutput, Configuration->Lib, PCHOutput, nHotReloads
             );
