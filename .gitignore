@@ -2,7 +2,9 @@
 .vs/
 
 # Visual Studio Code
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
 
 # Game assets
 GameAssets/Files
