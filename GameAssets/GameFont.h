@@ -7,7 +7,7 @@
 #include <vector>
 
 ENUM(game_font_id,
-    Font_Menlo_Regular_ID
+    Font_DejaVu_Sans_ID
 );
 
 const uint32 FONT_CHARACTERS_COUNT = '~' - ' ';
@@ -108,6 +108,8 @@ struct game_font {
     game_font_character Characters[FONT_CHARACTERS_COUNT];
     uint32 nOnCurve;
     uint32 nPoints;
+    uint32 nCurveTriangles;
+    uint32 nSolidTriangles;
     float* Vertices;
     uint32* Elements;
 };
@@ -255,13 +257,6 @@ struct os2_table {
     FWORD	sTypoLineGap;
     UFWORD	usWinAscent;
     UFWORD	usWinDescent;
-    uint32	ulCodePageRange1;
-    uint32	ulCodePageRange2;
-    FWORD	sxHeight;
-    FWORD	sCapHeight;
-    uint16	usDefaultChar;
-    uint16	usBreakChar;
-    uint16	usMaxContext;
 };
 
 os2_table ParseTTFOS2Table(uint8* Memory) {
@@ -305,13 +300,6 @@ os2_table ParseTTFOS2Table(uint8* Memory) {
     Result.sTypoLineGap = BigEndian(Result.sTypoLineGap);
     Result.usWinAscent = BigEndian(Result.usWinAscent);
     Result.usWinDescent = BigEndian(Result.usWinDescent);
-    Result.ulCodePageRange1 = BigEndian(Result.ulCodePageRange1);
-    Result.ulCodePageRange2 = BigEndian(Result.ulCodePageRange2);
-    Result.sxHeight = BigEndian(Result.sxHeight);
-    Result.sCapHeight = BigEndian(Result.sCapHeight);
-    Result.usDefaultChar = BigEndian(Result.usDefaultChar);
-    Result.usBreakChar = BigEndian(Result.usBreakChar);
-    Result.usMaxContext = BigEndian(Result.usMaxContext);
     return Result;
 }
 
@@ -891,7 +879,6 @@ preprocessed_font PreprocessFont(file_info FileInfo, void* FileContent) {
         }
         else if (TagEquals(TableRecord.Tag, "OS/2")) {
             os2_table OS2 = ParseTTFOS2Table(FilePointer + TableRecord.Offset);
-            Assert(OS2.version >= 2);
             fsSelection_flags Flags = (fsSelection_flags)OS2.fsSelection;
             if (Flags & FS_USE_TYPO_METRICS) {
                 Result.LineJump = OS2.sTypoAscender - OS2.sTypoDescender + OS2.sTypoLineGap;
@@ -1146,11 +1133,6 @@ preprocessed_font PreprocessFont(file_info FileInfo, void* FileContent) {
     delete [] GlyphOffsets;
 
     Result.nOnCurve = TotalOnCurvePoints;
-
-    uint32 onCurve = 0;
-    for (int i = 0; i < FONT_CHARACTERS_COUNT; i++) {
-        onCurve += Result.nOnCurvePoints[i];
-    }
 
     Result.Size = TotalContours * sizeof(glyph_contour);
     Result.Size += TotalPoints * sizeof(glyph_contour_point);
@@ -1492,6 +1474,7 @@ void WriteFontCurveTriangles(
 
     Font->Elements = (uint32*)(Arena->Base + Arena->Used);
     uint32 Offset = 0;
+    Font->nCurveTriangles = 0;
     for (char c = '!'; c <= '~'; c++) {
         game_font_character* Character = &Font->Characters[c - '!'];
         Character->nInteriorCurves = 0;
@@ -1530,6 +1513,7 @@ void WriteFontCurveTriangles(
 
         Character->InteriorCurvesOffset = Offset;
         if (Character->nInteriorCurves > 0) {
+            Font->nCurveTriangles += Character->nInteriorCurves;
             uint32* Elements = PushArray(Arena, 3 * Character->nInteriorCurves, uint32);
             for (int i = 0; i < 3 * Character->nInteriorCurves; i++) {
                 uint32 Element = InteriorTriangles[i];
@@ -1540,6 +1524,7 @@ void WriteFontCurveTriangles(
 
         Character->ExteriorCurvesOffset = Offset;
         if (Character->nExteriorCurves > 0) {
+            Font->nCurveTriangles += Character->nExteriorCurves;
             uint32* Elements = PushArray(Arena, 3 * Character->nExteriorCurves, uint32);
             for (int i = 0; i < 3 * Character->nExteriorCurves; i++) {
                 uint32 Element = ExteriorTriangles[i];
@@ -1557,7 +1542,8 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
     using namespace ttf;
     memory_arena TempArena = AllocateMemoryArena(Kilobytes(32));
 
-    uint32 Offset = 3 * (Font->nPoints - Font->nOnCurve);
+    uint32 Offset = 3 * Font->nCurveTriangles;
+    Font->nSolidTriangles = 0;
     for (char c = '!'; c <= '~'; c++) {
         game_font_character* Character = &Font->Characters[c - '!'];
         Character->SolidTrianglesOffset = Offset;
@@ -1725,6 +1711,8 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                     Polygon.Vertices.Break(Vertex);
                     VertexCount--;
                 }
+
+                Font->nSolidTriangles += Character->nSolidTriangles;
 
                 VoidTriangles.Clear();
                 ClearArena(&TempArena);

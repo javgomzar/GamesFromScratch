@@ -61,6 +61,31 @@ void TestInstancedRendering(render_group* Group) {
     }
 }
 
+void TestTextRendering(render_group* Group, game_input* Input) {
+    render_text_options Options = {};
+    Options.Outline = false;
+    Options.OutlineWidth = 1.5f;
+
+    static float Points = 42;
+    if (Input->Mouse.Wheel > 0) {
+        Points *= 1.25f;
+    }
+    else if (Input->Mouse.Wheel < 0) {
+        Points *= 0.8f;
+    }
+
+    const char* TestString = "!\"#$%&'()*+,-./0123456789:;<=>?@\nABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\nabcdefghijklmnopqrstuvwxyz{|}~";
+    game_font* Font = GetAsset(Group->Assets, Font_DejaVu_Sans_ID);
+
+    game_font_character Char = Font->Characters[0];
+    for (int i = 0; i < Char.nContours; i++) {
+        glyph_contour Con = Char.Contours[i];
+        int x = 4;
+    }
+
+    PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Outline = false, .Points = Points);
+}
+
 void TestRendering(render_group* Group, game_input* Input, float Time) {
 // 2D
     // Rects
@@ -84,23 +109,6 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
     // Bitmap
     rectangle BitmapRect = { 20, 140, 100, 200 };
     PushBitmap(Group, Bitmap_Player_ID, BitmapRect);
-
-    static float Points = 42;
-    if (Input->Mouse.Wheel > 0) {
-        Points *= 1.25f;
-    }
-    else if (Input->Mouse.Wheel < 0) {
-        Points *= 0.8f;
-    }
-
-    // Text
-    // render_text_options Options = {};
-    // Options.Outline = false;
-    // Options.OutlineWidth = 1.5f;
-
-    // const char* TestString = "!\"#$%&'()*+,-./0123456789:;<=>?@\nABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\nabcdefghijklmnopqrstuvwxyz{|}~";
-    // game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
-    // PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Outline = false, .Points = Points);
 
 // 3D
     // Point
