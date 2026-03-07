@@ -210,22 +210,15 @@ void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64
 
 process_info CompileGameLibraryHot(build_configuration* Configuration) {
     int nHotReloads = 0;
-    WIN32_FIND_DATAA FindData;
-    HANDLE hFind = FindFirstFileA("bin\\Gamelibrary*.pdb", &FindData);
-    if (hFind != INVALID_HANDLE_VALUE) {
-        WIN32_FIND_DATAA LastData;
-        do {
-            LastData = FindData;
+    std::string PDBFile = std::format("bin\\GameLibrary{}.pdb", nHotReloads);
+    bool Exists;
+    do {
+        Exists = Platform.FileExists(PDBFile.data());
+        if (Exists) {
+            nHotReloads += 1;
+            PDBFile = std::format("bin\\GameLibrary{}.pdb", nHotReloads);
         }
-        while(FindNextFileA(hFind, &FindData) != 0);
-
-        char* End = nullptr;
-        char* Number = LastData.cFileName + 11;
-        if ('0' <= Number[0] && Number[0] <= '9') {
-            nHotReloads = strtol(Number, &End, 10) + 1;
-        }
-    }
-    FindClose(hFind);
+    } while(Exists);
 
     const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
     std::string Command;
@@ -234,7 +227,7 @@ process_info CompileGameLibraryHot(build_configuration* Configuration) {
             Command = std::format(
                 "{} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {} {} "
                 "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" "
-                "/link {} bin\\{}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\""
+                "/link {} bin\\{}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
                 "/PDB:\"bin\\GameLibrary{}.pdb\" /ILK:\"bin\\GameLibrary.ilk\" "
                 "/OUT:\"bin\\GameLibrary.dll\"",
                 Configuration->CompilerPath, GetCompilerFlags(MSVC, Configuration->Mode), Configuration->Include, 

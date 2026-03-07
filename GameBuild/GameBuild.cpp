@@ -40,8 +40,8 @@ int main(int argc, char* argv[]) {
             float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
             log_level Level = WaitResult > 0 ? Error : Info;
             std::string LogText = WaitResult == 0 ?
-                std::format("Metaprogramming executed in %.2f milliseconds.", 1000.0f * Time) :
-                std::format("Metaprogramming execution failed with code '%d'", WaitResult);
+                std::format("Metaprogramming executed in {} milliseconds.", 1000.0f * Time) :
+                std::format("Metaprogramming execution failed with code '{}'", WaitResult);
             Log(Level, LogText.data());
         }
         
