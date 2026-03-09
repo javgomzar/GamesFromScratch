@@ -403,7 +403,7 @@ private:
 public:
     xarray() {
         Meta = { 4, 0, sizeof(T) };
-        Header = (xarray_header*)calloc(MAX_XARRAY_CHUNKS + 1, sizeof(uint64));
+        Header = (xarray_header*)calloc(MAX_XARRAY_CHUNKS + 1, sizeof(void*));
         NewChunk(Meta.ElementSize * (1 << Meta.Shift));
     }
 
@@ -423,7 +423,7 @@ public:
     T* Insert(const T& Element = {}) {
         uint64 TotalSize = Meta.ElementSize * (1 << (Meta.Shift + Meta.nChunks - 1));
         uint64 NewIndex = Header->n++;
-        if (NewIndex * sizeof(T) >= TotalSize) {
+        if (Header->n * sizeof(T) >= TotalSize) {
             NewChunk(TotalSize);
         }
 
