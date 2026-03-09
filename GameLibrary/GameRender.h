@@ -377,7 +377,7 @@ void InitializeRenderGroup(
     Group->Height = Height;
 
     Group->Assets = Assets;
-    Group->DebugFont = GetAsset(Assets, Font_DejaVu_Sans_ID);
+    Group->DebugFont = GetAsset(Assets, Font_DejaVu_Sans_Mono_ID);
     
     Group->Debug = false;
     Group->DebugNormals = false;

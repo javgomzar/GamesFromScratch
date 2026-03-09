@@ -7,6 +7,7 @@
 #include <vector>
 
 ENUM(game_font_id,
+    Font_DejaVu_Sans_Mono_ID,
     Font_DejaVu_Sans_ID
 );
 
@@ -1635,6 +1636,7 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                     link* Vertex = Polygon.Vertices.First;
 
                     bool Found = false;
+                    bool EmptyTriangle = false;
                     do {
                         First  = *(glyph_contour_point*)Vertex->Previous->Data;
                         Second = *(glyph_contour_point*)Vertex->Data;
@@ -1646,7 +1648,13 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
 
                         triangle2 T = { A, B, C };
                         float Area = GetArea(T);
-                        
+
+                        if (Area == 0.0f) {
+                            Found = true;
+                            EmptyTriangle = true;
+                            break;
+                        }
+
                         if (Area > 0) {
                             bool Valid = true;
                             for (int k = 0; k < VoidTriangles.Size(); k++) {
@@ -1659,8 +1667,6 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                             }
 
                             if (Valid)  {
-                                // Test no other points of the contour are in the borders of the triangles: this can
-                                // cause some triangles to be invalid later
                                 link* TestVertex = Polygon.Vertices.First;
 
                                 segment2 Segments[3] = {
@@ -1676,6 +1682,8 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                                         ContourPoint->Index != Third.Index
                                     ) {
                                         v2 P = GetContourPointV2(ContourPoint);
+                                        // Test no other points of the contour are in the borders of the triangles: this can
+                                        // cause some triangles to be invalid later
                                         if (IsInside(Segments[0], P) || IsInside(Segments[1], P) || IsInside(Segments[2], P)) {
                                             Valid = false;
                                             break;
@@ -1696,17 +1704,43 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                     } while (Vertex && Vertex != Polygon.Vertices.First);
 
                     if (!Found) {
-                        Raise("Glyph triangle not found!.");
+                        if (VertexCount == 3) {
+                            First  = *(glyph_contour_point*)Vertex->Previous->Data;
+                            Second = *(glyph_contour_point*)Vertex->Data;
+                            Third  = *(glyph_contour_point*)Vertex->Next->Data;
+
+                            v2 A = V2(First.X, First.Y);
+                            v2 B = V2(Second.X, Second.Y);
+                            v2 C = V2(Third.X, Third.Y);
+
+                            triangle2 T = { A, B, C };
+                            float Area = GetArea(T);
+
+                            if (Area > 0) {
+                                // Ignore intersections with void triangles if it is the last one
+                                uint32* Out = PushArray(Arena, 3, uint32);
+                                Out[0] = First.Index;
+                                Out[1] = Second.Index;
+                                Out[2] = Third.Index;
+            
+                                Character->nSolidTriangles++;
+    
+                                Offset += 3;
+                            }
+                            break;
+                        }
                     }
 
-                    uint32* Out = PushArray(Arena, 3, uint32);
-                    Out[0] = First.Index;
-                    Out[1] = Second.Index;
-                    Out[2] = Third.Index;
-
-                    Character->nSolidTriangles++;
-
-                    Offset += 3;
+                    if (!EmptyTriangle) {
+                        uint32* Out = PushArray(Arena, 3, uint32);
+                        Out[0] = First.Index;
+                        Out[1] = Second.Index;
+                        Out[2] = Third.Index;
+    
+                        Character->nSolidTriangles++;
+    
+                        Offset += 3;
+                    }
                 
                     Polygon.Vertices.Break(Vertex);
                     VertexCount--;

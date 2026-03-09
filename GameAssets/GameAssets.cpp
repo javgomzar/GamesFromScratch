@@ -5,7 +5,8 @@ void WriteAssetsFile(const char* Path) {
 
 // Assets
     // Fonts
-    PushAsset(&Assets, "GameAssets\\Files\\Font\\DejaVu-Sans.ttf", Font_DejaVu_Sans_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Font\\DejaVuSansMono.ttf", Font_DejaVu_Sans_Mono_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Font\\DejaVuSans.ttf", Font_DejaVu_Sans_ID);
 
     // Text
     PushAsset(&Assets, "GameAssets\\Files\\Text\\Test.txt", Text_Test_ID);

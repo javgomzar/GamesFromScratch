@@ -77,13 +77,7 @@ void TestTextRendering(render_group* Group, game_input* Input) {
     const char* TestString = "!\"#$%&'()*+,-./0123456789:;<=>?@\nABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\nabcdefghijklmnopqrstuvwxyz{|}~";
     game_font* Font = GetAsset(Group->Assets, Font_DejaVu_Sans_ID);
 
-    game_font_character Char = Font->Characters[0];
-    for (int i = 0; i < Char.nContours; i++) {
-        glyph_contour Con = Char.Contours[i];
-        int x = 4;
-    }
-
-    PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Outline = false, .Points = Points);
+    PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Color = White, .Font = Font->ID, .Outline = false, .Points = Points);
 }
 
 void TestRendering(render_group* Group, game_input* Input, float Time) {
