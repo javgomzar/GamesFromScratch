@@ -35,6 +35,14 @@ const float Epsilon = .00001f;
 // | Arithmetic                                                                                                                             |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a,b)            (((a) < (b)) ? (a) : (b))
+#endif
+
 inline int32 CustomRound(float X) {
 	return X >= 0.0f ? (int32)(X + 0.5f) : (int32)(X - 0.5f);
 }

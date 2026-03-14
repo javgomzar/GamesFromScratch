@@ -2,6 +2,7 @@
 #define GAME_PLATFORM
 
 #include <string>
+#include <cstring>
 #include <format>
 
 #include "xxhash.h"
@@ -17,14 +18,6 @@ typedef int32_t int32;
 typedef int64_t int64;
 
 typedef size_t memory_index;
-
-#ifndef max
-#define max(a,b)            (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef min
-#define min(a,b)            (((a) < (b)) ? (a) : (b))
-#endif
 
 #define Kilobytes(Value) ((Value)*1024)
 #define Megabytes(Value) (Kilobytes(Value)*1024)
@@ -75,15 +68,23 @@ int64 BigEndian(int64 LittleEndian) {
     return *(int64*)&Unsigned;
 }
 
-inline uint8 MSB64(uint32 X) {
+inline uint8 MSB32(uint32 X) {
 	unsigned long Result = 0;
+#ifdef _WIN32
 	_BitScanReverse(&Result, X);
+#else
+    Result = 31 - __builtin_clz(X);
+#endif
 	return (uint32)Result;
 }
 
-inline uint8 MSB32(uint64 X) {
+inline uint8 MSB64(uint64 X) {
 	unsigned long Result = 0;
+#ifdef _WIN32
 	_BitScanReverse64(&Result, X);
+#else
+    Result = 31 - __builtin_clzll(X);
+#endif
 	return (uint32)Result;
 }
 
@@ -807,6 +808,8 @@ struct platform_api {
 
 #ifdef _WIN32
     #include "Win32PlatformLayer.h"
+#elif __linux__
+    #include "LinuxPlatformLayer.h"
 #else
     UNKNOWN_OPERATING_SYSTEM
 #endif

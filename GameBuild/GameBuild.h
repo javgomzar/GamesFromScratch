@@ -30,7 +30,7 @@ enum renderer {
 renderer GetRenderer(token Token) {
     if      (Token == "Vulkan")  return Renderer_Vulkan;
     else if (Token == "DirectX") return Renderer_DirectX;
-    else if (Token != "OpenGL")  Raise("Invalid renderer. Currently only OpenGL is supported.");
+    else if (Token != "OpenGL")  Raise("Invalid renderer. Currently only OpenGL, DirectX or Vulkan are supported.");
     return Renderer_OpenGL;
 }
 

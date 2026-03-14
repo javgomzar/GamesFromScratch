@@ -81,9 +81,9 @@ PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
     void* Result = VirtualAlloc(0, Size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (!Result) {
         DWORD ErrorCode = GetLastError();
-        char ErrorText[128];
-        sprintf_s(ErrorText, "Couldn't allocate %I64u bytes. Error %d.", Size, ErrorCode);
-        Log(Error, ErrorText);
+        char TextBuffer[128];
+        sprintf_s(TextBuffer, "Couldn't allocate %I64u bytes. Error %d.", Size, ErrorCode);
+        Log(Error, TextBuffer);
     }
     return Result;
 }
@@ -115,7 +115,7 @@ PLATFORM_GET_FILE_INFO(Win32GetFileInfo) {
 }
 
 PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
-    char ErrorText[256];
+    char TextBuffer[256];
 
     file_chunk_info Result = {};
     Result.ChunkSize = ChunkSize;
@@ -127,19 +127,19 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         LARGE_INTEGER LargeOffset;
         LargeOffset.QuadPart = Offset;
         if (!SetFilePointerEx(FileHandle, LargeOffset, NULL, FILE_BEGIN)) {
-            sprintf_s(ErrorText, "Couldn't set file pointer to offset %I64u at file %s", Offset, Path);
-            Log(Error, ErrorText);
+            sprintf_s(TextBuffer, "Couldn't set file pointer to offset %I64u at file %s", Offset, Path);
+            Log(Error, TextBuffer);
             return Result;
         }
         
         DWORD BytesRead;
         if (ReadFile(FileHandle, Memory, ChunkSize, &BytesRead, NULL) && BytesRead == ChunkSize) {
-            sprintf_s(ErrorText, "%d bytes read from file %s", BytesRead, Path);
-            Log(Info, ErrorText);
+            sprintf_s(TextBuffer, "%d bytes read from file %s", BytesRead, Path);
+            Log(Info, TextBuffer);
         }
         else {
-            sprintf_s(ErrorText, "Couldn't read chunk from file %s", Path);
-            Log(Error, ErrorText);
+            sprintf_s(TextBuffer, "Couldn't read chunk from file %s", Path);
+            Log(Error, TextBuffer);
         }
         CloseHandle(FileHandle);
         return Result;
@@ -147,18 +147,18 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
 
     DWORD WinError = GetLastError();
     if (WinError == ERROR_PATH_NOT_FOUND) {
-        sprintf_s(ErrorText, "Path %s not found.", Path);
+        sprintf_s(TextBuffer, "Path %s not found.", Path);
     }
     else {
-        sprintf_s(ErrorText, "Couldn't read file %s. Error %d.", Path, WinError);
+        sprintf_s(TextBuffer, "Couldn't read file %s. Error %d.", Path, WinError);
     }
-    Log(Error, ErrorText);
+    Log(Error, TextBuffer);
 
     return Result;
 }
 
 PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
-    char ErrorText[256];
+    char TextBuffer[256];
     bool Result = false;
 
     HANDLE FileHandle = CreateFileA(Path, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
@@ -168,14 +168,14 @@ PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
         if (SetFilePointerEx(FileHandle, LargeOffset, NULL, FILE_BEGIN)) {
             DWORD BytesWritten;
             if (WriteFile(FileHandle, Memory, ChunkSize, &BytesWritten, NULL)) {
-                sprintf_s(ErrorText, "%d bytes written to file %s", BytesWritten, Path);
+                sprintf_s(TextBuffer, "%d bytes written to file %s", BytesWritten, Path);
                 Result = BytesWritten == ChunkSize;
-                Log(Result ? Info : Error, ErrorText);
+                Log(Result ? Info : Error, TextBuffer);
             }
         }
         else {
-            sprintf_s(ErrorText, "Couldn't set file pointer to %I64u at file %s", Offset, Path);
-            Log(Error, ErrorText);
+            sprintf_s(TextBuffer, "Couldn't set file pointer to %I64u at file %s", Offset, Path);
+            Log(Error, TextBuffer);
         }
         CloseHandle(FileHandle);
     }
@@ -183,19 +183,19 @@ PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
     if (!Result) {
         DWORD WinError = GetLastError();
         if (WinError == ERROR_PATH_NOT_FOUND) {
-            sprintf_s(ErrorText, "Path %s not found.", Path);
+            sprintf_s(TextBuffer, "Path %s not found.", Path);
         }
         else {
-            sprintf_s(ErrorText, "Couldn't write to file %s. Error %d.", Path, WinError);
+            sprintf_s(TextBuffer, "Couldn't write to file %s. Error %d.", Path, WinError);
         }
-        Log(Error, ErrorText);
+        Log(Error, TextBuffer);
     }
 
     return Result;
 }
 
 PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
-    char ErrorText[256];
+    char TextBuffer[256];
     bool Result = false;
 
     HANDLE FileHandle = CreateFileA(Path, FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
@@ -203,14 +203,14 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
         if (SetFilePointerEx(FileHandle, { 0 }, NULL, FILE_END)) {
             DWORD BytesWritten;
             if (WriteFile(FileHandle, Memory, Size, &BytesWritten, 0)) {
-                sprintf_s(ErrorText, "%d bytes written to file %s", BytesWritten, Path);
+                sprintf_s(TextBuffer, "%d bytes written to file %s", BytesWritten, Path);
                 Result = BytesWritten == Size;
-                Log(Result ? Info : Error, ErrorText);
+                Log(Result ? Info : Error, TextBuffer);
             }
         }
         else {
-            sprintf_s(ErrorText, "Couldn't set file pointer to end at file %s", Path);
-            Log(Error, ErrorText);
+            sprintf_s(TextBuffer, "Couldn't set file pointer to end at file %s", Path);
+            Log(Error, TextBuffer);
         }
         CloseHandle(FileHandle);
     }
@@ -218,12 +218,12 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
     if (!Result) {
         DWORD WinError = GetLastError();
         if (WinError == ERROR_PATH_NOT_FOUND) {
-            sprintf_s(ErrorText, "Path %s not found.", Path);
+            sprintf_s(TextBuffer, "Path %s not found.", Path);
         }
         else {
-            sprintf_s(ErrorText, "Couldn't append to file %s. Error %d.", Path, WinError);
+            sprintf_s(TextBuffer, "Couldn't append to file %s. Error %d.", Path, WinError);
         }
-        Log(Error, ErrorText);
+        Log(Error, TextBuffer);
     }
 
     return Result;
