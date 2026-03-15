@@ -6,20 +6,6 @@
 
 system_os SystemOS = Windows;
 
-static char Environment[8192] = {};
-int FillEnvironmentBuffer(char* Buffer) {
-    char* EnvironmentPen = Buffer;
-    char* EnvironmentStringsPointer = GetEnvironmentStrings();
-    int EnvironmentLength = 0;
-
-    while (EnvironmentStringsPointer[0] != '\0' || EnvironmentStringsPointer[1] != '\0') {
-        *EnvironmentPen++ = *EnvironmentStringsPointer++;
-        EnvironmentLength += 1;
-    }
-    return EnvironmentLength;
-}
-static int EnvironmentLength = FillEnvironmentBuffer(Environment);
-
 void Log(log_level Level, const char* Content) {
     // Level
     char LevelString[9];
@@ -251,7 +237,7 @@ PLATFORM_RUN_COMMAND(Win32RunCommand) {
 
     PROCESS_INFORMATION ProcessInfo = {};
 
-    bool Success = CreateProcessA(NULL, Command, NULL, NULL, FALSE, 0, Environment, NULL, &StartInfo, &ProcessInfo);
+    bool Success = CreateProcessA(NULL, Command, NULL, NULL, FALSE, 0, NULL, NULL, &StartInfo, &ProcessInfo);
     if (!Success) {
         DWORD Err = GetLastError();
         char ErrorBuffer[2048];
