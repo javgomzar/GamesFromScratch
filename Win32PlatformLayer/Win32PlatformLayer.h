@@ -235,8 +235,8 @@ PLATFORM_COPY_FILE(Win32FileCopy) {
 }
 
 PLATFORM_DELETE_FILE(Win32FileDelete) {
-    bool CopyResult = DeleteFileA(Path);
-    return CopyResult;
+    bool DeleteResult = DeleteFileA(Path);
+    return DeleteResult;
 }
 
 PLATFORM_GET_WALL_CLOCK(Win32GetWallClock) {
