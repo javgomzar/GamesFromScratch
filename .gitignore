@@ -24,9 +24,9 @@ bin/
 Linking/
 
 # Batch scripts
-bat/env.bat
-bat/hot.bat
-bat/meta.bat
+scripts/env.bat
+scripts/hot.bat
+scripts/meta.bat
 
 # Build
 GameBuild/build.conf
