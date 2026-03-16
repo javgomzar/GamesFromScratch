@@ -568,6 +568,12 @@ public:
 
 #define MAX_PATH_LENGTH 256
 
+#if _WIN32
+#define PATH_SEPARATOR "\\"
+#elif __linux__
+#define PATH_SEPARATOR "/"
+#endif
+
 struct file_info {
     char Path[MAX_PATH_LENGTH];
     int64 Timestamp; 
@@ -805,6 +811,8 @@ struct platform_api {
         return WriteFileChunk(Path, 0, Size, Memory);
     }
 };
+
+#include <pch.h>
 
 #ifdef _WIN32
     #include "Win32PlatformLayer.h"

@@ -1,10 +1,9 @@
 #include "GamePlatform.h"
-#include "pch.h"
+
+system_os SystemOS = Windows;
 
 #define RENDERER_INITIALIZE void InitializeRenderer(render_group* Group, HWND Window, HINSTANCE Instance, HDC DeviceContext)
 #define RENDERER_RENDER void Render(render_group* Group, camera* Camera, game_input* Input, HWND Window, double Time)
-
-system_os SystemOS = Windows;
 
 void Log(log_level Level, const char* Content) {
     // Level

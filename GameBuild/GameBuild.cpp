@@ -60,8 +60,8 @@ int main(int argc, char* argv[]) {
         const char* PCHOutput = Configuration.Mode == Debug ? "debug_pch" : "pch";
         if (Configuration.PCH) {
             bool PrecompileHeaders = true;
-            std::string PCHOutputPath = std::format("bin\\{}.pch", PCHOutput);
-            std::string PCHSourcePath = std::format("{}\\pch.h", Configuration.PCHPath);
+            std::string PCHOutputPath = std::format("bin" PATH_SEPARATOR "{}.pch", PCHOutput);
+            std::string PCHSourcePath = "GameLibrary" PATH_SEPARATOR "pch.h";
             if (Platform.FileExists(PCHOutputPath.data())) {
                 file_info PrecompiledHeadersOutput = Platform.GetFileInfo(PCHOutputPath.data());
                 file_info PrecompiledHeadersSource = Platform.GetFileInfo(PCHSourcePath.data());

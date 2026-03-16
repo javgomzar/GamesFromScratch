@@ -9,12 +9,12 @@
 
 // C RunTime Header Files
 #include <stdlib.h>
-#include <stdint.h>
 #include <malloc.h>
 #include <memory.h>
 #include <time.h>
 #include <thread>
 #include <mutex>
+#include <string>
 
 #ifdef _WIN32
 // Windows Header Files
@@ -42,8 +42,11 @@
 
 #include "Resource.h"
 #elif __linux__
+#include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <sys/sendfile.h>
+#include <sys/wait.h>
 #endif
 
 #endif
