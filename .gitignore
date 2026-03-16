@@ -13,7 +13,11 @@ GameAssets/game_assets
 # Game data
 GameData/Data
 
-# Captures
+# Metaprogramming
+GameLibrary/GameEnums.h
+GameLibrary/GameStructs.h
+
+# Screen captures
 Captures/*
 
 # Binaries
