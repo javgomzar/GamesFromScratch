@@ -132,10 +132,10 @@ inline void ZeroSize(memory_index Size, void* Memory) {
     memset(Memory, 0, Size);
 }
 
-inline memory_arena MemoryArena(memory_index Size, uint8* Base) {
+inline memory_arena MemoryArena(memory_index Size, void* Base) {
     memory_arena Result;
     Result.Size = Size;
-    Result.Base = Base;
+    Result.Base = (uint8*)Base;
     Result.Used = 0;
     return Result;
 }
