@@ -14,10 +14,14 @@ inline build_mode GetBuildMode(token Token) {
 
 enum compiler {
     MSVC,
+    clang
 };
 
 inline compiler GetCompiler(token Token) {
-    if (Token != "MSVC") Raise("Invalid compiler. Currently only MSVC is supported.");
+    if (Token == "MSVC") return MSVC;
+    if (Token == "clang") return clang;
+    
+    Raise("Invalid compiler. Currently only MSVC and clang are supported.");
     return MSVC;
 }
 
@@ -54,10 +58,22 @@ const char* GetRendererLibs(renderer Renderer) {
 }
 
 const char* GetCompilerFlags(compiler Compiler, build_mode Mode) {
-    Assert(Compiler == MSVC, "Invalid compiler. Only MSVC is supported right now.");
-    switch(Mode) {
-        case Release: return "/O2";
-        case Debug:   return "/D _DEBUG /EHsc /MDd /Zi /Od /fsanitize=address";
+    switch (Compiler) {
+        case MSVC: {
+            switch(Mode) {
+                case Release: return "/O2";
+                case Debug:   return "/D _DEBUG /EHsc /MDd /Zi /Od /fsanitize=address";
+            }
+        } break;
+
+        case clang: {
+            switch(Mode) {
+                case Release: return "-O2";
+                case Debug:   return "-g -D_DEBUG -fsanitize=address -fsanitize=undefined";
+            }
+        } break;
+
+        default: Raise("Invalid compiler. Only MSVC and clang are supported.");
     }
 
     return "";
@@ -68,7 +84,6 @@ struct build_configuration {
     compiler Compiler;
     renderer Renderer;
     char CompilerPath[512];
-    char PCHPath[256];
     char MetaprogrammingCodePath[256];
     char Include[1024];
     char Lib[1024];
@@ -77,9 +92,10 @@ struct build_configuration {
 };
 
 void ReadBuildConfiguration(const char* ConfigurationFilePath, build_configuration* Configuration) {
-    void* ConfigFile = Platform.ReadEntireFile(ConfigurationFilePath);
+    file_info ConfigFileInfo;
+    void* ConfigFile = Platform.ReadEntireFile(ConfigurationFilePath, &ConfigFileInfo);
     if (ConfigFile) {
-        tokenizer Tokenizer = InitTokenizer(ConfigFile);
+        tokenizer Tokenizer = InitTokenizer(ConfigFile, ConfigFileInfo.Size);
         token Token = GetToken(Tokenizer);
     
         while(Token.Type != Token_End) {
@@ -111,6 +127,12 @@ void ReadBuildConfiguration(const char* ConfigurationFilePath, build_configurati
                         Advance(Tokenizer);
                     }
                 }
+
+                // Precompiled headers
+                else if (Token == "PRECOMPILE_HEADERS") {
+                    RequireToken(Tokenizer, Token_Equal);
+                    Configuration->PCH = ParseBool(Tokenizer);
+                }
     
                 // Include
                 else if (Token == "INCLUDE") {
@@ -119,7 +141,12 @@ void ReadBuildConfiguration(const char* ConfigurationFilePath, build_configurati
                     int Index = 0;
                     do {
                         AdvanceUntilNextLine(Tokenizer);
-                        Configuration->Include[Index++] = '/';
+                        if (Configuration->Compiler == MSVC) {
+                            Configuration->Include[Index++] = '/';
+                        }
+                        else if (Configuration->Compiler == clang) {
+                            Configuration->Include[Index++] = '-';
+                        }
                         Configuration->Include[Index++] = 'I';
                         Configuration->Include[Index++] = '\"';
                         int PathLength = ParsePath(Tokenizer.At);
@@ -168,16 +195,7 @@ void ReadBuildConfiguration(const char* ConfigurationFilePath, build_configurati
                     Configuration->Preprocess = true;
                     RequireToken(Tokenizer, Token_Equal);
                     int MetaprogrammingFilePathLength = ParsePath(Tokenizer.At);
-                    strncpy_s(Configuration->MetaprogrammingCodePath, Tokenizer.At, MetaprogrammingFilePathLength);
-                    AdvanceUntilNextLine(Tokenizer);
-                }
-    
-                // Precompiled headers
-                else if (Token == "PRECOMPILED_HEADERS_PATH") {
-                    RequireToken(Tokenizer, Token_Equal);
-                    Configuration->PCH = true;
-                    int PCHPathLength = ParsePath(Tokenizer.At);
-                    strncpy_s(Configuration->PCHPath, Tokenizer.At, PCHPathLength);
+                    strncpy(Configuration->MetaprogrammingCodePath, Tokenizer.At, MetaprogrammingFilePathLength);
                     AdvanceUntilNextLine(Tokenizer);
                 }
     
@@ -208,7 +226,105 @@ void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64
     Log(Level, LogString.c_str());
 }
 
+process_info CompileMetaprogramming(build_configuration* Configuration) {
+    Log(Info, "Compiling metaprogramming code.");
+    std::string Command;
+    const char* CompilerFlags = GetCompilerFlags(Configuration->Compiler, Configuration->Mode);
+    switch(Configuration->Compiler) {
+        case MSVC: {
+            Command = std::format(
+                "{} /std:c++20 /nologo /W0 {} /Fo\"bin\\Meta.obj\" /Fd\"bin\\Meta.pdb\" {} {} "
+                "/link {} /OUT:\"bin\\Meta.exe\" /PDB:\"bin\\Meta.pdb\"", 
+                Configuration->CompilerPath, Configuration->Include, Configuration->MetaprogrammingCodePath, 
+                CompilerFlags, Configuration->Lib
+            );
+        } break;
+
+        case clang: {
+            Command = std::format(
+                "{} -std=c++20 {} {} -o bin/Meta", 
+                Configuration->CompilerPath, Configuration->Include, Configuration->MetaprogrammingCodePath, 
+                CompilerFlags
+            );
+        } break;
+
+        default: Raise("Invalid compiler. Only MSVC and clang are supported for now.");
+    }
+    return Platform.RunCommand(Command.data());
+}
+
+process_info CompilePlatformLayer(build_configuration* Configuration) {
+    std::string Command;
+    switch (Configuration->Compiler) {
+        case MSVC: {
+            const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
+            Command = std::format(
+                "{} /std:c++20 /nologo /W0 "
+                "Win32PlatformLayer\\Win32PlatformLayer.cpp bin\\{}.obj" 
+                "/D GAME_RENDER_API_{} {} "
+                "/Fe\"bin\\RunGame.exe\""
+                "/Fo\"bin\\Win32PlatformLayer.obj\""
+                "/Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" {} "
+                "/link {} kernel32.lib user32.lib gdi32.lib advapi32.lib ole32.lib oleaut32.lib psapi.lib {} "
+                "Win32PlatformLayer\\Win32PlatformLayer.res /MACHINE:X64",
+                Configuration->CompilerPath, 
+                PCHOutput, 
+                GetRendererString(Configuration->Renderer), 
+                GetCompilerFlags(Configuration->Compiler, Configuration->Mode), 
+                PCHOutput, PCHOutput, 
+                Configuration->Include, Configuration->Lib,
+                GetRendererLibs(Configuration->Renderer)
+            );
+        } break;
+
+        case clang: {
+            Command = std::format(
+                "{} -std=c++20 {} {} LinuxPlatformLayer/LinuxPlatformLayer.cpp -o bin/RunGame",
+                Configuration->CompilerPath,
+                GetCompilerFlags(Configuration->Compiler, Configuration->Mode),
+                Configuration->Include
+            );
+        };
+    }
+
+    return Platform.RunCommand(Command.data());
+}
+
+process_info CompileGameLibrary(build_configuration* Configuration) {
+    std::string Command;
+    switch(Configuration->Compiler) {
+        case MSVC: {
+            const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
+            Command = std::format(
+                "{} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS "
+                "GameLibrary\\GameLibrary.cpp {} {} /Fo\"bin\\GameLibrary.obj\" "
+                "/Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" "
+                "/link {} bin\\{}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
+                "/PDB:\"bin\\GameLibrary.pdb\" "
+                "/ILK:\"bin\\GameLibrary.ilk\" /OUT:\"bin\\GameLibrary.dll\"",
+                Configuration->CompilerPath, 
+                GetCompilerFlags(MSVC, Configuration->Mode), 
+                Configuration->Include, 
+                PCHOutput, PCHOutput, Configuration->Lib, PCHOutput
+            );
+        } break;
+
+        case clang: {
+            Command = std::format(
+                "{} -std=c++20 -shared -fPIC {} {} GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
+                Configuration->CompilerPath,
+                GetCompilerFlags(Configuration->Compiler, Configuration->Mode),
+                Configuration->Include
+            );
+        } break;
+    }
+
+    return Platform.RunCommand(Command.data());
+}
+
 process_info CompileGameLibraryHot(build_configuration* Configuration) {
+    std::string Command;
+#if _WIN32
     int nHotReloads = 0;
     std::string PDBFile = std::format("bin\\GameLibrary{}.pdb", nHotReloads);
     bool Exists;
@@ -219,40 +335,24 @@ process_info CompileGameLibraryHot(build_configuration* Configuration) {
             PDBFile = std::format("bin\\GameLibrary{}.pdb", nHotReloads);
         }
     } while(Exists);
-
     const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
-    std::string Command;
-    switch(Configuration->Compiler) {
-        case MSVC: {
-            Command = std::format(
-                "{} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {} {} "
-                "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" "
-                "/link {} bin\\{}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
-                "/PDB:\"bin\\GameLibrary{}.pdb\" /ILK:\"bin\\GameLibrary.ilk\" "
-                "/OUT:\"bin\\GameLibrary.dll\"",
-                Configuration->CompilerPath, GetCompilerFlags(MSVC, Configuration->Mode), Configuration->Include, 
-                PCHOutput, PCHOutput, Configuration->Lib, PCHOutput, nHotReloads
-            );
-        } break;
-        default: Raise("Invalid compiler. Only MSVC supported for now.");
-    }
-    return Platform.RunCommand(Command.data());
-}
-
-process_info CompileMetaprogramming(build_configuration* Configuration) {
-    Log(Info, "Compiling metaprogramming code.");
-    std::string Command;
-    switch(Configuration->Compiler) {
-        case MSVC: {
-            Command = std::format(
-                "{} /std:c++20 /nologo /W0 {} /Fo\"bin\\Meta.obj\" /Fd\"bin\\Meta.pdb\" {} {} "
-                "/link {} /OUT:\"bin\\Meta.exe\" /PDB:\"bin\\Meta.pdb\"", 
-                Configuration->CompilerPath, Configuration->Include, Configuration->MetaprogrammingCodePath, 
-                GetCompilerFlags(MSVC, Configuration->Mode), Configuration->Lib
-            );
-        } break;
-        default: Raise("Invalid compiler. Only MSVC supported for now.");
-    }
-    uint64 Start = Platform.GetWallClock();
+    = std::format(
+        "{} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {} {} "
+        "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" "
+        "/link {} bin\\{}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
+        "/PDB:\"bin\\GameLibrary{}.pdb\" /ILK:\"bin\\GameLibrary.ilk\" "
+        "/OUT:\"bin\\GameLibrary.dll\"",
+        Configuration->CompilerPath, GetCompilerFlags(MSVC, Configuration->Mode), 
+        Configuration->Include, 
+        PCHOutput, PCHOutput, Configuration->Lib, PCHOutput, nHotReloads
+    );
+#else
+    Command = std::format(
+        "{} -std=c++20 -shared -fPIC {} {} GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
+        Configuration->CompilerPath,
+        GetCompilerFlags(Configuration->Compiler, Configuration->Mode),
+        Configuration->Include
+    );
+#endif
     return Platform.RunCommand(Command.data());
 }

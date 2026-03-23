@@ -2,10 +2,12 @@
 
 
 int main(int argc, char* argv[]) {
+#if _WIN32
     LARGE_INTEGER PerfCountFrequencyResult;
     QueryPerformanceFrequency(&PerfCountFrequencyResult);
     Platform.PerformanceCounterFrequency = PerfCountFrequencyResult.QuadPart;
-    
+#endif
+    // Hot reload
     if (argc == 3 && argv[2]) {
         if (strcmp(argv[2], "-hot") != 0) {
             std::string ErrorText = std::format("Incorrect argument '{}', try '-hot'.", argv[2]);
@@ -51,6 +53,7 @@ int main(int argc, char* argv[]) {
         End = Platform.GetWallClock();
         LogCompilationResult("Game library", WaitResult, LibraryCompilationStart, End);
     }
+    // Normal compilation
     else if (argc == 2) {
         build_configuration Configuration = {};
         ReadBuildConfiguration(argv[1], &Configuration);
@@ -74,8 +77,15 @@ int main(int argc, char* argv[]) {
                 switch (Configuration.Compiler) {
                     case MSVC: {
                         Command = std::format(
-                            "{} /std:c++20 /nologo /W0 {} {}/pch.cpp /c {} /Yc\"pch.h\" /Fp\"bin\\{}.pch\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
-                            Configuration.CompilerPath, Configuration.Include, Configuration.PCHPath, CompilerFlags, PCHOutput, PCHOutput, PCHOutput
+                            "{} /std:c++20 /nologo /W0 {} GameLibrary/pch.cpp /c {} /Yc\"pch.h\" /Fp\"bin\\{}.pch\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
+                            Configuration.CompilerPath, Configuration.Include, CompilerFlags, PCHOutput, PCHOutput, PCHOutput
+                        );
+                    } break;
+
+                    case clang: {
+                        Command = std::format(
+                            "{} -std=c++20 {} GameLibrary/pch.h -o bin/{}.pch",
+                            Configuration.CompilerPath, Configuration.Include, PCHOutput
                         );
                     } break;
 
@@ -93,12 +103,13 @@ int main(int argc, char* argv[]) {
 
         // Metaprogramming
         if (Configuration.Preprocess) {
-            char MetaFile[] = "bin\\Meta.exe";
+            char MetaFile[32] = "bin" PATH_SEPARATOR "Meta";
+            if (SystemOS == Windows) {
+                strcat(MetaFile, ".exe");
+            }
             process_info MetaprogrammingProcess = {};
-
             file_info MetaprogrammingSource = Platform.GetFileInfo(Configuration.MetaprogrammingCodePath);
             file_info MetaprogrammingBinary = Platform.GetFileInfo(MetaFile);
-        
             if (MetaprogrammingSource.Timestamp > MetaprogrammingBinary.Timestamp) {
                 uint64 Start = Platform.GetWallClock();
                 MetaprogrammingProcess = CompileMetaprogramming(&Configuration);
@@ -122,36 +133,22 @@ int main(int argc, char* argv[]) {
         }
 
         // Platform layer
-        std::string PlatformCommand = std::format(
-            "{} /std:c++20 /nologo /W0 Win32PlatformLayer\\Win32PlatformLayer.cpp bin\\{}.obj /D GAME_RENDER_API_{} {} "
-            "/Fe\"bin\\Win32PlatformLayer.exe\" /Fo\"bin\\Win32PlatformLayer.obj\" /Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" {} "
-            "/link {} kernel32.lib user32.lib gdi32.lib advapi32.lib ole32.lib oleaut32.lib psapi.lib {} "
-            "Win32PlatformLayer\\Win32PlatformLayer.res /MACHINE:X64",
-            Configuration.CompilerPath, PCHOutput, GetRendererString(Configuration.Renderer), 
-            GetCompilerFlags(Configuration.Compiler, Configuration.Mode), PCHOutput, PCHOutput, Configuration.Include,
-            Configuration.Lib, GetRendererLibs(Configuration.Renderer)
-        );
         uint64 PlatformStart = Platform.GetWallClock();
-        process_info PlatformProcess = Platform.RunCommand(PlatformCommand.data());
+        process_info PlatformProcess = CompilePlatformLayer(&Configuration);
         uint32 PlatformExitCode = Platform.WaitForProcess(&PlatformProcess, -1);
         uint64 PlatformEnd = Platform.GetWallClock();
-        LogCompilationResult("Windows platform layer", PlatformExitCode, PlatformStart, PlatformEnd);
+        const char* OSLayerName = SystemOS == Windows ? "Windows platform layer" : "Linux platform layer";
+        LogCompilationResult(OSLayerName, PlatformExitCode, PlatformStart, PlatformEnd);
 
         // Game library
         uint64 LibraryStart = Platform.GetWallClock();
-        std::string LibraryCommand = std::format(
-            "{} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {} {} "
-            "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" "
-            "/link {} bin\\{}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
-            "/PDB:\"bin\\GameLibrary.pdb\" "
-            "/ILK:\"bin\\GameLibrary.ilk\" /OUT:\"bin\\GameLibrary.dll\"",
-            Configuration.CompilerPath, GetCompilerFlags(MSVC, Configuration.Mode), Configuration.Include, 
-            PCHOutput, PCHOutput, Configuration.Lib, PCHOutput
-        );
-        process_info LibraryProcess = Platform.RunCommand(LibraryCommand.data());
+        process_info LibraryProcess = CompileGameLibrary(&Configuration);
         int32 LibraryExitCode = Platform.WaitForProcess(&LibraryProcess, -1);
         uint64 LibraryEnd = Platform.GetWallClock();
         LogCompilationResult("Game library", LibraryExitCode, LibraryStart, LibraryEnd);
+    }
+    else {
+        Log(Error, "No build configuration file provided. Usage: Build <build.conf file path> [-hot]");
     }
 
     return 0;

@@ -1,11 +1,11 @@
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
 
-#include <string>
+#include <stdlib.h>
+#include <stdint.h>
 #include <cstring>
 #include <format>
-
-#include "xxhash.h"
+#include <xxhash.h>
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -653,6 +653,7 @@ struct monitor_info {
 */
 
 struct process_info {
+    int PID;
     void* Handle;
     void* ThreadHandle;
     bool Running;
@@ -843,9 +844,8 @@ uint64 SeedRNG() {
         Seed ^= Seed << 17;
     }
 
-    char Buffer[64];
-    sprintf_s(Buffer, "RNG seed: %I64u.", Seed);
-    Log(Info, Buffer);
+    std::string SeedText = std::format("RNG seed: {}.", Seed);
+    Log(Info, SeedText.c_str());
     return Seed;
 }
 
@@ -877,11 +877,11 @@ struct timed_block {
         Record->FunctionName = FunctionName;
         Record->LineNumber = LineNumber;
         Record->HitCount++;
-        StartCycles = __rdtscp(&Aux);
+        StartCycles = Platform.GetWallClock();
     }
 
     ~timed_block() {
-        Record->CycleCount += __rdtscp(&Aux) - StartCycles;
+        Record->CycleCount += Platform.GetWallClock() - StartCycles;
     }
 };
 

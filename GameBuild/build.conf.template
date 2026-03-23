@@ -1,6 +1,6 @@
 COMPILER=MSVC
 COMPILER_PATH={VISUAL_STUDIO_INSTALLATION_FOLDER}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\{MSVC_VERSION}\bin\Hostx64\x64\cl.exe
-PRECOMPILED_HEADERS_PATH=Win32PlatformLayer
+PRECOMPILE_HEADERS=true
 
 META=GameLibrary\Meta.cpp
 
@@ -19,6 +19,7 @@ INCLUDE=
 .\GameBuild;
 .\GameData;
 .\Win32PlatformLayer
+.\LinuxPlatformLayer
 
 LIB=
 .\Linking\lib;
