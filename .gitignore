@@ -4,7 +4,6 @@
 # Visual Studio Code
 .vscode/*
 !.vscode/launch.json
-!.vscode/tasks.json
 
 # Game assets
 GameAssets/Files
