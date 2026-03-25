@@ -103,10 +103,9 @@ int main() {
     char Buffer[256];
     std::map<std::string, int> Constants;
     for (int i = 0; i < ArrayCount(ProcessingFiles); i++) {
-        size_t FileSize;
-        char* FileContent = ReadFile(ProcessingFiles[i], &FileSize);
+        char* FileContent = ReadFile(ProcessingFiles[i]);
 
-        tokenizer Tokenizer = InitTokenizer(FileContent, FileSize);
+        tokenizer Tokenizer = InitTokenizer(FileContent);
         token Token = GetToken(Tokenizer);
         while (Token.Type != Token_End) {
             if (Token == "const") {

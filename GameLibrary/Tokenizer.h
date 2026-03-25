@@ -156,28 +156,31 @@ struct tokenizer {
     char* End;
     int Line;
     int Column;
+    int Length;
     bool IgnoreWhitespace;
 };
 
-tokenizer InitTokenizer(char* At, int Length, bool IgnoreWhitespace = true) {
+tokenizer InitTokenizer(char* At, int Length = 0, bool IgnoreWhitespace = true) {
     tokenizer Result = {};
     Result.Start = At;
     Result.At = At;
-    Result.End = Result.Start + Length;
     Result.Line = 1;
     Result.Column = 1;
+    Result.Length = Length;
+    Result.End = Length > 0 ? Result.Start + Length : nullptr;
     Result.IgnoreWhitespace = IgnoreWhitespace;
 
     return Result;
 }
 
-tokenizer InitTokenizer(void* At, int Length, bool IgnoreWhitespace = true) {
+tokenizer InitTokenizer(void* At, int Length = 0, bool IgnoreWhitespace = true) {
     tokenizer Result = {};
     Result.Start = (char*)At;
     Result.At = Result.Start;
-    Result.End = Result.Start + Length;
     Result.Line = 1;
     Result.Column = 1;
+    Result.Length = Length;
+    Result.End = Length > 0 ? Result.Start + Length : nullptr;
     Result.IgnoreWhitespace = IgnoreWhitespace;
 
     return Result;
@@ -248,7 +251,7 @@ token GetToken(tokenizer& Tokenizer) {
     Token.Line = Tokenizer.Line;
     Token.Column = Tokenizer.Column;
 
-    if (Tokenizer.At == Tokenizer.End) {
+    if (Tokenizer.Length > 0 && Tokenizer.At == Tokenizer.End) {
         Token.Type = Token_End;
         Token.Length = 0;
         return Token;

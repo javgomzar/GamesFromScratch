@@ -1,7 +1,7 @@
 @ECHO OFF
 
 @REM Environment variables
-call bat\env.bat
+call scripts\env.bat
 
 @REM DEBUG COMPILE
 @REM %COMPILE% /W0 /nologo /std:c++20 /Fo"bin\Build.obj" /Fd"bin\Build.pdb" GameBuild\GameBuild.cpp /D _DEBUG /EHsc /MDd /Zi /Od /fsanitize=address /link /OUT:"bin\Build.exe"

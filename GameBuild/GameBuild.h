@@ -260,10 +260,10 @@ process_info CompilePlatformLayer(build_configuration* Configuration) {
             const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
             Command = std::format(
                 "{} /std:c++20 /nologo /W0 "
-                "Win32PlatformLayer\\Win32PlatformLayer.cpp bin\\{}.obj" 
+                "Win32PlatformLayer\\Win32PlatformLayer.cpp bin\\{}.obj " 
                 "/D GAME_RENDER_API_{} {} "
-                "/Fe\"bin\\RunGame.exe\""
-                "/Fo\"bin\\Win32PlatformLayer.obj\""
+                "/Fe\"bin\\RunGame.exe\" "
+                "/Fo\"bin\\Win32PlatformLayer.obj\" "
                 "/Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" {} "
                 "/link {} kernel32.lib user32.lib gdi32.lib advapi32.lib ole32.lib oleaut32.lib psapi.lib {} "
                 "Win32PlatformLayer\\Win32PlatformLayer.res /MACHINE:X64",
@@ -336,7 +336,7 @@ process_info CompileGameLibraryHot(build_configuration* Configuration) {
         }
     } while(Exists);
     const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
-    = std::format(
+    Command = std::format(
         "{} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {} {} "
         "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" "
         "/link {} bin\\{}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
