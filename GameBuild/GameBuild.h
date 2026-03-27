@@ -48,10 +48,15 @@ const char* GetRendererString(renderer Renderer) {
 }
 
 const char* GetRendererLibs(renderer Renderer) {
-    switch(Renderer) {
-        case Renderer_OpenGL:  return "glew32.lib";
-        case Renderer_DirectX: return "D3d11.lib d3dcompiler.lib";
-        case Renderer_Vulkan:  return "vulkan-1.lib shaderc_combined.lib";
+    if (SystemOS == Windows) {
+        switch(Renderer) {
+            case Renderer_OpenGL:  return "glew32.lib";
+            case Renderer_DirectX: return "D3d11.lib d3dcompiler.lib";
+            case Renderer_Vulkan:  return "vulkan-1.lib shaderc_combined.lib";
+        }
+    }
+    else {
+        return "-lglfw";
     }
 
     return "glew32.lib";
@@ -226,6 +231,9 @@ void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64
     Log(Level, LogString.c_str());
 }
 
+#define GetMetaprogrammingFile(FileVariable) char FileVariable[32] = "bin" PATH_SEPARATOR "Meta";\
+    if (SystemOS == Windows) strcat(FileVariable, ".exe");
+
 process_info CompileMetaprogramming(build_configuration* Configuration) {
     Log(Info, "Compiling metaprogramming code.");
     std::string Command;
@@ -255,9 +263,9 @@ process_info CompileMetaprogramming(build_configuration* Configuration) {
 
 process_info CompilePlatformLayer(build_configuration* Configuration) {
     std::string Command;
+    const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
     switch (Configuration->Compiler) {
         case MSVC: {
-            const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
             Command = std::format(
                 "{} /std:c++20 /nologo /W0 "
                 "Win32PlatformLayer\\Win32PlatformLayer.cpp bin\\{}.obj " 
@@ -279,10 +287,12 @@ process_info CompilePlatformLayer(build_configuration* Configuration) {
 
         case clang: {
             Command = std::format(
-                "{} -std=c++20 {} {} LinuxPlatformLayer/LinuxPlatformLayer.cpp -o bin/RunGame",
+                "{} -std=c++20 -fPIC {} {} -include-pch bin/{}.gch LinuxPlatformLayer/LinuxPlatformLayer.cpp {} -o bin/RunGame && chmod +x bin/RunGame",
                 Configuration->CompilerPath,
                 GetCompilerFlags(Configuration->Compiler, Configuration->Mode),
-                Configuration->Include
+                Configuration->Include,
+                PCHOutput,
+                GetRendererLibs(Configuration->Renderer)
             );
         };
     }
@@ -292,9 +302,9 @@ process_info CompilePlatformLayer(build_configuration* Configuration) {
 
 process_info CompileGameLibrary(build_configuration* Configuration) {
     std::string Command;
+    const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
     switch(Configuration->Compiler) {
         case MSVC: {
-            const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
             Command = std::format(
                 "{} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS "
                 "GameLibrary\\GameLibrary.cpp {} {} /Fo\"bin\\GameLibrary.obj\" "
@@ -311,10 +321,11 @@ process_info CompileGameLibrary(build_configuration* Configuration) {
 
         case clang: {
             Command = std::format(
-                "{} -std=c++20 -shared -fPIC {} {} GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
+                "{} -std=c++20 -shared -fPIC {} {} -include-pch bin/{}.gch GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
                 Configuration->CompilerPath,
                 GetCompilerFlags(Configuration->Compiler, Configuration->Mode),
-                Configuration->Include
+                Configuration->Include,
+                PCHOutput
             );
         } break;
     }
@@ -324,6 +335,7 @@ process_info CompileGameLibrary(build_configuration* Configuration) {
 
 process_info CompileGameLibraryHot(build_configuration* Configuration) {
     std::string Command;
+    const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
 #if _WIN32
     int nHotReloads = 0;
     std::string PDBFile = std::format("bin\\GameLibrary{}.pdb", nHotReloads);
@@ -335,7 +347,6 @@ process_info CompileGameLibraryHot(build_configuration* Configuration) {
             PDBFile = std::format("bin\\GameLibrary{}.pdb", nHotReloads);
         }
     } while(Exists);
-    const char* PCHOutput = Configuration->Mode == Debug ? "debug_pch" : "pch";
     Command = std::format(
         "{} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {} {} "
         "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" "
@@ -348,10 +359,11 @@ process_info CompileGameLibraryHot(build_configuration* Configuration) {
     );
 #else
     Command = std::format(
-        "{} -std=c++20 -shared -fPIC {} {} GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
+        "{} -std=c++20 -shared -fPIC {} {} -include-pch bin/{}.gch GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
         Configuration->CompilerPath,
         GetCompilerFlags(Configuration->Compiler, Configuration->Mode),
-        Configuration->Include
+        Configuration->Include,
+        PCHOutput
     );
 #endif
     return Platform.RunCommand(Command.data());

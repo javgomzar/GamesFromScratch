@@ -17,7 +17,7 @@ int main(int argc, char* argv[]) {
 
         build_configuration Configuration = {};
         ReadBuildConfiguration(argv[1], &Configuration);
-        char MetaFile[] = "bin\\Meta.exe";
+        GetMetaprogrammingFile(MetaFile);
         int32 WaitResult = 0;
         uint64 End = 0;
 
@@ -63,7 +63,13 @@ int main(int argc, char* argv[]) {
         const char* PCHOutput = Configuration.Mode == Debug ? "debug_pch" : "pch";
         if (Configuration.PCH) {
             bool PrecompileHeaders = true;
-            std::string PCHOutputPath = std::format("bin" PATH_SEPARATOR "{}.pch", PCHOutput);
+            std::string PCHOutputPath;
+            if (SystemOS == Windows) {
+                PCHOutputPath = std::format("bin" PATH_SEPARATOR "{}.pch", PCHOutput);
+            }
+            else {
+                PCHOutputPath = std::format("bin" PATH_SEPARATOR "{}.gch", PCHOutput);
+            }
             std::string PCHSourcePath = "GameLibrary" PATH_SEPARATOR "pch.h";
             if (Platform.FileExists(PCHOutputPath.data())) {
                 file_info PrecompiledHeadersOutput = Platform.GetFileInfo(PCHOutputPath.data());
@@ -77,15 +83,17 @@ int main(int argc, char* argv[]) {
                 switch (Configuration.Compiler) {
                     case MSVC: {
                         Command = std::format(
-                            "{} /std:c++20 /nologo /W0 {} GameLibrary/pch.cpp /c {} /Yc\"pch.h\" /Fp\"bin\\{}.pch\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
-                            Configuration.CompilerPath, Configuration.Include, CompilerFlags, PCHOutput, PCHOutput, PCHOutput
+                            "{} /std:c++20 /nologo /W0 {} GameLibrary/pch.cpp /c {} /Yc\"pch.h\" /Fp\"{}\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
+                            Configuration.CompilerPath, Configuration.Include, CompilerFlags, PCHOutput, PCHOutputPath, PCHOutput, PCHOutput
                         );
                     } break;
 
                     case clang: {
                         Command = std::format(
-                            "{} -std=c++20 {} GameLibrary/pch.h -o bin/{}.pch",
-                            Configuration.CompilerPath, Configuration.Include, PCHOutput
+                            "{} -x c++-header -std=c++20 -fPIC {} {} GameLibrary/pch.h -o {}",
+                            Configuration.CompilerPath, 
+                            GetCompilerFlags(Configuration.Compiler, Configuration.Mode),
+                            Configuration.Include, PCHOutputPath
                         );
                     } break;
 
@@ -103,10 +111,7 @@ int main(int argc, char* argv[]) {
 
         // Metaprogramming
         if (Configuration.Preprocess) {
-            char MetaFile[32] = "bin" PATH_SEPARATOR "Meta";
-            if (SystemOS == Windows) {
-                strcat(MetaFile, ".exe");
-            }
+            GetMetaprogrammingFile(MetaFile);
             process_info MetaprogrammingProcess = {};
             file_info MetaprogrammingSource = Platform.GetFileInfo(Configuration.MetaprogrammingCodePath);
             file_info MetaprogrammingBinary = Platform.GetFileInfo(MetaFile);
