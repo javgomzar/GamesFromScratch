@@ -998,7 +998,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 }
             }
 
-            if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F11.WasDown) {
+            if (Input->Keyboard.F10.JustPressed) {
                 ScreenCapture(Group->Width, Group->Height);
             }
 
