@@ -228,9 +228,8 @@ game_button_state* GetKey(game_input* Input, char Key) {
         case 'X': { return &Input->Keyboard.X; } break;
         case 'Y': { return &Input->Keyboard.Y; } break;
         case 'Z': { return &Input->Keyboard.Z; } break;
-        default: Assert(false);
     }
-    return 0;
+    return nullptr;
 }
 
 void PressKey(game_input* Input, char Key) {
