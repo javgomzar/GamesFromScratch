@@ -1,6 +1,7 @@
 #pragma once
 
 #include "GamePlatform.h"
+#include "GameMath.h"
 
 #include "glew.h"
 #include "gl/GL.h"
@@ -505,7 +506,8 @@ struct openGL_shader {
 	openGL_shader_id Index;
 	openGL_shader_type Type;
 	uint32 ID;
-    read_file_result File;
+    file_info File;
+	void* Content;
     vertex_layout VertexLayout;
     uint32 nUBOs;
     openGL_shader_uniform_block UBO[SHADER_UNIFORM_BLOCKS];
@@ -526,7 +528,8 @@ struct openGL_compute_shader {
     openGL_compute_shader_id Index;
 	uint32 ShaderID;
 	uint32 ProgramID;
-    read_file_result File;
+    file_info File;
+	void* Content;
 };
 
 ENUM(openGL_shader_pipeline_id,
@@ -635,7 +638,6 @@ struct openGL {
 	openGL_shader Shader[openGL_shader_id_count];
 	openGL_shader_pipeline Pipeline[openGL_shader_pipeline_id_count];
 	openGL_compute_shader ComputeShader[openGL_compute_shader_id_count];
-	vertex_layout* VertexLayout;
 	uint32 VAOs[vertex_layout_id_count];
 	uint32 VBOs[vertex_layout_id_count];
 	uint32 EBO;
@@ -664,10 +666,10 @@ void LoadShader(openGL_shader_id Index, const char* Path) {
         else Raise("OpenGL: Invalid shader extension. Should be one of '.vert', '.geom', '.tesc', '.tese', '.frag'.");
     }
 
-    Shader->File = Platform.ReadEntireFile(Path);
+	Shader->Content = Platform.ReadEntireFile(Path, &Shader->File);
 
 	// Get vertex attributes and uniforms
-	tokenizer Tokenizer = InitTokenizer(Shader->File.Content);
+	tokenizer Tokenizer = InitTokenizer(Shader->Content);
     token Token = GetToken(Tokenizer);
     Shader->VertexLayout = {};
     while (Token.Type != Token_End) {
@@ -738,8 +740,8 @@ void LoadShader(openGL_shader_id Index, const char* Path) {
 	// Find compatible vertex layout from assets definition
 	if (Shader->Type == Vertex_Shader) {
 		vertex_layout_id LayoutID;
-		bool Found = FindCompatibleVertexLayout(OpenGL.VertexLayout, Shader->VertexLayout, &LayoutID);
-		if (Found) Shader->VertexLayout = OpenGL.VertexLayout[LayoutID];
+		bool Found = FindCompatibleVertexLayout(Shader->VertexLayout, &LayoutID);
+		if (Found) Shader->VertexLayout = VertexLayouts[LayoutID];
 		else {
 			char ErrorBuffer[128];
 			sprintf_s(ErrorBuffer, "OpenGL: No compatible vertex layout was found for shader %s.", Shader->File.Path);
@@ -749,7 +751,7 @@ void LoadShader(openGL_shader_id Index, const char* Path) {
 	}
 
 	GLenum TypeEnum = GetShaderType(Shader->Type);
-	Shader->ID = OpenGLCompileShader(TypeEnum, (char*)Shader->File.Content, Shader->File.ContentSize);
+	Shader->ID = OpenGLCompileShader(TypeEnum, (char*)Shader->Content, Shader->File.Size);
 }
 
 void LoadShader(openGL_compute_shader_id Index, const char* Path) {
@@ -758,8 +760,8 @@ void LoadShader(openGL_compute_shader_id Index, const char* Path) {
 	openGL_compute_shader* Shader = &OpenGL.ComputeShader[Index];
 	*Shader = {};
 	Shader->Index = Index;
-    Shader->File = Platform.ReadEntireFile(Path);
-	Shader->ShaderID = OpenGLCompileShader(GL_COMPUTE_SHADER, (char*)Shader->File.Content, Shader->File.ContentSize);
+    Shader->Content = Platform.ReadEntireFile(Path, &Shader->File);
+	Shader->ShaderID = OpenGLCompileShader(GL_COMPUTE_SHADER, (char*)Shader->Content, Shader->File.Size);
 	Shader->ProgramID = OpenGLLinkComputeShader(Shader->ShaderID);
 }
 
@@ -818,7 +820,7 @@ void LoadPipeline(openGL_shader_pipeline_id Index, int nShaders, ...) {
     openGL_shader* VertexShader = &OpenGL.Shader[ShaderIndex];
 	bool VertexLayoutFound = false;
 	for (int i = 0; i < vertex_layout_id_count; i++) {
-		if (VertexShader->VertexLayout == OpenGL.VertexLayout[i]) {
+		if (VertexShader->VertexLayout == VertexLayouts[i]) {
 			VertexLayoutFound = true;
 			Pipeline->VertexLayoutID = (vertex_layout_id)i;
 			break;
@@ -868,11 +870,11 @@ void LoadPipeline(openGL_shader_pipeline_id Index, int nShaders, ...) {
 	OpenGLLinkProgram(Pipeline);
 }
 
-bool ReloadShader(openGL_shader_id Index, read_file_result NewFile) {
+bool ReloadShader(openGL_shader_id Index, uint32 Size, void* Content) {
 	openGL_shader* Shader = &OpenGL.Shader[Index];
 	uint32 PreviousShaderID = Shader->ID;
 	GLenum TypeEnum = GetShaderType(Shader->Type);
-	Shader->ID = OpenGLCompileShader(TypeEnum, (char*)NewFile.Content, NewFile.ContentSize);
+	Shader->ID = OpenGLCompileShader(TypeEnum, (char*)Content, Size);
 
 	char Buffer[1024] = {};
 
@@ -925,10 +927,10 @@ bool ReloadShader(openGL_shader_id Index, read_file_result NewFile) {
 	return true;
 }
 
-bool ReloadShader(openGL_compute_shader_id Index, read_file_result NewFile) {
+bool ReloadShader(openGL_compute_shader_id Index, uint32 Size, void* Content) {
 	openGL_compute_shader* Shader = &OpenGL.ComputeShader[Index];
 	uint32 PreviousShaderID = Shader->ShaderID;
-	Shader->ShaderID = OpenGLCompileShader(GL_COMPUTE_SHADER, (char*)NewFile.Content, NewFile.ContentSize);
+	Shader->ShaderID = OpenGLCompileShader(GL_COMPUTE_SHADER, (char*)Content, Size);
 
 	char Buffer[1024];
 
@@ -961,17 +963,18 @@ void ReloadShaders() {
 	for (int i = 0; i < openGL_shader_id_count; i++) {
 		openGL_shader* Shader = &OpenGL.Shader[i];
 
-		int64 LastWriteTime = Win32GetLastWriteTime(Shader->File.Path);
-		if (LastWriteTime > Shader->File.Timestamp) {
-			read_file_result UpdatedFile = Platform.ReadEntireFile(Shader->File.Path);
-			if (UpdatedFile.ContentSize > 0) {
-				if (ReloadShader(Shader->Index, UpdatedFile)) {
-					Platform.FreeFileMemory(Shader->File.Content);
-					Shader->File = UpdatedFile;
-					char Buffer[256];
-					sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
-					Log(Info, Buffer);
-				}
+		file_info NewFile = Platform.GetFileInfo(Shader->File.Path);
+		if (NewFile.Size > 0 && NewFile.Timestamp > Shader->File.Timestamp) {
+			void* Content = Platform.ReadEntireFile(Shader->File.Path, &NewFile);
+			if (ReloadShader(Shader->Index, NewFile.Size, Content)) {
+				Platform.FreeMemory(Shader->Content);
+				Shader->File = NewFile;
+				char Buffer[256];
+				sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
+				Log(Info, Buffer);
+			}
+			else {
+				Platform.FreeMemory(Content);
 			}
 		}
 	}
@@ -979,27 +982,25 @@ void ReloadShaders() {
 	for (int i = 0; i < openGL_compute_shader_id_count; i++) {
 		openGL_compute_shader* Shader = &OpenGL.ComputeShader[i];
 
-		int64 LastWriteTime = Win32GetLastWriteTime(Shader->File.Path);
-		if (LastWriteTime > Shader->File.Timestamp) {
-			read_file_result UpdatedFile = Platform.ReadEntireFile(Shader->File.Path);
-			if (UpdatedFile.ContentSize > 0) {
-				if (ReloadShader(Shader->Index, UpdatedFile)) {
-					Platform.FreeFileMemory(Shader->File.Content);
-					Shader->File = UpdatedFile;
-					char Buffer[256];
-					sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
-					Log(Info, Buffer);
-				}
+		file_info NewFile = Platform.GetFileInfo(Shader->File.Path);
+		if (NewFile.Size > 0 && NewFile.Timestamp > Shader->File.Timestamp) {
+			void* Content = Platform.ReadEntireFile(Shader->File.Path, &NewFile);
+			if (ReloadShader(Shader->Index, NewFile.Size, Content)) {
+				Platform.FreeMemory(Shader->Content);
+				Shader->File = NewFile;
+				char Buffer[256];
+				sprintf_s(Buffer, "Shader %s was updated.", Shader->File.Path);
+				Log(Info, Buffer);
+			}
+			else {
+				Platform.FreeMemory(Content);
 			}
 		}
 	}
 }
 
 openGL_shader_pipeline_id GetPipelineID(render_primitive_options Options) {
-	if (Options.Font) {
-		return Shader_Pipeline_Text_Outline_ID;
-	}
-	else if (Options.Heightmap) {
+	if (Options.Heightmap) {
 		return Shader_Pipeline_Heightmap_ID;
 	}
 	else if (Options.Texture) {
@@ -1191,7 +1192,6 @@ void GetWGLFunctions(HWND DummyWindow) {
 RENDERER_INITIALIZE {
 	OpenGL = {};
 	game_assets* Assets = Group->Assets;
-	OpenGL.VertexLayout = Assets->VertexLayout;
 
 	int PixelFormatAttribs[] = {
         WGL_DRAW_TO_WINDOW_ARB,     GL_TRUE,
@@ -1366,7 +1366,7 @@ RENDERER_INITIALIZE {
 			uint32 VAO = OpenGL.VAOs[i];
 			uint32 VBO = OpenGL.VBOs[i];
 			
-			vertex_layout Layout = Group->Assets->VertexLayout[i];
+			vertex_layout Layout = VertexLayouts[i];
 			memory_index Size = VERTEX_BUFFER_SIZE;
 			
 			glNamedBufferStorage(VBO, Size, 0, GL_DYNAMIC_STORAGE_BIT);
@@ -1389,7 +1389,7 @@ RENDERER_INITIALIZE {
 			glNamedBufferStorage(MeshBuffer->VBO, VerticesSize, Mesh->Vertices, 0);
 			glNamedBufferStorage(MeshBuffer->EBO, ElementsSize, Mesh->nEdges > 0 ? Mesh->Edges : Mesh->Faces, 0);
 
-			vertex_layout Layout = Assets->VertexLayout[Mesh->VertexLayoutID];
+			vertex_layout Layout = VertexLayouts[Mesh->VertexLayoutID];
 
 			EnableVertexLayout(MeshBuffer->VAO, MeshBuffer->VBO, Layout);
 			glVertexArrayElementBuffer(MeshBuffer->VAO, MeshBuffer->EBO);
@@ -1426,11 +1426,7 @@ RENDERER_INITIALIZE {
 
 			game_font* Font = &Assets->Font[i];
 			uint64 VerticesSize = 4 * sizeof(float) * 3 * Font->nOnCurve;
-			uint64 ElementsSize = 3 * sizeof(uint32) * (Font->nPoints - Font->nOnCurve);
-			for (int j = 0; j < FONT_CHARACTERS_COUNT; j++) {
-				game_font_character* Character = &Font->Characters[j];
-				ElementsSize += 3 * sizeof(uint32) * Character->nSolidTriangles;
-			}
+			uint64 ElementsSize = 3 * sizeof(uint32) * (Font->nCurveTriangles + Font->nSolidTriangles);
 
 			glNamedBufferStorage(FontBuffer->VBO, VerticesSize, Font->Vertices, NULL);
 			glNamedBufferStorage(FontBuffer->EBO, ElementsSize, Font->Elements, NULL);
@@ -1481,7 +1477,7 @@ RENDERER_INITIALIZE {
 		uint32 Elements[nElements];
 		GenerateHeightmapElements(Elements);
 		glNamedBufferStorage(HeightmapBuffer->EBO, nElements * sizeof(uint32), Elements, NULL);
-		EnableVertexLayout(HeightmapBuffer->VAO, HeightmapBuffer->VBO, Assets->VertexLayout[vertex_layout_v2_id]);
+		EnableVertexLayout(HeightmapBuffer->VAO, HeightmapBuffer->VBO, VertexLayouts[vertex_layout_v2_id]);
 		glVertexArrayElementBuffer(HeightmapBuffer->VAO, HeightmapBuffer->EBO);
 
 	// Compiling & attaching shaders
@@ -1609,7 +1605,7 @@ void ScreenCapture(int Width, int Height) {
 
     SaveBMP(Filename, Width, Height, BMP.Header.BitmapOffset, sizeof(bitmap_header), &BMP.Header, BMP.Content);
     if (BMP.Content) {
-        Win32FreeMemory(BMP.Content, 0, MEM_RELEASE);
+        Platform.FreeMemory(BMP.Content);
     }
 }
 
@@ -1699,11 +1695,7 @@ RENDERER_RENDER {
 				uint32 VAO = 0;
 				vertex_buffer_entry VertexEntry = DrawCommand.VertexEntry;
 				element_buffer_entry ElementEntry = DrawCommand.ElementEntry;
-				if (Options.Font) {
-					VAO = OpenGL.FontBuffer[Options.Font->ID].VAO;
-					SetTextUniforms(Options.TextSize, Options.Pen);
-				}
-				else if (Options.Heightmap) {
+				if (Options.Heightmap) {
 					VAO = OpenGL.HeightmapBuffer.VAO;
 					matrix4 Model = Matrix(Options.Transform);
 					SetModelUniforms(Model);

@@ -102,6 +102,9 @@ void AddParticle(particle_emitter* Emitter) {
             Particle->Position = R * (cosf(Angle) * Basis.Y + sinf(Angle) * Basis.Z);
             Particle->Velocity = V3(0, RandFloat(0.01, 0.03), 0);
         } break;
+        default: {
+            Raise("Invalid emitter type.");
+        }
     }
 }
 

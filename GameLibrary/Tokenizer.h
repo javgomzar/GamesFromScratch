@@ -2,6 +2,7 @@
 #define TOKENIZER_H
 
 #include <string>
+#include <cstring>
 
 enum token_type {
     Token_Unknown,
@@ -150,18 +151,39 @@ bool operator==(token& T1, const char* Str) {
 };
 
 struct tokenizer {
+    char* Start;
     char* At;
+    char* End;
     int Line;
     int Column;
+    int Length;
     bool IgnoreWhitespace;
 };
 
-tokenizer InitTokenizer(char* At, bool IgnoreWhitespace = true) {
-    return { At, 1, 1, IgnoreWhitespace };
+tokenizer InitTokenizer(char* At, int Length = 0, bool IgnoreWhitespace = true) {
+    tokenizer Result = {};
+    Result.Start = At;
+    Result.At = At;
+    Result.Line = 1;
+    Result.Column = 1;
+    Result.Length = Length;
+    Result.End = Length > 0 ? Result.Start + Length : nullptr;
+    Result.IgnoreWhitespace = IgnoreWhitespace;
+
+    return Result;
 }
 
-tokenizer InitTokenizer(void* At, bool IgnoreWhitespace = true) {
-    return { (char*)At, 1, 1, IgnoreWhitespace };
+tokenizer InitTokenizer(void* At, int Length = 0, bool IgnoreWhitespace = true) {
+    tokenizer Result = {};
+    Result.Start = (char*)At;
+    Result.At = Result.Start;
+    Result.Line = 1;
+    Result.Column = 1;
+    Result.Length = Length;
+    Result.End = Length > 0 ? Result.Start + Length : nullptr;
+    Result.IgnoreWhitespace = IgnoreWhitespace;
+
+    return Result;
 }
 
 void Advance(tokenizer& Tokenizer) {
@@ -206,7 +228,7 @@ token GetToken(tokenizer& Tokenizer) {
     Token.Length = 1;
     
     // Ommit whitespace and comments
-    while (Tokenizer.At[0] != '\0') {
+    while (Tokenizer.At != Tokenizer.End && Tokenizer.At[0] != '\0') {
         if (Tokenizer.IgnoreWhitespace && IsWhitespace(Tokenizer.At[0])) {
             Advance(Tokenizer);
             continue;
@@ -226,9 +248,16 @@ token GetToken(tokenizer& Tokenizer) {
         break;
     }
 
-    char* TokenStart = Tokenizer.At;
     Token.Line = Tokenizer.Line;
     Token.Column = Tokenizer.Column;
+
+    if (Tokenizer.Length > 0 && Tokenizer.At == Tokenizer.End) {
+        Token.Type = Token_End;
+        Token.Length = 0;
+        return Token;
+    }
+
+    char* TokenStart = Tokenizer.At;
     char C = Tokenizer.At[0];
     if (C != '\0') Advance(Tokenizer);
 
@@ -384,8 +413,8 @@ token RequireToken(tokenizer& Tokenizer, const char* Text) {
     else {
         char ErrorBuffer[256];
         char TokenText[MAX_TOKEN_LENGTH] = "";
-        strcpy_s(TokenText, Token.Length * sizeof(char), Token.Text);
-        sprintf_s(
+        strncpy(TokenText, Token.Text, Token.Length);
+        sprintf(
             ErrorBuffer, 
             "Token `%s` at line %d, column %d should be `%s`.", 
             TokenText, Token.Line, Token.Column, Text
@@ -403,8 +432,8 @@ token RequireToken(tokenizer& Tokenizer, token_type Type) {
     else {
         char ErrorBuffer[256];
         char TokenText[MAX_TOKEN_LENGTH] = {};
-        strncpy_s(TokenText, Token.Text, Token.Length);
-        sprintf_s(
+        strncpy(TokenText, Token.Text, Token.Length);
+        sprintf(
             ErrorBuffer, 
             "Token `%s` at line %d, column %d is type '%s' but should be '%s'.", 
             TokenText, Token.Line, Token.Column, TokenTypeName[Token.Type], TokenTypeName[Type]
@@ -415,6 +444,10 @@ token RequireToken(tokenizer& Tokenizer, token_type Type) {
 }
 
 // Parsing
+bool ParseBool(tokenizer& Tokenizer) {
+    token Token = RequireToken(Tokenizer, Token_Identifier);
+    return Token == "true" || Token == "True" || Token == "TRUE" || Token == "1";
+}
 
 unsigned int Parseuint32(tokenizer& Tokenizer) {
     token Token = RequireToken(Tokenizer, Token_Constant_Integer);
@@ -470,9 +503,7 @@ double ParseDouble(tokenizer& Tokenizer) {
 // If input pointer is a string that represents a path, returns the string length of the path. If not, returns 0.
 int ParsePath(char* Text) {
     int Result = 0;
-    while (Text[0] != '\0') {
-        if (Text[0] == ';' || Text[0] == '\n' || Text[0] == '\r') break;
-
+    while (Text[0] != '\0' && Text[0] != ';' && Text[0] != '\n' && Text[0] != '\r') {
 #ifdef _WIN32
         if (
             Text[0] == '<' || Text[0] == '>' || Text[0] == '|' || Text[0] == '?' || Text[0] == '*' ||

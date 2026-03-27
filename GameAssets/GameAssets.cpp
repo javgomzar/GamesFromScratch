@@ -5,7 +5,8 @@ void WriteAssetsFile(const char* Path) {
 
 // Assets
     // Fonts
-    PushAsset(&Assets, "GameAssets\\Files\\Font\\Menlo-Regular.ttf", Font_Menlo_Regular_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Font\\DejaVuSansMono.ttf", Font_DejaVu_Sans_Mono_ID);
+    PushAsset(&Assets, "GameAssets\\Files\\Font\\DejaVuSans.ttf", Font_DejaVu_Sans_ID);
 
     // Text
     PushAsset(&Assets, "GameAssets\\Files\\Text\\Test.txt", Text_Test_ID);
@@ -62,7 +63,7 @@ void WriteAssetsFile(const char* Path) {
 
     Log(Info, "Finished writing assets file.");
 
-    VirtualFree(FileMemory, 0, MEM_RELEASE);
+    Platform.FreeMemory(FileMemory);
 }
 
 void LoadAssetsFromFile(

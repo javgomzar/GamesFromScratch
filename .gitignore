@@ -2,7 +2,12 @@
 .vs/
 
 # Visual Studio Code
-.vscode/
+.vscode/*
+!.vscode/launch.json
+
+# clangd
+compile_commands.json
+.cache
 
 # Game assets
 GameAssets/Files
@@ -11,7 +16,11 @@ GameAssets/game_assets
 # Game data
 GameData/Data
 
-# Captures
+# Metaprogramming
+GameLibrary/GameEnums.h
+GameLibrary/GameStructs.h
+
+# Screen captures
 Captures/*
 
 # Binaries
@@ -22,9 +31,9 @@ bin/
 Linking/
 
 # Batch scripts
-bat/env.bat
-bat/hot.bat
-bat/meta.bat
+scripts/env.bat
+scripts/hot.bat
+scripts/meta.bat
 
 # Build
 GameBuild/build.conf

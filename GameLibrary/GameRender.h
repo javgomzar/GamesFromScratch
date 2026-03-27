@@ -226,7 +226,7 @@ struct render_primitive_command {
 
 struct render_text_options {
     color Color        = White;
-    game_font_id Font  = Font_Menlo_Regular_ID;
+    game_font_id Font  = Font_DejaVu_Sans_ID;
     bool Outline       = false;
     color OutlineColor = Black;
     float OutlineWidth = 2.0f;
@@ -377,7 +377,7 @@ void InitializeRenderGroup(
     Group->Height = Height;
 
     Group->Assets = Assets;
-    Group->DebugFont = GetAsset(Assets, Font_Menlo_Regular_ID);
+    Group->DebugFont = GetAsset(Assets, Font_DejaVu_Sans_Mono_ID);
     
     Group->Debug = false;
     Group->DebugNormals = false;
@@ -1462,9 +1462,8 @@ void PushFillbar(
     PushText(Group, Position + V2(5.0f, 15.0f), Description, .Points = 10);
 
     int Points = 8;
-    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
     std::string Text = std::format("{:.2f}%", 100 * FillPercentage);
-    float Width = GetTextWidth(Text.c_str(), Font, Points);
+    float Width = GetTextWidth(Text.c_str(), Group->DebugFont, Points);
     PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Text.c_str(), .Points = 8);
 }
 
@@ -1486,9 +1485,8 @@ void PushFillbar(
     v2 Position = LeftTop(Rect);
     PushText(Group, Position + V2(5.0f, 15.0f), Description, .Points = Points);
 
-    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
     std::string Text = std::format("{}/{}", Used, Max);
-    float Width = GetTextWidth(Text.c_str(), Font, Points);
+    float Width = GetTextWidth(Text.c_str(), Group->DebugFont, Points);
     PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Text.c_str(), .Points = Points);
 }
 
@@ -1923,7 +1921,7 @@ void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
     v2 Orthogonal = perp(normalize(V2(Vector.X, Vector.Y)));
     float OrthogonalLength = 0.005333f * Group->Height;
 
-    int Thickness = max(1.0f, 0.0025f * Group->Height);
+    int Thickness = fmax(1.0f, 0.0025f * Group->Height);
     PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, SORT_ORDER_DEBUG_OVERLAY);
     triangle2 Arrowhead1 = {
         Position + Vector,
@@ -1956,7 +1954,7 @@ void PushDebugVector(render_group* Group, basis CameraBasis, v3 Vector, v3 Posit
     v3 Orthogonal = normalize(CameraCoordinates.X * CameraBasis.X + CameraCoordinates.Y * CameraBasis.Y);
     float OrthogonalLength = (modulus(Vector) / 15.0f);
 
-    int Thickness = max(1.0, 0.0025 * Height);
+    int Thickness = fmax(1.0, 0.0025 * Height);
     PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, SORT_ORDER_MESHES);
     triangle3 Triangle = {
         Position + Vector,
@@ -2187,7 +2185,7 @@ void PushTimeRecords(
 ) {
     char Buffer[512];
     const float Points = DEBUG_ENTRIES_TEXT_POINTS;
-    game_font* Font = GetAsset(Group->Assets, Font_Menlo_Regular_ID);
+    game_font* Font = Group->DebugFont;
     
     float FunctionHeaderWidth = GetTextWidth("Function", Font, Points);
     float FunctionColWidth    = FunctionHeaderWidth;

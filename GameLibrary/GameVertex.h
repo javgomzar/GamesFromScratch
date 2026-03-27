@@ -117,7 +117,7 @@ void AddAttribute(vertex_layout* VertexLayout, vertex_type Type) {
     VertexLayout->Stride += Attribute->Size;
 }
 
-vertex_layout VertexLayout(vertex_layout_id ID, uint8 nAttributes, ...) {
+vertex_layout VertexLayout(vertex_layout_id ID, int nAttributes, ...) {
     vertex_layout Result = {};
     Result.ID = ID;
     Result.Stride = 0;

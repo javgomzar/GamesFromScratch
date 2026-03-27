@@ -1,7 +1,7 @@
 #ifndef GAME_UI
 #define GAME_UI
 
-#include <xxhash.h>
+#include "GamePlatform.h"
 
 enum ui_axis {
     axis_x,
@@ -133,7 +133,7 @@ static ui_context UI = {};
 
 void UISizeText(const char * Text, int Points, ui_size* Sizes) {
     rectangle Rect;
-    GetTextWidthAndHeight(Text, GetAsset(UI.Group->Assets, Font_Menlo_Regular_ID), Points, &Rect.Width, &Rect.Height);
+    GetTextWidthAndHeight(Text, UI.Group->DebugFont, Points, &Rect.Width, &Rect.Height);
     Sizes[axis_x].Type = ui_size_text;
     Sizes[axis_x].Value = Rect.Width;
     Sizes[axis_y].Type = ui_size_text;
@@ -201,7 +201,7 @@ ui_element* NewUIElement(uint32 ID) {
     Result->ID = ID;
     Result->Index = UI.CurrentIndex;
     Result->Scroll = 0;
-    Result->Font = Font_Menlo_Regular_ID;
+    Result->Font = UI.Group->DebugFont->ID;
     Result->Color = White;
     return Result;
 }
@@ -211,7 +211,7 @@ struct ui_element_options {
     ui_alignment AlignmentY = ui_alignment_free;
     color Color             = White;
     ui_flags Flags          = (ui_flags)0;
-    game_font_id Font       = Font_Menlo_Regular_ID;
+    game_font_id Font       = Font_DejaVu_Sans_ID;
     float MarginX           = 0.0f;
     float MarginY           = 0.0f;
     float Points            = 20.0f;
@@ -262,7 +262,7 @@ ui_element* _PushUIElement(
         }
     }
 
-    strcpy_s(Element->Name, Name);
+    strcpy(Element->Name, Name);
     Element->Color = Options.Color;
     Element->Font = Options.Font;
     Element->Points = Options.Points;
@@ -300,8 +300,6 @@ void BeginContext(game_memory* Memory, game_input* Input) {
 void ComputeSizes() {
     ui_element* Element = UI.Tree.First;
     if (Element == NULL) return;
-
-    game_font* Font = GetAsset(UI.Group->Assets, Font_Menlo_Regular_ID);
 
     float GroupSizes[2] = { (float)UI.Group->Width, (float)UI.Group->Height };
 
@@ -582,7 +580,7 @@ struct ui_dropdown {
     bool Expanded;
 
     ui_dropdown(const char* Text) {
-        game_font* Font = GetAsset(UI.Group->Assets, Font_Menlo_Regular_ID);
+        game_font* Font = GetAsset(UI.Group->Assets, Font_DejaVu_Sans_ID);
         float Points = 12;
         float Width = 0, Height = 0;
         GetTextWidthAndHeight(Text, Font, Points, &Width, &Height);

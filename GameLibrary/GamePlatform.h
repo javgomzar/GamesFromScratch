@@ -1,10 +1,7 @@
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
 
-#include <string>
-#include <format>
-
-#include "xxhash.h"
+#include <pch.h>
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -17,14 +14,6 @@ typedef int32_t int32;
 typedef int64_t int64;
 
 typedef size_t memory_index;
-
-#ifndef max
-#define max(a,b)            (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef min
-#define min(a,b)            (((a) < (b)) ? (a) : (b))
-#endif
 
 #define Kilobytes(Value) ((Value)*1024)
 #define Megabytes(Value) (Kilobytes(Value)*1024)
@@ -75,15 +64,23 @@ int64 BigEndian(int64 LittleEndian) {
     return *(int64*)&Unsigned;
 }
 
-inline uint8 MSB64(uint32 X) {
+inline uint8 MSB32(uint32 X) {
 	unsigned long Result = 0;
+#ifdef _WIN32
 	_BitScanReverse(&Result, X);
+#else
+    Result = 31 - __builtin_clz(X);
+#endif
 	return (uint32)Result;
 }
 
-inline uint8 MSB32(uint64 X) {
+inline uint8 MSB64(uint64 X) {
 	unsigned long Result = 0;
+#ifdef _WIN32
 	_BitScanReverse64(&Result, X);
+#else
+    Result = 31 - __builtin_clzll(X);
+#endif
 	return (uint32)Result;
 }
 
@@ -128,13 +125,15 @@ struct memory_arena {
 };
 
 inline void ZeroSize(memory_index Size, void* Memory) {
-    memset(Memory, 0, Size);
+    if (Size > 0) {
+        memset(Memory, 0, Size);
+    }
 }
 
-inline memory_arena MemoryArena(memory_index Size, uint8* Base) {
+inline memory_arena MemoryArena(memory_index Size, void* Base) {
     memory_arena Result;
     Result.Size = Size;
-    Result.Base = Base;
+    Result.Base = (uint8*)Base;
     Result.Used = 0;
     return Result;
 }
@@ -234,7 +233,7 @@ public:
             n--;
             return Result;
         }
-        return NULL;
+        return {};
     }
 
     void Clear() {
@@ -255,7 +254,7 @@ struct link {
     void* Data;
 };
 
-void Attach(link* Link1, link* Link2) {
+void Attach(struct link* Link1, struct link* Link2) {
     Assert(Link1 != NULL || Link2 != NULL, "Two empty links tried to be linked.");
     if (Link1 != NULL) {
         Link1->Next = Link2;
@@ -265,7 +264,7 @@ void Attach(link* Link1, link* Link2) {
     }
 }
 
-void Delete(link* ThisLink) {
+void Delete(struct link* ThisLink) {
     Attach(ThisLink->Previous, ThisLink->Next);
     ThisLink->Previous = NULL;
     ThisLink->Next = NULL;
@@ -275,10 +274,10 @@ void Delete(link* ThisLink) {
     Doubly-linked list. All links must have been allocated somewhere previously.
 */
 struct linked_list {
-    link* First;
-    link* Last;
+    struct link* First;
+    struct link* Last;
 
-    void PushBack(link* Element) {
+    void PushBack(struct link* Element) {
         if (First == NULL || Last == NULL) {
             First = Element;
         }
@@ -288,7 +287,7 @@ struct linked_list {
         Last = Element;
     }
 
-    void PushFront(link* Element) {
+    void PushFront(struct link* Element) {
         if (First == NULL || Last == NULL) {
             Last = Element;
         }
@@ -302,7 +301,7 @@ struct linked_list {
         Attach(Last, First);
     }
 
-    void Break(link* Link) {
+    void Break(struct link* Link) {
         if (First == Link) First = Link->Next;
         if (Last == Link)  Last  = Link->Previous;
         Delete(Link);
@@ -322,7 +321,7 @@ inline linked_list Concatenate(linked_list L1, linked_list L2) {
 }
 
 uint64 GetLength(linked_list List) {
-	link* Link = List.First;
+	struct link* Link = List.First;
 	uint64 Result = 0;
     do {
 		Link = Link->Next;
@@ -403,7 +402,7 @@ private:
 public:
     xarray() {
         Meta = { 4, 0, sizeof(T) };
-        Header = (xarray_header*)calloc(MAX_XARRAY_CHUNKS + 1, sizeof(uint64));
+        Header = (xarray_header*)calloc(MAX_XARRAY_CHUNKS + 1, sizeof(void*));
         NewChunk(Meta.ElementSize * (1 << Meta.Shift));
     }
 
@@ -423,7 +422,7 @@ public:
     T* Insert(const T& Element = {}) {
         uint64 TotalSize = Meta.ElementSize * (1 << (Meta.Shift + Meta.nChunks - 1));
         uint64 NewIndex = Header->n++;
-        if (NewIndex * sizeof(T) >= TotalSize) {
+        if (Header->n * sizeof(T) >= TotalSize) {
             NewChunk(TotalSize);
         }
 
@@ -567,6 +566,12 @@ public:
 
 #define MAX_PATH_LENGTH 256
 
+#if _WIN32
+#define PATH_SEPARATOR "\\"
+#elif __linux__
+#define PATH_SEPARATOR "/"
+#endif
+
 struct file_info {
     char Path[MAX_PATH_LENGTH];
     int64 Timestamp; 
@@ -646,6 +651,7 @@ struct monitor_info {
 */
 
 struct process_info {
+    int PID;
     void* Handle;
     void* ThreadHandle;
     bool Running;
@@ -807,6 +813,8 @@ struct platform_api {
 
 #ifdef _WIN32
     #include "Win32PlatformLayer.h"
+#elif __linux__
+    #include "LinuxPlatformLayer.h"
 #else
     UNKNOWN_OPERATING_SYSTEM
 #endif
@@ -832,9 +840,8 @@ uint64 SeedRNG() {
         Seed ^= Seed << 17;
     }
 
-    char Buffer[64];
-    sprintf_s(Buffer, "RNG seed: %I64u.", Seed);
-    Log(Info, Buffer);
+    std::string SeedText = std::format("RNG seed: {}.", Seed);
+    Log(Info, SeedText.c_str());
     return Seed;
 }
 
@@ -866,11 +873,11 @@ struct timed_block {
         Record->FunctionName = FunctionName;
         Record->LineNumber = LineNumber;
         Record->HitCount++;
-        StartCycles = __rdtscp(&Aux);
+        StartCycles = Platform.GetWallClock();
     }
 
     ~timed_block() {
-        Record->CycleCount += __rdtscp(&Aux) - StartCycles;
+        Record->CycleCount += Platform.GetWallClock() - StartCycles;
     }
 };
 

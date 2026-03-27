@@ -1,36 +1,28 @@
 COMPILER=MSVC
 COMPILER_PATH={VISUAL_STUDIO_INSTALLATION_FOLDER}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\{MSVC_VERSION}\bin\Hostx64\x64\cl.exe
-PRECOMPILED_HEADERS_PATH=Win32PlatformLayer
+PRECOMPILE_HEADERS=true
 
 META=GameLibrary\Meta.cpp
 
 MODE=DEBUG
-RENDERER=OpenGL
+RENDERER=DirectX
 
 INCLUDE=
 .\Linking\include;
-.\Linking\include\ffmpeg;
 {VULKAN_INSTALLATION_FOLDER}\{VULKAN_VERSION}\Include;
 {VISUAL_STUDIO_INSTALLATION_FOLDER}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\{MSVC_VERSION}\include;
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\Include\{WINDOWS_SDK_VERSION}\ucrt;
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\Include\{WINDOWS_SDK_VERSION}\um;
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\Include\{WINDOWS_SDK_VERSION}\shared;
 .\GameAssets;
-.\GameAssets\Animation;
-.\GameAssets\Bitmap;
-.\GameAssets\Font;
-.\GameAssets\Mesh;
-.\GameAssets\Shader;
-.\GameAssets\Sounds;
-.\GameAssets\Text;
-.\GameAssets\Video;
 .\GameLibrary;
 .\GameBuild;
+.\GameData;
 .\Win32PlatformLayer
+.\LinuxPlatformLayer
 
 LIB=
 .\Linking\lib;
-.\Linking\lib\ffmpeg;
 {VULKAN_INSTALLATION_FOLDER}\{VULKAN_VERSION}\Include;
 {VISUAL_STUDIO_INSTALLATION_FOLDER}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\{MSVC_VERSION}\lib\x64;
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\lib\{WINDOWS_SDK_VERSION}\um\x64;

@@ -7,7 +7,7 @@
 #include "GameFont.h"
 #include "GameBitmap.h"
 #include "GameSound.h"
-#include "GameVideo.h"
+// #include "GameVideo.h"
 #include "GameMesh.h"
 
 /*
@@ -50,7 +50,7 @@ union game_asset_id {
     game_font_id Font;
     game_mesh_id Mesh;
     game_animation_id Animation;
-    game_video_id Video;
+//  game_video_id Video;
 };
 
 struct game_asset {
@@ -299,14 +299,14 @@ game_animation LoadAnimation(memory_arena* Arena, game_asset* Asset) {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 const uint32 ASSET_COUNT =
-    game_text_id_count +
-    game_sound_id_count +
-    game_bitmap_id_count +
-    game_heightmap_id_count +
-    game_font_id_count +
-    game_mesh_id_count +
-    game_animation_id_count + 
-    game_video_id_count;
+    (uint32)game_text_id_count +
+    (uint32)game_sound_id_count +
+    (uint32)game_bitmap_id_count +
+    (uint32)game_heightmap_id_count +
+    (uint32)game_font_id_count +
+    (uint32)game_mesh_id_count +
+    (uint32)game_animation_id_count; // + 
+//    game_video_id_count;
 
 ArrayDefinition(ASSET_COUNT, game_asset)
 
@@ -449,6 +449,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_animation_id ID) {
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
+/*
 void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Video;
@@ -461,6 +462,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
     Assets->TotalSize += Asset.MemoryNeeded;
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
+*/
 
 void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
     Asset->Offset = Arena->Used;
@@ -473,50 +475,50 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
             Assets->Text[ID.Text].Size = Asset->MemoryNeeded;
             Assets->Text[ID.Text].Content = TextContent;
             memcpy(TextContent, Asset->FileContent, Asset->MemoryNeeded);
-            sprintf_s(LogBuffer, "Loaded text %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded text %s.", Asset->FileInfo.Path);
         } break;
 
         // case Asset_Type_Video: {
         //    Assets->Videos[ID.Video] = LoadVideo(Arena, Asset);
-        //    sprintf_s(LogBuffer, "Loaded video %s.", Asset->File.Path);
+        //    sprintf(LogBuffer, "Loaded video %s.", Asset->File.Path);
         // } break;
 
         case Asset_Type_Bitmap: {
             Assets->Bitmap[ID.Bitmap] = LoadBitmapFile(Arena, Asset->FileContent);
             Assets->Bitmap[ID.Bitmap].ID = ID.Bitmap;
-            sprintf_s(LogBuffer, "Loaded bitmap %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded bitmap %s.", Asset->FileInfo.Path);
         } break;
 
         case Asset_Type_Heightmap: {
             Assets->Heightmap[ID.Heightmap] = LoadHeightmap(Arena, Asset);
-            sprintf_s(LogBuffer, "Loaded heightmap %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded heightmap %s.", Asset->FileInfo.Path);
         } break;
 
         case Asset_Type_Font: {
             Assets->Font[ID.Font] = LoadFont(Arena, &PreprocessedAssets.Font[ID.Font]);
             Assets->Font[ID.Font].ID = ID.Font;
-            sprintf_s(LogBuffer, "Loaded font %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded font %s.", Asset->FileInfo.Path);
         } break;
 
         case Asset_Type_Sound: {
             Assets->Sound[ID.Sound] = LoadSound(Arena, &PreprocessedAssets.Sound[ID.Sound]);
             Assets->Sound[ID.Sound].ID = ID.Sound;
-            sprintf_s(LogBuffer, "Loaded sound %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded sound %s.", Asset->FileInfo.Path);
         } break;
 
         case Asset_Type_Mesh: {
             Assets->Mesh[ID.Mesh] = LoadMesh(Arena, &PreprocessedAssets.Mesh[ID.Sound]);
             Assets->Mesh[ID.Mesh].ID = ID.Mesh;
-            sprintf_s(LogBuffer, "Loaded mesh %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded mesh %s.", Asset->FileInfo.Path);
         } break;
 
         case Asset_Type_Animation: {
             Assets->Animation[ID.Animation] = LoadAnimation(Arena, Asset);
-            sprintf_s(LogBuffer, "Loaded animation %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded animation %s.", Asset->FileInfo.Path);
         } break;
 
         default: {
-            sprintf_s(LogBuffer, "Asset ignored %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Asset ignored %s.", Asset->FileInfo.Path);
         }
     }
 

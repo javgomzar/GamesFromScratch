@@ -2,30 +2,31 @@
 
 
 int main(int argc, char* argv[]) {
+#if _WIN32
     LARGE_INTEGER PerfCountFrequencyResult;
     QueryPerformanceFrequency(&PerfCountFrequencyResult);
     Platform.PerformanceCounterFrequency = PerfCountFrequencyResult.QuadPart;
-    
+#endif
+    // Hot reload
     if (argc == 3 && argv[2]) {
-        char LogBuffer[128];
         if (strcmp(argv[2], "-hot") != 0) {
-            sprintf_s(LogBuffer, "Incorrect argument '%s', try '-hot'.", argv[2]);
-            Log(Error, LogBuffer);
+            std::string ErrorText = std::format("Incorrect argument '{}', try '-hot'.", argv[2]);
+            Log(Error, ErrorText.data());
             return 2;
         }
 
         build_configuration Configuration = {};
         ReadBuildConfiguration(argv[1], &Configuration);
-        char MetaFile[] = "bin\\Meta.exe";
+        GetMetaprogrammingFile(MetaFile);
         int32 WaitResult = 0;
         uint64 End = 0;
-        
-        int64 MetaprogrammingSourceTimestamp = Platform.GetLastWriteTime(Configuration.MetaprogrammingCodePath);
-        int64 MetaprogrammingBinaryTimestamp = Platform.GetLastWriteTime(MetaFile);
+
+        file_info MetaprogrammingSource = Platform.GetFileInfo(Configuration.MetaprogrammingCodePath);
+        file_info MetaprogrammingBinary = Platform.GetFileInfo(MetaFile);
         
         uint64 MetaprogrammingCompilationStart = 0;
         process_info MetaprogrammingCompilation = {};
-        if (MetaprogrammingSourceTimestamp > MetaprogrammingBinaryTimestamp) {
+        if (MetaprogrammingSource.Timestamp > MetaprogrammingBinary.Timestamp) {
             MetaprogrammingCompilationStart = Platform.GetWallClock();
             MetaprogrammingCompilation = CompileMetaprogramming(&Configuration);
             WaitResult = Platform.WaitForProcess(&MetaprogrammingCompilation, -1);
@@ -40,9 +41,10 @@ int main(int argc, char* argv[]) {
             uint64 End = Platform.GetWallClock();
             float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
             log_level Level = WaitResult > 0 ? Error : Info;
-            if (WaitResult == 0) sprintf_s(LogBuffer, "Metaprogramming executed in %.2f milliseconds.", 1000.0f * Time);
-            else                 sprintf_s(LogBuffer, "Metaprogramming execution failed with code '%d'", WaitResult);
-            Log(Level, LogBuffer);
+            std::string LogText = WaitResult == 0 ?
+                std::format("Metaprogramming executed in {} milliseconds.", 1000.0f * Time) :
+                std::format("Metaprogramming execution failed with code '{}'", WaitResult);
+            Log(Level, LogText.data());
         }
         
         uint64 LibraryCompilationStart = Platform.GetWallClock();
@@ -51,6 +53,7 @@ int main(int argc, char* argv[]) {
         End = Platform.GetWallClock();
         LogCompilationResult("Game library", WaitResult, LibraryCompilationStart, End);
     }
+    // Normal compilation
     else if (argc == 2) {
         build_configuration Configuration = {};
         ReadBuildConfiguration(argv[1], &Configuration);
@@ -60,12 +63,18 @@ int main(int argc, char* argv[]) {
         const char* PCHOutput = Configuration.Mode == Debug ? "debug_pch" : "pch";
         if (Configuration.PCH) {
             bool PrecompileHeaders = true;
-            std::string PCHOutputPath = std::format("bin\\{}.pch", PCHOutput);
-            std::string PCHSourcePath = std::format("{}\\pch.h", Configuration.PCHPath);
+            std::string PCHOutputPath;
+            if (SystemOS == Windows) {
+                PCHOutputPath = std::format("bin" PATH_SEPARATOR "{}.pch", PCHOutput);
+            }
+            else {
+                PCHOutputPath = std::format("bin" PATH_SEPARATOR "{}.gch", PCHOutput);
+            }
+            std::string PCHSourcePath = "GameLibrary" PATH_SEPARATOR "pch.h";
             if (Platform.FileExists(PCHOutputPath.data())) {
-                int64 PrecompiledHeadersOutputTimestamp = Platform.GetLastWriteTime(PCHOutputPath.data());
-                int64 PrecompiledHeadersSourceTimestamp = Platform.GetLastWriteTime(PCHSourcePath.data());
-                PrecompileHeaders = PrecompiledHeadersSourceTimestamp > PrecompiledHeadersOutputTimestamp;
+                file_info PrecompiledHeadersOutput = Platform.GetFileInfo(PCHOutputPath.data());
+                file_info PrecompiledHeadersSource = Platform.GetFileInfo(PCHSourcePath.data());
+                PrecompileHeaders = PrecompiledHeadersSource.Timestamp > PrecompiledHeadersOutput.Timestamp;
             }
             if (PrecompileHeaders) {
                 Log(Info, "Compiling pre-compiled headers.");
@@ -74,8 +83,17 @@ int main(int argc, char* argv[]) {
                 switch (Configuration.Compiler) {
                     case MSVC: {
                         Command = std::format(
-                            "{} /std:c++20 /nologo /W0 {} {}/pch.cpp /c {} /Yc\"pch.h\" /Fp\"bin\\{}.pch\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
-                            Configuration.CompilerPath, Configuration.Include, Configuration.PCHPath, CompilerFlags, PCHOutput, PCHOutput, PCHOutput
+                            "{} /std:c++20 /nologo /W0 {} GameLibrary/pch.cpp /c {} /Yc\"pch.h\" /Fp\"{}\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
+                            Configuration.CompilerPath, Configuration.Include, CompilerFlags, PCHOutput, PCHOutputPath, PCHOutput, PCHOutput
+                        );
+                    } break;
+
+                    case clang: {
+                        Command = std::format(
+                            "{} -x c++-header -std=c++20 -fPIC {} {} GameLibrary/pch.h -o {}",
+                            Configuration.CompilerPath, 
+                            GetCompilerFlags(Configuration.Compiler, Configuration.Mode),
+                            Configuration.Include, PCHOutputPath
                         );
                     } break;
 
@@ -93,12 +111,11 @@ int main(int argc, char* argv[]) {
 
         // Metaprogramming
         if (Configuration.Preprocess) {
-            char MetaFile[] = "bin\\Meta.exe";
+            GetMetaprogrammingFile(MetaFile);
             process_info MetaprogrammingProcess = {};
-            int64 MetaprogrammingSourceTimestamp = Platform.GetLastWriteTime(Configuration.MetaprogrammingCodePath);
-            int64 MetaprogrammingBinaryTimestamp = Platform.GetLastWriteTime(MetaFile);
-        
-            if (MetaprogrammingSourceTimestamp > MetaprogrammingBinaryTimestamp) {
+            file_info MetaprogrammingSource = Platform.GetFileInfo(Configuration.MetaprogrammingCodePath);
+            file_info MetaprogrammingBinary = Platform.GetFileInfo(MetaFile);
+            if (MetaprogrammingSource.Timestamp > MetaprogrammingBinary.Timestamp) {
                 uint64 Start = Platform.GetWallClock();
                 MetaprogrammingProcess = CompileMetaprogramming(&Configuration);
                 uint32 ExitCode = Platform.WaitForProcess(&MetaprogrammingProcess, -1);
@@ -121,37 +138,22 @@ int main(int argc, char* argv[]) {
         }
 
         // Platform layer
-        std::string PlatformCommand = std::format(
-            "{} /std:c++20 /nologo /W0 Win32PlatformLayer\\Win32PlatformLayer.cpp bin\\{}.obj /D GAME_RENDER_API_{} {} "
-            "/Fe\"bin\\Win32PlatformLayer.exe\" /Fo\"bin\\Win32PlatformLayer.obj\" /Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" {} "
-            "/link {} kernel32.lib user32.lib gdi32.lib advapi32.lib ole32.lib oleaut32.lib "
-            "avcodec.lib avformat.lib avutil.lib swscale.lib psapi.lib {} "
-            "Win32PlatformLayer\\Win32PlatformLayer.res /MACHINE:X64",
-            Configuration.CompilerPath, PCHOutput, GetRendererString(Configuration.Renderer), 
-            GetCompilerFlags(Configuration.Compiler, Configuration.Mode), PCHOutput, PCHOutput, Configuration.Include,
-            Configuration.Lib, GetRendererLibs(Configuration.Renderer)
-        );
         uint64 PlatformStart = Platform.GetWallClock();
-        process_info PlatformProcess = Platform.RunCommand(PlatformCommand.data());
+        process_info PlatformProcess = CompilePlatformLayer(&Configuration);
         uint32 PlatformExitCode = Platform.WaitForProcess(&PlatformProcess, -1);
         uint64 PlatformEnd = Platform.GetWallClock();
-        LogCompilationResult("Windows platform layer", PlatformExitCode, PlatformStart, PlatformEnd);
+        const char* OSLayerName = SystemOS == Windows ? "Windows platform layer" : "Linux platform layer";
+        LogCompilationResult(OSLayerName, PlatformExitCode, PlatformStart, PlatformEnd);
 
         // Game library
         uint64 LibraryStart = Platform.GetWallClock();
-        std::string LibraryCommand = std::format(
-            "{} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {} {} "
-            "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" "
-            "/link {} avcodec.lib avformat.lib avutil.lib swscale.lib bin\\{}.obj "
-            "/DLL /IMPLIB:\"bin\\GameLibrary.lib\" /PDB:\"bin\\GameLibrary.pdb\" "
-            "/ILK:\"bin\\GameLibrary.ilk\" /OUT:\"bin\\GameLibrary.dll\"",
-            Configuration.CompilerPath, GetCompilerFlags(MSVC, Configuration.Mode), Configuration.Include, 
-            PCHOutput, PCHOutput, Configuration.Lib, PCHOutput
-        );
-        process_info LibraryProcess = Platform.RunCommand(LibraryCommand.data());
+        process_info LibraryProcess = CompileGameLibrary(&Configuration);
         int32 LibraryExitCode = Platform.WaitForProcess(&LibraryProcess, -1);
         uint64 LibraryEnd = Platform.GetWallClock();
         LogCompilationResult("Game library", LibraryExitCode, LibraryStart, LibraryEnd);
+    }
+    else {
+        Log(Error, "No build configuration file provided. Usage: Build <build.conf file path> [-hot]");
     }
 
     return 0;

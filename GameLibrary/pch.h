@@ -7,6 +7,22 @@
 #ifndef PCH_H
 #define PCH_H
 
+// C RunTime Header Files
+#include <stdlib.h>
+#include <stdint.h>
+#include <stdarg.h>
+#include <malloc.h>
+#include <memory.h>
+#include <time.h>
+#include <thread>
+#include <mutex>
+#include <string>
+#include <cstring>
+#include <format>
+#include <math.h>
+#include <float.h>
+#include <xxhash.h>
+
 #ifdef _WIN32
 // Windows Header Files
 /*  
@@ -18,25 +34,30 @@
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 #include <windows.h>
 
+// ANSI & Unicode text
+#include <tchar.h>
+
+// Process status API
+#include <psapi.h>
+
 #ifndef _DEBUG
 #include <wincrypt.h>
 #endif
 
 #include <XInput.h>
 #include <xaudio2.h>
-#endif
-
-// C RunTime Header Files
-#include <stdlib.h>
-#include <stdint.h>
-#include <malloc.h>
-#include <memory.h>
-#include <tchar.h>
-#include <psapi.h>
-#include <time.h>
-#include <thread>
-#include <mutex>
 
 #include "Resource.h"
+#elif __linux__
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <sys/sendfile.h>
+#include <sys/wait.h>
+#include <dlfcn.h>
+#include <linux/input.h>
+#include <dirent.h>
+#include <cerrno>
+#endif
 
 #endif

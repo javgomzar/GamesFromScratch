@@ -14,7 +14,7 @@ struct game_data_slot {
 
 typedef uint32 game_data_page_id;
 
-const int GAME_DATA_PAGE_SIZE = Kilobytes(4);
+const int GAME_DATA_PAGE_SIZE = Kilobytes(8);
 
 ENUM(game_data_page_type,
     blank_data_page,

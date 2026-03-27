@@ -1344,11 +1344,7 @@ RENDERER_INITIALIZE {
 
         directX_font_buffer* FontBuffer = &DirectX.FontBuffer[i];
         uint64 VerticesSize = 4 * sizeof(float) * 3 * Font->nOnCurve;
-        uint64 ElementsSize = 3 * sizeof(uint32) * (Font->nPoints - Font->nOnCurve);
-        for (int j = 0; j < FONT_CHARACTERS_COUNT; j++) {
-            game_font_character* Character = &Font->Characters[j];
-            ElementsSize += 3 * sizeof(uint32) * Character->nSolidTriangles;
-        }
+        uint64 ElementsSize = 3 * sizeof(uint32) * (Font->nCurveTriangles + Font->nSolidTriangles);
         CreateBuffer(&FontBuffer->VertexBuffer, VerticesSize, D3D11_BIND_VERTEX_BUFFER, false, Font->Vertices);
         CreateBuffer(&FontBuffer->IndexBuffer, ElementsSize, D3D11_BIND_INDEX_BUFFER, false, Font->Elements);
         CreateBuffer(&FontBuffer->InstanceBuffer, TEXT_BUFFER_SIZE, D3D11_BIND_VERTEX_BUFFER, true);

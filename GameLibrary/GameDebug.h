@@ -343,7 +343,7 @@ void UpdateAndSizeDebugEntry(game_font* Font, debug_entry* Entry, float* OutWidt
     GetTextWidthAndHeight(Entry->Name, Font, Points, &Width, &Height);
     GetTextWidthAndHeight(": ", Font, Points, &NameWidth, &NameHeight);
     Width += NameWidth + ValueWidth;
-    Height = max(Height, ValueHeight);
+    Height = fmax(Height, ValueHeight);
 
     debug_entry* Parent = Entry->Parent;
     while (Parent) {

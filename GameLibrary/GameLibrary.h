@@ -1,3 +1,4 @@
+#if _WIN32
 // The following ifdef block is the standard way of creating macros which make exporting
 // from a DLL simpler. All files within this DLL are compiled with the GAMELIBRARY_EXPORTS
 // symbol defined on the command line. This symbol should not be defined on any project
@@ -16,8 +17,9 @@
 //	CGameLibrary(void);
 //	// Add your methods here.
 //};
-
-extern GAMELIBRARY_API int nGameLibrary;
+#else
+#define GAMELIBRARY_API
+#endif
 
 #ifndef GAME_LIBRARY
 #define GAME_LIBRARY

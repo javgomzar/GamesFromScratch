@@ -2,12 +2,6 @@
 #define GAME_MATH
 
 #pragma once
-#include <math.h>
-#include <float.h>
-#include <stdlib.h>
-
-//#include "fftw3.h"
-//#pragma comment(lib, "libfftw3-3.lib")
 
 #include "GamePlatform.h"
 #include "GameEnums.h"
@@ -138,14 +132,26 @@ float Normal(float Mean, float StdDeviation) {
 }
 
 uint32 log2(uint32 X) {
-	unsigned long Result;
-	_BitScanReverse(&Result, X);
+	unsigned long Result = 0;
+	if (X > 0) {
+#if _WIN32
+	_	BitScanReverse(&Result, X);
+#else
+		Result = __builtin_clzl(X);
+#endif
+	}
 	return Result;
 }
 
 uint32 log2(uint64 X) {
-	unsigned long Result;
-	_BitScanReverse64(&Result, X);
+	unsigned long Result = 0;
+	if (X > 0) {
+#if _WIN32
+		_BitScanReverse64(&Result, X);
+#else
+		Result = __builtin_clzll(X);
+#endif
+	}
 	return Result;
 }
 
@@ -1092,7 +1098,7 @@ inline v4 operator*(v4 V, matrix4 A) {
 
 inline bool operator==(matrix4 A, matrix4 B) {
 	for (int i = 0; i < 16; i++) {
-		if (fabsf(A.Element[i] - B.Element[i]) > Epsilon) return false;
+		if (fabs(A.Element[i] - B.Element[i]) > Epsilon) return false;
 	}
 	return true;
 }
@@ -1721,7 +1727,7 @@ inline float SqDistance(segment2 Segment1, segment2 Segment2) {
 	float d3 = SqDistance(Segment2, Segment1.Head);
 	float d4 = SqDistance(Segment2, Segment2.Tail);
 
-	return min(d1, min(d2, min(d3, d4)));
+	return fmin(d1, fmin(d2, fmin(d3, d4)));
 }
 
 struct segment3 {
@@ -2348,8 +2354,7 @@ uint32 BitReverse(uint32 X, uint32 log2N) {
 	Example: BitReverseFloat of 3 (110 in binary) = 0.011 in binary = 0.75
 */
 float BitReverseFloat(uint32 X) {
-	unsigned long FirstOne;
-	_BitScanForward(&FirstOne, X);
+	uint32 FirstOne = log2(X);
 
 	uint32 Mantissa = (BitReverse(X) << (1 + FirstOne)) >> 9;
 	int8 Exponent = -FirstOne-1;

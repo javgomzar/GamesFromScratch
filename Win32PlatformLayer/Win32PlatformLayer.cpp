@@ -658,6 +658,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_WIN32PLATFORMLAYER));
 
+    // Console for logging
+    AllocConsole();
+    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD ConsoleMode = 0;
+    GetConsoleMode(hConsole, &ConsoleMode);
+    SetConsoleMode(hConsole, ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+
     // Set up for main loop
     const LPCSTR SourceDLLName = "bin\\GameLibrary.dll";
     const LPCSTR TempDLLName = "bin\\GameLibraryTemp.dll";
@@ -711,13 +718,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Enforcing framerate
     int MonitorRefreshHz = 60;
     float TargetSecondsPerFrame = 1.0f / (float)MonitorRefreshHz;
-
-    // Console for logging
-    AllocConsole();
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD ConsoleMode = 0;
-    GetConsoleMode(hConsole, &ConsoleMode);
-    SetConsoleMode(hConsole, ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
     // Performance
     uint64 LastCounter = Win32GetWallClock();
@@ -998,7 +998,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 }
             }
 
-            if (Input->Keyboard.F10.IsDown && !Input->Keyboard.F11.WasDown) {
+            if (Input->Keyboard.F10.JustPressed) {
                 ScreenCapture(Group->Width, Group->Height);
             }
 

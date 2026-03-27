@@ -179,7 +179,7 @@ game_mesh LoadMesh(memory_arena* Arena, preprocessed_mesh* Preprocessed) {
             bone Bone = {};
             Bone.ID = Parseuint32(Tokenizer);
             Token = RequireToken(Tokenizer, Token_Identifier);
-            int Length = min(Token.Length, BONE_NAME_LENGTH);
+            int Length = Token.Length < BONE_NAME_LENGTH ? Token.Length : BONE_NAME_LENGTH;
             for (int j = 0; j < Length; j++) {
                 Bone.Name[j] = Token.Text[j];
             }
