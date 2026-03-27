@@ -129,7 +129,9 @@ struct memory_arena {
 };
 
 inline void ZeroSize(memory_index Size, void* Memory) {
-    memset(Memory, 0, Size);
+    if (Size > 0) {
+        memset(Memory, 0, Size);
+    }
 }
 
 inline memory_arena MemoryArena(memory_index Size, void* Base) {
