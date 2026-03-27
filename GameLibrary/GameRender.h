@@ -1921,7 +1921,7 @@ void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
     v2 Orthogonal = perp(normalize(V2(Vector.X, Vector.Y)));
     float OrthogonalLength = 0.005333f * Group->Height;
 
-    int Thickness = max(1.0f, 0.0025f * Group->Height);
+    int Thickness = fmax(1.0f, 0.0025f * Group->Height);
     PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, SORT_ORDER_DEBUG_OVERLAY);
     triangle2 Arrowhead1 = {
         Position + Vector,
@@ -1954,7 +1954,7 @@ void PushDebugVector(render_group* Group, basis CameraBasis, v3 Vector, v3 Posit
     v3 Orthogonal = normalize(CameraCoordinates.X * CameraBasis.X + CameraCoordinates.Y * CameraBasis.Y);
     float OrthogonalLength = (modulus(Vector) / 15.0f);
 
-    int Thickness = max(1.0, 0.0025 * Height);
+    int Thickness = fmax(1.0, 0.0025 * Height);
     PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, SORT_ORDER_MESHES);
     triangle3 Triangle = {
         Position + Vector,

@@ -220,12 +220,12 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
     PushDebugPlot(Group, N, Signal, V2(200, 200), 1);
     
     char TextBuffer[128];
-    sprintf_s(TextBuffer, "DFT: %.2f ms", DFTms);
+    sprintf(TextBuffer, "DFT: %.2f ms", DFTms);
     PushText(Group, V2(600, 320), TextBuffer);
     PushDebugPlot(Group, N, ModulusDFT, V2(600, 200), 1);
     PushDebugPlot(Group, N, PhaseDFT, V2(600, 250), 1);
 
-    sprintf_s(TextBuffer, "FFT: %.2f ms", FFTms);
+    sprintf(TextBuffer, "FFT: %.2f ms", FFTms);
     PushText(Group, V2(1000, 320), TextBuffer);
     PushDebugPlot(Group, N, ModulusFFT, V2(1000, 200), 1);
     PushDebugPlot(Group, N, PhaseFFT, V2(1000, 250), 1);

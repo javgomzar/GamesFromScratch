@@ -63,7 +63,7 @@ void WriteAssetsFile(const char* Path) {
 
     Log(Info, "Finished writing assets file.");
 
-    VirtualFree(FileMemory, 0, MEM_RELEASE);
+    Platform.FreeMemory(FileMemory);
 }
 
 void LoadAssetsFromFile(

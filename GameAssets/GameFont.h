@@ -485,12 +485,12 @@ struct glyph_polygon {
 	linked_list Vertices;
 };
 
-void ClosestPoints(glyph_polygon P, glyph_polygon Q, link** OutP, link** OutQ) {
-	link* PVertex = P.Vertices.First;
-	link* QVertex = Q.Vertices.First;
+void ClosestPoints(glyph_polygon P, glyph_polygon Q, struct link** OutP, struct link** OutQ) {
+	struct link* PVertex = P.Vertices.First;
+	struct link* QVertex = Q.Vertices.First;
 	float D = FLT_MAX;
-	link* ResultP = NULL;
-	link* ResultQ = NULL;
+	struct link* ResultP = NULL;
+	struct link* ResultQ = NULL;
 	do {
 		do {
             v2 PPoint = GetContourPointV2((glyph_contour_point*)PVertex->Data);
@@ -523,21 +523,21 @@ void ClosestPoints(glyph_polygon P, glyph_polygon Q, link** OutP, link** OutQ) {
 glyph_polygon Concatenate(memory_arena* Arena, glyph_polygon P, glyph_polygon Q) {
 	glyph_polygon Result = {};
 
-	link* V = NULL;
-	link* W = NULL;
+	struct link* V = NULL;
+	struct link* W = NULL;
 	ClosestPoints(P, Q, &V, &W);
 
 	Result.Vertices.First = V;
 	Result.Vertices.Last = V->Previous;
 
-	link* Link = PushStruct(Arena, link);
+	struct link* Link = PushStruct(Arena, struct link);
 	Link->Data = Result.Vertices.First->Data;
 	Result.Vertices.PushBack(Link);
 	
-	link* Previous = W->Previous;
+	struct link* Previous = W->Previous;
 	Result.Vertices.PushBack(W);
 	
-	Link = PushStruct(Arena, link);
+	Link = PushStruct(Arena, struct link);
 	Link->Data = W->Data;
 	Result.Vertices.Last = Previous;
 	Result.Vertices.PushBack(Link);
@@ -551,7 +551,7 @@ uint64 CountVertices(glyph_polygon P) {
 }
 
 float GetArea(glyph_polygon Polygon) {
-	link* Link = Polygon.Vertices.First;
+	struct link* Link = Polygon.Vertices.First;
     glyph_contour_point OPoint = *(glyph_contour_point*)Link->Data;
 	v2 O = V2(OPoint.X, OPoint.Y);
 	float Result = 0;
@@ -567,7 +567,7 @@ float GetArea(glyph_polygon Polygon) {
 }
 
 float Length(glyph_polygon Polygon) {
-	link* Link = Polygon.Vertices.First;
+	struct link* Link = Polygon.Vertices.First;
 	float Result = 0;
 	while (Link && Link != Polygon.Vertices.Last) {
 		v2 P = GetContourPointV2((glyph_contour_point*)Link->Data);
@@ -581,7 +581,7 @@ float Length(glyph_polygon Polygon) {
 }
 
 bool IsConvex(glyph_polygon Polygon) {
-	link* Link = Polygon.Vertices.First;
+	struct link* Link = Polygon.Vertices.First;
 
 	v2 A = GetContourPointV2((glyph_contour_point*)Polygon.Vertices.Last->Data);
 	v2 B = GetContourPointV2((glyph_contour_point*)Link->Data);
@@ -620,7 +620,7 @@ bool IsConvex(glyph_polygon Polygon) {
 }
 
 float SqDistance(glyph_polygon P, v2 Q) {
-	link* Link = P.Vertices.First;
+	struct link* Link = P.Vertices.First;
 	v2 A = GetContourPointV2((glyph_contour_point*)Link->Data);
 	v2 B = GetContourPointV2((glyph_contour_point*)Link->Next->Data);
 	segment2 S = {A, B};
@@ -647,7 +647,7 @@ float SqDistance(glyph_polygon P, v2 Q) {
 float GetWindingNumber(glyph_polygon P, v2 Q) {
 	float Result = 0;
 	uint64 n = CountVertices(P);
-	link* Link = P.Vertices.First;
+	struct link* Link = P.Vertices.First;
 	do {
 		v2 A = GetContourPointV2((glyph_contour_point*)Link->Data);
 		v2 B = GetContourPointV2((glyph_contour_point*)Link->Next->Data);
@@ -964,7 +964,7 @@ preprocessed_font PreprocessFont(file_info FileInfo, void* FileContent) {
             }
             else if (EndCode == 0xFFFF && StartCode == 0xFFFF) {
                 char ErrorBuffer[64];
-                sprintf_s(ErrorBuffer, "Character '%c' wasn't found in font.", c);
+                sprintf(ErrorBuffer, "Character '%c' wasn't found in font.", c);
                 Raise(ErrorBuffer);
             }
         }
@@ -976,7 +976,7 @@ preprocessed_font PreprocessFont(file_info FileInfo, void* FileContent) {
             GlyphID = BigEndian(*GlyphIDPointer);
             if (GlyphID == 0) {
                 char ErrorBuffer[64];
-                sprintf_s(ErrorBuffer, "Character '%c' wasn't found in font.", c);
+                sprintf(ErrorBuffer, "Character '%c' wasn't found in font.", c);
                 Log(Error, ErrorBuffer);
             }
             else {
@@ -1360,7 +1360,7 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                             MiddleX, MiddleY,
                             true,
                         };
-                        link* Link = PushStruct(&TempArena, link);
+                        struct link* Link = PushStruct(&TempArena, struct link);
                         Link->Data = Result;
                         Vertices.PushBack(Link);
 
@@ -1381,7 +1381,7 @@ game_font LoadFont(memory_arena* Arena, preprocessed_font* Font) {
                         };
 
                         if (OnCurve) {
-                            link* Link = PushStruct(&TempArena, link);
+                            struct link* Link = PushStruct(&TempArena, struct link);
                             Link->Data = Result;
                             Vertices.PushBack(Link);
                         }
@@ -1579,7 +1579,7 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                         VoidTriangles.Insert(T);
                     } else if (!Point->OnCurve) continue;
 
-                    link* Link = PushStruct(&TempArena, link);
+                    struct link* Link = PushStruct(&TempArena, struct link);
                     Link->Data = Point;
                     Polygon.Vertices.PushBack(Link);
                 }
@@ -1598,7 +1598,7 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                         if (IsInside(Polygon, TestPoint)) {
                             glyph_polygon NewInteriorPolygon = {};
                             for (int k = 0; k < InteriorContour.nPoints; k++) {
-                                link* Link = PushStruct(&TempArena, link);
+                                struct link* Link = PushStruct(&TempArena, struct link);
                                 Link->Data = &InteriorContour.Points[k];
                                 NewInteriorPolygon.Vertices.PushBack(Link);
                                 v2 A = GetContourPointV2(&InteriorContour.Points[(k+InteriorContour.nPoints-1)%InteriorContour.nPoints]);
@@ -1633,7 +1633,7 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                 for (int j = 0; j < N - 2; j++) {
                     glyph_contour_point First = {}, Second = {}, Third = {};
 
-                    link* Vertex = Polygon.Vertices.First;
+                    struct link* Vertex = Polygon.Vertices.First;
 
                     bool Found = false;
                     bool EmptyTriangle = false;
@@ -1667,7 +1667,7 @@ void WriteFontSolidTriangles(memory_arena* Arena, game_font* Font) {
                             }
 
                             if (Valid)  {
-                                link* TestVertex = Polygon.Vertices.First;
+                                struct link* TestVertex = Polygon.Vertices.First;
 
                                 segment2 Segments[3] = {
                                     {A, B},

@@ -1,7 +1,7 @@
 #ifndef GAME_UI
 #define GAME_UI
 
-#include <xxhash.h>
+#include "GamePlatform.h"
 
 enum ui_axis {
     axis_x,
@@ -262,7 +262,7 @@ ui_element* _PushUIElement(
         }
     }
 
-    strcpy_s(Element->Name, Name);
+    strcpy(Element->Name, Name);
     Element->Color = Options.Color;
     Element->Font = Options.Font;
     Element->Points = Options.Points;

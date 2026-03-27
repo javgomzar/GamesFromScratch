@@ -233,7 +233,7 @@ public:
             n--;
             return Result;
         }
-        return NULL;
+        return {};
     }
 
     void Clear() {
@@ -254,7 +254,7 @@ struct link {
     void* Data;
 };
 
-void Attach(link* Link1, link* Link2) {
+void Attach(struct link* Link1, struct link* Link2) {
     Assert(Link1 != NULL || Link2 != NULL, "Two empty links tried to be linked.");
     if (Link1 != NULL) {
         Link1->Next = Link2;
@@ -264,7 +264,7 @@ void Attach(link* Link1, link* Link2) {
     }
 }
 
-void Delete(link* ThisLink) {
+void Delete(struct link* ThisLink) {
     Attach(ThisLink->Previous, ThisLink->Next);
     ThisLink->Previous = NULL;
     ThisLink->Next = NULL;
@@ -274,10 +274,10 @@ void Delete(link* ThisLink) {
     Doubly-linked list. All links must have been allocated somewhere previously.
 */
 struct linked_list {
-    link* First;
-    link* Last;
+    struct link* First;
+    struct link* Last;
 
-    void PushBack(link* Element) {
+    void PushBack(struct link* Element) {
         if (First == NULL || Last == NULL) {
             First = Element;
         }
@@ -287,7 +287,7 @@ struct linked_list {
         Last = Element;
     }
 
-    void PushFront(link* Element) {
+    void PushFront(struct link* Element) {
         if (First == NULL || Last == NULL) {
             Last = Element;
         }
@@ -301,7 +301,7 @@ struct linked_list {
         Attach(Last, First);
     }
 
-    void Break(link* Link) {
+    void Break(struct link* Link) {
         if (First == Link) First = Link->Next;
         if (Last == Link)  Last  = Link->Previous;
         Delete(Link);
@@ -321,7 +321,7 @@ inline linked_list Concatenate(linked_list L1, linked_list L2) {
 }
 
 uint64 GetLength(linked_list List) {
-	link* Link = List.First;
+	struct link* Link = List.First;
 	uint64 Result = 0;
     do {
 		Link = Link->Next;
@@ -810,8 +810,6 @@ struct platform_api {
         return WriteFileChunk(Path, 0, Size, Memory);
     }
 };
-
-#include <pch.h>
 
 #ifdef _WIN32
     #include "Win32PlatformLayer.h"

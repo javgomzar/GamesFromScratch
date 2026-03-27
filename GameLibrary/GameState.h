@@ -44,7 +44,7 @@ game_entity Entity(
 ) {
     game_entity Result = {0};
     Result.ID = -1;
-    strcpy_s(Result.Name, Name);
+    strcpy(Result.Name, Name);
     Result.Transform = Transform;
     Result.Velocity = Velocity;
     Result.Active = Active;
@@ -254,9 +254,6 @@ character_action GetCharacterAction(character* Character, game_input* Input) {
                        (Input->Mode == Controller && ControllerMoving);
 
     character_action Result = Character->Action;
-    if (AttackInput) {
-        OutputDebugStringA("A");
-    }
 
     switch(Character->Action.ID) {
         case Character_Action_Idle_ID: {
@@ -367,7 +364,7 @@ game_entity* AddEntity(
     Entity->Active = Active;
     Entity->Collider = Collider;
     Entity->Parent = NULL;
-    strcpy_s(Entity->Name, Name);
+    strcpy(Entity->Name, Name);
 
     return Entity;
 }
@@ -444,7 +441,7 @@ camera* AddCamera(
     Cam->Distance = Distance;
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Camera %d", Cam->ID);
+    sprintf(NameBuffer, "Camera %d", Cam->ID);
 
     quaternion Rotation = Quaternion(Cam->Angle * Degrees, V3(0,1,0)) * Quaternion(Cam->Pitch * Degrees, V3(1,0,0));
     game_entity* Entity = AddEntity(
@@ -482,7 +479,7 @@ character* AddCharacter(game_assets* Assets, game_entity_state* State, v3 Positi
     pCharacter->Animator.Armature = &pCharacter->Armature;
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Character %d", CharacterID);
+    sprintf(NameBuffer, "Character %d", CharacterID);
 
     quaternion Rotation = Quaternion(1.5f * Pi, V3(0,1,0));
     pCharacter->Entity = AddEntity(
@@ -512,7 +509,7 @@ enemy* AddEnemy(game_entity_state* State, v3 Position) {
 
     enemy* pEnemy = &State->Enemies.List[EnemyID];
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Enemy %d", EnemyID);
+    sprintf(NameBuffer, "Enemy %d", EnemyID);
 
     quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0);
     pEnemy->Entity = AddEntity(State, NameBuffer, Entity_Type_Enemy, SphereCollider(V3(0,0,0), 1.5f), Position, Rotation, GetScale());
@@ -543,7 +540,7 @@ prop* AddProp(
     pProp->Color = Color;
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Prop %d", PropID);
+    sprintf(NameBuffer, "Prop %d", PropID);
 
     pProp->Entity = AddEntity(State, NameBuffer, Entity_Type_Prop, SphereCollider(V3(0,0,0), 5.0f), Position, Rotation, Scale);
     pProp->Entity->Index = PropID;
@@ -566,7 +563,7 @@ weapon* AddWeapon(
     pWeapon->Color = Color;
 
     char NameBuffer[32];
-    sprintf_s(NameBuffer, "Weapon %d", pWeapon->ID);
+    sprintf(NameBuffer, "Weapon %d", pWeapon->ID);
 
     collider Collider;
     switch (pWeapon->Type) {
@@ -863,6 +860,10 @@ void PushEntities(render_group* Group, camera* Camera, game_state* GameState, ga
 
                 PushMesh(Group, MeshID, .Transform = Entity->Transform);
             } break;
+
+            default: {
+                Raise("Invalid entity type.");
+            }
         }
 
         if (Group->Debug && Group->DebugColliders && Entity->Type != Entity_Type_Camera) {
