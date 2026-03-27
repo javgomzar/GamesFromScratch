@@ -1,11 +1,7 @@
 #ifndef GAME_PLATFORM
 #define GAME_PLATFORM
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <cstring>
-#include <format>
-#include <xxhash.h>
+#include <pch.h>
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;

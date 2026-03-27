@@ -9,12 +9,19 @@
 
 // C RunTime Header Files
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdarg.h>
 #include <malloc.h>
 #include <memory.h>
 #include <time.h>
 #include <thread>
 #include <mutex>
 #include <string>
+#include <cstring>
+#include <format>
+#include <math.h>
+#include <float.h>
+#include <xxhash.h>
 
 #ifdef _WIN32
 // Windows Header Files
@@ -47,6 +54,10 @@
 #include <sys/stat.h>
 #include <sys/sendfile.h>
 #include <sys/wait.h>
+#include <dlfcn.h>
+#include <linux/input.h>
+#include <dirent.h>
+#include <cerrno>
 #endif
 
 #endif
