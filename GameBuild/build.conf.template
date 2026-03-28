@@ -18,7 +18,7 @@ INCLUDE=
 .\GameLibrary;
 .\GameBuild;
 .\GameData;
-.\Win32PlatformLayer
+.\Win32PlatformLayer;
 .\LinuxPlatformLayer
 
 LIB=
