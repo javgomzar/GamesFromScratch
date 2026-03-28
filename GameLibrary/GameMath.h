@@ -135,7 +135,7 @@ uint32 log2(uint32 X) {
 	unsigned long Result = 0;
 	if (X > 0) {
 #if _WIN32
-	_	BitScanReverse(&Result, X);
+	_BitScanReverse(&Result, X);
 #else
 		Result = __builtin_clzl(X);
 #endif
