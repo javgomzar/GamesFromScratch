@@ -1451,11 +1451,15 @@ struct transform {
 
 transform IdentityTransform = { V3(0,0,0), GetScale(), Quaternion(1.0f) };
 
-inline transform GetTransform(quaternion Rotation, v3 Translation = V3(0.0, 0.0, 0.0), scale Scaling = GetScale()) {
+inline transform GetTransform(quaternion Rotation, v3 Translation = V3(0,0,0), scale Scaling = GetScale()) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline transform GetTransform(v3 Translation, quaternion Rotation = Quaternion(1.0, 0.0, 0.0, 0.0), scale Scaling = GetScale()) {
+inline transform GetTransform(v3 Translation, quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f), scale Scaling = GetScale()) {
+	return { Translation, Scaling, Rotation };
+}
+
+inline transform GetTransform(v3 Translation, scale Scaling, quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f)) {
 	return { Translation, Scaling, Rotation };
 }
 

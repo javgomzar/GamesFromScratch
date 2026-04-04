@@ -235,3 +235,25 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
     PushDebugPlot(Group, N, ModulusFFT, V2(1000, 200), 1);
     PushDebugPlot(Group, N, PhaseFFT, V2(1000, 250), 1);
 }
+
+void TestEntities(game_state* State) {
+    State->ActiveCamera = CreateEntity(State->Entities, "Camera 1", Camera_Entity_Type);
+    State->ActiveCamera->Angle = -45.0f;
+    State->ActiveCamera->Pitch = 22.5f;
+    State->ActiveCamera->Anchor = V3(0, 3.2f, 0);
+
+    game_entity* Character = CreateEntity(State->Entities, "Character 1", Character_Entity_Type);
+    State->ActiveCamera->Follow = Character;
+
+    game_entity* Prop = CreateEntity(State->Entities, "Prop 1", Prop_Entity_Type);
+    Prop->MeshID = Mesh_Sphere_ID;
+    Prop->Color = Red;
+    Prop->Transform = GetTransform(V3(0,0,5), GetScale(10,1,1));
+
+    // enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));
+
+    // weapon* Sword = AddWeapon(EntityState, Weapon_Sword, White, V3(-5,0,0));
+    // weapon* Shield = AddWeapon(EntityState, Weapon_Shield, White, V3(-10,0,0));
+    // Equip(Sword, Character);
+    // Equip(Shield, Character);
+}

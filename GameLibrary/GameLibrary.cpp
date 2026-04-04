@@ -44,33 +44,26 @@ extern "C" GAME_UPDATE(GameUpdate)
     game_input* Input = &Memory->Input;
     game_state* State = Memory->GameState;
     game_assets* Assets = &Memory->Assets;
-    game_entity_state* EntityState = &State->Entities;
     debug_info* DebugInfo = &Memory->DebugInfo;
 {
     TIMED_BLOCK;
 
     float Time = State->Time;
-    camera* ActiveCamera = State->ActiveCamera;
+    game_entity* ActiveCamera = State->ActiveCamera;
 
     bool FirstFrame = false;
     if (!Memory->IsInitialized) {
         FirstFrame = true;
 
-        //TestPerformance();
+        // TestPerformance();
 
         TestData();
         TestDataFileManager();
 
         // Initialize entities
-        ActiveCamera = AddCamera(EntityState, V3(0, 3.2f, 0), -45.0f, 22.5f);
-        ActiveCamera->OnAir = true;
-        character* Character = AddCharacter(Assets, EntityState, V3(0,0,0), 100);
-        prop* Prop = AddProp(EntityState, Mesh_Sphere_ID, Red, V3(0,0,5), Quaternion(1.0), GetScale(10,1,1));
-        enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));
-        weapon* Sword = AddWeapon(EntityState, Weapon_Sword, White, V3(-5,0,0));
-        weapon* Shield = AddWeapon(EntityState, Weapon_Shield, White, V3(-10,0,0));
-        Equip(Sword, Character);
-        Equip(Shield, Character);
+        State->Entities = free_list<game_entity>(&Memory->Permanent, MAX_ENTITIES);
+
+        TestEntities(State);
 
         State->Emitter = AllocateParticleEmitter(&Memory->Permanent, 200);
         SetParticleEmitterCircle(State->Emitter, V3(0,0,0), 1.0f, V3(0,1,0));
@@ -86,7 +79,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, Magenta, Target_PingPong);
     PushClear(Group, Black, Target_Output);
 
-    UpdateGameState(Assets, State, Input, Group->Width, Group->Height);
+    UpdateGameState(Group, State, Input, Group->Width, Group->Height);
 
     PushSky(Group);
     

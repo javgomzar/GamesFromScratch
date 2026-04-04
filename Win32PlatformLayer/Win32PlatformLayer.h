@@ -3,7 +3,7 @@
 system_os SystemOS = Windows;
 
 #define RENDERER_INITIALIZE void InitializeRenderer(render_group* Group, HWND Window, HINSTANCE Instance, HDC DeviceContext)
-#define RENDERER_RENDER void Render(render_group* Group, camera* Camera, game_input* Input, HWND Window, double Time)
+#define RENDERER_RENDER void Render(render_group* Group, matrix4 View, game_input* Input, HWND Window, double Time)
 
 void Log(log_level Level, const char* Content) {
     // Level

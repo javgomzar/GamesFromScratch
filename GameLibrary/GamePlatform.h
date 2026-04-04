@@ -349,13 +349,55 @@ uint64 GetLength(linked_list List) {
 
 // Fixed length lists that track available slots
 
-#define DefineFreeListInsert(type) type* Insert(type##_list* List) { \
-    uint32 ID; if (List->nFreeIDs > 0) { ID = List->FreeIDs[List->nFreeIDs - 1]; List->FreeIDs[List->nFreeIDs-- - 1] = 0; } \
-    else { ID = List->Count; } List->Count++; type* Result = &List->List[ID]; Result->ID = ID; return Result; }
-#define DefineFreeListRemove(type) void Remove(type##_list* List, uint32 Index) { \
-    Assert(List->Count > 0); List->Count--; List->List[Index] = {}; List->FreeIDs[List->nFreeIDs++] = Index; }
-#define DefineFreeList(maxNumber, type) struct type##_list {\
-    uint32 nFreeIDs; uint32 FreeIDs[maxNumber]; uint32 Count; type List[maxNumber]; }; DefineFreeListRemove(type); DefineFreeListInsert(type);
+template <typename T> class free_list {
+private:
+    T* Slots;
+    uint32* FreeSlots;
+public:
+    bool* IsOccupied;
+    uint32 Size = 0;
+    uint32 Count = 0;
+    uint32 FreeCount = 0;
+
+    free_list(memory_arena* Arena, uint32 N) {
+        Size = N;
+        Slots = PushArray(Arena, N, T);
+        FreeSlots = PushArray(Arena, N, uint32);
+        IsOccupied = PushArray(Arena, N, bool);
+    }
+
+    uint32 Insert(T Element) {
+        Assert(Count < Size);
+        
+        uint32 Result;
+        if (FreeCount > 0) {
+            Result = FreeSlots[FreeCount--];
+        }
+        else {
+            Result = Count++;
+        }
+
+        Slots[Result] = Element;
+        IsOccupied[Result] = true;
+        return Result;
+    }
+
+    T& operator[](uint32 Index) {
+        return Slots[Index];
+    }
+
+    T operator[](uint32 Index) const {
+        return Slots[Index];
+    }
+
+    void Remove(uint32 Index) {
+        if (IsOccupied[Index]) {
+            FreeSlots[FreeCount++] = Index;
+            IsOccupied[Index] = false;
+            Count--;
+        }
+    }
+};
 
 // Naive implementation of exponential array (see https://www.youtube.com/watch?v=i-h95QIGchY)
 
