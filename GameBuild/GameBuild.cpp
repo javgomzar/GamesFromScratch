@@ -84,7 +84,7 @@ int main(int argc, char* argv[]) {
                     case MSVC: {
                         Command = std::format(
                             "{} /std:c++20 /nologo /W0 {} GameLibrary/pch.cpp /c {} /Yc\"pch.h\" /Fp\"{}\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
-                            Configuration.CompilerPath, Configuration.Include, CompilerFlags, PCHOutput, PCHOutputPath, PCHOutput, PCHOutput
+                            Configuration.CompilerPath, Configuration.Include, CompilerFlags, PCHOutputPath, PCHOutput, PCHOutput
                         );
                     } break;
 
