@@ -178,22 +178,22 @@ ENUM(render_primitive,
     render_primitive_patches
 );
 
-FLAGS(render_flags,
-    DEPTH_TEST_FLAG,
-    STENCIL_TEST_FLAG,
-    OVERWRITE_ALPHA_FLAG,
+FLAGS(render_flag,
+    depth_test,
+    stencil_test,
+    overwrite_alpha,
 
-    TEXT_OUTLINE_FLAG,
+    text_outline,
 
-    DEBUG_BONES_FLAG,
+    debug_bones,
 
-    SKY_FLAG,
-    WATER_FLAG
+    sky,
+    water
 );
 
 struct render_primitive_optional_arguments {
     color Color = White;
-    render_flags Flags;
+    render_flag Flags;
     game_heightmap* Heightmap = nullptr;
     vertex_layout_id InstanceLayoutID;
     int nElements = 0;
@@ -206,7 +206,7 @@ struct render_primitive_optional_arguments {
 };
 
 struct render_primitive_options {
-    render_flags Flags;
+    render_flag Flags;
     float Thickness = 2.0f;
     transform Transform = IdentityTransform;
     game_bitmap* Texture = nullptr;
@@ -799,7 +799,7 @@ render_primitive_command* _PushPrimitiveCommand(
     int nInstances = Arguments.nInstances;
 
     if (nVertices > 0) {
-        if (Arguments.Heightmap || Arguments.Flags & WATER_FLAG) {
+        if (Arguments.Heightmap || Arguments.Flags & render_flag::water) {
             PrimitiveCommand->VertexEntry.Count = nVertices;
             PrimitiveCommand->VertexEntry.LayoutID = LayoutID;
         }
@@ -810,7 +810,7 @@ render_primitive_command* _PushPrimitiveCommand(
     }
 
     if (nElements > 0) {
-        if (Arguments.Heightmap || Arguments.Flags & WATER_FLAG) {
+        if (Arguments.Heightmap || Arguments.Flags & render_flag::water) {
             PrimitiveCommand->ElementEntry.Count = nElements;
         }
         else {
@@ -847,7 +847,7 @@ void PushPoint(render_group* Group, v3 Point, color Color, float Order = SORT_OR
         vertex_layout_v3_id, 
         1,
         .Color = Color,
-        .Flags = DEPTH_TEST_FLAG,
+        .Flags = render_flag::depth_test,
         .Order = Order
     )->Vertices;
     Vertices[0] = Point.X;
@@ -892,7 +892,7 @@ void PushLine(
         vertex_layout_v3_id,
         2,
         .Color = Color,
-        .Flags = DEPTH_TEST_FLAG,
+        .Flags = render_flag::depth_test,
         .Order = Order,
         .Thickness = Thickness
     )->Vertices;
@@ -923,15 +923,13 @@ void PushTriangle(
     color Color,
     float Order = SORT_ORDER_MESHES
 ) {
-    render_primitive_options Options = {};
-    Options.Flags = DEPTH_TEST_FLAG;
     float* Vertices = PushPrimitiveCommand(
         Group, 
         render_primitive_triangle,
         vertex_layout_v3_id,
         3,
         .Color = Color,
-        .Flags = DEPTH_TEST_FLAG,
+        .Flags = render_flag::depth_test,
         .Order = Order
     )->Vertices;
     Vertices[0] = Triangle.Points[0].X;
@@ -1031,7 +1029,7 @@ void PushCircle(
         vertex_layout_v3_id,
         N+1,
         .Color = Color,
-        .Flags = DEPTH_TEST_FLAG,
+        .Flags = render_flag::depth_test,
         .nElements = 3*N,
         .Order = Order,
     );
@@ -1113,7 +1111,7 @@ void PushCircunference(
         vertex_layout_v3_id,
         N+1,
         .Color = Color,
-        .Flags = DEPTH_TEST_FLAG,
+        .Flags = render_flag::depth_test,
         .Order = Order
     )->Vertices;
 
@@ -1157,7 +1155,7 @@ void PushArc(
         vertex_layout_v3_id,
         N,
         .Color = Color,
-        .Flags = DEPTH_TEST_FLAG,
+        .Flags = render_flag::depth_test,
         .Order = Order
     )->Vertices;
 
@@ -1221,7 +1219,7 @@ void PushRect(
         vertex_layout_v3_id,
         4,
         .Color = Color,
-        .Flags = DEPTH_TEST_FLAG,
+        .Flags = render_flag::depth_test,
         .nElements = 6,
         .Order = Order
     );
@@ -1521,7 +1519,7 @@ void PushCubeOutline(
         vertex_layout_v3_id,
         8,
         .Color = Color,
-        .Flags = DEPTH_TEST_FLAG,
+        .Flags = render_flag::depth_test,
         .nElements = 24,
         .Order = Order
     );
@@ -1718,7 +1716,7 @@ void _PushMesh(
             vertex_layout_v3_id,
             2 * Options.Armature->nBones,
             .Color = Black,
-            .Flags = DEBUG_BONES_FLAG,
+            .Flags = render_flag::debug_bones,
             .Order = SORT_ORDER_DEBUG_OVERLAY,
             .Thickness = 2.5f
         )->Vertices;
@@ -1751,7 +1749,7 @@ void PushHeightmap(
         render_primitive_patches,
         vertex_layout_v3_v2_id, 
         nVertices,
-        .Flags = (render_flags)(DEPTH_TEST_FLAG),
+        .Flags = render_flag::depth_test,
         .Heightmap = Heightmap,
         .nElements = nElements,
         .Order = Order,
@@ -1780,7 +1778,7 @@ void PushWater(render_group* Group, v3 Position, scale S) {
         render_primitive_patches,
         vertex_layout_v3_v2_id, 
         nVertices,
-        .Flags = (render_flags)(DEPTH_TEST_FLAG | WATER_FLAG),
+        .Flags = render_flag::depth_test | render_flag::water,
         .nElements = nElements,
         .Order = SORT_ORDER_MESHES,
         .PatchParameter = 4,
@@ -1813,7 +1811,7 @@ void PushSky(render_group* Group) {
         render_primitive_triangle,
         vertex_layout_v3_id,
         8,
-        .Flags = (render_flags)(SKY_FLAG | DEPTH_TEST_FLAG),
+        .Flags = render_flag::sky | render_flag::depth_test,
         .nElements = 36,
         .Order = SORT_ORDER_MESHES
     );
@@ -1981,7 +1979,7 @@ void PushDebugFustrum(
         render_primitive_line,
         vertex_layout_v3_v2_id,
         9,
-        .Flags = DEPTH_TEST_FLAG,
+        .Flags = render_flag::depth_test,
         .nElements = 24,
         .Order = SORT_ORDER_DEBUG_OVERLAY,
     );
@@ -2033,7 +2031,7 @@ void PushDebugGrid(render_group* Group, float Alpha) {
         vertex_layout_v3_id,
         nVertices,
         .Color = ChangeAlpha(White, 0.2f),
-        .Flags = (render_flags)(DEPTH_TEST_FLAG | OVERWRITE_ALPHA_FLAG),
+        .Flags = render_flag::depth_test | render_flag::overwrite_alpha,
         .Order = SORT_ORDER_MESHES,
         .Thickness = 1.0f
     )->Vertices;

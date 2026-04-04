@@ -353,13 +353,17 @@ void* GetMappedBuffer(ID3D11Buffer* DirectXBuffer) {
     else return Resource.pData;
 }
 
-void SetGlobalBuffer(int32 Width, int32 Height, camera* Camera, game_input* Input, float Time) {
+void SetGlobalBuffer(
+    int32 Width, int32 Height, 
+    matrix4 View,
+    game_input* Input, float Time
+) {
     ID3D11Buffer* GlobalBuffer = DirectX.ConstantBuffer[global_buffer_id];
     void* MappedBuffer = GetMappedBuffer(GlobalBuffer);
     if (MappedBuffer) {
         global_buffer* Buffer = (global_buffer*)MappedBuffer;
         Buffer->Projection = GetWorldProjectionMatrix(Width, Height);
-        Buffer->View = GetViewMatrix(Camera);
+        Buffer->View = View;
         Buffer->Resolution = V2(Width, Height);
         Buffer->Mouse = Input->Mouse.Cursor;
         Buffer->LastMouse = Input->Mouse.LastCursor;
@@ -1559,8 +1563,8 @@ RENDERER_RENDER {
     DirectX.DeviceContext->Unmap(IndexBuffer, 0);
 
     // Constant buffers
-    SetGlobalBuffer(Group->Width, Group->Height, Camera, Input, Time);
-    SetLightBuffer(Group->Light, Camera->Position + Camera->Distance * Camera->Basis.Z);
+    SetGlobalBuffer(Group->Width, Group->Height, View, Input, Time);
+    SetLightBuffer(Group->Light, V3(View.W.X, View.W.Y, View.W.Z));
     ClearTransformBuffer();
     ClearBoneBuffer();
 
@@ -1589,7 +1593,7 @@ RENDERER_RENDER {
                 instance_buffer_entry InstanceEntry = PrimitiveCommand.InstanceEntry;
 
                 float BlendFactors[4] = {};
-                if (Options.Flags & OVERWRITE_ALPHA_FLAG) 
+                if (Options.Flags & render_flag::overwrite_alpha) 
                     DirectX.DeviceContext->OMSetBlendState(DirectX.OverwriteAlpha, BlendFactors, 0xffffffff);
                 else
                     DirectX.DeviceContext->OMSetBlendState(DirectX.CombineAlpha, BlendFactors, 0xffffffff);
@@ -1614,7 +1618,7 @@ RENDERER_RENDER {
 
                     SetTransformBuffer(Options.Transform);
                 }
-                else if (Options.Flags & WATER_FLAG) {
+                else if (Options.Flags & render_flag::water) {
                     LayoutID = vertex_layout_v2_id;
                     VertexShaderID = Vertex_Shader_Heightmap_ID;
                     PixelShaderID = Pixel_Shader_Water_ID;
@@ -1625,7 +1629,7 @@ RENDERER_RENDER {
 
                     SetTransformBuffer(Options.Transform);
                 }
-                else if (Options.Flags & DEBUG_BONES_FLAG) {
+                else if (Options.Flags & render_flag::debug_bones) {
                     LayoutID = vertex_layout_v3_id;
                     VertexShaderID = Vertex_Shader_Perspective_ID;
                     PixelShaderID = Pixel_Shader_Single_Color_ID;
@@ -1645,13 +1649,13 @@ RENDERER_RENDER {
                         InstanceBuffer = DirectX.VertexBuffer[InstanceEntry.LayoutID];
                     }
 
-                    VertexShaderID = Options.Flags & DEPTH_TEST_FLAG ? Vertex_Shader_Perspective_ID : Vertex_Shader_Screen_ID;
+                    VertexShaderID = Options.Flags & render_flag::depth_test ? Vertex_Shader_Perspective_ID : Vertex_Shader_Screen_ID;
                     
                     if (Options.Texture) {
                         VertexShaderID = Vertex_Shader_Screen_Texture_ID;
                         PixelShaderID = Pixel_Shader_Texture_ID;
                     }
-                    else if (Options.Flags & SKY_FLAG) {
+                    else if (Options.Flags & render_flag::sky) {
                         VertexShaderID = Vertex_Shader_Sky_ID;
                         PixelShaderID = Pixel_Shader_Sky_ID;
                     }
@@ -1686,7 +1690,7 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->DSSetSamplers(0, 1, &DirectX.DomainShader[Domain_Shader_Heightmap_ID].Sampler);
                 }
 
-                if (Options.Flags & DEPTH_TEST_FLAG) {
+                if (Options.Flags & render_flag::depth_test) {
                     DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilEnabled, 1);
                 }
                 
@@ -1720,7 +1724,7 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->Draw(VertexEntry.Count, Offset);
                 }
 
-                if (Options.Heightmap || Options.Flags & WATER_FLAG) {
+                if (Options.Heightmap || Options.Flags & render_flag::water) {
                     DirectX.DeviceContext->HSSetShader(NULL, NULL, 0);
                     DirectX.DeviceContext->DSSetShader(NULL, NULL, 0);
                     ClearTransformBuffer();

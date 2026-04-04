@@ -1,7 +1,7 @@
 #ifndef GAME_UI
 #define GAME_UI
 
-#include "GamePlatform.h"
+#include "GameLibrary.h"
 
 enum ui_axis {
     axis_x,
@@ -71,14 +71,12 @@ ui_size UISizeSumChildren(float InitialValue = 0.0f, float Max = FLT_MAX) {
     return { ui_size_sum_of_children, InitialValue, InitialValue, Max };
 }
 
-typedef uint32 ui_flags;
-
-enum {
-    RENDER_TEXT_UI_FLAG      = 1 << 0,
-    RENDER_RECT_UI_FLAG      = 1 << 1,
-    STACK_CHILDREN_X_UI_FLAG = 1 << 2,
-    STACK_CHILDREN_Y_UI_FLAG = 1 << 3,
-};
+FLAGS(ui_flag,
+    render_text,
+    render_rect,
+    stack_children_x,
+    stack_children_y
+);
 
 typedef uint64 ui_element_id;
 
@@ -102,7 +100,7 @@ struct ui_element {
 
     ui_size Size[2];
     ui_alignment Alignment[2];
-    ui_flags Flags;
+    ui_flag Flags;
 
     bool Hovered;
     bool Clicked;
@@ -210,7 +208,7 @@ struct ui_element_options {
     ui_alignment AlignmentX = ui_alignment_free;
     ui_alignment AlignmentY = ui_alignment_free;
     color Color             = White;
-    ui_flags Flags          = (ui_flags)0;
+    ui_flag Flags;
     game_font_id Font       = Font_DejaVu_Sans_ID;
     float MarginX           = 0.0f;
     float MarginY           = 0.0f;
@@ -397,8 +395,8 @@ void ComputeLayout() {
 
     while(Element) {
         // Some elements lay out their children
-        if (Element->Flags & (STACK_CHILDREN_X_UI_FLAG | STACK_CHILDREN_Y_UI_FLAG)) {
-            ui_axis StackAxis = (Element->Flags & STACK_CHILDREN_X_UI_FLAG) ? axis_x : axis_y;
+        if (Element->Flags & (ui_flag::stack_children_x | ui_flag::stack_children_y)) {
+            ui_axis StackAxis = (Element->Flags & ui_flag::stack_children_x) ? axis_x : axis_y;
 
             float NextValue = Element->Margins[StackAxis] + Element->Size[StackAxis].Min;
             ui_element* Child = Element->Next;
@@ -457,11 +455,11 @@ void RenderUI() {
                 PushDebugEntry(UI.Group, Element->DebugEntry, Position, Element->Color);
             }
             else {
-                if (Element->Flags & RENDER_RECT_UI_FLAG) {
+                if (Element->Flags & ui_flag::render_rect) {
                     PushRect(UI.Group, Element->Rect, Element->Color);
                 }
     
-                if (Element->Flags & RENDER_TEXT_UI_FLAG) {
+                if (Element->Flags & ui_flag::render_text) {
                     game_font* Font = GetAsset(UI.Group->Assets, Element->Font);
                     float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
                     PushText(UI.Group, Position + V2(0, OffsetHeight), Element->Name, 
@@ -498,7 +496,7 @@ void UISidebar(ui_axis Axis) {
         "Sidebar",
         .AlignmentX = Alignments[axis_x],
         .AlignmentY = Alignments[axis_y],
-        .Flags = RENDER_RECT_UI_FLAG,
+        .Flags = ui_flag::render_rect,
         .SizeX = Size[axis_x],
         .SizeY = Size[axis_y]
     );
@@ -536,15 +534,15 @@ struct ui_menu {
         StackAxis = Options.Stack;
         Alignment = StackAxis == axis_x ? Options.AlignmentX : Options.AlignmentY;
         ui_axis NoStack = Opposite(StackAxis);
-        Options.Flags |= RENDER_RECT_UI_FLAG;
+        Options.Flags |= ui_flag::render_rect;
         ui_size Sizes[2] = {};
         if (StackAxis == axis_x) {
-            Options.Flags |= STACK_CHILDREN_X_UI_FLAG;
+            Options.Flags |= ui_flag::stack_children_x;
             Sizes[axis_x] = UISizeSumChildren();
             Sizes[axis_y] = UISizeMaxChildren();
         }
         else {
-            Options.Flags |= STACK_CHILDREN_Y_UI_FLAG;
+            Options.Flags |= ui_flag::stack_children_y;
             Sizes[axis_x] = UISizeMaxChildren();
             Sizes[axis_y] = UISizeSumChildren();
         }
@@ -592,7 +590,7 @@ struct ui_dropdown {
         ui_element* Element = PushUIElement(
             Text, 
             .AlignmentX = ui_alignment_min, .AlignmentY = ui_alignment_min,
-            .Flags = RENDER_TEXT_UI_FLAG | STACK_CHILDREN_Y_UI_FLAG,
+            .Flags = ui_flag::render_text | ui_flag::stack_children_y,
             .Points = Points,
             .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
         );
@@ -628,7 +626,7 @@ void _UIText(
 ) {
     ui_size Sizes[2];
     UISizeText(Text, Options.Points, Sizes);
-    Options.Flags |= RENDER_TEXT_UI_FLAG;
+    Options.Flags |= ui_flag::render_text;
     Options.SizeX = Sizes[axis_x];
     Options.SizeY = Sizes[axis_y];
     ui_element* Element = PushUIElement(Text, Options);
@@ -642,15 +640,15 @@ bool UIButton(const char* Text, float Points = 20.0f) {
     ui_element* Element = PushUIElement(
         Text, 
         .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_center,
-        .Flags = RENDER_TEXT_UI_FLAG,
+        .Flags = ui_flag::render_text,
         .Points = Points,
         .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
     );
     if (Element->Parent != NULL) {
-        if (Element->Parent->Flags & STACK_CHILDREN_X_UI_FLAG) {
+        if (Element->Parent->Flags & ui_flag::stack_children_x) {
             Element->Alignment[0] = ui_alignment_free;
         }
-        if (Element->Parent->Flags & STACK_CHILDREN_Y_UI_FLAG) {
+        if (Element->Parent->Flags & ui_flag::stack_children_y) {
             Element->Alignment[1] = ui_alignment_free;
         }
     }
@@ -679,7 +677,7 @@ void UIDebugValue(debug_entry* Entry) {
     if (IsStructType(Entry->Type)) {
         Element->Size[axis_x] = UISizeMaxChildren(Sizes[axis_x].Value);
         Element->Size[axis_y] = UISizeSumChildren(Sizes[axis_y].Value);
-        Element->Flags = STACK_CHILDREN_Y_UI_FLAG;
+        Element->Flags = ui_flag::stack_children_y;
         if (Element->Hovered) Element->Color = Yellow;
         if (Entry->Value == NULL) {
             Element->Expanded = false;
@@ -752,11 +750,10 @@ void UpdateUI(
     game_input* Input
 ) {
     render_group* Group = &Memory->RenderGroup;
-    game_state* pGameState = (game_state*)Memory->Permanent.Base;
-    game_entity_state* EntityState = &pGameState->Entities;
-    float Time = pGameState->Time;
+    game_state* State = (game_state*)Memory->Permanent.Base;
+    float Time = State->Time;
     debug_info* DebugInfo = &Memory->DebugInfo;
-    camera* Camera = pGameState->ActiveCamera;
+    game_entity* Camera = State->ActiveCamera;
 
     BeginContext(Memory, Input);
 
@@ -789,7 +786,7 @@ void UpdateUI(
         }
 
         if (UIButton("Exit")) {
-            pGameState->Exit = true;
+            State->Exit = true;
         }
     }
 
@@ -806,7 +803,7 @@ void UpdateUI(
     if (Group->Debug) {
         // Handle input
         if (DebugAlpha < 1.0) {
-            double x = (pGameState->dt - 1.8) / 1.1;
+            double x = (State->dt - 1.8) / 1.1;
             DebugAlpha += 0.5 * exp(- x * x);
         }
         else DebugAlpha = 1.0;
@@ -863,16 +860,19 @@ void UpdateUI(
         }
 
         if (UIDropdown(Entities)) {
-            game_entity* Entities[MAX_ENTITIES] = {};
+            game_entity** Entities = PushArray(&Memory->Transient, State->Entities.Count, game_entity*);
             uint32 nEntities = 0;
             uint32 Index = 0;
-            while (nEntities < EntityState->Entities.Count && Index < MAX_ENTITIES) {
-                game_entity* Entity = &EntityState->Entities.List[Index++];
-                if (Entity->Active) {
-                    Entities[nEntities++] = Entity;
+            while (nEntities < State->Entities.Count && Index < MAX_ENTITIES) {
+                if (State->Entities.IsOccupied[Index]) {
+                    Entities[nEntities++] = &State->Entities[Index++];
+                }
+                else {
+                    Index++;
+                    continue;
                 }
             }
-            DEBUG_POINTER_ARRAY(Entities, EntityState->Entities.Count, game_entity);
+            DEBUG_POINTER_ARRAY(Entities, nEntities, game_entity);
             nEntries = DebugInfo->nEntries;
             for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];

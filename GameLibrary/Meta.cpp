@@ -331,6 +331,8 @@ int main() {
         for (const std::string& FlagName : FlagDebugTypes) {
             fprintf(EnumsFile, "constexpr %s operator|(%s a, %s b) { return (%s)((uint64)a | (uint64)b); }\n", 
                 FlagName.c_str(), FlagName.c_str(), FlagName.c_str(), FlagName.c_str());
+            fprintf(EnumsFile, "constexpr %s& operator|=(%s& a, %s b) { return a = a | b; }\n", 
+                FlagName.c_str(), FlagName.c_str(), FlagName.c_str(), FlagName.c_str());
             fprintf(EnumsFile, "constexpr bool operator&(%s a, %s b) { return (uint64)a & (uint64)b; }\n", 
                 FlagName.c_str(), FlagName.c_str(), FlagName.c_str());
             fprintf(EnumsFile, "constexpr %s operator~(%s a) { return (%s)(~(uint64)a); }\n\n", 

@@ -26,8 +26,8 @@
 
 #pragma once
 
-#include "GameEnums.h"
 #include "GamePlatform.h"
+#include "GameEnums.h"
 #include "GameMath.h"
 #include "GameInput.h"
 #include "GameAssets.h"
@@ -47,7 +47,7 @@
     This struct will manage all necessary memory for the game. The current layout of this memory will be
         - First, the `game_state`.
         - Second, vertex and element buffers for rendering.
-        - Then, memory that will be managed by memory arenas. Strings, transient memory (erased each memory) and general purpose arena.
+        - Then, memory that will be managed by memory arenas. Strings, transient memory (erased each frame) and general purpose arena.
 */
 struct game_memory {
     game_assets Assets;
