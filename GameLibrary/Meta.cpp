@@ -80,7 +80,7 @@ int main() {
 
     fprintf(EnumsFile, "enum debug_type {\n");
     for (int i = 0; i < nPrimitiveTypes; i++) {
-        fprintf(EnumsFile, "    Debug_Type_%s,\n", PrimitiveTypes[i]);
+        fprintf(EnumsFile, "    debug_%s,\n", PrimitiveTypes[i]);
     }
 
     std::vector<std::string> EnumDebugTypes = {};
@@ -95,6 +95,8 @@ int main() {
     const char* ProcessingFiles[] = {
         "GameLibrary" PATH_SEPARATOR "GameMath.h",
         "GameAssets" PATH_SEPARATOR "GameAssets.h",
+        "GameAssets" PATH_SEPARATOR "GameMesh.h",
+        "GameAssets" PATH_SEPARATOR "GameBitmap.h",
         "GameLibrary" PATH_SEPARATOR "GameState.h",
         "GameLibrary" PATH_SEPARATOR "GameRender.h",
         "GameLibrary" PATH_SEPARATOR "GameUI.h",
@@ -144,7 +146,7 @@ int main() {
                     char StructTypeText[MAX_TOKEN_LENGTH] = {};
                     strncpy(StructTypeText, StructType.Text, StructType.Length);
 
-                    sprintf(Buffer, "Debug_Type_%s", StructTypeText);
+                    sprintf(Buffer, "debug_%s", StructTypeText);
                     StructDebugTypes.push_back(std::string(Buffer));
 
                     Token = RequireToken(Tokenizer, Token_OpenBrace);
@@ -184,13 +186,13 @@ int main() {
                         }
                         char MemberNameText[MAX_TOKEN_LENGTH] = {};
                         strncpy(MemberNameText, MemberName.Text, MemberName.Length);
-                        sprintf(Buffer, "    {\"%s\", Debug_Type_%s, Debug_Type_%s, sizeof(%s), (uint64)(&((%s*)0)->%s),%d, %s},\n", 
+                        sprintf(Buffer, "    {\"%s\", debug_%s, debug_%s, sizeof(%s), (uint64)(&((%s*)0)->%s),%d, %s},\n", 
                             MemberNameText, StructTypeText, MemberTypeDebugText, MemberTypeText, StructTypeText, MemberNameText,
                             ArraySize, IsPointer ? "true" : "false");
                         std::string StructMember = Buffer;
                         StructMembers.push_back(StructMember);
-                        if (Token.Type != Token_Semicolon) {
-                            throw "Should be a semicolon.";
+                        while (Token.Type != Token_Semicolon && Token.Type != Token_End) {
+                            Token = GetToken(Tokenizer);
                         };
                         Token = GetToken(Tokenizer);
                     }
@@ -202,7 +204,7 @@ int main() {
                 token EnumName = RequireToken(Tokenizer, Token_Identifier);
                 char EnumNameText[MAX_TOKEN_LENGTH] = {};
                 strncpy(EnumNameText, EnumName.Text, EnumName.Length);
-                sprintf(Buffer, "Debug_Type_%s", EnumNameText);
+                sprintf(Buffer, "debug_%s", EnumNameText);
                 EnumDebugTypes.push_back(std::string(Buffer));
 
                 Token = RequireToken(Tokenizer, Token_Comma);
@@ -212,14 +214,14 @@ int main() {
                     Token = RequireToken(Tokenizer, Token_Identifier);
                     char TokenText[MAX_TOKEN_LENGTH] = {};
                     strncpy(TokenText, Token.Text, Token.Length);
-                    sprintf(Buffer, "    {Debug_Type_%s, \"%s\", %d},\n", EnumNameText, TokenText, Value++);
+                    sprintf(Buffer, "    {debug_%s, \"%s\", %d},\n", EnumNameText, TokenText, Value++);
                     EnumValues.push_back(std::string(Buffer));
                     Token = GetToken(Tokenizer);
                     if (Token.Type != Token_CloseParen && Token.Type != Token_Comma) {
                         throw "Should be a comma.";
                     };
                 }
-                sprintf(Buffer, "    {Debug_Type_%s, \"%s_count\", %d},\n", EnumNameText, EnumNameText, Value);
+                sprintf(Buffer, "    {debug_%s, \"%s_count\", %d},\n", EnumNameText, EnumNameText, Value);
                 EnumValues.push_back(std::string(Buffer));
                 sprintf(Buffer, "%s_count", EnumNameText);
                 Constants[std::string(Buffer)] = Value;
@@ -230,10 +232,9 @@ int main() {
                 token FlagsName = RequireToken(Tokenizer, Token_Identifier);
                 char FlagsNameText[MAX_TOKEN_LENGTH] = {};
                 strncpy(FlagsNameText, FlagsName.Text, FlagsName.Length);
-                sprintf(Buffer, "Debug_Type_%s", FlagsNameText);
-                FlagDebugTypes.push_back(std::string(Buffer));
+                FlagDebugTypes.push_back(std::string(FlagsNameText));
 
-                sprintf(Buffer, "enum %s {\n", FlagsNameText);
+                sprintf(Buffer, "enum class %s : uint64 {\n", FlagsNameText);
                 FlagDeclarations += std::string(Buffer);
 
                 RequireToken(Tokenizer, Token_Comma);
@@ -245,7 +246,7 @@ int main() {
                     strncpy(FlagValueText, FlagValue.Text, FlagValue.Length);
                     Token = GetToken(Tokenizer);
                     if (Token.Type == Token_Comma || Token.Type == Token_CloseParen) {
-                        sprintf(Buffer, "    {Debug_Type_%s, \"%s\", %d},\n", FlagsNameText, FlagValueText, 1 << Bit);
+                        sprintf(Buffer, "    {debug_type::debug_%s, \"%s\", %d},\n", FlagsNameText, FlagValueText, 1 << Bit);
                         FlagValues.push_back(std::string(Buffer));
                         sprintf(Buffer, "    %s = 1 << %d,\n", FlagValueText, Bit);
                         FlagDeclarations += std::string(Buffer);
@@ -276,7 +277,7 @@ int main() {
     }
 
     for (const std::string& FlagName : FlagDebugTypes) {
-        fprintf(EnumsFile, "    %s,\n", FlagName.c_str());
+        fprintf(EnumsFile, "    debug_%s,\n", FlagName.c_str());
     }
 
     for (const std::string& StructName : StructDebugTypes) {
@@ -326,9 +327,18 @@ int main() {
         }
 
         fprintf(EnumsFile, "};\n\n");
+
+        for (const std::string& FlagName : FlagDebugTypes) {
+            fprintf(EnumsFile, "constexpr %s operator|(%s a, %s b) { return (%s)((uint64)a | (uint64)b); }\n", 
+                FlagName.c_str(), FlagName.c_str(), FlagName.c_str(), FlagName.c_str());
+            fprintf(EnumsFile, "constexpr bool operator&(%s a, %s b) { return (uint64)a & (uint64)b; }\n", 
+                FlagName.c_str(), FlagName.c_str(), FlagName.c_str());
+            fprintf(EnumsFile, "constexpr %s operator~(%s a) { return (%s)(~(uint64)a); }\n\n", 
+                FlagName.c_str(), FlagName.c_str(), FlagName.c_str());
+        }
     }
     else {
-        fprintf(EnumsFile, "debug_enum_value* EnumValues = 0;\n\n");
+        fprintf(EnumsFile, "debug_enum_value* FlagValues = nullptr;\n\n");
     }
 
     fprintf(EnumsFile, "#endif");

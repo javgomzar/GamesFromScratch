@@ -106,9 +106,7 @@ int _RandomEnum(debug_type Type) {
     return 0;
 }
 
-enum debug_type;
-int _RandomEnum(debug_type Type);
-#define RandomEnum(Type) (Type)_RandomEnum(Debug_Type_##Type)
+#define RandomEnum(Type) (Type)_RandomEnum(debug_##Type)
 
 float Normal() {
 	static bool UseSaved = false;
