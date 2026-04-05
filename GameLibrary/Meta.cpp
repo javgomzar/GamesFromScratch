@@ -234,7 +234,7 @@ int main() {
                 strncpy(FlagsNameText, FlagsName.Text, FlagsName.Length);
                 FlagDebugTypes.push_back(std::string(FlagsNameText));
 
-                sprintf(Buffer, "enum class %s : uint64 {\n", FlagsNameText);
+                sprintf(Buffer, "enum class %s : uint64 {\n    none = 0,\n", FlagsNameText);
                 FlagDeclarations += std::string(Buffer);
 
                 RequireToken(Tokenizer, Token_Comma);

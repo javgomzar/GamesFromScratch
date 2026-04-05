@@ -27,7 +27,7 @@ INTROSPECT
 struct game_entity {
     char Name[32];
     uint32 Index;
-    entity_flag Flags;
+    entity_flag Flags = entity_flag::none;
     game_entity_type Type;
     game_entity* Parent = nullptr;
     game_entity* Follow = nullptr;

@@ -307,6 +307,9 @@ void UpdateAndSizeDebugEntry(game_font* Font, debug_entry* Entry, float* OutWidt
                             Matches++;
                         }
                     }
+                    if (Matches == 0) {
+                        strcpy(Entry->ValueString, "none");
+                    }
                     std::string ValueString = std::format(" ({})", Value);
                     strcat(Entry->ValueString, ValueString.c_str());
                     GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
