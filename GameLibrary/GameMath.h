@@ -1746,6 +1746,7 @@ inline segment3 operator*(transform Transform, segment3 Segment) {
 */
 inline transform SegmentTransform(segment3 Segment) {
 	transform Result;
+	Result.Scale = GetScale();
 	Result.Translation = Segment.Head;
 	v3 V = Segment.Tail - Segment.Head;
 	float L = modulus(V);

@@ -31,7 +31,7 @@ struct game_entity {
     game_entity_type Type;
     game_entity* Parent = nullptr;
     game_entity* Follow = nullptr;
-    collider Collider;
+    collider Collider = SphereCollider(V3(0,0,0), 1.0f);
     color Color = White;
 
     transform Transform = IdentityTransform;
@@ -39,7 +39,7 @@ struct game_entity {
     v3 AngularVelocity = V3(0,0,0);
 
     // Rendering
-    game_mesh_id MeshID;
+    game_mesh_id MeshID = Mesh_Sphere_ID;
     game_bitmap_id TextureID = Bitmap_Empty_ID;
 
     // View
@@ -267,7 +267,7 @@ struct game_state {
 };
 
 game_entity* CreateEntity(free_list<game_entity>& Entities, const char* Name, game_entity_type Type, bool Active = true) {
-    game_entity Entity = {};
+    game_entity Entity;
 
     strcpy(Entity.Name, Name);
     Entity.Type = Type;
@@ -363,7 +363,9 @@ void UpdateGameState(render_group* Group, game_state* State, game_input* Input, 
             } break;
 
             case Weapon_Entity_Type: {
-
+                if (Entity->Parent == nullptr) {
+                    Entity->AngularVelocity = V3(0,1,0);
+                }
             } break;
 
             default: {
@@ -371,7 +373,7 @@ void UpdateGameState(render_group* Group, game_state* State, game_input* Input, 
             }
         }
 
-        // Movement
+        // Movement by input
         if (Entity->Flags & entity_flag::movable) {
             v3 Direction = V3(0,0,0);
             float Speed = 20.0f;
@@ -402,8 +404,9 @@ void UpdateGameState(render_group* Group, game_state* State, game_input* Input, 
                 Direction = Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z;
                 Entity->Velocity = Speed * Direction;
                 Entity->Transform.Rotation = Quaternion(State->ActiveCamera->Angle * Degrees + Angle, V3(0,1,0));
-                Entity->Transform.Translation += State->dt * Entity->Velocity;
-                Entity->Anchor += State->dt * Entity->Velocity;
+            }
+            else {
+                Entity->Velocity = V3(0,0,0);
             }
         }
         // Movable flag overrides follow mechanic
@@ -411,13 +414,20 @@ void UpdateGameState(render_group* Group, game_state* State, game_input* Input, 
             v3 Displacement = Entity->Follow->Transform.Translation - Entity->Transform.Translation;
             Displacement.Y = 0;
             float Distance = modulus(Displacement);
-            v3 Velocity = V3(0,0,0);
             float MinDistance = .01f;
-            if (Distance >= MinDistance) Velocity = 20.0f * (Distance - MinDistance) * normalize(Displacement);
-            Entity->Anchor += State->dt * Velocity;
-            Entity->Transform.Translation += State->dt * Velocity;
+            if (Distance >= MinDistance) Entity->Velocity = 20.0f * (Distance - MinDistance) * normalize(Displacement);
+            else                         Entity->Velocity = V3(0,0,0);
         }
 
+        // Kinematics
+        if (Entity->Velocity != V3(0,0,0)) {
+            Entity->Transform.Translation += State->dt * Entity->Velocity;
+            Entity->Anchor += State->dt * Entity->Velocity;
+        }
+        if (Entity->AngularVelocity != V3(0,0,0)) {
+            Entity->Transform.Rotation = Entity->Transform.Rotation * Quaternion(State->dt, Entity->AngularVelocity);
+        }
+        
         // Animation
         if (Entity->Flags & entity_flag::animated) {
             // TODO

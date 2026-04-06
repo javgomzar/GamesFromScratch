@@ -237,23 +237,33 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
 }
 
 void TestEntities(game_state* State) {
-    State->ActiveCamera = CreateEntity(State->Entities, "Camera 1", Camera_Entity_Type);
-    State->ActiveCamera->Angle = -45.0f;
-    State->ActiveCamera->Pitch = 22.5f;
-    State->ActiveCamera->Anchor = V3(0, 3.2f, 0);
+    game_entity* Camera = CreateEntity(State->Entities, "Camera", Camera_Entity_Type);
+    State->ActiveCamera = Camera;
+    Camera->Angle = -45.0f;
+    Camera->Pitch = 22.5f;
+    Camera->Anchor = V3(0, 3.2f, 0);
 
-    game_entity* Character = CreateEntity(State->Entities, "Character 1", Character_Entity_Type);
-    State->ActiveCamera->Follow = Character;
+    game_entity* Character = CreateEntity(State->Entities, "Character", Character_Entity_Type);
+    Character->Collider = CapsuleCollider(V3(0,1.0f,0), V3(0,3.6f,0), 1.0f);
+    Camera->Follow = Character;
 
-    game_entity* Prop = CreateEntity(State->Entities, "Prop 1", Prop_Entity_Type);
+    game_entity* Prop = CreateEntity(State->Entities, "Prop", Prop_Entity_Type);
     Prop->MeshID = Mesh_Sphere_ID;
     Prop->Color = Red;
     Prop->Transform = GetTransform(V3(0,0,5), GetScale(10,1,1));
+    Prop->Collider = CapsuleCollider(V3(-0.9f,0,0), V3(0.9f,0,0), 1.0f);
 
     // enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));
 
-    // weapon* Sword = AddWeapon(EntityState, Weapon_Sword, White, V3(-5,0,0));
-    // weapon* Shield = AddWeapon(EntityState, Weapon_Shield, White, V3(-10,0,0));
-    // Equip(Sword, Character);
-    // Equip(Shield, Character);
+    game_entity* Sword = CreateEntity(State->Entities, "Sword", Weapon_Entity_Type);
+    Sword->MeshID = Mesh_Sword_ID;
+    Sword->Color = Gray;
+    Sword->Transform.Translation = V3(5,0,0);
+    Sword->Collider = CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.6f);
+
+    game_entity* Shield = CreateEntity(State->Entities, "Shield", Weapon_Entity_Type);
+    Shield->MeshID = Mesh_Shield_ID;
+    Shield->Color = Gray;
+    Shield->Transform.Translation = V3(10,1.6f,0);
+    Shield->Collider = CapsuleCollider(V3(0,-0.5f,0), V3(0,0.5f,0), 1.0f);
 }

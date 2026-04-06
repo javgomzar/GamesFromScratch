@@ -1905,7 +1905,9 @@ void PushCollider(render_group* Group, collider Collider, transform Transform, c
             Collider.Capsule.Segment = Transform * Collider.Capsule.Segment;
         } break;
 
-        default: Assert(false);
+        default: {
+            Raise("Invalid collider type");
+        }
     }
 }
 
