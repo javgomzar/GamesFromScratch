@@ -1039,29 +1039,18 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         float UsedTime_ms = 1000.0f * WorkSecsElapsed;
 
         float SecsElapsedPerFrame = WorkSecsElapsed;
-        if (SecsElapsedPerFrame < TargetSecondsPerFrame) {
-            while (SecsElapsedPerFrame < (TargetSecondsPerFrame - 0.0005f)) {
-                // if sleep granular : DWORD SleepMs = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecsElapsedPerFrame));
-                //Sleep(SleepMs);
-                SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, Win32GetWallClock());
-            }
-        }
-        else {
-            // Missed a frame!
+        if (SecsElapsedPerFrame >= TargetSecondsPerFrame) {
             Log(Warn, "Missed a frame!");
         }
 
         float ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
-        float BudgetTime_ms = 1000.0f * TargetSecondsPerFrame;
         float FPS = 1.0f / ActualSecsElapsed;
         
         DebugInfo->FPS                 = FPS;
-        DebugInfo->BudgetTime          = BudgetTime_ms;
         DebugInfo->UsedTime            = UsedTime_ms;
         DebugInfo->UsedMCyclesPerFrame = UsedMCyclesPerFrame;
 
         DEBUG_VALUE(FPS, float);
-        DEBUG_VALUE(BudgetTime_ms, float);
         DEBUG_VALUE(UsedTime_ms, float);
         DEBUG_VALUE(UsedMCyclesPerFrame, float);
 

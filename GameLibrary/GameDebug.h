@@ -22,7 +22,6 @@ struct debug_info {
     debug_entry Entries[MAX_DEBUG_ENTRIES];
     int nEntries;
     float FPS;
-    float BudgetTime;
     float UsedTime;
     float UsedMCyclesPerFrame;
     float UsedMemory;
