@@ -814,7 +814,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
                 log_level Level = WaitResult == 0 ? Info : Error;
                 if (WaitResult == 0) sprintf_s(LogBuffer, "Metaprogramming executed in %.2f milliseconds.", 1000.0f * Time);
-                else                 sprintf_s(LogBuffer, "Metaprogramming execution failed with code '%d'", WaitResult);
+                else                 sprintf_s(LogBuffer, "Metaprogramming execution failed with code '%d'.", WaitResult);
                 Log(Level, LogBuffer);
                 MetaprogrammingExecutionStart = 0;
 

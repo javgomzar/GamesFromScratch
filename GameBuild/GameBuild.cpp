@@ -133,7 +133,7 @@ int main(int argc, char* argv[]) {
             log_level Level = ExitCode == 0 ? Info : Error;
             std::string LogString;
             if (ExitCode == 0) LogString = std::format("Metaprogramming executed in {:.2f} milliseconds.", 1000.0f * Time);
-            else               LogString = std::format("Metaprogramming execution failed with code '{}'", ExitCode);
+            else               LogString = std::format("Metaprogramming execution failed with code '{}'.", ExitCode);
             Log(Level, LogString.data());
         }
 

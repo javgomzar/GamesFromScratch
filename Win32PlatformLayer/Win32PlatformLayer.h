@@ -112,18 +112,18 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         LARGE_INTEGER LargeOffset;
         LargeOffset.QuadPart = Offset;
         if (!SetFilePointerEx(FileHandle, LargeOffset, NULL, FILE_BEGIN)) {
-            sprintf_s(TextBuffer, "Couldn't set file pointer to offset %I64u at file %s", Offset, Path);
+            sprintf_s(TextBuffer, "Couldn't set file pointer to offset %I64u at file %s.", Offset, Path);
             Log(Error, TextBuffer);
             return Result;
         }
         
         DWORD BytesRead;
         if (ReadFile(FileHandle, Memory, ChunkSize, &BytesRead, NULL) && BytesRead == ChunkSize) {
-            sprintf_s(TextBuffer, "%d bytes read from file %s", BytesRead, Path);
+            sprintf_s(TextBuffer, "%d bytes read from file %s.", BytesRead, Path);
             Log(Info, TextBuffer);
         }
         else {
-            sprintf_s(TextBuffer, "Couldn't read chunk from file %s", Path);
+            sprintf_s(TextBuffer, "Couldn't read chunk from file %s.", Path);
             Log(Error, TextBuffer);
         }
         CloseHandle(FileHandle);
@@ -153,13 +153,13 @@ PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
         if (SetFilePointerEx(FileHandle, LargeOffset, NULL, FILE_BEGIN)) {
             DWORD BytesWritten;
             if (WriteFile(FileHandle, Memory, ChunkSize, &BytesWritten, NULL)) {
-                sprintf_s(TextBuffer, "%d bytes written to file %s", BytesWritten, Path);
+                sprintf_s(TextBuffer, "%d bytes written to file %s.", BytesWritten, Path);
                 Result = BytesWritten == ChunkSize;
                 Log(Result ? Info : Error, TextBuffer);
             }
         }
         else {
-            sprintf_s(TextBuffer, "Couldn't set file pointer to %I64u at file %s", Offset, Path);
+            sprintf_s(TextBuffer, "Couldn't set file pointer to %I64u at file %s.", Offset, Path);
             Log(Error, TextBuffer);
         }
         CloseHandle(FileHandle);
@@ -188,13 +188,13 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
         if (SetFilePointerEx(FileHandle, { 0 }, NULL, FILE_END)) {
             DWORD BytesWritten;
             if (WriteFile(FileHandle, Memory, Size, &BytesWritten, 0)) {
-                sprintf_s(TextBuffer, "%d bytes written to file %s", BytesWritten, Path);
+                sprintf_s(TextBuffer, "%d bytes appended to file %s.", BytesWritten, Path);
                 Result = BytesWritten == Size;
                 Log(Result ? Info : Error, TextBuffer);
             }
         }
         else {
-            sprintf_s(TextBuffer, "Couldn't set file pointer to end at file %s", Path);
+            sprintf_s(TextBuffer, "Couldn't set file pointer to end at file %s.", Path);
             Log(Error, TextBuffer);
         }
         CloseHandle(FileHandle);
