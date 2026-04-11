@@ -150,7 +150,7 @@ struct game_data_file_manager {
 
 game_data_file_manager CreateDataFileManager(const char* Directory) {
     game_data_file_manager Result = {};
-    strcpy_s(Result.Directory, Directory);
+    strcpy(Result.Directory, Directory);
     Result.Size = 32;
     Result.Files = (game_data_file*)calloc(Result.Size, sizeof(game_data_file));
     Result.Count = 0;
@@ -175,7 +175,7 @@ void SaveDataFileManager(game_data_file_manager Manager) {
 
 game_data_file_manager ReadDataFileManager(const char* Directory) {
     game_data_file_manager Result = {};
-    strcpy_s(Result.Directory, Directory);
+    strcpy(Result.Directory, Directory);
     
     file_info File;
     void* ReadMemory = Platform.ReadEntireFile(Directory, &File);
