@@ -45,8 +45,8 @@ struct game_entity {
     // View
     v3 Anchor = V3(0,0,0);
     float Distance = 0.0f;
-    float Pitch = 0.0f;
     float Angle = 0.0f;
+    float Pitch = 0.0f;
 
     // Combat
     game_entity* LeftHand = nullptr;
@@ -88,14 +88,10 @@ basis GetBasis(float Angle, float Pitch) {
     float cosP = cosf(Pitch * Degrees);
     float sinP = sinf(Pitch * Degrees);
 
-    v3 X = V3(        cosA,  0.0,         sinA);
-    v3 Y = V3(-sinA * sinP, cosP,  cosA * sinP);
-    v3 Z = V3( sinA * cosP, sinP, -cosA * cosP);
-
     basis Result;
-    Result.X = X;
-    Result.Y = Y;
-    Result.Z = Z;
+    Result.X = V3(        cosA,  0.0,         sinA);
+    Result.Y = V3(-sinA * sinP, cosP,  cosA * sinP);
+    Result.Z = V3( sinA * cosP, sinP, -cosA * cosP);
     return Result;
 }
 
@@ -156,15 +152,6 @@ struct character_action {
     character_action_id ID;
     game_animation_id AnimationID;
     bool Loop;
-};
-
-enum character_class {
-    Knight_Class,
-    Rogue_Class,
-    Hunter_Class,
-    Wizard_Class,
-    Bard_Class,
-    Priest_Class
 };
 
 character_action CharacterAction(character_action_id ID) {
@@ -348,14 +335,45 @@ void UpdateGameState(render_group* Group, game_state* State, game_input* Input, 
                         }
                     }
 
-                    // Camera basis
-                    // Entity->Basis = GetCameraBasis(Entity->Angle, Entity->Pitch);
-                    // Entity->View = GetViewMatrix(Entity->Basis, Entity->Distance, Entity->Position);
+                    Entity->Angle = NormalizeAngle(Entity->Angle);
+                    Entity->Pitch = NormalizeAngle(Entity->Pitch);
+
+                    float cosA = cosf(Entity->Angle * Degrees);
+                    float sinA = sinf(Entity->Angle * Degrees);
+                    float cosP = cosf(Entity->Pitch * Degrees);
+                    float sinP = sinf(Entity->Pitch * Degrees);
+                    Entity->Transform.Translation = Entity->Anchor + Entity->Distance * V3(sinA * cosP, sinP, cosA * cosP);
                 }
             } break;
 
             case Character_Entity_Type: {
+                // Collision
+                Entity->Collided = false;
+                uint32 TestedEntities = 0;
+                uint32 TestIndex = 0;
+                while (TestedEntities < State->Entities.Count) {
+                    game_entity* TestEntity = nullptr;
+                    if (State->Entities.IsOccupied[TestIndex]) {
+                        TestEntity = &State->Entities[TestIndex++];
+                        TestedEntities++;
+                    }
+                    else {
+                        TestIndex++;
+                        continue;
+                    }
 
+                    if (TestEntity == Entity) {
+                        continue;
+                    }
+
+                    if (Collide(Entity, TestEntity)) {
+                        Entity->Collided = true;
+                        TestEntity->Collided = true;
+                    }
+                    else {
+                        TestEntity->Collided = false;
+                    }
+                }
             } break;
 
             case Prop_Entity_Type: {
@@ -411,7 +429,7 @@ void UpdateGameState(render_group* Group, game_state* State, game_input* Input, 
         }
         // Movable flag overrides follow mechanic
         else if (Entity->Follow) {
-            v3 Displacement = Entity->Follow->Transform.Translation - Entity->Transform.Translation;
+            v3 Displacement = Entity->Follow->Transform.Translation - Entity->Anchor;
             Displacement.Y = 0;
             float Distance = modulus(Displacement);
             float MinDistance = .01f;
@@ -433,6 +451,7 @@ void UpdateGameState(render_group* Group, game_state* State, game_input* Input, 
             // TODO
         }
 
+        // Rendering
         if (Entity->Flags & entity_flag::render) {
             game_entity* Camera = State->ActiveCamera;
             basis Basis = GetBasis(Camera->Angle, Camera->Pitch);

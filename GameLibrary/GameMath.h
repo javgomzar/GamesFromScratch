@@ -57,6 +57,17 @@ inline uint32 Clamp(uint32 Value, uint32 Min, uint32 Max) {
 	return Value;
 }
 
+// Makes an angle be in the [0, 360) interval.
+inline float NormalizeAngle(float Angle) {
+	if (Angle >= 360) {
+		return Angle - 360;
+	}
+	else if (Angle < 0) {
+		return Angle + 360;
+	}
+	return Angle;
+}
+
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | RNG                                                                                                                                    |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
