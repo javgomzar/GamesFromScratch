@@ -1280,45 +1280,45 @@ RENDERER_INITIALIZE {
 
 // Shaders
     // Vertex
-    LoadShader(Vertex_Shader_Passthrough_ID,         "GameAssets\\Shaders\\HLSL\\Vertex\\Passthrough.vsh");
-    LoadShader(Vertex_Shader_Screen_ID,              "GameAssets\\Shaders\\HLSL\\Vertex\\Screen.vsh");
-    LoadShader(Vertex_Shader_Screen_Texture_ID,      "GameAssets\\Shaders\\HLSL\\Vertex\\ScreenTexture.vsh");
-    LoadShader(Vertex_Shader_Perspective_ID,         "GameAssets\\Shaders\\HLSL\\Vertex\\Perspective.vsh");
-    LoadShader(Vertex_Shader_Perspective_Texture_ID, "GameAssets\\Shaders\\HLSL\\Vertex\\PerspectiveTexture.vsh");
-    LoadShader(Vertex_Shader_Mesh_ID,                "GameAssets\\Shaders\\HLSL\\Vertex\\Mesh.vsh");
-    LoadShader(Vertex_Shader_Bones_ID,               "GameAssets\\Shaders\\HLSL\\Vertex\\Bones.vsh");
-    LoadShader(Vertex_Shader_Barycentric_ID,         "GameAssets\\Shaders\\HLSL\\Vertex\\Barycentric.vsh");
-    LoadShader(Vertex_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Vertex\\Heightmap.vsh");
-    LoadShader(Vertex_Shader_Sky_ID,                 "GameAssets\\Shaders\\HLSL\\Vertex\\Sky.vsh");
-    LoadShader(Vertex_Shader_Test_ID,                "GameAssets\\Shaders\\HLSL\\Vertex\\Test.vsh");
+    LoadShader(Vertex_Shader_Passthrough_ID,         "GameRender\\Shaders\\HLSL\\Vertex\\Passthrough.vsh");
+    LoadShader(Vertex_Shader_Screen_ID,              "GameRender\\Shaders\\HLSL\\Vertex\\Screen.vsh");
+    LoadShader(Vertex_Shader_Screen_Texture_ID,      "GameRender\\Shaders\\HLSL\\Vertex\\ScreenTexture.vsh");
+    LoadShader(Vertex_Shader_Perspective_ID,         "GameRender\\Shaders\\HLSL\\Vertex\\Perspective.vsh");
+    LoadShader(Vertex_Shader_Perspective_Texture_ID, "GameRender\\Shaders\\HLSL\\Vertex\\PerspectiveTexture.vsh");
+    LoadShader(Vertex_Shader_Mesh_ID,                "GameRender\\Shaders\\HLSL\\Vertex\\Mesh.vsh");
+    LoadShader(Vertex_Shader_Bones_ID,               "GameRender\\Shaders\\HLSL\\Vertex\\Bones.vsh");
+    LoadShader(Vertex_Shader_Barycentric_ID,         "GameRender\\Shaders\\HLSL\\Vertex\\Barycentric.vsh");
+    LoadShader(Vertex_Shader_Heightmap_ID,           "GameRender\\Shaders\\HLSL\\Vertex\\Heightmap.vsh");
+    LoadShader(Vertex_Shader_Sky_ID,                 "GameRender\\Shaders\\HLSL\\Vertex\\Sky.vsh");
+    LoadShader(Vertex_Shader_Test_ID,                "GameRender\\Shaders\\HLSL\\Vertex\\Test.vsh");
 
     // Hull
-    LoadShader(Hull_Shader_Heightmap_ID,             "GameAssets\\Shaders\\HLSL\\Hull\\Heightmap.hsh");
+    LoadShader(Hull_Shader_Heightmap_ID,             "GameRender\\Shaders\\HLSL\\Hull\\Heightmap.hsh");
 
     // Domain
-    LoadShader(Domain_Shader_Heightmap_ID,           "GameAssets\\Shaders\\HLSL\\Domain\\Heightmap.dsh");
-    LoadShader(Domain_Shader_Water_ID,               "GameAssets\\Shaders\\HLSL\\Domain\\Water.dsh");
+    LoadShader(Domain_Shader_Heightmap_ID,           "GameRender\\Shaders\\HLSL\\Domain\\Heightmap.dsh");
+    LoadShader(Domain_Shader_Water_ID,               "GameRender\\Shaders\\HLSL\\Domain\\Water.dsh");
 
     // Geometry
-    LoadShader(Geometry_Shader_Normal_ID,            "GameAssets\\Shaders\\HLSL\\Geometry\\Normal.gsh");
+    LoadShader(Geometry_Shader_Normal_ID,            "GameRender\\Shaders\\HLSL\\Geometry\\Normal.gsh");
     
     // Pixel
-    LoadShader(Pixel_Shader_Antialiasing_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\Antialiasing.psh");
-    LoadShader(Pixel_Shader_Single_Color_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\SingleColor.psh");
-    LoadShader(Pixel_Shader_Attrib_Color_ID,         "GameAssets\\Shaders\\HLSL\\Pixel\\AttribColor.psh");
-    LoadShader(Pixel_Shader_Texture_ID,              "GameAssets\\Shaders\\HLSL\\Pixel\\Texture.psh");
-    LoadShader(Pixel_Shader_Mesh_ID,                 "GameAssets\\Shaders\\HLSL\\Pixel\\Mesh.psh");
-    LoadShader(Pixel_Shader_Bezier_Exterior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierExterior.psh");
-    LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameAssets\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
-    LoadShader(Pixel_Shader_Heightmap_ID,            "GameAssets\\Shaders\\HLSL\\Pixel\\Heightmap.psh");
-    LoadShader(Pixel_Shader_Sky_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Sky.psh");
-    LoadShader(Pixel_Shader_Test_ID,                  "GameAssets\\Shaders\\HLSL\\Pixel\\Test.psh");
-    LoadShader(Pixel_Shader_Water_ID,                "GameAssets\\Shaders\\HLSL\\Pixel\\Water.psh");
+    LoadShader(Pixel_Shader_Antialiasing_ID,         "GameRender\\Shaders\\HLSL\\Pixel\\Antialiasing.psh");
+    LoadShader(Pixel_Shader_Single_Color_ID,         "GameRender\\Shaders\\HLSL\\Pixel\\SingleColor.psh");
+    LoadShader(Pixel_Shader_Attrib_Color_ID,         "GameRender\\Shaders\\HLSL\\Pixel\\AttribColor.psh");
+    LoadShader(Pixel_Shader_Texture_ID,              "GameRender\\Shaders\\HLSL\\Pixel\\Texture.psh");
+    LoadShader(Pixel_Shader_Mesh_ID,                 "GameRender\\Shaders\\HLSL\\Pixel\\Mesh.psh");
+    LoadShader(Pixel_Shader_Bezier_Exterior_ID,      "GameRender\\Shaders\\HLSL\\Pixel\\BezierExterior.psh");
+    LoadShader(Pixel_Shader_Bezier_Interior_ID,      "GameRender\\Shaders\\HLSL\\Pixel\\BezierInterior.psh");
+    LoadShader(Pixel_Shader_Heightmap_ID,            "GameRender\\Shaders\\HLSL\\Pixel\\Heightmap.psh");
+    LoadShader(Pixel_Shader_Sky_ID,                  "GameRender\\Shaders\\HLSL\\Pixel\\Sky.psh");
+    LoadShader(Pixel_Shader_Test_ID,                 "GameRender\\Shaders\\HLSL\\Pixel\\Test.psh");
+    LoadShader(Pixel_Shader_Water_ID,                "GameRender\\Shaders\\HLSL\\Pixel\\Water.psh");
 
     // Compute
-    LoadShader(Compute_Shader_Outline_Init_ID,       "GameAssets\\Shaders\\HLSL\\Compute\\OutlineInit.compute");
-    LoadShader(Compute_Shader_Jump_Flood_ID,         "GameAssets\\Shaders\\HLSL\\Compute\\JumpFlood.compute");
-    LoadShader(Compute_Shader_Outline_ID,            "GameAssets\\Shaders\\HLSL\\Compute\\Outline.compute");
+    LoadShader(Compute_Shader_Outline_Init_ID,       "GameRender\\Shaders\\HLSL\\Compute\\OutlineInit.compute");
+    LoadShader(Compute_Shader_Jump_Flood_ID,         "GameRender\\Shaders\\HLSL\\Compute\\JumpFlood.compute");
+    LoadShader(Compute_Shader_Outline_ID,            "GameRender\\Shaders\\HLSL\\Compute\\Outline.compute");
 
 // Vertex buffers
     // Layout buffers
