@@ -268,13 +268,13 @@ process_info CompilePlatformLayer(build_configuration* Configuration) {
         case MSVC: {
             Command = std::format(
                 "{} /std:c++20 /nologo /W0 "
-                "Win32PlatformLayer\\Win32PlatformLayer.cpp bin\\{}.obj " 
+                "GamePlatform\\Windows\\Win32PlatformLayer.cpp bin\\{}.obj " 
                 "/D GAME_RENDER_API_{} {} "
                 "/Fe\"bin\\RunGame.exe\" "
                 "/Fo\"bin\\Win32PlatformLayer.obj\" "
                 "/Fd\"bin\\{}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{}.pch\" {} "
                 "/link {} kernel32.lib user32.lib gdi32.lib advapi32.lib ole32.lib oleaut32.lib psapi.lib {} "
-                "Win32PlatformLayer\\Win32PlatformLayer.res /MACHINE:X64",
+                "GamePlatform\\Windows\\Win32PlatformLayer.res /MACHINE:X64",
                 Configuration->CompilerPath, 
                 PCHOutput, 
                 GetRendererString(Configuration->Renderer), 

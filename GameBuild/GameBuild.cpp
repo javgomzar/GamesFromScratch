@@ -83,14 +83,14 @@ int main(int argc, char* argv[]) {
                 switch (Configuration.Compiler) {
                     case MSVC: {
                         Command = std::format(
-                            "{} /std:c++20 /nologo /W0 {} GameLibrary/pch.cpp /c {} /Yc\"pch.h\" /Fp\"{}\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
+                            "{} /std:c++20 /nologo /W0 {} GameBuild/pch.cpp /c {} /Yc\"pch.h\" /Fp\"{}\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
                             Configuration.CompilerPath, Configuration.Include, CompilerFlags, PCHOutputPath, PCHOutput, PCHOutput
                         );
                     } break;
 
                     case clang: {
                         Command = std::format(
-                            "{} -x c++-header -std=c++20 -fPIC {} {} GameLibrary/pch.h -o {}",
+                            "{} -x c++-header -std=c++20 -fPIC {} {} GameBuild/pch.h -o {}",
                             Configuration.CompilerPath, 
                             GetCompilerFlags(Configuration.Compiler, Configuration.Mode),
                             Configuration.Include, PCHOutputPath
