@@ -1,3 +1,6 @@
+#ifndef GAME_BUILD_H
+#define GAME_BUILD_H
+
 #include "GamePlatform.h"
 #include "Tokenizer.h"
 
@@ -368,3 +371,5 @@ process_info CompileGameLibraryHot(build_configuration* Configuration) {
 #endif
     return Platform.RunCommand(Command.data());
 }
+
+#endif
