@@ -182,7 +182,12 @@ inline memory_arena SuballocateMemoryArena(memory_arena* Arena, memory_index Siz
 }
 
 inline char* PushString(memory_arena* Arena, const char* String) {
-    return PushArray(Arena, strlen(String) + 1, char);
+    int L = strlen(String);
+    char* Result = PushArray(Arena, L + 1, char);
+    for (int i = 0; i < L; i++) {
+        Result[i] = String[i];
+    }
+    return Result;
 }
 
 /*
@@ -626,27 +631,30 @@ struct file_chunk_info {
     memory_index Offset;
 };
 
-const char* GetFileExtension(const char* Path) {
+const char* GetFileName(const char* Path) {
     uint64 L = strlen(Path);
-    const char* LastSlash = NULL;
-    const char* pChar = Path;
-    for (int i = 0; i < L; i++) {
-        if (*pChar == '/' || *pChar == '\\') {
-            LastSlash = Path + i;
-        }
-        pChar++;
-    }
-    
-    const char* Extension = NULL;
-    pChar = LastSlash;
-    for (int i = 0; i < L - (LastSlash - Path); i++) {
-        if (*pChar++ == '.') {
-            Extension = pChar;
+    const char* pChar = nullptr;
+    for (pChar = Path + L - 1; pChar > Path; pChar--) {
+        if (*pChar == '\\' || *pChar == '/') {
+            pChar++;
             break;
         }
     }
 
-    return Extension;
+    return pChar;
+}
+
+const char* GetFileExtension(const char* Path) {
+    uint64 L = strlen(Path);
+    const char* pChar = nullptr;
+    for (pChar = Path + L - 1; pChar > Path; pChar--) {
+        if (*pChar == '.') {
+            pChar++;
+            break;
+        }
+    }
+
+    return pChar;
 }
 
 // Record and playback
