@@ -95,6 +95,17 @@ PLATFORM_GET_FILE_INFO(Win32GetFileInfo) {
         Result.Size = Size.QuadPart;
         FindClose(FileHandle);
     }
+    else {
+        DWORD ErrorCode = GetLastError();
+        char ErrorBuffer[64];
+        if (ErrorCode == ERROR_PATH_NOT_FOUND) {
+            sprintf_s(ErrorBuffer, "Path %s not found.", Path);
+        }
+        else if (ErrorCode == ERROR_FILE_NOT_FOUND) {
+            sprintf_s(ErrorBuffer, "File %s not found.", Path);
+        }
+        Log(Error, ErrorBuffer);
+    }
 
     return Result;
 }
