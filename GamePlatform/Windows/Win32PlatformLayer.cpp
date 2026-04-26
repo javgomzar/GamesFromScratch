@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "GameLibrary.h"
 #include "GameBuild.h"
+#include "GameShader.h"
 
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_IMPLEMENTATION
@@ -768,6 +769,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     process_info MetaprogrammingExecution = {};
     uint64 MetaprogrammingExecutionStart = 0;
     char LogBuffer[64] = {};
+
+    // Slang setup
+    InitializeSlang(&Memory.Permanent, BuildConfiguration.Renderer);
 
     Memory.Running = true;
     bool FirstFrame = true;

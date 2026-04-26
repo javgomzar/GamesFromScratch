@@ -53,16 +53,17 @@ const char* GetRendererString(renderer Renderer) {
 const char* GetRendererLibs(renderer Renderer) {
     if (SystemOS == Windows) {
         switch(Renderer) {
-            case Renderer_OpenGL:  return "glew32.lib";
-            case Renderer_DirectX: return "D3d11.lib d3dcompiler.lib";
-            case Renderer_Vulkan:  return "vulkan-1.lib shaderc_combined.lib";
+            case Renderer_OpenGL:  return "slang.lib glew32.lib";
+            case Renderer_DirectX: return "slang.lib D3d11.lib d3dcompiler.lib";
+            case Renderer_Vulkan:  return "slang.lib vulkan-1.lib shaderc_combined.lib";
         }
     }
-    else {
+    else if (SystemOS == Linux) {
         return "-lglfw";
     }
 
-    return "glew32.lib";
+    Raise("Invalid OS");
+    return "";
 }
 
 const char* GetCompilerFlags(compiler Compiler, build_mode Mode) {

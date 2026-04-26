@@ -5,6 +5,3 @@ Constant buffers:
     - (3) Transform: model, normal matrices.
     - (4) Bones: Bone transforms and normal transforms.
     - (5) Outline: Outline uniforms: width, JFAlevel
-    - (6) Kernel: Kernel matrix.
-    - (7) Text: Pen and size.
-    - (8) Tesselation: Amount and padding.
