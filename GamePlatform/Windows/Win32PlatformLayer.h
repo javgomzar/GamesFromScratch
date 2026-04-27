@@ -114,7 +114,7 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
     char TextBuffer[256];
 
     file_chunk_info Result = {};
-    Result.ChunkSize = ChunkSize;
+    Result.Size = 0;
     Result.Offset = Offset;
     Result.Info = Win32GetFileInfo(Path);
 
@@ -137,6 +137,7 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
             sprintf_s(TextBuffer, "Couldn't read chunk from file %s.", Path);
             Log(Error, TextBuffer);
         }
+        Result.Size = BytesRead;
         CloseHandle(FileHandle);
         return Result;
     }
@@ -144,6 +145,9 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
     DWORD WinError = GetLastError();
     if (WinError == ERROR_PATH_NOT_FOUND) {
         sprintf_s(TextBuffer, "Path %s not found.", Path);
+    }
+    else if (WinError == ERROR_SHARING_VIOLATION) {
+        sprintf_s(TextBuffer, "File %s sharing violation.", Path);
     }
     else {
         sprintf_s(TextBuffer, "Couldn't read file %s. Error %d.", Path, WinError);

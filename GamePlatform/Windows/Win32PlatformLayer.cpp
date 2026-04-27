@@ -771,7 +771,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     char LogBuffer[64] = {};
 
     // Slang setup
-    InitializeSlang(&Memory.Permanent, BuildConfiguration.Renderer);
+    // InitializeSlang(&Memory.Permanent, BuildConfiguration.Renderer);
 
     Memory.Running = true;
     bool FirstFrame = true;
@@ -1049,17 +1049,16 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         float ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
         float FPS = 1.0f / ActualSecsElapsed;
+        float BudgetTime_ms = 1000.0f * TargetSecondsPerFrame;
         
-        DebugInfo->FPS                 = FPS;
+        DebugInfo->FPS                 = MonitorRefreshHz;
         DebugInfo->UsedTime            = UsedTime_ms;
         DebugInfo->UsedMCyclesPerFrame = UsedMCyclesPerFrame;
 
         DEBUG_VALUE(FPS, float);
+        DEBUG_VALUE(BudgetTime_ms, float);
         DEBUG_VALUE(UsedTime_ms, float);
         DEBUG_VALUE(UsedMCyclesPerFrame, float);
-
-        pGameState->dt = ActualSecsElapsed;
-        pGameState->Time += ActualSecsElapsed;
 
         float Time = pGameState->Time;
         DEBUG_VALUE(Time, float);
@@ -1074,6 +1073,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             //Sleep(SleepMs);
             SecsElapsedPerFrame = GetSecondsElapsed(LastCounter, Win32GetWallClock());
         }
+
+        pGameState->dt = SecsElapsedPerFrame;
+        pGameState->Time += SecsElapsedPerFrame;
 
         uint64 EndCounter = Win32GetWallClock();
         LastCounter = EndCounter;

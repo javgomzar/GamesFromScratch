@@ -627,7 +627,7 @@ struct file_info {
 
 struct file_chunk_info {
     file_info Info;
-    memory_index ChunkSize;
+    memory_index Size;
     memory_index Offset;
 };
 
@@ -851,7 +851,12 @@ struct platform_api {
             void* Result = AllocateMemory(Info.Size);
 
             file_chunk_info ChunkInfo = ReadFileChunk(Path, 0, Info.Size, Result);
-            return Result;
+            if (ChunkInfo.Size > 0) {
+                return Result;
+            }
+            else {
+                FreeMemory(Result);
+            }
         }
         return nullptr;
     }
