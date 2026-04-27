@@ -292,6 +292,8 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     PushRenderTarget(Group, Target_World, Target_Output);
 
+    Group->Light.CameraPosition = State->ActiveCamera->Transform.Translation;
+
     static bool Screenshot = false;
     if (Input->Keyboard.F10.WasDown && !Input->Keyboard.F10.IsDown) {
         Screenshot = true;

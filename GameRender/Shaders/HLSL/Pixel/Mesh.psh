@@ -24,12 +24,11 @@ float4 main(VertexOut vout): SV_TARGET {
     float4 Sample = Texture.Sample(Sampler, float2(vout.Texture.x, vout.Texture.y));
     float3 Normal = normalize(vout.Normal);
     float Diff = Diffuse * max(dot(Normal, -LightDirection), 0);
-    // float3 ViewDirection = normalize(CameraPosition - vout.WorldPosition.xyz);
-    // float3 Reflection = reflect(LightDirection, Normal);
-    // float Spec = pow(max(dot(ViewDirection, Reflection), 0.0), 8);
+    float3 ViewDirection = normalize(CameraPosition - vout.WorldPosition.xyz);
+    float3 Reflection = reflect(LightDirection, Normal);
+    float Spec = pow(max(dot(ViewDirection, Reflection), 0.0), 8);
 
-    // float3 Result = (Ambient + Diff) * Sample.rgb * Color.rgb + Spec * LightColor;
-    float3 Result = (Ambient + Diff) * Sample.rgb * Color.rgb;
+    float3 Result = (Ambient + Diff) * Sample.rgb * Color.rgb + Spec * LightColor;
 
     return float4(Result, 1.0);
 }

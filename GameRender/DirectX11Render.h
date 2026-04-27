@@ -378,7 +378,7 @@ void SetGlobalBuffer(
     }
 }
 
-void SetLightBuffer(light Light, v3 CameraPosition) {
+void SetLightBuffer(light Light) {
     ID3D11Buffer* TextBuffer = DirectX.ConstantBuffer[light_buffer_id];
     void* MappedBuffer = GetMappedBuffer(TextBuffer);
     if (MappedBuffer) {
@@ -387,7 +387,7 @@ void SetLightBuffer(light Light, v3 CameraPosition) {
         Buffer->Diffuse = Light.Diffuse;
         Buffer->Direction = Light.Direction;
         Buffer->Color = V3(Light.Color.R, Light.Color.G, Light.Color.B);
-        Buffer->CameraPosition = CameraPosition;
+        Buffer->CameraPosition = Light.CameraPosition;
         DirectX.DeviceContext->Unmap(TextBuffer, 0);
         DirectX.DeviceContext->PSSetConstantBuffers(1, 1, &TextBuffer);
     }
@@ -1603,7 +1603,7 @@ RENDERER_RENDER {
 
     // Constant buffers
     SetGlobalBuffer(Group->Width, Group->Height, View, Input, Time);
-    SetLightBuffer(Group->Light, V3(View.W.X, View.W.Y, View.W.Z));
+    SetLightBuffer(Group->Light);
     ClearTransformBuffer();
     ClearBoneBuffer();
 

@@ -312,15 +312,12 @@ enum wrap_mode {
 };
 
 struct light {
+    color Color;
+    v3 Direction;
+    v3 CameraPosition;
     float Ambient;
     float Diffuse;
-    v3 Direction;
-    color Color;
 };
-
-light Light(v3 Direction, color Color = White, float Ambient = 0.5f, float Diffuse = 0.5f) {
-    return { Ambient, Diffuse, normalize(Direction), Color };
-}
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Render group                                                                                                                                                     |
@@ -385,7 +382,10 @@ void InitializeRenderGroup(
     Group->DebugBones = false;
 
     // Lighting
-    Group->Light = Light(V3(-0.5, -1, 1), White);
+    Group->Light.Color = White;
+    Group->Light.Direction = normalize(V3(-0.5, -1, 1));
+    Group->Light.Ambient = 0.5f;
+    Group->Light.Diffuse = 0.5f;
 
     // Vertex & element buffers
     InitializeVertexBuffer(&Group->VertexBuffer, Arena);
