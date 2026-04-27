@@ -413,6 +413,14 @@ inline v3 V3(iv3 V) {
 	return V3(V.X, V.Y, V.Z);
 }
 
+inline v3 Radial(float Angle, float Pitch) {
+	float cosA = cosf(Angle * Degrees);
+    float sinA = sinf(Angle * Degrees);
+    float cosP = cosf(Pitch * Degrees);
+    float sinP = sinf(Pitch * Degrees);
+    return V3(sinA * cosP, sinP, cosA * cosP);
+}
+
 inline v3 operator+(v3 A, v3 B) {
 	v3 Result;
 	Result.X = A.X + B.X;
@@ -1594,15 +1602,6 @@ inline v3 ClosestPoint(ray Ray, v3 Point) {
 inline float SqDistance(ray Ray, v3 Point) {
 	v3 D = Point - ClosestPoint(Ray, Point);
 	return dot(D,D);
-}
-
-inline ray MouseRay(float Width, float Height, v3 CameraPosition, basis CameraBasis, v2 Mouse) {
-	v3 Direction =
-        (2.0 * Mouse.X / Width - 1.0) *    CameraBasis.X +
-        (Height - 2.0 * Mouse.Y) / Width * CameraBasis.Y - 
-                                           CameraBasis.Z;
-	ray Result = Ray(CameraPosition, Direction);
-	return Result;
 }
 
 struct segment2 {

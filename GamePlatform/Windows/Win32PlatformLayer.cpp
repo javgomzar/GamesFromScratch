@@ -1006,7 +1006,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                 ScreenCapture(Group->Width, Group->Height);
             }
 
-            basis CameraBasis = GetBasis(pGameState->ActiveCamera->Angle, pGameState->ActiveCamera->Pitch);
+            basis CameraBasis = GetCameraBasis(pGameState->ActiveCamera->Angle, pGameState->ActiveCamera->Pitch);
             matrix4 View = GetViewMatrix(CameraBasis, pGameState->ActiveCamera->Distance, pGameState->ActiveCamera->Anchor);
             Render(Group, View, &Memory.Input, Window, pGameState->Time);
         }

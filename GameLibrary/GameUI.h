@@ -824,9 +824,14 @@ void UpdateUI(
         PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, ChangeAlpha(Blue, DebugAlpha));
 
         // Debug camera basis
-        // PushDebugVector(Group, Camera->Basis, Camera->Basis.X, V3(0,0,0), World_Coordinates, Yellow);
-        // PushDebugVector(Group, Camera->Basis, Camera->Basis.Y, V3(0,0,0), World_Coordinates, Magenta);
-        // PushDebugVector(Group, Camera->Basis, Camera->Basis.Z, V3(0,0,0), World_Coordinates, Cyan);
+        // basis CameraBasis = GetCameraBasis(State->ActiveCamera->Angle, State->ActiveCamera->Pitch);
+        // PushDebugVector(Group, CameraBasis, CameraBasis.X, V3(0,0,0), White);
+        // PushDebugVector(Group, CameraBasis, CameraBasis.Y, V3(0,0,0), White);
+        // PushDebugVector(Group, CameraBasis, CameraBasis.Z, V3(0,0,0), White);
+        // DEBUG_VALUE(CameraBasis.Z, v3);
+        
+        // Origin
+        PushCircle(Group, V3(0, 0, 0), 0.05f, normalize(State->ActiveCamera->Transform.Translation), White);
         
         ui_menu DebugMenu = UIMenu(
             "Debug Menu",

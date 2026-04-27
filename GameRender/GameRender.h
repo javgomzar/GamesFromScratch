@@ -1021,7 +1021,10 @@ void PushCircle(
 ) {
     int MAX_N = 62;
     int N = Clamp(nVertices, 14, MAX_N);
+    Normal = normalize(Normal);
     basis Basis = Complete(Normal);
+    Basis.X = Basis.Z;
+    Basis.Z = Normal;
 
     render_primitive_command* Command = PushPrimitiveCommand(
         Group,
@@ -1948,14 +1951,14 @@ void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
 }
 
 void PushDebugVector(render_group* Group, basis CameraBasis, v3 Vector, v3 Position, color Color) {
-    float Height = Group->Height;
-
     v2 CameraCoordinates = perp(V2(dot(Vector, CameraBasis.X), dot(Vector, CameraBasis.Y)));
     v3 Orthogonal = normalize(CameraCoordinates.X * CameraBasis.X + CameraCoordinates.Y * CameraBasis.Y);
     float OrthogonalLength = (modulus(Vector) / 15.0f);
 
-    int Thickness = fmax(1.0, 0.0025 * Height);
-    PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, SORT_ORDER_MESHES);
+    int Thickness = fmax(1.0f, 0.0025f *  Group->Height);
+    PushLine(Group, Position, Position + 0.875f * Vector, Color, Thickness, SORT_ORDER_MESHES);
+    
+    // Arrow head
     triangle3 Triangle = {
         Position + Vector,
         Position + 0.875 * Vector,

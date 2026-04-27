@@ -82,21 +82,27 @@ bool Collide(game_entity* Entity1, game_entity* Entity2) {
 // | Camera                                                                                                                                       |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+s
 
-basis GetBasis(float Angle, float Pitch) {
+/*
+    Get vector basis for a camera given its angle and pitch. Relative to the camera:
+        - The X axis is left to right.
+        - The Y axis is down to up.
+        - The Z axis is back to front.
+    Note that this basis is left-handed.
+*/
+basis GetCameraBasis(float Angle, float Pitch) {
     float cosA = cosf(Angle * Degrees);
     float sinA = sinf(Angle * Degrees);
     float cosP = cosf(Pitch * Degrees);
     float sinP = sinf(Pitch * Degrees);
 
     basis Result;
-    Result.X = V3(        cosA,  0.0,         sinA);
-    Result.Y = V3(-sinA * sinP, cosP,  cosA * sinP);
-    Result.Z = V3( sinA * cosP, sinP, -cosA * cosP);
+    Result.X = V3(        cosA,  0.0,        -sinA);
+    Result.Y = V3(-sinA * sinP, cosP, -cosA * sinP);
+    Result.Z = V3(-sinA * cosP,-sinP, -cosA * cosP);
     return Result;
 }
 
 matrix4 GetViewMatrix(matrix3 Basis, float Distance, v3 Position) {
-	Basis.Z = -Basis.Z;
 	Basis = transpose(Basis);
 
 	v3 Translation = V3(0, 0, Distance) - Position * Basis;
@@ -120,6 +126,15 @@ v2 GetScreenPosition(float ScreenWidth, float ScreenHeight, matrix4 View, v3 Wor
         0.5f * (1.0f - DevicePoint.Y) * ScreenHeight
     );
     return ScreenPoint;
+}
+
+ray MouseRay(float Width, float Height, v3 CameraPosition, basis CameraBasis, v2 Mouse) {
+	v3 Direction =
+        (2.0 * Mouse.X / Width - 1.0) *    CameraBasis.X +
+        (Height - 2.0 * Mouse.Y) / Width * CameraBasis.Y + 
+                                           CameraBasis.Z;
+	ray Result = Ray(CameraPosition, Direction);
+	return Result;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -284,195 +299,6 @@ game_entity* CreateEntity(free_list<game_entity>& Entities, const char* Name, ga
     game_entity* Result = &Entities[Index];
     Result->Index = Index;
     return Result;
-}
-
-void UpdateGameState(render_group* Group, game_state* State, game_input* Input, float Width, float Height) {
-    uint32 UpdatedEntities = 0;
-    uint32 Index = 0;
-    while (UpdatedEntities < State->Entities.Count) {
-        game_entity* Entity = nullptr;
-        if (State->Entities.IsOccupied[Index]) {
-            Entity = &State->Entities[Index++];
-            UpdatedEntities++;
-        }
-        else {
-            Index++;
-            continue;
-        }
-
-        if (!Entity->Active) continue;
-
-        switch(Entity->Type) {
-            case Camera_Entity_Type: {
-                if (Entity->Active) {
-                    State->ActiveCamera = Entity;
-                    if (Input->Mode == Keyboard) {
-                        // Zoom
-                        if (Input->Mouse.Wheel > 0)      Entity->Distance /= 1.2f;
-                        else if (Input->Mouse.Wheel < 0) Entity->Distance *= 1.2f;
-
-                        // Orbit around position
-                        if (
-                            Input->Mouse.MiddleClick.IsDown && 
-                            Input->Mouse.MiddleClick.WasDown &&
-                            Input->Mouse.Cursor.X >= 0 && Input->Mouse.Cursor.X <= Width &&
-                            Input->Mouse.Cursor.Y >= 0 && Input->Mouse.Cursor.Y <= Height
-                        ) {
-                            v2 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
-                            double AngularVelocity = 0.5;
-                
-                            Entity->Angle -= AngularVelocity * Offset.X;
-                            Entity->Pitch += AngularVelocity * Offset.Y;
-                        }
-                    }
-
-                    if (Input->Mode == Controller) {
-                        v2 Joystic = V2(Input->Controller.RightJoystick.X, Input->Controller.RightJoystick.Y);
-
-                        if (modulus(Joystic) > 0.1) {
-                            Entity->Angle -= 3.0 * Joystic.X;
-                            Entity->Pitch -= 3.0 * Joystic.Y;
-                        }
-                    }
-
-                    Entity->Angle = NormalizeAngle(Entity->Angle);
-                    Entity->Pitch = NormalizeAngle(Entity->Pitch);
-
-                    float cosA = cosf(Entity->Angle * Degrees);
-                    float sinA = sinf(Entity->Angle * Degrees);
-                    float cosP = cosf(Entity->Pitch * Degrees);
-                    float sinP = sinf(Entity->Pitch * Degrees);
-                    Entity->Transform.Translation = Entity->Anchor + Entity->Distance * V3(sinA * cosP, sinP, cosA * cosP);
-                }
-            } break;
-
-            case Character_Entity_Type: {
-                // Collision
-                Entity->Collided = false;
-                uint32 TestedEntities = 0;
-                uint32 TestIndex = 0;
-                while (TestedEntities < State->Entities.Count) {
-                    game_entity* TestEntity = nullptr;
-                    if (State->Entities.IsOccupied[TestIndex]) {
-                        TestEntity = &State->Entities[TestIndex++];
-                        TestedEntities++;
-                    }
-                    else {
-                        TestIndex++;
-                        continue;
-                    }
-
-                    if (TestEntity == Entity) {
-                        continue;
-                    }
-
-                    if (Collide(Entity, TestEntity)) {
-                        Entity->Collided = true;
-                        TestEntity->Collided = true;
-                    }
-                    else {
-                        TestEntity->Collided = false;
-                    }
-                }
-            } break;
-
-            case Prop_Entity_Type: {
-
-            } break;
-
-            case Weapon_Entity_Type: {
-                if (Entity->Parent == nullptr) {
-                    Entity->AngularVelocity = V3(0,1,0);
-                }
-            } break;
-
-            default: {
-                Raise("Invalid entity type.");
-            }
-        }
-
-        // Movement by input
-        if (Entity->Flags & entity_flag::movable) {
-            v3 Direction = V3(0,0,0);
-            float Speed = 20.0f;
-            if (Input->Mode == Keyboard) {
-                bool Left = Input->Keyboard.A.IsDown;
-                bool Right = Input->Keyboard.D.IsDown;
-                bool Up = Input->Keyboard.W.IsDown;
-                bool Down = Input->Keyboard.S.IsDown;
-                if (Right) { Direction.X += 1.0f; }
-                if (Left)  { Direction.X -= 1.0f; }
-                if (Up)    { Direction.Z += 1.0f; }
-                if (Down)  { Direction.Z -= 1.0f; }
-                Direction = normalize(Direction);
-                if (Input->Keyboard.Space.IsDown) Direction.Y += 1.0f;
-                if (Input->Keyboard.Shift.IsDown) Direction.Y -= 1.0f;
-            }
-            else if (Input->Mode == Controller) {
-                v2 Normalized = normalize(Input->Controller.LeftJoystick);
-                Direction.X = Normalized.X;
-                Direction.Z = Normalized.Y;
-                Speed = 20.0f * modulus(Input->Controller.LeftJoystick);
-            }
-
-            if (modulus(Direction) > Epsilon) {
-                basis HorizontalBasis = GetBasis(State->ActiveCamera->Angle, 0);
-                // Direction is in coordinates relative to camera
-                float Angle = atan2f(-Direction.X, Direction.Z);
-                Direction = Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X - Direction.Z * HorizontalBasis.Z;
-                Entity->Velocity = Speed * Direction;
-                Entity->Transform.Rotation = Quaternion(State->ActiveCamera->Angle * Degrees + Angle, V3(0,1,0));
-            }
-            else {
-                Entity->Velocity = V3(0,0,0);
-            }
-        }
-        // Movable flag overrides follow mechanic
-        else if (Entity->Follow) {
-            v3 Displacement = Entity->Follow->Transform.Translation - Entity->Anchor;
-            Displacement.Y = 0;
-            float Distance = modulus(Displacement);
-            float MinDistance = .01f;
-            if (Distance >= MinDistance) Entity->Velocity = 20.0f * (Distance - MinDistance) * normalize(Displacement);
-            else                         Entity->Velocity = V3(0,0,0);
-        }
-
-        // Kinematics
-        if (Entity->Velocity != V3(0,0,0)) {
-            Entity->Transform.Translation += State->dt * Entity->Velocity;
-            Entity->Anchor += State->dt * Entity->Velocity;
-        }
-        if (Entity->AngularVelocity != V3(0,0,0)) {
-            Entity->Transform.Rotation = Entity->Transform.Rotation * Quaternion(State->dt, Entity->AngularVelocity);
-        }
-        
-        // Animation
-        if (Entity->Flags & entity_flag::animated) {
-            // TODO
-        }
-
-        // Rendering
-        if (Entity->Flags & entity_flag::render) {
-            game_entity* Camera = State->ActiveCamera;
-            basis Basis = GetBasis(Camera->Angle, Camera->Pitch);
-            ray Ray = MouseRay(Group->Width, Group->Height, Camera->Anchor + Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
-            collider Collider = Entity->Transform * Entity->Collider;
-            Entity->Hovered = Raycast(Ray, Collider);
-            bool Outline = Entity->Hovered;
-            PushMesh(
-                Group, 
-                Entity->MeshID, 
-                .Color = Entity->Color,
-                .TextureID = Entity->TextureID, 
-                .Transform = Entity->Transform, 
-                .Outline = Outline
-            );
-
-            if (Group->Debug && Group->DebugColliders) {
-                PushCollider(Group, Entity->Collider, Entity->Transform, Entity->Collided ? Red : Yellow);
-            }
-        }
-    }
 }
 
 #endif
