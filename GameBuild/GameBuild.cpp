@@ -17,41 +17,14 @@ int main(int argc, char* argv[]) {
 
         build_configuration Configuration = {};
         ReadBuildConfiguration(argv[1], &Configuration);
-        GetMetaprogrammingFile(MetaFile);
-        int32 WaitResult = 0;
-        uint64 End = 0;
-
-        file_info MetaprogrammingSource = Platform.GetFileInfo(Configuration.MetaprogrammingCodePath);
-        file_info MetaprogrammingBinary = Platform.GetFileInfo(MetaFile);
         
-        uint64 MetaprogrammingCompilationStart = 0;
-        process_info MetaprogrammingCompilation = {};
-        if (MetaprogrammingSource.Timestamp > MetaprogrammingBinary.Timestamp) {
-            MetaprogrammingCompilationStart = Platform.GetWallClock();
-            MetaprogrammingCompilation = CompileMetaprogramming(&Configuration);
-            WaitResult = Platform.WaitForProcess(&MetaprogrammingCompilation, -1);
-            End = Platform.GetWallClock();
-            LogCompilationResult("Metaprogramming", WaitResult, MetaprogrammingCompilationStart, End);
-        }
-
-        uint64 MetaprogrammingExecutionStart = Platform.GetWallClock();
-        process_info MetaprogrammingExecution = Platform.RunCommand(MetaFile);
-        WaitResult = Platform.WaitForProcess(&MetaprogrammingExecution, -1);
-        if (WaitResult >= 0) {
-            uint64 End = Platform.GetWallClock();
-            float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
-            log_level Level = WaitResult > 0 ? Error : Info;
-            std::string LogText = WaitResult == 0 ?
-                std::format("Metaprogramming executed in {} milliseconds.", 1000.0f * Time) :
-                std::format("Metaprogramming execution failed with code '{}'", WaitResult);
-            Log(Level, LogText.data());
-        }
+        MetaProgram(&Configuration);
         
         uint64 LibraryCompilationStart = Platform.GetWallClock();
         process_info LibraryCompilation = CompileGameLibraryHot(&Configuration);
-        WaitResult = Platform.WaitForProcess(&LibraryCompilation, -1);
-        End = Platform.GetWallClock();
-        LogCompilationResult("Game library", WaitResult, LibraryCompilationStart, End);
+        int32 WaitResult = Platform.WaitForProcess(&LibraryCompilation, -1);
+        uint64 LibraryCompilationEnd = Platform.GetWallClock();
+        LogCompilationResult("Game library", WaitResult, LibraryCompilationStart, LibraryCompilationEnd);
     }
     // Normal compilation
     else if (argc == 2) {
@@ -111,30 +84,7 @@ int main(int argc, char* argv[]) {
 
         // Metaprogramming
         if (Configuration.Preprocess) {
-            GetMetaprogrammingFile(MetaFile);
-            process_info MetaprogrammingProcess = {};
-            file_info MetaprogrammingSource = Platform.GetFileInfo(Configuration.MetaprogrammingCodePath);
-            file_info MetaprogrammingBinary = Platform.GetFileInfo(MetaFile);
-            if (MetaprogrammingSource.Timestamp > MetaprogrammingBinary.Timestamp) {
-                uint64 Start = Platform.GetWallClock();
-                MetaprogrammingProcess = CompileMetaprogramming(&Configuration);
-                uint32 ExitCode = Platform.WaitForProcess(&MetaprogrammingProcess, -1);
-                uint64 End = Platform.GetWallClock();
-
-                LogCompilationResult("Metaprogramming", ExitCode, Start, End);
-            }
-
-            uint64 Start = Platform.GetWallClock();
-            MetaprogrammingProcess = Platform.RunCommand(MetaFile);
-            int32 ExitCode = Platform.WaitForProcess(&MetaprogrammingProcess, -1);
-            uint64 End = Platform.GetWallClock();
-
-            float Time = GetSecondsElapsed(Start, End);
-            log_level Level = ExitCode == 0 ? Info : Error;
-            std::string LogString;
-            if (ExitCode == 0) LogString = std::format("Metaprogramming executed in {:.2f} milliseconds.", 1000.0f * Time);
-            else               LogString = std::format("Metaprogramming execution failed with code '{}'.", ExitCode);
-            Log(Level, LogString.data());
+            MetaProgram(&Configuration);
         }
 
         // Platform layer

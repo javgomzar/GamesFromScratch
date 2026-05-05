@@ -235,9 +235,6 @@ void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64
     Log(Level, LogString.c_str());
 }
 
-#define GetMetaprogrammingFile(FileVariable) char FileVariable[32] = "bin" PATH_SEPARATOR "Meta";\
-    if (SystemOS == Windows) strcat(FileVariable, ".exe");
-
 process_info CompileMetaprogramming(build_configuration* Configuration) {
     Log(Info, "Compiling metaprogramming code.");
     std::string Command;
@@ -263,6 +260,44 @@ process_info CompileMetaprogramming(build_configuration* Configuration) {
         default: Raise("Invalid compiler. Only MSVC and clang are supported for now.");
     }
     return Platform.RunCommand(Command.data());
+}
+
+/* Compiles the meta-program (if needed) and runs it.*/
+void MetaProgram(build_configuration* Config) {
+    char MetaFile[32] = "bin" PATH_SEPARATOR "Meta";
+    if (SystemOS == Windows) strcat(MetaFile, ".exe");
+    file_info MetaprogrammingSource = Platform.GetFileInfo(Config->MetaprogrammingCodePath);
+    file_info MetaprogrammingBinary;
+
+    bool MetaprogrammingBinaryExists = Platform.FileExists(MetaFile);        
+    if (MetaprogrammingBinaryExists) {
+        MetaprogrammingBinary = Platform.GetFileInfo(MetaFile);
+    }
+    
+    int32 WaitResult = 0;
+    uint64 MetaprogrammingCompilationStart = 0;
+    uint64 MetaprogrammingCompilationEnd = 0;
+    process_info MetaprogrammingCompilation = {};
+    if (!MetaprogrammingBinaryExists || MetaprogrammingSource.Timestamp > MetaprogrammingBinary.Timestamp) {
+        MetaprogrammingCompilationStart = Platform.GetWallClock();
+        MetaprogrammingCompilation = CompileMetaprogramming(Config);
+        WaitResult = Platform.WaitForProcess(&MetaprogrammingCompilation, -1);
+        MetaprogrammingCompilationEnd = Platform.GetWallClock();
+        LogCompilationResult("Metaprogramming", WaitResult, MetaprogrammingCompilationStart, MetaprogrammingCompilationEnd);
+    }
+
+    uint64 MetaprogrammingExecutionStart = Platform.GetWallClock();
+    process_info MetaprogrammingExecution = Platform.RunCommand(MetaFile);
+    WaitResult = Platform.WaitForProcess(&MetaprogrammingExecution, -1);
+    if (WaitResult >= 0) {
+        uint64 End = Platform.GetWallClock();
+        float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
+        log_level Level = WaitResult > 0 ? Error : Info;
+        std::string LogText = WaitResult == 0 ?
+            std::format("Metaprogramming executed in {} milliseconds.", 1000.0f * Time) :
+            std::format("Metaprogramming execution failed with code '{}'", WaitResult);
+        Log(Level, LogText.data());
+    }
 }
 
 process_info CompilePlatformLayer(build_configuration* Configuration) {
