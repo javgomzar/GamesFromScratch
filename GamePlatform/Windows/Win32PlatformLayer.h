@@ -1,4 +1,5 @@
 #include "GamePlatform.h"
+#include "Resource.h"
 
 system_os SystemOS = Windows;
 

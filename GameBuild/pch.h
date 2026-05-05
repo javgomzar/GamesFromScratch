@@ -49,7 +49,6 @@
 #include <XInput.h>
 #include <xaudio2.h>
 
-#include "Resource.h"
 #elif __linux__
 #include <fcntl.h>
 #include <unistd.h>
