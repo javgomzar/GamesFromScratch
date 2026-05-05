@@ -21,6 +21,8 @@
 #include <format>
 #include <math.h>
 #include <float.h>
+
+// XXHash library - non cryptographic hash
 #include <xxhash.h>
 
 #ifdef _WIN32

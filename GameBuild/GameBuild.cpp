@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
             else {
                 PCHOutputPath = std::format("bin" PATH_SEPARATOR "{}.gch", PCHOutput);
             }
-            std::string PCHSourcePath = "GameLibrary" PATH_SEPARATOR "pch.h";
+            std::string PCHSourcePath = "GameBuild" PATH_SEPARATOR "pch.h";
             if (Platform.FileExists(PCHOutputPath.data())) {
                 file_info PrecompiledHeadersOutput = Platform.GetFileInfo(PCHOutputPath.data());
                 file_info PrecompiledHeadersSource = Platform.GetFileInfo(PCHSourcePath.data());
