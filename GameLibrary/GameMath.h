@@ -68,6 +68,30 @@ inline float NormalizeAngle(float Angle) {
 	return Angle;
 }
 
+inline int8 GetExponent32(float Number) {
+	uint32 Bytes;
+	memcpy(&Bytes, &Number, 4);
+	return ((Bytes & 0x7F800000) >> 23) - 127;
+}
+
+inline uint32 GetMantissa32(float Number) {
+	uint32 Bytes;
+	memcpy(&Bytes, &Number, 4);
+	return Bytes & 0x7FFFFF;
+}
+
+inline int16 GetExponent64(double Number) {
+	uint64 Bytes;
+	memcpy(&Bytes, &Number, 8);
+	return ((Bytes & 0x7FF0000000000000ULL) >> 52) - 1023;
+}
+
+inline uint64 GetMantissa64(double Number) {
+	uint64 Bytes;
+	memcpy(&Bytes, &Number, 8);
+	return Bytes & 0xFFFFFFFFFFFFFULL;
+}
+
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | RNG                                                                                                                                    |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
@@ -165,12 +189,30 @@ uint32 log2(uint64 X) {
 }
 
 /*
-	IEEE-754 floating-point standard from sign, exponent and mantissa.
+	IEEE-754 32 bits floating-point standard from sign, exponent and mantissa.
 */
-float CreateFloat(bool Negative, int8 Exponent, uint32 Mantissa) {
-	float Result = 0;
-	uint32* Value = (uint32*)&Result;
-	*Value = (Negative << 31) | ((Exponent + 127) << 23) | (Mantissa & 0x7FFFFF);
+float BuildFloat(bool Negative, int8 Exponent, uint32 Mantissa) {
+	uint32 Exponent32 = 0;
+	if (Exponent != -127 || Mantissa != 0) {
+		Exponent32 = Exponent + 127;
+	}
+	uint32 Value = ((uint32)Negative << 31) | (Exponent32 << 23) | (Mantissa & 0x7FFFFF);
+	float Result;
+	memcpy(&Result, &Value, 4);
+	return Result;
+}
+
+/*
+	IEEE-754 64 bits floating-point standard from sign, exponent and mantissa.
+*/
+double BuildFloat(bool Negative, int16 Exponent, uint64 Mantissa) {
+	uint64 Exponent64 = 0;
+	if (Exponent != -1023 || Mantissa != 0) {
+		Exponent64 = Exponent + 1023;
+	}
+	uint64 Value = ((uint64)Negative << 63) | (Exponent64 << 52) | (Mantissa & 0xFFFFFFFFFFFFFULL);
+	double Result;
+	memcpy(&Result, &Value, 8);
 	return Result;
 }
 
@@ -2372,7 +2414,7 @@ float BitReverseFloat(uint32 X) {
 	uint32 Mantissa = (BitReverse(X) << (1 + FirstOne)) >> 9;
 	int8 Exponent = -FirstOne-1;
 
-	float Result = CreateFloat(false, Exponent, Mantissa);
+	float Result = BuildFloat(false, Exponent, Mantissa);
 	return Result;
 }
 
