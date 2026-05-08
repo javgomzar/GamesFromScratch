@@ -286,6 +286,10 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // TestFFT(Group, &Memory->Permanent, Time);
 
+    TestFloatingPoint();
+
+    TestFormat();
+
     // Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
     
     UpdateUI(Memory, Input);

@@ -1,5 +1,7 @@
 #include "GameBuild.h"
 
+constexpr int ArenaSize = Kilobytes(4);
+static char TextBuffer[2*ArenaSize];
 
 int main(int argc, char* argv[]) {
 #if _WIN32
@@ -7,66 +9,67 @@ int main(int argc, char* argv[]) {
     QueryPerformanceFrequency(&PerfCountFrequencyResult);
     Platform.PerformanceCounterFrequency = PerfCountFrequencyResult.QuadPart;
 #endif
+
+    memory_arena Permanent = MemoryArena(ArenaSize, TextBuffer);
+    memory_arena Transient = MemoryArena(ArenaSize, TextBuffer + ArenaSize);
+
+    build_configuration Config = ReadBuildConfiguration(&Permanent, argv[1]);
+
     // Hot reload
     if (argc == 3 && argv[2]) {
         if (strcmp(argv[2], "-hot") != 0) {
-            std::string ErrorText = std::format("Incorrect argument '{}', try '-hot'.", argv[2]);
-            Log(Error, ErrorText.data());
+            string ErrorText = Format(&Transient, "Incorrect argument '{s}', try '-hot'.", 1, argv[2]);
+            Log(Error, ErrorText.Content);
             return 2;
         }
-
-        build_configuration Configuration = {};
-        ReadBuildConfiguration(argv[1], &Configuration);
         
-        MetaProgram(&Configuration);
+        MetaProgram(&Transient, &Config);
         
         uint64 LibraryCompilationStart = Platform.GetWallClock();
-        process_info LibraryCompilation = CompileGameLibraryHot(&Configuration);
+        process_info LibraryCompilation = CompileGameLibraryHot(&Transient, &Config);
         int32 WaitResult = Platform.WaitForProcess(&LibraryCompilation, -1);
         uint64 LibraryCompilationEnd = Platform.GetWallClock();
         LogCompilationResult("Game library", WaitResult, LibraryCompilationStart, LibraryCompilationEnd);
     }
     // Normal compilation
     else if (argc == 2) {
-        build_configuration Configuration = {};
-        ReadBuildConfiguration(argv[1], &Configuration);
-
         // Precompiled headers
         process_info PCHProcess = {};
-        const char* PCHOutput = Configuration.Mode == Debug ? "debug_pch" : "pch";
-        if (Configuration.PCH) {
+        if (Config.PCH) {
             bool PrecompileHeaders = true;
-            std::string PCHOutputPath;
-            if (SystemOS == Windows) {
-                PCHOutputPath = std::format("bin" PATH_SEPARATOR "{}.pch", PCHOutput);
-            }
-            else {
-                PCHOutputPath = std::format("bin" PATH_SEPARATOR "{}.gch", PCHOutput);
-            }
-            std::string PCHSourcePath = "GameBuild" PATH_SEPARATOR "pch.h";
-            if (Platform.FileExists(PCHOutputPath.data())) {
-                file_info PrecompiledHeadersOutput = Platform.GetFileInfo(PCHOutputPath.data());
-                file_info PrecompiledHeadersSource = Platform.GetFileInfo(PCHSourcePath.data());
+            const char* PCHSourcePath = "GameBuild" PATH_SEPARATOR "pch.h";
+            if (Platform.FileExists(PCHSourcePath) && Platform.FileExists(Config.PCHOutputPath.Content)) {
+                file_info PrecompiledHeadersOutput = Platform.GetFileInfo(Config.PCHOutputPath.Content);
+                file_info PrecompiledHeadersSource = Platform.GetFileInfo(PCHSourcePath);
                 PrecompileHeaders = PrecompiledHeadersSource.Timestamp > PrecompiledHeadersOutput.Timestamp;
             }
             if (PrecompileHeaders) {
                 Log(Info, "Compiling pre-compiled headers.");
-                const char* CompilerFlags = GetCompilerFlags(Configuration.Compiler, Configuration.Mode);
-                std::string Command;
-                switch (Configuration.Compiler) {
+
+                char* Command = (char*)(Transient.Base + Transient.Used);
+                switch (Config.Compiler) {
                     case MSVC: {
-                        Command = std::format(
-                            "{} /std:c++20 /nologo /W0 {} GameBuild/pch.cpp /c {} /Yc\"pch.h\" /Fp\"{}\" /Fo\"bin\\{}.obj\" /Fd\"bin\\{}.pdb\"",
-                            Configuration.CompilerPath, Configuration.Include, CompilerFlags, PCHOutputPath, PCHOutput, PCHOutput
+                        Format(&Transient,
+                            "{s} /std:c++20 /nologo /W0 {s} GameBuild/pch.cpp /c {s} "
+                            "/Yc\"pch.h\" /Fp\"{s}\" /Fo\"bin\\{s}.obj\" /Fd\"bin\\{s}.pdb\"",
+                            6,
+                            Config.CompilerPath, 
+                            Config.Include, 
+                            Config.CompilerFlags, 
+                            Config.PCHOutputPath, 
+                            Config.PCHOutputFile, 
+                            Config.PCHOutputFile
                         );
                     } break;
 
                     case clang: {
-                        Command = std::format(
-                            "{} -x c++-header -std=c++20 -fPIC {} {} GameBuild/pch.h -o {}",
-                            Configuration.CompilerPath, 
-                            GetCompilerFlags(Configuration.Compiler, Configuration.Mode),
-                            Configuration.Include, PCHOutputPath
+                        Format(&Transient,
+                            "{s} -x c++-header -std=c++20 -fPIC {s} {s} GameBuild/pch.h -o {s}",
+                            4,
+                            Config.CompilerPath, 
+                            Config.CompilerFlags,
+                            Config.Include, 
+                            Config.PCHOutputPath
                         );
                     } break;
 
@@ -74,30 +77,32 @@ int main(int argc, char* argv[]) {
                 }
 
                 uint64 Start = Platform.GetWallClock();
-                PCHProcess = Platform.RunCommand(Command.data());
+                PCHProcess = Platform.RunCommand(Command);
                 uint32 ExitCode = Platform.WaitForProcess(&PCHProcess, -1);
                 uint64 End = Platform.GetWallClock();
 
                 LogCompilationResult("Precompiled headers", ExitCode, Start, End);
+                ClearArena(&Transient);
             }
         }
 
         // Metaprogramming
-        if (Configuration.Preprocess) {
-            MetaProgram(&Configuration);
+        if (Config.Preprocess) {
+            MetaProgram(&Transient, &Config);
         }
 
         // Platform layer
         uint64 PlatformStart = Platform.GetWallClock();
-        process_info PlatformProcess = CompilePlatformLayer(&Configuration);
+        process_info PlatformProcess = CompilePlatformLayer(&Transient, &Config);
         uint32 PlatformExitCode = Platform.WaitForProcess(&PlatformProcess, -1);
         uint64 PlatformEnd = Platform.GetWallClock();
         const char* OSLayerName = SystemOS == Windows ? "Windows platform layer" : "Linux platform layer";
         LogCompilationResult(OSLayerName, PlatformExitCode, PlatformStart, PlatformEnd);
+        ClearArena(&Transient);
 
         // Game library
         uint64 LibraryStart = Platform.GetWallClock();
-        process_info LibraryProcess = CompileGameLibrary(&Configuration);
+        process_info LibraryProcess = CompileGameLibrary(&Transient, &Config);
         int32 LibraryExitCode = Platform.WaitForProcess(&LibraryProcess, -1);
         uint64 LibraryEnd = Platform.GetWallClock();
         LogCompilationResult("Game library", LibraryExitCode, LibraryStart, LibraryEnd);

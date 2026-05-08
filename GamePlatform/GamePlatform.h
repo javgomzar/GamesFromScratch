@@ -181,15 +181,6 @@ inline memory_arena SuballocateMemoryArena(memory_arena* Arena, memory_index Siz
     return Result;
 }
 
-inline char* PushString(memory_arena* Arena, const char* String) {
-    int L = strlen(String);
-    char* Result = PushArray(Arena, L + 1, char);
-    for (int i = 0; i < L; i++) {
-        Result[i] = String[i];
-    }
-    return Result;
-}
-
 /*
 +------------------------------------------------------------------------------------------------------------------------------------------+
 | Data structures                                                                                                                          |
@@ -604,6 +595,234 @@ public:
         return Entry->Value;
     }
 };
+
+// Strings
+
+struct string {
+    int Length;
+    const char* Content;
+
+    string() {
+        Length = 0;
+        Content = nullptr;
+    }
+
+    string(const char* String) {
+        Length = strlen(String);
+        Content = String;
+    }
+
+    char operator[](int Index) {
+        return Content[Index];
+    };
+};
+
+bool operator==(string S1, string S2) {
+    bool Result = S1.Length == S2.Length;
+    if (Result) {
+        for (int i = 0; i < S1.Length; i++) {
+            if (S1[i] != S2[i]) {
+                return false;
+            }
+        }
+    }
+    return Result;
+}
+
+string Slice(string S, int Start, int End) {
+    Assert(End >= Start);
+    string Result;
+    Result.Length = End - Start;
+    Result.Content = S.Content + Start;
+    return Result;
+}
+
+string Format(memory_arena* Arena, const char* Format, int nInputs, ...) {
+    string Result = {};
+    Result.Length = 0;
+    int FormatLength = strlen(Format);
+
+    if (FormatLength == 0) {
+        Result.Content = nullptr;
+        return Result;
+    }
+
+    char* Pointer = (char*)(Arena->Base + Arena->Used);
+    Result.Content = Pointer;
+
+    va_list Args;
+    va_start(Args, nInputs);
+
+    int DestIndex = 0;
+    for (int SourceIndex = 0; SourceIndex < FormatLength; SourceIndex++) {
+        if (Format[SourceIndex] == '{') {
+            switch (Format[++SourceIndex]) {
+                case 'i': {
+                    int32 Input = va_arg(Args, int32);
+                    if (Input == 0) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = '0';
+                        Result.Length++;
+                        break;
+                    }
+                    else if (Input < 0) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = '-';
+                        Result.Length++;
+                        Input = -Input;
+                    }
+                    int nDigits = 0;
+                    char Digits[16];
+                    while (Input > 0) {
+                        Digits[nDigits++] = '0' + (Input % 10);
+                        Input /= 10;
+                    }
+                    for (int i = 0; i < nDigits; i++) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
+                        Result.Length++;
+                    }
+                } break;
+
+                case 'I': {
+                    int64 Input = va_arg(Args, int64);
+                    if (Input == 0) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = '0';
+                        Result.Length++;
+                        break;
+                    }
+                    else if (Input < 0) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = '-';
+                        Result.Length++;
+                        Input = -Input;
+                    }
+                    int nDigits = 0;
+                    char Digits[32];
+                    while (Input > 0) {
+                        Digits[nDigits++] = '0' + (Input % 10);
+                        Input /= 10;
+                    }
+                    for (int i = 0; i < nDigits; i++) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
+                        Result.Length++;
+                    }
+                } break;
+
+                case 'u': {
+                    uint32 Input = va_arg(Args, uint32);
+                    if (Input == 0) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = '0';
+                        Result.Length++;
+                        break;
+                    }
+                    int nDigits = 0;
+                    char Digits[16];
+                    while (Input > 0) {
+                        Digits[nDigits++] = '0' + (Input % 10);
+                        Input /= 10;
+                    }
+                    for (int i = 0; i < nDigits; i++) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
+                        Result.Length++;
+                    }
+                } break;
+
+                case 'U': {
+                    uint64 Input = va_arg(Args, uint64);
+                    if (Input == 0) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = '0';
+                        Result.Length++;
+                        break;
+                    }
+                    int nDigits = 0;
+                    char Digits[32];
+                    while (Input > 0) {
+                        Digits[nDigits++] = '0' + (Input % 10);
+                        Input /= 10;
+                    }
+                    for (int i = 0; i < nDigits; i++) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
+                        Result.Length++;
+                    }
+                } break;
+
+                case 'f': {
+                    double Input = va_arg(Args, double);
+                    if (Input < 0) {
+                        Input = -Input;
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = '-';
+                        Result.Length++;
+                    }
+
+                    uint64 IntegerPart = floor(Input);
+                    double DecimalPart = Input - IntegerPart;
+
+                    if (IntegerPart == 0) {
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = '0';
+                        Result.Length++;
+                    }
+
+                    int nDigits = 0;
+                    char Digits[32];
+                    while (IntegerPart > 0) {
+                        Digits[nDigits++] = '0' + (IntegerPart % 10);
+                        IntegerPart /= 10;
+                    }
+                    
+                    PushArray(Arena, nDigits + 1, char);
+                    for (int i = 0; i < nDigits; i++) {
+                        Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
+                    }
+                    Pointer[DestIndex++] = '.';
+                    Result.Length += nDigits + 1;
+
+                    int nDecimals = Format[++SourceIndex] - '0';
+                    for (int i = 0; i < nDecimals; i++) {
+                        DecimalPart *= 10.0;
+                        int Digit = DecimalPart;
+                        PushArray(Arena, 1, char);
+                        Pointer[DestIndex++] = '0' + Digit;
+                        Result.Length++;
+                        DecimalPart -= Digit;
+                    }
+                } break;
+
+                case 's': {
+                    string Input = va_arg(Args, string);
+                    Result.Length += Input.Length;
+                    PushArray(Arena, Input.Length, char);
+                    for (int i = 0; i < Input.Length; i++) {
+                        Pointer[DestIndex++] = Input[i];
+                    }
+                } break;
+
+                default: {
+                    Assert(false, "Invalid format flag.");
+                }
+            }
+
+            Assert(Format[SourceIndex + 1] == '}');
+            SourceIndex++;
+        }
+        else {
+            PushArray(Arena, 1, char);
+            Pointer[DestIndex++] = Format[SourceIndex];
+            Result.Length++;
+        }
+    }
+    PushArray(Arena, 1, char);
+    va_end(Args);
+    return Result;
+}
 
 /*
 +---------------------------------------------------------------------------------------------------------------------------------+

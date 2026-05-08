@@ -759,8 +759,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     // Code compilation setup
-    build_configuration BuildConfiguration = {};
-    ReadBuildConfiguration("GameBuild\\build.conf", &BuildConfiguration);
+    build_configuration BuildConfig = ReadBuildConfiguration(&Memory.Permanent, "GameBuild\\build.conf");
     process_info LibraryCompilation = {};
     uint64 LibraryCompilationStart = 0;
     char MetaFile[] = "bin\\Meta.exe";
@@ -771,7 +770,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     char LogBuffer[64] = {};
 
     // Slang setup
-    // InitializeSlang(&Memory.Permanent, BuildConfiguration.Renderer);
+    // InitializeSlang(&Memory.Permanent, BuildConfig.Renderer);
 
     Memory.Running = true;
     bool FirstFrame = true;
@@ -784,12 +783,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             (Input->Keyboard.Control.JustPressed && Input->Keyboard.H.IsDown ||
              Input->Keyboard.Control.IsDown      && Input->Keyboard.H.JustPressed)
         ) {
-            int64 MetaprogrammingSourceTimestamp = Win32GetFileInfo(BuildConfiguration.MetaprogrammingCodePath).Timestamp;
+            int64 MetaprogrammingSourceTimestamp = Win32GetFileInfo(BuildConfig.MetaprogrammingCodePath.Content).Timestamp;
             int64 MetaprogrammingBinaryTimestamp = Win32GetFileInfo(MetaFile).Timestamp;
     
             if (MetaprogrammingSourceTimestamp > MetaprogrammingBinaryTimestamp) {
                 MetaprogrammingCompilationStart = Win32GetWallClock();
-                MetaprogrammingCompilation = CompileMetaprogramming(&BuildConfiguration);
+                MetaprogrammingCompilation = CompileMetaprogramming(&Memory.Transient, &BuildConfig);
             }
             else {
                 MetaprogrammingExecutionStart = Win32GetWallClock();
@@ -824,7 +823,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
                 if (WaitResult == 0) {
                     LibraryCompilationStart = Win32GetWallClock();
-                    LibraryCompilation = CompileGameLibraryHot(&BuildConfiguration);
+                    LibraryCompilation = CompileGameLibraryHot(&Memory.Transient, &BuildConfig);
                 }
             }
         }

@@ -2,6 +2,102 @@
 #include "GameRender.h"
 #include "GameData.h"
 
+void TestFormat() {
+    string Test;
+    memory_arena Arena = AllocateMemoryArena(1024);
+
+    int32 Int32 = 0;
+    Test = Format(&Arena, "Test {i} ...", 1, Int32);
+    Assert(Test == string("Test 0 ..."));
+    Int32 = -112312492;
+    Test = Format(&Arena, "Test {i} ...", 1, Int32);
+    Assert(Test == string("Test -112312492 ..."));
+
+    ClearArena(&Arena);
+
+    int64 Int64 = 0;
+    Test = Format(&Arena, "Test {I} ...", 1, Int64);
+    Assert(Test == string("Test 0 ..."));
+    Int64 = -1982938423712312492;
+    Test = Format(&Arena, "Test {I} ...", 1, Int64);
+    Assert(Test == string("Test -1982938423712312492 ..."));
+
+    ClearArena(&Arena);
+
+    uint32 Uint32 = 0;
+    Test = Format(&Arena, "Test {u} ...", 1, Uint32);
+    Assert(Test == string("Test 0 ..."));
+    Uint32 = 112312492;
+    Test = Format(&Arena, "Test {u} ...", 1, Uint32);
+    Assert(Test == string("Test 112312492 ..."));
+
+    ClearArena(&Arena);
+
+    uint64 Uint64 = 0;
+    Test = Format(&Arena, "Test {U} ...", 1, Uint64);
+    Assert(Test == string("Test 0 ..."));
+    Uint64 = 1982938423712312492;
+    Test = Format(&Arena, "Test {U} ...", 1, Uint64);
+    Assert(Test == string("Test 1982938423712312492 ..."));
+
+    ClearArena(&Arena);
+
+    Test = Format(&Arena, "Hello {s}!", 1, string("world"));
+    Assert(Test == string("Hello world!"));
+
+    ClearArena(&Arena);
+
+    double Float = -0.1;
+    Test = Format(&Arena, "Test {f3} ...", 1, Float);
+    Assert(Test == string("Test -0.100 ..."));
+
+    ClearArena(&Arena);
+
+    Test = Format(&Arena, "Test {i} {I} {u} {U} {s} {f3} ...", 6, Int32, Int64, Uint32, Uint64, string("Hola"), 123.123);
+    Assert(Test == string("Test -112312492 -1982938423712312492 112312492 1982938423712312492 Hola 123.123 ..."));
+    
+    FreeMemoryArena(&Arena);
+}
+
+void TestFloatingPoint() {
+    float TestValues32[] = {
+        0.0f,
+        -0.0f,
+        1.0f,
+        69.0f,
+        -0.00001f,
+        420.0f,
+        123456789.9f
+    };
+
+    uint32 N = ArrayCount(TestValues32);
+    for (int i = 0; i < N; i++) {
+        float Value = TestValues32[i];
+        int8 Exponent = GetExponent32(Value);
+        uint32 Mantissa = GetMantissa32(Value);
+        float Result = BuildFloat(Value < 0, Exponent, Mantissa);
+        Assert(Value == Result);
+    }
+
+    double TestValues64[] = {
+        0.0,
+        -0.0,
+        1.0,
+        69.0,
+        -0.00001,
+        420.0,
+        123456789.9
+    };
+
+    N = ArrayCount(TestValues64);
+    for (int i = 0; i < N; i++) {
+        double Value = TestValues64[i];
+        int16 Exponent = GetExponent64(Value);
+        uint64 Mantissa = GetMantissa64(Value);
+        double Result = BuildFloat(Value < 0, Exponent, Mantissa);
+        Assert(Value == Result);
+    }
+}
 
 void TestDataFileManager() {
     game_data_file_manager Manager = InitializeDataFileManager("GameData\\Data\\data_file_manager");
