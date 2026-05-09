@@ -2129,7 +2129,7 @@ inline uint16 ComputeTimeRecordsColWidths(
             Text = Format(Arena, "{f2}", 1, Record->CycleCount / 1000000.0f);
             Width = GetTextWidth(Text, Font, Points);
             if (Width > *MCyclesColWidth) *MCyclesColWidth = Width;
-            Text = Format(Arena, "{}:{}", 2, Record->FileName, Record->LineNumber);
+            Text = Format(Arena, "{s}:{i}", 2, Record->FileName, Record->LineNumber);
             Width = GetTextWidth(Text, Font, Points);
             if (Width > *FileColWidth) *FileColWidth = Width;
         }
