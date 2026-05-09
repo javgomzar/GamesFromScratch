@@ -17,7 +17,7 @@
 
 FILE* OpenFile(const char* Path, const char* Permissions) {
     FILE* File = fopen(Path, Permissions);
-    if (File == NULL) {
+    if (!File) {
         perror("Failed to open file");
         abort();
     }

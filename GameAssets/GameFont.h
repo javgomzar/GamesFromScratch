@@ -489,8 +489,8 @@ void ClosestPoints(glyph_polygon P, glyph_polygon Q, struct link** OutP, struct 
 	struct link* PVertex = P.Vertices.First;
 	struct link* QVertex = Q.Vertices.First;
 	float D = FLT_MAX;
-	struct link* ResultP = NULL;
-	struct link* ResultQ = NULL;
+	struct link* ResultP = nullptr;
+	struct link* ResultQ = nullptr;
 	do {
 		do {
             v2 PPoint = GetContourPointV2((glyph_contour_point*)PVertex->Data);
@@ -523,8 +523,8 @@ void ClosestPoints(glyph_polygon P, glyph_polygon Q, struct link** OutP, struct 
 glyph_polygon Concatenate(memory_arena* Arena, glyph_polygon P, glyph_polygon Q) {
 	glyph_polygon Result = {};
 
-	struct link* V = NULL;
-	struct link* W = NULL;
+	struct link* V = nullptr;
+	struct link* W = nullptr;
 	ClosestPoints(P, Q, &V, &W);
 
 	Result.Vertices.First = V;

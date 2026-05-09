@@ -36,7 +36,7 @@ debug_entry* _AddDebugEntry(
     int Size, 
     void* Value, 
     bool Editable, 
-    debug_entry* Parent = NULL
+    debug_entry* Parent = nullptr
 ) {
     debug_entry* Entry = &DebugInfo->Entries[DebugInfo->nEntries++];
     Entry->Name = Name;
@@ -56,7 +56,7 @@ debug_entry* _AddDebugArray(
     int Size,
     void* Value,
     uint32 Count,
-    debug_entry* Parent = NULL
+    debug_entry* Parent = nullptr
 ) {
     uint8* Memory = (uint8*)Value;
     debug_entry* Result = 0;
@@ -76,7 +76,7 @@ debug_entry* _AddDebugPointerArray(
     int Size,
     void* Value,
     uint32 Count,
-    debug_entry* Parent = NULL
+    debug_entry* Parent = nullptr
 ) {
     uint8* Memory = (uint8*)Value;
     debug_entry* Result = 0;

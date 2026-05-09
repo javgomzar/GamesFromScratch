@@ -187,7 +187,7 @@ void PushParent(ui_element* Parent) {
 }
 
 void PopParent() {
-    if (UI.Tree.Parent == NULL) Raise("No parent in the stack.");
+    if (!UI.Tree.Parent) Raise("No parent in the stack.");
     UI.Tree.Parent = UI.Tree.Parent->Parent;
     PopID();
 }
@@ -233,7 +233,7 @@ ui_element* _PushUIElement(
         }
     }
     if (!Found) Element = NewUIElement(ID);
-    if (UI.Tree.First == NULL) UI.Tree.First = Element;
+    if (!UI.Tree.First) UI.Tree.First = Element;
 
     Element->Parent = UI.Tree.Parent;
     ui_size Sizes[2] = { Options.SizeX, Options.SizeY };
@@ -297,7 +297,7 @@ void BeginContext(game_memory* Memory, game_input* Input) {
 
 void ComputeSizes() {
     ui_element* Element = UI.Tree.First;
-    if (Element == NULL) return;
+    if (!Element) return;
 
     float GroupSizes[2] = { (float)UI.Group->Width, (float)UI.Group->Height };
 
@@ -337,7 +337,7 @@ void ComputeSizes() {
             }
         }
 
-        if (Element->Next == NULL) break;
+        if (!Element->Next) break;
         Element = Element->Next;
     }
 
@@ -362,7 +362,7 @@ void ComputeSizes() {
             Parent->Rect.Height = Parent->Size[axis_y].Value;
         }
         
-        if (Element->Previous == NULL) break;
+        if (!Element->Previous) break;
         Element = Element->Previous;
     }
 
@@ -383,7 +383,7 @@ void ComputeSizes() {
             }
         }
         
-        if (Element->Next == NULL) break;
+        if (!Element->Next) break;
         Element = Element->Next;
     }
 }
@@ -391,7 +391,7 @@ void ComputeSizes() {
 void ComputeLayout() {
     // Compute relative positions
     ui_element* Element = UI.Tree.First;
-    if (Element == NULL) return;
+    if (!Element) return;
 
     while(Element) {
         // Some elements lay out their children
@@ -417,7 +417,7 @@ void ComputeLayout() {
         float ParentMargins[2]  = { 0, 0 };
         float ParentPosition[2] = { 0, 0 };
 
-        bool HasParent = Element->Parent != NULL;
+        bool HasParent = Element->Parent;
         if (HasParent) {
             ParentSizes[axis_x] = Element->Parent->Rect.Width;
             ParentSizes[axis_y] = Element->Parent->Rect.Height;
@@ -474,7 +474,7 @@ void RenderUI() {
 
 const float SIDEBAR_WIDTH = 10.0f;
 void UISidebar(ui_axis Axis) {
-    Assert(UI.Tree.Parent != NULL);
+    Assert(UI.Tree.Parent);
     ui_axis OppositeAxis = Opposite(Axis);
 
     ui_alignment Alignments[2];
@@ -483,7 +483,7 @@ void UISidebar(ui_axis Axis) {
 
     float ParentsSize[2]       = { UI.Tree.Parent->Rect.Width, UI.Tree.Parent->Rect.Height };
     float ParentsParentSize[2] = { (float)UI.Group->Width, (float)UI.Group->Height };
-    if (UI.Tree.Parent->Parent != NULL) {
+    if (UI.Tree.Parent->Parent) {
         ParentsSize[0] = UI.Tree.Parent->Parent->Rect.Width;
         ParentsSize[1] = UI.Tree.Parent->Parent->Rect.Height;
     }
@@ -554,7 +554,7 @@ struct ui_menu {
 
     ~ui_menu() {
         float ParentSize = StackAxis == axis_x ? UI.Group->Width : UI.Group->Height;
-        if (Element->Parent != NULL) {
+        if (Element->Parent) {
             ParentSize = axis_x ? Element->Parent->Rect.Width : Element->Parent->Rect.Height;
         }
         float ElementSize = StackAxis == axis_x ? Element->Rect.Width : Element->Rect.Height;
@@ -644,7 +644,7 @@ bool UIButton(const char* Text, float Points = 20.0f) {
         .Points = Points,
         .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
     );
-    if (Element->Parent != NULL) {
+    if (Element->Parent) {
         if (Element->Parent->Flags & ui_flag::stack_children_x) {
             Element->Alignment[0] = ui_alignment_free;
         }
@@ -679,7 +679,7 @@ void UIDebugValue(debug_entry* Entry) {
         Element->Size[axis_y] = UISizeSumChildren(Sizes[axis_y].Value);
         Element->Flags = ui_flag::stack_children_y;
         if (Element->Hovered) Element->Color = Yellow;
-        if (Entry->Value == NULL) {
+        if (Entry->Value) {
             Element->Expanded = false;
         }
         else if (Element->Clicked) {
@@ -701,7 +701,7 @@ void UIDebugValue(debug_entry* Entry) {
                                 Member.Name, 
                                 Member.MemberType, 
                                 Member.Size, 
-                                Pointer ? *(void**)Pointer : NULL, 
+                                Pointer ? *(void**)Pointer : nullptr, 
                                 Entry->Editable, 
                                 Entry
                             );
@@ -896,8 +896,8 @@ void UpdateUI(
     ComputeLayout();
     RenderUI();
 
-    UI.Tree.Current = NULL;
-    UI.Tree.Parent = NULL;
+    UI.Tree.Current = nullptr;
+    UI.Tree.Parent = nullptr;
 
     Assert(UI.IDStack.n == 0);
 }

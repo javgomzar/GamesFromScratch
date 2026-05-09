@@ -19,7 +19,7 @@ void Log(log_level Level, const char* Content) {
     }
 
     // Timestamp
-    time_t t = time(NULL);
+    time_t t = time(nullptr);
     struct tm tm;
     localtime_r(&t, &tm);
 
@@ -205,7 +205,7 @@ PLATFORM_COPY_FILE(LinuxFileCopy) {
         return false;
     }
 
-    size_t BytesCopied = sendfile(DestinationFile, SourceFile, NULL, SourceInfo.Size);
+    size_t BytesCopied = sendfile(DestinationFile, SourceFile, nullptr, SourceInfo.Size);
     if (BytesCopied < SourceInfo.Size) {
         sprintf(TextBuffer, "Error trying to copy file %s into %s.", Source, Destination);
         Log(Error, TextBuffer);
@@ -280,7 +280,7 @@ PLATFORM_WAIT_FOR_PROCESS(LinuxWaitForProcess) {
             Result = WTERMSIG(Status);
             break;
         }
-        nanosleep(&SleepTime, NULL);
+        nanosleep(&SleepTime, nullptr);
     } while(Timeout >= Elapsed || Timeout < 0);
 
     return Result;

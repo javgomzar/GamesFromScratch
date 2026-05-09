@@ -251,19 +251,19 @@ struct link {
 };
 
 void Attach(struct link* Link1, struct link* Link2) {
-    Assert(Link1 != NULL || Link2 != NULL, "Two empty links tried to be linked.");
-    if (Link1 != NULL) {
+    Assert(Link1 || Link2, "Two empty links tried to be linked.");
+    if (Link1) {
         Link1->Next = Link2;
     }
-    if (Link2 != NULL) {
+    if (Link2) {
         Link2->Previous = Link1;
     }
 }
 
 void Delete(struct link* ThisLink) {
     Attach(ThisLink->Previous, ThisLink->Next);
-    ThisLink->Previous = NULL;
-    ThisLink->Next = NULL;
+    ThisLink->Previous = nullptr;
+    ThisLink->Next = nullptr;
 }
 
 /*
@@ -274,7 +274,7 @@ struct linked_list {
     struct link* Last;
 
     void PushBack(struct link* Element) {
-        if (First == NULL || Last == NULL) {
+        if (!First || !Last) {
             First = Element;
         }
         else {
@@ -284,7 +284,7 @@ struct linked_list {
     }
 
     void PushFront(struct link* Element) {
-        if (First == NULL || Last == NULL) {
+        if (!First || !Last) {
             Last = Element;
         }
         else {
@@ -304,7 +304,7 @@ struct linked_list {
     }
 
     bool IsEmpty() {
-        return First == NULL && Last == NULL;
+        return !First && !Last;
     }
 };
 
@@ -1127,7 +1127,7 @@ uint64 SeedRNG(memory_arena* Arena) {
     uint64 Seed = 0;
 
 #ifdef _DEBUG
-    time_t Seconds = time(NULL);
+    time_t Seconds = time(nullptr);
     tm* TimeInfo = localtime(&Seconds);
     Seed = TimeInfo->tm_mday + 123456789;
 #else
@@ -1159,7 +1159,7 @@ struct time_record {
 };
 
 const int MAX_TIME_RECORDS = 128;
-time_record *TimeRecords = NULL;
+time_record *TimeRecords = nullptr;
 
 struct timed_block {
     time_record* Record;

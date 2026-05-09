@@ -157,8 +157,8 @@ int main() {
     GLFWwindow* Window = glfwCreateWindow(
         800, 600,
         "RunGame",
-        NULL,
-        NULL
+        nullptr,
+        nullptr
     );
 
     if (!Window) {
