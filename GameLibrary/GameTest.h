@@ -42,6 +42,12 @@ void TestFormat() {
 
     ClearArena(&Arena);
 
+    uint64 Hex = 12379813738877118345ULL;
+    Test = Format(&Arena, "Test {x} ...", 1, Hex);
+    Assert(Test == "Test 0xabcdef0123456789 ...");
+
+    ClearArena(&Arena);
+
     Test = Format(&Arena, "Hello {s}!", 1, string("world"));
     Assert(Test == string("Hello world!"));
 

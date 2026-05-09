@@ -683,6 +683,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Memory arenas
     Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
+    Memory.DebugInfo.Arena = &Memory.Transient;
     memory_arena FontsArena = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
 
     // Assets
@@ -702,8 +703,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     RECT Rect = { 0 };
     GetClientRect(Window, &Rect);
     InitializeRenderGroup(
-        &Memory.Permanent,
         Group,
+        &Memory.Permanent,
+        &Memory.Transient,
         Assets,
         Rect.right - Rect.left,
         Rect.bottom - Rect.top
@@ -1024,6 +1026,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         debug_info* DebugInfo = &Memory.DebugInfo;
         *DebugInfo = {};
+        DebugInfo->Arena = &Memory.Transient;
 
         PROCESS_MEMORY_COUNTERS_EX PMC = {};
         uint64 UsedMemory = 0;

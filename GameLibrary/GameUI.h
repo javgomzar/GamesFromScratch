@@ -669,7 +669,7 @@ void UIDebugValue(debug_entry* Entry) {
     UpdateAndSizeDebugEntry(UI.Group->DebugFont, Entry, &Sizes[axis_x].Value, &Sizes[axis_y].Value);
 
     ui_element* Element = PushUIElement(
-        Entry->Name, 
+        Entry->Name.Content, 
         .AlignmentX = ui_alignment_min,
         .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
     );

@@ -617,6 +617,12 @@ struct string {
     };
 };
 
+char* PushString(memory_arena* Arena, string String) {
+    char* Result = PushArray(Arena, String.Length, char);
+    strncpy(Result, String.Content, String.Length);
+    return Result;
+}
+
 bool operator==(string S1, string S2) {
     bool Result = S1.Length == S2.Length;
     if (Result) {
@@ -751,6 +757,25 @@ string Format(memory_arena* Arena, const char* Format, int nInputs, ...) {
                         Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
                         Result.Length++;
                     }
+                } break;
+
+                case 'x': {
+                    uint64 Input = va_arg(Args, uint64);
+                    PushArray(Arena, 18, char);
+                    Pointer[DestIndex++] = '0';
+                    Pointer[DestIndex++] = 'x';
+                    for (int i = 15; i >= 0; i--) {
+                        uint64 r = Input % 16;
+                        if (r < 10) {
+                            Pointer[DestIndex + i] = '0' + r;
+                        }
+                        else {
+                            Pointer[DestIndex + i] = 'a' + (r - 10);
+                        }
+                        Input >>= 4;
+                    }
+                    DestIndex += 16;
+                    Result.Length += 18;
                 } break;
 
                 case 'f': {
@@ -1098,7 +1123,7 @@ void Raise(const char* ErrorMessage) {
     Assert(false);
 }
 
-uint64 SeedRNG() {
+uint64 SeedRNG(memory_arena* Arena) {
     uint64 Seed = 0;
 
 #ifdef _DEBUG
@@ -1114,8 +1139,8 @@ uint64 SeedRNG() {
         Seed ^= Seed << 17;
     }
 
-    std::string SeedText = std::format("RNG seed: {}.", Seed);
-    Log(Info, SeedText.c_str());
+    string SeedText = Format(Arena, "RNG seed: {U}.", 1, Seed);
+    Log(Info, SeedText.Content);
     return Seed;
 }
 
@@ -1126,8 +1151,8 @@ uint64 SeedRNG() {
 struct time_record {
     uint64 CycleCount;
     
-    const char* FileName;
-    const char* FunctionName;
+    string FileName;
+    string FunctionName;
     
     int LineNumber;
     int HitCount;

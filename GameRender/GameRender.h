@@ -346,6 +346,7 @@ struct render_group {
     light Light;
     game_assets* Assets;
     game_font* DebugFont;
+    memory_arena* Transient;
     int32 Width;
     int32 Height;
     uint32 EntryCount;
@@ -364,12 +365,15 @@ struct render_group {
 };
 
 void InitializeRenderGroup(
-    memory_arena* Arena,
     render_group* Group, 
+    memory_arena* Permanent,
+    memory_arena* Transient,
     game_assets* Assets,
     int32 Width,
     int32 Height
 ) {
+    Group->Transient = Transient;
+
     Group->Width = Width;
     Group->Height = Height;
 
@@ -388,10 +392,10 @@ void InitializeRenderGroup(
     Group->Light.Diffuse = 0.5f;
 
     // Vertex & element buffers
-    InitializeVertexBuffer(&Group->VertexBuffer, Arena);
+    InitializeVertexBuffer(&Group->VertexBuffer, Permanent);
 
     // Text buffer
-    InitializeTextBuffer(Arena, &Group->TextBuffer);
+    InitializeTextBuffer(Permanent, &Group->TextBuffer);
 
     // Render targets
     Group->RenderTargets[Target_None] = {};
@@ -1365,7 +1369,7 @@ void PushBitmap(
 void _PushText(
     render_group* Group,
     v2 Position,
-    const char* String,
+    string String,
     render_text_options Options = {}
 ) {
     if (!Group->RenderText) {
@@ -1378,8 +1382,7 @@ void _PushText(
     }
 
     uint32 nCharacters = 0;
-    uint32 StringLength = strlen(String);
-    for (int i = 0; i < StringLength; i++) {
+    for (int i = 0; i < String.Length; i++) {
         if (String[i] == '\0') break;
         if (String[i] >= '!' && String[i] <= '~') nCharacters++;
     }
@@ -1392,7 +1395,7 @@ void _PushText(
     float Size = Options.Points * (DPI / 72.0f) / Font->UnitsPerEm;
     float LineJump = Font->LineJump * Size;
 
-    for (int i = 0; i < StringLength; i++) {
+    for (int i = 0; i < String.Length; i++) {
         char c = String[i];
 
         if (
@@ -1449,7 +1452,7 @@ void _PushText(
 
 void PushFillbar(
     render_group* Group,
-    char* Description,
+    string Description,
     float FillPercentage,
     rectangle Rect,
     color Color = Red
@@ -1463,9 +1466,9 @@ void PushFillbar(
     PushText(Group, Position + V2(5.0f, 15.0f), Description, .Points = 10);
 
     int Points = 8;
-    std::string Text = std::format("{:.2f}%", 100 * FillPercentage);
-    float Width = GetTextWidth(Text.c_str(), Group->DebugFont, Points);
-    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Text.c_str(), .Points = 8);
+    string Text = Format(Group->Transient, "{f2}", 1, 100.0f * FillPercentage);
+    float Width = GetTextWidth(Text, Group->DebugFont, Points);
+    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Text, .Points = 8);
 }
 
 void PushFillbar(
@@ -1486,9 +1489,9 @@ void PushFillbar(
     v2 Position = LeftTop(Rect);
     PushText(Group, Position + V2(5.0f, 15.0f), Description, .Points = Points);
 
-    std::string Text = std::format("{}/{}", Used, Max);
-    float Width = GetTextWidth(Text.c_str(), Group->DebugFont, Points);
-    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Text.c_str(), .Points = Points);
+    string Text = Format(Group->Transient, "{i}/{i}", Used, Max);
+    float Width = GetTextWidth(Text, Group->DebugFont, Points);
+    PushText(Group, Position + V2(Rect.Width - Width - 5.0f, 15.0f), Text, .Points = Points);
 }
 
 void PushFillbar(
@@ -2103,6 +2106,7 @@ void PushDebugPlot(
 }
 
 inline uint16 ComputeTimeRecordsColWidths(
+    memory_arena* Arena,
     game_font* Font, float Points,
     uint16 nRecords, time_record* TimeRecords,
     float* FunctionColWidth,
@@ -2111,7 +2115,7 @@ inline uint16 ComputeTimeRecordsColWidths(
     float* FileColWidth
 ) {
     uint16 TotalRecords = 0;
-    std::string Text;
+    string Text;
     float Width = 0;
     for (int i = 0; i < nRecords; i++) {
         time_record* Record = TimeRecords + i;
@@ -2119,14 +2123,14 @@ inline uint16 ComputeTimeRecordsColWidths(
             TotalRecords += 1;
             Width = GetTextWidth(Record->FunctionName, Font, Points);
             if (Width > *FunctionColWidth) *FunctionColWidth = Width;
-            Text = std::format("{}", Record->HitCount);
-            Width = GetTextWidth(Text.c_str(), Font, Points);
+            Text = Format(Arena, "{i}", 1, Record->HitCount);
+            Width = GetTextWidth(Text, Font, Points);
             if (Width > *HitsColWidth) *HitsColWidth = Width;
-            Text = std::format("{:.2f}", Record->CycleCount / 1000000.0f);
-            Width = GetTextWidth(Text.c_str(), Font, Points);
+            Text = Format(Arena, "{f2}", 1, Record->CycleCount / 1000000.0f);
+            Width = GetTextWidth(Text, Font, Points);
             if (Width > *MCyclesColWidth) *MCyclesColWidth = Width;
-            Text = std::format("{}:{}", Record->FileName, Record->LineNumber);
-            Width = GetTextWidth(Text.c_str(), Font, Points);
+            Text = Format(Arena, "{}:{}", 2, Record->FileName, Record->LineNumber);
+            Width = GetTextWidth(Text, Font, Points);
             if (Width > *FileColWidth) *FileColWidth = Width;
         }
     }
@@ -2145,7 +2149,7 @@ void PushTimeRecordsPartial(
     float FileColWidth,
     float HMargin, float VMargin
 ) {
-    std::string Text;
+    string Text;
     float Width = 0;
     for (int i = 0; i < nTimeRecords; i++) {
         time_record* Record = TimeRecords + i;
@@ -2154,20 +2158,20 @@ void PushTimeRecordsPartial(
             PushText(Group, V2(*X, *Y), Record->FunctionName, .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X += FunctionColWidth + HMargin;
 
-            Text = std::format("{}", Record->HitCount);
-            Width = GetTextWidth(Text.c_str(), Group->DebugFont, DEBUG_ENTRIES_TEXT_POINTS);
+            Text = Format(Group->Transient, "{i}", 1, Record->HitCount);
+            Width = GetTextWidth(Text, Group->DebugFont, DEBUG_ENTRIES_TEXT_POINTS);
             *X += HitsColWidth - Width;
-            PushText(Group, V2(*X, *Y), Text.c_str(), .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
+            PushText(Group, V2(*X, *Y), Text, .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X += Width + HMargin;
             
-            Text = std::format("{:.2f}", Record->CycleCount / 1000000.0f);
-            Width = GetTextWidth(Text.c_str(), Group->DebugFont, DEBUG_ENTRIES_TEXT_POINTS);
+            Text = Format(Group->Transient, "{f2}", 1, Record->CycleCount / 1000000.0f);
+            Width = GetTextWidth(Text, Group->DebugFont, DEBUG_ENTRIES_TEXT_POINTS);
             *X += MCyclesColWidth - Width;
-            PushText(Group, V2(*X, *Y), Text.c_str(), .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
+            PushText(Group, V2(*X, *Y), Text, .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X += Width + HMargin;
 
-            Text = std::format("{}:{}", Record->FileName, Record->LineNumber);
-            PushText(Group, V2(*X, *Y), Text.c_str(), .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
+            Text = Format(Group->Transient, "{s}:{i}", 2, Record->FileName, Record->LineNumber);
+            PushText(Group, V2(*X, *Y), Text, .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X = Group->Width - TotalWidth + HMargin;
 
             *Y += RecordHeight;
@@ -2201,9 +2205,9 @@ void PushTimeRecords(
 
     // Compute column widths
     uint16 nTotalRecords = 0;
-    nTotalRecords += ComputeTimeRecordsColWidths(Font, Points, nTimeRecordsLibrary, TimeRecordsLibrary, 
+    nTotalRecords += ComputeTimeRecordsColWidths(Group->Transient, Font, Points, nTimeRecordsLibrary, TimeRecordsLibrary, 
         &FunctionColWidth, &HitsColWidth, &MCyclesColWidth, &FileColWidth);
-    nTotalRecords += ComputeTimeRecordsColWidths(Font, Points, nTimeRecordsPlatform, TimeRecordsPlatform, 
+    nTotalRecords += ComputeTimeRecordsColWidths(Group->Transient, Font, Points, nTimeRecordsPlatform, TimeRecordsPlatform, 
         &FunctionColWidth, &HitsColWidth, &MCyclesColWidth, &FileColWidth);
 
     float HMargin = 10.0f;

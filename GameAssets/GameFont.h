@@ -678,15 +678,14 @@ float GetCharMaxHeight(game_font* Font, float Points) {
     return Font->MaxY * PixelsPerEm;
 }
 
-void GetTextWidthAndHeight(const char* Text, game_font* Font, float Points, float* Width, float* Height) {
+void GetTextWidthAndHeight(string Text, game_font* Font, float Points, float* Width, float* Height) {
     float PixelsPerEm = Points * (DPI / 72.0f) / Font->UnitsPerEm;
 
     float ResultWidth = 0;
     float ResultHeight = GetCharMaxHeight(Font, Points);
     
-    int Length = strlen(Text);
     float LineWidth = 0;
-    for (int i = 0; i < Length; i++) {
+    for (int i = 0; i < Text.Length; i++) {
         char c = Text[i];
         if (c == '#' && Text[i+1] == '#') break;
         if (c == ' ') {
@@ -712,14 +711,13 @@ void GetTextWidthAndHeight(const char* Text, game_font* Font, float Points, floa
     *Height = ResultHeight;
 }
 
-float GetTextWidth(const char* Text, game_font* Font, float Points) {
+float GetTextWidth(string Text, game_font* Font, float Points) {
     float PixelsPerEm = Points * (DPI / 72.0f) / Font->UnitsPerEm;
 
     float ResultWidth = 0;
     
-    int Length = strlen(Text);
     float LineWidth = 0;
-    for (int i = 0; i < Length; i++) {
+    for (int i = 0; i < Text.Length; i++) {
         char c = Text[i];
         if (c == '#' && Text[i+1] == '#') break;
         if (c == ' ') {

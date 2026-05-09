@@ -215,7 +215,7 @@ void UpdateGameState(
 extern "C" GAME_UPDATE(GameUpdate)
 {
     if (Memory->HotReload) {
-        RNG.Seed = SeedRNG();
+        RNG.Seed = SeedRNG(&Memory->Transient);
         RNG.State = RNG.Seed;
 
         TimeRecords = (time_record*)&Memory->TimeRecordsLibrary;
@@ -286,9 +286,9 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // TestFFT(Group, &Memory->Permanent, Time);
 
-    TestFloatingPoint();
+    // TestFloatingPoint();
 
-    TestFormat();
+    // TestFormat();
 
     // Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
     

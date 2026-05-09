@@ -338,10 +338,14 @@ void MetaProgram(memory_arena* Arena, build_configuration* Config) {
         uint64 End = Platform.GetWallClock();
         float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
         log_level Level = WaitResult > 0 ? Error : Info;
-        std::string LogText = WaitResult == 0 ?
-            std::format("Metaprogramming executed in {} milliseconds.", 1000.0f * Time) :
-            std::format("Metaprogramming execution failed with code '{}'", WaitResult);
-        Log(Level, LogText.data());
+        string LogText;
+        if (WaitResult == 0) {
+            LogText = Format(Arena, "Metaprogramming executed in {f2} milliseconds.", 1, 1000.0f * Time);
+        }
+        else {
+            LogText = Format(Arena, "Metaprogramming execution failed with code '{i}'", 1, WaitResult);
+        }
+        Log(Level, LogText.Content);
     }
 }
 
