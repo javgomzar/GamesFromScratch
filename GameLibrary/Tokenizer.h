@@ -107,7 +107,7 @@ const int MAX_TOKEN_LENGTH = 128;
 
 struct token {
     token_type Type;
-    char* Text;
+    const char* Text;
     int Length;
     int Line;
     int Column;
@@ -151,16 +151,16 @@ bool operator==(token& T1, const char* Str) {
 };
 
 struct tokenizer {
-    char* Start;
-    char* At;
-    char* End;
+    const char* Start;
+    const char* At;
+    const char* End;
     int Line;
     int Column;
     int Length;
     bool IgnoreWhitespace;
 };
 
-tokenizer InitTokenizer(char* At, int Length = 0, bool IgnoreWhitespace = true) {
+tokenizer InitTokenizer(const char* At, int Length = 0, bool IgnoreWhitespace = true) {
     tokenizer Result = {};
     Result.Start = At;
     Result.At = At;
@@ -257,7 +257,7 @@ token GetToken(tokenizer& Tokenizer) {
         return Token;
     }
 
-    char* TokenStart = Tokenizer.At;
+    const char* TokenStart = Tokenizer.At;
     char C = Tokenizer.At[0];
     if (C != '\0') Advance(Tokenizer);
 
@@ -501,7 +501,7 @@ double ParseDouble(tokenizer& Tokenizer) {
 }
 
 // If input pointer is a string that represents a path, returns the string length of the path. If not, returns 0.
-int ParsePath(char* Text) {
+int ParsePath(const char* Text) {
     int Result = 0;
     while (Text[0] != '\0' && Text[0] != ';' && Text[0] != '\n' && Text[0] != '\r') {
 #ifdef _WIN32
