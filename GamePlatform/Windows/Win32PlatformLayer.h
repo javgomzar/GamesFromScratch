@@ -131,7 +131,9 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         
         DWORD BytesRead;
         if (ReadFile(FileHandle, Memory, ChunkSize, &BytesRead, NULL) && BytesRead == ChunkSize) {
+#if _DEBUG
             sprintf_s(TextBuffer, "%d bytes read from file %s.", BytesRead, Path);
+#endif
             Log(Info, TextBuffer);
         }
         else {
