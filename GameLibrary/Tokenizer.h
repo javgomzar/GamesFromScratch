@@ -7,45 +7,69 @@
 enum token_type {
     Token_Unknown,
 
-    // Whitespace
+    // `'\n'`
     Token_LineJump,
+    // `' '`
     Token_Space,
-
-    // Braces
+    // `'('`
     Token_OpenParen,
+    // `')'`
     Token_CloseParen,
+    // `'['`
     Token_OpenBracket,
+    // `']'`
     Token_CloseBracket,
+    // `'{'`
     Token_OpenBrace,
+    // `'}'`
     Token_CloseBrace,
-
-    // Separators
+    // `'.'`
     Token_Dot,
+    // `','`
     Token_Comma,
+    // `':'`
     Token_Colon,
+    // `';'`
     Token_Semicolon,
+    // `'_'`
     Token_Underscore,
+    // `'#'`
     Token_Pound,
-
-    // Single character operators
+    // `'='`
     Token_Equal,
+    // `'<'`
     Token_LessThan,
+    // `'>'`
     Token_GreaterThan,
+    // `'+'`
     Token_Plus,
+    // `'-'`
     Token_Minus,
+    // `'*'`
     Token_Asterisk,
+    // `'%'`
     Token_Percent,
+    // `'\'`
     Token_Backslash,
-    Token_Fwdslash,
+    // `'/'`
+    Token_Forwardslash,
+    // `'?'`
     Token_Interrogation,
+    // `'!'`
     Token_Exclamation,
+    // `
     Token_Tilde,
+    // `'@'`
     Token_At,
+    // `'|'`
     Token_Bar,
+    // `'&'`
     Token_And,
+    // `'^'`
     Token_Caret,
+    // `'`
+    Token_Apostrophe,
 
-    // Text
     Token_Identifier,
     Token_String,
     Token_Constant_Integer,
@@ -53,6 +77,7 @@ enum token_type {
     Token_Constant_Hexadecimal,
     Token_Constant_Binary,
 
+    // `'\0'`
     Token_End
 };
 
@@ -92,6 +117,7 @@ const char* TokenTypeName[] = {
     "bar",
     "and",
     "caret",
+    "apostrophe",
 
     "identifier",
     "string",
@@ -151,8 +177,8 @@ bool operator==(token& T1, const char* Str) {
 };
 
 struct tokenizer {
-    const char* Start;
     const char* At;
+    const char* Start;
     const char* End;
     int Line;
     int Column;
@@ -283,7 +309,7 @@ token GetToken(tokenizer& Tokenizer) {
         case '*':  { Token.Type = Token_Asterisk; } break;
         case '%':  { Token.Type = Token_Percent; } break;
         case '\\': { Token.Type = Token_Backslash; } break;
-        case '/':  { Token.Type = Token_Fwdslash; } break;
+        case '/':  { Token.Type = Token_Forwardslash; } break;
         case '?':  { Token.Type = Token_Interrogation; } break;
         case '!':  { Token.Type = Token_Exclamation; } break;
         case '~':  { Token.Type = Token_Tilde; } break;
@@ -291,12 +317,22 @@ token GetToken(tokenizer& Tokenizer) {
         case '|':  { Token.Type = Token_Bar; } break;
         case '&':  { Token.Type = Token_And; } break;
         case '^':  { Token.Type = Token_Caret; } break;
+        case '\'': { Token.Type = Token_Apostrophe; } break;
         case '\0': { Token.Type = Token_End; } break;
 
         case '"': {
             Token.Type = Token_String;
             TokenStart = Tokenizer.At;
-            AdvanceUntil(Tokenizer, '"');
+            do {
+                AdvanceUntil(Tokenizer, '"');
+                if (Tokenizer.At[-1] == '\\') {
+                    Advance(Tokenizer);
+                    continue;
+                }
+                else {
+                    break;
+                }
+            } while(true);
             Token.Length = Tokenizer.At - TokenStart;
             Advance(Tokenizer);
         } break;
