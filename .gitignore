@@ -20,6 +20,7 @@ GameData/Data
 # Metaprogramming
 GameLibrary/GameEnums.h
 GameLibrary/GameStructs.h
+GameTest/GameTest.h
 
 # Screen captures
 Captures/*
