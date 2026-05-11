@@ -263,7 +263,7 @@ build_configuration ReadBuildConfiguration(memory_arena* Arena, string Configura
 }
 
 void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64 End) {
-    log_level Level = ExitCode == 0 ? Info : Error;
+    log_level Level = ExitCode == 0 ? log_level::Info : log_level::Error;
     char LogString[256];
     if (ExitCode == 0) {
         sprintf(LogString, "%s code compiled in %.2f milliseconds.", Name, 1000.0f * GetSecondsElapsed(Start, End));
@@ -275,7 +275,7 @@ void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64
 }
 
 process_info CompileMetaprogramming(memory_arena* Arena, build_configuration* Config) {
-    Log(Info, "Compiling metaprogramming code.");
+    Log(log_level::Info, "Compiling metaprogramming code.");
     char* Command = (char*)(Arena->Base + Arena->Used);
     switch(Config->Compiler) {
         case MSVC: {
@@ -337,7 +337,7 @@ void MetaProgram(memory_arena* Arena, build_configuration* Config) {
     if (WaitResult >= 0) {
         uint64 End = Platform.GetWallClock();
         float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
-        log_level Level = WaitResult > 0 ? Error : Info;
+        log_level Level = WaitResult > 0 ? log_level::Error : log_level::Info;
         string LogText;
         if (WaitResult == 0) {
             LogText = Format(Arena, "Metaprogramming executed in {f2} milliseconds.", 1, 1000.0f * Time);

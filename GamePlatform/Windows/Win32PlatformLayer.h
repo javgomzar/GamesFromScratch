@@ -10,9 +10,10 @@ void Log(log_level Level, const char* Content) {
     // Level
     char LevelString[9];
     switch (Level) {
-        case Info:  { strcpy_s(LevelString, "[INFO]  "); } break;
-        case Warn:  { strcpy_s(LevelString, "[WARN]  "); } break;
-        case Error: { strcpy_s(LevelString, "[ERROR] "); } break;
+        case log_level::Info:  { strcpy_s(LevelString, "[INFO]  "); } break;
+        case log_level::Warn:  { strcpy_s(LevelString, "[WARN]  "); } break;
+        case log_level::Error: { strcpy_s(LevelString, "[ERROR] "); } break;
+        case log_level::Test:  { strcpy_s(LevelString, "[TEST]  "); } break;
     }
     LevelString[8] = 0;
 
@@ -51,9 +52,10 @@ void Log(log_level Level, const char* Content) {
             SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
             WriteConsoleA(hConsole, Date, 20, NULL, NULL);
             switch (Level) {
-                case Info:  { SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_BLUE); } break;
-                case Warn:  { SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN); } break;
-                case Error: { SetConsoleTextAttribute(hConsole, FOREGROUND_RED); } break;
+                case log_level::Info:  { SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN | FOREGROUND_BLUE); } break;
+                case log_level::Warn:  { SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN); } break;
+                case log_level::Error: { SetConsoleTextAttribute(hConsole, FOREGROUND_RED); } break;
+                case log_level::Test:  { SetConsoleTextAttribute(hConsole, FOREGROUND_GREEN); } break;
             }
             WriteConsoleA(hConsole, LevelString, 8, NULL, NULL);
             SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
@@ -69,7 +71,7 @@ PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
         DWORD ErrorCode = GetLastError();
         char TextBuffer[128];
         sprintf_s(TextBuffer, "Couldn't allocate %I64u bytes. Error %d.", Size, ErrorCode);
-        Log(Error, TextBuffer);
+        Log(log_level::Error, TextBuffer);
     }
     return Result;
 }
@@ -105,7 +107,7 @@ PLATFORM_GET_FILE_INFO(Win32GetFileInfo) {
         else if (ErrorCode == ERROR_FILE_NOT_FOUND) {
             sprintf_s(ErrorBuffer, "File %s not found.", Path);
         }
-        Log(Error, ErrorBuffer);
+        Log(log_level::Error, ErrorBuffer);
     }
 
     return Result;
@@ -125,7 +127,7 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         LargeOffset.QuadPart = Offset;
         if (!SetFilePointerEx(FileHandle, LargeOffset, NULL, FILE_BEGIN)) {
             sprintf_s(TextBuffer, "Couldn't set file pointer to offset %I64u at file %s.", Offset, Path);
-            Log(Error, TextBuffer);
+            Log(log_level::Error, TextBuffer);
             return Result;
         }
         
@@ -134,11 +136,11 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
 #if _DEBUG
             sprintf_s(TextBuffer, "%d bytes read from file %s.", BytesRead, Path);
 #endif
-            Log(Info, TextBuffer);
+            Log(log_level::Info, TextBuffer);
         }
         else {
             sprintf_s(TextBuffer, "Couldn't read chunk from file %s.", Path);
-            Log(Error, TextBuffer);
+            Log(log_level::Error, TextBuffer);
         }
         Result.Size = BytesRead;
         CloseHandle(FileHandle);
@@ -155,7 +157,7 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
     else {
         sprintf_s(TextBuffer, "Couldn't read file %s. Error %d.", Path, WinError);
     }
-    Log(Error, TextBuffer);
+    Log(log_level::Error, TextBuffer);
 
     return Result;
 }
@@ -173,12 +175,12 @@ PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
             if (WriteFile(FileHandle, Memory, ChunkSize, &BytesWritten, NULL)) {
                 sprintf_s(TextBuffer, "%d bytes written to file %s.", BytesWritten, Path);
                 Result = BytesWritten == ChunkSize;
-                Log(Result ? Info : Error, TextBuffer);
+                Log(Result ? log_level::Info : log_level::Error, TextBuffer);
             }
         }
         else {
             sprintf_s(TextBuffer, "Couldn't set file pointer to %I64u at file %s.", Offset, Path);
-            Log(Error, TextBuffer);
+            Log(log_level::Error, TextBuffer);
         }
         CloseHandle(FileHandle);
     }
@@ -191,7 +193,7 @@ PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
         else {
             sprintf_s(TextBuffer, "Couldn't write to file %s. Error %d.", Path, WinError);
         }
-        Log(Error, TextBuffer);
+        Log(log_level::Error, TextBuffer);
     }
 
     return Result;
@@ -208,12 +210,12 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
             if (WriteFile(FileHandle, Memory, Size, &BytesWritten, 0)) {
                 sprintf_s(TextBuffer, "%d bytes appended to file %s.", BytesWritten, Path);
                 Result = BytesWritten == Size;
-                Log(Result ? Info : Error, TextBuffer);
+                Log(Result ? log_level::Info : log_level::Error, TextBuffer);
             }
         }
         else {
             sprintf_s(TextBuffer, "Couldn't set file pointer to end at file %s.", Path);
-            Log(Error, TextBuffer);
+            Log(log_level::Error, TextBuffer);
         }
         CloseHandle(FileHandle);
     }
@@ -226,7 +228,7 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
         else {
             sprintf_s(TextBuffer, "Couldn't append to file %s. Error %d.", Path, WinError);
         }
-        Log(Error, TextBuffer);
+        Log(log_level::Error, TextBuffer);
     }
 
     return Result;
@@ -259,7 +261,7 @@ PLATFORM_RUN_COMMAND(Win32RunCommand) {
         DWORD Err = GetLastError();
         char ErrorBuffer[2048];
         sprintf_s(ErrorBuffer, "Error '%d' when trying to run command:\n    %s", Err, Command);
-        Log(Error, ErrorBuffer);
+        Log(log_level::Error, ErrorBuffer);
     }
 
     process_info Process = {};
@@ -277,7 +279,7 @@ PLATFORM_WAIT_FOR_PROCESS(Win32WaitForProcess) {
         char ErrorBuffer[128] = {};
         DWORD ErrorCode = GetLastError();
         sprintf_s(ErrorBuffer, "Error while waiting for a process to end. Error code '%d'.", ErrorCode);
-        Log(Error, ErrorBuffer);
+        Log(log_level::Error, ErrorBuffer);
         return Result;
     }
     else if (WaitResult == WAIT_OBJECT_0) {
@@ -313,7 +315,7 @@ void SaveBMP(const char* Path, int32 Width, int32 Height, uint32 Offset, uint32 
         HANDLE hMapping = CreateFileMappingA(hFile, NULL, PAGE_READWRITE, 0, Size, NULL);
         if (!hMapping) {
             DWORD WinError = GetLastError();
-            Log(Error, "Memory map for file returned invalid handle.");
+            Log(log_level::Error, "Memory map for file returned invalid handle.");
             Assert(false);
         }
 
@@ -332,7 +334,7 @@ void SaveBMP(const char* Path, int32 Width, int32 Height, uint32 Offset, uint32 
         // Debug
         DWORD WinError = GetLastError();
         if (WinError == ERROR_PATH_NOT_FOUND) {
-            Log(Error, "Path not found.");
+            Log(log_level::Error, "Path not found.");
         }
         Assert(false);
     }

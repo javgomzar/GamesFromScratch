@@ -61,7 +61,7 @@ void WriteAssetsFile(const char* Path) {
     if (OutputAssets) *OutputAssets = Assets;
     Platform.WriteEntireFile(Path, sizeof(game_assets) + Assets.TotalSize, FileMemory);
 
-    Log(Info, "Finished writing assets file.");
+    Log(log_level::Info, "Finished writing assets file.");
 
     Platform.FreeMemory(FileMemory);
 }
@@ -161,5 +161,5 @@ void LoadAssetsFromFile(
         }
     }
 
-    Log(Info, "Assets loaded.");
+    Log(log_level::Info, "Assets loaded.");
 }

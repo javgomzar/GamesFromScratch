@@ -102,8 +102,9 @@ enum log_mode {
     Terminal_Log_Mode
 };
 
-enum log_level {
+enum class log_level {
     Info,
+    Test,
     Warn,
     Error
 };
@@ -1119,8 +1120,7 @@ struct platform_api {
 #endif
 
 void Raise(const char* ErrorMessage) {
-    Log(Error, ErrorMessage);
-    Assert(false);
+    Assert(false, ErrorMessage);
 }
 
 uint64 SeedRNG(memory_arena* Arena) {
@@ -1140,7 +1140,7 @@ uint64 SeedRNG(memory_arena* Arena) {
     }
 
     string SeedText = Format(Arena, "RNG seed: {U}.", 1, Seed);
-    Log(Info, SeedText.Content);
+    Log(log_level::Info, SeedText.Content);
     return Seed;
 }
 

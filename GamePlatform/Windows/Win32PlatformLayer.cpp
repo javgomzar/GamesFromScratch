@@ -299,14 +299,14 @@ static void InitXAudio2(int nBuffers,
     hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     if (FAILED(hr = XAudio2Create(&pXAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
-        Log(Error, "ERROR creating XAudio2.");
+        Log(log_level::Error, "ERROR creating XAudio2.");
     }
     else if (FAILED(hr = pXAudio2->CreateMasteringVoice(&pMasterVoice))) {
-        Log(Error, "ERROR creating mastering voice.");
+        Log(log_level::Error, "ERROR creating mastering voice.");
     }
     else {
         if (FAILED(hr = pXAudio2->CreateSourceVoice(&pSourceVoice, pWaveFormat, 0, XAUDIO2_DEFAULT_FREQ_RATIO, &VoiceCallback))) {
-            Log(Error, "ERROR creating source voice.");
+            Log(log_level::Error, "ERROR creating source voice.");
         }
         else {
             uint32 AudioBytes = BufferSize * pWaveFormat->nChannels * (pWaveFormat->wBitsPerSample / 8);
@@ -392,7 +392,7 @@ void BeginInputPlayback(record_and_playback* RecordPlayback, int PlaybackIndex) 
 
     }
     else {
-        Log(Error, "Reading game state failed.");
+        Log(log_level::Error, "Reading game state failed.");
     }
 }
 
@@ -556,19 +556,19 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
         if (LastError == ERROR_SHARING_VIOLATION) {
             int Retries = 0;
             do {
-                Log(Warn, "Retrying game code loading after sharing violation.");
+                Log(log_level::Warn, "Retrying game code loading after sharing violation.");
                 Sleep(100);
                 CopyResult = Win32FileCopy(SourceDLLName, TempDLLName);
                 Retries++;
                 if (Retries > 100) {
-                    Log(Error, "Max number of retries reached.");
+                    Log(log_level::Error, "Max number of retries reached.");
                     break;
                 }
             } while (!CopyResult);
         }
         else {
             sprintf_s(ErrorText, "Error copying file %s into %s. Error code %d.", SourceDLLName, TempDLLName, LastError);
-            Log(Error, ErrorText);
+            Log(log_level::Error, ErrorText);
             return;
         }
     }
@@ -583,7 +583,7 @@ void LoadGameCode(game_code* Result, LPCSTR SourceDLLName, LPCSTR TempDLLName) {
     else {
         LastError = GetLastError();
         sprintf_s(ErrorText, "Error loading game code. Error code %d.", LastError);
-        Log(Error, ErrorText); // If error is 126 (dependency error while loading DLL) try using Process Monitor.
+        Log(log_level::Error, ErrorText); // If error is 126 (dependency error while loading DLL) try using Process Monitor.
     }
 }
 
@@ -754,7 +754,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             bool Result = Win32FileDelete(Buffer);
             if (Result) {
                 sprintf_s(Buffer, "Deleted old PDB file bin\\%s.", FindData.cFileName);
-                Log(Info, Buffer);
+                Log(log_level::Info, Buffer);
             }
         }
         FindResult = FindNextFileA(OldPDBFile, &FindData);
@@ -817,7 +817,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             if (WaitResult >= 0) {
                 uint64 End = Win32GetWallClock();
                 float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
-                log_level Level = WaitResult == 0 ? Info : Error;
+                log_level Level = WaitResult == 0 ? log_level::Info : log_level::Error;
                 if (WaitResult == 0) sprintf_s(LogBuffer, "Metaprogramming executed in %.2f milliseconds.", 1000.0f * Time);
                 else                 sprintf_s(LogBuffer, "Metaprogramming execution failed with code '%d'.", WaitResult);
                 Log(Level, LogBuffer);
@@ -845,7 +845,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             UnloadGameCode(&GameCode);
             LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
             if (GameCode.IsValid) {
-                Log(Info, "New game code loaded.");
+                Log(log_level::Info, "New game code loaded.");
                 Memory.HotReload = true;
             }
         }
@@ -1012,13 +1012,13 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             Render(Group, View, &Memory.Input, Window, pGameState->Time);
         }
         else {
-            Log(Error, "Could not update state due to invalid game code.");
+            Log(log_level::Error, "Could not update state due to invalid game code.");
         }
 
         XAUDIO2_VOICE_STATE VoiceState;
         pSourceVoice->GetState(&VoiceState);
         if (FAILED(SubmitBuffer(&XAudio2Buffers[currentBuffer], pSourceVoice))) {
-            Log(Error, "Buffer playing went wrong.");
+            Log(log_level::Error, "Buffer playing went wrong.");
         }
         else {
             currentBuffer = (currentBuffer + 1) % nBuffers;
@@ -1046,7 +1046,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         float SecsElapsedPerFrame = WorkSecsElapsed;
         if (SecsElapsedPerFrame >= TargetSecondsPerFrame) {
-            Log(Warn, "Missed a frame!");
+            Log(log_level::Warn, "Missed a frame!");
         }
 
         float ActualSecsElapsed = SecsElapsedPerFrame + 0.0005f;
@@ -1131,10 +1131,10 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
 
     BOOL DPIAwarenessResult = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     if (DPIAwarenessResult) {
-        Log(Info, "DPI awareness activated.");
+        Log(log_level::Info, "DPI awareness activated.");
     }
     else {
-        Log(Error, "Couldn't set DPI awareness.");
+        Log(log_level::Error, "Couldn't set DPI awareness.");
     }
 
     // This code starts the window centered

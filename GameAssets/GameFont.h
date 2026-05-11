@@ -975,7 +975,7 @@ preprocessed_font PreprocessFont(file_info FileInfo, void* FileContent) {
             if (GlyphID == 0) {
                 char ErrorBuffer[64];
                 sprintf(ErrorBuffer, "Character '%c' wasn't found in font.", c);
-                Log(Error, ErrorBuffer);
+                Log(log_level::Error, ErrorBuffer);
             }
             else {
                 GlyphID += BigEndian(IDDeltas[i]);

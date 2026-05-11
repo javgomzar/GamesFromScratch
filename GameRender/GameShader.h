@@ -56,12 +56,12 @@ void CompileShaderModule(game_shader_module* Module) {
         
         char LogBuffer[128];
         sprintf(LogBuffer, "Loaded Slang module '%s' from %s.", Module->Name, Module->File.Path);
-        Log(Info, LogBuffer);
+        Log(log_level::Info, LogBuffer);
 
         Module->nEntryPoints = Module->Module->getDefinedEntryPointCount();
     }
     else {
-        Log(Error, (char*)Context.Diagnostic->getBufferPointer());
+        Log(log_level::Error, (char*)Context.Diagnostic->getBufferPointer());
     }
 }
 
@@ -138,7 +138,7 @@ void InitializeSlang(memory_arena* Arena, renderer Renderer) {
         Raise("Slang session creation failed.");
     };
 
-    Log(Info, "Slang compiler initialized.");
+    Log(log_level::Info, "Slang compiler initialized.");
 
     // Shader modules
     Context.nEntryPoints = 0;
@@ -157,7 +157,7 @@ void InitializeSlang(memory_arena* Arena, renderer Renderer) {
         for (int j = 0; j < Module->nEntryPoints; j++) {
             game_shader_entry_point* EntryPoint = Module->EntryPoints + j;
             if (SLANG_FAILED(Module->Module->getDefinedEntryPoint(j, EntryPoint->EntryPoint.writeRef()))) {
-                Log(Error, "Slang entry point creation failed.");
+                Log(log_level::Error, "Slang entry point creation failed.");
                 continue;
             }
             
@@ -167,17 +167,17 @@ void InitializeSlang(memory_arena* Arena, renderer Renderer) {
 
             IComponentType* ComponentTypes[] = { Module->Module, EntryPoint->EntryPoint };
             if (SLANG_FAILED(Context.Session->createCompositeComponentType(ComponentTypes, 2, EntryPoint->ComposedProgram.writeRef(), Context.Diagnostic.writeRef()))) {
-                Log(Error, (char*)Context.Diagnostic->getBufferPointer());
+                Log(log_level::Error, (char*)Context.Diagnostic->getBufferPointer());
                 continue;
             }
 
             if (SLANG_FAILED(EntryPoint->ComposedProgram->link(EntryPoint->LinkedProgram.writeRef(), Context.Diagnostic.writeRef()))) {
-                Log(Error, (char*)Context.Diagnostic->getBufferPointer());
+                Log(log_level::Error, (char*)Context.Diagnostic->getBufferPointer());
                 continue;
             }
 
             if (SLANG_FAILED(EntryPoint->LinkedProgram->getEntryPointCode(0, 0, EntryPoint->Binary.writeRef(), Context.Diagnostic.writeRef()))) {
-                Log(Error, (char*)Context.Diagnostic->getBufferPointer());
+                Log(log_level::Error, (char*)Context.Diagnostic->getBufferPointer());
                 continue;
             }
         }

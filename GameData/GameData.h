@@ -130,7 +130,7 @@ game_data_file_header GetFileHeader(const char* Path) {
     file_chunk_info Info = Platform.ReadFileChunk(Path, 0, sizeof(game_data_file_header), &Result);
     bool Valid = IsValid(Result);
     if (!Valid) {
-        Log(Error, "File is corrupted.");
+        Log(log_level::Error, "File is corrupted.");
     }
     return Result;
 }

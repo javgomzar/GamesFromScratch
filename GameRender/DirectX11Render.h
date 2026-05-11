@@ -347,7 +347,7 @@ void* GetMappedBuffer(ID3D11Buffer* DirectXBuffer) {
     D3D11_MAPPED_SUBRESOURCE Resource;
     HRESULT Result = DirectX.DeviceContext->Map(DirectXBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &Resource);
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Buffer couldn't be mapped correctly.");
+        Log(log_level::Error, "DirectX: Buffer couldn't be mapped correctly.");
         return NULL;
     }
     else return Resource.pData;
@@ -565,7 +565,7 @@ void CreateInputLayout(instanced_layout_id LayoutID) {
     );
 
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Instanced vertex layout creation failed.");
+        Log(log_level::Error, "DirectX: Instanced vertex layout creation failed.");
     }
 }
 
@@ -605,7 +605,7 @@ ID3DBlob* CompileShader(memory_index Size, void** FileContent, const char* Path)
     if (FAILED(Result)) {
         char ErrorBuffer[4096];
         sprintf_s(ErrorBuffer, "DirectX: Failure trying to compile shader: %s", (char*)Errors->GetBufferPointer());
-        Log(Error, ErrorBuffer);
+        Log(log_level::Error, ErrorBuffer);
         return nullptr;
     }
 
@@ -656,7 +656,7 @@ void ParseVertexLayout(directX_Vertex_Shader* Shader) {
                 if (!Found) {
                     char ErrorBuffer[128];
                     sprintf_s(ErrorBuffer, "DirectX: Could not find compatible vertex layout for shader %s.", Shader->FileInfo.Path);
-                    Log(Warn, ErrorBuffer);
+                    Log(log_level::Warn, ErrorBuffer);
                 }
             }
         }
@@ -682,7 +682,7 @@ void LoadShader(directX_Vertex_Shader_ID ID, const char* Path) {
         char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating vertex shader %s", Path);
-            Log(Error, TextBuffer);
+            Log(log_level::Error, TextBuffer);
         }
         else {
             ParseVertexLayout(Shader);
@@ -734,7 +734,7 @@ void LoadShader(directX_Pixel_Shader_ID ID, const char* Path) {
         char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating pixel shader %s", Path);
-            Log(Error, TextBuffer);
+            Log(log_level::Error, TextBuffer);
         }
         else {
             ParseSamplers(&Shader->Sampler, (char*)Shader->FileContent);
@@ -759,7 +759,7 @@ void LoadShader(directX_Hull_Shader_ID ID, const char* Path) {
         char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating hull shader %s", Path);
-            Log(Error, TextBuffer);
+            Log(log_level::Error, TextBuffer);
         }
     }
 }
@@ -781,7 +781,7 @@ void LoadShader(directX_Domain_Shader_ID ID, const char* Path) {
         char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating domain shader %s", Path);
-            Log(Error, TextBuffer);
+            Log(log_level::Error, TextBuffer);
         }
         else {
             ParseSamplers(&Shader->Sampler, (char*)Shader->FileContent);
@@ -806,7 +806,7 @@ void LoadShader(directX_Geometry_Shader_ID ID, const char* Path) {
         char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating geometry shader %s", Path);
-            Log(Error, TextBuffer);
+            Log(log_level::Error, TextBuffer);
         }
     }
 }
@@ -828,7 +828,7 @@ void LoadShader(directX_Compute_Shader_ID ID, const char* Path) {
         char TextBuffer[2048];
         if (FAILED(Result)) {
             sprintf_s(TextBuffer, "DirectX: There was an error creating compute shader %s", Path);
-            Log(Error, TextBuffer);
+            Log(log_level::Error, TextBuffer);
         }
     }
 }
@@ -854,7 +854,7 @@ bool ReloadShader(directX_Vertex_Shader* Shader) {
 
             char Text[512];
             sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
-            Log(Info, Text);
+            Log(log_level::Info, Text);
             return true;
         }
     }
@@ -883,7 +883,7 @@ bool ReloadShader(directX_Hull_Shader* Shader) {
 
             char Text[512];
             sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
-            Log(Info, Text);
+            Log(log_level::Info, Text);
             return true;
         }
     }
@@ -912,7 +912,7 @@ bool ReloadShader(directX_Domain_Shader* Shader) {
 
             char Text[512];
             sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
-            Log(Info, Text);
+            Log(log_level::Info, Text);
             return true;
         }
     }
@@ -941,7 +941,7 @@ bool ReloadShader(directX_Geometry_Shader* Shader) {
 
             char Text[512];
             sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
-            Log(Info, Text);
+            Log(log_level::Info, Text);
             return true;
         }
     }
@@ -972,7 +972,7 @@ bool ReloadShader(directX_Pixel_Shader* Shader) {
 
             char Text[512];
             sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
-            Log(Info, Text);
+            Log(log_level::Info, Text);
             return true;
         }
     }
@@ -1001,7 +1001,7 @@ bool ReloadShader(directX_Compute_Shader* Shader) {
 
             char Text[512];
             sprintf_s(Text, "DirectX: Shader %s was successfully updated.", Shader->FileInfo.Path);
-            Log(Info, Text);
+            Log(log_level::Info, Text);
             return true;
         }
     }
@@ -1231,7 +1231,7 @@ RENDERER_INITIALIZE {
 
     Result = DirectX.Device->CreateBlendState(&BlendDescription, &DirectX.CombineAlpha);
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Blend state creation failed.");
+        Log(log_level::Error, "DirectX: Blend state creation failed.");
     }
 
     RenderTargetBlendDescription.SrcBlend = D3D11_BLEND_ONE;
@@ -1242,7 +1242,7 @@ RENDERER_INITIALIZE {
 
     Result = DirectX.Device->CreateBlendState(&BlendDescription, &DirectX.TargetBlend);
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Blend state creation failed.");
+        Log(log_level::Error, "DirectX: Blend state creation failed.");
     }
 
     RenderTargetBlendDescription.SrcBlend = D3D11_BLEND_ONE;
@@ -1253,11 +1253,11 @@ RENDERER_INITIALIZE {
 
     Result = DirectX.Device->CreateBlendState(&BlendDescription, &DirectX.OverwriteAlpha);
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Blend state creation failed.");
+        Log(log_level::Error, "DirectX: Blend state creation failed.");
     }
 
     DirectX.Initialized = true;
-    Log(Info, "Direct3D 11 was successfully initialized.");
+    Log(log_level::Info, "Direct3D 11 was successfully initialized.");
 
 // Render targets
     for (int i = 1; i < render_group_target_count; i++) {
@@ -1277,7 +1277,7 @@ RENDERER_INITIALIZE {
 
     Result = DirectX.Device->CreateTexture2D(&StagingDescription, 0, &DirectX.StagingTexture);
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Staging texture creation failed.");
+        Log(log_level::Error, "DirectX: Staging texture creation failed.");
     }
 
     for (int i = 0; i < game_bitmap_id_count; i++) {
@@ -1305,7 +1305,7 @@ RENDERER_INITIALIZE {
 
     Result = DirectX.Device->CreateTexture2D(&StagingDescription, 0, &DirectX.StagingTexture);
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Staging texture creation failed.");
+        Log(log_level::Error, "DirectX: Staging texture creation failed.");
     }
 
 // Heightmaps
@@ -1445,7 +1445,7 @@ void ResizeWindow(int32 Width, int32 Height) {
 
     Result = DirectX.Device->CreateTexture2D(&StagingDescription, 0, &DirectX.StagingTexture);
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Staging texture creation failed.");
+        Log(log_level::Error, "DirectX: Staging texture creation failed.");
     }
 
     // Resize back buffer and corresponding depth/stencil buffer
@@ -1455,11 +1455,11 @@ void ResizeWindow(int32 Width, int32 Height) {
     DirectX.Target[Target_None].AttachmentTexture->Release();
     Result = DirectX.SwapChain->ResizeBuffers(2, Width, Height, DXGI_FORMAT_UNKNOWN, 0);
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Swap chain buffers resizing failed.");
+        Log(log_level::Error, "DirectX: Swap chain buffers resizing failed.");
     }
     else {
         Result = DirectX.SwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&DirectX.Target[Target_None].Texture);
-        if (FAILED(Result)) Log(Error, "DirectX: Swap chain texture fetching failed.");
+        if (FAILED(Result)) Log(log_level::Error, "DirectX: Swap chain texture fetching failed.");
         else 
             Result = DirectX.Device->CreateRenderTargetView(DirectX.Target[Target_None].Texture, NULL, &DirectX.Target[Target_None].View);
         
@@ -1522,7 +1522,7 @@ void ScreenCapture(int32 Width, int32 Height) {
     D3D11_MAPPED_SUBRESOURCE MapInfo;
     HRESULT Result = DirectX.DeviceContext->Map(DirectX.StagingTexture, 0, D3D11_MAP_READ, 0, &MapInfo);
     if (FAILED(Result)) {
-        Log(Error, "DirectX: Screen capture failed");
+        Log(log_level::Error, "DirectX: Screen capture failed");
         return;
     }
 
@@ -1554,7 +1554,7 @@ void ScreenCapture(int32 Width, int32 Height) {
         HANDLE hMapping = CreateFileMappingA(hFile, NULL, PAGE_READWRITE, 0, Size, NULL);
         if (!hMapping) {
             DWORD WinError = GetLastError();
-            Log(Error, "Memory map for file returned invalid handle.");
+            Log(log_level::Error, "Memory map for file returned invalid handle.");
             Assert(false);
         }
 
@@ -1578,7 +1578,7 @@ void ScreenCapture(int32 Width, int32 Height) {
         // Debug
         DWORD WinError = GetLastError();
         if (WinError == ERROR_PATH_NOT_FOUND) {
-            Log(Error, "Path not found.");
+            Log(log_level::Error, "Path not found.");
         }
         Assert(false);
     }
