@@ -35,7 +35,6 @@
 #include "Particles.h"
 #include "GameState.h"
 #include "GameDebug.h"
-#include "GameTest.h"
 
 #include "GameAssets.cpp"
 
@@ -64,6 +63,7 @@ struct game_memory {
     bool IsInitialized;
     bool HotReload;
     bool Running;
+    bool Test;
 };
 
 #include "GameUI.h"

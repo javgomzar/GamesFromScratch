@@ -1,71 +1,87 @@
-#include "GamePlatform.h"
-#include "GameRender.h"
+#include "GameLibrary.h"
 #include "GameData.h"
 
-void TestFormat() {
+
+/*
+    Test types. There are three test types:
+        - `test_once`: This test type is only run once (when the program loads)
+        - `test_reload`: This test type is run every time a new version of the code is hot-reloaded
+        - `test_every_frame`: This test type is run every frame
+*/
+ENUM(test_type,
+    test_once,
+    test_reload,
+    test_every_frame
+);
+
+#define TEST(Name, Type, Active) bool Name
+
+TEST(TestFormat, test_once, ACTIVE)() {
     string Test;
     memory_arena Arena = AllocateMemoryArena(1024);
 
     int32 Int32 = 0;
     Test = Format(&Arena, "Test {i} ...", 1, Int32);
-    Assert(Test == string("Test 0 ..."));
+    Assert(Test == string("Test 0 ..."), "Int32 formatting failed.");
     Int32 = -112312492;
     Test = Format(&Arena, "Test {i} ...", 1, Int32);
-    Assert(Test == string("Test -112312492 ..."));
+    Assert(Test == string("Test -112312492 ..."), "Int32 formatting failed.");
 
     ClearArena(&Arena);
 
     int64 Int64 = 0;
     Test = Format(&Arena, "Test {I} ...", 1, Int64);
-    Assert(Test == string("Test 0 ..."));
+    Assert(Test == string("Test 0 ..."), "Int64 formatting failed.");
     Int64 = -1982938423712312492;
     Test = Format(&Arena, "Test {I} ...", 1, Int64);
-    Assert(Test == string("Test -1982938423712312492 ..."));
+    Assert(Test == string("Test -1982938423712312492 ..."), "Int64 formatting failed.");
 
     ClearArena(&Arena);
 
     uint32 Uint32 = 0;
     Test = Format(&Arena, "Test {u} ...", 1, Uint32);
-    Assert(Test == string("Test 0 ..."));
+    Assert(Test == string("Test 0 ..."), "Uint32 formatting failed.");
     Uint32 = 112312492;
     Test = Format(&Arena, "Test {u} ...", 1, Uint32);
-    Assert(Test == string("Test 112312492 ..."));
+    Assert(Test == string("Test 112312492 ..."), "Uint32 formatting failed.");
 
     ClearArena(&Arena);
 
     uint64 Uint64 = 0;
     Test = Format(&Arena, "Test {U} ...", 1, Uint64);
-    Assert(Test == string("Test 0 ..."));
+    Assert(Test == string("Test 0 ..."), "Uint64 formatting failed.");
     Uint64 = 1982938423712312492;
     Test = Format(&Arena, "Test {U} ...", 1, Uint64);
-    Assert(Test == string("Test 1982938423712312492 ..."));
+    Assert(Test == string("Test 1982938423712312492 ..."), "Uint64 formatting failed.");
 
     ClearArena(&Arena);
 
     uint64 Hex = 12379813738877118345ULL;
     Test = Format(&Arena, "Test {x} ...", 1, Hex);
-    Assert(Test == "Test 0xabcdef0123456789 ...");
+    Assert(Test == "Test 0xabcdef0123456789 ...", "Hex formatting failed.");
 
     ClearArena(&Arena);
 
     Test = Format(&Arena, "Hello {s}!", 1, string("world"));
-    Assert(Test == string("Hello world!"));
+    Assert(Test == string("Hello world!"), "String formatting failed.");
 
     ClearArena(&Arena);
 
     double Float = -0.1;
     Test = Format(&Arena, "Test {f3} ...", 1, Float);
-    Assert(Test == string("Test -0.100 ..."));
+    Assert(Test == string("Test -0.100 ..."), "float formatting failed.");
 
     ClearArena(&Arena);
 
     Test = Format(&Arena, "Test {i} {I} {u} {U} {s} {f3} ...", 6, Int32, Int64, Uint32, Uint64, string("Hola"), 123.123);
-    Assert(Test == string("Test -112312492 -1982938423712312492 112312492 1982938423712312492 Hola 123.123 ..."));
+    Assert(Test == string("Test -112312492 -1982938423712312492 112312492 1982938423712312492 Hola 123.123 ..."), "Multiple arguments formatting failed.");
     
     FreeMemoryArena(&Arena);
+
+    return true;
 }
 
-void TestFloatingPoint() {
+TEST(TestFloatingPoint, test_once, ACTIVE)() {
     float TestValues32[] = {
         0.0f,
         -0.0f,
@@ -103,9 +119,11 @@ void TestFloatingPoint() {
         double Result = BuildFloat(Value < 0, Exponent, Mantissa);
         Assert(Value == Result);
     }
+
+    return true;
 }
 
-void TestDataFileManager() {
+TEST(TestDataFileManager, test_once, ACTIVE)() {
     game_data_file_manager Manager = InitializeDataFileManager("GameData\\Data\\data_file_manager");
 
     game_data_file* TestFile1 = GetOrCreateDataFile(&Manager, "GameData\\Data\\test_file_1");
@@ -114,9 +132,11 @@ void TestDataFileManager() {
     Assert(TestFile2 == TestFile1);
 
     CloseDataFileManager(Manager);
+
+    return true;
 }
 
-void TestData() {
+TEST(TestData, test_once, ACTIVE)() {
     memory_arena Arena = AllocateMemoryArena(Kilobytes(8));
 
     game_data_page Page = CreateDataPage(&Arena, row_data_page, 1);
@@ -132,15 +152,17 @@ void TestData() {
     game_data_slot* ReadSlot = GetSlot(Page, Slot->ID);
     char* ReadPointer = (char*)Page.Header + Slot->Offset;
 
-    Log(Info, ReadPointer);
+    Log(log_level::Info, ReadPointer);
 
     Assert(Page.Header->Size == TextLength + sizeof(game_data_page_header) + sizeof(game_data_slot));
 
     FreeMemoryArena(&Arena);
-    Log(Info, "Data test ended.");
+    Log(log_level::Info, "Data test ended.");
+
+    return true;
 }
 
-void TestInstancedRendering(render_group* Group) {
+TEST(TestInstancedRendering, test_every_frame, INACTIVE)(render_group* Group) {
     int nInstances = 100;
     render_primitive_command* Command = PushPrimitiveCommand(
         Group,
@@ -166,9 +188,11 @@ void TestInstancedRendering(render_group* Group) {
         *Instances++ = i * Group->Width / 10;
         *Instances++ = j * Group->Height / 10;
     }
+
+    return true;
 }
 
-void TestTextRendering(render_group* Group, game_input* Input) {
+TEST(TestTextRendering, test_every_frame, INACTIVE)(render_group* Group, game_input* Input) {
     render_text_options Options = {};
     Options.Outline = false;
     Options.OutlineWidth = 1.5f;
@@ -185,9 +209,11 @@ void TestTextRendering(render_group* Group, game_input* Input) {
     game_font* Font = GetAsset(Group->Assets, Font_DejaVu_Sans_ID);
 
     PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Color = White, .Font = Font->ID, .Outline = false, .Points = Points);
+
+    return true;
 }
 
-void TestRendering(render_group* Group, game_input* Input, float Time) {
+TEST(TestRendering, test_every_frame, INACTIVE)(render_group* Group, game_input* Input, float Time) {
 // 2D
     // Rects
     rectangle Rect = { 20, 20, 100, 100 };
@@ -251,13 +277,16 @@ void TestRendering(render_group* Group, game_input* Input, float Time) {
 
     // Heightmap
     PushHeightmap(Group, Heightmap_Spain_ID, V3(0,0,0), GetScale(10, 1, 10));
+
+    return true;
 }
 
-void TestSky(float Time, light* Light) {
+TEST(TestSky, test_every_frame, INACTIVE)(float Time, light* Light) {
     Light->Direction = V3(-cos(0.2f * Time), -sin(0.2f * Time), 0);
+    return true;
 }
 
-// void TestFluid(render_group* Group, game_input* Input, bool FirstFrame) {
+// TEST(TestFluid, test_every_frame, INACTIVE)(render_group* Group, game_input* Input, bool FirstFrame) {
 //     if (FirstFrame || Input->Keyboard.R.JustPressed) {
 //         PushShaderPass(Group, Compute_Shader_Fluid_Init_ID, Target_Fluid, Target_Fluid);
 //     }
@@ -267,7 +296,7 @@ void TestSky(float Time, light* Light) {
 //     PushRenderTarget(Group, Target_Fluid);
 // }
 
-void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
+TEST(TestFFT, test_every_frame, INACTIVE)(render_group* Group, memory_arena* Permanent, float Time) {
     uint32 N = 256;
     
     static bool Initialized = false;
@@ -281,14 +310,14 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
     static float* PhaseFFT = nullptr;
 
     if (!Initialized) {
-        Signal = PushArray(Arena, N, float);
-        InputData = PushArray(Arena, N, complex);
-        OutputData = PushArray(Arena, N, complex);
-        Twiddle = PushArray(Arena, N, complex);
-        ModulusDFT = PushArray(Arena, N, float);
-        PhaseDFT = PushArray(Arena, N, float);
-        ModulusFFT = PushArray(Arena, N, float);
-        PhaseFFT = PushArray(Arena, N, float);
+        Signal = PushArray(Permanent, N, float);
+        InputData = PushArray(Permanent, N, complex);
+        OutputData = PushArray(Permanent, N, complex);
+        Twiddle = PushArray(Permanent, N, complex);
+        ModulusDFT = PushArray(Permanent, N, float);
+        PhaseDFT = PushArray(Permanent, N, float);
+        ModulusFFT = PushArray(Permanent, N, float);
+        PhaseFFT = PushArray(Permanent, N, float);
 
         for (int i = 0; i < N; i++) {
             Signal[i] = sin(0.333333f*i);
@@ -336,9 +365,11 @@ void TestFFT(render_group* Group, memory_arena* Arena, float Time) {
     PushText(Group, V2(1000, 320), TextBuffer);
     PushDebugPlot(Group, N, ModulusFFT, V2(1000, 200), 1);
     PushDebugPlot(Group, N, PhaseFFT, V2(1000, 250), 1);
+
+    return true;
 }
 
-void TestEntities(game_state* State) {
+TEST(TestEntities, test_once, ACTIVE)(game_state* State) {
     game_entity* Camera = CreateEntity(State->Entities, "Camera", Camera_Entity_Type);
     State->ActiveCamera = Camera;
     Camera->Angle = -45.0f;
@@ -368,4 +399,6 @@ void TestEntities(game_state* State) {
     Shield->Color = Gray;
     Shield->Transform.Translation = V3(10,1.6f,0);
     Shield->Collider = CapsuleCollider(V3(0,-0.5f,0), V3(0,0.5f,0), 1.0f);
+
+    return true;
 }

@@ -1,5 +1,6 @@
 #include "pch.h"
 #include "GameLibrary.h"
+#include "GameTest.h"
 
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_IMPLEMENTATION
@@ -220,6 +221,10 @@ extern "C" GAME_UPDATE(GameUpdate)
 
         TimeRecords = (time_record*)&Memory->TimeRecordsLibrary;
 
+        if (Memory->Test) {
+            RunReloadTests(Memory);
+        }
+
 #ifdef _WIN32
         LARGE_INTEGER PerfCountFrequencyResult;
         QueryPerformanceFrequency(&PerfCountFrequencyResult);
@@ -244,15 +249,12 @@ extern "C" GAME_UPDATE(GameUpdate)
     if (!Memory->IsInitialized) {
         FirstFrame = true;
 
-        // TestPerformance();
-
-        TestData();
-        TestDataFileManager();
-
         // Initialize entities
         State->Entities = free_list<game_entity>(&Memory->Permanent, MAX_ENTITIES);
 
-        TestEntities(State);
+        if (Memory->Test) {
+            RunOnceTests(Memory);
+        }
 
         State->Emitter = AllocateParticleEmitter(&Memory->Permanent, 200);
         SetParticleEmitterCircle(State->Emitter, V3(0,0,0), 1.0f, V3(0,1,0));
@@ -267,6 +269,10 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushClear(Group, { 0 }, Target_Postprocessing_Outline);
     PushClear(Group, Magenta, Target_PingPong);
     PushClear(Group, Black, Target_Output);
+
+    if (Memory->Test) {
+        RunEveryFrameTests(Memory);
+    }
 
     UpdateGameState(DebugInfo, Group, State, Input);
 

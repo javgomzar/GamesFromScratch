@@ -11,6 +11,7 @@ compile_commands.json
 
 # Game assets
 GameAssets/Files
+GameAssets/TestFiles
 GameAssets/game_assets
 
 # Game data

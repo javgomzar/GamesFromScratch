@@ -774,6 +774,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Slang setup
     // InitializeSlang(&Memory.Permanent, BuildConfig.Renderer);
 
+    if (wcscmp(lpCmdLine, L"-test ") == 0) {
+        Memory.Test = true;
+    }
+
     Memory.Running = true;
     bool FirstFrame = true;
 
