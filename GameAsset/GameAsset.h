@@ -1,14 +1,9 @@
 #ifndef GAME_ASSETS
 #define GAME_ASSETS
 
+#include "GamePlatform.h"
 #include "GameMath.h"
 #include "Tokenizer.h"
-
-#include "GameFont.h"
-#include "GameBitmap.h"
-#include "GameSound.h"
-// #include "GameVideo.h"
-#include "GameMesh.h"
 
 /*
     TODO:
@@ -18,21 +13,35 @@
 
 ENUM(game_asset_type,
     Asset_Type_Text,
-    Asset_Type_Bitmap,
+    Asset_Type_Texture,
     Asset_Type_Heightmap,
     Asset_Type_Font,
     Asset_Type_Sound,
-    Asset_Type_Video,
     Asset_Type_Mesh,
     Asset_Type_Animation
+//  Asset_Type_Video,
 );
 
 ENUM(game_text_id,
     Text_Test_ID
 );
 
+ENUM(game_texture_id,
+    Texture_Empty_ID,
+    Texture_Background_ID,
+    Texture_Button_ID,
+    Texture_Enemy_ID,
+    Texture_Player_ID,
+    Texture_Spain_ID
+);
+
 ENUM(game_heightmap_id,
     Heightmap_Spain_ID
+);
+
+ENUM(game_font_id,
+    Font_DejaVu_Sans_Mono_ID,
+    Font_DejaVu_Sans_ID
 );
 
 ENUM(game_animation_id,
@@ -42,10 +51,29 @@ ENUM(game_animation_id,
     Animation_Attack_ID
 );
 
+ENUM(game_sound_id,
+    Sound_Test_ID
+);
+
+ENUM(game_mesh_id,
+    Mesh_Sphere_ID,
+    Mesh_Tetrahedron_ID,
+    Mesh_Cube_ID,
+    Mesh_Octahedron_ID,
+    Mesh_Icosahedron_ID,
+    Mesh_Dodecahedron_ID,
+    Mesh_Enemy_ID,
+    Mesh_Body_ID,
+    Mesh_Shield_ID,
+    Mesh_Sword_ID,
+    Mesh_Selector_ID
+);
+
+
 union game_asset_id {
     game_text_id Text;
     game_sound_id Sound;
-    game_bitmap_id Bitmap;
+    game_texture_id Texture;
     game_heightmap_id Heightmap;
     game_font_id Font;
     game_mesh_id Mesh;
@@ -61,6 +89,12 @@ struct game_asset {
     uint64 MemoryNeeded;
     uint64 Offset;
 };
+
+#include "GameFont.h"
+#include "GameTexture.h"
+#include "GameSound.h"
+#include "GameMesh.h"
+// #include "GameVideo.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Color                                                                                                                                        |
@@ -163,7 +197,7 @@ struct game_text {
 
 struct game_heightmap {
     game_heightmap_id ID;
-    game_bitmap Bitmap;
+    game_texture Texture;
 };
 
 const int HEIGHTMAP_RESOLUTION = 16;
@@ -177,7 +211,7 @@ game_heightmap LoadHeightmap(memory_arena* Arena, game_asset* Asset) {
     game_heightmap Result = {};
     Result.ID = Asset->ID.Heightmap;
 
-    Result.Bitmap = LoadBitmapFile(Arena, Asset->FileContent);
+    Result.Texture = LoadBitmapFile(Arena, Asset->FileContent);
     return Result;
 }
 
@@ -301,7 +335,7 @@ game_animation LoadAnimation(memory_arena* Arena, game_asset* Asset) {
 const uint32 ASSET_COUNT =
     (uint32)game_text_id_count +
     (uint32)game_sound_id_count +
-    (uint32)game_bitmap_id_count +
+    (uint32)game_texture_id_count +
     (uint32)game_heightmap_id_count +
     (uint32)game_font_id_count +
     (uint32)game_mesh_id_count +
@@ -313,7 +347,7 @@ ArrayDefinition(ASSET_COUNT, game_asset)
 struct game_assets {
     game_asset_array Asset;
     game_text Text[game_text_id_count];
-    game_bitmap Bitmap[game_bitmap_id_count];
+    game_texture Texture[game_texture_id_count];
     game_heightmap Heightmap[game_heightmap_id_count];
     game_font Font[game_font_id_count];
     game_sound Sound[game_sound_id_count];
@@ -329,7 +363,7 @@ struct game_assets {
 };
 
 struct preprocessed_assets {
-    preprocessed_font Font[game_bitmap_id_count];
+    preprocessed_font Font[game_font_id_count];
     preprocessed_sound Sound[game_sound_id_count];
     preprocessed_mesh Mesh[game_mesh_id_count];
 };
@@ -338,7 +372,7 @@ static preprocessed_assets PreprocessedAssets;
 
 game_text*      GetAsset(game_assets* Assets, game_text_id ID)      { return &Assets->Text[ID]; }
 game_sound*     GetAsset(game_assets* Assets, game_sound_id ID)     { return &Assets->Sound[ID]; }
-game_bitmap*    GetAsset(game_assets* Assets, game_bitmap_id ID)    { return &Assets->Bitmap[ID]; }
+game_texture*   GetAsset(game_assets* Assets, game_texture_id ID)   { return &Assets->Texture[ID]; }
 game_heightmap* GetAsset(game_assets* Assets, game_heightmap_id ID) { return &Assets->Heightmap[ID]; }
 game_font*      GetAsset(game_assets* Assets, game_font_id ID)      { return &Assets->Font[ID]; }
 game_mesh*      GetAsset(game_assets* Assets, game_mesh_id ID)      { return &Assets->Mesh[ID]; }
@@ -374,10 +408,10 @@ void PushAsset(game_assets* Assets, const char* Path, game_sound_id ID) {
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
-void PushAsset(game_assets* Assets, const char* Path, game_bitmap_id ID) {
+void PushAsset(game_assets* Assets, const char* Path, game_texture_id ID) {
     game_asset Asset = {};
-    Asset.Type = Asset_Type_Bitmap;
-    Asset.ID.Bitmap = ID;
+    Asset.Type = Asset_Type_Texture;
+    Asset.ID.Texture = ID;
     Asset.FileContent = Platform.ReadEntireFile(Path, &Asset.FileInfo);
     Assert(Asset.FileInfo.Size > 0);
     Asset.MemoryNeeded = PreprocessBitmap((bitmap_header*)Asset.FileContent);
@@ -483,9 +517,9 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
         //    sprintf(LogBuffer, "Loaded video %s.", Asset->File.Path);
         // } break;
 
-        case Asset_Type_Bitmap: {
-            Assets->Bitmap[ID.Bitmap] = LoadBitmapFile(Arena, Asset->FileContent);
-            Assets->Bitmap[ID.Bitmap].ID = ID.Bitmap;
+        case Asset_Type_Texture: {
+            Assets->Texture[ID.Texture] = LoadBitmapFile(Arena, Asset->FileContent);
+            Assets->Texture[ID.Texture].ID = ID.Texture;
             sprintf(LogBuffer, "Loaded bitmap %s.", Asset->FileInfo.Path);
         } break;
 

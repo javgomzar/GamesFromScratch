@@ -2,7 +2,7 @@
 #define GAME_RENDER_H
 
 #pragma once
-#include "GameAssets.h"
+#include "GameAsset.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Vertex buffer                                                                                                                                |
@@ -200,7 +200,7 @@ struct render_primitive_optional_arguments {
     int nInstances = 0;
     float Order = 0.0f;
     int PatchParameter = 4;
-    game_bitmap* Texture = nullptr;
+    game_texture* Texture = nullptr;
     float Thickness = 2.0f;
     transform Transform = IdentityTransform;
 };
@@ -209,7 +209,7 @@ struct render_primitive_options {
     render_flag Flags;
     float Thickness = 2.0f;
     transform Transform = IdentityTransform;
-    game_bitmap* Texture = nullptr;
+    game_texture* Texture = nullptr;
     game_heightmap* Heightmap = nullptr;
     int PatchParameter = 4;
 };
@@ -236,7 +236,7 @@ struct render_text_options {
 struct render_mesh_options {
     armature* Armature = nullptr;
     color Color = White;
-    game_bitmap_id TextureID = Bitmap_Empty_ID;
+    game_texture_id TextureID = Texture_Empty_ID;
     transform Transform = IdentityTransform;
     bool Outline = false;
 };
@@ -1281,7 +1281,7 @@ void PushRectOutline(
 
 void PushBitmap(
     render_group* Group, 
-    game_bitmap* Bitmap, 
+    game_texture* Bitmap, 
     rectangle Rect, 
     float Order = SORT_ORDER_DEBUG_OVERLAY,
     wrap_mode WrapMode = Wrap_Clamp,
@@ -1299,8 +1299,8 @@ void PushBitmap(
         .Texture = Bitmap
     );
 
-    int Width = Bitmap->Header.Width;
-    int Height = Bitmap->Header.Height;
+    int Width = Bitmap->Width;
+    int Height = Bitmap->Height;
     float MinTexX = 0.0f;
     float MaxTexX = 1.0f;
     float MinTexY = 0.0f;
@@ -1355,14 +1355,14 @@ void PushBitmap(
 
 void PushBitmap(
     render_group* Group, 
-    game_bitmap_id ID, 
+    game_texture_id ID, 
     rectangle Rect, 
     float Order = SORT_ORDER_DEBUG_OVERLAY,
     wrap_mode Mode = Wrap_Clamp,
     v2 Size = V2(1.0, 1.0),
     v2 Offset = V2(0,0)
 ) {
-    game_bitmap* Bitmap = GetAsset(Group->Assets, ID);
+    game_texture* Bitmap = GetAsset(Group->Assets, ID);
     PushBitmap(Group, Bitmap, Rect, Order, Mode, Size, Offset, false);
 }
 

@@ -235,7 +235,7 @@ TEST(TestRendering, test_every_frame, INACTIVE)(render_group* Group, game_input*
 
     // Bitmap
     rectangle BitmapRect = { 20, 140, 100, 200 };
-    PushBitmap(Group, Bitmap_Player_ID, BitmapRect);
+    PushBitmap(Group, Texture_Player_ID, BitmapRect);
 
 // 3D
     // Point

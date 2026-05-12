@@ -40,7 +40,7 @@ struct game_entity {
 
     // Rendering
     game_mesh_id MeshID = Mesh_Sphere_ID;
-    game_bitmap_id TextureID = Bitmap_Empty_ID;
+    game_texture_id TextureID = Texture_Empty_ID;
 
     // View
     v3 Anchor = V3(0,0,0);

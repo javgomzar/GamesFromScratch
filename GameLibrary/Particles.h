@@ -1,5 +1,5 @@
 #include "GameMath.h"
-#include "GameAssets.h"
+#include "GameAsset.h"
 #include "GameRender.h"
 
 #ifndef PARTICLES

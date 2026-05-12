@@ -14,10 +14,6 @@
         - Implement circular buffer with VirtualAlloc2 and MapViewOfFile3
 */
 
-ENUM(game_sound_id,
-    Sound_Test_ID
-);
-
 struct waveformat {
     unsigned short    wFormatTag;        /* format type */
     unsigned short    nChannels;         /* number of channels (i.e. mono, stereo...) */

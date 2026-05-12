@@ -688,7 +688,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Assets
     game_assets* Assets = &Memory.Assets;
-    const char* AssetsPath = "GameAssets\\game_assets";
+    const char* AssetsPath = "GameAsset\\game_assets";
     WriteAssetsFile(AssetsPath);
     LoadAssetsFromFile(&FontsArena, Assets, AssetsPath);
 

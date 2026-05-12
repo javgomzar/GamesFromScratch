@@ -30,13 +30,13 @@
 #include "GameEnums.h"
 #include "GameMath.h"
 #include "GameInput.h"
-#include "GameAssets.h"
+#include "GameAsset.h"
 #include "GameRender.h"
 #include "Particles.h"
 #include "GameState.h"
 #include "GameDebug.h"
 
-#include "GameAssets.cpp"
+#include "GameAsset.cpp"
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
 // | Game memory                                                                                                                     |

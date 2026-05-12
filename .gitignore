@@ -10,9 +10,9 @@ compile_commands.json
 .cache
 
 # Game assets
-GameAssets/Files
-GameAssets/TestFiles
-GameAssets/game_assets
+GameAsset/Files
+GameAsset/TestFiles
+GameAsset/game_assets
 
 # Game data
 GameData/Data

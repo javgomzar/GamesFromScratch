@@ -93,9 +93,9 @@ int main() {
     std::vector<std::string> StructMembers = {};
 
     const char* ProcessingFiles[] = {
-        "GameAssets"  PATH_SEPARATOR "GameAssets.h",
-        "GameAssets"  PATH_SEPARATOR "GameMesh.h",
-        "GameAssets"  PATH_SEPARATOR "GameBitmap.h",
+        "GameAsset"   PATH_SEPARATOR "GameAsset.h",
+        "GameAsset"   PATH_SEPARATOR "GameMesh.h",
+        "GameAsset"   PATH_SEPARATOR "GameTexture.h",
         "GameRender"  PATH_SEPARATOR "GameRender.h",
         "GameLibrary" PATH_SEPARATOR "GameMath.h",
         "GameLibrary" PATH_SEPARATOR "GameState.h",

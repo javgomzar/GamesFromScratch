@@ -10,19 +10,6 @@
 | Meshes                                                                                                                                       |
 +----------------------------------------------------------------------------------------------------------------------------------------------+
 */
-ENUM(game_mesh_id,
-    Mesh_Sphere_ID,
-    Mesh_Tetrahedron_ID,
-    Mesh_Cube_ID,
-    Mesh_Octahedron_ID,
-    Mesh_Icosahedron_ID,
-    Mesh_Dodecahedron_ID,
-    Mesh_Enemy_ID,
-    Mesh_Body_ID,
-    Mesh_Shield_ID,
-    Mesh_Sword_ID,
-    Mesh_Selector_ID
-);
 
 const int BONE_NAME_LENGTH = 32;
 

@@ -176,7 +176,7 @@ struct directX {
     ID3D11BlendState* CombineAlpha;
     ID3D11BlendState* OverwriteAlpha;
     ID3D11BlendState* TargetBlend;
-    ID3D11ShaderResourceView* Texture[game_bitmap_id_count];
+    ID3D11ShaderResourceView* Texture[game_texture_id_count];
     ID3D11ShaderResourceView* Heightmap[game_heightmap_id_count];
     ID3D11DepthStencilState* DepthStencilEnabled;
     ID3D11DepthStencilState* DepthStencilDisabled;
@@ -1280,11 +1280,11 @@ RENDERER_INITIALIZE {
         Log(log_level::Error, "DirectX: Staging texture creation failed.");
     }
 
-    for (int i = 0; i < game_bitmap_id_count; i++) {
-        game_bitmap* Bitmap = &Group->Assets->Bitmap[i];
+    for (int i = 0; i < game_texture_id_count; i++) {
+        game_texture* Texture = &Group->Assets->Texture[i];
         DirectX.Texture[i] = CreateTexture(
-            Bitmap->Header.Width, Bitmap->Header.Height,
-            Bitmap->Content
+            Texture->Width, Texture->Height,
+            Texture->Content
         );
     }
 
@@ -1310,9 +1310,9 @@ RENDERER_INITIALIZE {
 
 // Heightmaps
     for (int i = 0; i < game_heightmap_id_count; i++) {
-        game_bitmap* Bitmap = &Group->Assets->Heightmap[i].Bitmap;
+        game_texture* Bitmap = &Group->Assets->Heightmap[i].Texture;
         DirectX.Heightmap[i] = CreateTexture(
-            Bitmap->Header.Width, Bitmap->Header.Height,
+            Bitmap->Width, Bitmap->Height,
             Bitmap->Content
         );
     }
@@ -1527,8 +1527,7 @@ void ScreenCapture(int32 Width, int32 Height) {
     }
 
     // Bitmap header
-    bitmap_header Header = {};
-    MakeBitmapHeader(&Header, Width, Height);
+    bitmap_header Header = MakeBitmapHeader(Width, Height);
 
     Header.RedMask = 0x000000ff;
     Header.GreenMask = 0x0000ff00;

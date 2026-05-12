@@ -6,11 +6,6 @@
 
 #include <vector>
 
-ENUM(game_font_id,
-    Font_DejaVu_Sans_Mono_ID,
-    Font_DejaVu_Sans_ID
-);
-
 const uint32 FONT_CHARACTERS_COUNT = '~' - ' ';
 // const int LOAD_POINTS = 20
 
