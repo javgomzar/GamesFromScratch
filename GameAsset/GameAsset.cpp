@@ -11,7 +11,7 @@ void WriteAssetsFile(const char* Path) {
     // Text
     PushAsset(&Assets, "GameAsset\\Files\\Text\\Test.txt", Text_Test_ID);
 
-    // Bitmaps
+    // Textures
     PushAsset(&Assets, "GameAsset\\Files\\Texture\\Background.bmp", Texture_Background_ID);
     PushAsset(&Assets, "GameAsset\\Files\\Texture\\Button.bmp", Texture_Button_ID);
     PushAsset(&Assets, "GameAsset\\Files\\Texture\\Empty.bmp", Texture_Empty_ID);

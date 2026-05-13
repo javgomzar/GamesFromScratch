@@ -107,68 +107,80 @@ uint64 PreprocessBitmap(bitmap_header* Header) {
     return 4 * Header->Width * Header->Height;
 }
 
-game_texture LoadBitmapFile(memory_arena* Arena, void* FileContent) {
+game_texture LoadTexture(memory_arena* Arena, string Extension, void* FileContent) {
     game_texture Result = {};
-    bitmap_header Header = *(bitmap_header*)FileContent;
-    Result.BytesPerPixel = Header.BitsPerPixel >> 3;
-    Result.Width = Header.Width;
-    Result.Height = Header.Height;
-    Result.RedMask = Header.RedMask;
-    Result.GreenMask = Header.GreenMask;
-    Result.BlueMask = Header.BlueMask;
-    Result.Content = (uint32*)((uint8*)FileContent + Header.BitmapOffset);
 
-    bool HasAlpha = false;
-    if (Result.BytesPerPixel == 4 && Header.Compression == 3) {
-        uint32 AlphaMask = ~(Header.RedMask | Header.GreenMask | Header.BlueMask);
-        // If not all Alphas are zero, we need to use them
-        uint32* Contents = Result.Content;
-        for (int32 i = 0; i < Header.Height * Header.Width; i++) {
-            if ((*Contents++ & AlphaMask) > 0) {
-                HasAlpha = true;
-                break;
+    if (Extension == "bmp") {
+        bitmap_header Header = *(bitmap_header*)FileContent;
+        Result.BytesPerPixel = Header.BitsPerPixel >> 3;
+        Result.Width = Header.Width;
+        Result.Height = Header.Height;
+        Result.RedMask = Header.RedMask;
+        Result.GreenMask = Header.GreenMask;
+        Result.BlueMask = Header.BlueMask;
+        Result.Content = (uint32*)((uint8*)FileContent + Header.BitmapOffset);
+
+        bool HasAlpha = false;
+        if (Result.BytesPerPixel == 4 && Header.Compression == 3) {
+            uint32 AlphaMask = ~(Header.RedMask | Header.GreenMask | Header.BlueMask);
+            // If not all Alphas are zero, we need to use them
+            uint32* Contents = Result.Content;
+            for (int32 i = 0; i < Header.Height * Header.Width; i++) {
+                if ((*Contents++ & AlphaMask) > 0) {
+                    HasAlpha = true;
+                    break;
+                }
+            }
+
+            // If all alphas are zero, turn them to one
+            Contents = Result.Content;
+            if (!HasAlpha) {
+                for (int32 j = 0; j < Header.Height * Header.Width; j++) {
+                    *Contents = AlphaMask | (*Contents++ & ~AlphaMask);
+                }
             }
         }
 
-        // If all alphas are zero, turn them to one
-        Contents = Result.Content;
-        if (!HasAlpha) {
-            for (int32 j = 0; j < Header.Height * Header.Width; j++) {
-                *Contents = AlphaMask | (*Contents++ & ~AlphaMask);
+        uint32 RowSize = Header.Width * Result.BytesPerPixel;
+        if (Header.Size == 40 && Result.BytesPerPixel == 3) {
+            // 4-byte alignment
+            RowSize = (RowSize / 4 + 1) * 4;
+        }
+
+        uint64 PixelsSize = 4 * Header.Width * Header.Height;
+        uint32* Destination = (uint32*)PushSize(Arena, PixelsSize);
+
+        uint8* Source = (uint8*)Result.Content;
+        for (int Row = 0; Row < Header.Height; Row++) {
+            uint32 BytesRead = 0;
+            for (int Col = 0; Col < Header.Width; Col++) {
+                uint8 R = *Source++;
+                uint8 G = *Source++;
+                uint8 B = *Source++;
+
+                uint8 A = 255;
+                if (Result.BytesPerPixel == 4) {
+                    A = *Source++;
+                }
+                uint32 Pixel = (A << 24) | (R << 16) | (G << 8) | B;
+                *Destination++ = Pixel;
+
+                BytesRead += Result.BytesPerPixel;
+            }
+
+            if (BytesRead < RowSize) {
+                Source += RowSize - BytesRead;
             }
         }
     }
-
-    uint32 RowSize = Header.Width * Result.BytesPerPixel;
-    if (Header.Size == 40 && Result.BytesPerPixel == 3) {
-        // 4-byte alignment
-        RowSize = (RowSize / 4 + 1) * 4;
+    else if (Extension == "jpg" || Extension == "jpeg") {
+        
     }
-
-    uint64 PixelsSize = 4 * Header.Width * Header.Height;
-    uint32* Destination = (uint32*)PushSize(Arena, PixelsSize);
-
-    uint8* Source = (uint8*)Result.Content;
-    for (int Row = 0; Row < Header.Height; Row++) {
-        uint32 BytesRead = 0;
-        for (int Col = 0; Col < Header.Width; Col++) {
-            uint8 R = *Source++;
-            uint8 G = *Source++;
-            uint8 B = *Source++;
-
-            uint8 A = 255;
-            if (Result.BytesPerPixel == 4) {
-                A = *Source++;
-            }
-            uint32 Pixel = (A << 24) | (R << 16) | (G << 8) | B;
-            *Destination++ = Pixel;
-
-            BytesRead += Result.BytesPerPixel;
-        }
-
-        if (BytesRead < RowSize) {
-            Source += RowSize - BytesRead;
-        }
+    else if (Extension == "png") {
+        
+    }
+    else {
+        Raise("Invalid texture format.");
     }
 
     return Result;

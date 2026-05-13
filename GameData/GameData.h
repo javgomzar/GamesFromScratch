@@ -141,7 +141,7 @@ struct game_data_file {
 };
 
 struct game_data_file_manager {
-    char Directory[MAX_PATH_LENGTH];
+    string Directory;
     game_data_file* Files;
     uint32 Count;
     uint32 Size;
@@ -150,7 +150,7 @@ struct game_data_file_manager {
 
 game_data_file_manager CreateDataFileManager(const char* Directory) {
     game_data_file_manager Result = {};
-    strcpy(Result.Directory, Directory);
+    Result.Directory = Directory;
     Result.Size = 32;
     Result.Files = (game_data_file*)calloc(Result.Size, sizeof(game_data_file));
     Result.Count = 0;
@@ -169,13 +169,13 @@ void SaveDataFileManager(game_data_file_manager Manager) {
     *Pointer++ = Manager.NextID;
     memcpy(Pointer, Manager.Files, Manager.Count * sizeof(game_data_file));
 
-    Platform.WriteEntireFile(Manager.Directory, FileSize, Memory);
+    Platform.WriteEntireFile(Manager.Directory.Content, FileSize, Memory);
     free(Memory);
 }
 
 game_data_file_manager ReadDataFileManager(const char* Directory) {
     game_data_file_manager Result = {};
-    strcpy(Result.Directory, Directory);
+    Result.Directory = Directory;
     
     file_info File;
     void* ReadMemory = Platform.ReadEntireFile(Directory, &File);

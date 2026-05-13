@@ -614,6 +614,12 @@ struct string {
     }
 
     char operator[](int Index) {
+        if (Index < -Length || Index > Length) {
+            return '\0';
+        }
+        if (Index < 0) {
+            return Content[Length + Index];
+        }
         return Content[Index];
     };
 };
@@ -856,8 +862,6 @@ string Format(memory_arena* Arena, const char* Format, int nInputs, ...) {
 +---------------------------------------------------------------------------------------------------------------------------------+
 */
 
-#define MAX_PATH_LENGTH 256
-
 #if _WIN32
 #define PATH_SEPARATOR "\\"
 #elif __linux__
@@ -865,7 +869,7 @@ string Format(memory_arena* Arena, const char* Format, int nInputs, ...) {
 #endif
 
 struct file_info {
-    char Path[MAX_PATH_LENGTH];
+    string Path;
     int64 Timestamp; 
     memory_index Size;
 };
@@ -876,30 +880,38 @@ struct file_chunk_info {
     memory_index Offset;
 };
 
-const char* GetFileName(const char* Path) {
-    uint64 L = strlen(Path);
-    const char* pChar = nullptr;
-    for (pChar = Path + L - 1; pChar > Path; pChar--) {
+string GetFileName(string Path) {
+    string Result;
+    
+    const char* pChar = Path.Content + Path.Length - 1;
+    for (; pChar > Path.Content; pChar--) {
         if (*pChar == '\\' || *pChar == '/') {
             pChar++;
             break;
         }
+        Result.Length++;
     }
 
-    return pChar;
+    Result.Content = pChar;
+
+    return Result;
 }
 
-const char* GetFileExtension(const char* Path) {
-    uint64 L = strlen(Path);
-    const char* pChar = nullptr;
-    for (pChar = Path + L - 1; pChar > Path; pChar--) {
+string GetFileExtension(string Path) {
+    string Result;
+
+    const char* pChar = Path.Content + Path.Length - 1;
+    for (; pChar > Path.Content; pChar--) {
         if (*pChar == '.') {
             pChar++;
             break;
         }
+        Result.Length++;
     }
 
-    return pChar;
+    Result.Content = pChar;
+
+    return Result;
 }
 
 // Record and playback

@@ -211,7 +211,9 @@ game_heightmap LoadHeightmap(memory_arena* Arena, game_asset* Asset) {
     game_heightmap Result = {};
     Result.ID = Asset->ID.Heightmap;
 
-    Result.Texture = LoadBitmapFile(Arena, Asset->FileContent);
+    string Extension = GetFileExtension(Asset->FileInfo.Path);
+
+    Result.Texture = LoadTexture(Arena, Extension, Asset->FileContent);
     return Result;
 }
 
@@ -509,7 +511,7 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
             Assets->Text[ID.Text].Size = Asset->MemoryNeeded;
             Assets->Text[ID.Text].Content = TextContent;
             memcpy(TextContent, Asset->FileContent, Asset->MemoryNeeded);
-            sprintf(LogBuffer, "Loaded text %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded text %s.", Asset->FileInfo.Path.Content);
         } break;
 
         // case Asset_Type_Video: {
@@ -518,47 +520,48 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
         // } break;
 
         case Asset_Type_Texture: {
-            Assets->Texture[ID.Texture] = LoadBitmapFile(Arena, Asset->FileContent);
+            string Extension = GetFileExtension(Asset->FileInfo.Path);
+            Assets->Texture[ID.Texture] = LoadTexture(Arena, Extension, Asset->FileContent);
             Assets->Texture[ID.Texture].ID = ID.Texture;
-            sprintf(LogBuffer, "Loaded bitmap %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded bitmap %s.", Asset->FileInfo.Path.Content);
         } break;
 
         case Asset_Type_Heightmap: {
             Assets->Heightmap[ID.Heightmap] = LoadHeightmap(Arena, Asset);
-            sprintf(LogBuffer, "Loaded heightmap %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded heightmap %s.", Asset->FileInfo.Path.Content);
         } break;
 
         case Asset_Type_Font: {
             Assets->Font[ID.Font] = LoadFont(Arena, &PreprocessedAssets.Font[ID.Font]);
             Assets->Font[ID.Font].ID = ID.Font;
-            sprintf(LogBuffer, "Loaded font %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded font %s.", Asset->FileInfo.Path.Content);
         } break;
 
         case Asset_Type_Sound: {
             Assets->Sound[ID.Sound] = LoadSound(Arena, &PreprocessedAssets.Sound[ID.Sound]);
             Assets->Sound[ID.Sound].ID = ID.Sound;
-            sprintf(LogBuffer, "Loaded sound %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded sound %s.", Asset->FileInfo.Path.Content);
         } break;
 
         case Asset_Type_Mesh: {
             Assets->Mesh[ID.Mesh] = LoadMesh(Arena, &PreprocessedAssets.Mesh[ID.Sound]);
             Assets->Mesh[ID.Mesh].ID = ID.Mesh;
-            sprintf(LogBuffer, "Loaded mesh %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded mesh %s.", Asset->FileInfo.Path.Content);
         } break;
 
         case Asset_Type_Animation: {
             Assets->Animation[ID.Animation] = LoadAnimation(Arena, Asset);
-            sprintf(LogBuffer, "Loaded animation %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Loaded animation %s.", Asset->FileInfo.Path.Content);
         } break;
 
         default: {
-            sprintf(LogBuffer, "Asset ignored %s.", Asset->FileInfo.Path);
+            sprintf(LogBuffer, "Asset ignored %s.", Asset->FileInfo.Path.Content);
         }
     }
 
     Log(log_level::Info, LogBuffer);
     uint64 UsedMemory = Arena->Used - Asset->Offset;
-    Assert(Asset->MemoryNeeded == UsedMemory);
+    Assert(Asset->MemoryNeeded == UsedMemory, "Assets memory needed doesn't match.");
     Platform.FreeMemory(Asset->FileContent);
     Asset->FileContent = nullptr;
 }

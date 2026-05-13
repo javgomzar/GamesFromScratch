@@ -28,7 +28,7 @@ ENUM(game_shader_module_id,
 struct game_shader_module {
     game_shader_module_id ID;
     file_info File;
-    char Name[64];
+    string Name;
     char* Code;
     Slang::ComPtr<slang::IModule> Module;
     uint32 nEntryPoints;
@@ -50,7 +50,7 @@ slang_context Context;
 void CompileShaderModule(game_shader_module* Module) {
     using namespace slang;
 
-    Module->Module = Context.Session->loadModuleFromSourceString(Module->Name, nullptr, Module->Code, Context.Diagnostic.writeRef());
+    Module->Module = Context.Session->loadModuleFromSourceString(Module->Name.Content, nullptr, Module->Code, Context.Diagnostic.writeRef());
     if (Module->Module) {
         Module->Compiled = true;
         
@@ -65,26 +65,24 @@ void CompileShaderModule(game_shader_module* Module) {
     }
 }
 
-void LoadShaderModule(game_shader_module_id ID, const char* Path) {
+void LoadShaderModule(game_shader_module_id ID, string Path) {
     game_shader_module* Module = &Context.Modules[ID];
     Module->ID = ID;
 
-    const char* Filename = GetFileName(Path);
-    char ModuleName[64];
-    strcpy(ModuleName, Filename);
-    strtok(ModuleName, ".");
-    strcpy(Module->Name, ModuleName);
+    Module->Name = GetFileName(Path);
+    string Extension = GetFileExtension(Module->Name);
+    Module->Name.Length -= Extension.Length;
     
-    Module->Code = (char*)Platform.ReadEntireFile(Path, &Module->File);
+    Module->Code = (char*)Platform.ReadEntireFile(Path.Content, &Module->File);
     CompileShaderModule(Module);
     Context.nEntryPoints += Module->nEntryPoints;
 }
 
 void ReloadShaderModule(game_shader_module_id ID) {
     game_shader_module* Module = Context.Modules + ID;
-    file_info File = Platform.GetFileInfo(Module->File.Path);
+    file_info File = Platform.GetFileInfo(Module->File.Path.Content);
     if (File.Size > 0 && File.Timestamp > Module->File.Timestamp) {
-        Module->Code = (char*)Platform.ReadEntireFile(Module->File.Path, &Module->File);
+        Module->Code = (char*)Platform.ReadEntireFile(Module->File.Path.Content, &Module->File);
         CompileShaderModule(Module);
     }
 }
