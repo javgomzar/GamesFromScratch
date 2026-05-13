@@ -390,6 +390,7 @@ int main() {
     std::string MemorySetup = "    render_group* Group = &Memory->RenderGroup;\n"
     "    game_state* State = Memory->GameState;\n"
     "    memory_arena* Permanent = &Memory->Permanent;\n"
+    "    memory_arena* Transient = &Memory->Transient;\n"
     "    game_input* Input = &Memory->Input;\n"
     "    light* Light = &Memory->RenderGroup.Light;\n"
     "    float Time = State->Time;\n"
