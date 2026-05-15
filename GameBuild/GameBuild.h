@@ -95,6 +95,7 @@ struct build_configuration {
     string CompilerPath;
     string Include;
     string Lib;
+    string LinkedLibs;
     string RendererLibs;
     string CompilerFlags;
     string PCHOutputFile;
@@ -217,6 +218,28 @@ build_configuration ReadBuildConfiguration(memory_arena* Arena, string Configura
                         Config.Lib.Length += 1;
                         *Pointer++ = ' ';
                     } while (true);
+                }
+
+                // Linked libraries
+                else if (Token == "LINK") {
+                    RequireToken(Tokenizer, Token_Equal);
+                    Config.LinkedLibs.Length = 0;
+                    Config.LinkedLibs.Content = (char*)(Arena->Base + Arena->Used);
+                    do {
+                        token Library = RequireToken(Tokenizer, Token_Identifier);
+                        RequireToken(Tokenizer, Token_Dot);
+                        RequireToken(Tokenizer, "lib");
+                        char* LinkedLibraries = PushArray(Arena, Library.Length + 4, char);
+                        strncpy(LinkedLibraries, Library.Text, Library.Length + 4);
+                        Config.LinkedLibs.Length += Library.Length + 4;
+                        if (Tokenizer.At[0] != ';') {
+                            break;
+                        }
+                        RequireToken(Tokenizer, Token_Semicolon);
+                        char* Space = PushArray(Arena, 1, char);
+                        *Space = ' ';
+                        Config.LinkedLibs.Length += 1;
+                    } while(true);
                 }
     
                 // Metaprogramming source file
@@ -354,16 +377,16 @@ process_info CompilePlatformLayer(memory_arena* Arena, build_configuration* Conf
     switch (Config->Compiler) {
         case MSVC: {
             
-            Format(Arena,
+            string CommandString = Format(Arena,
                 "{s} /std:c++20 /nologo /W0 "
                 "GamePlatform\\Windows\\Win32PlatformLayer.cpp bin\\{s}.obj " 
                 "/D GAME_RENDER_API_{s} {s} "
                 "/Fe\"bin\\RunGame.exe\" "
                 "/Fo\"bin\\Win32PlatformLayer.obj\" "
                 "/Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" {s} "
-                "/link {s} kernel32.lib user32.lib gdi32.lib advapi32.lib ole32.lib oleaut32.lib psapi.lib {s} "
+                "/link {s} {s} {s} "
                 "GamePlatform\\Windows\\Win32PlatformLayer.res /MACHINE:X64",
-                9,
+                10,
                 Config->CompilerPath, 
                 Config->PCHOutputFile, 
                 GetRendererString(Config->Renderer), 
@@ -372,6 +395,7 @@ process_info CompilePlatformLayer(memory_arena* Arena, build_configuration* Conf
                 Config->PCHOutputFile, 
                 Config->Include, 
                 Config->Lib,
+                Config->LinkedLibs,
                 Config->RendererLibs
             );
         } break;

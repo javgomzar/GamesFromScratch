@@ -19,7 +19,7 @@ int main(int argc, char* argv[]) {
     if (argc == 3 && argv[2]) {
         if (strcmp(argv[2], "-hot") != 0) {
             string ErrorText = Format(&Transient, "Incorrect argument '{s}', try '-hot'.", 1, argv[2]);
-            Log(Error, ErrorText.Content);
+            Log(log_level::Error, ErrorText.Content);
             return 2;
         }
         
@@ -44,7 +44,7 @@ int main(int argc, char* argv[]) {
                 PrecompileHeaders = PrecompiledHeadersSource.Timestamp > PrecompiledHeadersOutput.Timestamp;
             }
             if (PrecompileHeaders) {
-                Log(Info, "Compiling pre-compiled headers.");
+                Log(log_level::Info, "Compiling pre-compiled headers.");
 
                 char* Command = (char*)(Transient.Base + Transient.Used);
                 switch (Config.Compiler) {
@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
         LogCompilationResult("Game library", LibraryExitCode, LibraryStart, LibraryEnd);
     }
     else {
-        Log(Error, "No build configuration file provided. Usage: Build <build.conf file path> [-hot]");
+        Log(log_level::Error, "No build configuration file provided. Usage: Build <build.conf file path> [-hot]");
     }
 
     return 0;
