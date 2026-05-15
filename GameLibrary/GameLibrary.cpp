@@ -252,6 +252,12 @@ extern "C" GAME_UPDATE(GameUpdate)
         // Initialize entities
         State->Entities = free_list<game_entity>(&Memory->Permanent, MAX_ENTITIES);
 
+        game_entity* Camera = CreateEntity(State->Entities, "Camera", Camera_Entity_Type);
+        State->ActiveCamera = Camera;
+        Camera->Angle = -45.0f;
+        Camera->Pitch = 22.5f;
+        Camera->Anchor = V3(0, 3.2f, 0);
+
         if (Memory->Test) {
             RunOnceTests(Memory);
         }

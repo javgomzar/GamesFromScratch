@@ -370,15 +370,9 @@ TEST(TestFFT, test_every_frame, INACTIVE)(render_group* Group, memory_arena* Per
 }
 
 TEST(TestEntities, test_once, ACTIVE)(game_state* State) {
-    game_entity* Camera = CreateEntity(State->Entities, "Camera", Camera_Entity_Type);
-    State->ActiveCamera = Camera;
-    Camera->Angle = -45.0f;
-    Camera->Pitch = 22.5f;
-    Camera->Anchor = V3(0, 3.2f, 0);
-
     game_entity* Character = CreateEntity(State->Entities, "Character", Character_Entity_Type);
     Character->Collider = CapsuleCollider(V3(0,1.0f,0), V3(0,3.6f,0), 1.0f);
-    Camera->Follow = Character;
+    State->ActiveCamera->Follow = Character;
 
     game_entity* Prop = CreateEntity(State->Entities, "Prop", Prop_Entity_Type);
     Prop->MeshID = Mesh_Sphere_ID;
