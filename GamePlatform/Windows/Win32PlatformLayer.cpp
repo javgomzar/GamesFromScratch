@@ -774,9 +774,19 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     // Slang setup
     // InitializeSlang(&Memory.Permanent, BuildConfig.Renderer);
 
-    if (wcscmp(lpCmdLine, L"-test ") == 0) {
+    int nArgs = 0;
+    LPWSTR* Args = CommandLineToArgvW(lpCmdLine, &nArgs);
+    if (nArgs == 1 && wcscmp(Args[0], L"-test") == 0) {
         Memory.Test = true;
     }
+    else if (nArgs > 0) {
+        for (int i = 0; i < nArgs; i++) {
+            OutputDebugStringW(L"Invalid argument: ");
+            OutputDebugStringW(Args[i]);
+            OutputDebugStringW(L"\n");
+        }
+    }
+    LocalFree(Args);
 
     Memory.Running = true;
     bool FirstFrame = true;

@@ -285,24 +285,6 @@ extern "C" GAME_UPDATE(GameUpdate)
     PushSky(Group);
     
     // GameOutputSound(Assets, SoundBuffer, State, Input);
-
-    // PushEntities(Group, ActiveCamera, State, Input, Time);
-
-    // TestRendering(Group, Input, Time);
-
-    // TestInstancedRendering(Group);
-
-    // TestFluid(Group, Input, FirstFrame);
-
-    // TestSky(State->Time, &Group->Light);
-
-    // TestFFT(Group, &Memory->Permanent, Time);
-
-    // TestFloatingPoint();
-
-    // TestFormat();
-
-    // Update(Group, ActiveCamera->Position, State->Emitter, State->dt);
     
     UpdateUI(Memory, Input);
 

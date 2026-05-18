@@ -38,6 +38,7 @@
 
 // ANSI & Unicode text
 #include <tchar.h>
+#include <shellapi.h>
 
 // Process status API
 #include <psapi.h>
