@@ -6,14 +6,14 @@ system_os SystemOS = Windows;
 #define RENDERER_INITIALIZE void InitializeRenderer(render_group* Group, HWND Window, HINSTANCE Instance, HDC DeviceContext)
 #define RENDERER_RENDER void Render(render_group* Group, matrix4 View, game_input* Input, HWND Window, double Time)
 
-void Log(log_level Level, const char* Content) {
+void Log(log_level Level, string String) {
     // Level
-    char LevelString[9];
+    char LevelString[16];
     switch (Level) {
-        case log_level::Info:  { strcpy_s(LevelString, "[INFO]  "); } break;
-        case log_level::Warn:  { strcpy_s(LevelString, "[WARN]  "); } break;
-        case log_level::Error: { strcpy_s(LevelString, "[ERROR] "); } break;
-        case log_level::Test:  { strcpy_s(LevelString, "[TEST]  "); } break;
+        case log_level::Info:  { strncpy_s(LevelString, "[INFO]  ", 8); } break;
+        case log_level::Warn:  { strncpy_s(LevelString, "[WARN]  ", 8); } break;
+        case log_level::Error: { strncpy_s(LevelString, "[ERROR] ", 8); } break;
+        case log_level::Test:  { strncpy_s(LevelString, "[TEST]  ", 8); } break;
     }
     LevelString[8] = 0;
 
@@ -33,11 +33,7 @@ void Log(log_level Level, const char* Content) {
                 DWORD BytesWritten = 0;
                 WriteFile(FileHandle, Date, 20, &BytesWritten, 0);
                 WriteFile(FileHandle, LevelString, 8, &BytesWritten, 0);
-                int i = 0;
-                while (*(Content + i) != 0) {
-                    i++;
-                }
-                WriteFile(FileHandle, Content, i, &BytesWritten, 0);
+                WriteFile(FileHandle, String.Content, String.Length, &BytesWritten, 0);
             }
             else {
                 Assert(false);
@@ -59,7 +55,7 @@ void Log(log_level Level, const char* Content) {
             }
             WriteConsoleA(hConsole, LevelString, 8, NULL, NULL);
             SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
-            WriteConsoleA(hConsole, Content, strlen(Content), NULL, NULL);
+            WriteConsoleA(hConsole, String.Content, String.Length, NULL, NULL);
             WriteConsoleA(hConsole, "\n", 1, NULL, NULL);
         } break;
     }
@@ -135,8 +131,8 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         if (ReadFile(FileHandle, Memory, ChunkSize, &BytesRead, NULL) && BytesRead == ChunkSize) {
 #if _DEBUG
             sprintf_s(TextBuffer, "%d bytes read from file %s.", BytesRead, Path);
-#endif
             Log(log_level::Info, TextBuffer);
+#endif
         }
         else {
             sprintf_s(TextBuffer, "Couldn't read chunk from file %s.", Path);

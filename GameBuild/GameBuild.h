@@ -285,16 +285,16 @@ build_configuration ReadBuildConfiguration(memory_arena* Arena, string Configura
     return Config;
 }
 
-void LogCompilationResult(const char* Name, int32 ExitCode, uint64 Start, uint64 End) {
+void LogCompilationResult(memory_arena* Arena, string Name, int32 ExitCode, uint64 Start, uint64 End) {
     log_level Level = ExitCode == 0 ? log_level::Info : log_level::Error;
-    char LogString[256];
+    string LogString;
     if (ExitCode == 0) {
-        sprintf(LogString, "%s code compiled in %.2f milliseconds.", Name, 1000.0f * GetSecondsElapsed(Start, End));
+        LogString = Format(Arena, "{s} code compiled in {f2} milliseconds.", 2, Name, 1000.0f * GetSecondsElapsed(Start, End));
     }
     else { 
-        sprintf(LogString, "%s code compilation failed, exit code '%d'.", Name, ExitCode);
+        LogString = Format(Arena, "{s} code compilation failed, exit code '{i}'.", 2, Name, ExitCode);
     }
-    Log(Level, LogString);
+    Log(Level, LogString.Content);
 }
 
 process_info CompileMetaprogramming(memory_arena* Arena, build_configuration* Config) {
@@ -349,7 +349,7 @@ void MetaProgram(memory_arena* Arena, build_configuration* Config) {
         MetaprogrammingCompilation = CompileMetaprogramming(Arena, Config);
         WaitResult = Platform.WaitForProcess(&MetaprogrammingCompilation, -1);
         MetaprogrammingCompilationEnd = Platform.GetWallClock();
-        LogCompilationResult("Metaprogramming", WaitResult, MetaprogrammingCompilationStart, MetaprogrammingCompilationEnd);
+        LogCompilationResult(Arena, "Metaprogramming", WaitResult, MetaprogrammingCompilationStart, MetaprogrammingCompilationEnd);
     }
 
     char* MetaCommand = PushArray(Arena, 64, char);

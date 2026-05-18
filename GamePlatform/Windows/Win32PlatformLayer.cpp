@@ -806,7 +806,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             int32 WaitResult = Win32WaitForProcess(&MetaprogrammingCompilation, 0);
             if (WaitResult >= 0) {
                 uint64 End = Win32GetWallClock();
-                LogCompilationResult("Metaprogramming", WaitResult, MetaprogrammingCompilationStart, End);
+                LogCompilationResult(&Memory.Transient, "Metaprogramming", WaitResult, MetaprogrammingCompilationStart, End);
                 MetaprogrammingCompilationStart = 0;
 
                 if (WaitResult == 0) {
@@ -838,7 +838,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             int32 WaitResult = Win32WaitForProcess(&LibraryCompilation, 0);
             if (WaitResult >= 0) {
                 uint64 End = Win32GetWallClock();
-                LogCompilationResult("Game library", WaitResult, LibraryCompilationStart, End);
+                LogCompilationResult(&Memory.Transient, "Game library", WaitResult, LibraryCompilationStart, End);
                 LibraryCompilationStart = 0;
             }
         }

@@ -29,7 +29,7 @@ int main(int argc, char* argv[]) {
         process_info LibraryCompilation = CompileGameLibraryHot(&Transient, &Config);
         int32 WaitResult = Platform.WaitForProcess(&LibraryCompilation, -1);
         uint64 LibraryCompilationEnd = Platform.GetWallClock();
-        LogCompilationResult("Game library", WaitResult, LibraryCompilationStart, LibraryCompilationEnd);
+        LogCompilationResult(&Transient, "Game library", WaitResult, LibraryCompilationStart, LibraryCompilationEnd);
     }
     // Normal compilation
     else if (argc == 2) {
@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
                 uint32 ExitCode = Platform.WaitForProcess(&PCHProcess, -1);
                 uint64 End = Platform.GetWallClock();
 
-                LogCompilationResult("Precompiled headers", ExitCode, Start, End);
+                LogCompilationResult(&Transient, "Precompiled headers", ExitCode, Start, End);
                 ClearArena(&Transient);
             }
         }
@@ -97,7 +97,7 @@ int main(int argc, char* argv[]) {
         uint32 PlatformExitCode = Platform.WaitForProcess(&PlatformProcess, -1);
         uint64 PlatformEnd = Platform.GetWallClock();
         const char* OSLayerName = SystemOS == Windows ? "Windows platform layer" : "Linux platform layer";
-        LogCompilationResult(OSLayerName, PlatformExitCode, PlatformStart, PlatformEnd);
+        LogCompilationResult(&Transient, OSLayerName, PlatformExitCode, PlatformStart, PlatformEnd);
         ClearArena(&Transient);
 
         // Game library
@@ -105,7 +105,7 @@ int main(int argc, char* argv[]) {
         process_info LibraryProcess = CompileGameLibrary(&Transient, &Config);
         int32 LibraryExitCode = Platform.WaitForProcess(&LibraryProcess, -1);
         uint64 LibraryEnd = Platform.GetWallClock();
-        LogCompilationResult("Game library", LibraryExitCode, LibraryStart, LibraryEnd);
+        LogCompilationResult(&Transient, "Game library", LibraryExitCode, LibraryStart, LibraryEnd);
     }
     else {
         Log(log_level::Error, "No build configuration file provided. Usage: Build <build.conf file path> [-hot]");
