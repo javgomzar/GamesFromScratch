@@ -118,13 +118,13 @@ game_texture LoadTexture(memory_arena* Arena, string Extension, void* FileConten
         Result.RedMask = Header.RedMask;
         Result.GreenMask = Header.GreenMask;
         Result.BlueMask = Header.BlueMask;
-        Result.Content = (uint32*)((uint8*)FileContent + Header.BitmapOffset);
+        Result.Content = (uint32*)(Arena->Base + Arena->Used);
 
         bool HasAlpha = false;
         if (Result.BytesPerPixel == 4 && Header.Compression == 3) {
             uint32 AlphaMask = ~(Header.RedMask | Header.GreenMask | Header.BlueMask);
             // If not all Alphas are zero, we need to use them
-            uint32* Contents = Result.Content;
+            uint32* Contents = (uint32*)((uint8*)FileContent + Header.BitmapOffset);
             for (int32 i = 0; i < Header.Height * Header.Width; i++) {
                 if ((*Contents++ & AlphaMask) > 0) {
                     HasAlpha = true;
@@ -150,7 +150,7 @@ game_texture LoadTexture(memory_arena* Arena, string Extension, void* FileConten
         uint64 PixelsSize = 4 * Header.Width * Header.Height;
         uint32* Destination = (uint32*)PushSize(Arena, PixelsSize);
 
-        uint8* Source = (uint8*)Result.Content;
+        uint8* Source = (uint8*)FileContent + Header.BitmapOffset;
         for (int Row = 0; Row < Header.Height; Row++) {
             uint32 BytesRead = 0;
             for (int Col = 0; Col < Header.Width; Col++) {
@@ -174,10 +174,10 @@ game_texture LoadTexture(memory_arena* Arena, string Extension, void* FileConten
         }
     }
     else if (Extension == "jpg" || Extension == "jpeg") {
-        
+        Raise("JPEG file loading not implemented.");
     }
     else if (Extension == "png") {
-        
+        Raise("PNG file loading not implemented.");
     }
     else {
         Raise("Invalid texture format.");

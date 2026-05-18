@@ -1,108 +1,99 @@
 #include "GameAsset.h"
 
-void WriteAssetsFile(const char* Path) {
-    game_assets Assets = {};
+game_asset_manager InitializeAssetManager(memory_arena* Permanent, memory_arena* Transient) {
+    game_asset_manager Result = {};
+    Result.Transient = Transient;
 
 // Assets
     // Fonts
-    PushAsset(&Assets, "GameAsset\\Files\\Font\\DejaVuSansMono.ttf", Font_DejaVu_Sans_Mono_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Font\\DejaVuSans.ttf", Font_DejaVu_Sans_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Font\\DejaVuSansMono.ttf", Font_DejaVu_Sans_Mono_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Font\\DejaVuSans.ttf", Font_DejaVu_Sans_ID);
 
     // Text
-    PushAsset(&Assets, "GameAsset\\Files\\Text\\Test.txt", Text_Test_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Text\\Test.txt", Text_Test_ID);
 
     // Textures
-    PushAsset(&Assets, "GameAsset\\Files\\Texture\\Background.bmp", Texture_Background_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Texture\\Button.bmp", Texture_Button_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Texture\\Empty.bmp", Texture_Empty_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Texture\\Enemy.bmp", Texture_Enemy_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Texture\\Player.bmp", Texture_Player_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Texture\\spain.bmp", Texture_Spain_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Texture\\Background.bmp", Texture_Background_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Texture\\Button.bmp", Texture_Button_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Texture\\Empty.bmp", Texture_Empty_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Texture\\Enemy.bmp", Texture_Enemy_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Texture\\Player.bmp", Texture_Player_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Texture\\spain.bmp", Texture_Spain_ID);
 
     // Heightmaps
-    PushAsset(&Assets, "GameAsset\\Files\\Texture\\spain.bmp", Heightmap_Spain_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Texture\\spain.bmp", Heightmap_Spain_ID);
 
     // Sound
-    PushAsset(&Assets, "GameAsset\\Files\\Sound\\16agosto.wav", Sound_Test_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Sound\\16agosto.wav", Sound_Test_ID);
 
     // Meshes
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Tetrahedron.mdl", Mesh_Tetrahedron_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Cube.mdl", Mesh_Cube_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Octahedron.mdl", Mesh_Octahedron_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Icosahedron.mdl", Mesh_Icosahedron_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Dodecahedron.mdl", Mesh_Dodecahedron_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Horns.mdl", Mesh_Enemy_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Sphere.mdl", Mesh_Sphere_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Body.mdl", Mesh_Body_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Sword.mdl", Mesh_Sword_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Shield.mdl", Mesh_Shield_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Mesh\\Selector.mdl", Mesh_Selector_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Tetrahedron.mdl", Mesh_Tetrahedron_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Cube.mdl", Mesh_Cube_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Octahedron.mdl", Mesh_Octahedron_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Icosahedron.mdl", Mesh_Icosahedron_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Dodecahedron.mdl", Mesh_Dodecahedron_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Horns.mdl", Mesh_Enemy_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Sphere.mdl", Mesh_Sphere_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Body.mdl", Mesh_Body_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Sword.mdl", Mesh_Sword_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Shield.mdl", Mesh_Shield_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Mesh\\Selector.mdl", Mesh_Selector_ID);
 
     // Animation
-    PushAsset(&Assets, "GameAsset\\Files\\Animation\\Idle.anim", Animation_Idle_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Animation\\Walking.anim", Animation_Walk_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Animation\\Jumping.anim", Animation_Jump_ID);
-    PushAsset(&Assets, "GameAsset\\Files\\Animation\\Attack.anim", Animation_Attack_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Animation\\Idle.anim", Animation_Idle_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Animation\\Walking.anim", Animation_Walk_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Animation\\Jumping.anim", Animation_Jump_ID);
+    PushAsset(&Result, "GameAsset\\Files\\Animation\\Attack.anim", Animation_Attack_ID);
 
     // Video
-    //PushAsset(&Assets, "GameAsset\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
+    //PushAsset(&Result, "GameAsset\\Videos\\The Witness Wrong MOOV.mp4", Video_Test_ID);
 
+    Result.Arena = SuballocateMemoryArena(Permanent, Result.TotalSize);
+    Result.FontsArena = SuballocateMemoryArena(Permanent, Megabytes(1));
+
+    return Result;
+}
+
+void WriteAssetsFile(game_asset_manager* Manager, const char* Path) {
 // Output file
-    void* FileMemory = Platform.AllocateMemory(sizeof(game_assets) + Assets.TotalSize);
-    Assets.Memory = (uint8*)FileMemory + sizeof(game_assets);
-    memory_arena AssetArena = MemoryArena(Assets.TotalSize, (uint8*)Assets.Memory);
-
-    // Assets
-    for (int i = 0; i < Assets.Asset.Count; i++) {
-        LoadAsset(&AssetArena, &Assets, &Assets.Asset.Content[i]);
-    }
-
-    game_assets* OutputAssets = (game_assets*)FileMemory;
-    if (OutputAssets) *OutputAssets = Assets;
-    Platform.WriteEntireFile(Path, sizeof(game_assets) + Assets.TotalSize, FileMemory);
+    Platform.WriteEntireFile(Path, Manager->TotalSize, Manager->Arena.Base);
 
     Log(log_level::Info, "Finished writing assets file.");
-
-    Platform.FreeMemory(FileMemory);
 }
 
 void LoadAssetsFromFile(
-    memory_arena* FontsArena,
-    game_assets* Assets, 
+    game_asset_manager* Manager, 
     const char* Path
 ) {
-    void* AssetsFileContent = Platform.ReadEntireFile(Path);
-
-    *Assets = *(game_assets*)AssetsFileContent;
-    Assets->Memory = (uint8*)AssetsFileContent + sizeof(game_assets);
+    uint8* FileContent = (uint8*)Platform.ReadEntireFile(Path);
 
     for (int i = 0; i < ASSET_COUNT; i++) {
-        game_asset Asset = Assets->Asset.Content[i];
+        game_asset Asset = Manager->Asset.Content[i];
 
         switch (Asset.Type) {
             case Asset_Type_Text: {
-                game_text* Text = GetAsset(Assets, Asset.ID.Text);
-                Text->Content = (char*)(Assets->Memory + Asset.Offset);
+                game_text* Text = GetAsset(Manager, Asset.ID.Text);
+                Text->Content = (char*)(FileContent + Asset.Offset);
             } break;
 
             case Asset_Type_Sound: {
-                game_sound* Sound = GetAsset(Assets, Asset.ID.Sound);
-                Sound->SampleOut = (int16*)(Assets->Memory + Asset.Offset);
+                game_sound* Sound = GetAsset(Manager, Asset.ID.Sound);
+                Sound->SampleOut = (int16*)(FileContent + Asset.Offset);
             } break;
 
             case Asset_Type_Texture: {
-                game_texture* Texture = GetAsset(Assets, Asset.ID.Texture);
-                Texture->Content = (uint32*)(Assets->Memory + Asset.Offset);
+                game_texture* Texture = GetAsset(Manager, Asset.ID.Texture);
+                Texture->Content = (uint32*)(FileContent + Asset.Offset);
             } break;
 
             case Asset_Type_Heightmap: {
-                game_heightmap* Heightmap = GetAsset(Assets, Asset.ID.Heightmap);
-                Heightmap->Texture.Content = (uint32*)(Assets->Memory + Asset.Offset);
+                game_heightmap* Heightmap = GetAsset(Manager, Asset.ID.Heightmap);
+                Heightmap->Texture.Content = (uint32*)(FileContent + Asset.Offset);
             } break;
 
             case Asset_Type_Font: {
-                game_font* Font = GetAsset(Assets, Asset.ID.Font);
-                uint8* Data = Assets->Memory + Asset.Offset;
+                game_font* Font = GetAsset(Manager, Asset.ID.Font);
+                uint8* Data = FileContent + Asset.Offset;
                 for (int j = 0; j < FONT_CHARACTERS_COUNT; j++) {
                     game_font_character* Character = &Font->Characters[j];
                     if (Character->nContours == 0) Raise("Font character has no contours.");
@@ -120,22 +111,20 @@ void LoadAssetsFromFile(
                     }
                 }
 
-                WriteFontVertices(FontsArena, Font);
-                WriteFontCurveTriangles(FontsArena, Font);
-                WriteFontSolidTriangles(FontsArena, Font);
+                TriangulateFont(&Manager->FontsArena, Manager->Transient, Font);
             } break;
 
             case Asset_Type_Mesh: {
-                game_mesh* Mesh = GetAsset(Assets, Asset.ID.Mesh);
-                Mesh->Vertices = (void*)(Assets->Memory + Asset.Offset);
+                game_mesh* Mesh = GetAsset(Manager, Asset.ID.Mesh);
+                Mesh->Vertices = (void*)(FileContent + Asset.Offset);
                 uint32 Stride = VertexLayouts[Mesh->VertexLayoutID].Stride;
                 Mesh->Edges = (uint32*)((uint8*)Mesh->Vertices + Stride * Mesh->nVertices);
                 Mesh->Faces = Mesh->Edges + Mesh->nEdges;
             } break;
 
             case Asset_Type_Animation: {
-                game_animation* Animation = GetAsset(Assets, Asset.ID.Animation);
-                Animation->Content = (float*)(Assets->Memory + Asset.Offset);
+                game_animation* Animation = GetAsset(Manager, Asset.ID.Animation);
+                Animation->Content = (float*)(FileContent + Asset.Offset);
             } break;
 
             // case Asset_Type_Video: {

@@ -167,7 +167,7 @@ struct alignas(16) outline_buffer {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct directX {
-    game_assets* Assets;
+    game_asset_manager* Assets;
     IDXGISwapChain* SwapChain;
     ID3D11Device* Device;
     ID3D11DeviceContext* DeviceContext;

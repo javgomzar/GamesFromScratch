@@ -344,7 +344,7 @@ struct render_group {
     vertex_buffer VertexBuffer;
     text_buffer TextBuffer;
     light Light;
-    game_assets* Assets;
+    game_asset_manager* Assets;
     game_font* DebugFont;
     memory_arena* Transient;
     int32 Width;
@@ -368,7 +368,7 @@ void InitializeRenderGroup(
     render_group* Group, 
     memory_arena* Permanent,
     memory_arena* Transient,
-    game_assets* Assets,
+    game_asset_manager* Assets,
     int32 Width,
     int32 Height
 ) {

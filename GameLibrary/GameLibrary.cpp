@@ -7,7 +7,7 @@
 #include "xxhash.h"
 
 // Sound
-void GameOutputSound(game_assets* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
+void GameOutputSound(game_asset_manager* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
     
     Silence(pSoundBuffer);
 
@@ -237,7 +237,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     render_group* Group = &Memory->RenderGroup;
     game_input* Input = &Memory->Input;
     game_state* State = Memory->GameState;
-    game_assets* Assets = &Memory->Assets;
+    game_asset_manager* Assets = &Memory->AssetManager;
     debug_info* DebugInfo = &Memory->DebugInfo;
 {
     TIMED_BLOCK;

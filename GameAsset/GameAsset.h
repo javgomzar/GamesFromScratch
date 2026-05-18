@@ -1,5 +1,5 @@
-#ifndef GAME_ASSETS
-#define GAME_ASSETS
+#ifndef GAME_ASSET
+#define GAME_ASSET
 
 #include "GamePlatform.h"
 #include "GameMath.h"
@@ -88,6 +88,7 @@ struct game_asset {
     void* FileContent;
     uint64 MemoryNeeded;
     uint64 Offset;
+    bool Loaded;
 };
 
 #include "GameFont.h"
@@ -346,8 +347,11 @@ const uint32 ASSET_COUNT =
 
 ArrayDefinition(ASSET_COUNT, game_asset)
 
-struct game_assets {
+struct game_asset_manager {
     game_asset_array Asset;
+    memory_arena Arena;
+    memory_arena FontsArena;
+    memory_arena* Transient;
     game_text Text[game_text_id_count];
     game_texture Texture[game_texture_id_count];
     game_heightmap Heightmap[game_heightmap_id_count];
@@ -361,7 +365,6 @@ struct game_assets {
     uint64 ShadersSize;
     uint64 ComputeShadersSize;
     uint64 TotalSize;
-    uint8* Memory;
 };
 
 struct preprocessed_assets {
@@ -372,16 +375,16 @@ struct preprocessed_assets {
 
 static preprocessed_assets PreprocessedAssets;
 
-game_text*      GetAsset(game_assets* Assets, game_text_id ID)      { return &Assets->Text[ID]; }
-game_sound*     GetAsset(game_assets* Assets, game_sound_id ID)     { return &Assets->Sound[ID]; }
-game_texture*   GetAsset(game_assets* Assets, game_texture_id ID)   { return &Assets->Texture[ID]; }
-game_heightmap* GetAsset(game_assets* Assets, game_heightmap_id ID) { return &Assets->Heightmap[ID]; }
-game_font*      GetAsset(game_assets* Assets, game_font_id ID)      { return &Assets->Font[ID]; }
-game_mesh*      GetAsset(game_assets* Assets, game_mesh_id ID)      { return &Assets->Mesh[ID]; }
-game_animation* GetAsset(game_assets* Assets, game_animation_id ID) { return &Assets->Animation[ID]; }
-//game_video*     GetAsset(game_assets* Assets, game_video_id ID)     { return &Assets->Videos[ID]; }
+game_text*      GetAsset(game_asset_manager* Assets, game_text_id ID)      { return &Assets->Text[ID]; }
+game_sound*     GetAsset(game_asset_manager* Assets, game_sound_id ID)     { return &Assets->Sound[ID]; }
+game_texture*   GetAsset(game_asset_manager* Assets, game_texture_id ID)   { return &Assets->Texture[ID]; }
+game_heightmap* GetAsset(game_asset_manager* Assets, game_heightmap_id ID) { return &Assets->Heightmap[ID]; }
+game_font*      GetAsset(game_asset_manager* Assets, game_font_id ID)      { return &Assets->Font[ID]; }
+game_mesh*      GetAsset(game_asset_manager* Assets, game_mesh_id ID)      { return &Assets->Mesh[ID]; }
+game_animation* GetAsset(game_asset_manager* Assets, game_animation_id ID) { return &Assets->Animation[ID]; }
+//game_video*     GetAsset(game_asset_manager* Assets, game_video_id ID)     { return &Assets->Videos[ID]; }
 
-void PushAsset(game_assets* Assets, const char* Path, game_text_id ID) {
+void PushAsset(game_asset_manager* Assets, const char* Path, game_text_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Text;
     Asset.ID.Text = ID;
@@ -394,7 +397,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_text_id ID) {
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
-void PushAsset(game_assets* Assets, const char* Path, game_sound_id ID) {
+void PushAsset(game_asset_manager* Assets, const char* Path, game_sound_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Sound;
     Asset.ID.Sound = ID;
@@ -410,7 +413,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_sound_id ID) {
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
-void PushAsset(game_assets* Assets, const char* Path, game_texture_id ID) {
+void PushAsset(game_asset_manager* Assets, const char* Path, game_texture_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Texture;
     Asset.ID.Texture = ID;
@@ -423,7 +426,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_texture_id ID) {
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
-void PushAsset(game_assets* Assets, const char* Path, game_heightmap_id ID) {
+void PushAsset(game_asset_manager* Assets, const char* Path, game_heightmap_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Heightmap;
     Asset.ID.Heightmap = ID;
@@ -436,7 +439,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_heightmap_id ID) {
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
-void PushAsset(game_assets* Assets, const char* Path, game_font_id ID) {
+void PushAsset(game_asset_manager* Assets, const char* Path, game_font_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Font;
     Asset.ID.Font = ID;
@@ -451,7 +454,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_font_id ID) {
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
-void PushAsset(game_assets* Assets, const char* Path, game_mesh_id ID) {
+void PushAsset(game_asset_manager* Assets, const char* Path, game_mesh_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Mesh;
     Asset.ID.Mesh = ID;
@@ -472,7 +475,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_mesh_id ID) {
     Assets->AssetsSize += Asset.MemoryNeeded;
 };
 
-void PushAsset(game_assets* Assets, const char* Path, game_animation_id ID) {
+void PushAsset(game_asset_manager* Assets, const char* Path, game_animation_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Animation;
     Asset.ID.Animation = ID;
@@ -486,7 +489,7 @@ void PushAsset(game_assets* Assets, const char* Path, game_animation_id ID) {
 };
 
 /*
-void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
+void PushAsset(game_asset_manager* Assets, const char* Path, game_video_id ID) {
     game_asset Asset = {};
     Asset.Type = Asset_Type_Video;
     Asset.ID.Video = ID;
@@ -500,18 +503,20 @@ void PushAsset(game_assets* Assets, const char* Path, game_video_id ID) {
 };
 */
 
-void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
+void LoadAsset(game_asset_manager* Manager, game_asset* Asset) {
+    memory_arena* Arena = &Manager->Arena;
     Asset->Offset = Arena->Used;
     game_asset_id ID = Asset->ID;
-    char LogBuffer[512];
+
     switch (Asset->Type) {
         case Asset_Type_Text: {
             char* TextContent = (char*)PushSize(Arena, Asset->MemoryNeeded);
-            Assets->Text[ID.Text].ID = ID.Text;
-            Assets->Text[ID.Text].Size = Asset->MemoryNeeded;
-            Assets->Text[ID.Text].Content = TextContent;
+            Manager->Text[ID.Text].ID = ID.Text;
+            Manager->Text[ID.Text].Size = Asset->MemoryNeeded;
+            Manager->Text[ID.Text].Content = TextContent;
             memcpy(TextContent, Asset->FileContent, Asset->MemoryNeeded);
-            sprintf(LogBuffer, "Loaded text %s.", Asset->FileInfo.Path.Content);
+            string LogText = Format(Manager->Transient, "Loaded text {s}.", 1, Asset->FileInfo.Path);
+            Log(log_level::Info, LogText.Content);
         } break;
 
         // case Asset_Type_Video: {
@@ -521,53 +526,66 @@ void LoadAsset(memory_arena* Arena, game_assets* Assets, game_asset* Asset) {
 
         case Asset_Type_Texture: {
             string Extension = GetFileExtension(Asset->FileInfo.Path);
-            Assets->Texture[ID.Texture] = LoadTexture(Arena, Extension, Asset->FileContent);
-            Assets->Texture[ID.Texture].ID = ID.Texture;
-            sprintf(LogBuffer, "Loaded bitmap %s.", Asset->FileInfo.Path.Content);
+            Manager->Texture[ID.Texture] = LoadTexture(Arena, Extension, Asset->FileContent);
+            Manager->Texture[ID.Texture].ID = ID.Texture;
+            string LogText = Format(Manager->Transient, "Loaded bitmap {s}.", 1, Asset->FileInfo.Path);
+            Log(log_level::Info, LogText.Content);
         } break;
 
         case Asset_Type_Heightmap: {
-            Assets->Heightmap[ID.Heightmap] = LoadHeightmap(Arena, Asset);
-            sprintf(LogBuffer, "Loaded heightmap %s.", Asset->FileInfo.Path.Content);
+            Manager->Heightmap[ID.Heightmap] = LoadHeightmap(Arena, Asset);
+            string LogText = Format(Manager->Transient, "Loaded heightmap {s}.", 1, Asset->FileInfo.Path);
+            Log(log_level::Info, LogText.Content);
         } break;
 
         case Asset_Type_Font: {
-            Assets->Font[ID.Font] = LoadFont(Arena, &PreprocessedAssets.Font[ID.Font]);
-            Assets->Font[ID.Font].ID = ID.Font;
-            sprintf(LogBuffer, "Loaded font %s.", Asset->FileInfo.Path.Content);
+            Manager->Font[ID.Font] = LoadFont(Arena, Manager->Transient, &PreprocessedAssets.Font[ID.Font]);
+            Manager->Font[ID.Font].ID = ID.Font;
+            TriangulateFont(&Manager->FontsArena, Manager->Transient, &Manager->Font[ID.Font]);
+            string LogText = Format(Manager->Transient, "Loaded font {s}.", 1, Asset->FileInfo.Path);
+            Log(log_level::Info, LogText.Content);
         } break;
 
         case Asset_Type_Sound: {
-            Assets->Sound[ID.Sound] = LoadSound(Arena, &PreprocessedAssets.Sound[ID.Sound]);
-            Assets->Sound[ID.Sound].ID = ID.Sound;
-            sprintf(LogBuffer, "Loaded sound %s.", Asset->FileInfo.Path.Content);
+            Manager->Sound[ID.Sound] = LoadSound(Arena, &PreprocessedAssets.Sound[ID.Sound]);
+            Manager->Sound[ID.Sound].ID = ID.Sound;
+            string LogText = Format(Manager->Transient, "Loaded sound {s}.", 1, Asset->FileInfo.Path);
+            Log(log_level::Info, LogText.Content);
         } break;
 
         case Asset_Type_Mesh: {
-            Assets->Mesh[ID.Mesh] = LoadMesh(Arena, &PreprocessedAssets.Mesh[ID.Sound]);
-            Assets->Mesh[ID.Mesh].ID = ID.Mesh;
-            sprintf(LogBuffer, "Loaded mesh %s.", Asset->FileInfo.Path.Content);
+            Manager->Mesh[ID.Mesh] = LoadMesh(Arena, &PreprocessedAssets.Mesh[ID.Sound]);
+            Manager->Mesh[ID.Mesh].ID = ID.Mesh;
+            string LogText = Format(Manager->Transient, "Loaded mesh {s}.", 1, Asset->FileInfo.Path);
+            Log(log_level::Info, LogText.Content);
         } break;
 
         case Asset_Type_Animation: {
-            Assets->Animation[ID.Animation] = LoadAnimation(Arena, Asset);
-            sprintf(LogBuffer, "Loaded animation %s.", Asset->FileInfo.Path.Content);
+            Manager->Animation[ID.Animation] = LoadAnimation(Arena, Asset);
+            string LogText = Format(Manager->Transient, "Loaded animation {s}.", 1, Asset->FileInfo.Path);
+            Log(log_level::Info, LogText.Content);
         } break;
 
         default: {
-            sprintf(LogBuffer, "Asset ignored %s.", Asset->FileInfo.Path.Content);
+            string LogText = Format(Manager->Transient, "Asset {s} ignored.", 1, Asset->FileInfo.Path);
+            Log(log_level::Warn, LogText.Content);
         }
     }
 
-    Log(log_level::Info, LogBuffer);
     uint64 UsedMemory = Arena->Used - Asset->Offset;
     Assert(Asset->MemoryNeeded == UsedMemory, "Assets memory needed doesn't match.");
     Platform.FreeMemory(Asset->FileContent);
     Asset->FileContent = nullptr;
 }
 
+void LoadAllAssets(game_asset_manager* Manager) {
+    for (int i = 0; i < Manager->Asset.Count; i++) {
+        LoadAsset(Manager, &Manager->Asset.Content[i]);
+    }
+}
 
-void WriteAssetsFile(platform_api* Platform, const char* Path);
-void LoadAssetsFromFile(memory_arena* FontsArena, game_assets* Assets, const char* Path);
+game_asset_manager InitializeAssetManager(memory_arena* Permanent);
+void WriteAssetsFile(game_asset_manager* Manager, const char* Path);
+void LoadAssetsFromFile(memory_arena* FontsArena, game_asset_manager* Manager, const char* Path);
 
 #endif

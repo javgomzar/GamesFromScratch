@@ -49,7 +49,7 @@
         - Then, memory that will be managed by memory arenas. Strings, transient memory (erased each frame) and general purpose arena.
 */
 struct game_memory {
-    game_assets Assets;
+    game_asset_manager AssetManager;
     render_group RenderGroup;
     game_input Input;
     game_state* GameState;
