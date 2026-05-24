@@ -136,7 +136,7 @@ inline void ClearArena(memory_arena* Arena) {
 #define PushArray(Arena, Count, type) (type *)PushSize_(Arena, Count*sizeof(type))
 #define PushSize(Arena, Size) (void*)PushSize_(Arena, Size)
 inline void* PushSize_(memory_arena* Arena, memory_index Size) {
-    Assert(Arena->Size >= Arena->Used + Size);
+    Assert(Arena->Size >= Arena->Used + Size, "Memory arena is full.");
     void* Result = Arena->Base + Arena->Used;
     Arena->Used += Size;
     return Result;
@@ -606,9 +606,18 @@ struct string {
     };
 };
 
-char* PushString(memory_arena* Arena, string String) {
-    char* Result = PushArray(Arena, String.Length, char);
-    strncpy(Result, String.Content, String.Length);
+void AddString(memory_arena* Arena, string String) {
+    char* Content = PushArray(Arena, String.Length, char);
+    strncpy(Content, String.Content, String.Length);
+}
+
+string PushString(memory_arena* Arena, string String) {
+    string Result = String;
+    int* Length = PushStruct(Arena, int);
+    *Length = String.Length;
+    char* Content = PushArray(Arena, String.Length, char);
+    strncpy(Content, String.Content, String.Length);
+    Result.Content = Content;
     return Result;
 }
 

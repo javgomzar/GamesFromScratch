@@ -303,18 +303,18 @@ void UpdateAndSizeDebugEntry(game_font* Font, debug_entry* Entry, float* OutWidt
                         debug_enum_value FlagValue = FlagValues[i];
                         if (FlagValue.EnumType == Entry->Type && (FlagValue.Value & Value)) {
                             if (Matches == 0) {
-                                PushString(Entry->Arena, FlagValue.Identifier);
+                                AddString(Entry->Arena, FlagValue.Identifier);
                             }
                             else {
-                                PushString(Entry->Arena, " | ");
-                                PushString(Entry->Arena, FlagValue.Identifier);
+                                AddString(Entry->Arena, " | ");
+                                AddString(Entry->Arena, FlagValue.Identifier);
                             }
 
                             Matches++;
                         }
                     }
                     if (Matches == 0) {
-                        PushString(Entry->Arena, "none");
+                        AddString(Entry->Arena, "none");
                     }
                     Format(Entry->Arena, " ({i})", 1, Value);
                     Entry->ValueString = Result;
