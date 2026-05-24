@@ -249,11 +249,8 @@ void AdvanceUntilNextLine(tokenizer& Tokenizer) {
     AdvanceUntilLine(Tokenizer, Tokenizer.Line + 1);
 }
 
-token GetToken(tokenizer& Tokenizer) {
-    token Token = {};
-    Token.Length = 1;
-    
-    // Ommit whitespace and comments
+// Skip whitespace and comments
+void AdvanceWhitespace(tokenizer& Tokenizer) {
     while (Tokenizer.At != Tokenizer.End && Tokenizer.At[0] != '\0') {
         if (Tokenizer.IgnoreWhitespace && IsWhitespace(Tokenizer.At[0])) {
             Advance(Tokenizer);
@@ -273,6 +270,13 @@ token GetToken(tokenizer& Tokenizer) {
         }
         break;
     }
+}
+
+token GetToken(tokenizer& Tokenizer) {
+    token Token = {};
+    Token.Length = 1;
+
+    AdvanceWhitespace(Tokenizer);
 
     Token.Line = Tokenizer.Line;
     Token.Column = Tokenizer.Column;
@@ -477,6 +481,20 @@ token RequireToken(tokenizer& Tokenizer, token_type Type) {
         throw ErrorBuffer;
     }
     return Token;
+}
+
+void SkipBlock(tokenizer& Tokenizer) {
+    RequireToken(Tokenizer, Token_OpenBrace);
+    int Block = 1;
+    do {
+        token Token = GetToken(Tokenizer);
+        if (Token.Type == Token_OpenBrace) {
+            Block += 1;
+        }
+        else if (Token.Type == Token_CloseBrace) {
+            Block -= 1;
+        }
+    } while (Block > 0);
 }
 
 // Parsing
