@@ -435,8 +435,8 @@ int main() {
                     }
                     OnceTests += std::string(
                     "); }\n"
-                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); }\n"
-                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); }\n"
+                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); Result = false; }\n"
+                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); Result = false; }\n"
                     );
 
                     OnceTests += std::string("    if(Result) { Log(log_level::Test, \"Test '") + TestName + std::string("' was correctly executed.\"); }\n");
@@ -460,8 +460,8 @@ int main() {
                     }
                     ReloadTests += std::string(
                     "); }\n"
-                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); }\n"
-                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); }\n"
+                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); Result = false; }\n"
+                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); Result = false; }\n"
                     );
                     ReloadTests += std::string("    if(Result) { Log(log_level::Test, \"Test '") + TestName + std::string("' was correctly executed.\"); }\n");
                     ReloadTests += std::string("    else       { Log(log_level::Error, \"Test '") + TestName + std::string("' failed.\"); }\n");
@@ -484,8 +484,8 @@ int main() {
                     }
                     EveryFrameTests += std::string(
                     "); }\n"
-                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); }\n"
-                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); }\n"
+                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); Result = false; }\n"
+                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); Result = false; }\n"
                     );
                     EveryFrameTests += std::string("    if (!Result) { Log(log_level::Error, \"Test '") + TestName + std::string("' failed.\"); }\n");
                 }
