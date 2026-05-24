@@ -1,6 +1,6 @@
 #include "GameLibrary.h"
 #include "GameData.h"
-
+#include "gltf.h"
 
 /*
     Test types. There are three test types:
@@ -14,7 +14,7 @@ ENUM(test_type,
     test_every_frame
 );
 
-#define TEST(Name, Type, Active) bool Name
+#define TEST(Name, Type, ...) bool Name
 
 TEST(TestFormat, test_once, ACTIVE)() {
     string Test;
@@ -393,6 +393,16 @@ TEST(TestEntities, test_once, ACTIVE)(game_state* State) {
     Shield->Color = Gray;
     Shield->Transform.Translation = V3(10,1.6f,0);
     Shield->Collider = CapsuleCollider(V3(0,-0.5f,0), V3(0,0.5f,0), 1.0f);
+
+    return true;
+}
+
+TEST(TestglTF, test_once, ACTIVE, MUST_PASS)() {
+    file_info FileInfo;
+    char* Content = (char*)Platform.ReadEntireFile("GameAsset/TestFiles/glTF-Sample-Assets-main/Models/Box/glTF/Box.gltf", &FileInfo);
+
+    memory_arena Arena = AllocateMemoryArena(Kilobytes(8));
+    ParseGLTF(&Arena, Content);
 
     return true;
 }

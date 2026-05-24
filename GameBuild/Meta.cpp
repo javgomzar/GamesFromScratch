@@ -403,7 +403,10 @@ int main() {
     tokenizer Tokenizer = InitTokenizer(TestsContent, TestsFileSize);
     token Token = GetToken(Tokenizer);
     while (Token.Type != Token_End) {
-        if (Token == "TEST") {
+        if (Token.Type == Token_Pound) {
+            AdvanceUntilNextLine(Tokenizer);
+        }
+        else if (Token == "TEST") {
             RequireToken(Tokenizer, Token_OpenParen);
             token TestNameToken = RequireToken(Tokenizer, Token_Identifier);
 
@@ -411,83 +414,69 @@ int main() {
             token TestType = RequireToken(Tokenizer, Token_Identifier);
             
             RequireToken(Tokenizer, Token_Comma);
-            token TestActiveToken = RequireToken(Tokenizer, Token_Identifier);
-            bool TestActive = TestActiveToken == "ACTIVE";
-            RequireToken(Tokenizer, Token_CloseParen);
+            bool TestActive = false;
+            bool MustPass = false;
+            token Separator;
+            do {
+                token OptionalFlag = GetToken(Tokenizer);
+                if (OptionalFlag == "ACTIVE") {
+                    TestActive = true;
+                }
+                else if (OptionalFlag == "INACTIVE") {
+                    TestActive = false;
+                }
+                else if (OptionalFlag == "MUST_PASS") {
+                    MustPass = true;
+                }
+                else {
+                    throw "Invalid optional flag.";
+                }
+                Separator = GetToken(Tokenizer);
+            } while(Separator.Type == Token_Comma);
 
             if (TestActive) {
                 std::string TestName = std::string(TestNameToken.Text, TestNameToken.Length);
+                std::string* Target = nullptr;
                 if (TestType == "test_once") {
-                    OnceTests += std::string("\n"
-                    "    try { Result = "
-                    ) + TestName + std::string("(");
-                    token PreviousToken = RequireToken(Tokenizer, Token_OpenParen);
+                    Target = &OnceTests;
+                }
+                else if (TestType == "test_reload") {
+                    Target = &ReloadTests;
+                }
+                else if (TestType == "test_every_frame") {
+                    Target = &EveryFrameTests;
+                }
+
+                *Target += std::string("\n    ");
+                if (!MustPass) {
+                    *Target += std::string("try { ");
+                }
+                *Target += std::string("Result = ") + TestName + std::string("(");
+                
+                token PreviousToken = RequireToken(Tokenizer, Token_OpenParen);
+                Token = GetToken(Tokenizer);
+                while (Token.Type != Token_CloseParen) {
+                    PreviousToken = Token;
                     Token = GetToken(Tokenizer);
-                    while (Token.Type != Token_CloseParen) {
-                        PreviousToken = Token;
-                        Token = GetToken(Tokenizer);
-                        if (Token.Type == Token_Comma) {
-                            OnceTests += std::string(PreviousToken.Text, PreviousToken.Length) + std::string(", ");
-                        }
-                        else if (Token.Type == Token_CloseParen) {
-                            OnceTests += std::string(PreviousToken.Text, PreviousToken.Length);
-                        }
+                    if (Token.Type == Token_Comma) {
+                        *Target += std::string(PreviousToken.Text, PreviousToken.Length) + std::string(", ");
                     }
-                    OnceTests += std::string(
-                    "); }\n"
+                    else if (Token.Type == Token_CloseParen) {
+                        *Target += std::string(PreviousToken.Text, PreviousToken.Length);
+                    }
+                }
+                *Target += std::string(");");
+                if (MustPass) {
+                    *Target += "\n";
+                }
+                else {
+                    *Target += std::string(" }\n"
                     "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); Result = false; }\n"
                     "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); Result = false; }\n"
                     );
 
                     OnceTests += std::string("    if(Result) { Log(log_level::Test, \"Test '") + TestName + std::string("' was correctly executed.\"); }\n");
                     OnceTests += std::string("    else       { Log(log_level::Error, \"Test '") + TestName + std::string("' failed.\"); }\n");
-                }
-                else if (TestType == "test_reload") {
-                    ReloadTests += std::string("\n"
-                    "    try { Result = "
-                    ) + TestName + std::string("(");
-                    token PreviousToken = RequireToken(Tokenizer, Token_OpenParen);
-                    Token = GetToken(Tokenizer);
-                    while (Token.Type != Token_CloseParen) {
-                        PreviousToken = Token;
-                        Token = GetToken(Tokenizer);
-                        if (Token.Type == Token_Comma) {
-                            ReloadTests += std::string(PreviousToken.Text, PreviousToken.Length) + std::string(", ");
-                        }
-                        else if (Token.Type == Token_CloseParen) {
-                            ReloadTests += std::string(PreviousToken.Text, PreviousToken.Length);
-                        }
-                    }
-                    ReloadTests += std::string(
-                    "); }\n"
-                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); Result = false; }\n"
-                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); Result = false; }\n"
-                    );
-                    ReloadTests += std::string("    if(Result) { Log(log_level::Test, \"Test '") + TestName + std::string("' was correctly executed.\"); }\n");
-                    ReloadTests += std::string("    else       { Log(log_level::Error, \"Test '") + TestName + std::string("' failed.\"); }\n");
-                }
-                else if (TestType == "test_every_frame") {
-                    EveryFrameTests += std::string("\n"
-                    "    try { Result = "
-                    ) + TestName + std::string("(");
-                    token PreviousToken = RequireToken(Tokenizer, Token_OpenParen);
-                    Token = GetToken(Tokenizer);
-                    while (Token.Type != Token_CloseParen) {
-                        PreviousToken = Token;
-                        Token = GetToken(Tokenizer);
-                        if (Token.Type == Token_Comma) {
-                            EveryFrameTests += std::string(PreviousToken.Text, PreviousToken.Length) + std::string(", ");
-                        }
-                        else if (Token.Type == Token_CloseParen) {
-                            EveryFrameTests += std::string(PreviousToken.Text, PreviousToken.Length);
-                        }
-                    }
-                    EveryFrameTests += std::string(
-                    "); }\n"
-                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); Result = false; }\n"
-                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); Result = false; }\n"
-                    );
-                    EveryFrameTests += std::string("    if (!Result) { Log(log_level::Error, \"Test '") + TestName + std::string("' failed.\"); }\n");
                 }
             }
         }
