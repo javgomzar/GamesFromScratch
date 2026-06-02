@@ -3,6 +3,7 @@
 
 #pragma once
 #include "GameAsset.h"
+#include "GameColor.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Vertex buffer                                                                                                                                |
@@ -123,12 +124,12 @@ void ClearTextBuffer(text_buffer* TextBuffer) {
     }
 }
 
-void PushTextEntry(text_buffer* TextBuffer, game_font_id FontID, char Char, v2 Pen, float Size, color Color = White) {
+void PushTextEntry(text_buffer* TextBuffer, game_font_id FontID, char Char, v2 Pen, float Size, color Color = color::WHITE) {
     memory_arena* Arena = &TextBuffer->Instances[FontID][Char - '!'];
     float* Data = PushArray(Arena, 7, float);
     *Data++ = Pen.X; *Data++ = Pen.Y;
     *Data++ = Size;
-    *Data++ = Color.R; *Data++ = Color.G; *Data++ = Color.B; *Data++ = Color.Alpha;
+    *Data++ = Color.R; *Data++ = Color.G; *Data++ = Color.B; *Data++ = Color.A;
     TextBuffer->Count[FontID][Char - '!']++;
 }
 
@@ -192,7 +193,7 @@ FLAGS(render_flag,
 );
 
 struct render_primitive_optional_arguments {
-    color Color = White;
+    color Color = color::WHITE;
     render_flag Flags;
     game_heightmap* Heightmap = nullptr;
     vertex_layout_id InstanceLayoutID;
@@ -225,17 +226,17 @@ struct render_primitive_command {
 };
 
 struct render_text_options {
-    color Color        = White;
+    color Color        = color::WHITE;
     game_font_id Font  = Font_DejaVu_Sans_ID;
     bool Outline       = false;
-    color OutlineColor = Black;
+    color OutlineColor = color::BLACK;
     float OutlineWidth = 2.0f;
     float Points       = 20.0f;
 };
 
 struct render_mesh_options {
     armature* Armature = nullptr;
-    color Color = White;
+    color Color = color::WHITE;
     game_texture_id TextureID = Texture_Empty_ID;
     transform Transform = IdentityTransform;
     bool Outline = false;
@@ -386,7 +387,7 @@ void InitializeRenderGroup(
     Group->DebugBones = false;
 
     // Lighting
-    Group->Light.Color = White;
+    Group->Light.Color = color::WHITE;
     Group->Light.Direction = normalize(V3(-0.5, -1, 1));
     Group->Light.Ambient = 0.5f;
     Group->Light.Diffuse = 0.5f;
@@ -1455,9 +1456,9 @@ void PushFillbar(
     string Description,
     float FillPercentage,
     rectangle Rect,
-    color Color = Red
+    color Color = color::RED
 ) {
-    PushRect(Group, Rect, DarkGray);
+    PushRect(Group, Rect, color::DARK_GRAY);
     rectangle SmallRect = Rect;
     SmallRect.Width *= FillPercentage;
     PushRect(Group, SmallRect, Color);
@@ -1477,11 +1478,11 @@ void PushFillbar(
     int Used,
     int Max,
     rectangle Rect,
-    color Color = Red
+    color Color = color::RED
 ) {
     float FillPercentage = (float)Used / (float)Max;
     float Points = 8;
-    PushRect(Group, Rect, DarkGray);
+    PushRect(Group, Rect, color::DARK_GRAY);
     rectangle SmallRect = Rect;
     SmallRect.Width *= FillPercentage;
     PushRect(Group, Rect, Color);
@@ -1504,19 +1505,19 @@ void PushFillbar(
     v3 HeightAxis,
     float Width,
     float Height,
-    color Color = Red
+    color Color = color::RED
 ) {
     float FillPercentage = (float)Used / (float)Max;
-    PushRect(Group, LeftTop, WidthAxis, HeightAxis, Width, Height, DarkGray);
+    PushRect(Group, LeftTop, WidthAxis, HeightAxis, Width, Height, color::DARK_GRAY);
     float SmallWidth = FillPercentage * Width;
-    PushRect(Group, LeftTop, WidthAxis, HeightAxis, SmallWidth, Height, Red);
+    PushRect(Group, LeftTop, WidthAxis, HeightAxis, SmallWidth, Height, color::RED);
 }
 
 void PushCubeOutline(
     render_group* Group,
     v3 Position,
     scale Scale = GetScale(1.0),
-    color Color = White,
+    color Color = color::WHITE,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     render_primitive_command* Result = PushPrimitiveCommand(
@@ -1599,7 +1600,7 @@ void PushCubeOutline(
 //         Entry->Header.Key.Order = Order;
 //         Entry->Rect = Rect;
 //         Entry->RefreshTexture = true;
-//         Entry->Color = White;
+//         Entry->Color = color::WHITE;
 
 //         if (Video->TimeElapsed > Video->VideoContext.PTS * Video->VideoContext.TimeBase) {
 //             LoadFrame(&Video->VideoContext);
@@ -1690,7 +1691,7 @@ void _PushMesh(
         render_mesh_command* OutlineMeshCommand = &Group->MeshCommands[OutlineCommand.Index];
         OutlineMeshCommand->MeshID = MeshID;
         OutlineMeshCommand->Options.Transform = Options.Transform;
-        OutlineMeshCommand->Options.Color = White;
+        OutlineMeshCommand->Options.Color = color::WHITE;
         OutlineMeshCommand->Options.Outline = true;
 
         if (!Group->PushOutline) {
@@ -1707,7 +1708,7 @@ void _PushMesh(
                 PushJumpFloodCompute(Group, Level, JumpOrder);
                 Level >>= 1;
             }
-            PushOutlineCompute(Group, White, 4.0f, JumpOrder + 1.0f);
+            PushOutlineCompute(Group, color::WHITE, 4.0f, JumpOrder + 1.0f);
 
             PushRenderTarget(Group, Target_Postprocessing_Outline, Target_World, SORT_ORDER_OUTLINED_MESHES - 0.1f);
             Group->PushOutline = true;
@@ -1721,7 +1722,7 @@ void _PushMesh(
             render_primitive_line,
             vertex_layout_v3_id,
             2 * Options.Armature->nBones,
-            .Color = Black,
+            .Color = color::BLACK,
             .Flags = render_flag::debug_bones,
             .Order = SORT_ORDER_DEBUG_OVERLAY,
             .Thickness = 2.5f
@@ -2038,7 +2039,7 @@ void PushDebugGrid(render_group* Group, float Alpha) {
         render_primitive_line,
         vertex_layout_v3_id,
         nVertices,
-        .Color = ChangeAlpha(White, 0.2f),
+        .Color = ChangeAlpha(color::WHITE, 0.2f),
         .Flags = render_flag::depth_test | render_flag::overwrite_alpha,
         .Order = SORT_ORDER_MESHES,
         .Thickness = 1.0f
@@ -2084,7 +2085,7 @@ void PushDebugPlot(
     float* Data,
     v2 Position,
     int dx,
-    color Color = White,
+    color Color = color::WHITE,
     float Thickness = 2.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -2217,7 +2218,7 @@ void PushTimeRecords(
     float RecordHeight = GetCharMaxHeight(Font, Points);
     float TotalHeight = (RecordHeight) * (nTotalRecords + 1) + 2 * VMargin;
 
-    PushRect(Group, { Group->Width - TotalWidth, Group->Height - TotalHeight, TotalWidth, TotalHeight }, ChangeAlpha(Black, 0.7f));
+    PushRect(Group, { Group->Width - TotalWidth, Group->Height - TotalHeight, TotalWidth, TotalHeight }, ChangeAlpha(color::BLACK, 0.7f));
 
     float RecordX = Group->Width - TotalWidth + HMargin;
     float RecordY = Group->Height - TotalHeight + RecordHeight + 0.5f * VMargin;

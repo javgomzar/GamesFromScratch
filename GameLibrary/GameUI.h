@@ -200,14 +200,14 @@ ui_element* NewUIElement(uint32 ID) {
     Result->Index = UI.CurrentIndex;
     Result->Scroll = 0;
     Result->Font = UI.Group->DebugFont->ID;
-    Result->Color = White;
+    Result->Color = color::WHITE;
     return Result;
 }
 
 struct ui_element_options {
     ui_alignment AlignmentX = ui_alignment_free;
     ui_alignment AlignmentY = ui_alignment_free;
-    color Color             = White;
+    color Color             = color::WHITE;
     ui_flag Flags;
     game_font_id Font       = Font_DejaVu_Sans_ID;
     float MarginX           = 0.0f;
@@ -515,7 +515,7 @@ void UISidebar(ui_axis Axis) {
         Alpha = 0.75f;
     }
 
-    Element->Color = ChangeAlpha(White, Alpha);
+    Element->Color = ChangeAlpha(color::WHITE, Alpha);
 
     Element->Parent->RelativePosition[Axis] = Element->Scroll * (ParentsParentSize[Axis] - ParentsSize[Axis]);
     Element->RelativePosition[Axis] = -Element->Parent->RelativePosition[Axis] + Element->Scroll * (ParentsParentSize[Axis] - SideBarSize);
@@ -530,7 +530,7 @@ struct ui_menu {
         const char* Text,
         ui_element_options Options = {}
     ) {
-        Options.Color = ChangeAlpha(Black, 0.7f);
+        Options.Color = ChangeAlpha(color::BLACK, 0.7f);
         StackAxis = Options.Stack;
         Alignment = StackAxis == axis_x ? Options.AlignmentX : Options.AlignmentY;
         ui_axis NoStack = Opposite(StackAxis);
@@ -599,7 +599,7 @@ struct ui_dropdown {
 
         bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
         if (Hovered) {
-            Element->Color = Yellow;
+            Element->Color = color::YELLOW;
         }
 
         if (Hovered && UI.Input->Mouse.LeftClick.JustPressed) {
@@ -655,7 +655,7 @@ bool UIButton(const char* Text, float Points = 20.0f) {
 
     bool Hovered = IsIn(Element->Rect, UI.Input->Mouse.Cursor);
     if (Hovered) {
-        Element->Color = Yellow;
+        Element->Color = color::YELLOW;
     }
 
     return Element->Clicked;
@@ -678,7 +678,7 @@ void UIDebugValue(debug_entry* Entry) {
         Element->Size[axis_x] = UISizeMaxChildren(Sizes[axis_x].Value);
         Element->Size[axis_y] = UISizeSumChildren(Sizes[axis_y].Value);
         Element->Flags = ui_flag::stack_children_y;
-        if (Element->Hovered) Element->Color = Yellow;
+        if (Element->Hovered) Element->Color = color::YELLOW;
         if (Entry->Value) {
             Element->Expanded = false;
         }
@@ -819,19 +819,19 @@ void UpdateUI(
         v2 YAxis = V2(0.0, -cos(Camera->Pitch * Degrees));
         v2 ZAxis = V2(-sin(Camera->Angle * Degrees), sin(Camera->Pitch * Degrees) * cos(Camera->Angle * Degrees));
         v2 AxisOrigin = V2(Group->Width - 0.08 * (float)Group->Height - 10.0, 0.1 * (float)Group->Height);
-        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, ChangeAlpha(Red, DebugAlpha));
-        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, ChangeAlpha(Green, DebugAlpha));
-        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, ChangeAlpha(Blue, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * XAxis, AxisOrigin, ChangeAlpha(color::RED, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * YAxis, AxisOrigin, ChangeAlpha(color::GREEN, DebugAlpha));
+        PushDebugVector(Group, 0.08 * Group->Height * ZAxis, AxisOrigin, ChangeAlpha(color::BLUE, DebugAlpha));
 
         // Debug camera basis
         // basis CameraBasis = GetCameraBasis(State->ActiveCamera->Angle, State->ActiveCamera->Pitch);
-        // PushDebugVector(Group, CameraBasis, CameraBasis.X, V3(0,0,0), White);
-        // PushDebugVector(Group, CameraBasis, CameraBasis.Y, V3(0,0,0), White);
-        // PushDebugVector(Group, CameraBasis, CameraBasis.Z, V3(0,0,0), White);
+        // PushDebugVector(Group, CameraBasis, CameraBasis.X, V3(0,0,0), color::WHITE);
+        // PushDebugVector(Group, CameraBasis, CameraBasis.Y, V3(0,0,0), color::WHITE);
+        // PushDebugVector(Group, CameraBasis, CameraBasis.Z, V3(0,0,0), color::WHITE);
         // DEBUG_VALUE(CameraBasis.Z, v3);
         
         // Origin
-        PushCircle(Group, V3(0, 0, 0), 0.05f, normalize(State->ActiveCamera->Transform.Translation), White);
+        PushCircle(Group, V3(0, 0, 0), 0.05f, normalize(State->ActiveCamera->Transform.Translation), color::WHITE);
         
         ui_menu DebugMenu = UIMenu(
             "Debug Menu",

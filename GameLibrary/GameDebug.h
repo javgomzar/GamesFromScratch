@@ -380,7 +380,7 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color 
         case debug_bool: {
             bool Value = *(bool*)Entry->Value;
             PushText(Group, TextCursor, Entry->ValueString, 
-                .Color = Value ? Cyan : Red, .Font = Group->DebugFont->ID, .Points = Points);
+                .Color = Value ? color::CYAN : color::RED, .Font = Group->DebugFont->ID, .Points = Points);
         } break;
 
         case debug_char:
@@ -412,7 +412,7 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color 
             rectangle Rect = { TextCursor.X, Position.Y + 3.0f, 2.0f * LineHeight, LineHeight };
             color Color = *(color*)Entry->Value;
             PushRect(Group, Rect, Color);
-            PushRectOutline(Group, Rect, Gray, 1.0f);
+            PushRectOutline(Group, Rect, color::GRAY, 1.0f);
         } break;
 
         case debug_memory_arena: {
