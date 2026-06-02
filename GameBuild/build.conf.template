@@ -28,3 +28,9 @@ LIB=
 {VISUAL_STUDIO_INSTALLATION_FOLDER}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\{MSVC_VERSION}\lib\x64;
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\lib\{WINDOWS_SDK_VERSION}\um\x64;
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\Lib\{WINDOWS_SDK_VERSION}\ucrt\x64
+
+LINK=
+user32.lib;
+shell32.lib;
+kernel32.lib;
+ole32.lib
