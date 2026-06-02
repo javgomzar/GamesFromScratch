@@ -1,3 +1,6 @@
+#ifndef GAME_VERTEX
+#define GAME_VERTEX
+
 #include "GamePlatform.h"
 #include "GameMath.h"
 #include "Tokenizer.h"
@@ -244,3 +247,5 @@ uv3 ParseUV3(tokenizer& Tokenizer) {
     Result.Z = Parseuint32(Tokenizer);
     return Result;
 }
+
+#endif
