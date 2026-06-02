@@ -206,7 +206,7 @@ void UpdateGameState(
             );
 
             if (Group->Debug && Group->DebugColliders) {
-                PushCollider(Group, Entity->Collider, Entity->Transform, Entity->Collided ? Red : Yellow);
+                PushCollider(Group, Entity->Collider, Entity->Transform, Entity->Collided ? color::RED : color::YELLOW);
             }
         }
     }
@@ -269,12 +269,12 @@ extern "C" GAME_UPDATE(GameUpdate)
         Memory->IsInitialized = true;
     }
 
-    PushClear(Group, Black, Target_None);
-    PushClear(Group, { 0 }, Target_World);
-    PushClear(Group, { 0 }, Target_Outline);
-    PushClear(Group, { 0 }, Target_Postprocessing_Outline);
-    PushClear(Group, Magenta, Target_PingPong);
-    PushClear(Group, Black, Target_Output);
+    PushClear(Group, color::BLACK, Target_None);
+    PushClear(Group, color::EMPTY, Target_World);
+    PushClear(Group, color::EMPTY, Target_Outline);
+    PushClear(Group, color::EMPTY, Target_Postprocessing_Outline);
+    PushClear(Group, color::MAGENTA, Target_PingPong);
+    PushClear(Group, color::BLACK, Target_Output);
 
     if (Memory->Test) {
         RunEveryFrameTests(Memory);
@@ -306,7 +306,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         }
         else {
             rectangle ScreenRect = { 0, 0, (float)Group->Width, (float)Group->Height };
-            PushRect(Group, ScreenRect, ChangeAlpha(White, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
+            PushRect(Group, ScreenRect, ChangeAlpha(color::WHITE, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
     PushRenderTarget(Group, Target_Output, Target_None, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);

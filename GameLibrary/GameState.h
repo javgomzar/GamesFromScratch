@@ -32,7 +32,7 @@ struct game_entity {
     game_entity* Parent = nullptr;
     game_entity* Follow = nullptr;
     collider Collider = SphereCollider(V3(0,0,0), 1.0f);
-    color Color = White;
+    color Color = color::WHITE;
 
     transform Transform = IdentityTransform;
     v3 Velocity = V3(0,0,0);

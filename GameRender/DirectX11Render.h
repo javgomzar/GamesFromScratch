@@ -1615,7 +1615,7 @@ RENDERER_RENDER {
 				render_clear_command Clear = Group->ClearCommands[Command.Index];
 
                 directX_render_target* Target = &DirectX.Target[Clear.Target];
-                float Color[4] = { Clear.Color.R, Clear.Color.G, Clear.Color.B, Clear.Color.Alpha };
+                float Color[4] = { Clear.Color.R, Clear.Color.G, Clear.Color.B, Clear.Color.A };
                 BindTarget(Clear.Target);
                 
                 DirectX.DeviceContext->ClearRenderTargetView(Target->View, Color);
@@ -1830,7 +1830,7 @@ RENDERER_RENDER {
                     DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_POINTLIST);
                     DirectX.DeviceContext->GSSetShader(DirectX.GeometryShader[Geometry_Shader_Normal_ID].Shader, NULL, 0);
                     DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Single_Color_ID].Shader, NULL, 0);
-                    SetColorBuffer(Yellow);
+                    SetColorBuffer(color::YELLOW);
                     DirectX.DeviceContext->Draw(Mesh->nVertices, 0);
                     DirectX.DeviceContext->GSSetShader(NULL, NULL, 0);
                 }
