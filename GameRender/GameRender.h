@@ -4,6 +4,7 @@
 #pragma once
 #include "GameAsset.h"
 #include "GameColor.h"
+#include "GameMaterial.h"
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Vertex buffer                                                                                                                                |
@@ -170,14 +171,14 @@ struct render_clear_command {
     color Color;
 };
 
-ENUM(render_primitive,
-    render_primitive_point,
-    render_primitive_line,
-    render_primitive_line_strip,
-    render_primitive_triangle,
-    render_primitive_triangle_strip,
-    render_primitive_patches
-);
+enum class render_primitive {
+    POINT,
+    LINE,
+    LINE_STRIP,
+    TRIANGLE,
+    TRIANGLE_STRIP,
+    PATCHES
+};
 
 FLAGS(render_flag,
     depth_test,
@@ -216,7 +217,7 @@ struct render_primitive_options {
 };
 
 struct render_primitive_command {
-    render_primitive Primitive = render_primitive_point;
+    render_primitive Primitive = render_primitive::POINT;
     vertex_buffer_entry VertexEntry = {0};
     element_buffer_entry ElementEntry = {0};
     instance_buffer_entry InstanceEntry = {0};
@@ -835,7 +836,7 @@ render_primitive_command* _PushPrimitiveCommand(
 void PushPoint(render_group* Group, v2 Point, color Color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
     float* Vertices = (float*)PushPrimitiveCommand(
         Group,
-        render_primitive_point, 
+        render_primitive::POINT, 
         vertex_layout_v2_id, 
         1,
         .Color = Color,
@@ -848,7 +849,7 @@ void PushPoint(render_group* Group, v2 Point, color Color, float Order = SORT_OR
 void PushPoint(render_group* Group, v3 Point, color Color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
     float* Vertices = PushPrimitiveCommand(
         Group, 
-        render_primitive_point,
+        render_primitive::POINT,
         vertex_layout_v3_id, 
         1,
         .Color = Color,
@@ -870,7 +871,7 @@ void PushLine(
 ) {
     float* Vertices = PushPrimitiveCommand(
         Group,
-        render_primitive_line,
+        render_primitive::LINE,
         vertex_layout_v2_id,
         2,
         .Color = Color,
@@ -893,7 +894,7 @@ void PushLine(
 ) {
     float* Vertices = PushPrimitiveCommand(
         Group,
-        render_primitive_line,
+        render_primitive::LINE,
         vertex_layout_v3_id,
         2,
         .Color = Color,
@@ -930,7 +931,7 @@ void PushTriangle(
 ) {
     float* Vertices = PushPrimitiveCommand(
         Group, 
-        render_primitive_triangle,
+        render_primitive::TRIANGLE,
         vertex_layout_v3_id,
         3,
         .Color = Color,
@@ -956,7 +957,7 @@ void PushTriangle(
 ) {
     float* Vertices = PushPrimitiveCommand(
         Group,
-        render_primitive_triangle,
+        render_primitive::TRIANGLE,
         vertex_layout_v2_id,
         3,
         .Color = Color,
@@ -984,7 +985,7 @@ void PushCircle(
 
     render_primitive_command* Command = PushPrimitiveCommand(
         Group,
-        render_primitive_triangle,
+        render_primitive::TRIANGLE,
         vertex_layout_v2_id,
         N+1,
         .Color = Color,
@@ -1033,7 +1034,7 @@ void PushCircle(
 
     render_primitive_command* Command = PushPrimitiveCommand(
         Group,
-        render_primitive_triangle,
+        render_primitive::TRIANGLE,
         vertex_layout_v3_id,
         N+1,
         .Color = Color,
@@ -1079,7 +1080,7 @@ void PushCircunference(
 
     float* Data = PushPrimitiveCommand(
         Group,
-        render_primitive_line_strip,
+        render_primitive::LINE_STRIP,
         vertex_layout_v2_id,
         N+1,
         .Color = Color,
@@ -1115,7 +1116,7 @@ void PushCircunference(
 
     float* Data = PushPrimitiveCommand(
         Group,
-        render_primitive_line_strip,
+        render_primitive::LINE_STRIP,
         vertex_layout_v3_id,
         N+1,
         .Color = Color,
@@ -1159,7 +1160,7 @@ void PushArc(
 
     float* Data = PushPrimitiveCommand(
         Group,
-        render_primitive_line_strip,
+        render_primitive::LINE_STRIP,
         vertex_layout_v3_id,
         N,
         .Color = Color,
@@ -1186,7 +1187,7 @@ void PushRect(
 ) {
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
-        render_primitive_triangle,
+        render_primitive::TRIANGLE,
         vertex_layout_v2_id,
         4,
         .Color = Color,
@@ -1223,7 +1224,7 @@ void PushRect(
 ) {
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
-        render_primitive_triangle,
+        render_primitive::TRIANGLE,
         vertex_layout_v3_id,
         4,
         .Color = Color,
@@ -1265,7 +1266,7 @@ void PushRectOutline(
 ) {
     v2* Vertices = (v2*)PushPrimitiveCommand(
         Group,
-        render_primitive_line_strip,
+        render_primitive::LINE_STRIP,
         vertex_layout_v2_id,
         5,
         .Color = Color,
@@ -1292,7 +1293,7 @@ void PushBitmap(
 ) {
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
-        render_primitive_triangle,
+        render_primitive::TRIANGLE,
         vertex_layout_v2_v2_id,
         4,
         .nElements = 6,
@@ -1522,7 +1523,7 @@ void PushCubeOutline(
 ) {
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
-        render_primitive_line,
+        render_primitive::LINE,
         vertex_layout_v3_id,
         8,
         .Color = Color,
@@ -1719,7 +1720,7 @@ void _PushMesh(
     if (Group->Debug && Group->DebugBones && Options.Armature) {
         v3* Vertices = (v3*)PushPrimitiveCommand(
             Group, 
-            render_primitive_line,
+            render_primitive::LINE,
             vertex_layout_v3_id,
             2 * Options.Armature->nBones,
             .Color = color::BLACK,
@@ -1753,7 +1754,7 @@ void PushHeightmap(
 
     PushPrimitiveCommand(
         Group, 
-        render_primitive_patches,
+        render_primitive::PATCHES,
         vertex_layout_v3_v2_id, 
         nVertices,
         .Flags = render_flag::depth_test,
@@ -1782,7 +1783,7 @@ void PushWater(render_group* Group, v3 Position, scale S) {
 
     PushPrimitiveCommand(
         Group, 
-        render_primitive_patches,
+        render_primitive::PATCHES,
         vertex_layout_v3_v2_id, 
         nVertices,
         .Flags = render_flag::depth_test | render_flag::water,
@@ -1815,7 +1816,7 @@ void GenerateHeightmapElements(uint32* Elements) {
 void PushSky(render_group* Group) {
     render_primitive_command* Command = PushPrimitiveCommand(
         Group,
-        render_primitive_triangle,
+        render_primitive::TRIANGLE,
         vertex_layout_v3_id,
         8,
         .Flags = render_flag::sky | render_flag::depth_test,
@@ -1985,7 +1986,7 @@ void PushDebugFustrum(
 ) {
     render_primitive_command* Result = PushPrimitiveCommand(
         Group,
-        render_primitive_line,
+        render_primitive::LINE,
         vertex_layout_v3_v2_id,
         9,
         .Flags = render_flag::depth_test,
@@ -2036,7 +2037,7 @@ void PushDebugGrid(render_group* Group, float Alpha) {
 
     v3* Vertices = (v3*)PushPrimitiveCommand(
         Group,
-        render_primitive_line,
+        render_primitive::LINE,
         vertex_layout_v3_id,
         nVertices,
         .Color = ChangeAlpha(color::WHITE, 0.2f),
@@ -2091,7 +2092,7 @@ void PushDebugPlot(
 ) {
     v2* Vertices = (v2*)PushPrimitiveCommand(
         Group,
-        render_primitive_line_strip,
+        render_primitive::LINE_STRIP,
         vertex_layout_v2_id,
         N,
         .Color = Color,

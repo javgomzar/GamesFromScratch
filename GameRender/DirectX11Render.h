@@ -1416,12 +1416,12 @@ RENDERER_INITIALIZE {
 
 D3D_PRIMITIVE_TOPOLOGY GetRenderPrimitive(render_primitive Primitive) {
     switch(Primitive) {
-        case render_primitive_point:          return D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
-        case render_primitive_line:           return D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
-        case render_primitive_line_strip:     return D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
-        case render_primitive_triangle:       return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
-        case render_primitive_triangle_strip: return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
-        case render_primitive_patches:        return D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
+        case render_primitive::POINT:          return D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;
+        case render_primitive::LINE:           return D3D11_PRIMITIVE_TOPOLOGY_LINELIST;
+        case render_primitive::LINE_STRIP:     return D3D11_PRIMITIVE_TOPOLOGY_LINESTRIP;
+        case render_primitive::TRIANGLE:       return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST;
+        case render_primitive::TRIANGLE_STRIP: return D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP;
+        case render_primitive::PATCHES:        return D3D11_PRIMITIVE_TOPOLOGY_4_CONTROL_POINT_PATCHLIST;
         default: Raise("DirectX: Invalid render primitive.");
     }
     return D3D11_PRIMITIVE_TOPOLOGY_POINTLIST;

@@ -29,6 +29,7 @@
 #include "GamePlatform.h"
 #include "GameEnums.h"
 #include "GameMath.h"
+#include "GameColor.h"
 #include "GameInput.h"
 #include "GameAsset.h"
 #include "GameRender.h"

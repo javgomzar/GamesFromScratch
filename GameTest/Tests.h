@@ -166,7 +166,7 @@ TEST(TestInstancedRendering, test_every_frame, INACTIVE)(render_group* Group) {
     int nInstances = 100;
     render_primitive_command* Command = PushPrimitiveCommand(
         Group,
-        render_primitive_triangle,
+        render_primitive::TRIANGLE,
         vertex_layout_v2_id,
         6,
         .InstanceLayoutID = vertex_layout_v2_id,
@@ -213,7 +213,7 @@ TEST(TestTextRendering, test_every_frame, INACTIVE)(render_group* Group, game_in
     return true;
 }
 
-TEST(TestRendering, test_every_frame, INACTIVE)(render_group* Group, game_input* Input, float Time) {
+TEST(TestRendering, test_every_frame, ACTIVE)(render_group* Group, game_input* Input, float Time) {
 // 2D
     // Rects
     rectangle Rect = { 20, 20, 100, 100 };
@@ -401,8 +401,8 @@ TEST(TestglTF, test_once, ACTIVE, MUST_PASS)() {
     file_info FileInfo;
     char* Content = (char*)Platform.ReadEntireFile("GameAsset/TestFiles/glTF-Sample-Assets-main/Models/Box/glTF/Box.gltf", &FileInfo);
 
-    memory_arena Arena = AllocateMemoryArena(Kilobytes(8));
-    ParseGLTF(&Arena, Content);
+    memory_arena Arena = AllocateMemoryArena(Kilobytes(16));
+    gltf_asset Asset = ParseGLTF(&Arena, Content);
 
     return true;
 }
