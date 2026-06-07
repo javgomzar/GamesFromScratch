@@ -55,7 +55,7 @@ const char* const PrimitiveTypes[] = {
     "uint16",
     "uint32",
     "uint64",
-    "memory_index",
+    "memory_size",
     "float",
     "double",
     "v2",

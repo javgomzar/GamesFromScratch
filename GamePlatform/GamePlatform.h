@@ -13,7 +13,7 @@ typedef int16_t int16;
 typedef int32_t int32;
 typedef int64_t int64;
 
-typedef size_t memory_index;
+typedef size_t memory_size;
 
 #define Kilobytes(Value) ((Value)*1024)
 #define Megabytes(Value) (Kilobytes(Value)*1024)
@@ -98,18 +98,18 @@ inline void Assert(bool assertion, const char* Message = "") {
 */
 
 struct memory_arena {
-    memory_index Size;
-    memory_index Used;
+    memory_size Size;
+    memory_size Used;
     uint8* Base;
 };
 
-inline void ZeroSize(memory_index Size, void* Memory) {
+inline void ZeroSize(memory_size Size, void* Memory) {
     if (Size > 0) {
         memset(Memory, 0, Size);
     }
 }
 
-inline memory_arena MemoryArena(memory_index Size, void* Base) {
+inline memory_arena MemoryArena(memory_size Size, void* Base) {
     memory_arena Result;
     Result.Size = Size;
     Result.Base = (uint8*)Base;
@@ -117,7 +117,7 @@ inline memory_arena MemoryArena(memory_index Size, void* Base) {
     return Result;
 }
 
-inline memory_arena AllocateMemoryArena(memory_index Size) {
+inline memory_arena AllocateMemoryArena(memory_size Size) {
     uint8* Base = (uint8*)calloc(1, Size);
     return MemoryArena(Size, Base);
 }
@@ -135,7 +135,7 @@ inline void ClearArena(memory_arena* Arena) {
 #define PushStruct(Arena, type) (type *)PushSize_(Arena, sizeof(type))
 #define PushArray(Arena, Count, type) (type *)PushSize_(Arena, Count*sizeof(type))
 #define PushSize(Arena, Size) (void*)PushSize_(Arena, Size)
-inline void* PushSize_(memory_arena* Arena, memory_index Size) {
+inline void* PushSize_(memory_arena* Arena, memory_size Size) {
     Assert(Arena->Size >= Arena->Used + Size);
     void* Result = Arena->Base + Arena->Used;
     Arena->Used += Size;
@@ -145,15 +145,15 @@ inline void* PushSize_(memory_arena* Arena, memory_index Size) {
 #define PopStruct(Arena, type) (type *)PopSize_(Arena, sizeof(type))
 #define PopArray(Arena, Count, type) (type *)PopSize_(Arena, Count*sizeof(type))
 #define PopSize(Arena, Size) (void*)PopSize_(Arena, Size)
-inline void* PopSize_(memory_arena* Arena, memory_index Size) {
-    memory_index BytesErased = Size < Arena->Used? Size : Arena->Used;
+inline void* PopSize_(memory_arena* Arena, memory_size Size) {
+    memory_size BytesErased = Size < Arena->Used? Size : Arena->Used;
     void* Result = (void*)(Arena->Base + Arena->Used - BytesErased);
     ZeroSize(BytesErased, Result);
     Arena->Used -= BytesErased;
     return Result;
 }
 
-inline memory_arena SuballocateMemoryArena(memory_arena* Arena, memory_index Size) {
+inline memory_arena SuballocateMemoryArena(memory_arena* Arena, memory_size Size) {
     memory_arena Result = {};
     Result.Base = (uint8*)PushSize(Arena, Size);
     Result.Size = Size;
@@ -409,7 +409,7 @@ private:
     xarray_meta Meta;
     xarray_header* Header;
 
-    void NewChunk(memory_index Size) {
+    void NewChunk(memory_size Size) {
         if (Meta.nChunks >= MAX_XARRAY_CHUNKS) {
             Assert(false, "Xarray chunk index overflow.");
         }
@@ -866,6 +866,8 @@ void Log(log_level Level, string Content);
 +---------------------------------------------------------------------------------------------------------------------------------+
 */
 
+typedef int64 timestamp;
+
 #if _WIN32
 #define PATH_SEPARATOR "\\"
 #elif __linux__
@@ -874,14 +876,14 @@ void Log(log_level Level, string Content);
 
 struct file_info {
     string Path;
-    int64 Timestamp; 
-    memory_index Size;
+    timestamp Timestamp; 
+    memory_size Size;
 };
 
 struct file_chunk_info {
     file_info Info;
-    memory_index Size;
-    memory_index Offset;
+    memory_size Size;
+    memory_size Offset;
 };
 
 string GetFileName(string Path) {
@@ -1047,31 +1049,31 @@ enum system_os {
     Linux,
 };
 
-#define PLATFORM_ALLOCATE_MEMORY(name) void* name(memory_index Size)
+#define PLATFORM_ALLOCATE_MEMORY(name) void* name(memory_size Size)
 typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory);
 
 #define PLATFORM_FREE_MEMORY(name) void name(void* Memory)
 typedef PLATFORM_FREE_MEMORY(platform_free_memory);
 
-#define PLATFORM_FILE_EXISTS(name) bool name(const char* Path)
+#define PLATFORM_FILE_EXISTS(name) bool name(string Path)
 typedef PLATFORM_FILE_EXISTS(platform_file_exists);
 
-#define PLATFORM_READ_FILE_CHUNK(name) file_chunk_info name(const char* Path, memory_index Offset, memory_index ChunkSize, void* Memory)
+#define PLATFORM_READ_FILE_CHUNK(name) file_chunk_info name(string Path, memory_size Offset, memory_size ChunkSize, void* Memory)
 typedef PLATFORM_READ_FILE_CHUNK(platform_read_file_chunk);
 
-#define PLATFORM_WRITE_FILE_CHUNK(name) bool name(const char* Path, memory_index Offset, memory_index ChunkSize, void* Memory)
+#define PLATFORM_WRITE_FILE_CHUNK(name) bool name(string Path, memory_size Offset, memory_size ChunkSize, void* Memory)
 typedef PLATFORM_WRITE_FILE_CHUNK(platform_write_file_chunk);
 
-#define PLATFORM_APPEND_TO_FILE(name) bool name(const char* Path, uint64 Size, void* Memory)
+#define PLATFORM_APPEND_TO_FILE(name) bool name(string Path, uint64 Size, void* Memory)
 typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
 
-#define PLATFORM_COPY_FILE(name) bool name(const char* Source, const char* Destination)
+#define PLATFORM_COPY_FILE(name) bool name(string Source, string Destination)
 typedef PLATFORM_COPY_FILE(platform_copy_file);
 
-#define PLATFORM_DELETE_FILE(name) bool name(const char* Path)
+#define PLATFORM_DELETE_FILE(name) bool name(string Path)
 typedef PLATFORM_DELETE_FILE(platform_delete_file);
 
-#define PLATFORM_GET_FILE_INFO(name) file_info name(const char* Path)
+#define PLATFORM_GET_FILE_INFO(name) file_info name(string Path)
 typedef PLATFORM_GET_FILE_INFO(platform_get_file_info);
 
 /*
@@ -1102,7 +1104,7 @@ struct platform_api {
     platform_wait_for_process*    WaitForProcess;
     uint64                        PerformanceCounterFrequency;
 
-    void* ReadEntireFile(const char* Path, file_info* FileInfo = nullptr) {
+    void* ReadEntireFile(string Path, file_info* FileInfo = nullptr) {
         file_info Info = GetFileInfo(Path);
         if (FileInfo) {
             *FileInfo = Info;
@@ -1122,7 +1124,7 @@ struct platform_api {
         return nullptr;
     }
 
-    bool WriteEntireFile(const char* Path, memory_index Size, void* Memory) {
+    bool WriteEntireFile(string Path, memory_size Size, void* Memory) {
         return WriteFileChunk(Path, 0, Size, Memory);
     }
 };

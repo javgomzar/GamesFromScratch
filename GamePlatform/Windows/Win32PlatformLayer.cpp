@@ -672,7 +672,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     game_code GameCode = { 0 };
     LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
-    memory_index PermanentStorageSize = Megabytes(64);
+    memory_size PermanentStorageSize = Megabytes(64);
     void* GameMemoryBlock = Win32AllocateMemory(PermanentStorageSize);
     Memory.Permanent = MemoryArena(PermanentStorageSize, (uint8*)GameMemoryBlock);
     TimeRecords = (time_record*)&Memory.TimeRecordsPlatform;

@@ -280,7 +280,7 @@ void ResizeFramebuffer(int Width, int Height, uint32 Texture, GLenum InternalFor
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct openGL_font_buffer {
-	memory_index Size;
+	memory_size Size;
 	uint32 VAO;
 	uint32 VBO;
 	uint32 InstanceVBO;
@@ -1360,14 +1360,14 @@ RENDERER_INITIALIZE {
 		);
 	
 		// Per vertex layout buffers
-		memory_index EBOSize = ELEMENT_BUFFER_SIZE;
+		memory_size EBOSize = ELEMENT_BUFFER_SIZE;
 		glNamedBufferStorage(OpenGL.EBO, EBOSize, 0, GL_DYNAMIC_STORAGE_BIT);
 		for (int i = 0; i < vertex_layout_id_count; i++) {
 			uint32 VAO = OpenGL.VAOs[i];
 			uint32 VBO = OpenGL.VBOs[i];
 			
 			vertex_layout Layout = VertexLayouts[i];
-			memory_index Size = VERTEX_BUFFER_SIZE;
+			memory_size Size = VERTEX_BUFFER_SIZE;
 			
 			glNamedBufferStorage(VBO, Size, 0, GL_DYNAMIC_STORAGE_BIT);
 

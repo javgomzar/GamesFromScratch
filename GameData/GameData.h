@@ -285,7 +285,7 @@ struct game_data_manager {
 game_data_manager CreateDataManager() {
     game_data_manager Result = {};
 
-    memory_index FramePoolSize = GAME_DATA_FRAME_POOL_SIZE * GAME_DATA_PAGE_SIZE;
+    memory_size FramePoolSize = GAME_DATA_FRAME_POOL_SIZE * GAME_DATA_PAGE_SIZE;
     Result.FramePool = (uint8*)Platform.AllocateMemory(FramePoolSize);
 
     return Result;

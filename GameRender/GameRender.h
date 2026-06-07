@@ -9,8 +9,8 @@
 // | Vertex buffer                                                                                                                                |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-const memory_index VERTEX_BUFFER_SIZE = Kilobytes(64);
-const memory_index ELEMENT_BUFFER_SIZE = Kilobytes(8);
+const memory_size VERTEX_BUFFER_SIZE = Kilobytes(64);
+const memory_size ELEMENT_BUFFER_SIZE = Kilobytes(8);
 
 struct vertex_buffer_entry {
     uint32 Offset;
@@ -35,9 +35,9 @@ struct vertex_buffer {
 };
 
 /* Initializes several vertex buffers and element buffers. Returns total memory used.*/
-inline memory_index InitializeVertexBuffer(vertex_buffer* Buffer, memory_arena* Arena) {
-    memory_index TotalSize = 0;
-    memory_index Size = 0;
+inline memory_size InitializeVertexBuffer(vertex_buffer* Buffer, memory_arena* Arena) {
+    memory_size TotalSize = 0;
+    memory_size Size = 0;
 
     // Vertex buffers (one per layout)
     for (int i = 0; i < vertex_layout_id_count; i++) {
@@ -65,7 +65,7 @@ vertex_buffer_entry PushVertexEntry(vertex_buffer* VertexBuffer, uint64 Count, v
     Entry.LayoutID = LayoutID;
     Entry.Offset = VertexBuffer->VertexCount[LayoutID];
     
-    memory_index Size = Count * VertexLayouts[LayoutID].Stride;
+    memory_size Size = Count * VertexLayouts[LayoutID].Stride;
     void* Destination = PushSize(Arena, Size);
     Entry.Pointer = Destination;
 
@@ -78,7 +78,7 @@ element_buffer_entry PushElementEntry(vertex_buffer* VertexBuffer, uint64 Elemen
     Entry.Count = ElementCount;
     Entry.Offset = VertexBuffer->ElementCount;
 
-    memory_index Size = ElementCount * sizeof(uint32);
+    memory_size Size = ElementCount * sizeof(uint32);
     void* Destination = PushSize(&VertexBuffer->Elements, Size);
     Entry.Pointer = (uint32*)Destination;
 
@@ -99,7 +99,7 @@ void ClearVertexBuffer(vertex_buffer* Buffer) {
     Buffer->ElementCount = 0;
 }
 
-const memory_index TEXT_BUFFER_SIZE = Kilobytes(16);
+const memory_size TEXT_BUFFER_SIZE = Kilobytes(16);
 
 struct text_buffer {
     memory_arena Instances[game_font_id_count][FONT_CHARACTERS_COUNT];

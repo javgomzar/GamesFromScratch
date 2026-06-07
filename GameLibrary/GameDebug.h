@@ -197,8 +197,8 @@ void UpdateAndSizeDebugEntry(game_font* Font, debug_entry* Entry, float* OutWidt
                 GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
             } break;
 
-            case debug_memory_index: {
-                memory_index Value = *(memory_index*)Entry->Value;
+            case debug_memory_size: {
+                memory_size Value = *(memory_size*)Entry->Value;
                 Entry->ValueString = Format(Entry->Arena, "{U}", 1, Value);
                 GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
             } break;
@@ -394,7 +394,7 @@ void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color 
         case debug_uint16:
         case debug_uint32:
         case debug_uint64:
-        case debug_memory_index:
+        case debug_memory_size:
         case debug_float:
         case debug_double:
         case debug_v2:

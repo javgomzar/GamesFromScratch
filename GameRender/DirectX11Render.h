@@ -569,7 +569,7 @@ void CreateInputLayout(instanced_layout_id LayoutID) {
     }
 }
 
-ID3DBlob* CompileShader(memory_index Size, void** FileContent, const char* Path) {
+ID3DBlob* CompileShader(memory_size Size, void** FileContent, const char* Path) {
     *FileContent = Platform.ReadEntireFile(Path);
     if (!*FileContent) {
         return nullptr;

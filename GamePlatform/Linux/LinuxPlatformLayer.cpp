@@ -51,7 +51,7 @@ int main() {
     game_code GameCode = {};
     LoadGameCode(&GameCode, "bin/GameLibrary.so", "bin/GameLibraryTemp.so");
 
-    memory_index PermanentStorageSize = Megabytes(64);
+    memory_size PermanentStorageSize = Megabytes(64);
     void* GameMemoryBlock = Platform.AllocateMemory(PermanentStorageSize);
     Memory.Permanent = MemoryArena(PermanentStorageSize, GameMemoryBlock);
     TimeRecords = (time_record*)&Memory.TimeRecordsPlatform;

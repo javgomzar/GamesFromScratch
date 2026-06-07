@@ -79,15 +79,20 @@ PLATFORM_FREE_MEMORY(Win32FreeMemory) {
 }
 
 PLATFORM_FILE_EXISTS(Win32FileExists) {
-    return GetFileAttributesA(Path) != INVALID_FILE_ATTRIBUTES;
+    static char PathBuffer[MAX_PATH];
+    strncpy_s(PathBuffer, Path.Content, Path.Length);
+    return GetFileAttributesA(PathBuffer) != INVALID_FILE_ATTRIBUTES;
 }
 
 PLATFORM_GET_FILE_INFO(Win32GetFileInfo) {
     file_info Result = {};
     Result.Path = Path;
 
+    char PathBuffer[MAX_PATH];
+    strncpy_s(PathBuffer, Path.Content, Path.Length);
+
     WIN32_FIND_DATAA FindData = {};
-    HANDLE FileHandle = FindFirstFileA(Path, &FindData);
+    HANDLE FileHandle = FindFirstFileA(PathBuffer, &FindData);
     if (FileHandle != INVALID_HANDLE_VALUE) {
         *(FILETIME*)&Result.Timestamp = FindData.ftLastWriteTime;
         ULARGE_INTEGER Size = {FindData.nFileSizeLow, FindData.nFileSizeHigh};
@@ -98,10 +103,10 @@ PLATFORM_GET_FILE_INFO(Win32GetFileInfo) {
         DWORD ErrorCode = GetLastError();
         char ErrorBuffer[64];
         if (ErrorCode == ERROR_PATH_NOT_FOUND) {
-            sprintf_s(ErrorBuffer, "Path %s not found.", Path);
+            sprintf_s(ErrorBuffer, "Path %s not found.", PathBuffer);
         }
         else if (ErrorCode == ERROR_FILE_NOT_FOUND) {
-            sprintf_s(ErrorBuffer, "File %s not found.", Path);
+            sprintf_s(ErrorBuffer, "File %s not found.", PathBuffer);
         }
         Log(log_level::Error, ErrorBuffer);
     }
@@ -110,14 +115,16 @@ PLATFORM_GET_FILE_INFO(Win32GetFileInfo) {
 }
 
 PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
-    char TextBuffer[256];
+    char PathBuffer[MAX_PATH];
+    strncpy_s(PathBuffer, Path.Content, Path.Length);
 
     file_chunk_info Result = {};
     Result.Size = 0;
     Result.Offset = Offset;
     Result.Info = Win32GetFileInfo(Path);
 
-    HANDLE FileHandle = CreateFileA(Path, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
+    char TextBuffer[256];
+    HANDLE FileHandle = CreateFileA(PathBuffer, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
         LARGE_INTEGER LargeOffset;
         LargeOffset.QuadPart = Offset;
@@ -130,12 +137,12 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         DWORD BytesRead;
         if (ReadFile(FileHandle, Memory, ChunkSize, &BytesRead, NULL) && BytesRead == ChunkSize) {
 #if _DEBUG
-            sprintf_s(TextBuffer, "%d bytes read from file %s.", BytesRead, Path);
+            sprintf_s(TextBuffer, "%d bytes read from file %s.", BytesRead, Path.Content);
             Log(log_level::Info, TextBuffer);
 #endif
         }
         else {
-            sprintf_s(TextBuffer, "Couldn't read chunk from file %s.", Path);
+            sprintf_s(TextBuffer, "Couldn't read chunk from file %s.", Path.Content);
             Log(log_level::Error, TextBuffer);
         }
         Result.Size = BytesRead;
@@ -145,13 +152,13 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
 
     DWORD WinError = GetLastError();
     if (WinError == ERROR_PATH_NOT_FOUND) {
-        sprintf_s(TextBuffer, "Path %s not found.", Path);
+        sprintf_s(TextBuffer, "Path %s not found.", Path.Content);
     }
     else if (WinError == ERROR_SHARING_VIOLATION) {
-        sprintf_s(TextBuffer, "File %s sharing violation.", Path);
+        sprintf_s(TextBuffer, "File %s sharing violation.", Path.Content);
     }
     else {
-        sprintf_s(TextBuffer, "Couldn't read file %s. Error %d.", Path, WinError);
+        sprintf_s(TextBuffer, "Couldn't read file %s. Error %d.", Path.Content, WinError);
     }
     Log(log_level::Error, TextBuffer);
 
@@ -159,23 +166,24 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
 }
 
 PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
-    char TextBuffer[256];
     bool Result = false;
-
-    HANDLE FileHandle = CreateFileA(Path, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, NULL, NULL);
+    char PathBuffer[MAX_PATH];
+    strncpy_s(PathBuffer, Path.Content, Path.Length);
+    char TextBuffer[256];
+    HANDLE FileHandle = CreateFileA(PathBuffer, GENERIC_WRITE, FILE_SHARE_READ, NULL, OPEN_ALWAYS, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
         LARGE_INTEGER LargeOffset;
         LargeOffset.QuadPart = Offset;
         if (SetFilePointerEx(FileHandle, LargeOffset, NULL, FILE_BEGIN)) {
             DWORD BytesWritten;
             if (WriteFile(FileHandle, Memory, ChunkSize, &BytesWritten, NULL)) {
-                sprintf_s(TextBuffer, "%d bytes written to file %s.", BytesWritten, Path);
+                sprintf_s(TextBuffer, "%d bytes written to file %s.", BytesWritten, PathBuffer);
                 Result = BytesWritten == ChunkSize;
                 Log(Result ? log_level::Info : log_level::Error, TextBuffer);
             }
         }
         else {
-            sprintf_s(TextBuffer, "Couldn't set file pointer to %I64u at file %s.", Offset, Path);
+            sprintf_s(TextBuffer, "Couldn't set file pointer to %I64u at file %s.", Offset, PathBuffer);
             Log(log_level::Error, TextBuffer);
         }
         CloseHandle(FileHandle);
@@ -184,10 +192,10 @@ PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
     if (!Result) {
         DWORD WinError = GetLastError();
         if (WinError == ERROR_PATH_NOT_FOUND) {
-            sprintf_s(TextBuffer, "Path %s not found.", Path);
+            sprintf_s(TextBuffer, "Path %s not found.", PathBuffer);
         }
         else {
-            sprintf_s(TextBuffer, "Couldn't write to file %s. Error %d.", Path, WinError);
+            sprintf_s(TextBuffer, "Couldn't write to file %s. Error %d.", PathBuffer, WinError);
         }
         Log(log_level::Error, TextBuffer);
     }
@@ -199,18 +207,20 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
     char TextBuffer[256];
     bool Result = false;
 
-    HANDLE FileHandle = CreateFileA(Path, FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
+    char PathBuffer[MAX_PATH];
+    strncpy_s(PathBuffer, Path.Content, Path.Length);
+    HANDLE FileHandle = CreateFileA(PathBuffer, FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
     if (FileHandle != INVALID_HANDLE_VALUE) {
         if (SetFilePointerEx(FileHandle, { 0 }, NULL, FILE_END)) {
             DWORD BytesWritten;
             if (WriteFile(FileHandle, Memory, Size, &BytesWritten, 0)) {
-                sprintf_s(TextBuffer, "%d bytes appended to file %s.", BytesWritten, Path);
+                sprintf_s(TextBuffer, "%d bytes appended to file %s.", BytesWritten, PathBuffer);
                 Result = BytesWritten == Size;
                 Log(Result ? log_level::Info : log_level::Error, TextBuffer);
             }
         }
         else {
-            sprintf_s(TextBuffer, "Couldn't set file pointer to end at file %s.", Path);
+            sprintf_s(TextBuffer, "Couldn't set file pointer to end at file %s.", PathBuffer);
             Log(log_level::Error, TextBuffer);
         }
         CloseHandle(FileHandle);
@@ -219,10 +229,10 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
     if (!Result) {
         DWORD WinError = GetLastError();
         if (WinError == ERROR_PATH_NOT_FOUND) {
-            sprintf_s(TextBuffer, "Path %s not found.", Path);
+            sprintf_s(TextBuffer, "Path %s not found.", PathBuffer);
         }
         else {
-            sprintf_s(TextBuffer, "Couldn't append to file %s. Error %d.", Path, WinError);
+            sprintf_s(TextBuffer, "Couldn't append to file %s. Error %d.", PathBuffer, WinError);
         }
         Log(log_level::Error, TextBuffer);
     }
@@ -231,12 +241,18 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
 }
 
 PLATFORM_COPY_FILE(Win32FileCopy) {
-    bool CopyResult = CopyFileA(Source, Destination, FALSE);
+    char SourceBuffer[256];
+    strncpy_s(SourceBuffer, Source.Content, Source.Length);
+    char DestinationBuffer[256];
+    strncpy_s(DestinationBuffer, Destination.Content, Destination.Length);
+    bool CopyResult = CopyFileA(SourceBuffer, DestinationBuffer, FALSE);
     return CopyResult;
 }
 
 PLATFORM_DELETE_FILE(Win32FileDelete) {
-    bool DeleteResult = DeleteFileA(Path);
+    char PathBuffer[MAX_PATH];
+    strncpy_s(PathBuffer, Path.Content, Path.Length);
+    bool DeleteResult = DeleteFileA(PathBuffer);
     return DeleteResult;
 }
 
