@@ -227,6 +227,12 @@ void Advance(tokenizer& Tokenizer) {
     Tokenizer.At++;
 }
 
+void Advance(tokenizer& Tokenizer, int nChars) {
+    for (int i = 0; i < nChars; i++) {
+        Advance(Tokenizer);
+    }
+}
+
 void AdvanceUntil(tokenizer& Tokenizer, char C) {
     while (Tokenizer.At[0] != C && Tokenizer.At[0] != '\0') {
         Advance(Tokenizer);
@@ -249,11 +255,7 @@ void AdvanceUntilNextLine(tokenizer& Tokenizer) {
     AdvanceUntilLine(Tokenizer, Tokenizer.Line + 1);
 }
 
-token GetToken(tokenizer& Tokenizer) {
-    token Token = {};
-    Token.Length = 1;
-    
-    // Ommit whitespace and comments
+void AdvanceWhitespaceAndComments(tokenizer& Tokenizer) {
     while (Tokenizer.At != Tokenizer.End && Tokenizer.At[0] != '\0') {
         if (Tokenizer.IgnoreWhitespace && IsWhitespace(Tokenizer.At[0])) {
             Advance(Tokenizer);
@@ -273,6 +275,14 @@ token GetToken(tokenizer& Tokenizer) {
         }
         break;
     }
+}
+
+token GetToken(tokenizer& Tokenizer) {
+    token Token = {};
+    Token.Length = 1;
+    
+    // Ommit whitespace and comments
+    AdvanceWhitespaceAndComments(Tokenizer);
 
     Token.Line = Tokenizer.Line;
     Token.Column = Tokenizer.Column;

@@ -139,9 +139,7 @@ build_configuration ReadBuildConfiguration(memory_arena* Arena, string Configura
                     RequireToken(Tokenizer, Token_Equal);
                     Config.CompilerPath.Content = Tokenizer.At;
                     Config.CompilerPath.Length = ParsePath(Tokenizer.At);
-                    for (int i = 0; i < Config.CompilerPath.Length; i++) {
-                        Advance(Tokenizer);
-                    }
+                    Advance(Tokenizer, Config.CompilerPath.Length);
                 }
 
                 // Precompiled headers
@@ -173,10 +171,9 @@ build_configuration ReadBuildConfiguration(memory_arena* Arena, string Configura
                         int PathLength = ParsePath(Tokenizer.At);
                         PushArray(Arena, PathLength + 1, char);
                         Config.Include.Length += PathLength + 1;
-                        for (int i = 0; i < PathLength; i++) {
-                            *Pointer++ = Tokenizer.At[0];
-                            Advance(Tokenizer);
-                        }
+                        strncpy(Pointer, Tokenizer.At, PathLength);
+                        Advance(Tokenizer, PathLength);
+                        Pointer += PathLength;
                         *Pointer++ = '\"';
                         if (Tokenizer.At[0] != ';') {
                             PushArray(Arena, 1, char);
@@ -204,10 +201,9 @@ build_configuration ReadBuildConfiguration(memory_arena* Arena, string Configura
                         int PathLength = ParsePath(Tokenizer.At);
                         Pointer = PushArray(Arena, PathLength + 1, char);
                         Config.Lib.Length += PathLength + 1;
-                        for (int i = 0; i < PathLength; i++) {
-                            *Pointer++ = Tokenizer.At[0];
-                            Advance(Tokenizer);
-                        }
+                        strncpy(Pointer, Tokenizer.At, PathLength);
+                        Advance(Tokenizer, PathLength);
+                        Pointer += PathLength;
                         *Pointer++ = '\"';
                         if (Tokenizer.At[0] != ';') {
                             PushArray(Arena, 1, char);
