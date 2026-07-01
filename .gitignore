@@ -18,8 +18,8 @@ GameAsset/game_assets
 GameData/Data
 
 # Metaprogramming
-GameLibrary/GameEnums.h
-GameLibrary/GameStructs.h
+GameBuild/GameEnums.h
+GameBuild/GameStructs.h
 GameTest/GameTest.h
 
 # Screen captures

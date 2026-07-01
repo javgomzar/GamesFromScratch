@@ -1,11 +1,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "Tokenizer.h"
 #include <map>
 #include <vector>
 #include <string>
 #include <cstring>
+
+#include "GameBuild.h"
+#include "Tokenizer.h"
 
 #if _WIN32
 #define PATH_SEPARATOR "\\"
@@ -70,8 +72,8 @@ const char* const PrimitiveTypes[] = {
 const int nPrimitiveTypes = ArrayCount(PrimitiveTypes);
 
 int main() {
-    FILE* EnumsFile = OpenFile("GameLibrary" PATH_SEPARATOR "GameEnums.h", "w");
-    FILE* StructsFile = OpenFile("GameLibrary" PATH_SEPARATOR "GameStructs.h", "w");
+    FILE* EnumsFile = OpenFile("GameBuild" PATH_SEPARATOR "GameEnums.h", "w");
+    FILE* StructsFile = OpenFile("GameBuild" PATH_SEPARATOR "GameStructs.h", "w");
 
     fprintf(EnumsFile,
     "#ifndef GAME_ENUMS\n"
@@ -92,20 +94,23 @@ int main() {
     std::vector<std::string> StructDebugTypes = {};
     std::vector<std::string> StructMembers = {};
 
-    const char* ProcessingFiles[] = {
-        "GameAsset"   PATH_SEPARATOR "GameAsset.h",
-        "GameAsset"   PATH_SEPARATOR "GameMesh.h",
-        "GameAsset"   PATH_SEPARATOR "GameTexture.h",
-        "GameRender"  PATH_SEPARATOR "GameRender.h",
-        "GameLibrary" PATH_SEPARATOR "GameMath.h",
-        "GameLibrary" PATH_SEPARATOR "GameState.h",
-        "GameLibrary" PATH_SEPARATOR "GameUI.h",
-    };
-
     char Buffer[256];
+    memory_arena Arena = AllocateMemoryArena(Kilobytes(8));
+    build_configuration Config = ReadBuildConfiguration(&Arena, "GameBuild/build.conf");
+    tokenizer InputFilesTokenizer = InitTokenizer(Config.MetaprogrammingInputFiles.Content, Config.MetaprogrammingInputFiles.Length);
+    
     std::map<std::string, int> Constants;
-    for (int i = 0; i < ArrayCount(ProcessingFiles); i++) {
-        char* FileContent = ReadFile(ProcessingFiles[i]);
+    for (int i = 0; i < Config.nMetaprogrammingInputFiles; i++) {
+        int PathLength = ParsePath(InputFilesTokenizer.At);
+        strncpy(Buffer, InputFilesTokenizer.At, PathLength);
+        Buffer[PathLength] = '\0';
+        Advance(InputFilesTokenizer, PathLength);
+        if (i < Config.nMetaprogrammingInputFiles-1) {
+            RequireToken(InputFilesTokenizer, Token_Semicolon);
+            AdvanceWhitespaceAndComments(InputFilesTokenizer);
+        }
+
+        char* FileContent = ReadFile(Buffer);
 
         tokenizer Tokenizer = InitTokenizer(FileContent);
         token Token = GetToken(Tokenizer);

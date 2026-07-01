@@ -2,7 +2,16 @@ COMPILER=MSVC
 COMPILER_PATH={VISUAL_STUDIO_INSTALLATION_FOLDER}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\{MSVC_VERSION}\bin\Hostx64\x64\cl.exe
 PRECOMPILE_HEADERS=true
 
-META=GameLibrary\Meta.cpp
+META=GameBuild\Meta.cpp
+META_FILES=
+GameAsset\GameAsset.h;
+GameAsset\GameMesh.h;
+GameAsset\GameTexture.h;
+GameRender\GameRender.h;
+GameLibrary\GameMath.h;
+GameLibrary\GameVertex.h;
+GameLibrary\GameState.h;
+GameLibrary\GameUI.h
 
 MODE=DEBUG
 RENDERER=DirectX

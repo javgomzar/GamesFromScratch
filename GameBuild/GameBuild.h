@@ -102,6 +102,8 @@ struct build_configuration {
     string PCHOutputPath;
     string MetaprogrammingCodePath;
     string MetaprogrammingOutputFile;
+    string MetaprogrammingInputFiles;
+    int nMetaprogrammingInputFiles;
     bool Preprocess;
     bool PCH;
 };
@@ -240,14 +242,35 @@ build_configuration ReadBuildConfiguration(memory_arena* Arena, string Configura
     
                 // Metaprogramming source file
                 else if (Token == "META") {
-                    Config.Preprocess = true;
                     RequireToken(Tokenizer, Token_Equal);
+                    Config.Preprocess = true;
                     int MetaprogrammingFilePathLength = ParsePath(Tokenizer.At);
                     char* Pointer = PushArray(Arena, MetaprogrammingFilePathLength + 1, char);
                     strncpy(Pointer, Tokenizer.At, MetaprogrammingFilePathLength);
                     Config.MetaprogrammingCodePath.Length = MetaprogrammingFilePathLength;
                     Config.MetaprogrammingCodePath.Content = Pointer;
                     AdvanceUntilNextLine(Tokenizer);
+                }
+
+                // Metaprogramming input files
+                else if (Token == "META_FILES") {
+                    RequireToken(Tokenizer, Token_Equal);
+                    AdvanceWhitespaceAndComments(Tokenizer);
+                    Config.MetaprogrammingInputFiles.Content = Tokenizer.At;
+                    Config.MetaprogrammingInputFiles.Length = 0;
+                    Config.nMetaprogrammingInputFiles = 0;
+                    do {
+                        AdvanceWhitespaceAndComments(Tokenizer);
+                        int PathLength = ParsePath(Tokenizer.At);
+                        Advance(Tokenizer, PathLength);
+                        Config.nMetaprogrammingInputFiles += 1;
+                        const char* End = Tokenizer.At;
+                        if (Tokenizer.At[0] != ';') {
+                            Config.MetaprogrammingInputFiles.Length = End - Config.MetaprogrammingInputFiles.Content;
+                            break;
+                        }
+                        Token = RequireToken(Tokenizer, Token_Semicolon);
+                    } while(Token.Type == Token_Semicolon);
                 }
     
                 // Renderer

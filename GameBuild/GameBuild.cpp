@@ -1,6 +1,6 @@
 #include "GameBuild.h"
 
-constexpr int ArenaSize = Kilobytes(2);
+constexpr int ArenaSize = Kilobytes(8);
 static char TextBuffer[2*ArenaSize];
 
 int main(int argc, char* argv[]) {
