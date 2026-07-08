@@ -1,1 +1,1 @@
-cloc . --exclude-dir=Linking,.vscode,bin,Files --force-lang="HLSL",vsh,dsh,hsh,gsh,compute --exclude-ext=md
+cloc . --exclude-dir=Linking,.vscode,bin,Files,TestFiles --force-lang="HLSL",vsh,dsh,hsh,gsh,compute --exclude-ext=md
