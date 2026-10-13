@@ -88,7 +88,7 @@ struct ui_element {
     debug_entry* DebugEntry;
 
     color Color;
-    game_font_id Font;
+    game_font* Font;
     rectangle Rect;
     float RelativePosition[2];
     float Margins[2];
@@ -199,7 +199,7 @@ ui_element* NewUIElement(uint32 ID) {
     Result->ID = ID;
     Result->Index = UI.CurrentIndex;
     Result->Scroll = 0;
-    Result->Font = UI.Group->DebugFont->ID;
+    Result->Font = UI.Group->DebugFont;
     Result->Color = color::WHITE;
     return Result;
 }
@@ -207,15 +207,15 @@ ui_element* NewUIElement(uint32 ID) {
 struct ui_element_options {
     ui_alignment AlignmentX = ui_alignment_free;
     ui_alignment AlignmentY = ui_alignment_free;
-    color Color             = color::WHITE;
-    ui_flag Flags;
-    game_font_id Font       = Font_DejaVu_Sans_ID;
-    float MarginX           = 0.0f;
-    float MarginY           = 0.0f;
-    float Points            = 20.0f;
-    ui_size SizeX           = UISizeNull();
-    ui_size SizeY           = UISizeNull();
-    ui_axis Stack           = axis_y;
+    color        Color      = color::WHITE;
+    ui_flag      Flags      = ui_flag::none;
+    game_font*   Font       = nullptr;
+    float        MarginX    = 0.0f;
+    float        MarginY    = 0.0f;
+    float        Points     = 20.0f;
+    ui_size      SizeX      = UISizeNull();
+    ui_size      SizeY      = UISizeNull();
+    ui_axis      Stack      = axis_y;
 };
 
 ui_element* _PushUIElement(
@@ -460,7 +460,7 @@ void RenderUI() {
                 }
     
                 if (Element->Flags & ui_flag::render_text) {
-                    game_font* Font = GetAsset(UI.Group->Assets, Element->Font);
+                    game_font* Font = Element->Font;
                     float OffsetHeight = GetCharMaxHeight(Font, Element->Points);
                     PushText(UI.Group, Position + V2(0, OffsetHeight), Element->Name, 
                         .Color = Element->Color, .Font = Element->Font, .Points = Element->Points);
@@ -578,7 +578,7 @@ struct ui_dropdown {
     bool Expanded;
 
     ui_dropdown(const char* Text) {
-        game_font* Font = GetAsset(UI.Group->Assets, Font_DejaVu_Sans_ID);
+        game_font* Font = UI.Group->DebugFont;
         float Points = 12;
         float Width = 0, Height = 0;
         GetTextWidthAndHeight(Text, Font, Points, &Width, &Height);
@@ -847,16 +847,16 @@ void UpdateUI(
         }
 
         if (UIDropdown(Arenas)) {
-            DEBUG_VALUE(Memory->Transient, memory_arena);
-            DEBUG_VALUE(Memory->Permanent, memory_arena);
+            DEBUG_VALUE(Memory->Transient, Arena);
+            DEBUG_VALUE(Memory->Permanent, Arena);
 
-            memory_arena* VertexArena = Group->VertexBuffer.Vertices;
-            DEBUG_VALUE(VertexArena[vertex_layout_v2_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_v2_v2_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_v3_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_v3_v2_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_v3_v2_v3_id], memory_arena);
-            DEBUG_VALUE(VertexArena[vertex_layout_bones_id], memory_arena);
+            Arena* VertexArena = Group->VertexBuffer.Vertices;
+            DEBUG_VALUE(VertexArena[vertex_layout_v2_id], Arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v2_v2_id], Arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v3_id], Arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v3_v2_id], Arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_v3_v2_v3_id], Arena);
+            DEBUG_VALUE(VertexArena[vertex_layout_bones_id], Arena);
             nEntries = DebugInfo->nEntries;
             for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];

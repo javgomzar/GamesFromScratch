@@ -87,7 +87,7 @@ void ReloadShaderModule(game_shader_module_id ID) {
     }
 }
 
-void InitializeSlang(memory_arena* Arena, renderer Renderer) {
+void InitializeSlang(Arena* Arena, renderer Renderer) {
     using namespace slang;
 
     SlangGlobalSessionDesc GlobalSessionDescription = {};

@@ -14,6 +14,7 @@
         - Implement circular buffer with VirtualAlloc2 and MapViewOfFile3
 */
 
+INTROSPECT
 struct waveformat {
     unsigned short    wFormatTag;        /* format type */
     unsigned short    nChannels;         /* number of channels (i.e. mono, stereo...) */
@@ -24,71 +25,54 @@ struct waveformat {
     unsigned short    cbSize;            /* The count in bytes of the size of extra information (after cbSize) */
 };
 
+INTROSPECT
 struct game_sound {
-    game_sound_id ID;
+    string Name;
     waveformat WaveFormat;
     uint32 SampleCount;
     uint32 Played;
     int16* SampleOut;
 };
 
-struct preprocessed_sound {
-    waveformat WaveFormat;
-    uint64 Size;
-    int16* Data;
-};
-
-preprocessed_sound PreprocessSound(void* FileContent) {
-    unsigned long* Pointer = (unsigned long*)FileContent;
-
-    unsigned long ChunkType = *Pointer++;
-    if (ChunkType != 'FFIR') {
-        Assert(false);
-    }
-
-    unsigned long RIFFChunkSize = *Pointer++;
-    unsigned long FileType = *Pointer++;
-    if (FileType != 'EVAW') {
-        Assert(false);
-    }
-
-    preprocessed_sound Result;
-    ChunkType = *Pointer++;
-    if (ChunkType != ' tmf') {
-        Assert(false);
-    }
-    unsigned long ChunkSize = *Pointer++;
-    Result.WaveFormat = *(waveformat*)Pointer;
-
-    Pointer += 4;
-    ChunkType = *Pointer++;
-    if (ChunkType != 'atad') {
-        Assert(false);
-    }
-    ChunkSize = *Pointer++;
-
-    Result.Size = ChunkSize;
-    Result.Data = (int16*)Pointer;
-
-    return Result;
-}
-
-game_sound LoadSound(memory_arena* Arena, preprocessed_sound* Sound) {
-    game_sound Result = {};
-    Result.SampleOut = (int16*)PushSize(Arena, Sound->Size);
-    Result.SampleCount = Sound->Size / 2;
-    Result.WaveFormat = Sound->WaveFormat;
-
-    memcpy(Result.SampleOut, Sound->Data, Sound->Size);
-
-    return Result;
-}
-
 struct game_sound_buffer {
     uint32 SamplesPerSecond;
     uint16 BufferSize;
     int16* SampleOut;
 };
+
+bool LoadSound(void* Content, game_sound* Sound) {
+    unsigned long* Pointer = (unsigned long*)Content;
+
+    unsigned long ChunkType = *Pointer++;
+    if (ChunkType != 'FFIR') {
+        return false;
+    }
+
+    unsigned long RIFFChunkSize = *Pointer++;
+    unsigned long FileType = *Pointer++;
+    if (FileType != 'EVAW') {
+        return false;
+    }
+
+    ChunkType = *Pointer++;
+    if (ChunkType != ' tmf') {
+        return false;
+    }
+    unsigned long ChunkSize = *Pointer++;
+    Sound->WaveFormat = *(waveformat*)Pointer;
+
+    Pointer += 4;
+    ChunkType = *Pointer++;
+    if (ChunkType != 'atad') {
+        return false;
+    }
+    ChunkSize = *Pointer++;
+
+    Sound->SampleCount = ChunkSize / 2;
+    Sound->SampleOut = (int16*)Pointer;
+
+    return true;
+}
 
 int16 Amplitude = 4000;
 

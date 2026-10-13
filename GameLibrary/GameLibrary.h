@@ -36,8 +36,6 @@
 #include "GameState.h"
 #include "GameDebug.h"
 
-#include "GameAsset.cpp"
-
 // +---------------------------------------------------------------------------------------------------------------------------------+
 // | Game memory                                                                                                                     |
 // +---------------------------------------------------------------------------------------------------------------------------------+
@@ -53,8 +51,8 @@ struct game_memory {
     render_group RenderGroup;
     game_input Input;
     game_state* GameState;
-    memory_arena Permanent;
-    memory_arena Transient;
+    Arena Permanent;
+    Arena Transient;
     debug_info DebugInfo;
     time_record TimeRecordsLibrary[MAX_TIME_RECORDS];
     time_record TimeRecordsPlatform[MAX_TIME_RECORDS];

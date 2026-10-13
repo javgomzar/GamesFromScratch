@@ -6,7 +6,7 @@
 #define PARTICLES
 
 struct particle {
-    color Color;
+    Color color;
     v3 Position;
     v3 Velocity;
     float Time;
@@ -41,7 +41,7 @@ struct particle_emitter {
     particle Particles[];
 };
 
-particle_emitter* AllocateParticleEmitter(memory_arena* Arena, uint32 N) {
+particle_emitter* AllocateParticleEmitter(Arena* Arena, uint32 N) {
     particle_emitter* Result = PushStruct(Arena, particle_emitter);
     Result->Size = N;
     Result->Count = 0;

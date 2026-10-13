@@ -67,191 +67,183 @@ struct bitmap_header_v5 {
 };
 #pragma pack(pop)
 
-struct game_texture {
-    game_texture_id ID;
-    game_asset* Asset;
-    uint32 Width;
-    uint32 Height;
-    uint32 BytesPerPixel;
-    uint32 RedMask;
-    uint32 GreenMask;
-    uint32 BlueMask;
-    uint32 AlphaMask;
-    uint32* Content;
+INTROSPECT
+struct Texture {
+    Asset_ID id;
+    int32 width;
+    int32 height;
+    int32 channels;
+    int32 size;
+    uint8* pixels;
 };
 
-/* Returns number of bytes for pixels. Deals with 4-byte alignment for rows when pixels are 3 bytes wide. */
-uint64 PreprocessBitmap(bitmap_header* Header) {
-    Assert(
-        Header->Size == 40 || // BITMAPINFOHEADER
-        Header->Size == 124   // BITMAPV5HEADER
-    );
-
-    uint32 ExtraBytes = 0;
-    if (Header->Size == 124) {
-        bitmap_header_v5 v5Header = *(bitmap_header_v5*)Header;
-        ExtraBytes = v5Header.ProfileSize;
-    }
-
-    uint32 BytesPerPixel = (Header->BitsPerPixel >> 3);
-    uint32 RowSize = Header->Width * BytesPerPixel;
-
-    if (Header->Size == 40 && BytesPerPixel == 3) {
-        // 4-byte alignment apparently
-        RowSize = (RowSize / 4 + 1) * 4;
-    }
-
-    uint64 PixelsSize = RowSize * Header->Height;
-    Assert(PixelsSize + Header->BitmapOffset + ExtraBytes == Header->FileSize);
-
-    return 4 * Header->Width * Header->Height;
+uint64 GetPixelsSize(int32 width, int32 height, int32 channels) {
+    return (uint64)width * (uint64)height * (uint64)channels;
 }
 
-game_texture LoadTexture(memory_arena* Arena, string Extension, void* FileContent) {
-    game_texture Result = {};
+// game_texture ReadTexture(file_format Format, void* FileContent) {
+//     game_texture Result = {};
 
-    if (Extension == "bmp") {
-        bitmap_header Header = *(bitmap_header*)FileContent;
-        Result.BytesPerPixel = Header.BitsPerPixel >> 3;
-        Result.Width = Header.Width;
-        Result.Height = Header.Height;
-        Result.RedMask = Header.RedMask;
-        Result.GreenMask = Header.GreenMask;
-        Result.BlueMask = Header.BlueMask;
-        Result.Content = (uint32*)(Arena->Base + Arena->Used);
+//     if (Format == file_format::BMP) {
+//         bitmap_header* Header = (bitmap_header*)FileContent;
+//         Result.BytesPerPixel = Header->BitsPerPixel >> 3;
+//         Result.Width = Header->Width;
+//         Result.Height = Header->Height;
+//         Result.RedMask = Header->RedMask;
+//         Result.GreenMask = Header->GreenMask;
+//         Result.BlueMask = Header->BlueMask;
+//         Result.PixelsSize = GetPixelsSize(Header);
+//         Result.Content = (uint32*)((uint8*)FileContent + Header->BitmapOffset);
 
-        bool HasAlpha = false;
-        if (Result.BytesPerPixel == 4 && Header.Compression == 3) {
-            uint32 AlphaMask = ~(Header.RedMask | Header.GreenMask | Header.BlueMask);
-            // If not all Alphas are zero, we need to use them
-            uint32* Contents = (uint32*)((uint8*)FileContent + Header.BitmapOffset);
-            for (int32 i = 0; i < Header.Height * Header.Width; i++) {
-                if ((*Contents++ & AlphaMask) > 0) {
-                    HasAlpha = true;
-                    break;
-                }
-            }
+//         Result.RowSize = Header->Width * Result.BytesPerPixel;
+//         if (Header->Size == 40 && Result.BytesPerPixel == 3) {
+//             // 4-byte alignment
+//             Result.RowSize = (Result.RowSize / 4 + 1) * 4;
+//         }
 
-            // If all alphas are zero, turn them to one
-            Contents = Result.Content;
-            if (!HasAlpha) {
-                for (int32 j = 0; j < Header.Height * Header.Width; j++) {
-                    *Contents = AlphaMask | (*Contents++ & ~AlphaMask);
-                }
-            }
-        }
+//         bool HasAlpha = false;
+//         if (Result.BytesPerPixel == 4 && Header->Compression == 3) {
+//             uint32 AlphaMask = ~(Header->RedMask | Header->GreenMask | Header->BlueMask);
+//             // If not all Alphas are zero, we need to use them
+//             uint32* Contents = (uint32*)((uint8*)FileContent + Header->BitmapOffset);
+//             for (int32 i = 0; i < Header->Height * Header->Width; i++) {
+//                 if ((*Contents++ & AlphaMask) > 0) {
+//                     HasAlpha = true;
+//                     break;
+//                 }
+//             }
 
-        uint32 RowSize = Header.Width * Result.BytesPerPixel;
-        if (Header.Size == 40 && Result.BytesPerPixel == 3) {
-            // 4-byte alignment
-            RowSize = (RowSize / 4 + 1) * 4;
-        }
+//             // If all alphas are zero, turn them to one
+//             Contents = Result.Content;
+//             if (!HasAlpha) {
+//                 for (int32 j = 0; j < Header->Height * Header->Width; j++) {
+//                     *Contents = AlphaMask | (*Contents++ & ~AlphaMask);
+//                 }
+//             }
+//         }
+//     }
+//     else if (Format == file_format::JPEG) {
+//         Raise("JPEG file loading not implemented.");
+//     }
+//     else if (Format == file_format::PNG) {
+//         Raise("PNG file loading not implemented.");
+//     }
+//     else {
+//         Raise("Invalid texture format.");
+//     }
 
-        uint64 PixelsSize = 4 * Header.Width * Header.Height;
-        uint32* Destination = (uint32*)PushSize(Arena, PixelsSize);
+//     return Result;
+// }
 
-        uint8* Source = (uint8*)FileContent + Header.BitmapOffset;
-        for (int Row = 0; Row < Header.Height; Row++) {
-            uint32 BytesRead = 0;
-            for (int Col = 0; Col < Header.Width; Col++) {
-                uint8 R = *Source++;
-                uint8 G = *Source++;
-                uint8 B = *Source++;
+// void WriteTexture(Arena* Arena, game_texture* Texture) {    
+//     uint32* Destination = (uint32*)PushSize(Arena, Texture->PixelsSize);
 
-                uint8 A = 255;
-                if (Result.BytesPerPixel == 4) {
-                    A = *Source++;
-                }
-                uint32 Pixel = (A << 24) | (R << 16) | (G << 8) | B;
-                *Destination++ = Pixel;
+//     uint8* Source = (uint8*)Texture->Content;
+//     for (int Row = 0; Row < Texture->Height; Row++) {
+//         uint32 BytesRead = 0;
+//         for (int Col = 0; Col < Texture->Width; Col++) {
+//             uint8 R = *Source++;
+//             uint8 G = *Source++;
+//             uint8 B = *Source++;
 
-                BytesRead += Result.BytesPerPixel;
-            }
+//             uint8 A = 255;
+//             if (Texture->BytesPerPixel == 4) {
+//                 A = *Source++;
+//             }
+//             uint32 Pixel = (A << 24) | (R << 16) | (G << 8) | B;
+//             *Destination++ = Pixel;
 
-            if (BytesRead < RowSize) {
-                Source += RowSize - BytesRead;
-            }
-        }
-    }
-    else if (Extension == "jpg" || Extension == "jpeg") {
-        Raise("JPEG file loading not implemented.");
-    }
-    else if (Extension == "png") {
-        Raise("PNG file loading not implemented.");
-    }
-    else {
-        Raise("Invalid texture format.");
-    }
+//             BytesRead += Texture->BytesPerPixel;
+//         }
 
-    return Result;
-}
+//         if (BytesRead < Texture->RowSize) {
+//             Source += Texture->RowSize - BytesRead;
+//         }
+//     }
+// }
 
-void ClearBitmap(game_texture* Bitmap) {
-    if (Bitmap->Content) {
-        int32 TotalBitmapSize = 4 * Bitmap->Width * Bitmap->Height;
-        ZeroSize(TotalBitmapSize, Bitmap->Content);
-    }
-}
+// void ClearBitmap(game_texture* Bitmap) {
+//     if (Bitmap->Content) {
+//         int32 TotalBitmapSize = 4 * Bitmap->Width * Bitmap->Height;
+//         ZeroSize(TotalBitmapSize, Bitmap->Content);
+//     }
+// }
 
-bitmap_header MakeBitmapHeader(int Width, int Height) {
-    bitmap_header Header = {};
-    Header.FileType = 19778;
-    Header.Width = Width;
-    Header.Height = Height;
-    Header.BitmapOffset = 138;
-    Header.Size = 124;
-    Header.Planes = 1;
-    Header.BitsPerPixel = 32;
-    Header.FileSize = Width * Height * Header.BitsPerPixel;
-    Header.Compression = 3;
-    Header.SizeOfBitmap = Width * Height * 4 + Header.BitmapOffset;
-    Header.HorzResolution = 3777;
-    Header.VertResolution = 3777;
-    Header.RedMask = 0x00ff0000;
-    Header.GreenMask = 0x0000ff00;
-    Header.BlueMask = 0x000000ff;
-    return Header;
-}
+// bitmap_header MakeBitmapHeader(int Width, int Height) {
+//     bitmap_header Header = {};
+//     Header.FileType = 19778;
+//     Header.Width = Width;
+//     Header.Height = Height;
+//     Header.BitmapOffset = 138;
+//     Header.Size = 124;
+//     Header.Planes = 1;
+//     Header.BitsPerPixel = 32;
+//     Header.FileSize = Width * Height * Header.BitsPerPixel;
+//     Header.Compression = 3;
+//     Header.SizeOfBitmap = Width * Height * 4 + Header.BitmapOffset;
+//     Header.HorzResolution = 3777;
+//     Header.VertResolution = 3777;
+//     Header.RedMask = 0x00ff0000;
+//     Header.GreenMask = 0x0000ff00;
+//     Header.BlueMask = 0x000000ff;
+//     return Header;
+// }
 
-game_texture MakeEmptyBitmap(
-    memory_arena* Arena,
-    int32 Width, int32 Height,
-    int BytesPerPixel,
-    bool ClearToZero = true
-) {
-    game_texture Result = {};
-    Result.Width = Width;
-    Result.Height = Height;
-    Result.BytesPerPixel = 4;
-    Result.RedMask = 0x00ff0000;
-    Result.GreenMask = 0x0000ff00;
-    Result.BlueMask = 0x000000ff;
-    Result.AlphaMask = 0xff000000;
+// game_texture MakeEmptyBitmap(
+//     Arena* Arena,
+//     int32 Width, int32 Height,
+//     int BytesPerPixel,
+//     bool ClearToZero = true
+// ) {
+//     game_texture Result = {};
+//     Result.Width = Width;
+//     Result.Height = Height;
+//     Result.BytesPerPixel = 4;
+//     Result.RedMask = 0x00ff0000;
+//     Result.GreenMask = 0x0000ff00;
+//     Result.BlueMask = 0x000000ff;
+//     Result.AlphaMask = 0xff000000;
 
-    Result.Content = (uint32*)PushSize(Arena, 4 * Width * Height);
-    if (ClearToZero) {
-        ClearBitmap(&Result);
-    }
-    return Result;
-}
+//     Result.Content = (uint32*)PushSize(Arena, 4 * Width * Height);
+//     if (ClearToZero) {
+//         ClearBitmap(&Result);
+//     }
+//     return Result;
+// }
 
-uint32* GetPixelAddress(game_texture* BMP, int X, int Y) {
-    Assert(X >= 0 && X <= BMP->Width);
-    Assert(Y >= 0 && Y <= BMP->Height);
-    return BMP->Content + BMP->Width * (BMP->Height - Y) + X;
-}
+// uint32* GetPixelAddress(game_texture* BMP, int X, int Y) {
+//     Assert(X >= 0 && X <= BMP->Width);
+//     Assert(Y >= 0 && Y <= BMP->Height);
+//     return BMP->Content + BMP->Width * (BMP->Height - Y) + X;
+// }
 
-uint32 GetPixel(game_texture* BMP, int X, int Y) {
-    Assert(X >= 0 && X <= BMP->Width);
-    Assert(Y >= 0 && Y <= BMP->Height);
-    return *GetPixelAddress(BMP, X, Y);
-}
+// uint32 GetPixel(game_texture* BMP, int X, int Y) {
+//     Assert(X >= 0 && X <= BMP->Width);
+//     Assert(Y >= 0 && Y <= BMP->Height);
+//     return *GetPixelAddress(BMP, X, Y);
+// }
 
-void SetPixel(game_texture* BMP, int X, int Y, uint32 Value) {
-    Assert(X >= 0 && X <= BMP->Width);
-    Assert(Y >= 0 && Y <= BMP->Height);
-    uint32* PixelAddress = GetPixelAddress(BMP, X, Y);
-    *PixelAddress = Value;
-}
+// void SetPixel(game_texture* BMP, int X, int Y, uint32 Value) {
+//     Assert(X >= 0 && X <= BMP->Width);
+//     Assert(Y >= 0 && Y <= BMP->Height);
+//     uint32* PixelAddress = GetPixelAddress(BMP, X, Y);
+//     *PixelAddress = Value;
+// }
+
+// // Heightmaps
+
+// typedef game_texture game_heightmap;
+
+const int HEIGHTMAP_RESOLUTION = 16;
+
+// uint64 ComputeNeededMemoryForHeightmap(void* FileContent) {
+//     uint64 BitmapSize = GetPixelsSize((bitmap_header*)FileContent);
+//     return BitmapSize;
+// }
+
+// game_heightmap ReadHeightmap(file_format Format, void* FileContent) {
+//     game_heightmap Result = ReadTexture(Format, FileContent);
+//     return Result;
+// }
 
 #endif

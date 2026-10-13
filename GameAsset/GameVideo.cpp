@@ -1,6 +1,6 @@
 #include "GameVideo.h"
 
-game_video LoadVideo(memory_arena* Arena, game_video_id ID, read_file_result File) {
+game_video LoadVideo(Arena* Arena, game_video_id ID, read_file_result File) {
     game_video Result = {};
     Result.ID = ID;
     void* Dest = PushSize(Arena, Asset->MemoryNeeded);

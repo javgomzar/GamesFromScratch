@@ -2,7 +2,119 @@
 #define GAME_DATA
 
 #include "GamePlatform.h"
+#include "GameDebug.h"
 
+#include "GameEnums.h"
+#include "GameStructs.h"
+
+
+#define Serialize(Arena, Value, Type) _Serialize(Arena, &(Value), type_##Type, sizeof(Type))
+void* _Serialize(Arena* Arena, void* Source, game_type Type, memory_size Size) {
+    void* Result = Arena->Base;
+    if (Type == type_void) {
+        Raise("Can't serialize void type.");
+    }
+    else if (Type == type_string) {
+        string String = *(string*)Source;
+        PersistString(Arena, String);
+    }
+    else if (IsStructType(Type)) {
+        // Serialize members
+        bool Found = false;
+        for (int i = 0; i < STRUCT_MEMBERS_SIZE; i++) {
+            debug_struct_member Member = StructMembers[i];
+            if (Member.StructType == Type) {
+                if (!Found) Found = true;
+                while (Member.StructType == Type) {
+                    uint8* Pointer = (uint8*)Source + Member.Offset;
+                    if (Member.IsPointer) {
+                        memory_size Zero = 0;
+                        _Serialize(Arena, &Zero, type_memory_size, sizeof(memory_size));
+                    }
+                    else if (Member.ArraySize > 0) {
+                        for (int j = 0; j < Member.ArraySize; j++) {
+                            _Serialize(Arena, Pointer + i*Member.Size, Member.MemberType, Member.Size);
+                        }
+                    }
+                    else {
+                        _Serialize(Arena, Pointer, Member.MemberType, Member.Size);
+                    }
+                    i++;
+                    if (i < STRUCT_MEMBERS_SIZE) Member = StructMembers[i];
+                    else break;
+                }
+                break;
+            }
+        }
+    }
+    else if (Type == type_Arena) {
+        Raise("You probably shouldn't be serializing a memory arena.");
+    }
+    else {
+        void* Destination = PushSize(Arena, Size);
+        memcpy(Destination, Source, Size);
+    }
+    return Result;
+}
+
+#define Deserialize(Arena, Memory, Type) (Type*)_Deserialize(Arena, type_##Type, Memory, sizeof(Type))
+void* _Deserialize(Arena* Arena, void* Source, game_type Type, memory_size Size) {
+    void* Result = (uint8*)Arena->Base + Arena->Used;
+    if (Type == type_void) {
+        Raise("Can't deserialize void type.");
+    }
+    else if (Type == type_string) {
+        string* String = PushStruct(Arena, string);
+        *String = ReadString(Source);
+        Result = String;
+    }
+    else if (IsStructType(Type)) {
+        // Serialize members
+        Arena StructArena = SuballocateMemoryArena(Arena, Size);
+        bool Found = false;
+        for (int i = 0; i < STRUCT_MEMBERS_SIZE; i++) {
+            debug_struct_member Member = StructMembers[i];
+            if (Member.StructType == Type) {
+                if (!Found) Found = true;
+                uint8* Pointer = (uint8*)Source;
+                while (Member.StructType == Type) {
+                    if (Member.Offset < StructArena.Used) {
+                        Raise("Deserializing a struct member over its offset.");
+                    }
+                    else if (Member.Offset > StructArena.Used) {
+                        // Padding
+                        PushSize(&StructArena, Member.Offset - StructArena.Used);
+                    }
+
+                    Assert(Member.Offset == StructArena.Used);
+                    if (Member.IsPointer) {
+                        void** Destination = PushStruct(&StructArena, void*);
+                        *Destination = nullptr;
+                        Pointer += sizeof(void*);
+                    }
+                    else if (Member.ArraySize > 0) {
+                        for (int j = 0; j < Member.ArraySize; j++) {
+                            
+                        }
+                    }
+                    else {
+                        _Deserialize(&StructArena, Pointer, Member.MemberType, Member.Size);
+                        Pointer += Member.Size;
+                    }
+                    i++;
+                    if (i < STRUCT_MEMBERS_SIZE) Member = StructMembers[i];
+                    else break;
+                }
+                break;
+            }
+        }
+    }
+    else {
+        Result = PushSize(Arena, Size);
+        memcpy(Result, Source, Size);
+    }
+    return Result;
+}
 
 typedef uint32 game_data_slot_id;
 struct game_data_slot {
@@ -38,12 +150,12 @@ struct game_data_page {
 };
 
 game_data_page CreateDataPage(
-    memory_arena* Arena, 
     game_data_page_type Type, 
-    game_data_page_id ID
+    game_data_page_id ID,
+    uint8* Memory
 ) {
     game_data_page Result = {};
-    Result.Header = (game_data_page_header*)PushSize(Arena, GAME_DATA_PAGE_SIZE);
+    Result.Header = (game_data_page_header*)Memory;
     Result.Header->Type = Type;
     Result.Header->ID = ID;
     Result.Header->CheckSum = 0;
@@ -266,8 +378,8 @@ struct game_data_id {
 struct game_data_frame {
     game_data_file_id FileID;
     game_data_page_id PageID;
-    uint8 FrameIndex;
-    uint8 References;
+    uint16 FrameIndex;
+    uint16 References;
     bool Dirty;
     bool Pinned;
 };
@@ -291,29 +403,12 @@ game_data_manager CreateDataManager() {
     return Result;
 }
 
-void CloseDataManager(game_data_manager Manager) {
-    Platform.FreeMemory(Manager.FramePool);
+bool LoadPage(game_data_manager Manager, game_data_file_id FileID, game_data_page_id PageID) {
+    return false;
 }
 
-enum game_data_type {
-    data_type_bool,
-    data_type_int,
-    data_type_float,
-    data_type_string,
-    data_type_binary
-};
-
-uint32 GetSize(game_data_type Type) {
-    switch(Type) {
-        case data_type_bool:   return 1;
-        case data_type_int:    return 4;
-        case data_type_float:  return 4;
-        case data_type_string: return 0;
-
-        default: Raise("Invalid data type.");
-    }
-
-    return 0;
+void CloseDataManager(game_data_manager Manager) {
+    Platform.FreeMemory(Manager.FramePool);
 }
 
 #endif

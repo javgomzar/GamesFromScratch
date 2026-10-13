@@ -22,23 +22,39 @@ struct directX_render_target {
 };
 
 struct directX_vertex_buffer {
-    ID3D11Buffer* VertexBuffer;
-    ID3D11Buffer* IndexBuffer;
+    ID3D11Buffer* Vertex;
+    ID3D11Buffer* Index;
 };
 
 typedef directX_vertex_buffer directX_mesh_buffer;
 typedef directX_vertex_buffer directX_heightmap_buffer;
 
 struct directX_font_buffer {
-    ID3D11Buffer* VertexBuffer;
-    ID3D11Buffer* IndexBuffer;
-    ID3D11Buffer* InstanceBuffer;
+    ID3D11Buffer* Vertex;
+    ID3D11Buffer* Index;
+    ID3D11Buffer* Instance;
 };
 
 ENUM(instanced_layout_id,
     instanced_layout_text_id,
     instanced_layout_test_id
 );
+
+struct directX_mesh {
+    game_mesh* Mesh;
+    directX_mesh_buffer Buffer;
+};
+
+struct directX_font {
+    game_font* Font;
+    directX_font_buffer Buffer;
+};
+
+struct directX_texture {
+    Texture* texture;
+    ID3D11Texture2D* DirectXTexture;
+    ID3D11ShaderResourceView* ShaderTexture;
+};
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 // | Shaders                                                                                                                                                          |
@@ -167,7 +183,10 @@ struct alignas(16) outline_buffer {
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct directX {
-    game_asset_manager* Assets;
+    game_asset_manager* AssetManager;
+    array<directX_texture> Textures;
+    array<directX_mesh> Meshes;
+    array<directX_font> Fonts;
     IDXGISwapChain* SwapChain;
     ID3D11Device* Device;
     ID3D11DeviceContext* DeviceContext;
@@ -176,8 +195,6 @@ struct directX {
     ID3D11BlendState* CombineAlpha;
     ID3D11BlendState* OverwriteAlpha;
     ID3D11BlendState* TargetBlend;
-    ID3D11ShaderResourceView* Texture[game_texture_id_count];
-    ID3D11ShaderResourceView* Heightmap[game_heightmap_id_count];
     ID3D11DepthStencilState* DepthStencilEnabled;
     ID3D11DepthStencilState* DepthStencilDisabled;
     ID3D11RasterizerState* RasterizerState;
@@ -193,8 +210,6 @@ struct directX {
     directX_Pixel_Shader PixelShader[directX_Pixel_Shader_ID_count];
     directX_Compute_Shader ComputeShader[directX_Compute_Shader_ID_count];
     ID3D11Buffer* ConstantBuffer[directX_constant_buffer_id_count];
-    directX_mesh_buffer MeshBuffer[game_mesh_id_count];
-    directX_font_buffer FontBuffer[game_font_id_count];
     directX_heightmap_buffer HeightmapBuffer;
     uint32 MSAASamples;
     // float DPI;
@@ -274,43 +289,6 @@ void CreateTarget(uint32 Width, uint32 Height, render_group_target_description T
 void BindTarget(render_group_target Target) {
     directX_render_target* RenderTarget = &DirectX.Target[Target];
     DirectX.DeviceContext->OMSetRenderTargets(1, &RenderTarget->View, RenderTarget->Attachment);
-}
-
-ID3D11ShaderResourceView* CreateTexture(uint32 Width, uint32 Height, void* Data = NULL) {
-    ID3D11Texture2D* Texture = NULL;
-
-    D3D11_TEXTURE2D_DESC Description = {};
-    Description.Width = Width;
-    Description.Height = Height;
-    Description.MipLevels = 1;
-    Description.ArraySize = 1;
-    Description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    Description.SampleDesc.Count = 1;
-    Description.SampleDesc.Quality = 0;
-    Description.Usage = D3D11_USAGE_DEFAULT;
-    Description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-    Description.CPUAccessFlags = 0;
-    Description.MiscFlags = 0;
-
-    D3D11_SUBRESOURCE_DATA ResourceData = {};
-    if (Data) {
-        ResourceData.pSysMem = Data;
-        ResourceData.SysMemPitch = 4 * Width;
-        ResourceData.SysMemSlicePitch = 4 * Width * Height;
-    }
-
-    HRESULT hResult = DirectX.Device->CreateTexture2D(&Description, Data ? &ResourceData : NULL, &Texture);
-    if (FAILED(hResult)) Raise("DirectX: Texture creation failed.");
-
-    ID3D11ShaderResourceView* Result = NULL;
-    D3D11_SHADER_RESOURCE_VIEW_DESC ResourceDescription = {};
-    ResourceDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    ResourceDescription.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    ResourceDescription.Texture2D.MostDetailedMip = 0;
-    ResourceDescription.Texture2D.MipLevels = -1;
-    DirectX.Device->CreateShaderResourceView(Texture, &ResourceDescription, &Result);
-
-    return Result;
 }
 
 void CreateBuffer(
@@ -1073,11 +1051,118 @@ void ReloadShaders() {
     }
 }
 
+directX_texture CreateTexture(game_texture* Texture) {
+    directX_texture Result;
+    Result.Texture = Texture;
+
+    D3D11_TEXTURE2D_DESC Description = {};
+    Description.Width = Texture->Width;
+    Description.Height = Texture->Height;
+    Description.MipLevels = 1;
+    Description.ArraySize = 1;
+    Description.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    Description.SampleDesc.Count = 1;
+    Description.SampleDesc.Quality = 0;
+    Description.Usage = D3D11_USAGE_DEFAULT;
+    Description.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    Description.CPUAccessFlags = 0;
+    Description.MiscFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA ResourceData = {};
+    if (Texture->Content) {
+        ResourceData.pSysMem = Texture->Content;
+        ResourceData.SysMemPitch = 4 * Texture->Width;
+        ResourceData.SysMemSlicePitch = 4 * Texture->Width * Texture->Height;
+    }
+
+    HRESULT hResult = DirectX.Device->CreateTexture2D(&Description, Texture->Content ? &ResourceData : NULL, &Result.DirectXTexture);
+    if (FAILED(hResult)) Raise("DirectX: Texture creation failed.");
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC ResourceDescription = {};
+    ResourceDescription.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    ResourceDescription.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    ResourceDescription.Texture2D.MostDetailedMip = 0;
+    ResourceDescription.Texture2D.MipLevels = -1;
+    DirectX.Device->CreateShaderResourceView(Result.DirectXTexture, &ResourceDescription, &Result.ShaderTexture);
+
+    return Result;
+}
+
+void DirectXLoadAsset(Arena* Arena, game_asset* Asset) {
+    if (Asset->Header.nTextures > 0) {
+        DirectX.Textures = array<directX_texture>(Arena, Asset->Header.nTextures);
+        for (int i = 0; i < Asset->Header.nTextures; i++) {
+            game_texture* Texture = &Asset->Textures[i];
+            directX_texture DirectXTexture = CreateTexture(Texture);
+            DirectX.Textures.Insert(DirectXTexture);
+        }
+    }
+
+    // Mesh buffers
+    if (Asset->Header.nMeshes > 0) {
+        DirectX.Meshes = array<directX_mesh>(Arena, Asset->Header.nMeshes);
+        for (int i = 0; i < Asset->Header.nMeshes; i++) {
+            game_mesh* Mesh = &Asset->Meshes[i];
+
+            directX_mesh* DirectXMesh = &DirectX.Meshes[i];
+            uint64 VerticesSize = GetMeshVerticesSize(Mesh->nVertices, Mesh->Armature.nBones > 0);
+            uint64 ElementsSize = (3 * Mesh->nFaces + 2 * Mesh->nEdges) * sizeof(uint32);
+            CreateBuffer(&DirectXMesh->Buffer.Vertex, VerticesSize, D3D11_BIND_VERTEX_BUFFER, false, Mesh->Vertices);
+            CreateBuffer(&DirectXMesh->Buffer.Index, ElementsSize, D3D11_BIND_INDEX_BUFFER, false, Mesh->nEdges > 0 ? Mesh->Edges : Mesh->Faces);
+        }
+    }
+
+    // Font buffers
+    if (Asset->Header.nFonts > 0) {
+        DirectX.Fonts = array<directX_font>(Arena, Asset->Header.nFonts);
+        for (int i = 0; i < Asset->Header.nFonts; i++) {
+            game_font* Font = &Asset->Fonts[i];
+    
+            directX_font* DirectXFont = &DirectX.Fonts[i];
+            uint64 VerticesSize = 4 * sizeof(float) * 3 * Font->nOnCurve;
+            uint64 ElementsSize = 3 * sizeof(uint32) * (Font->nCurveTriangles + Font->nSolidTriangles);
+            CreateBuffer(&DirectXFont->Buffer.Vertex, VerticesSize, D3D11_BIND_VERTEX_BUFFER, false, Font->Vertices);
+            CreateBuffer(&DirectXFont->Buffer.Index, ElementsSize, D3D11_BIND_INDEX_BUFFER, false, Font->Elements);
+            CreateBuffer(&DirectXFont->Buffer.Instance, TEXT_BUFFER_SIZE, D3D11_BIND_VERTEX_BUFFER, true);
+        }
+    }
+}
+
+directX_texture* GetDirectXTexture(game_texture* Texture) {
+    for (int i = 0; i < DirectX.Textures.Count; i++) {
+        directX_texture* DirectXTexture = &DirectX.Textures[i];
+        if (DirectXTexture->Texture == Texture) {
+            return DirectXTexture;
+        }
+    }
+    return nullptr;
+}
+
+directX_mesh* GetDirectXMesh(game_mesh* Mesh) {
+    for (int i = 0; i < DirectX.Meshes.Count; i++) {
+        directX_mesh* DirectXMesh = &DirectX.Meshes[i];
+        if (DirectXMesh->Mesh == Mesh) {
+            return DirectXMesh;
+        }
+    }
+    return nullptr;
+}
+
+directX_font* GetDirectXFont(game_font* Font) {
+    for (int i = 0; i < DirectX.Fonts.Count; i++) {
+        directX_font* DirectXFont = &DirectX.Fonts[i];
+        if (DirectXFont->Font == Font) {
+            return DirectXFont;
+        }
+    }
+    return nullptr;
+}
+
 RENDERER_INITIALIZE {
     HRESULT Result;
 
     DirectX = {};
-    DirectX.Assets = Group->Assets;
+    DirectX.AssetManager = Group->AssetManager;
 
     DXGI_FORMAT PixelFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
@@ -1280,12 +1365,9 @@ RENDERER_INITIALIZE {
         Log(log_level::Error, "DirectX: Staging texture creation failed.");
     }
 
-    for (int i = 0; i < game_texture_id_count; i++) {
-        game_texture* Texture = &Group->Assets->Texture[i];
-        DirectX.Texture[i] = CreateTexture(
-            Texture->Width, Texture->Height,
-            Texture->Content
-        );
+    for (int i = 0; i < Group->AssetManager->Assets.Count; i++) {
+        game_asset* Asset = &Group->AssetManager->Assets[i];
+        DirectXLoadAsset(Arena, Asset);
     }
 
     ID3D11Texture2D* FFTTexture = NULL;
@@ -1306,15 +1388,6 @@ RENDERER_INITIALIZE {
     Result = DirectX.Device->CreateTexture2D(&StagingDescription, 0, &DirectX.StagingTexture);
     if (FAILED(Result)) {
         Log(log_level::Error, "DirectX: Staging texture creation failed.");
-    }
-
-// Heightmaps
-    for (int i = 0; i < game_heightmap_id_count; i++) {
-        game_texture* Bitmap = &Group->Assets->Heightmap[i].Texture;
-        DirectX.Heightmap[i] = CreateTexture(
-            Bitmap->Width, Bitmap->Height,
-            Bitmap->Content
-        );
     }
 
 // Shaders
@@ -1370,39 +1443,16 @@ RENDERER_INITIALIZE {
         CreateInputLayout((instanced_layout_id)i);
     }
 
-    // Mesh buffers
-    for (int i = 0; i < game_mesh_id_count; i++) {
-        game_mesh* Mesh = &Group->Assets->Mesh[i];
-
-        directX_mesh_buffer* Buffer = &DirectX.MeshBuffer[i];
-        uint64 VerticesSize = GetMeshVerticesSize(Mesh->nVertices, Mesh->Armature.nBones > 0);
-        uint64 ElementsSize = (3 * Mesh->nFaces + 2 * Mesh->nEdges) * sizeof(uint32);
-        CreateBuffer(&Buffer->VertexBuffer, VerticesSize, D3D11_BIND_VERTEX_BUFFER, false, Mesh->Vertices);
-        CreateBuffer(&Buffer->IndexBuffer, ElementsSize, D3D11_BIND_INDEX_BUFFER, false, Mesh->nEdges > 0 ? Mesh->Edges : Mesh->Faces);
-    }
-
-    // Font buffers
-    for (int i = 0; i < game_font_id_count; i++) {
-        game_font* Font = &Group->Assets->Font[i];
-
-        directX_font_buffer* FontBuffer = &DirectX.FontBuffer[i];
-        uint64 VerticesSize = 4 * sizeof(float) * 3 * Font->nOnCurve;
-        uint64 ElementsSize = 3 * sizeof(uint32) * (Font->nCurveTriangles + Font->nSolidTriangles);
-        CreateBuffer(&FontBuffer->VertexBuffer, VerticesSize, D3D11_BIND_VERTEX_BUFFER, false, Font->Vertices);
-        CreateBuffer(&FontBuffer->IndexBuffer, ElementsSize, D3D11_BIND_INDEX_BUFFER, false, Font->Elements);
-        CreateBuffer(&FontBuffer->InstanceBuffer, TEXT_BUFFER_SIZE, D3D11_BIND_VERTEX_BUFFER, true);
-    }
-
     // Heightmap buffer
     const int nVertices = HEIGHTMAP_RESOLUTION*HEIGHTMAP_RESOLUTION;
     float Vertices[2*nVertices];
     GenerateHeightmapVertices(Vertices);
-    CreateBuffer(&DirectX.HeightmapBuffer.VertexBuffer, 2*nVertices*sizeof(float), D3D11_BIND_VERTEX_BUFFER, false, Vertices);
+    CreateBuffer(&DirectX.HeightmapBuffer.Vertex, 2*nVertices*sizeof(float), D3D11_BIND_VERTEX_BUFFER, false, Vertices);
 
     const int nElements = 4 * (HEIGHTMAP_RESOLUTION - 1) * (HEIGHTMAP_RESOLUTION - 1);
     uint32 Elements[nElements];
     GenerateHeightmapElements(Elements);
-    CreateBuffer(&DirectX.HeightmapBuffer.IndexBuffer, nElements*sizeof(uint32), D3D11_BIND_INDEX_BUFFER, false, Elements);
+    CreateBuffer(&DirectX.HeightmapBuffer.Index, nElements*sizeof(uint32), D3D11_BIND_INDEX_BUFFER, false, Elements);
 
     // Constant buffers
     CreateConstantBuffer(global_buffer);
@@ -1649,8 +1699,8 @@ RENDERER_RENDER {
                     LayoutID = vertex_layout_v2_id;
                     VertexShaderID = Vertex_Shader_Heightmap_ID;
                     PixelShaderID = Pixel_Shader_Heightmap_ID;
-                    VertexBuffer = &DirectX.HeightmapBuffer.VertexBuffer;
-                    IndexBuffer = DirectX.HeightmapBuffer.IndexBuffer;
+                    VertexBuffer = &DirectX.HeightmapBuffer.Vertex;
+                    IndexBuffer = DirectX.HeightmapBuffer.Index;
                     DirectX.DeviceContext->HSSetShader(DirectX.HullShader[Hull_Shader_Heightmap_ID].Shader, NULL, 0);
                     DirectX.DeviceContext->DSSetShader(DirectX.DomainShader[Domain_Shader_Heightmap_ID].Shader, NULL, 0);
 
@@ -1660,8 +1710,8 @@ RENDERER_RENDER {
                     LayoutID = vertex_layout_v2_id;
                     VertexShaderID = Vertex_Shader_Heightmap_ID;
                     PixelShaderID = Pixel_Shader_Water_ID;
-                    VertexBuffer = &DirectX.HeightmapBuffer.VertexBuffer;
-                    IndexBuffer = DirectX.HeightmapBuffer.IndexBuffer;
+                    VertexBuffer = &DirectX.HeightmapBuffer.Vertex;
+                    IndexBuffer = DirectX.HeightmapBuffer.Index;
                     DirectX.DeviceContext->HSSetShader(DirectX.HullShader[Hull_Shader_Heightmap_ID].Shader, NULL, 0);
                     DirectX.DeviceContext->DSSetShader(DirectX.DomainShader[Domain_Shader_Water_ID].Shader, NULL, 0);
 
@@ -1719,12 +1769,14 @@ RENDERER_RENDER {
                 DirectX.DeviceContext->IASetPrimitiveTopology(GetRenderPrimitive(PrimitiveCommand.Primitive));
 
                 if (Options.Texture) {
-                    DirectX.DeviceContext->PSSetShaderResources(0, 1, &DirectX.Texture[Options.Texture->ID]);
+                    directX_texture* Texture = GetDirectXTexture(Options.Texture);
+                    DirectX.DeviceContext->PSSetShaderResources(0, 1, &Texture->ShaderTexture);
                     DirectX.DeviceContext->PSSetSamplers(0, 1, &DirectX.PixelShader[PixelShaderID].Sampler);
                 }
 
                 if (Options.Heightmap) {
-                    DirectX.DeviceContext->DSSetShaderResources(0, 1, &DirectX.Heightmap[Options.Heightmap->ID]);
+                    directX_texture* Texture = GetDirectXTexture(Options.Heightmap);
+                    DirectX.DeviceContext->DSSetShaderResources(0, 1, &Texture->ShaderTexture);
                     DirectX.DeviceContext->DSSetSamplers(0, 1, &DirectX.DomainShader[Domain_Shader_Heightmap_ID].Sampler);
                 }
 
@@ -1775,10 +1827,11 @@ RENDERER_RENDER {
                 render_mesh_command MeshCommand = Group->MeshCommands[Command.Index];
                 render_mesh_options Options = MeshCommand.Options;
 
-                game_mesh* Mesh = GetAsset(Group->Assets, MeshCommand.MeshID);
+                game_mesh* Mesh = MeshCommand.Mesh;
+                directX_mesh* DirectXMesh = GetDirectXMesh(Mesh);
 
-                ID3D11Buffer** VertexBuffer = &DirectX.MeshBuffer[MeshCommand.MeshID].VertexBuffer;
-                ID3D11Buffer* IndexBuffer = DirectX.MeshBuffer[MeshCommand.MeshID].IndexBuffer;
+                ID3D11Buffer** VertexBuffer = &DirectXMesh->Buffer.Vertex;
+                ID3D11Buffer* IndexBuffer = DirectXMesh->Buffer.Index;
                 vertex_layout_id LayoutID = vertex_layout_v3_v2_v3_id;
                 directX_Vertex_Shader_ID VertexShaderID = Vertex_Shader_Mesh_ID;
                 directX_Pixel_Shader_ID PixelShaderID = Pixel_Shader_Mesh_ID;
@@ -1802,7 +1855,8 @@ RENDERER_RENDER {
 
                 DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilEnabled, 1);
 
-                DirectX.DeviceContext->PSSetShaderResources(0, 1, &DirectX.Texture[Options.TextureID]);
+                directX_texture* Texture = GetDirectXTexture(Options.Texture);
+                DirectX.DeviceContext->PSSetShaderResources(0, 1, &Texture->ShaderTexture);
                 DirectX.DeviceContext->PSSetSamplers(0, 1, &DirectX.PixelShader[PixelShaderID].Sampler);
 
                 DirectX.DeviceContext->IASetInputLayout(DirectX.VertexLayout[LayoutID]);
@@ -1840,79 +1894,79 @@ RENDERER_RENDER {
             } break;
 
             case render_text: {
-                BindTarget(Target_World);
+                // BindTarget(Target_World);
 
-                DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilDisabled, 1);
-                DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[Vertex_Shader_Barycentric_ID].Shader, NULL, 0);
-                DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-                DirectX.DeviceContext->IASetInputLayout(DirectX.InstancedLayout[instanced_layout_text_id]);
+                // DirectX.DeviceContext->OMSetDepthStencilState(DirectX.DepthStencilDisabled, 1);
+                // DirectX.DeviceContext->VSSetShader(DirectX.VertexShader[Vertex_Shader_Barycentric_ID].Shader, NULL, 0);
+                // DirectX.DeviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+                // DirectX.DeviceContext->IASetInputLayout(DirectX.InstancedLayout[instanced_layout_text_id]);
 
-                for (int FontID = 0; FontID < game_font_id_count; FontID++) {
-                    game_font* Font = GetAsset(Group->Assets, (game_font_id)FontID);
-                    directX_font_buffer* FontBuffer = &DirectX.FontBuffer[FontID];
+                // for (int FontID = 0; FontID < game_font_id_count; FontID++) {
+                //     game_font* Font = GetAsset(Group->Assets, (game_font_id)FontID);
+                //     directX_font_buffer* FontBuffer = &DirectX.FontBuffer[FontID];
                     
-                    uint32 Stride = 4*sizeof(float);
-                    uint32 Offset = 0;
+                //     uint32 Stride = 4*sizeof(float);
+                //     uint32 Offset = 0;
 
-                    DirectX.DeviceContext->IASetVertexBuffers(0, 1, &FontBuffer->VertexBuffer, &Stride, &Offset);
-                    DirectX.DeviceContext->IASetIndexBuffer(FontBuffer->IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
+                //     DirectX.DeviceContext->IASetVertexBuffers(0, 1, &FontBuffer->VertexBuffer, &Stride, &Offset);
+                //     DirectX.DeviceContext->IASetIndexBuffer(FontBuffer->IndexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
-                    Stride = 7*sizeof(float);
+                //     Stride = 7*sizeof(float);
 
-                    for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
-                        uint32 Count = Group->TextBuffer.Count[FontID][c];
-                        if (Count > 0) {
-                            game_font_character* pCharacter = &Font->Characters[c];
-                            void* MappedBuffer = GetMappedBuffer(FontBuffer->InstanceBuffer);
-                            if (MappedBuffer) {
-                                memcpy(
-                                    MappedBuffer, 
-                                    Group->TextBuffer.Instances[FontID][c].Base, 
-                                    Group->TextBuffer.Instances[FontID][c].Used
-                                );
-                                DirectX.DeviceContext->Unmap(FontBuffer->InstanceBuffer, 0);
+                //     for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+                //         uint32 Count = Group->TextBuffer.Count[FontID][c];
+                //         if (Count > 0) {
+                //             game_font_character* pCharacter = &Font->Characters[c];
+                //             void* MappedBuffer = GetMappedBuffer(FontBuffer->InstanceBuffer);
+                //             if (MappedBuffer) {
+                //                 memcpy(
+                //                     MappedBuffer, 
+                //                     Group->TextBuffer.Instances[FontID][c].Base, 
+                //                     Group->TextBuffer.Instances[FontID][c].Used
+                //                 );
+                //                 DirectX.DeviceContext->Unmap(FontBuffer->InstanceBuffer, 0);
 
-                                DirectX.DeviceContext->IASetVertexBuffers(1, 1, &FontBuffer->InstanceBuffer, &Stride, &Offset);
+                //                 DirectX.DeviceContext->IASetVertexBuffers(1, 1, &FontBuffer->InstanceBuffer, &Stride, &Offset);
 
-                                // Solid triangles
-                                if (pCharacter->nSolidTriangles > 0) {
-                                    DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Attrib_Color_ID].Shader, NULL, 0);
-                                    DirectX.DeviceContext->DrawIndexedInstanced(
-                                        3*pCharacter->nSolidTriangles,
-                                        Count,
-                                        pCharacter->SolidTrianglesOffset,
-                                        0,
-                                        0
-                                    );
-                                }
+                //                 // Solid triangles
+                //                 if (pCharacter->nSolidTriangles > 0) {
+                //                     DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Attrib_Color_ID].Shader, NULL, 0);
+                //                     DirectX.DeviceContext->DrawIndexedInstanced(
+                //                         3*pCharacter->nSolidTriangles,
+                //                         Count,
+                //                         pCharacter->SolidTrianglesOffset,
+                //                         0,
+                //                         0
+                //                     );
+                //                 }
 
-                                // Exterior curves
-                                if (pCharacter->nExteriorCurves > 0) {
-                                    DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Bezier_Exterior_ID].Shader, NULL, 0);
-                                    DirectX.DeviceContext->DrawIndexedInstanced(
-                                        3*pCharacter->nExteriorCurves,
-                                        Count,
-                                        pCharacter->ExteriorCurvesOffset,
-                                        0,
-                                        0
-                                    );
-                                }
+                //                 // Exterior curves
+                //                 if (pCharacter->nExteriorCurves > 0) {
+                //                     DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Bezier_Exterior_ID].Shader, NULL, 0);
+                //                     DirectX.DeviceContext->DrawIndexedInstanced(
+                //                         3*pCharacter->nExteriorCurves,
+                //                         Count,
+                //                         pCharacter->ExteriorCurvesOffset,
+                //                         0,
+                //                         0
+                //                     );
+                //                 }
 
-                                // Interior curves
-                                if (pCharacter->nInteriorCurves > 0) {
-                                    DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Bezier_Interior_ID].Shader, NULL, 0);
-                                    DirectX.DeviceContext->DrawIndexedInstanced(
-                                        3*pCharacter->nInteriorCurves,
-                                        Count,
-                                        pCharacter->InteriorCurvesOffset,
-                                        0,
-                                        0
-                                    );
-                                }
-                            }
-                        }
-                    }
-                }
+                //                 // Interior curves
+                //                 if (pCharacter->nInteriorCurves > 0) {
+                //                     DirectX.DeviceContext->PSSetShader(DirectX.PixelShader[Pixel_Shader_Bezier_Interior_ID].Shader, NULL, 0);
+                //                     DirectX.DeviceContext->DrawIndexedInstanced(
+                //                         3*pCharacter->nInteriorCurves,
+                //                         Count,
+                //                         pCharacter->InteriorCurvesOffset,
+                //                         0,
+                //                         0
+                //                     );
+                //                 }
+                //             }
+                //         }
+                //     }
+                // }
             } break;
 
             case render_shader_pass: {

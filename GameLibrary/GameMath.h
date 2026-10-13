@@ -12,25 +12,25 @@
 // | Constants                                                                                                                              |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-const float Pi = 3.1415926535897932f;
-const float Tau = 6.2831853071795865f;
+const float PI = 3.1415926535897932f;
+const float TAU = 6.2831853071795865f;
 
 // Twelfth root of 2, important for music
-const float TwelfthRootTwo = 1.0594630943592952646f;
-const float SqRootTwo = 1.41421356237f;
-const float SqRootTwoInv = .7071067811865475244f;
+const float TWELFTH_ROOT_TWO = 1.0594630943592952646f;
+const float SQRT_TWO = 1.41421356237f;
+const float SQRT_TWO_INV = .7071067811865475244f;
 
-const float Degrees = Pi / 180.0f;
+const float DEGREES = PI / 180.0f;
 
 // Smallest meaningful difference between floats, important for avoiding floating point rounding errors.
-const float Epsilon = .00001f;
+const float EPSILON = .00001f;
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | Arithmetic                                                                                                                             |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-inline int32 CustomRound(float X) {
-	return X >= 0.0f ? (int32)(X + 0.5f) : (int32)(X - 0.5f);
+inline int32 CustomRound(float x) {
+	return x >= 0.0f ? (int32)(x + 0.5f) : (int32)(x - 0.5f);
 }
 
 inline int32 Sign(float x) {
@@ -39,56 +39,56 @@ inline int32 Sign(float x) {
 	return 0;
 }
 
-inline float Clamp(float Value, float Min, float Max) {
-	if      (Value < Min) return Min;
-	else if (Value > Max) return Max;
-	return Value;
+inline float Clamp(float value, float min, float max) {
+	if      (value < min) return min;
+	else if (value > max) return max;
+	return value;
 }
 
-inline int32 Clamp(int32 Value, int32 Min, int32 Max) {
-	if      (Value < Min) return Min;
-	else if (Value > Max) return Max;
-	return Value;
+inline int32 Clamp(int32 value, int32 min, int32 max) {
+	if      (value < min) return min;
+	else if (value > max) return max;
+	return value;
 }
 
-inline uint32 Clamp(uint32 Value, uint32 Min, uint32 Max) {
-	if      (Value < Min) return Min;
-	else if (Value > Max) return Max;
-	return Value;
+inline uint32 Clamp(uint32 value, uint32 min, uint32 max) {
+	if      (value < min) return min;
+	else if (value > max) return max;
+	return value;
 }
 
 // Makes an angle be in the [0, 360) interval.
-inline float NormalizeAngle(float Angle) {
-	if (Angle >= 360) {
-		return Angle - 360;
+inline float Normalizeangle(float angle) {
+	if (angle >= 360) {
+		return angle - 360;
 	}
-	else if (Angle < 0) {
-		return Angle + 360;
+	else if (angle < 0) {
+		return angle + 360;
 	}
-	return Angle;
+	return angle;
 }
 
-inline int8 GetExponent32(float Number) {
+inline int8 GetExponent32(float number) {
 	uint32 Bytes;
-	memcpy(&Bytes, &Number, 4);
+	memcpy(&Bytes, &number, 4);
 	return ((Bytes & 0x7F800000) >> 23) - 127;
 }
 
-inline uint32 GetMantissa32(float Number) {
+inline uint32 GetMantissa32(float number) {
 	uint32 Bytes;
-	memcpy(&Bytes, &Number, 4);
+	memcpy(&Bytes, &number, 4);
 	return Bytes & 0x7FFFFF;
 }
 
-inline int16 GetExponent64(double Number) {
+inline int16 GetExponent64(double number) {
 	uint64 Bytes;
-	memcpy(&Bytes, &Number, 8);
+	memcpy(&Bytes, &number, 8);
 	return ((Bytes & 0x7FF0000000000000ULL) >> 52) - 1023;
 }
 
-inline uint64 GetMantissa64(double Number) {
+inline uint64 GetMantissa64(double number) {
 	uint64 Bytes;
-	memcpy(&Bytes, &Number, 8);
+	memcpy(&Bytes, &number, 8);
 	return Bytes & 0xFFFFFFFFFFFFFULL;
 }
 
@@ -96,40 +96,40 @@ inline uint64 GetMantissa64(double Number) {
 // | RNG                                                                                                                                    |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-struct rng {
-	uint64 Seed;
-	uint64 State;
+struct RNG {
+	uint64 seed;
+	uint64 state;
 };
 
-rng RNG = {};
+RNG rng = {};
 
 void RNGNextState() {
-	RNG.State ^= RNG.State << 13;
-	RNG.State ^= RNG.State >> 7;
-	RNG.State ^= RNG.State << 17;
+	rng.state ^= rng.state << 13;
+	rng.state ^= rng.state >> 7;
+	rng.state ^= rng.state << 17;
 }
 
 inline float RandFloat() {
-	float Result = (float)RNG.State / (float)UINT64_MAX;
+	float result = (float)rng.state / (float)UINT64_MAX;
 	RNGNextState();
-	return Result;
+	return result;
 }
 
-inline float RandFloat(float Min, float Max) {
-	Assert(Min <= Max);
-	return RandFloat() * (Max - Min) + Min;
+inline float RandFloat(float min, float max) {
+	Assert(min <= max);
+	return RandFloat() * (max - min) + min;
 }
 
 inline bool Bernoulli(float p = 0.5f) {
 	return RandFloat() >= p;
 }
 
-// Returns a random integer greater or equal than Min and strictly under Max.
-inline int RandInt(int Min, int Max) {
-	return RandFloat() * (Max - Min) + Min;
+// Returns a random integer greater or equal than min and strictly under max.
+inline int RandInt(int min, int max) {
+	return RandFloat() * (max - min) + min;
 }
 
-int _RandomEnum(debug_type Type) {
+int _RandomEnum(game_type Type) {
     int i = ENUM_VALUES_SIZE;
     while(i > 0) {
         debug_enum_value Entry = EnumValues[--i];
@@ -145,18 +145,18 @@ int _RandomEnum(debug_type Type) {
 
 float Normal() {
 	static bool UseSaved = false;
-	static float SavedValue = 0.0f;
+	static float Savedvalue = 0.0f;
 
 	if (UseSaved) {
 		UseSaved = false;
-		return SavedValue;
+		return Savedvalue;
 	}
 
 	float R = sqrtf(-2 * logf(RandFloat()));
-	float Theta = Tau * RandFloat();
+	float Theta = TAU * RandFloat();
 
 	UseSaved = true;
-	SavedValue = R * sinf(Theta);
+	Savedvalue = R * sinf(Theta);
 	return R * cosf(Theta);
 }
 
@@ -164,28 +164,28 @@ float Normal(float Mean, float StdDeviation) {
 	return Mean + StdDeviation * Normal();
 }
 
-uint32 log2(uint32 X) {
-	unsigned long Result = 0;
-	if (X > 0) {
+uint32 log2(uint32 x) {
+	unsigned long result = 0;
+	if (x > 0) {
 #if _WIN32
-	_BitScanReverse(&Result, X);
+	_BitScanReverse(&result, x);
 #else
-		Result = __builtin_clzl(X);
+		result = __builtin_clzl(X);
 #endif
 	}
-	return Result;
+	return result;
 }
 
-uint32 log2(uint64 X) {
-	unsigned long Result = 0;
-	if (X > 0) {
+uint32 log2(uint64 x) {
+	unsigned long result = 0;
+	if (x > 0) {
 #if _WIN32
-		_BitScanReverse64(&Result, X);
+		_BitScanReverse64(&result, x);
 #else
-		Result = __builtin_clzll(X);
+		result = __builtin_clzll(X);
 #endif
 	}
-	return Result;
+	return result;
 }
 
 /*
@@ -196,10 +196,10 @@ float BuildFloat(bool Negative, int8 Exponent, uint32 Mantissa) {
 	if (Exponent != -127 || Mantissa != 0) {
 		Exponent32 = Exponent + 127;
 	}
-	uint32 Value = ((uint32)Negative << 31) | (Exponent32 << 23) | (Mantissa & 0x7FFFFF);
-	float Result;
-	memcpy(&Result, &Value, 4);
-	return Result;
+	uint32 value = ((uint32)Negative << 31) | (Exponent32 << 23) | (Mantissa & 0x7FFFFF);
+	float result;
+	memcpy(&result, &value, 4);
+	return result;
 }
 
 /*
@@ -210,159 +210,144 @@ double BuildFloat(bool Negative, int16 Exponent, uint64 Mantissa) {
 	if (Exponent != -1023 || Mantissa != 0) {
 		Exponent64 = Exponent + 1023;
 	}
-	uint64 Value = ((uint64)Negative << 63) | (Exponent64 << 52) | (Mantissa & 0xFFFFFFFFFFFFFULL);
-	double Result;
-	memcpy(&Result, &Value, 8);
-	return Result;
+	uint64 value = ((uint64)Negative << 63) | (Exponent64 << 52) | (Mantissa & 0xFFFFFFFFFFFFFULL);
+	double result;
+	memcpy(&result, &value, 8);
+	return result;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | 2D                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-struct uv2 {
-	uint32 X, Y;
+struct UV2 {
+	uint32 x, y;
 };
 
-inline uv2 UV2(uint32 X, uint32 Y) {
-	return { X, Y };
+inline UV2 operator+(UV2 a, UV2 b) {
+	return {a.x + b.x, a.y + b.y};
 }
 
-inline uv2 operator+(uv2 a, uv2 b) {
-	return UV2(a.X + b.X, a.Y + b.Y);
+inline bool operator==(const UV2& lhs, const UV2& rhs) {
+	return lhs.x == rhs.x && lhs.y == rhs.y;
 }
 
-inline bool operator==(const uv2& lhs, const uv2& rhs) {
-	return lhs.X == rhs.X && lhs.Y == rhs.Y;
-}
-
-struct iv2 {
-	int X, Y;
+struct IV2 {
+	int x, y;
 };
 
-inline iv2 IV2(int X, int Y) {
-	return { X, Y };
+inline IV2 operator+(IV2 a, IV2 b) {
+	return IV2(a.x + b.x, a.y + b.y);
 }
 
-inline iv2 operator+(iv2 a, iv2 b) {
-	return IV2(a.X + b.X, a.Y + b.Y);
+inline bool operator==(const IV2& lhs, const IV2& rhs) {
+	return lhs.x == rhs.x && lhs.y == rhs.y;
 }
 
-inline bool operator==(const iv2& lhs, const iv2& rhs) {
-	return lhs.X == rhs.X && lhs.Y == rhs.Y;
-}
-
-inline bool operator<(const iv2& lhs, const iv2& rhs) {
-	bool Result = 0;
-	if (lhs.X == rhs.X) {
-		if (lhs.Y == rhs.Y) {
+inline bool operator<(const IV2& lhs, const IV2& rhs) {
+	bool result = 0;
+	if (lhs.x == rhs.x) {
+		if (lhs.y == rhs.y) {
 			return false;
 		}
-		else return lhs.Y < rhs.Y;
+		else return lhs.y < rhs.y;
 	}
-	else return lhs.X < rhs.X;
+	else return lhs.x < rhs.x;
 }
 
-struct v2 {
-	float X, Y;
+struct V2 {
+	float x, y;
 };
 
-inline v2 V2(float X, float Y) {
-	v2 Result;
-	Result.X = X;
-	Result.Y = Y;
-	return Result;
+inline V2 Radial(float angle) {
+	return {cosf(angle), sinf(angle)};
 }
 
-inline v2 Radial(float Angle) {
-	return V2(cosf(Angle), sinf(Angle));
+inline V2 operator+(V2 A, V2 B) {
+	V2 result;
+	result.x = A.x + B.x;
+	result.y = A.y + B.y;
+	return result;
 }
 
-inline v2 operator+(v2 A, v2 B) {
-	v2 Result;
-	Result.X = A.X + B.X;
-	Result.Y = A.Y + B.Y;
-	return Result;
+inline V2 operator-(V2 A) {
+	V2 result;
+	result.x = -A.x;
+	result.y = -A.y;
+	return result;
 }
 
-inline v2 operator-(v2 A) {
-	v2 Result;
-	Result.X = -A.X;
-	Result.Y = -A.Y;
-	return Result;
+inline V2 operator-(V2 A, V2 B) {
+	V2 result;
+	result.x = A.x - B.x;
+	result.y = A.y - B.y;
+	return result;
 }
 
-inline v2 operator-(v2 A, v2 B) {
-	v2 Result;
-	Result.X = A.X - B.X;
-	Result.Y = A.Y - B.Y;
-	return Result;
+inline V2 operator*(float C, V2 A) {
+	V2 result;
+	result.x = C * A.x;
+	result.y = C * A.y;
+	return result;
 }
 
-inline v2 operator*(float C, v2 A) {
-	v2 Result;
-	Result.X = C * A.X;
-	Result.Y = C * A.Y;
-	return Result;
+inline V2 operator*(V2 A, V2 B) {
+	return { A.x * B.x , A.y * B.y };
 }
 
-inline v2 operator*(v2 A, v2 B) {
-	return { A.X * B.X , A.Y * B.Y };
+inline bool operator==(V2 A, V2 B) {
+	return fabsf(A.x - B.x) < EPSILON && fabsf(A.y - B.y) < EPSILON;
 }
 
-inline bool operator==(v2 A, v2 B) {
-	return fabsf(A.X - B.X) < Epsilon && fabsf(A.Y - B.Y) < Epsilon;
+inline bool operator!=(V2 A, V2 B) {
+	return fabsf(A.x - B.x) >= EPSILON || fabsf(A.y - B.y) >= EPSILON;
 }
 
-inline bool operator!=(v2 A, v2 B) {
-	return fabsf(A.X - B.X) >= Epsilon || fabsf(A.Y - B.Y) >= Epsilon;
-}
-
-inline v2& operator+=(v2& A, v2 B) {
-	A.X += B.X;
-	A.Y += B.Y;
+inline V2& operator+=(V2& A, V2 B) {
+	A.x += B.x;
+	A.y += B.y;
 	return A;
 }
 
-inline v2& operator/=(v2& A, float C) {
-	A.X /= C;
-	A.Y /= C;
+inline V2& operator/=(V2& A, float C) {
+	A.x /= C;
+	A.y /= C;
 	return A;
 }
 
-inline v2& operator-=(v2& A, v2 B) {
-	A.X -= B.X;
-	A.Y -= B.Y;
+inline V2& operator-=(V2& A, V2 B) {
+	A.x -= B.x;
+	A.y -= B.y;
 	return A;
 }
 
-inline v2& operator*=(v2& A, float C) {
-	A.X *= C;
-	A.Y *= C;
+inline V2& operator*=(V2& A, float C) {
+	A.x *= C;
+	A.y *= C;
 	return A;
 }
 
-inline float dot(v2 A, v2 B) {
-	return A.X * B.X + A.Y * B.Y;
+inline float dot(V2 A, V2 B) {
+	return A.x * B.x + A.y * B.y;
 }
 
-inline float cross(v2 A, v2 B) {
-	return A.X * B.Y - A.Y * B.X;
+inline float cross(V2 A, V2 B) {
+	return A.x * B.y - A.y * B.x;
 }
 
-inline bool AreParallel(v2 A, v2 B) {
+inline bool AreParallel(V2 A, V2 B) {
 	float C = cross(A, B);
-	return fabsf(C) < Epsilon;
+	return fabsf(C) < EPSILON;
 }
 
-inline float modulus(v2 A) {
+inline float modulus(V2 A) {
 	return sqrt(dot(A, A));
 }
 
-inline float GetAngle(v2 A, v2 B) {
+inline float Getangle(V2 A, V2 B) {
 	float mA = modulus(A);
 	float mB = modulus(B);
-	if (mA < Epsilon || mB < Epsilon) {
+	if (mA < EPSILON || mB < EPSILON) {
 		return 0;
 	}
 	float s = cross(A, B) / mA / mB;
@@ -370,842 +355,769 @@ inline float GetAngle(v2 A, v2 B) {
 	return atan2f(s, c);
 }
 
-inline v2 normalize(v2 V) {
-	return (modulus(V) < Epsilon) ? V2(0,0) : (1 / modulus(V)) * V;
+inline V2 normalize(V2 V) {
+	return (modulus(V) < EPSILON) ? V2(0,0) : (1 / modulus(V)) * V;
 }
 
-inline v2 project(v2 A, v2 B) {
-	v2 N = normalize(B);
+inline V2 project(V2 A, V2 B) {
+	V2 N = normalize(B);
 	return dot(A, N) * N;
 }
 
-inline float distance(v2 A, v2 B) {
+inline float distance(V2 A, V2 B) {
 	return modulus(A - B);
 }
  
-inline v2 perp(v2 A) {
-	return { -A.Y, A.X };
+inline V2 perp(V2 A) {
+	return { -A.y, A.x };
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | 3D                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-struct uv3 {
-	uint32 X, Y, Z;
+struct UV3 {
+	uint32 x, y, z;
 };
 
-inline uv3 UV3(uint32 X, uint32 Y, uint32 Z) {
-	return { X, Y, Z };
+inline UV3 operator+(UV3 a, UV3 b) {
+	return UV3(a.x + b.x, a.y + b.y, a.z + b.z);
 }
 
-inline uv3 operator+(uv3 a, uv3 b) {
-	return UV3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+inline bool operator==(const UV3& lhs, const UV3& rhs) {
+	return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
 }
 
-inline bool operator==(const uv3& lhs, const uv3& rhs) {
-	return lhs.X == rhs.X && lhs.Y == rhs.Y && lhs.Z == rhs.Z;
-}
-
-struct iv3 {
-	int X, Y, Z;
+struct IV3 {
+	int x, y, z;
 };
 
-inline iv3 IV3(int X, int Y, int Z) {
-	return { X, Y, Z };
+inline IV3 operator+(IV3 a, IV3 b) {
+	return {a.x + b.x, a.y + b.y, a.z + b.z};
 }
 
-inline iv3 operator+(iv3 a, iv3 b) {
-	return IV3(a.X + b.X, a.Y + b.Y, a.Z + b.Z);
+inline bool operator==(const IV3& lhs, const IV3& rhs) {
+	return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
 }
 
-inline bool operator==(const iv3& lhs, const iv3& rhs) {
-	return lhs.X == rhs.X && lhs.Y == rhs.Y && lhs.Z == rhs.Z;
-}
-
-inline bool operator<(const iv3& lhs, const iv3& rhs) {
-	bool Result = 0;
-	if (lhs.X == rhs.X) {
-		if (lhs.Y == rhs.Y) {
-			if (lhs.Z == rhs.Z) return false;
-			else return lhs.Z < rhs.Z;
+inline bool operator<(const IV3& lhs, const IV3& rhs) {
+	bool result = 0;
+	if (lhs.x == rhs.x) {
+		if (lhs.y == rhs.y) {
+			if (lhs.z == rhs.z) return false;
+			else return lhs.z < rhs.z;
 		}
-		else return lhs.Y < rhs.Y;
+		else return lhs.y < rhs.y;
 	}
-	else return lhs.X < rhs.X;
+	else return lhs.x < rhs.x;
 }
 
-struct v3 {
-	float X, Y, Z;
+struct V3 {
+	float x, y, z;
 };
 
-inline v3 V3(float X, float Y, float Z) {
-	return { X, Y, Z };
+inline V3 Radial(float angle, float Pitch) {
+	float cosA = cosf(angle * DEGREES);
+    float sinA = sinf(angle * DEGREES);
+    float cosP = cosf(Pitch * DEGREES);
+    float sinP = sinf(Pitch * DEGREES);
+    return {sinA * cosP, sinP, cosA * cosP};
 }
 
-inline v3 V3(v2 XY, float Z) {
-	return { XY.X, XY.Y, Z};
-};
-
-inline v3 V3(float X, v2 YZ) {
-	return { X, YZ.X, YZ.Y};
+inline V3 operator+(V3 A, V3 B) {
+	return {A.x + B.x, A.y + B.y, A.z + B.z};
 }
 
-inline v3 V3(iv3 V) {
-	return V3(V.X, V.Y, V.Z);
+inline V3 operator-(V3 A) {
+	V3 result;
+	result.x = -A.x;
+	result.y = -A.y;
+	result.z = -A.z;
+	return result;
 }
 
-inline v3 Radial(float Angle, float Pitch) {
-	float cosA = cosf(Angle * Degrees);
-    float sinA = sinf(Angle * Degrees);
-    float cosP = cosf(Pitch * Degrees);
-    float sinP = sinf(Pitch * Degrees);
-    return V3(sinA * cosP, sinP, cosA * cosP);
+inline V3 operator-(V3 A, V3 B) {
+	V3 result;
+	result.x = A.x - B.x;
+	result.y = A.y - B.y;
+	result.z = A.z - B.z;
+	return result;
 }
 
-inline v3 operator+(v3 A, v3 B) {
-	v3 Result;
-	Result.X = A.X + B.X;
-	Result.Y = A.Y + B.Y;
-	Result.Z = A.Z + B.Z;
-	return Result;
+inline V3 operator*(float C, V3 A) {
+	V3 result;
+	result.x = C * A.x;
+	result.y = C * A.y;
+	result.z = C * A.z;
+	return result;
 }
 
-inline v3 operator-(v3 A) {
-	v3 Result;
-	Result.X = -A.X;
-	Result.Y = -A.Y;
-	Result.Z = -A.Z;
-	return Result;
+ inline V3 operator*(V3 A, float C) {
+	V3 result;
+	result.x = C * A.x;
+	result.y = C * A.y;
+	result.z = C * A.z;
+	return result;
 }
 
-inline v3 operator-(v3 A, v3 B) {
-	v3 Result;
-	Result.X = A.X - B.X;
-	Result.Y = A.Y - B.Y;
-	Result.Z = A.Z - B.Z;
-	return Result;
-}
-
-inline v3 operator*(float C, v3 A) {
-	v3 Result;
-	Result.X = C * A.X;
-	Result.Y = C * A.Y;
-	Result.Z = C * A.Z;
-	return Result;
-}
-
- inline v3 operator*(v3 A, float C) {
-	v3 Result;
-	Result.X = C * A.X;
-	Result.Y = C * A.Y;
-	Result.Z = C * A.Z;
-	return Result;
-}
-
- inline v3 operator*(v3 A, v3 B) {
-	 return V3(A.X * B.X, A.Y * B.Y, A.Z * B.Z);
+ inline V3 operator*(V3 A, V3 B) {
+	 return V3(A.x * B.x, A.y * B.y, A.z * B.z);
  }
 
-inline v3 operator/(v3 A, float C) {
-	v3 Result;
-	Result.X = A.X / C;
-	Result.Y = A.Y / C;
-	Result.Z = A.Z / C;
-	return Result;
+inline V3 operator/(V3 A, float C) {
+	V3 result;
+	result.x = A.x / C;
+	result.y = A.y / C;
+	result.z = A.z / C;
+	return result;
 }
 
-inline v3& operator+=(v3& A, v3 B) {
-	A.X += B.X;
-	A.Y += B.Y;
-	A.Z += B.Z;
+inline V3& operator+=(V3& A, V3 B) {
+	A.x += B.x;
+	A.y += B.y;
+	A.z += B.z;
 	return A;
 }
 
-inline v3& operator/=(v3& A, float C) {
-	A.X /= C;
-	A.Y /= C;
-	A.Z /= C;
+inline V3& operator/=(V3& A, float C) {
+	A.x /= C;
+	A.y /= C;
+	A.z /= C;
 	return A;
 }
 
-inline v3& operator-=(v3& A, v3 B) {
-	A.X -= B.X;
-	A.Y -= B.Y;
-	A.Z -= B.Z;
+inline V3& operator-=(V3& A, V3 B) {
+	A.x -= B.x;
+	A.y -= B.y;
+	A.z -= B.z;
 	return A;
 }
 
-inline v3& operator*=(v3& A, float C) {
-	A.X *= C;
-	A.Y *= C;
-	A.Z *= C;
+inline V3& operator*=(V3& A, float C) {
+	A.x *= C;
+	A.y *= C;
+	A.z *= C;
 	return A;
 }
 
-inline bool operator==(v3 A, v3 B) {
-	return fabsf(A.X - B.X) < Epsilon && fabsf(A.Y - B.Y) < Epsilon && fabsf(A.Z - B.Z) < Epsilon;
+inline bool operator==(V3 A, V3 B) {
+	return fabsf(A.x - B.x) < EPSILON && fabsf(A.y - B.y) < EPSILON && fabsf(A.z - B.z) < EPSILON;
 }
 
-inline bool operator!=(v3 A, v3 B) {
-	return fabsf(A.X - B.X) >= Epsilon || fabsf(A.Y - B.Y) >= Epsilon || fabsf(A.Z - B.Z) >= Epsilon;
+inline bool operator!=(V3 A, V3 B) {
+	return fabsf(A.x - B.x) >= EPSILON || fabsf(A.y - B.y) >= EPSILON || fabsf(A.z - B.z) >= EPSILON;
 }
 
-inline float dot(v3 A, v3 B) {
-	return A.X * B.X + A.Y * B.Y + A.Z * B.Z;
+inline float dot(V3 A, V3 B) {
+	return A.x * B.x + A.y * B.y + A.z * B.z;
 }
 
-inline v3 cross(v3 A, v3 B) {
-	v3 Result;
-	Result.X = A.Y * B.Z - A.Z * B.Y;
-	Result.Y = A.Z * B.X - A.X * B.Z;
-	Result.Z = A.X * B.Y - A.Y * B.X;
-	return Result;
+inline V3 cross(V3 A, V3 B) {
+	V3 result;
+	result.x = A.y * B.z - A.z * B.y;
+	result.y = A.z * B.x - A.x * B.z;
+	result.z = A.x * B.y - A.y * B.x;
+	return result;
 }
 
-inline float modulus(v3 A) {
+inline float modulus(V3 A) {
 	return sqrt(dot(A, A));
 }
 
-inline float distance(v3 A, v3 B) {
+inline float distance(V3 A, V3 B) {
 	return modulus(B - A);
 }
 
-inline v3 normalize(v3 V) {
-	return (modulus(V) < Epsilon) ? V3(0,0,0) : (1.0f / modulus(V)) * V;
+inline V3 normalize(V3 V) {
+	return (modulus(V) < EPSILON) ? V3(0,0,0) : (1.0f / modulus(V)) * V;
 }
 
-inline v3 project(v3 A, v3 B) {
+inline V3 project(V3 A, V3 B) {
 	return dot(A, B) * B / dot(B, B);
 }
 
-inline v3 DirectionFromAngle(float Theta) {
-	v3 Result;
-	Result.X = cosf(Theta);
-	Result.Y = sinf(Theta);
-	Result.Z = 0;
-	return Result;
+inline V3 DirectionFromangle(float Theta) {
+	V3 result;
+	result.x = cosf(Theta);
+	result.y = sinf(Theta);
+	result.z = 0;
+	return result;
 }
 
-inline v3 SphereNormal(float Theta, float Phi) {
-	v3 Result;
-	Result.X = cosf(Phi)*sinf(Theta);
-	Result.Y = sinf(Phi)*sinf(Theta);
-	Result.Z = cosf(Theta);
-	return Result;
+inline V3 SphereNormal(float Theta, float Phi) {
+	V3 result;
+	result.x = cosf(Phi)*sinf(Theta);
+	result.y = sinf(Phi)*sinf(Theta);
+	result.z = cosf(Theta);
+	return result;
 }
 
-inline v3 Rotate(v3 v, float Angle) {
-	float X = v.X * cosf(Angle) + v.Y * sinf(Angle);
-	float Y = -v.X * sinf(Angle) + v.Y * cosf(Angle);
-	float Z = v.Z;
-	return V3(X, Y, Z);
+inline V3 Rotate(V3 v, float angle) {
+	float x = v.x * cosf(angle) + v.y * sinf(angle);
+	float y = -v.x * sinf(angle) + v.y * cosf(angle);
+	float z = v.z;
+	return V3(x, y, z);
 }
 
-inline v3 Rotate(v3 v, v3 w, float Angle = 0.0) {
-	if (Angle == 0.0) {
-		float Angle = Tau * modulus(w);
+inline V3 Rotate(V3 v, V3 w, float angle = 0.0) {
+	if (angle == 0.0) {
+		float angle = TAU * modulus(w);
 	}
-	v3 n = normalize(w);
+	V3 n = normalize(w);
 	// Rodrigues formula
-	return cosf(Angle) * v + sinf(Angle) * cross(n, v) + (1 - cosf(Angle)) * (n * v) * n;
+	return cosf(angle) * v + sinf(angle) * cross(n, v) + (1 - cosf(angle)) * (n * v) * n;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | 4D                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-struct iv4 {
-	int X, Y, Z, W;
+struct IV4 {
+	int x, y, z, w;
 };
 
-inline iv4 IV4(int X, int Y, int Z, int W) {
-	return { X, Y, Z, W };
+inline IV4 operator+(IV4 a, IV4 b) {
+	return {a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w};
 }
 
-inline iv4 operator+(iv4 a, iv4 b) {
-	return IV4(a.X + b.X, a.Y + b.Y, a.Z + b.Z, a.W + b.W);
+inline bool operator==(const IV4& lhs, const IV4& rhs) {
+	return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
 }
 
-inline bool operator==(const iv4& lhs, const iv4& rhs) {
-	return lhs.X == rhs.X && lhs.Y == rhs.Y && lhs.Z == rhs.Z;
-}
-
-inline bool operator<(const iv4& lhs, const iv4& rhs) {
-	bool Result = 0;
-	if (lhs.X == rhs.X) {
-		if (lhs.Y == rhs.Y) {
-			if (lhs.Z == rhs.Z) return false;
-			else return lhs.Z < rhs.Z;
+inline bool operator<(const IV4& lhs, const IV4& rhs) {
+	bool result = 0;
+	if (lhs.x == rhs.x) {
+		if (lhs.y == rhs.y) {
+			if (lhs.z == rhs.z) return false;
+			else return lhs.z < rhs.z;
 		}
-		else return lhs.Y < rhs.Y;
+		else return lhs.y < rhs.y;
 	}
-	else return lhs.X < rhs.X;
+	else return lhs.x < rhs.x;
 }
 
-struct v4 {
-	float X, Y, Z, W;
+struct V4 {
+	float x, y, z, w;
 };
 
-inline v4 V4(float X, float Y, float Z, float W) {
-	return { X, Y, Z, W };
+inline V4 operator+(V4 A, V4 B) {
+	return {A.x + B.x, A.y + B.y, A.z + B.z, A.w + B.w};
 }
 
-inline v4 V4(v3 V, float W) {
-	return { V.X, V.Y, V.Z, W };
+inline V4 operator-(V4 A) {
+	return {-A.x, -A.y, -A.z, -A.w};
 }
 
-inline v4 V4(iv4 V) {
-	return V4(V.X, V.Y, V.Z, V.W);
+inline V4 operator-(V4 A, V4 B) {
+	return {A.x - B.x, A.y - B.y, A.z - B.z, A.w - B.w};
 }
 
-inline v4 operator+(v4 A, v4 B) {
-	v4 Result;
-	Result.X = A.X + B.X;
-	Result.Y = A.Y + B.Y;
-	Result.Z = A.Z + B.Z;
-	Result.W = A.W + B.W;
-	return Result;
+inline V4 operator*(float C, V4 A) {
+	return {C * A.x, C * A.y, C * A.z, C * A.w};
 }
 
-inline v4 operator-(v4 A) {
-	v4 Result;
-	Result.X = -A.X;
-	Result.Y = -A.Y;
-	Result.Z = -A.Z;
-	Result.W = -A.W;
-	return Result;
-}
-
-inline v4 operator-(v4 A, v4 B) {
-	v4 Result;
-	Result.X = A.X - B.X;
-	Result.Y = A.Y - B.Y;
-	Result.Z = A.Z - B.Z;
-	Result.W = A.W - B.W;
-	return Result;
-}
-
-inline v4 operator*(float C, v4 A) {
-	v4 Result;
-	Result.X = C * A.X;
-	Result.Y = C * A.Y;
-	Result.Z = C * A.Z;
-	Result.W = C * A.W;
-	return Result;
-}
-
- inline v4 operator*(v4 A, float C) {
-	v4 Result;
-	Result.X = C * A.X;
-	Result.Y = C * A.Y;
-	Result.Z = C * A.Z;
-	Result.W = C * A.W;
-	return Result;
-}
-
- inline v4 operator*(v4 A, v4 B) {
-	return V4(A.X * B.X, A.Y * B.Y, A.Z * B.Z, A.W * B.W);
+ inline V4 operator*(V4 A, V4 B) {
+	return {A.x * B.x, A.y * B.y, A.z * B.z, A.w * B.w};
  }
 
- inline v4 operator/(v4 A, float C) {
-	return { A.X / C, A.Y / C, A.Z / C, A.W / C };
+ inline V4 operator/(V4 A, float C) {
+	return {A.x / C, A.y / C, A.z / C, A.w / C};
  }
 
-inline v4& operator+=(v4& A, v4 B) {
-	A.X += B.X;
-	A.Y += B.Y;
-	A.Z += B.Z;
-	A.W += B.W;
+inline V4& operator+=(V4& A, V4 B) {
+	A.x += B.x;
+	A.y += B.y;
+	A.z += B.z;
+	A.w += B.w;
 	return A;
 }
 
-inline v4& operator-=(v4& A, v4 B) {
-	A.X -= B.X;
-	A.Y -= B.Y;
-	A.Z -= B.Z;
-	A.W -= B.W;
+inline V4& operator-=(V4& A, V4 B) {
+	A.x -= B.x;
+	A.y -= B.y;
+	A.z -= B.z;
+	A.w -= B.w;
 	return A;
 }
 
-inline v4& operator*=(v4& A, float C) {
-	A.X *= C;
-	A.Y *= C;
-	A.Z *= C;
-	A.W *= C;
+inline V4& operator*=(V4& A, float C) {
+	A.x *= C;
+	A.y *= C;
+	A.z *= C;
+	A.w *= C;
 	return A;
 }
 
-inline v4& operator/=(v4& A, float C) {
-	A.X /= C;
-	A.Y /= C;
-	A.Z /= C;
-	A.W /= C;
+inline V4& operator/=(V4& A, float C) {
+	A.x /= C;
+	A.y /= C;
+	A.z /= C;
+	A.w /= C;
 	return A;
 }
 
 
-inline float dot(v4 A, v4 B) {
-	return A.X * B.X + A.Y * B.Y + A.Z * B.Z + A.W * B.W;
+inline float dot(V4 A, V4 B) {
+	return A.x * B.x + A.y * B.y + A.z * B.z + A.w * B.w;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 // | Matrices                                                                                                                               |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-union matrix2 {
+union Matrix2 {
 	struct {
-		float XX,XY,
-		      YX,YY;
+		float xx,xy,
+		      yx,yy;
 	};
-	float Array[4];
+	float array[4];
 	struct {
-		v2 Row[2];
-	};
-	struct {
-		v2 X, Y;;
+		V2 row[2];
 	};
 	struct {
-		float Element[2][2];
+		V2 x, y;
+	};
+	struct {
+		float element[2][2];
 	};
 };
 
-matrix2 Identity2 = {
+Matrix2 identity2 = {
 	1,0,
 	0,1
 };
 
-inline v2 col(matrix2 A, int i) {
+inline V2 col(Matrix2 m, int i) {
 	switch(i) {
-		case 0: return V2(A.XX, A.YX); break;
-		case 1: return V2(A.XY, A.YY); break;
+		case 0: return V2(m.xx, m.yx); break;
+		case 1: return V2(m.xy, m.yy); break;
 		default: Assert(false); return V2(0,0);
 	};
 }
 
-inline matrix2 transpose(matrix2 A) {
-	matrix2 Result;
-	Result.X = col(A, 0);
-	Result.Y = col(A, 1);
+inline Matrix2 transpose(Matrix2 m) {
+	Matrix2 result;
+	result.x = col(m, 0);
+	result.y = col(m, 1);
 
-	return Result;
+	return result;
 }
 
-inline matrix2 operator*(float c, matrix2 A) {
-	matrix2 Result = A;
-	Result.X *= c;
-	Result.Y *= c;
-	return Result;
+inline Matrix2 operator*(float c, Matrix2 A) {
+	Matrix2 result = A;
+	result.x *= c;
+	result.y *= c;
+	return result;
 }
 
-inline matrix2 operator-(matrix2 A) {
-	matrix2 Result = A;
-	Result.X = -Result.X;
-	Result.Y = -Result.Y;
-	return Result;
+inline Matrix2 operator-(Matrix2 A) {
+	Matrix2 result = A;
+	result.x = -result.x;
+	result.y = -result.y;
+	return result;
 }
 
-inline matrix2 operator*(matrix2 A, matrix2 B) {
-	matrix2 Result;
-	Result.XX = A.XX * B.XX + A.XY * B.YX;
-	Result.XY = A.XX * B.XY + A.XY * B.YY;
-	Result.YX = A.YX * B.XX + A.YY * B.YX;
-	Result.YY = A.YX * B.XY + A.YY * B.YY;
-	return Result;
+inline Matrix2 operator*(Matrix2 A, Matrix2 B) {
+	Matrix2 result;
+	result.xx = A.xx * B.xx + A.xy * B.yx;
+	result.xy = A.xx * B.xy + A.xy * B.yy;
+	result.yx = A.yx * B.xx + A.yy * B.yx;
+	result.yy = A.yx * B.xy + A.yy * B.yy;
+	return result;
 }
 
-inline v2 operator*(matrix2 A, v2 V) {
-	v2 Result;
-	Result.X = dot(A.X, V);
-	Result.Y = dot(A.Y, V);
-	return Result;
+inline V2 operator*(Matrix2 A, V2 V) {
+	V2 result;
+	result.x = dot(A.x, V);
+	result.y = dot(A.y, V);
+	return result;
 }
 
-inline v2 operator*(v2 V, matrix2 A) {
-	v2 Result;
-	Result.X = dot(V, col(A, 0));
-	Result.Y = dot(V, col(A, 1));
-	return Result;
+inline V2 operator*(V2 V, Matrix2 A) {
+	V2 result;
+	result.x = dot(V, col(A, 0));
+	result.y = dot(V, col(A, 1));
+	return result;
 }
 
-inline matrix2 operator/(matrix2 A, float c) {
-	matrix2 Result = A;
-	Result.X /= c;
-	Result.Y /= c;
-	return Result;
+inline Matrix2 operator/(Matrix2 A, float c) {
+	Matrix2 result = A;
+	result.x /= c;
+	result.y /= c;
+	return result;
 }
 
-inline matrix2& operator*=(matrix2& A, float c) {
-	A.X *= c;
-	A.Y *= c;
+inline Matrix2& operator*=(Matrix2& A, float c) {
+	A.x *= c;
+	A.y *= c;
 	return A;
 }
 
-inline bool operator==(matrix2 A, matrix2 B) {
+inline bool operator==(Matrix2 A, Matrix2 B) {
 	for (int i = 0; i < 4; i++) {
-		if (fabsf(A.Array[i] - B.Array[i]) > Epsilon) return false;
+		if (fabsf(A.array[i] - B.array[i]) > EPSILON) return false;
 	}
 	return true;
 }
 
-inline float det(matrix2 A) {
-	return A.XX * A.YY - A.XY * A.YX;
+inline float det(Matrix2 A) {
+	return A.xx * A.yy - A.xy * A.yx;
 }
 
-inline matrix2 inverse(matrix2 A) {
+inline Matrix2 inverse(Matrix2 A) {
 	float D = det(A);
-	Assert(fabsf(D) > Epsilon);
-	matrix2 Result = {
-		A.YY / D, -A.XY / D,
-		-A.YX / D, A.XX / D
+	Assert(fabsf(D) > EPSILON);
+	Matrix2 result = {
+		A.yy / D, -A.xy / D,
+		-A.yx / D, A.xx / D
 	};
-	return Result;
+	return result;
 }
 
-union matrix3 {
+union Matrix3 {
 	struct {
-		float XX,XY,XZ,
-		       YX,YY,YZ,
-			   ZX,ZY,ZZ;
+		float xx,xy,xz,
+		       yx,yy,yz,
+			   zx,zy,zz;
 	};
-	float Array[9];
+	float array[9];
 	struct {
-		v3 Row[3];
-	};
-	struct {
-		v3 X, Y, Z;
+		V3 row[3];
 	};
 	struct {
-		float Element[3][3];
+		V3 x, y, z;
+	};
+	struct {
+		float element[3][3];
 	};
 };
 
-matrix3 Identity3 = {
+Matrix3 Identity3 = {
 	1,0,0,
 	0,1,0,
 	0,0,1
 };
 
-inline v3 col(matrix3 A, int i) {
+inline V3 col(Matrix3 A, int i) {
 	switch(i) {
-		case 0: return V3(A.XX, A.YX, A.ZX); break;
-		case 1: return V3(A.XY, A.YY, A.ZY); break;
-		case 2: return V3(A.XZ, A.YZ, A.ZZ); break;
+		case 0: return V3(A.xx, A.yx, A.zx); break;
+		case 1: return V3(A.xy, A.yy, A.zy); break;
+		case 2: return V3(A.xz, A.yz, A.zz); break;
 		default: Assert(false); return V3(0,0,0);
 	};
 }
 
-inline matrix3 transpose(matrix3 A) {
-	matrix3 Result;
-	Result.X = col(A, 0);
-	Result.Y = col(A, 1);
-	Result.Z = col(A, 2);
+inline Matrix3 transpose(Matrix3 A) {
+	Matrix3 result;
+	result.x = col(A, 0);
+	result.y = col(A, 1);
+	result.z = col(A, 2);
 
-	return Result;
+	return result;
 }
 
-inline matrix3 operator*(float c, matrix3 A) {
-	matrix3 Result = A;
-	Result.X *= c;
-	Result.Y *= c;
-	Result.Z *= c;
-	return Result;
+inline Matrix3 operator*(float c, Matrix3 A) {
+	Matrix3 result = A;
+	result.x *= c;
+	result.y *= c;
+	result.z *= c;
+	return result;
 }
 
-inline matrix3 operator-(matrix3 A) {
-	matrix3 Result = A;
-	Result.X = -Result.X;
-	Result.Y = -Result.Y;
-	Result.Z = -Result.Z;
-	return Result;
+inline Matrix3 operator-(Matrix3 A) {
+	Matrix3 result = A;
+	result.x = -result.x;
+	result.y = -result.y;
+	result.z = -result.z;
+	return result;
 }
 
-inline matrix3 operator*(matrix3 A, matrix3 B) {
-	matrix3 Result;
-	Result.XX = dot(A.X, col(B, 0));
-	Result.XY = dot(A.X, col(B, 1));
-	Result.XZ = dot(A.X, col(B, 2));
-	Result.YX = dot(A.Y, col(B, 0));
-	Result.YY = dot(A.Y, col(B, 1));
-	Result.YZ = dot(A.Y, col(B, 2));
-	Result.ZX = dot(A.Z, col(B, 0));
-	Result.ZY = dot(A.Z, col(B, 1));
-	Result.ZZ = dot(A.Z, col(B, 2));
-	return Result;
+inline Matrix3 operator*(Matrix3 A, Matrix3 B) {
+	Matrix3 result;
+	result.xx = dot(A.x, col(B, 0));
+	result.xy = dot(A.x, col(B, 1));
+	result.xz = dot(A.x, col(B, 2));
+	result.yx = dot(A.y, col(B, 0));
+	result.yy = dot(A.y, col(B, 1));
+	result.yz = dot(A.y, col(B, 2));
+	result.zx = dot(A.z, col(B, 0));
+	result.zy = dot(A.z, col(B, 1));
+	result.zz = dot(A.z, col(B, 2));
+	return result;
 }
 
-inline v3 operator*(matrix3 A, v3 V) {
-	v3 Result;
-	Result.X = dot(A.X, V);
-	Result.Y = dot(A.Y, V);
-	Result.Z = dot(A.Z, V);
-	return Result;
+inline V3 operator*(Matrix3 A, V3 V) {
+	V3 result;
+	result.x = dot(A.x, V);
+	result.y = dot(A.y, V);
+	result.z = dot(A.z, V);
+	return result;
 }
 
-inline v3 operator*(v3 V, matrix3 A) {
-	v3 Result;
-	Result.X = dot(V, col(A, 0));
-	Result.Y = dot(V, col(A, 1));
-	Result.Z = dot(V, col(A, 2));
-	return Result;
+inline V3 operator*(V3 V, Matrix3 A) {
+	V3 result;
+	result.x = dot(V, col(A, 0));
+	result.y = dot(V, col(A, 1));
+	result.z = dot(V, col(A, 2));
+	return result;
 }
 
-inline matrix3 operator/(matrix3 A, float c) {
-	matrix3 Result = A;
-	Result.X /= c;
-	Result.Y /= c;
-	Result.Z /= c;
-	return Result;
+inline Matrix3 operator/(Matrix3 A, float c) {
+	Matrix3 result = A;
+	result.x /= c;
+	result.y /= c;
+	result.z /= c;
+	return result;
 }
 
-inline matrix3& operator*=(matrix3& A, float c) {
-	A.X *= c;
-	A.Y *= c;
-	A.Z *= c;
+inline Matrix3& operator*=(Matrix3& A, float c) {
+	A.x *= c;
+	A.y *= c;
+	A.z *= c;
 	return A;
 }
 
-inline bool operator==(matrix3 A, matrix3 B) {
+inline bool operator==(Matrix3 A, Matrix3 B) {
 	for (int i = 0; i < 9; i++) {
-		if (fabsf(A.Array[i] - B.Array[i]) >= Epsilon) return false;
+		if (fabsf(A.array[i] - B.array[i]) >= EPSILON) return false;
 	}
 	return true;
 }
 
-inline float det(matrix3 A) {
-	return A.XX * A.YY * A.ZZ + A.XY * A.YZ * A.ZX + A.XZ * A.YX * A.ZY - A.XZ * A.YY * A.ZX  - A.XY * A.YX * A.ZZ - A.XX * A.YZ * A.ZY;
+inline float det(Matrix3 A) {
+	return A.xx * A.yy * A.zz + A.xy * A.yz * A.zx + A.xz * A.yx * A.zy - A.xz * A.yy * A.zx  - A.xy * A.yx * A.zz - A.xx * A.yz * A.zy;
 }
 
-inline matrix3 adjugate(matrix3 A) {
-	matrix3 Result;
-	Result.XX = A.YY * A.ZZ - A.YZ * A.ZY;
-	Result.XY = A.YZ * A.ZX - A.YX * A.ZZ;
-	Result.XZ = A.YX * A.ZY - A.YY * A.ZX;
-	Result.YX = A.XZ * A.ZY - A.XY * A.ZZ;
-	Result.YY = A.XX * A.ZZ - A.XZ * A.ZX;
-	Result.YZ = A.XY * A.ZX - A.XX * A.ZY;
-	Result.ZX = A.XY * A.YZ - A.XZ * A.YY;
-	Result.ZY = A.XZ * A.YX - A.XX * A.YZ;
-	Result.ZZ = A.XX * A.YY - A.XY * A.YX;
-	return Result;
+inline Matrix3 adjugate(Matrix3 A) {
+	Matrix3 result;
+	result.xx = A.yy * A.zz - A.yz * A.zy;
+	result.xy = A.yz * A.zx - A.yx * A.zz;
+	result.xz = A.yx * A.zy - A.yy * A.zx;
+	result.yx = A.xz * A.zy - A.xy * A.zz;
+	result.yy = A.xx * A.zz - A.xz * A.zx;
+	result.yz = A.xy * A.zx - A.xx * A.zy;
+	result.zx = A.xy * A.yz - A.xz * A.yy;
+	result.zy = A.xz * A.yx - A.xx * A.yz;
+	result.zz = A.xx * A.yy - A.xy * A.yx;
+	return result;
 }
 
-inline matrix3 inverse(matrix3 A) {
-	Assert(fabsf(det(A)) > Epsilon);
+inline Matrix3 inverse(Matrix3 A) {
+	Assert(fabsf(det(A)) > EPSILON);
 	return adjugate(A) / det(A);
 }
 
-inline matrix3 Rotation(float Angle, v3 Axis) {
-	v3 u = normalize(Axis);
+inline Matrix3 Rotation(float angle, V3 Axis) {
+	V3 u = normalize(Axis);
 
-	float cos_ = cosf(Angle);
-	float sin_ = sinf(Angle);
+	float cos_ = cosf(angle);
+	float sin_ = sinf(angle);
 
-	matrix3 Result;
-	Result.XX = cos_ + u.X * u.X * (1 - cos_);
-	Result.XY = u.X * u.Y * (1 - cos_) - u.Z * sin_;
-	Result.XZ = u.X * u.Z * (1 - cos_) + u.Y * sin_;
-	Result.YX = u.Y * u.X * (1 - cos_) + u.Z * sin_;
-	Result.YY = cos_ + u.Y * u.Y * (1 - cos_);
-	Result.YZ = u.Y * u.Z * (1 - cos_) - u.X * sin_;
-	Result.ZX = u.Z * u.X * (1 - cos_) - u.Y * sin_;
-	Result.ZY = u.Z * u.Y * (1 - cos_) + u.X * sin_;
-	Result.ZZ = cos_ + u.Z * u.Z * (1 - cos_);
-	return Result;
+	Matrix3 result;
+	result.xx = cos_ + u.x * u.x * (1 - cos_);
+	result.xy = u.x * u.y * (1 - cos_) - u.z * sin_;
+	result.xz = u.x * u.z * (1 - cos_) + u.y * sin_;
+	result.yx = u.y * u.x * (1 - cos_) + u.z * sin_;
+	result.yy = cos_ + u.y * u.y * (1 - cos_);
+	result.yz = u.y * u.z * (1 - cos_) - u.x * sin_;
+	result.zx = u.z * u.x * (1 - cos_) - u.y * sin_;
+	result.zy = u.z * u.y * (1 - cos_) + u.x * sin_;
+	result.zz = cos_ + u.z * u.z * (1 - cos_);
+	return result;
 }
 
-typedef matrix3 basis;
+typedef Matrix3 Basis;
 
-inline v3 ChangeBasis(v3 V, basis Basis) {
-	return V.X * Basis.X + V.Y * Basis.Y + V.Z * Basis.Z;
+inline V3 ChangeBasis(V3 V, Basis basis) {
+	return V.x * basis.x + V.y * basis.y + V.z * basis.z;
 }
 
-inline basis Rotate(basis Basis, float Angle) {
-	basis Result;
-	Result.X = Rotate(Basis.X, Angle);
-	Result.Y = Rotate(Basis.Y, Angle);
-	Result.Z = Rotate(Basis.Z, Angle);
-	return Result;
+inline Basis Rotate(Basis basis, float angle) {
+	Basis result;
+	result.x = Rotate(basis.x, angle);
+	result.y = Rotate(basis.y, angle);
+	result.z = Rotate(basis.z, angle);
+	return result;
 }
 
-inline basis Rotate(basis Basis, v3 w) {
-	basis Result;
-	Result.X = Rotate(Basis.X, w);
-	Result.Y = Rotate(Basis.Y, w);
-	Result.Z = Rotate(Basis.Z, w);
-	return Result;
+inline Basis Rotate(Basis basis, V3 w) {
+	Basis result;
+	result.x = Rotate(basis.x, w);
+	result.y = Rotate(basis.y, w);
+	result.z = Rotate(basis.z, w);
+	return result;
 }
 
-inline basis Complete(v3 X, v3 Y) {
-	basis Result;
-	Result.X = X;
-	Result.Y = Y;
-	Result.Z = normalize(cross(X,Y));
-	return Result;
+inline Basis Complete(V3 x, V3 y) {
+	Basis result;
+	result.x = x;
+	result.y = y;
+	result.z = normalize(cross(x,y));
+	return result;
 }
 
-inline basis Complete(v3 X) {
-	v3 Y = cross(X, V3(1,0,0));
-	if (modulus(Y) < Epsilon) {
-		Y = cross(X, V3(0,1,0));
-		if (modulus(Y) < Epsilon) {
-			Y = cross(X, V3(0,0,1));
+inline Basis Complete(V3 x) {
+	V3 y = cross(x, V3(1,0,0));
+	if (modulus(y) < EPSILON) {
+		y = cross(x, V3(0,1,0));
+		if (modulus(y) < EPSILON) {
+			y = cross(x, V3(0,0,1));
 		}
 	}
-	return Complete(X, normalize(Y));
+	return Complete(x, normalize(y));
 }
 
-inline basis Identity(float Factor = 1.0) {
-	basis Result;
-	Result.X = V3(Factor, 0.0, 0.0);
-	Result.Y = V3(0.0, Factor, 0.0);
-	Result.Z = V3(0.0, 0.0, Factor);
-	return Result;
+inline Basis Identity(float Factor = 1.0) {
+	Basis result;
+	result.x = V3(Factor, 0.0, 0.0);
+	result.y = V3(0.0, Factor, 0.0);
+	result.z = V3(0.0, 0.0, Factor);
+	return result;
 }
 
-inline basis normalize(basis Basis) {
-	basis Result;
-	Result.X = normalize(Basis.X);
-	Result.Y = normalize(Basis.Y);
-	Result.Z = normalize(Basis.Z);
-	return Result;
+inline Basis normalize(Basis basis) {
+	Basis result;
+	result.x = normalize(basis.x);
+	result.y = normalize(basis.y);
+	result.z = normalize(basis.z);
+	return result;
 }
 
-union matrix4 {
+union Matrix4 {
 	struct {
-		float XX,XY,XZ,XW,
-		       YX,YY,YZ,YW,
-			   ZX,ZY,ZZ,ZW,
-			   WX,WY,WZ,WW;
+		float xx,xy,xz,xw,
+		      yx,yy,yz,yw,
+			  zx,zy,zz,zw,
+			  wx,wy,wz,ww;
 	};
-	float Array[16];
+	float array[16];
 	struct {
-		v4 Row[4];
-	};
-	struct {
-		v4 X, Y, Z, W;
+		V4 row[4];
 	};
 	struct {
-		float Element[4][4];
+		V4 x, y, z, w;
+	};
+	struct {
+		float element[4][4];
 	};
 };
 
-matrix4 Identity4 = {
+Matrix4 identity4 = {
 	1,0,0,0,
 	0,1,0,0,
 	0,0,1,0,
 	0,0,0,1
 };
 
-inline v4 col(matrix4 A, int i) {
+inline V4 col(Matrix4 A, int i) {
 	switch(i) {
-		case 0: return V4(A.XX, A.YX, A.ZX, A.WX); break;
-		case 1: return V4(A.XY, A.YY, A.ZY, A.WY); break;
-		case 2: return V4(A.XZ, A.YZ, A.ZZ, A.WZ); break;
-		case 3: return V4(A.XW, A.YW, A.ZW, A.WW); break;
+		case 0: return V4(A.xx, A.yx, A.zx, A.wx); break;
+		case 1: return V4(A.xy, A.yy, A.zy, A.wy); break;
+		case 2: return V4(A.xz, A.yz, A.zz, A.wz); break;
+		case 3: return V4(A.xw, A.yw, A.zw, A.ww); break;
 		default: Assert(false); return V4(0,0,0,0);
 	};
 }
 
-inline matrix4 transpose(matrix4 A) {
-	matrix4 Result;
-	Result.X = col(A, 0);
-	Result.Y = col(A, 1);
-	Result.Z = col(A, 2);
-	Result.W = col(A, 3);
-	return Result;
+inline Matrix4 transpose(Matrix4 A) {
+	Matrix4 result;
+	result.x = col(A, 0);
+	result.y = col(A, 1);
+	result.z = col(A, 2);
+	result.w = col(A, 3);
+	return result;
 }
 
-inline matrix4 operator*(matrix4 A, matrix4 B) {
-	matrix4 Result;
-	Result.XX = dot(A.X, col(B, 0));
-	Result.XY = dot(A.X, col(B, 1));
-	Result.XZ = dot(A.X, col(B, 2));
-	Result.XW = dot(A.X, col(B, 3));
-	Result.YX = dot(A.Y, col(B, 0));
-	Result.YY = dot(A.Y, col(B, 1));
-	Result.YZ = dot(A.Y, col(B, 2));
-	Result.YW = dot(A.Y, col(B, 3));
-	Result.ZX = dot(A.Z, col(B, 0));
-	Result.ZY = dot(A.Z, col(B, 1));
-	Result.ZZ = dot(A.Z, col(B, 2));
-	Result.ZW = dot(A.Z, col(B, 3));
-	Result.WX = dot(A.W, col(B, 0));
-	Result.WY = dot(A.W, col(B, 1));
-	Result.WZ = dot(A.W, col(B, 2));
-	Result.WW = dot(A.W, col(B, 3));
-	return Result;
+inline Matrix4 operator*(Matrix4 A, Matrix4 B) {
+	Matrix4 result;
+	result.xx = dot(A.x, col(B, 0));
+	result.xy = dot(A.x, col(B, 1));
+	result.xz = dot(A.x, col(B, 2));
+	result.xw = dot(A.x, col(B, 3));
+	result.yx = dot(A.y, col(B, 0));
+	result.yy = dot(A.y, col(B, 1));
+	result.yz = dot(A.y, col(B, 2));
+	result.yw = dot(A.y, col(B, 3));
+	result.zx = dot(A.z, col(B, 0));
+	result.zy = dot(A.z, col(B, 1));
+	result.zz = dot(A.z, col(B, 2));
+	result.zw = dot(A.z, col(B, 3));
+	result.wx = dot(A.w, col(B, 0));
+	result.wy = dot(A.w, col(B, 1));
+	result.wz = dot(A.w, col(B, 2));
+	result.ww = dot(A.w, col(B, 3));
+	return result;
 }
 
-inline v4 operator*(matrix4 A, v4 V) {
-	v4 Result;
-	Result.X = dot(A.X, V);
-	Result.Y = dot(A.Y, V);
-	Result.Z = dot(A.Z, V);
-	Result.W = dot(A.W, V);
-	return Result;
+inline V4 operator*(Matrix4 A, V4 V) {
+	V4 result;
+	result.x = dot(A.x, V);
+	result.y = dot(A.y, V);
+	result.z = dot(A.z, V);
+	result.w = dot(A.w, V);
+	return result;
 }
 
-inline v4 operator*(v4 V, matrix4 A) {
-	v4 Result;
-	Result.X = dot(col(A, 0), V);
-	Result.Y = dot(col(A, 1), V);
-	Result.Z = dot(col(A, 2), V);
-	Result.W = dot(col(A, 3), V);
-	return Result;
+inline V4 operator*(V4 V, Matrix4 A) {
+	V4 result;
+	result.x = dot(col(A, 0), V);
+	result.y = dot(col(A, 1), V);
+	result.z = dot(col(A, 2), V);
+	result.w = dot(col(A, 3), V);
+	return result;
 }
 
-inline bool operator==(matrix4 A, matrix4 B) {
+inline bool operator==(Matrix4 A, Matrix4 B) {
 	for (int i = 0; i < 16; i++) {
-		if (fabs(A.Element[i] - B.Element[i]) > Epsilon) return false;
+		if (fabs(A.element[i] - B.element[i]) > EPSILON) return false;
 	}
 	return true;
 }
 
-inline matrix3 Matrix3(matrix4 Matrix) {
+inline Matrix3 Submatrix3(Matrix4 Matrix) {
 	return {
-		Matrix.XX, Matrix.XY, Matrix.XZ,
-		Matrix.YX, Matrix.YY, Matrix.YZ,
-		Matrix.ZX, Matrix.ZY, Matrix.ZZ
+		Matrix.xx, Matrix.xy, Matrix.xz,
+		Matrix.yx, Matrix.yy, Matrix.yz,
+		Matrix.zx, Matrix.zy, Matrix.zz
 	};
 }
 
-inline matrix4 Matrix4(matrix3 Matrix) {
-	matrix4 Result;
-	Result.X = V4(Matrix.X, 0);
-	Result.Y = V4(Matrix.Y, 0);
-	Result.Z = V4(Matrix.Z, 0);
-	Result.W = V4(0,0,0,1);
-	return Result;
+inline Matrix4 Matrix4FromMatrix3(Matrix3 m) {
+	Matrix4 result;
+	result.x = V4(m.xx, m.xy, m.xz, 0);
+	result.y = V4(m.yx, m.yy, m.yz, 0);
+	result.z = V4(m.zx, m.zx, m.zz, 0);
+	result.w = V4(0,0,0,1);
+	return result;
 }
 
-matrix4 GetScreenProjectionMatrix(float Width, float Height) {
+Matrix4 GetScreenProjectionMatrix(float Width, float Height) {
 	float a = 2.0f / Width;
 	float b = 2.0f / Height;
 
-	matrix4 Result = {
+	Matrix4 result = {
 		   a, 0.0f, 0.0f, 0.0f,
 		0.0f,   -b, 0.0f, 0.0f,
 		0.0f, 0.0f, 0.0f, 0.0f,
 	   -1.0f, 1.0f, 0.0f, 1.0f,
 	};
 
-	return Result;
+	return result;
 }
 
-matrix4 GetWorldProjectionMatrix(float Width, float Height) {
-	float sX = 1.0;
-	float sY = Width / Height;
-	float sZ = 1.0;
+Matrix4 GetWorldProjectionMatrix(float Width, float Height) {
+	float s_x = 1.0;
+	float s_y = Width / Height;
+	float s_z = 1.0;
 
-	matrix4 Result = {
-		  sX, 0.0f, 0.0f, 0.0f,
-		0.0f,   sY, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f,   sZ,
-		0.0f, 0.0f,-1.0f, 0.0f,
+	Matrix4 result = {
+		  s_x, 0.0f, 0.0f, 0.0f,
+		0.0f,   s_y, 0.0f, 0.0f,
+		0.0f,  0.0f, 1.0f,   s_z,
+		0.0f,  0.0f,-1.0f, 0.0f,
 	};
 	
-	return Result;
+	return result;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------+
@@ -1368,32 +1280,28 @@ inline complex operator/(float A, complex B) {
 // | Quaternions                                                                                                                            |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-struct quaternion {
+struct Quaternion {
 	float c;
 	float i;
 	float j;
 	float k;
 };
 
-const quaternion I = { 0.0, 1.0, 0.0, 0.0 };
-const quaternion J = { 0.0, 0.0, 1.0, 0.0 };
-const quaternion K = { 0.0, 0.0, 0.0, 1.0 };
+const Quaternion I = { 0.0, 1.0, 0.0, 0.0 };
+const Quaternion J = { 0.0, 0.0, 1.0, 0.0 };
+const Quaternion K = { 0.0, 0.0, 0.0, 1.0 };
 
-inline quaternion Quaternion(float c, float i = 0.0, float j = 0.0, float k = 0.0) {
-	return { c, i, j, k };
-}
-
-inline quaternion Quaternion(float Angle, v3 Vector) {
-	float sin_angle = sinf(Angle / 2);
+inline Quaternion GetQuaternion(float angle, V3 Vector) {
+	float sin_angle = sinf(angle / 2);
 	Vector = normalize(Vector);
-	return { cosf(Angle / 2.0), sin_angle * Vector.X, sin_angle * Vector.Y, sin_angle * Vector.Z};
+	return { cosf(angle / 2.0), sin_angle * Vector.x, sin_angle * Vector.y, sin_angle * Vector.z};
 }
 
-inline quaternion Conjugate(quaternion q) {
+inline Quaternion Conjugate(Quaternion q) {
 	return { q.c, -q.i, -q.j, -q.k};
 }
 
-inline quaternion operator*(quaternion q1, quaternion q2) {
+inline Quaternion operator*(Quaternion q1, Quaternion q2) {
 	return { 
 		q1.c * q2.c - q1.i * q2.i - q1.j * q2.j - q1.k * q2.k,
 		q1.c * q2.i + q1.i * q2.c + q1.j * q2.k - q1.k * q2.j,
@@ -1402,62 +1310,62 @@ inline quaternion operator*(quaternion q1, quaternion q2) {
 	};
 }
 
-inline quaternion operator*(float c, quaternion q) {
+inline Quaternion operator*(float c, Quaternion q) {
 	return { c * q.c, c * q.i, c * q.j, c * q.k};
 }
 
-inline quaternion operator*(quaternion q, float c) {
+inline Quaternion operator*(Quaternion q, float c) {
 	return { c * q.c, c * q.i, c * q.j, c * q.k };
 }
 
-inline quaternion operator+(quaternion q1, quaternion q2) {
+inline Quaternion operator+(Quaternion q1, Quaternion q2) {
 	return {q1.c + q2.c, q1.i + q2.i, q1.j + q2.j, q1.k + q2.k };
 }
 
-inline quaternion operator-(quaternion q1, quaternion q2) {
+inline Quaternion operator-(Quaternion q1, Quaternion q2) {
 	return { q1.c - q2.c, q1.i - q2.i, q1.j - q2.j, q1.k - q2.k };
 }
 
-inline quaternion operator-(quaternion q) {
+inline Quaternion operator-(Quaternion q) {
 	return { -q.c, -q.i, -q.j, -q.k };
 }
 
-inline v3 operator*(quaternion Q, v3 Vector) {
-	quaternion Q_ = Conjugate(Q);
-	quaternion V = Quaternion(0.0, Vector.X, Vector.Y, Vector.Z);
-	quaternion Result = Q_ * V * Q;
-	return V3(Result.i, Result.j, Result.k);
+inline V3 operator*(Quaternion Q, V3 Vector) {
+	Quaternion Q_ = Conjugate(Q);
+	Quaternion V = Quaternion(0.0, Vector.x, Vector.y, Vector.z);
+	Quaternion result = Q_ * V * Q;
+	return V3(result.i, result.j, result.k);
 }
 
-inline basis operator*(quaternion Q, basis Basis) {
-	basis Result;
-	Result.X = Q * Basis.X;
-	Result.Y = Q * Basis.Y;
-	Result.Z = Q * Basis.Z;
+inline Basis operator*(Quaternion Q, Basis basis) {
+	Basis result;
+	result.x = Q * basis.x;
+	result.y = Q * basis.y;
+	result.z = Q * basis.z;
 
-	return Result;
+	return result;
 }
 
-inline bool operator==(quaternion Q1, quaternion Q2) {
+inline bool operator==(Quaternion Q1, Quaternion Q2) {
 	return Q1.c == Q2.c && Q1.i == Q2.i && Q1.j == Q2.j && Q1.k == Q2.k; 
 }
 
-inline bool operator!=(quaternion Q1, quaternion Q2) {
+inline bool operator!=(Quaternion Q1, Quaternion Q2) {
 	return Q1.c != Q2.c || Q1.i == Q2.i || Q1.j == Q2.j || Q1.k == Q2.k; 
 }
 
-inline matrix3 Matrix(quaternion Q) {
-	matrix3 Result;
-	Result.XX  = (2.0f * (Q.c * Q.c + Q.i * Q.i) - 1.0f);
-	Result.XY  = 2.0f * (Q.i * Q.j - Q.c * Q.k);
-	Result.XZ  = 2.0f * (Q.i * Q.k + Q.c * Q.j);
-	Result.YX  = 2.0f * (Q.i * Q.j + Q.c * Q.k);
-	Result.YY  = (2.0f * (Q.c * Q.c + Q.j * Q.j) - 1.0f);
-	Result.YZ  = 2.0f * (Q.j * Q.k - Q.c * Q.i);
-	Result.ZX  = 2.0f * (Q.i * Q.k - Q.c * Q.j);
-	Result.ZY  = 2.0f * (Q.j * Q.k + Q.c * Q.i);
-	Result.ZZ = (2.0f * (Q.c * Q.c + Q.k * Q.k) - 1.0f);
-	return Result;
+inline Matrix3 Matrix(Quaternion Q) {
+	Matrix3 result;
+	result.xx  = (2.0f * (Q.c * Q.c + Q.i * Q.i) - 1.0f);
+	result.xy  = 2.0f * (Q.i * Q.j - Q.c * Q.k);
+	result.xz  = 2.0f * (Q.i * Q.k + Q.c * Q.j);
+	result.yx  = 2.0f * (Q.i * Q.j + Q.c * Q.k);
+	result.yy  = (2.0f * (Q.c * Q.c + Q.j * Q.j) - 1.0f);
+	result.yz  = 2.0f * (Q.j * Q.k - Q.c * Q.i);
+	result.zx  = 2.0f * (Q.i * Q.k - Q.c * Q.j);
+	result.zy  = 2.0f * (Q.j * Q.k + Q.c * Q.i);
+	result.zz = (2.0f * (Q.c * Q.c + Q.k * Q.k) - 1.0f);
+	return result;
 }
 
 
@@ -1465,105 +1373,106 @@ inline matrix3 Matrix(quaternion Q) {
 // | Transform                                                                                                                              |
 // +----------------------------------------------------------------------------------------------------------------------------------------+
 
-struct scale {
-	float X;
-	float Y;
-	float Z;
+struct Scale {
+	float x;
+	float y;
+	float z;
 };
 
-inline scale GetScale(float X = 1.0, float Y = 1.0, float Z = 1.0) {
-	return { X, Y, Z };
+inline Scale GetScale(float x = 1.0, float y = 1.0, float z = 1.0) {
+	return { x, y, z };
 };
 
-inline scale operator*(float C, scale S) {
-	return { C * S.X, C * S.Y, C * S.Z };
+inline Scale operator*(float C, Scale S) {
+	return { C * S.x, C * S.y, C * S.z };
 }
 
-inline scale operator*(scale S, scale T) {
-	return GetScale(S.X * T.X, S.Y * T.Y, S.Z * T.Z);
+inline Scale operator*(Scale S, Scale T) {
+	return GetScale(S.x * T.x, S.y * T.y, S.z * T.z);
 }
 
-inline v3 operator*(scale Scale, v3 Vector) {
-	return V3(Scale.X * Vector.X, Scale.Y * Vector.Y, Scale.Z * Vector.Z);
+inline V3 operator*(Scale S, V3 Vector) {
+	return {S.x * Vector.x, S.y * Vector.y, S.z * Vector.z};
 }
 
-inline basis operator*(scale Scale, basis Basis) {
-	basis Result;
-	Result.X = Scale.X * Basis.X;
-	Result.Y = Scale.Y * Basis.Y;
-	Result.Z = Scale.Z * Basis.Z;
-	return Result;
+inline Basis operator*(Scale S, Basis basis) {
+	Basis result;
+	result.x = S.x * basis.x;
+	result.y = S.y * basis.y;
+	result.z = S.z * basis.z;
+	return result;
 }
 
-inline bool operator==(scale Scale1, scale Scale2) {
-	return Scale1.X == Scale2.X && Scale1.Y == Scale2.Y && Scale1.Z == Scale2.Z;
+inline bool operator==(Scale scale1, Scale scale2) {
+	return scale1.x == scale2.x && scale1.y == scale2.y && scale1.z == scale2.z;
 }
 
-inline bool operator!=(scale Scale1, scale Scale2) {
-	return Scale1.X != Scale2.X || Scale1.Y != Scale2.Y || Scale1.Z != Scale2.Z;
+inline bool operator!=(Scale scale1, Scale scale2) {
+	return scale1.x != scale2.x || scale1.y != scale2.y || scale1.z != scale2.z;
 }
 
 INTROSPECT
-struct transform {
-	v3 Translation;
-	scale Scale;
-	quaternion Rotation;
+struct Transform {
+	V3 translation;
+	Scale scale;
+	Quaternion rotation;
 };
 
-transform IdentityTransform = { V3(0,0,0), GetScale(), Quaternion(1.0f) };
+Transform IdentityTransform = { V3(0,0,0), GetScale(), Quaternion(1.0f) };
 
-inline transform GetTransform(quaternion Rotation, v3 Translation = V3(0,0,0), scale Scaling = GetScale()) {
+inline Transform GetTransform(Quaternion Rotation, V3 Translation = V3(0,0,0), Scale Scaling = GetScale()) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline transform GetTransform(v3 Translation, quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f), scale Scaling = GetScale()) {
+inline Transform GetTransform(V3 Translation, Quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f), Scale Scaling = GetScale()) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline transform GetTransform(v3 Translation, scale Scaling, quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f)) {
+inline Transform GetTransform(V3 Translation, Scale Scaling, Quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f)) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline v3 operator*(transform Transform, v3 Vector) {
-	return Transform.Rotation * (Transform.Scale * Vector) + Transform.Translation;
+inline V3 operator*(Transform transform, V3 Vector) {
+	return transform.rotation * (transform.scale * Vector) + transform.translation;
 }
 
-inline v4 operator*(transform Transform, v4 Vector) {
-	return V4(Transform.Rotation * (Transform.Scale * V3(Vector.X, Vector.Y, Vector.Z)) + Vector.W * Transform.Translation, Vector.W);
+inline V4 operator*(Transform transform, V4 vector) {
+	V3 v = transform.rotation * (transform.scale * V3(vector.x, vector.y, vector.z)) + vector.w * transform.translation;
+	return { v.x, v.y, v.z, vector.w};
 }
 
-inline basis operator*(transform Transform, basis Basis) {
-	return Transform.Rotation * Basis;
+inline Basis operator*(Transform transform, Basis basis) {
+	return transform.rotation * basis;
 }
 
-inline transform operator*(transform Transform1, transform Transform2) {
-	transform Result = { 0 };
-	Result.Scale = Transform1.Scale * Transform2.Scale;
-	Result.Translation = Transform2.Translation + Transform2.Rotation * Transform1.Translation;
-	Result.Rotation = Transform1.Rotation * Transform2.Rotation;
-	return Result;
+inline Transform operator*(Transform transform1, Transform transform2) {
+	Transform result = { 0 };
+	result.scale = transform1.scale * transform1.scale;
+	result.translation = transform2.translation + transform2.rotation * transform2.translation;
+	result.rotation = transform1.rotation * transform2.rotation;
+	return result;
 }
 
-inline bool operator==(transform Transform1, transform Transform2) {
-	return Transform1.Translation == Transform2.Translation && 
-	       Transform1.Scale == Transform2.Scale && 
-		   Transform1.Rotation == Transform2.Rotation;
+inline bool operator==(Transform transform1, Transform transform2) {
+	return transform1.translation == transform2.translation && 
+	       transform1.scale == transform2.scale && 
+		   transform1.rotation == transform2.rotation;
 }
 
-inline bool operator!=(transform Transform1, transform Transform2) {
-	return Transform1.Translation != Transform2.Translation || 
-	       Transform1.Scale == Transform2.Scale || 
-		   Transform1.Rotation == Transform2.Rotation;
+inline bool operator!=(Transform transform1, Transform transform2) {
+	return transform1.translation != transform2.translation || 
+	       transform1.scale == transform2.scale || 
+		   transform1.rotation == transform2.rotation;
 }
 
-inline matrix4 Matrix(transform Transform) {
-	matrix3 Rotation = Matrix(Transform.Rotation);
-	matrix4 Result;
-	Result.X = Transform.Scale.X * V4(Rotation.X,0);
-	Result.Y = Transform.Scale.Y * V4(Rotation.Y,0);
-	Result.Z = Transform.Scale.Z * V4(Rotation.Z,0);
-	Result.W = V4(Transform.Translation, 1.0f);
-	return Result;
+inline Matrix4 Matrix(Transform transform) {
+	Matrix3 rotation = Matrix(transform.rotation);
+	Matrix4 result;
+	result.x = transform.scale.x * V4(rotation.xx, rotation.xy, rotation.xz, 0);
+	result.y = transform.scale.y * V4(rotation.yx, rotation.yy, rotation.yz, 0);
+	result.z = transform.scale.z * V4(rotation.zx, rotation.zy, rotation.zz, 0);
+	result.w = V4(transform.translation.x, transform.translation.y, transform.translation.z, 1.0f);
+	return result;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -1571,15 +1480,15 @@ inline matrix4 Matrix(transform Transform) {
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
 struct line2 {
-	v2 Point;
-	v2 Direction;
+	V2 Point;
+	V2 Direction;
 };
 
-line2 Line(v2 Point, v2 Direction) {
+line2 Line(V2 Point, V2 Direction) {
 	return { Point, normalize(Direction) };
 }
 
-line2 LineFromPoints(v2 A, v2 B) {
+line2 LineFromPoints(V2 A, V2 B) {
 	return { A, normalize(B - A) };
 }
 
@@ -1588,24 +1497,24 @@ bool AreParallel(line2 L1, line2 L2) {
 }
 
 struct line3 {
-	v3 Point;
-	v3 Direction;
+	V3 Point;
+	V3 Direction;
 };
 
-line3 Line(v3 Point, v3 Direction) {
+line3 Line(V3 Point, V3 Direction) {
 	return { Point, normalize(Direction) };
 }
 
-line3 LineFromPoints(v3 A, v3 B) {
+line3 LineFromPoints(V3 A, V3 B) {
 	return { A, normalize(B - A) };
 }
 
-inline v3 ClosestPoint(line3 Line, v3 Point) {
+inline V3 ClosestPoint(line3 Line, V3 Point) {
 	float t = dot(Line.Direction, Point - Line.Point);
 	return Point + t * Line.Direction;
 }
 
-inline float Distance(line3 Line, v3 Point) {
+inline float Distance(line3 Line, V3 Point) {
 	return dot(Line.Direction, Point - Line.Point);
 }
 
@@ -1615,49 +1524,49 @@ inline float Distance(line3 Line1, line3 Line2) {
 		return Distance(Line1, Line2.Point);
 	}
 	else {
-		v3 v = Line1.Point - Line2.Point;
+		V3 v = Line1.Point - Line2.Point;
 		float b1 = dot(Line1.Direction, v);
 		float b2 = dot(Line2.Direction, v);
 		float s = (a * b2 - b1) / a;
 		float t = (b2 - a * b1) / a;
-		v3 Point1 = Line1.Point + s * Line1.Point;
-		v3 Point2 = Line2.Point + t * Line2.Direction;
+		V3 Point1 = Line1.Point + s * Line1.Point;
+		V3 Point2 = Line2.Point + t * Line2.Direction;
 		return modulus(Point1 - Point2);
 	}
 }
 
-struct ray {
-	v3 Point;
-	v3 Direction;
+struct Ray {
+	V3 point;
+	V3 direction;
 };
 
-ray Ray(v3 Point, v3 Direction) {
-	return { Point, normalize(Direction) };
+Ray GetRay(V3 point, V3 direction) {
+	return { point, normalize(direction) };
 }
 
-inline v3 ClosestPoint(ray Ray, v3 Point) {
-	float t = dot(Ray.Direction, Point - Ray.Point);
-	if (t <= 0.0f) return Ray.Point;
-	else return Ray.Point + t * Ray.Direction;
+inline V3 ClosestPoint(Ray ray, V3 point) {
+	float t = dot(ray.direction, point - ray.point);
+	if (t <= 0.0f) return ray.point;
+	else return ray.point + t * ray.direction;
 }
 
-inline float SqDistance(ray Ray, v3 Point) {
-	v3 D = Point - ClosestPoint(Ray, Point);
+inline float SqDistance(Ray ray, V3 point) {
+	V3 D = point - ClosestPoint(ray, point);
 	return dot(D,D);
 }
 
 struct segment2 {
-	v2 Head;
-	v2 Tail;
+	V2 Head;
+	V2 Tail;
 };
 
 inline bool AreParallel(segment2 S1, segment2 S2) {
 	return AreParallel(S1.Tail - S1.Head, S2.Tail - S2.Head);
 }
 
-inline bool IsInside(segment2 S, v2 P) {
-	v2 u = S.Head - P;
-	v2 v = S.Tail - P;
+inline bool IsInside(segment2 S, V2 P) {
+	V2 u = S.Head - P;
+	V2 v = S.Tail - P;
 
 	return AreParallel(u,v) && dot(u,v) <= 0;
 }
@@ -1667,10 +1576,10 @@ inline bool IsInside(segment2 S, v2 P) {
 	which will be given in the `IntersectionPoint` parameter. If result is 2, the two segments overlap over another segment, which will
 	be given in the `IntersectionSegment` parameter.
 */
-inline int Intersect(segment2 S1, segment2 S2, v2* IntersectionPoint, segment2* IntersectionSegment) {
+inline int Intersect(segment2 S1, segment2 S2, V2* IntersectionPoint, segment2* IntersectionSegment) {
 	if (AreParallel(S1, S2)) {
-		v2 u = S1.Tail - S1.Head;
-		v2 v = S2.Head - S1.Head;
+		V2 u = S1.Tail - S1.Head;
+		V2 v = S2.Head - S1.Head;
 		if (AreParallel(u, v)) {
 			float R0 = dot(u, u);                 // Coordinates for S1.Tail
 			float R1 = dot(u, v);                 // Coordinates for S2.Head
@@ -1682,13 +1591,13 @@ inline int Intersect(segment2 S1, segment2 S2, v2* IntersectionPoint, segment2* 
 				float Temp = R1;
 				R1 = R2;
 				R2 = Temp;
-				v2 Temp2 = S2.Head;
+				V2 Temp2 = S2.Head;
 				S2.Head = S2.Tail;
 				S2.Tail = Temp2;
 			}
 
-			if (fabsf(R1) < Epsilon) {
-				if (R2 < Epsilon) {
+			if (fabsf(R1) < EPSILON) {
+				if (R2 < EPSILON) {
 					*IntersectionPoint = S2.Head;
 					return 1;
 				}
@@ -1701,7 +1610,7 @@ inline int Intersect(segment2 S1, segment2 S2, v2* IntersectionPoint, segment2* 
 				}
 			}
 			else if (R1 < 0) {
-				if (fabsf(R2) < Epsilon) {
+				if (fabsf(R2) < EPSILON) {
 					*IntersectionPoint = S2.Tail;
 					return 1;
 				}
@@ -1717,7 +1626,7 @@ inline int Intersect(segment2 S1, segment2 S2, v2* IntersectionPoint, segment2* 
 				}
 			}
 			else {
-				if (fabsf(R1 - R0) < Epsilon) {
+				if (fabsf(R1 - R0) < EPSILON) {
 					*IntersectionPoint = S2.Head;
 					return 1;
 				}
@@ -1734,10 +1643,10 @@ inline int Intersect(segment2 S1, segment2 S2, v2* IntersectionPoint, segment2* 
 		return 0;
 	}
 	else {
-		v2 A = S1.Head;
-		v2 B = S1.Tail;
-		v2 C = S2.Head;
-		v2 D = S2.Tail;
+		V2 A = S1.Head;
+		V2 B = S1.Tail;
+		V2 C = S2.Head;
+		V2 D = S2.Tail;
 
 		float Orient1 = cross(B - A, C - A);
 		float Orient2 = cross(B - A, D - A);
@@ -1757,8 +1666,8 @@ inline int Intersect(segment2 S1, segment2 S2, v2* IntersectionPoint, segment2* 
 	return 0;
 }
 
-inline v2 ClosestPoint(segment2 Segment, v2 Point) {
-	v2 V = Segment.Tail - Segment.Head;
+inline V2 ClosestPoint(segment2 Segment, V2 Point) {
+	V2 V = Segment.Tail - Segment.Head;
 
 	float t = dot(V, Point);
 	if (t <= 0.0f) return Segment.Head;
@@ -1767,9 +1676,9 @@ inline v2 ClosestPoint(segment2 Segment, v2 Point) {
 	else return Segment.Head + (t / Denom) * V;
 }
 
-inline float SqDistance(segment2 Segment, v2 Point) {
-	v2 V = Segment.Tail - Segment.Head;
-	v2 R = Point - Segment.Head;
+inline float SqDistance(segment2 Segment, V2 Point) {
+	V2 V = Segment.Tail - Segment.Head;
+	V2 R = Point - Segment.Head;
 
 	R = project(R, V) - Point;
 	return dot(R,R);
@@ -1784,43 +1693,44 @@ inline float SqDistance(segment2 Segment1, segment2 Segment2) {
 	return fmin(d1, fmin(d2, fmin(d3, d4)));
 }
 
-struct segment3 {
-	v3 Head;
-	v3 Tail;
+INTROSPECT
+struct Segment3 {
+	V3 head;
+	V3 tail;
 };
 
-inline segment3 operator*(transform Transform, segment3 Segment) {
-	return { Transform * Segment.Head, Transform * Segment.Tail };
+inline Segment3 operator*(Transform transform, Segment3 segment) {
+	return { transform * segment.head, transform * segment.tail };
 }
 
 /*
 	Returns the transform that moves the segment [origin, (0,L,0)] to the input segment, L being the length of this segment.
 */
-inline transform SegmentTransform(segment3 Segment) {
-	transform Result;
-	Result.Scale = GetScale();
-	Result.Translation = Segment.Head;
-	v3 V = Segment.Tail - Segment.Head;
+inline Transform SegmentTransform(Segment3 segment) {
+	Transform result;
+	result.scale = GetScale();
+	result.translation = segment.head;
+	V3 V = segment.tail - segment.head;
 	float L = modulus(V);
-	float Angle = acosf(V.Y / L);
-	Result.Rotation = Quaternion(Angle, V3(-V.Z,0,V.X));
-	return Result;
+	float angle = acosf(V.y / L);
+	result.rotation = GetQuaternion(angle, V3(-V.z,0,V.x));
+	return result;
 }
 
-inline v3 ClosestPoint(segment3 Segment, v3 Point) {
-	v3 V = Segment.Tail - Segment.Head;
+inline V3 ClosestPoint(Segment3 segment, V3 point) {
+	V3 V = segment.tail - segment.head;
 
-	float t = dot(V, Point);
-	if (t <= 0.0f) return Segment.Head;
-	float Denom = dot(V, V);
-	if (t >= Denom) return Segment.Tail;
-	else return Segment.Head + (t / Denom) * V;
+	float t = dot(V, point);
+	if (t <= 0.0f) return segment.head;
+	float denom = dot(V, V);
+	if (t >= denom) return segment.tail;
+	else return segment.head + (t / denom) * V;
 }
 
-inline float SqDistance(segment3 Segment, v3 Point) {
-	v3 ab = Segment.Tail - Segment.Head;
-	v3 ac = Point - Segment.Head;
-	v3 bc = Point - Segment.Tail;
+inline float SqDistance(Segment3 segment, V3 point) {
+	V3 ab = segment.tail - segment.head;
+	V3 ac = point - segment.head;
+	V3 bc = point - segment.tail;
 	float e = dot(ac, ab);
 	// Handle cases where c projects outside ab
 	if (e <= 0.0f) return dot(ac, ac);
@@ -1830,10 +1740,10 @@ inline float SqDistance(segment3 Segment, v3 Point) {
 	return dot(ac, ac) - e * e / f;
 }
 
-inline float SqDistance(segment3 Segment1, segment3 Segment2) {
-	v3 d1 = Segment1.Tail - Segment1.Head;
-	v3 d2 = Segment2.Tail - Segment2.Head;
-	v3 r = Segment1.Head - Segment2.Head;
+inline float SqDistance(Segment3 segment1, Segment3 segment2) {
+	V3 d1 = segment1.tail - segment1.head;
+	V3 d2 = segment2.tail - segment2.head;
+	V3 r = segment1.head - segment2.head;
 	float a = dot(d1, d1);
 	float b = dot(d1, d2);
 	float c = dot(d2, d2);
@@ -1852,19 +1762,19 @@ inline float SqDistance(segment3 Segment1, segment3 Segment2) {
 		s = Clamp((b - d) / a, 0.0f, 1.0f);
 	}
 
-	v3 p1 = Segment1.Head + s * d1;
-	v3 p2 = Segment2.Head + t * d2;
+	V3 p1 = segment1.head + s * d1;
+	V3 p2 = segment2.head + t * d2;
 	return dot(p1 - p2, p1 - p2);
 }
 
-inline float SqDistance(segment3 Segment, ray Ray) {
-	v3 SegmentDirection = Segment.Tail - Segment.Head;
-	v3 V = Ray.Point - Segment.Head;
+inline float SqDistance(Segment3 segment, Ray ray) {
+	V3 segment_direction = segment.tail - segment.head;
+	V3 V = ray.point - segment.head;
 
-    float b = dot(Ray.Direction, SegmentDirection);
-    float c = dot(SegmentDirection, SegmentDirection);
-    float d = dot(Ray.Direction, V);
-    float e = dot(SegmentDirection, V);
+    float b = dot(ray.direction, segment_direction);
+    float c = dot(segment_direction, segment_direction);
+    float d = dot(ray.direction, V);
+    float e = dot(segment_direction, V);
 
     float denom = c - b * b;
     float t, u;
@@ -1885,17 +1795,17 @@ inline float SqDistance(segment3 Segment, ray Ray) {
     if (t < 0.0f) {
         t = 0.0f;
         // Recompute u for this t
-        v3 P = Ray.Point + t * Ray.Direction;
-        u = dot(SegmentDirection, P - Segment.Head) / c;
+        V3 P = ray.point + t * ray.direction;
+        u = dot(segment_direction, P - segment.head) / c;
         u = Clamp(u, 0.0f, 1.0f);
     }
 
-    v3 D = V + t * Ray.Direction - u * SegmentDirection;
+    V3 D = V + t * ray.direction - u * segment_direction;
 	return dot(D, D);
 }
 
 struct triangle2 {
-	v2 Points[3];
+	V2 Points[3];
 };
 
 triangle2 Flip(triangle2 T) {
@@ -1927,7 +1837,7 @@ inline float GetArea(triangle2 T) {
 	return 0.5f * cross(T.Points[2] - T.Points[0], T.Points[1] - T.Points[0]);
 }
 
-inline bool IsInside(triangle2 T, v2 P) {
+inline bool IsInside(triangle2 T, V2 P) {
 	triangle2 U = { P, T.Points[1], T.Points[2] };
 	triangle2 V = { P, T.Points[2], T.Points[0] };
 	triangle2 W = { P, T.Points[0], T.Points[1] };
@@ -1947,7 +1857,7 @@ inline bool IsInside(triangle2 T, v2 P) {
 	return IsInside(S1, P) || IsInside(S2, P) || IsInside(S3, P);
 }
 
-float SqDistance(triangle2 T, v2 P) {
+float SqDistance(triangle2 T, V2 P) {
 	segment2 E[3] = {
 		{ T.Points[0], T.Points[1] },
 		{ T.Points[1], T.Points[2] },
@@ -1967,18 +1877,18 @@ float SqDistance(triangle2 T, v2 P) {
 
 
 /*
-	Intersects two triangles in the plane. Result is true if both triangles intersect in a region with some area.
+	Intersects two triangles in the plane. result is true if both triangles intersect in a region with some area.
 */
 bool Intersect(triangle2 T1, triangle2 T2) {
 	float A1 = GetArea(T1);
-	if (fabsf(A1) < Epsilon) return false;
+	if (fabsf(A1) < EPSILON) return false;
 
 	float A2 = GetArea(T2);
-	if (fabsf(A2) < Epsilon) return false;
+	if (fabsf(A2) < EPSILON) return false;
 
 	// Apply separating hiperplane theorem
 	for (int i = 0; i < 6; i++) {
-		v2 V = {};
+		V2 V = {};
 		if (i < 3) {
 			V = perp(T1.Points[i] - T1.Points[(i+1)%3]);
 		}
@@ -2032,7 +1942,7 @@ bool Intersect(triangle2 T1, triangle2 T2) {
 }
 
 struct triangle3 {
-	v3 Points[3];
+	V3 Points[3];
 };
 
 struct rectangle {
@@ -2046,49 +1956,49 @@ rectangle Rectangle(float Left, float Top, float Width, float Height) {
 	return {Left, Top, Width, Height};
 }
 
-bool IsIn(rectangle Rect, v2 Position) {
-	return Rect.Left <= Position.X && Position.X <= Rect.Left+Rect.Width &&
-		   Rect.Top  <= Position.Y && Position.Y <= Rect.Top+Rect.Height;
+bool IsIn(rectangle Rect, V2 Position) {
+	return Rect.Left <= Position.x && Position.x <= Rect.Left+Rect.Width &&
+		   Rect.Top  <= Position.y && Position.y <= Rect.Top+Rect.Height;
 }
 
-v2 LeftTop(rectangle Rect) {
+V2 LeftTop(rectangle Rect) {
 	return V2(Rect.Left, Rect.Top);
 }
 
-v2 Center(rectangle Rect) {
+V2 Center(rectangle Rect) {
 	return V2(Rect.Left + 0.5f * Rect.Width, Rect.Top  + 0.5f * Rect.Height);
 }
 
 bool Intersect(rectangle Rect1, rectangle Rect2) {
-	v2 C1 = Center(Rect1);
-	v2 C2 = Center(Rect2);
-	return fabsf(C1.X - C2.X) < 0.5f * (Rect1.Width  + Rect2.Width) && 
-	       fabsf(C1.Y - C2.Y) < 0.5f * (Rect1.Height + Rect2.Height);
+	V2 C1 = Center(Rect1);
+	V2 C2 = Center(Rect2);
+	return fabsf(C1.x - C2.x) < 0.5f * (Rect1.Width  + Rect2.Width) && 
+	       fabsf(C1.y - C2.y) < 0.5f * (Rect1.Height + Rect2.Height);
 }
 
 struct vector_plane {
-	v3 Normal;
+	V3 Normal;
 };
 
-vector_plane VectorPlane(v3 Normal) {
+vector_plane VectorPlane(V3 Normal) {
 	return { normalize(Normal) };
 }
 
 struct affine_plane {
 	float c; // The equation of the plane is dot(Normal, x) = c
-	v3 Normal;
+	V3 Normal;
 };
 
-affine_plane AffinePlane(v3 Point, v3 Normal) {
+affine_plane AffinePlane(V3 Point, V3 Normal) {
 	Normal = normalize(Normal);
 	return { dot(Normal, Point), Normal };
 }
 
-inline v3 ClosestPoint(affine_plane Plane, v3 Point) {
+inline V3 ClosestPoint(affine_plane Plane, V3 Point) {
 	return Point - (dot(Point, Plane.Normal) - Plane.c) * Plane.Normal;
 }
 
-inline float Distance(affine_plane Plane, v3 Point) {
+inline float Distance(affine_plane Plane, V3 Point) {
 	return dot(Point, Plane.Normal) - Plane.c;
 }
 
@@ -2105,7 +2015,7 @@ enum collider_type {
 
 struct collider {
     collider_type Type;
-    v3 Offset;
+    V3 Offset;
     union {
 		struct {
 			float HalfWidth;
@@ -2120,70 +2030,70 @@ struct collider {
 			float Radius;
 		} Sphere;
 		struct {
-			segment3 Segment;
+			Segment3 Segment;
 			float Distance;
 		} Capsule;
 	};
 };
 
-collider RectCollider(v2 Offset, float Width, float Height) {
-	collider Result = {};
-	Result.Type = Rect_Collider;
-	Result.Offset = V3(Offset.X, Offset.Y, 0);
-	Result.Rect.HalfWidth = 0.5f * Width;
-	Result.Rect.HalfHeight = 0.5f * Height;
-	return Result;
+collider RectCollider(V2 Offset, float Width, float Height) {
+	collider result = {};
+	result.Type = Rect_Collider;
+	result.Offset = V3(Offset.x, Offset.y, 0);
+	result.Rect.HalfWidth = 0.5f * Width;
+	result.Rect.HalfHeight = 0.5f * Height;
+	return result;
 }
 
 rectangle Rectangle(collider Collider) {
 	Assert(Collider.Type == Rect_Collider);
 	return {
-		Collider.Offset.X - Collider.Rect.HalfWidth,
-		Collider.Offset.Y - Collider.Rect.HalfHeight,
+		Collider.Offset.x - Collider.Rect.HalfWidth,
+		Collider.Offset.y - Collider.Rect.HalfHeight,
 		2.0f * Collider.Rect.HalfWidth,
 		2.0f * Collider.Rect.HalfHeight
 	};
 }
 
-collider CubeCollider(v3 Offset, float Width, float Height, float Depth) {
-	collider Result = {};
-	Result.Type = Cube_Collider;
-	Result.Offset = Offset;
-	Result.Cube.HalfWidth = 0.5f * Width;
-	Result.Cube.HalfHeight = 0.5f * Height;
-	Result.Cube.HalfDepth = 0.5f * Depth;
-	return Result;
+collider CubeCollider(V3 Offset, float Width, float Height, float Depth) {
+	collider result = {};
+	result.Type = Cube_Collider;
+	result.Offset = Offset;
+	result.Cube.HalfWidth = 0.5f * Width;
+	result.Cube.HalfHeight = 0.5f * Height;
+	result.Cube.HalfDepth = 0.5f * Depth;
+	return result;
 }
 
-collider SphereCollider(v3 Offset, float Radius) {
-	collider Result = {};
-	Result.Type = Sphere_Collider;
-	Result.Offset = Offset;
-	Result.Sphere.Radius = Radius;
-	return Result;
+collider SphereCollider(V3 Offset, float Radius) {
+	collider result = {};
+	result.Type = Sphere_Collider;
+	result.Offset = Offset;
+	result.Sphere.Radius = Radius;
+	return result;
 }
 
-collider CapsuleCollider(v3 Head, v3 Tail, float Distance) {
-	collider Result = {};
-	Result.Type = Capsule_Collider;
-	Result.Offset = 0.5f * (Head + Tail);
-	Result.Capsule.Segment = {Head, Tail};
-	Result.Capsule.Distance = Distance;
-	return Result;
+collider CapsuleCollider(V3 Head, V3 Tail, float Distance) {
+	collider result = {};
+	result.Type = Capsule_Collider;
+	result.Offset = 0.5f * (Head + Tail);
+	result.Capsule.Segment = {Head, Tail};
+	result.Capsule.Distance = Distance;
+	return result;
 }
 
-inline collider operator*(transform T, collider C) {
+inline collider operator*(Transform T, collider C) {
 	switch(C.Type) {
         case Rect_Collider: {
-            v3 Displacement = T.Translation;
-			Displacement.Z = 0;
+            V3 Displacement = T.translation;
+			Displacement.z = 0;
 			C.Offset += Displacement;
 			return C;
         } break;
 
 		case Sphere_Collider:
         case Cube_Collider: {
-            v3 Displacement = T.Translation;
+            V3 Displacement = T.translation;
 			C.Offset += Displacement;
 			return C;
         } break;
@@ -2198,17 +2108,17 @@ inline collider operator*(transform T, collider C) {
 	return C;
 }
 
-bool Collide(collider Collider, v3 Position) {
+bool Collide(collider Collider, V3 Position) {
     switch(Collider.Type) {
         case Rect_Collider: {
-            return fabsf(Position.X - Collider.Offset.X) <= Collider.Rect.HalfWidth &&
-                   fabsf(Position.Y - Collider.Offset.Y) <= Collider.Rect.HalfHeight;
+            return fabsf(Position.x - Collider.Offset.x) <= Collider.Rect.HalfWidth &&
+                   fabsf(Position.y - Collider.Offset.y) <= Collider.Rect.HalfHeight;
         } break;
 
         case Cube_Collider: {
-            return fabsf(Position.X - Collider.Offset.X) <= Collider.Cube.HalfWidth &&
-                   fabsf(Position.Y - Collider.Offset.Y) <= Collider.Cube.HalfHeight &&
-                   fabsf(Position.Z - Collider.Offset.Z) <= Collider.Cube.HalfDepth;
+            return fabsf(Position.x - Collider.Offset.x) <= Collider.Cube.HalfWidth &&
+                   fabsf(Position.y - Collider.Offset.y) <= Collider.Cube.HalfHeight &&
+                   fabsf(Position.z - Collider.Offset.z) <= Collider.Cube.HalfDepth;
         } break;
 
         case Sphere_Collider: {
@@ -2231,19 +2141,19 @@ bool Collide(collider Collider1, collider Collider2) {
 				return Intersect(Rectangle(Collider1), Rectangle(Collider2));
 			} break;
 			case Cube_Collider: {
-				float X[2] = { Collider1.Offset.X - Collider1.Cube.HalfWidth,  Collider1.Offset.X + Collider1.Cube.HalfWidth };
-				float Y[2] = { Collider1.Offset.Y - Collider1.Cube.HalfHeight, Collider1.Offset.Y + Collider1.Cube.HalfHeight };
-				float Z[2] = { Collider1.Offset.Z - Collider1.Cube.HalfDepth,  Collider1.Offset.Z + Collider1.Cube.HalfDepth };
+				float x[2] = { Collider1.Offset.x - Collider1.Cube.HalfWidth,  Collider1.Offset.x + Collider1.Cube.HalfWidth };
+				float y[2] = { Collider1.Offset.y - Collider1.Cube.HalfHeight, Collider1.Offset.y + Collider1.Cube.HalfHeight };
+				float z[2] = { Collider1.Offset.z - Collider1.Cube.HalfDepth,  Collider1.Offset.z + Collider1.Cube.HalfDepth };
 				for (int i = 0; i < 2; i++) 
 				for (int j = 0; j < 2; j++) 
 				for (int k = 0; k < 2; k++) {
-					if (Collide(Collider2, V3(X[i], Y[j], Z[k]))) return true;
+					if (Collide(Collider2, V3(x[i], y[j], z[k]))) return true;
 				}
 				return false;
 			} break;
 			case Sphere_Collider: {
 				float SumRadii = Collider1.Sphere.Radius + Collider2.Sphere.Radius;
-				v3 r = Collider2.Offset - Collider1.Offset;
+				V3 r = Collider2.Offset - Collider1.Offset;
 				return dot(r, r) <= SumRadii * SumRadii;
 			} break;
 			case Capsule_Collider: {
@@ -2354,33 +2264,33 @@ bool HitBoundingBox(float minB[3], float maxB[3], float origin[3], float dir[3],
     return true;				/* ray hits box */
 }
 
-bool Raycast(ray Ray, collider Collider) {
+bool Raycast(Ray ray, collider Collider) {
 	switch(Collider.Type) {
 		case Rect_Collider: {
-			return IsIn(Rectangle(Collider), V2(Ray.Point.X, Ray.Point.Y));
+			return IsIn(Rectangle(Collider), V2(ray.point.x, ray.point.y));
 		} break;
 		case Cube_Collider: {
 			float minB[3] = { 0 };
-			minB[0] = Collider.Offset.X - Collider.Cube.HalfWidth / 2.0f;
-			minB[1] = Collider.Offset.Y - Collider.Cube.HalfHeight / 2.0f;
-			minB[2] = Collider.Offset.Z - Collider.Cube.HalfDepth / 2.0f;
+			minB[0] = Collider.Offset.x - Collider.Cube.HalfWidth / 2.0f;
+			minB[1] = Collider.Offset.y - Collider.Cube.HalfHeight / 2.0f;
+			minB[2] = Collider.Offset.z - Collider.Cube.HalfDepth / 2.0f;
 			float maxB[3] = { 0 };
-			maxB[0] = Collider.Offset.X + Collider.Cube.HalfWidth / 2.0f;
-			maxB[1] = Collider.Offset.Y + Collider.Cube.HalfHeight / 2.0f;
-			maxB[2] = Collider.Offset.Z + Collider.Cube.HalfDepth / 2.0f;
-			float origin[3] = { Ray.Point.X, Ray.Point.Y, Ray.Point.Z };
-			float dir[3] = { Ray.Direction.X, Ray.Direction.Y, Ray.Direction.Z };
+			maxB[0] = Collider.Offset.x + Collider.Cube.HalfWidth / 2.0f;
+			maxB[1] = Collider.Offset.y + Collider.Cube.HalfHeight / 2.0f;
+			maxB[2] = Collider.Offset.z + Collider.Cube.HalfDepth / 2.0f;
+			float origin[3] = { ray.point.x, ray.point.y, ray.point.z };
+			float dir[3] = { ray.direction.x, ray.direction.y, ray.direction.z };
 			float coord[3] = { 0,0,0 };
 
 			return HitBoundingBox(minB, maxB, origin, dir, coord);
 		} break;
 		case Sphere_Collider: {
 			float R = Collider.Sphere.Radius;
-			return SqDistance(Ray, Collider.Offset) < R*R;
+			return SqDistance(ray, Collider.Offset) < R*R;
 		} break;
 		case Capsule_Collider: {
 			float R = Collider.Capsule.Distance;
-			return SqDistance(Collider.Capsule.Segment, Ray) < R*R;
+			return SqDistance(Collider.Capsule.Segment, ray) < R*R;
 		} break;
 		default: Assert(false);
 	}
@@ -2391,41 +2301,41 @@ bool Raycast(ray Ray, collider Collider) {
 // | Fast Fourier Transform                                                                                                                       |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-uint32 BitReverse(uint32 X) {
-    X = ((X & 0x55555555) << 1) | ((X & 0xAAAAAAAA) >> 1);
-    X = ((X & 0x33333333) << 2) | ((X & 0xCCCCCCCC) >> 2);
-    X = ((X & 0x0F0F0F0F) << 4) | ((X & 0xF0F0F0F0) >> 4);
-    X = ((X & 0x00FF00FF) << 8) | ((X & 0xFF00FF00) >> 8);
-    X = (X << 16) | (X >> 16);
-    return X;
+uint32 BitReverse(uint32 x) {
+    x = ((x & 0x55555555) << 1) | ((x & 0xAAAAAAAA) >> 1);
+    x = ((x & 0x33333333) << 2) | ((x & 0xCCCCCCCC) >> 2);
+    x = ((x & 0x0F0F0F0F) << 4) | ((x & 0xF0F0F0F0) >> 4);
+    x = ((x & 0x00FF00FF) << 8) | ((x & 0xFF00FF00) >> 8);
+    x = (x << 16) | (x >> 16);
+    return x;
 }
 
-uint32 BitReverse(uint32 X, uint32 log2N) {
-	return BitReverse(X) >> (32 - log2N);
+uint32 BitReverse(uint32 x, uint32 log2N) {
+	return BitReverse(x) >> (32 - log2N);
 }
 
 /*
 	Takes an unsigned number and flips its digits around the decimal point to return a float in [0, 1).
 	Example: BitReverseFloat of 3 (110 in binary) = 0.011 in binary = 0.75
 */
-float BitReverseFloat(uint32 X) {
-	uint32 FirstOne = log2(X);
+float BitReverseFloat(uint32 x) {
+	uint32 FirstOne = log2(x);
 
-	uint32 Mantissa = (BitReverse(X) << (1 + FirstOne)) >> 9;
+	uint32 Mantissa = (BitReverse(x) << (1 + FirstOne)) >> 9;
 	int8 Exponent = -FirstOne-1;
 
-	float Result = BuildFloat(false, Exponent, Mantissa);
-	return Result;
+	float result = BuildFloat(false, Exponent, Mantissa);
+	return result;
 }
 
 // Direct unoptimized calculation of Discrete Fourier Transform
 void DFT(uint32 N, complex* Input, complex* Output) {
 	for (int i = 0; i < N; i++) {
-		complex Result = Complex(0,0);
+		complex result = Complex(0,0);
 		for (int j = 0; j < N; j++) {
-			Result += Input[j]*expi(-Tau*j*i/N);
+			result += Input[j]*expi(-TAU*j*i/N);
 		}
-		Output[i] = Result;
+		Output[i] = result;
 	}
 }
 
@@ -2441,16 +2351,16 @@ void PrepareTwiddleFactors(uint32 N, complex* Twiddle) {
 		else if (i == N >> 1)     Twiddle[i] = Complex(-1.0f, 0.0f);
 		else if (i == N >> 2)     Twiddle[i] = Complex(0.0f, -1.0f);
 		else if (i == 3*(N >> 2)) Twiddle[i] = Complex(0.0f, 1.0f);
-		else                      Twiddle[i] = expi(-Tau*i/N);
+		else                      Twiddle[i] = expi(-TAU*i/N);
 	}
 }
 
 void FFT_Butterfly(uint32 Stride, complex* Data, complex Twiddle) {
-	complex X0 = Data[0];
-	complex X1 = Data[Stride];
+	complex x0 = Data[0];
+	complex x1 = Data[Stride];
 
-	Data[0]      = X0 + Twiddle*X1;
-	Data[Stride] = X0 - Twiddle*X1;
+	Data[0]      = x0 + Twiddle*x1;
+	Data[Stride] = x0 - Twiddle*x1;
 }
 
 void FFT(uint32 N, complex* Input, complex* Output, complex* Twiddle) {

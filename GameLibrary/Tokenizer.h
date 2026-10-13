@@ -4,7 +4,7 @@
 #include <string>
 #include <cstring>
 
-enum token_type {
+enum Token_Type {
     Token_Unknown,
 
     // `'\n'`
@@ -81,7 +81,7 @@ enum token_type {
     Token_End
 };
 
-const char* TokenTypeName[] = {
+const char* TOKEN_TYPE_NAME[] = {
     "unknown",
 
     "line jump",
@@ -131,12 +131,12 @@ const char* TokenTypeName[] = {
 
 const int MAX_TOKEN_LENGTH = 128;
 
-struct token {
-    token_type Type;
-    const char* Text;
-    int Length;
-    int Line;
-    int Column;
+struct Token {
+    Token_Type type;
+    const char* text;
+    int length;
+    int line;
+    int column;
 };
 
 bool IsWhitespace(char C) {
@@ -159,114 +159,114 @@ bool IsFileSeparator(char C) {
     return C == '/' || C == '\\';
 }
 
-bool operator==(token& T1, token& T2) {
-    if (T1.Length != T2.Length) return false;
-    for (int i = 0; i < T1.Length; i++) {
-        if (T1.Text[i] != T2.Text[i]) return false;
+bool operator==(Token& T1, Token& T2) {
+    if (T1.length != T2.length) return false;
+    for (int i = 0; i < T1.length; i++) {
+        if (T1.text[i] != T2.text[i]) return false;
     }
     return true;
 };
 
-bool operator==(token& T1, const char* Str) {
+bool operator==(Token& T1, const char* Str) {
     int StrLen = strlen(Str);
-    if (StrLen != T1.Length) return false;
+    if (StrLen != T1.length) return false;
     for (int i = 0; i < StrLen; i++) {
-        if (T1.Text[i] != Str[i]) return false;
+        if (T1.text[i] != Str[i]) return false;
     }
     return true;
 };
 
-struct tokenizer {
-    const char* At;
-    const char* Start;
-    const char* End;
-    int Line;
-    int Column;
-    int Length;
-    bool IgnoreWhitespace;
+struct Tokenizer {
+    const char* at;
+    const char* start;
+    const char* end;
+    int line;
+    int column;
+    int length;
+    bool ignore_whitespace;
 };
 
-tokenizer InitTokenizer(const char* At, int Length = 0, bool IgnoreWhitespace = true) {
-    tokenizer Result = {};
-    Result.Start = At;
-    Result.At = At;
-    Result.Line = 1;
-    Result.Column = 1;
-    Result.Length = Length;
-    Result.End = Length > 0 ? Result.Start + Length : nullptr;
-    Result.IgnoreWhitespace = IgnoreWhitespace;
+Tokenizer InitTokenizer(const char* at, int length = 0, bool ignore_whitespace = true) {
+    Tokenizer result = {};
+    result.start = at;
+    result.at = at;
+    result.line = 1;
+    result.column = 1;
+    result.length = length;
+    result.end = length > 0 ? result.start + length : nullptr;
+    result.ignore_whitespace = ignore_whitespace;
 
-    return Result;
+    return result;
 }
 
-tokenizer InitTokenizer(void* At, int Length = 0, bool IgnoreWhitespace = true) {
-    tokenizer Result = {};
-    Result.Start = (char*)At;
-    Result.At = Result.Start;
-    Result.Line = 1;
-    Result.Column = 1;
-    Result.Length = Length;
-    Result.End = Length > 0 ? Result.Start + Length : nullptr;
-    Result.IgnoreWhitespace = IgnoreWhitespace;
+Tokenizer InitTokenizer(void* at, int length = 0, bool ignore_whitespace = true) {
+    Tokenizer result = {};
+    result.start = (char*)at;
+    result.at = result.start;
+    result.line = 1;
+    result.column = 1;
+    result.length = length;
+    result.end = length > 0 ? result.start + length : nullptr;
+    result.ignore_whitespace = ignore_whitespace;
 
-    return Result;
+    return result;
 }
 
-void Advance(tokenizer& Tokenizer) {
-    if (Tokenizer.At[0] == '\0') {
+void Advance(Tokenizer& Tokenizer) {
+    if (Tokenizer.at[0] == '\0') {
         throw "Tokenizer reached EOF";
         return;
     }
-    else if (Tokenizer.At[0] == '\n') {
-        Tokenizer.Line++;
-        Tokenizer.Column = 1;
+    else if (Tokenizer.at[0] == '\n') {
+        Tokenizer.line++;
+        Tokenizer.column = 1;
     }
     else {
-        Tokenizer.Column++;
+        Tokenizer.column++;
     }
-    Tokenizer.At++;
+    Tokenizer.at++;
 }
 
-void Advance(tokenizer& Tokenizer, int nChars) {
+void Advance(Tokenizer& Tokenizer, int nChars) {
     for (int i = 0; i < nChars; i++) {
         Advance(Tokenizer);
     }
 }
 
-void AdvanceUntil(tokenizer& Tokenizer, char C) {
-    while (Tokenizer.At[0] != C && Tokenizer.At[0] != '\0') {
+void AdvanceUntil(Tokenizer& Tokenizer, char C) {
+    while (Tokenizer.at[0] != C && Tokenizer.at[0] != '\0') {
         Advance(Tokenizer);
     }
 }
 
-void AdvanceUntil(tokenizer& Tokenizer, char C1, char C2) {
-    while ((Tokenizer.At[0] != C1 || Tokenizer.At[1] != C2) && Tokenizer.At[0] != '\0') {
+void AdvanceUntil(Tokenizer& Tokenizer, char C1, char C2) {
+    while ((Tokenizer.at[0] != C1 || Tokenizer.at[1] != C2) && Tokenizer.at[0] != '\0') {
         Advance(Tokenizer);
     }
 }
 
-void AdvanceUntilLine(tokenizer& Tokenizer, int Line) {
-    while(Tokenizer.Line < Line) {
+void AdvanceUntilLine(Tokenizer& Tokenizer, int Line) {
+    while(Tokenizer.line < Line) {
         Advance(Tokenizer);
     }
 }
 
-void AdvanceUntilNextLine(tokenizer& Tokenizer) {
-    AdvanceUntilLine(Tokenizer, Tokenizer.Line + 1);
+void AdvanceUntilNextLine(Tokenizer& Tokenizer) {
+    AdvanceUntilLine(Tokenizer, Tokenizer.line + 1);
 }
 
-void AdvanceWhitespaceAndComments(tokenizer& Tokenizer) {
-    while (Tokenizer.At != Tokenizer.End && Tokenizer.At[0] != '\0') {
-        if (Tokenizer.IgnoreWhitespace && IsWhitespace(Tokenizer.At[0])) {
+void AdvanceWhitespaceAndComments(Tokenizer& Tokenizer) {
+    while (Tokenizer.at != Tokenizer.end && Tokenizer.at[0] != '\0') {
+        if (Tokenizer.ignore_whitespace && IsWhitespace(Tokenizer.at[0])) {
             Advance(Tokenizer);
             continue;
         }
-        else if (Tokenizer.At[0] == '/') {
-            if (Tokenizer.At[1] == '/') {
+        else if (Tokenizer.at[0] == '/') {
+            if (Tokenizer.at[1] == '/') {
                 AdvanceUntil(Tokenizer, '\n');
                 continue;
             }
-            else if (Tokenizer.At[1] == '*') {
+            else if (Tokenizer.at[1] == '*') {
                 AdvanceUntil(Tokenizer, '*', '/');
                 Advance(Tokenizer);
                 Advance(Tokenizer);
@@ -277,65 +277,65 @@ void AdvanceWhitespaceAndComments(tokenizer& Tokenizer) {
     }
 }
 
-token GetToken(tokenizer& Tokenizer) {
-    token Token = {};
-    Token.Length = 1;
+Token GetToken(Tokenizer& Tokenizer) {
+    Token Token = {};
+    Token.length = 1;
     
     // Ommit whitespace and comments
     AdvanceWhitespaceAndComments(Tokenizer);
 
-    Token.Line = Tokenizer.Line;
-    Token.Column = Tokenizer.Column;
+    Token.line = Tokenizer.line;
+    Token.column = Tokenizer.column;
 
-    if (Tokenizer.Length > 0 && Tokenizer.At == Tokenizer.End) {
-        Token.Type = Token_End;
-        Token.Length = 0;
+    if (Tokenizer.length > 0 && Tokenizer.at == Tokenizer.end) {
+        Token.type = Token_End;
+        Token.length = 0;
         return Token;
     }
 
-    const char* TokenStart = Tokenizer.At;
-    char C = Tokenizer.At[0];
+    const char* TokenStart = Tokenizer.at;
+    char C = Tokenizer.at[0];
     if (C != '\0') Advance(Tokenizer);
 
     switch(C) {
-        case ' ':  { Token.Type = Token_Space; } break;
-        case '\n': { Token.Type = Token_LineJump; } break;
-        case '(':  { Token.Type = Token_OpenParen; } break;
-        case ')':  { Token.Type = Token_CloseParen; } break;
-        case '[':  { Token.Type = Token_OpenBracket; } break;
-        case ']':  { Token.Type = Token_CloseBracket; } break;
-        case '{':  { Token.Type = Token_OpenBrace; } break;
-        case '}':  { Token.Type = Token_CloseBrace; } break;
-        case '.':  { Token.Type = Token_Dot; } break;
-        case ',':  { Token.Type = Token_Comma; } break;
-        case ':':  { Token.Type = Token_Colon; } break;
-        case ';':  { Token.Type = Token_Semicolon; } break;
-        case '#':  { Token.Type = Token_Pound; } break;
-        case '=':  { Token.Type = Token_Equal; } break;
-        case '<':  { Token.Type = Token_LessThan; } break;
-        case '>':  { Token.Type = Token_GreaterThan; } break;
-        case '+':  { Token.Type = Token_Plus; } break;
-        case '-':  { Token.Type = Token_Minus; } break;
-        case '*':  { Token.Type = Token_Asterisk; } break;
-        case '%':  { Token.Type = Token_Percent; } break;
-        case '\\': { Token.Type = Token_Backslash; } break;
-        case '/':  { Token.Type = Token_Forwardslash; } break;
-        case '?':  { Token.Type = Token_Interrogation; } break;
-        case '!':  { Token.Type = Token_Exclamation; } break;
-        case '~':  { Token.Type = Token_Tilde; } break;
-        case '@':  { Token.Type = Token_At; } break;
-        case '|':  { Token.Type = Token_Bar; } break;
-        case '&':  { Token.Type = Token_And; } break;
-        case '^':  { Token.Type = Token_Caret; } break;
-        case '\'': { Token.Type = Token_Apostrophe; } break;
-        case '\0': { Token.Type = Token_End; } break;
+        case ' ':  { Token.type = Token_Space; } break;
+        case '\n': { Token.type = Token_LineJump; } break;
+        case '(':  { Token.type = Token_OpenParen; } break;
+        case ')':  { Token.type = Token_CloseParen; } break;
+        case '[':  { Token.type = Token_OpenBracket; } break;
+        case ']':  { Token.type = Token_CloseBracket; } break;
+        case '{':  { Token.type = Token_OpenBrace; } break;
+        case '}':  { Token.type = Token_CloseBrace; } break;
+        case '.':  { Token.type = Token_Dot; } break;
+        case ',':  { Token.type = Token_Comma; } break;
+        case ':':  { Token.type = Token_Colon; } break;
+        case ';':  { Token.type = Token_Semicolon; } break;
+        case '#':  { Token.type = Token_Pound; } break;
+        case '=':  { Token.type = Token_Equal; } break;
+        case '<':  { Token.type = Token_LessThan; } break;
+        case '>':  { Token.type = Token_GreaterThan; } break;
+        case '+':  { Token.type = Token_Plus; } break;
+        case '-':  { Token.type = Token_Minus; } break;
+        case '*':  { Token.type = Token_Asterisk; } break;
+        case '%':  { Token.type = Token_Percent; } break;
+        case '\\': { Token.type = Token_Backslash; } break;
+        case '/':  { Token.type = Token_Forwardslash; } break;
+        case '?':  { Token.type = Token_Interrogation; } break;
+        case '!':  { Token.type = Token_Exclamation; } break;
+        case '~':  { Token.type = Token_Tilde; } break;
+        case '@':  { Token.type = Token_At; } break;
+        case '|':  { Token.type = Token_Bar; } break;
+        case '&':  { Token.type = Token_And; } break;
+        case '^':  { Token.type = Token_Caret; } break;
+        case '\'': { Token.type = Token_Apostrophe; } break;
+        case '\0': { Token.type = Token_End; } break;
 
         case '"': {
-            Token.Type = Token_String;
-            TokenStart = Tokenizer.At;
+            Token.type = Token_String;
+            TokenStart = Tokenizer.at;
             do {
                 AdvanceUntil(Tokenizer, '"');
-                if (Tokenizer.At[-1] == '\\') {
+                if (Tokenizer.at[-1] == '\\') {
                     Advance(Tokenizer);
                     continue;
                 }
@@ -343,100 +343,100 @@ token GetToken(tokenizer& Tokenizer) {
                     break;
                 }
             } while(true);
-            Token.Length = Tokenizer.At - TokenStart;
+            Token.length = Tokenizer.at - TokenStart;
             Advance(Tokenizer);
         } break;
 
         case '0': {
             // Hexadecimal
-            if (Tokenizer.At[0] == 'x') {
-                Token.Type = Token_Constant_Hexadecimal;
-                Token.Length++;
+            if (Tokenizer.at[0] == 'x') {
+                Token.type = Token_Constant_Hexadecimal;
+                Token.length++;
                 Advance(Tokenizer);
-                while(IsNumber(Tokenizer.At[0]) || Tokenizer.At[0] >= 'a' && Tokenizer.At[0] <= 'f') {
-                    Token.Length++;
+                while(IsNumber(Tokenizer.at[0]) || Tokenizer.at[0] >= 'a' && Tokenizer.at[0] <= 'f') {
+                    Token.length++;
                     Advance(Tokenizer);
                 }
             }
 
             // Binary
-            else if (Tokenizer.At[0] == 'b') {
-                Token.Type = Token_Constant_Binary;
-                Token.Length++;
+            else if (Tokenizer.at[0] == 'b') {
+                Token.type = Token_Constant_Binary;
+                Token.length++;
                 Advance(Tokenizer);
-                while(Tokenizer.At[0] == '0' || Tokenizer.At[0] == '1') {
-                    Token.Length++;
+                while(Tokenizer.at[0] == '0' || Tokenizer.at[0] == '1') {
+                    Token.length++;
                     Advance(Tokenizer);
                 }
             }
 
             // Decimal
             else {
-                while (IsNumber(Tokenizer.At[0])) {
-                    Token.Length++;
+                while (IsNumber(Tokenizer.at[0])) {
+                    Token.length++;
                     Advance(Tokenizer);
                 }
-                if (Tokenizer.At[0] == '.') {
-                    Token.Type = Token_Constant_Decimal;
-                    Token.Length++;
+                if (Tokenizer.at[0] == '.') {
+                    Token.type = Token_Constant_Decimal;
+                    Token.length++;
                     Advance(Tokenizer);
-                    while(IsNumber(Tokenizer.At[0])) {
-                        Token.Length++;
+                    while(IsNumber(Tokenizer.at[0])) {
+                        Token.length++;
                         Advance(Tokenizer);
                     }
-                    if (Tokenizer.At[0] == 'f') {
-                        Token.Length++;
+                    if (Tokenizer.at[0] == 'f') {
+                        Token.length++;
                         Advance(Tokenizer);
                     }
                 }
                 else {
-                    Token.Type = Token_Constant_Integer;
+                    Token.type = Token_Constant_Integer;
                 }
             }
         } break;
 
         default: {
             if (IsNumber(C)) {
-                while (IsNumber(Tokenizer.At[0])) {
-                    Token.Length++;
+                while (IsNumber(Tokenizer.at[0])) {
+                    Token.length++;
                     Advance(Tokenizer);
                 }
-                if (Tokenizer.At[0] == '.') {
-                    Token.Type = Token_Constant_Decimal;
-                    Token.Length++;
+                if (Tokenizer.at[0] == '.') {
+                    Token.type = Token_Constant_Decimal;
+                    Token.length++;
                     Advance(Tokenizer);
-                    while(IsNumber(Tokenizer.At[0])) {
-                        Token.Length++;
+                    while(IsNumber(Tokenizer.at[0])) {
+                        Token.length++;
                         Advance(Tokenizer);
                     }
-                    if (Tokenizer.At[0] == 'f') {
-                        Token.Length++;
+                    if (Tokenizer.at[0] == 'f') {
+                        Token.length++;
                         Advance(Tokenizer);
                     }
-                    else if (Tokenizer.At[0] == 'e') {
-                        Token.Length++;
+                    else if (Tokenizer.at[0] == 'e') {
+                        Token.length++;
                         Advance(Tokenizer);
-                        if (Tokenizer.At[0] == '-') {
-                            Token.Length++;
+                        if (Tokenizer.at[0] == '-') {
+                            Token.length++;
                             Advance(Tokenizer);
                         }
-                        while(IsNumber(Tokenizer.At[0])) {
-                            Token.Length++;
+                        while(IsNumber(Tokenizer.at[0])) {
+                            Token.length++;
                             Advance(Tokenizer);
                         }
                     }
                 }
                 else {
-                    Token.Type = Token_Constant_Integer;
+                    Token.type = Token_Constant_Integer;
                 }
             }
             else if (IsAlphabet(C) || C == '_') {
-                Token.Type = Token_Identifier;
-                if (C == '_' && IsWhitespace(Tokenizer.At[0])) {
-                    Token.Type = Token_Underscore;
+                Token.type = Token_Identifier;
+                if (C == '_' && IsWhitespace(Tokenizer.at[0])) {
+                    Token.type = Token_Underscore;
                 }
-                else while (IsAlphanumeric(Tokenizer.At[0]) || Tokenizer.At[0] == '_') {
-                    Token.Length++;
+                else while (IsAlphanumeric(Tokenizer.at[0]) || Tokenizer.at[0] == '_') {
+                    Token.length++;
                     Advance(Tokenizer);
                 }
             }
@@ -446,122 +446,122 @@ token GetToken(tokenizer& Tokenizer) {
         }
     }
 
-    Token.Text = TokenStart;
+    Token.text = TokenStart;
     
     return Token;
 }
 
-token RequireToken(tokenizer& Tokenizer, const char* Text) {
-    token Token = GetToken(Tokenizer);
-    if (Token == Text) {
-        return Token;
+Token RequireToken(Tokenizer& tokenizer, const char* text) {
+    Token token = GetToken(tokenizer);
+    if (token == text) {
+        return token;
     }
     else {
-        char ErrorBuffer[256];
-        char TokenText[MAX_TOKEN_LENGTH] = "";
-        strncpy(TokenText, Token.Text, Token.Length);
+        char error_buffer[256];
+        char token_text[MAX_TOKEN_LENGTH] = "";
+        strncpy(token_text, token.text, token.length);
         sprintf(
-            ErrorBuffer, 
+            error_buffer, 
             "Token `%s` at line %d, column %d should be `%s`.", 
-            TokenText, Token.Line, Token.Column, Text
+            token_text, token.line, token.column, text
         );
-        throw ErrorBuffer;
+        throw error_buffer;
     }
-    return Token;
+    return token;
 }
 
-token RequireToken(tokenizer& Tokenizer, token_type Type) {
-    token Token = GetToken(Tokenizer);
-    if (Token.Type == Type) {
-        return Token;
+Token RequireToken(Tokenizer& tokenizer, Token_Type type) {
+    Token token = GetToken(tokenizer);
+    if (token.type == type) {
+        return token;
     }
     else {
-        char ErrorBuffer[256];
-        char TokenText[MAX_TOKEN_LENGTH] = {};
-        strncpy(TokenText, Token.Text, Token.Length);
+        char error_buffer[256];
+        char token_text[MAX_TOKEN_LENGTH] = {};
+        strncpy(token_text, token.text, token.length);
         sprintf(
-            ErrorBuffer, 
+            error_buffer, 
             "Token `%s` at line %d, column %d is type '%s' but should be '%s'.", 
-            TokenText, Token.Line, Token.Column, TokenTypeName[Token.Type], TokenTypeName[Type]
+            token_text, token.line, token.column, TOKEN_TYPE_NAME[token.type], TOKEN_TYPE_NAME[type]
         );
-        throw ErrorBuffer;
+        throw error_buffer;
     }
-    return Token;
+    return token;
 }
 
 // Parsing
-bool ParseBool(tokenizer& Tokenizer) {
-    token Token = RequireToken(Tokenizer, Token_Identifier);
-    return Token == "true" || Token == "True" || Token == "TRUE" || Token == "1";
+bool ParseBool(Tokenizer& tokenizer) {
+    Token token = RequireToken(tokenizer, Token_Identifier);
+    return token == "true" || token == "True" || token == "TRUE" || token == "1";
 }
 
-unsigned int Parseuint32(tokenizer& Tokenizer) {
-    token Token = RequireToken(Tokenizer, Token_Constant_Integer);
-    char* End;
-    return strtol(Token.Text, &End, 10);
+unsigned int Parseuint32(Tokenizer& tokenizer) {
+    Token token = RequireToken(tokenizer, Token_Constant_Integer);
+    char* end;
+    return strtol(token.text, &end, 10);
 }
 
-int ParseInt(tokenizer& Tokenizer) {
-    char* End = 0;
-    token Token = GetToken(Tokenizer);
-    bool Negative = false;
-    if (Token.Type == Token_Minus) {
-        Negative = true;
-        Token = GetToken(Tokenizer);
+int ParseInt(Tokenizer& tokenizer) {
+    char* end = 0;
+    Token token = GetToken(tokenizer);
+    bool negative = false;
+    if (token.type == Token_Minus) {
+        negative = true;
+        token = GetToken(tokenizer);
     }
-    if (Token.Type != Token_Constant_Integer) {
+    if (token.type != Token_Constant_Integer) {
         throw "Tried to parse int but didn't find a number.";
     };
-    int Result = strtol(Token.Text, &End, 10);
-    return Negative ? -Result : Result;
+    int result = strtol(token.text, &end, 10);
+    return negative ? -result : result;
 }
 
-float ParseFloat(tokenizer& Tokenizer) {
-    char* End = 0;
-    token Token = GetToken(Tokenizer);
-    bool Negative = false;
-    if (Token.Type == Token_Minus) {
-        Negative = true;
-        Token = GetToken(Tokenizer);
+float ParseFloat(Tokenizer& tokenizer) {
+    char* end = 0;
+    Token token = GetToken(tokenizer);
+    bool negative = false;
+    if (token.type == Token_Minus) {
+        negative = true;
+        token = GetToken(tokenizer);
     }
-    if (Token.Type != Token_Constant_Decimal && Token.Type != Token_Constant_Integer) {
+    if (token.type != Token_Constant_Decimal && token.type != Token_Constant_Integer) {
         throw "Tried to parse float but didn't find a number.";
     }
-    float Result = strtof(Token.Text, &End);
-    return Negative ? -Result : Result;
+    float result = strtof(token.text, &end);
+    return negative ? -result : result;
 }
 
-double ParseDouble(tokenizer& Tokenizer) {
-    char* End = 0;
-    token Token = GetToken(Tokenizer);
-    bool Negative = false;
-    if (Token.Type == Token_Minus) {
-        Negative = true;
-        Token = GetToken(Tokenizer);
+double ParseDouble(Tokenizer& tokenizer) {
+    char* end = 0;
+    Token token = GetToken(tokenizer);
+    bool negative = false;
+    if (token.type == Token_Minus) {
+        negative = true;
+        token = GetToken(tokenizer);
     }
-    if (Token.Type == Token_Constant_Decimal || Token.Type == Token_Constant_Integer) {
+    if (token.type == Token_Constant_Decimal || token.type == Token_Constant_Integer) {
         throw "Tried to parse float but didn't find a number.";
     };
-    double Result = strtod(Token.Text, &End);
-    return Negative ? -Result : Result;
+    double result = strtod(token.text, &end);
+    return negative ? -result : result;
 }
 
 // If input pointer is a string that represents a path, returns the string length of the path. If not, returns 0.
-int ParsePath(const char* Text) {
-    int Result = 0;
-    while (Text[0] != '\0' && Text[0] != ';' && Text[0] != '\n' && Text[0] != '\r') {
+int ParsePath(const char* text) {
+    int result = 0;
+    while (text[0] != '\0' && text[0] != ';' && text[0] != '\n' && text[0] != '\r') {
 #ifdef _WIN32
         if (
-            Text[0] == '<' || Text[0] == '>' || Text[0] == '|' || Text[0] == '?' || Text[0] == '*' ||
-            Text[0] >= 0 && Text[0] < 32
+            text[0] == '<' || text[0] == '>' || text[0] == '|' || text[0] == '?' || text[0] == '*' ||
+            text[0] >= 0 && text[0] < 32
         ) {
             throw "Invalid character in path.";
         }
 #endif
-        Result++;
-        Text++;
+        result++;
+        text++;
     }
-    return Result;
+    return result;
 }
 
 #endif

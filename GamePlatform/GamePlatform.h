@@ -15,9 +15,9 @@ typedef int64_t int64;
 
 typedef size_t memory_size;
 
-#define Kilobytes(Value) ((Value)*1024)
-#define Megabytes(Value) (Kilobytes(Value)*1024)
-#define Gigabytes(Value) ((uint64)Megabytes(Value)*1024)
+#define Kilobytes(value) ((value)*1024)
+#define Megabytes(value) (Kilobytes(value)*1024)
+#define Gigabytes(value) ((uint64)Megabytes(value)*1024)
 
 #define INTROSPECT
 
@@ -26,6 +26,8 @@ typedef size_t memory_size;
 #define ENUM(Name, ...) ENUM_START(Name) __VA_ARGS__, ENUM_END(Name);
 
 #define FLAGS(...)
+
+#define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
 
 uint16 BigEndian(uint16 LittleEndian) {
     return (LittleEndian << 8) | (LittleEndian >> 8);
@@ -65,23 +67,23 @@ int64 BigEndian(int64 LittleEndian) {
 }
 
 inline uint8 MSB32(uint32 X) {
-	unsigned long Result = 0;
+	unsigned long result = 0;
 #ifdef _WIN32
-	_BitScanReverse(&Result, X);
+	_BitScanReverse(&result, X);
 #else
-    Result = 31 - __builtin_clz(X);
+    result = 31 - __builtin_clz(X);
 #endif
-	return (uint32)Result;
+	return (uint32)result;
 }
 
 inline uint8 MSB64(uint64 X) {
-	unsigned long Result = 0;
+	unsigned long result = 0;
 #ifdef _WIN32
-	_BitScanReverse64(&Result, X);
+	_BitScanReverse64(&result, X);
 #else
-    Result = 31 - __builtin_clzll(X);
+    result = 31 - __builtin_clzll(X);
 #endif
-	return (uint32)Result;
+	return (uint32)result;
 }
 
 inline void Assert(bool assertion, const char* Message = "") {
@@ -97,10 +99,10 @@ inline void Assert(bool assertion, const char* Message = "") {
 +---------------------------------------------------------------------------------------------------------------------------------+
 */
 
-struct memory_arena {
-    memory_size Size;
-    memory_size Used;
-    uint8* Base;
+struct Arena {
+    memory_size size;
+    memory_size used;
+    uint8* base;
 };
 
 inline void ZeroSize(memory_size Size, void* Memory) {
@@ -109,55 +111,360 @@ inline void ZeroSize(memory_size Size, void* Memory) {
     }
 }
 
-inline memory_arena MemoryArena(memory_size Size, void* Base) {
-    memory_arena Result;
-    Result.Size = Size;
-    Result.Base = (uint8*)Base;
-    Result.Used = 0;
-    return Result;
+inline Arena MemoryArena(memory_size size, void* base) {
+    Arena result;
+    result.size = size;
+    result.base = (uint8*)base;
+    result.used = 0;
+    return result;
 }
 
-inline memory_arena AllocateMemoryArena(memory_size Size) {
-    uint8* Base = (uint8*)calloc(1, Size);
-    return MemoryArena(Size, Base);
+inline Arena AllocateMemoryArena(memory_size size) {
+    uint8* base = (uint8*)calloc(1, size);
+    return MemoryArena(size, base);
 }
 
-inline void FreeMemoryArena(memory_arena* Arena) {
-    free(Arena->Base);
-    Arena = {};
+inline void Free(Arena* arena) {
+    free(arena->base);
+    arena->base = nullptr;
+    arena->size = 0;
+    arena->used = 0;
 }
 
-inline void ClearArena(memory_arena* Arena) {
-    ZeroSize(Arena->Used, Arena->Base);
-    Arena->Used = 0;
+inline void Clear(Arena* arena) {
+    ZeroSize(arena->used, arena->base);
+    arena->used = 0;
 }
 
-#define PushStruct(Arena, type) (type *)PushSize_(Arena, sizeof(type))
-#define PushArray(Arena, Count, type) (type *)PushSize_(Arena, Count*sizeof(type))
-#define PushSize(Arena, Size) (void*)PushSize_(Arena, Size)
-inline void* PushSize_(memory_arena* Arena, memory_size Size) {
-    Assert(Arena->Size >= Arena->Used + Size);
-    void* Result = Arena->Base + Arena->Used;
-    Arena->Used += Size;
-    return Result;
+#define PushStruct(arena, type) (type *)PushSize_(arena, sizeof(type))
+#define PushArray(arena, count, type) (type *)PushSize_(arena, count*sizeof(type))
+#define PushSize(arena, size) (void*)PushSize_(arena, size)
+inline void* PushSize_(Arena* arena, memory_size size) {
+    Assert(arena->size >= arena->used + size);
+    void* result = arena->base + arena->used;
+    arena->used += size;
+    return result;
 }
 
-#define PopStruct(Arena, type) (type *)PopSize_(Arena, sizeof(type))
-#define PopArray(Arena, Count, type) (type *)PopSize_(Arena, Count*sizeof(type))
-#define PopSize(Arena, Size) (void*)PopSize_(Arena, Size)
-inline void* PopSize_(memory_arena* Arena, memory_size Size) {
-    memory_size BytesErased = Size < Arena->Used? Size : Arena->Used;
-    void* Result = (void*)(Arena->Base + Arena->Used - BytesErased);
-    ZeroSize(BytesErased, Result);
-    Arena->Used -= BytesErased;
-    return Result;
+#define PopStruct(arena, type) (type *)PopSize_(arena, sizeof(type))
+#define PopArray(arena, count, type) (type *)PopSize_(arena, count*sizeof(type))
+#define PopSize(arena, size) (void*)PopSize_(arena, size)
+inline void* PopSize_(Arena* arena, memory_size size) {
+    memory_size bytes_erased = size < arena->used ? size : arena->used;
+    void* result = (void*)(arena->base + arena->used - bytes_erased);
+    ZeroSize(bytes_erased, result);
+    arena->used -= bytes_erased;
+    return result;
 }
 
-inline memory_arena SuballocateMemoryArena(memory_arena* Arena, memory_size Size) {
-    memory_arena Result = {};
-    Result.Base = (uint8*)PushSize(Arena, Size);
-    Result.Size = Size;
-    return Result;
+inline Arena SuballocateMemoryArena(Arena* arena, memory_size size) {
+    Arena result = {};
+    result.base = (uint8*)PushSize(arena, size);
+    result.size = size;
+    return result;
+}
+
+/*
++---------------------------------------------------------------------------------------------------------------------------------+
+| Strings                                                                                                                         |
++---------------------------------------------------------------------------------------------------------------------------------+
+*/
+
+struct String {
+    int length;
+    const char* content;
+
+    String() {
+        length = 0;
+        content = nullptr;
+    }
+
+    String(const char* String) {
+        length = strlen(String);
+        content = String;
+    }
+
+    String(const char* String, int L) {
+        length = L;
+        content = String;
+    }
+
+    char operator[](int index) {
+        if (index < -length || index > length) {
+            return '\0';
+        }
+        if (index < 0) {
+            return content[length + index];
+        }
+        return content[index];
+    };
+};
+
+char* CopyString(Arena* arena, String String) {
+    char* result = PushArray(arena, String.length, char);
+    strncpy(result, String.content, String.length);
+    return result;
+}
+
+String PersistString(Arena* arena, String string) {
+    int* length = PushArray(arena, 1, int);
+    *length = string.length;
+    char* content = CopyString(arena, string);
+    return String(content, string.length);
+}
+
+String ReadString(void* memory) {
+    int* length = (int*)memory;
+    String result;
+    result.length = *length;
+    result.content = (char*)(length + 1);
+    return result;
+}
+
+bool operator==(String s1, String s2) {
+    bool result = s1.length == s2.length;
+    if (result) {
+        for (int i = 0; i < s1.length; i++) {
+            if (s1[i] != s2[i]) {
+                return false;
+            }
+        }
+    }
+    return result;
+}
+
+String Slice(String string, int start, int end) {
+    Assert(end >= start);
+    String result;
+    result.length = end - start;
+    result.content = string.content + start;
+    return result;
+}
+
+String Format(Arena* arena, const char* format, int input_count, ...) {
+    String result = {};
+    result.length = 0;
+    int format_length = strlen(format);
+
+    if (format_length == 0) {
+        result.content = nullptr;
+        return result;
+    }
+
+    char* pointer = (char*)(arena->base + arena->used);
+    result.content = pointer;
+
+    va_list args;
+    va_start(args, input_count);
+
+    int dest_index = 0;
+    for (int source_index = 0; source_index < format_length; source_index++) {
+        if (format[source_index] == '{') {
+            switch (format[++source_index]) {
+                case 'i': {
+                    int32 input = va_arg(args, int32);
+                    if (input == 0) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = '0';
+                        result.length++;
+                        break;
+                    }
+                    else if (input < 0) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = '-';
+                        result.length++;
+                        input = -input;
+                    }
+                    int digit_count = 0;
+                    char digits[16];
+                    while (input > 0) {
+                        digits[digit_count++] = '0' + (input % 10);
+                        input /= 10;
+                    }
+                    for (int i = 0; i < digit_count; i++) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = digits[digit_count - (i + 1)];
+                        result.length++;
+                    }
+                } break;
+
+                case 'I': {
+                    int64 input = va_arg(args, int64);
+                    if (input == 0) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = '0';
+                        result.length++;
+                        break;
+                    }
+                    else if (input < 0) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = '-';
+                        result.length++;
+                        input = -input;
+                    }
+                    int digit_count = 0;
+                    char digits[32];
+                    while (input > 0) {
+                        digits[digit_count++] = '0' + (input % 10);
+                        input /= 10;
+                    }
+                    for (int i = 0; i < digit_count; i++) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = digits[digit_count - (i + 1)];
+                        result.length++;
+                    }
+                } break;
+
+                case 'u': {
+                    uint32 input = va_arg(args, uint32);
+                    if (input == 0) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = '0';
+                        result.length++;
+                        break;
+                    }
+                    int digit_count = 0;
+                    char digits[16];
+                    while (input > 0) {
+                        digits[digit_count++] = '0' + (input % 10);
+                        input /= 10;
+                    }
+                    for (int i = 0; i < digit_count; i++) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = digits[digit_count - (i + 1)];
+                        result.length++;
+                    }
+                } break;
+
+                case 'U': {
+                    uint64 input = va_arg(args, uint64);
+                    if (input == 0) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = '0';
+                        result.length++;
+                        break;
+                    }
+                    int digit_count = 0;
+                    char digits[32];
+                    while (input > 0) {
+                        digits[digit_count++] = '0' + (input % 10);
+                        input /= 10;
+                    }
+                    for (int i = 0; i < digit_count; i++) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = digits[digit_count - (i + 1)];
+                        result.length++;
+                    }
+                } break;
+
+                case 'x': {
+                    uint64 input = va_arg(args, uint64);
+                    PushArray(arena, 18, char);
+                    pointer[dest_index++] = '0';
+                    pointer[dest_index++] = 'x';
+                    for (int i = 15; i >= 0; i--) {
+                        uint64 r = input % 16;
+                        if (r < 10) {
+                            pointer[dest_index + i] = '0' + r;
+                        }
+                        else {
+                            pointer[dest_index + i] = 'a' + (r - 10);
+                        }
+                        input >>= 4;
+                    }
+                    dest_index += 16;
+                    result.length += 18;
+                } break;
+
+                case 'f': {
+                    double input = va_arg(args, double);
+                    if (input < 0) {
+                        input = -input;
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = '-';
+                        result.length++;
+                    }
+
+                    uint64 integer_part = floor(input);
+                    double decimal_part = input - integer_part;
+
+                    if (integer_part == 0) {
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = '0';
+                        result.length++;
+                    }
+
+                    int digit_count = 0;
+                    char digits[32];
+                    while (integer_part > 0) {
+                        digits[digit_count++] = '0' + (integer_part % 10);
+                        integer_part /= 10;
+                    }
+                    
+                    PushArray(arena, digit_count + 1, char);
+                    for (int i = 0; i < digit_count; i++) {
+                        pointer[dest_index++] = digits[digit_count - (i + 1)];
+                    }
+                    pointer[dest_index++] = '.';
+                    result.length += digit_count + 1;
+
+                    int decimal_count = format[++source_index] - '0';
+                    for (int i = 0; i < decimal_count; i++) {
+                        decimal_part *= 10.0;
+                        int digit = decimal_part;
+                        PushArray(arena, 1, char);
+                        pointer[dest_index++] = '0' + digit;
+                        result.length++;
+                        decimal_part -= digit;
+                    }
+                } break;
+
+                case 's': {
+                    String input = va_arg(args, String);
+                    result.length += input.length;
+                    PushArray(arena, input.length, char);
+                    for (int i = 0; i < input.length; i++) {
+                        pointer[dest_index++] = input[i];
+                    }
+                } break;
+
+                default: {
+                    Assert(false, "Invalid format flag.");
+                }
+            }
+
+            Assert(format[source_index + 1] == '}');
+            source_index++;
+        }
+        else {
+            PushArray(arena, 1, char);
+            pointer[dest_index++] = format[source_index];
+            result.length++;
+        }
+    }
+    PushArray(arena, 1, char);
+    va_end(args);
+    return result;
+}
+
+/*
+    Split a String given a separator. Beware that the `Input` parameter will be modified.
+*/
+String Split(String& input, char separator) {
+    String result;
+    result.length = 0;
+    result.content = input.content;
+    for (int i = 0; i < input.length; i++) {
+        if (input[i] == separator) {
+            return result;
+        }
+        else {
+            input.content++;
+            input.length--;
+            result.length++;
+        }
+    }
+    return result;
 }
 
 /*
@@ -167,9 +474,8 @@ inline memory_arena SuballocateMemoryArena(memory_arena* Arena, memory_size Size
 */
 
 /*
-    Stack. Memory for elements must be previously allocated.
+    Memory for elements must be previously allocated.
 */
-
 template <typename T> class stack {
 private:
     T* Top;
@@ -203,10 +509,10 @@ public:
     T Pop() {
         if (n > 0) {
             Top--;
-            T Result = *Top;
+            T result = *Top;
             *Top = {};
             n--;
-            return Result;
+            return result;
         }
         return {};
     }
@@ -288,42 +594,92 @@ struct linked_list {
 };
 
 inline linked_list Concatenate(linked_list L1, linked_list L2) {
-    linked_list Result = {};
-    Result.First = L1.First;
+    linked_list result = {};
+    result.First = L1.First;
     Attach(L1.Last, L2.First);
-    Result.Last = L2.Last;
-    return Result;
+    result.Last = L2.Last;
+    return result;
 }
 
 uint64 GetLength(linked_list List) {
 	struct link* Link = List.First;
-	uint64 Result = 0;
+	uint64 result = 0;
     do {
 		Link = Link->Next;
-        Result++;
+        result++;
     } while (Link && Link != List.First);
-	return Result;
+	return result;
 }
 
-// Fixed length arrays
+/*
+    Fixed length array.
+*/
+template <typename T> class array {
+private:
+    T* Data;
+public:
+    uint32 Count;
+    uint32 Size;
 
-#define ArrayStructDefinition(Capacity, Type) struct Type##_array { uint32 Size = Capacity; uint32 Count = 0; Type Content[Capacity]; }
-#define ArrayAppendDefinition(Capacity, Type) void Append(Type##_array* Array, Type Element) { Assert(Array->Count < Capacity); \
-    Array->Content[Array->Count++] = Element; }
-#define ArrayPopDefinition(Capacity, Type) Type Pop(Type##_array* Array) { Assert(Array->Count > 0); \
-    Type Result = Array->Content[Array->Count]; Array->Content[Array->Count--] = {}; return Result; }
-#define ArrayClearDefinition(Type) void Clear(Type##_array* Array) { for(int i = 0; i < Array->Count; i++) Array->Content[i] = {}; Array->Count = 0; }
-#define ArrayDefinition(Capacity, Type) \
-    ArrayStructDefinition(Capacity, Type); \
-    ArrayAppendDefinition(Capacity, Type); \
-    ArrayPopDefinition(Capacity, Type); \
-    ArrayClearDefinition(Type)
+    array() {
+        Data = nullptr;
+        Count = 0;
+        Size = 0;
+    }
 
-#define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
+    array(Arena* Arena, uint32 N) {
+        Size = N;
+        Count = 0;
+        Data = PushArray(Arena, N, T);
+    }
 
+    ~array() {
+        Data = nullptr;
+        Size = 0;
+    }
 
-// Fixed length lists that track available slots
+    bool IsFull() {
+        return Count == Size;
+    }
 
+    T* Insert(T Value) {
+        T* result = nullptr;
+        if (Count < Size) {
+            result = Data + Count;
+            Data[Count++] = Value;
+        }
+        return result;
+    }
+
+    T& operator[](int64 Index) {
+        if (-Index > Count || Index >= Count) {
+            throw "Array index out of bounds.";
+        }
+        else if (Index >= 0) {
+            return Data[Index];
+        }
+        else if (Index < 0) {
+            return Data[Count - Index];
+        }
+        Assert(false, "Invalid code path.");
+    }
+
+    const T& operator[](int64 Index) const {
+        if (-Index > Count || Index >= Count) {
+            throw "Array index out of bounds.";
+        }
+        else if (Index >= 0) {
+            return Data[Index];
+        }
+        else if (Index < 0) {
+            return Data[Count - Index];
+        }
+    }
+};
+
+/*
+    Fixed length lists that track available slots.
+*/
 template <typename T> class free_list {
 private:
     T* Slots;
@@ -334,7 +690,7 @@ public:
     uint32 Count = 0;
     uint32 FreeCount = 0;
 
-    free_list(memory_arena* Arena, uint32 N) {
+    free_list(Arena* Arena, uint32 N) {
         Size = N;
         Slots = PushArray(Arena, N, T);
         FreeSlots = PushArray(Arena, N, uint32);
@@ -344,17 +700,17 @@ public:
     uint32 Insert(T Element) {
         Assert(Count < Size);
         
-        uint32 Result;
+        uint32 result;
         if (FreeCount > 0) {
-            Result = FreeSlots[FreeCount--];
+            result = FreeSlots[FreeCount--];
         }
         else {
-            Result = Count++;
+            result = Count++;
         }
 
-        Slots[Result] = Element;
-        IsOccupied[Result] = true;
-        return Result;
+        Slots[result] = Element;
+        IsOccupied[result] = true;
+        return result;
     }
 
     T& operator[](uint32 Index) {
@@ -443,9 +799,9 @@ public:
             NewChunk(TotalSize);
         }
 
-        T* Pointer = (T*)xar_get(Header, Meta, NewIndex);
-        *Pointer = Element;
-        return Pointer;
+        T* pointer = (T*)xar_get(Header, Meta, NewIndex);
+        *pointer = Element;
+        return pointer;
     }
 
     uint64 Size() {
@@ -457,19 +813,20 @@ public:
     }
 };
 
-template <typename T> class hash_table {
+template <typename S, typename T> class hash_table {
 private:
     uint32 Size;
     uint32 Used;
     struct entry {
         uint64 Hash;
-        const char* Key;
+        S Key;
         T Value;
     }* Entries;
     bool* Deleted;
 
-    uint64 Hash(const char* Key) {
-        return XXH64(Key, strlen(Key), 0);
+    uint64 Hash(S Key) {
+        S LocalCopy = Key;
+        return XXH64(&LocalCopy, sizeof(S), 0);
     }
 
     bool Resize() {
@@ -479,10 +836,127 @@ private:
             entry* NewEntries = (entry*)NewContent;
             for (int i = 0; i < Size; i++) {
                 entry* Entry = Entries + i;
-                if (Entry->Key) {
+                if (Entry->Key.Length > 0) {
                     uint32 NewIndex = Entry->Hash % NewSize;
                     entry* NewEntry = NewEntries + NewIndex;
-                    while (NewEntry->Key) {
+                    while (NewEntry->Key.Length > 0) {
+                        NewIndex = (NewIndex + 1) % NewSize;
+                        NewEntry = NewEntries + NewIndex;
+                    }
+                    *NewEntry = *Entry;
+                }
+            }
+            free(Entries);
+            Entries = NewEntries;
+            Size = NewSize;
+            bool* NewDeleted = (bool*)calloc(NewSize, sizeof(bool));
+            if (NewDeleted) {
+                free(Deleted);
+                Deleted = NewDeleted;
+            }
+            else {
+                Assert(false);
+            }
+        }
+        else {
+            Assert(false);
+        }
+        return NewContent != nullptr;
+    }
+
+    uint32 Search(uint64 H, S Key, bool CanBeDeleted = false) {
+        uint32 Index = H % Size;
+        entry* Entry = Entries + Index;
+        if (Entry->Key == nullptr) {
+            return Index;
+        }
+        while (Entry->Key) {
+            if (
+                CanBeDeleted && Deleted[Index] || 
+                !Deleted[Index] && H == Entry->Hash && Entry->Key == Key
+            ) {
+                return Index;
+            }
+            Index = (Index + 1) % Size;
+            Entry = Entries + Index;
+        }
+        return Index;
+    }
+
+public:
+    hash_table(uint32 SizeExponent = 6) {
+        Used = 0;
+        Size = 1 << SizeExponent;
+        Entries = (entry*)calloc(Size, sizeof(entry));
+        Deleted = (bool*)calloc(Size, sizeof(bool));
+    }
+
+    ~hash_table() {
+        free(Entries);
+    }
+
+    void Insert(S Key, T Value) {
+        uint64 H = Hash(Key);
+        uint32 Index = Search(H, Key, true);
+        entry* Entry = Entries + Index;
+        if (Entry->Key == nullptr) {
+            Used += 1;
+            if (Used >= 0.75f * Size) {
+                Resize();
+                Entry = Entries + Search(H, Key);
+            }
+        }
+        else if (Deleted[Index]) {
+            Deleted[Index] = false;
+        }
+        Entry->Hash = H;
+        Entry->Key = Key;
+        Entry->Value = Value;
+    }
+
+    void Delete(S Key) {
+        uint64 H = Hash(Key);
+        uint32 Index = Search(H, Key);
+        entry* Entry = Entries + Index;
+        if (Entry->Key && !Deleted[Index]) {
+            Deleted[Index] = true;
+        }
+    }
+
+    T Get(S Key) {
+        uint64 H = Hash(Key);
+        uint32 Index = Search(H, Key);
+        entry* Entry = Entries + Index;
+        return Entry->Value;
+    }
+};
+
+template <typename T> class hash_table<String, T> {
+private:
+    uint32 Size;
+    uint32 Used;
+    struct entry {
+        uint64 Hash;
+        String Key;
+        T Value;
+    }* Entries;
+    bool* Deleted;
+
+    uint64 Hash(String Key) {
+        return XXH64(Key.content, Key.length, 0);
+    }
+
+    bool Resize() {
+        uint32 NewSize = 2*Size;
+        void* NewContent = calloc(NewSize, sizeof(entry));
+        if (NewContent) {
+            entry* NewEntries = (entry*)NewContent;
+            for (int i = 0; i < Size; i++) {
+                entry* Entry = Entries + i;
+                if (Entry->Key.Length > 0) {
+                    uint32 NewIndex = Entry->Hash % NewSize;
+                    entry* NewEntry = NewEntries + NewIndex;
+                    while (NewEntry->Key.Length > 0) {
                         NewIndex = (NewIndex + 1) % NewSize;
                         NewEntry = NewEntries + NewIndex;
                     }
@@ -577,269 +1051,6 @@ public:
 
 /*
 +---------------------------------------------------------------------------------------------------------------------------------+
-| Strings                                                                                                                         |
-+---------------------------------------------------------------------------------------------------------------------------------+
-*/
-
-struct string {
-    int Length;
-    const char* Content;
-
-    string() {
-        Length = 0;
-        Content = nullptr;
-    }
-
-    string(const char* String) {
-        Length = strlen(String);
-        Content = String;
-    }
-
-    char operator[](int Index) {
-        if (Index < -Length || Index > Length) {
-            return '\0';
-        }
-        if (Index < 0) {
-            return Content[Length + Index];
-        }
-        return Content[Index];
-    };
-};
-
-char* PushString(memory_arena* Arena, string String) {
-    char* Result = PushArray(Arena, String.Length, char);
-    strncpy(Result, String.Content, String.Length);
-    return Result;
-}
-
-bool operator==(string S1, string S2) {
-    bool Result = S1.Length == S2.Length;
-    if (Result) {
-        for (int i = 0; i < S1.Length; i++) {
-            if (S1[i] != S2[i]) {
-                return false;
-            }
-        }
-    }
-    return Result;
-}
-
-string Slice(string S, int Start, int End) {
-    Assert(End >= Start);
-    string Result;
-    Result.Length = End - Start;
-    Result.Content = S.Content + Start;
-    return Result;
-}
-
-string Format(memory_arena* Arena, const char* Format, int nInputs, ...) {
-    string Result = {};
-    Result.Length = 0;
-    int FormatLength = strlen(Format);
-
-    if (FormatLength == 0) {
-        Result.Content = nullptr;
-        return Result;
-    }
-
-    char* Pointer = (char*)(Arena->Base + Arena->Used);
-    Result.Content = Pointer;
-
-    va_list Args;
-    va_start(Args, nInputs);
-
-    int DestIndex = 0;
-    for (int SourceIndex = 0; SourceIndex < FormatLength; SourceIndex++) {
-        if (Format[SourceIndex] == '{') {
-            switch (Format[++SourceIndex]) {
-                case 'i': {
-                    int32 Input = va_arg(Args, int32);
-                    if (Input == 0) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = '0';
-                        Result.Length++;
-                        break;
-                    }
-                    else if (Input < 0) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = '-';
-                        Result.Length++;
-                        Input = -Input;
-                    }
-                    int nDigits = 0;
-                    char Digits[16];
-                    while (Input > 0) {
-                        Digits[nDigits++] = '0' + (Input % 10);
-                        Input /= 10;
-                    }
-                    for (int i = 0; i < nDigits; i++) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
-                        Result.Length++;
-                    }
-                } break;
-
-                case 'I': {
-                    int64 Input = va_arg(Args, int64);
-                    if (Input == 0) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = '0';
-                        Result.Length++;
-                        break;
-                    }
-                    else if (Input < 0) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = '-';
-                        Result.Length++;
-                        Input = -Input;
-                    }
-                    int nDigits = 0;
-                    char Digits[32];
-                    while (Input > 0) {
-                        Digits[nDigits++] = '0' + (Input % 10);
-                        Input /= 10;
-                    }
-                    for (int i = 0; i < nDigits; i++) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
-                        Result.Length++;
-                    }
-                } break;
-
-                case 'u': {
-                    uint32 Input = va_arg(Args, uint32);
-                    if (Input == 0) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = '0';
-                        Result.Length++;
-                        break;
-                    }
-                    int nDigits = 0;
-                    char Digits[16];
-                    while (Input > 0) {
-                        Digits[nDigits++] = '0' + (Input % 10);
-                        Input /= 10;
-                    }
-                    for (int i = 0; i < nDigits; i++) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
-                        Result.Length++;
-                    }
-                } break;
-
-                case 'U': {
-                    uint64 Input = va_arg(Args, uint64);
-                    if (Input == 0) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = '0';
-                        Result.Length++;
-                        break;
-                    }
-                    int nDigits = 0;
-                    char Digits[32];
-                    while (Input > 0) {
-                        Digits[nDigits++] = '0' + (Input % 10);
-                        Input /= 10;
-                    }
-                    for (int i = 0; i < nDigits; i++) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
-                        Result.Length++;
-                    }
-                } break;
-
-                case 'x': {
-                    uint64 Input = va_arg(Args, uint64);
-                    PushArray(Arena, 18, char);
-                    Pointer[DestIndex++] = '0';
-                    Pointer[DestIndex++] = 'x';
-                    for (int i = 15; i >= 0; i--) {
-                        uint64 r = Input % 16;
-                        if (r < 10) {
-                            Pointer[DestIndex + i] = '0' + r;
-                        }
-                        else {
-                            Pointer[DestIndex + i] = 'a' + (r - 10);
-                        }
-                        Input >>= 4;
-                    }
-                    DestIndex += 16;
-                    Result.Length += 18;
-                } break;
-
-                case 'f': {
-                    double Input = va_arg(Args, double);
-                    if (Input < 0) {
-                        Input = -Input;
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = '-';
-                        Result.Length++;
-                    }
-
-                    uint64 IntegerPart = floor(Input);
-                    double DecimalPart = Input - IntegerPart;
-
-                    if (IntegerPart == 0) {
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = '0';
-                        Result.Length++;
-                    }
-
-                    int nDigits = 0;
-                    char Digits[32];
-                    while (IntegerPart > 0) {
-                        Digits[nDigits++] = '0' + (IntegerPart % 10);
-                        IntegerPart /= 10;
-                    }
-                    
-                    PushArray(Arena, nDigits + 1, char);
-                    for (int i = 0; i < nDigits; i++) {
-                        Pointer[DestIndex++] = Digits[nDigits - (i + 1)];
-                    }
-                    Pointer[DestIndex++] = '.';
-                    Result.Length += nDigits + 1;
-
-                    int nDecimals = Format[++SourceIndex] - '0';
-                    for (int i = 0; i < nDecimals; i++) {
-                        DecimalPart *= 10.0;
-                        int Digit = DecimalPart;
-                        PushArray(Arena, 1, char);
-                        Pointer[DestIndex++] = '0' + Digit;
-                        Result.Length++;
-                        DecimalPart -= Digit;
-                    }
-                } break;
-
-                case 's': {
-                    string Input = va_arg(Args, string);
-                    Result.Length += Input.Length;
-                    PushArray(Arena, Input.Length, char);
-                    for (int i = 0; i < Input.Length; i++) {
-                        Pointer[DestIndex++] = Input[i];
-                    }
-                } break;
-
-                default: {
-                    Assert(false, "Invalid format flag.");
-                }
-            }
-
-            Assert(Format[SourceIndex + 1] == '}');
-            SourceIndex++;
-        }
-        else {
-            PushArray(Arena, 1, char);
-            Pointer[DestIndex++] = Format[SourceIndex];
-            Result.Length++;
-        }
-    }
-    PushArray(Arena, 1, char);
-    va_end(Args);
-    return Result;
-}
-
-/*
-+---------------------------------------------------------------------------------------------------------------------------------+
 | Logging                                                                                                                         |
 +---------------------------------------------------------------------------------------------------------------------------------+
 */
@@ -858,7 +1069,7 @@ enum class log_level {
 
 log_mode LOG_MODE = Terminal_Log_Mode;
 
-void Log(log_level Level, string Content);
+void Log(log_level Level, String Content);
 
 /*
 +---------------------------------------------------------------------------------------------------------------------------------+
@@ -866,7 +1077,7 @@ void Log(log_level Level, string Content);
 +---------------------------------------------------------------------------------------------------------------------------------+
 */
 
-typedef int64 timestamp;
+typedef int64 Timestamp;
 
 #if _WIN32
 #define PATH_SEPARATOR "\\"
@@ -874,50 +1085,56 @@ typedef int64 timestamp;
 #define PATH_SEPARATOR "/"
 #endif
 
-struct file_info {
-    string Path;
-    timestamp Timestamp; 
-    memory_size Size;
+struct File_Info {
+    String path;
+    Timestamp timestamp; 
+    memory_size size;
 };
 
-struct file_chunk_info {
-    file_info Info;
-    memory_size Size;
-    memory_size Offset;
+struct File_Chunk_Info {
+    File_Info info;
+    memory_size size;
+    memory_size offset;
 };
 
-string GetFileName(string Path) {
-    string Result;
+String GetFileName(String path) {
+    String result;
     
-    const char* pChar = Path.Content + Path.Length - 1;
-    for (; pChar > Path.Content; pChar--) {
+    const char* pChar = path.content + path.length - 1;
+    for (; pChar > path.content; pChar--) {
         if (*pChar == '\\' || *pChar == '/') {
             pChar++;
             break;
         }
-        Result.Length++;
+        result.length++;
     }
 
-    Result.Content = pChar;
-
-    return Result;
+    result.content = pChar;
+    return result;
 }
 
-string GetFileExtension(string Path) {
-    string Result;
+String GetFileExtension(String path) {
+    String result;
 
-    const char* pChar = Path.Content + Path.Length - 1;
-    for (; pChar > Path.Content; pChar--) {
+    const char* pChar = path.content + path.length - 1;
+    for (; pChar > path.content; pChar--) {
         if (*pChar == '.') {
             pChar++;
             break;
         }
-        Result.Length++;
+        result.length++;
     }
 
-    Result.Content = pChar;
+    result.content = pChar;
 
-    return Result;
+    return result;
+}
+
+String GetFileNameWithoutExtension(String path) {
+    String filename = GetFileName(path);
+    String extension = GetFileExtension(path);
+    filename.length -= filename.length + 1;
+    return filename;
 }
 
 // Record and playback
@@ -1044,36 +1261,36 @@ struct process_info {
 +------------------------------------------------------------------------------------------------------------------------------------------+
 */
 
-enum system_os {
+enum System_OS {
     Windows,
     Linux,
 };
 
-#define PLATFORM_ALLOCATE_MEMORY(name) void* name(memory_size Size)
+#define PLATFORM_ALLOCATE_MEMORY(name) void* name(memory_size size)
 typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory);
 
-#define PLATFORM_FREE_MEMORY(name) void name(void* Memory)
+#define PLATFORM_FREE_MEMORY(name) void name(void* memory)
 typedef PLATFORM_FREE_MEMORY(platform_free_memory);
 
-#define PLATFORM_FILE_EXISTS(name) bool name(string Path)
+#define PLATFORM_FILE_EXISTS(name) bool name(String path)
 typedef PLATFORM_FILE_EXISTS(platform_file_exists);
 
-#define PLATFORM_READ_FILE_CHUNK(name) file_chunk_info name(string Path, memory_size Offset, memory_size ChunkSize, void* Memory)
+#define PLATFORM_READ_FILE_CHUNK(name) File_Chunk_Info name(String path, memory_size offset, memory_size chunk_size, void* memory)
 typedef PLATFORM_READ_FILE_CHUNK(platform_read_file_chunk);
 
-#define PLATFORM_WRITE_FILE_CHUNK(name) bool name(string Path, memory_size Offset, memory_size ChunkSize, void* Memory)
+#define PLATFORM_WRITE_FILE_CHUNK(name) bool name(String path, memory_size offset, memory_size chunk_size, void* memory)
 typedef PLATFORM_WRITE_FILE_CHUNK(platform_write_file_chunk);
 
-#define PLATFORM_APPEND_TO_FILE(name) bool name(string Path, uint64 Size, void* Memory)
+#define PLATFORM_APPEND_TO_FILE(name) bool name(String path, uint64 size, void* memory)
 typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
 
-#define PLATFORM_COPY_FILE(name) bool name(string Source, string Destination)
+#define PLATFORM_COPY_FILE(name) bool name(String source, String destination)
 typedef PLATFORM_COPY_FILE(platform_copy_file);
 
-#define PLATFORM_DELETE_FILE(name) bool name(string Path)
+#define PLATFORM_DELETE_FILE(name) bool name(String path)
 typedef PLATFORM_DELETE_FILE(platform_delete_file);
 
-#define PLATFORM_GET_FILE_INFO(name) file_info name(string Path)
+#define PLATFORM_GET_FILE_INFO(name) File_Info name(String path)
 typedef PLATFORM_GET_FILE_INFO(platform_get_file_info);
 
 /*
@@ -1104,27 +1321,27 @@ struct platform_api {
     platform_wait_for_process*    WaitForProcess;
     uint64                        PerformanceCounterFrequency;
 
-    void* ReadEntireFile(string Path, file_info* FileInfo = nullptr) {
-        file_info Info = GetFileInfo(Path);
-        if (FileInfo) {
-            *FileInfo = Info;
+    void* ReadEntireFile(String path, File_Info* file_info = nullptr) {
+        File_Info info = GetFileInfo(path);
+        if (file_info) {
+            *file_info = info;
         }
 
-        if (Info.Size > 0) {
-            void* Result = AllocateMemory(Info.Size);
+        if (info.size > 0) {
+            void* result = AllocateMemory(info.size);
 
-            file_chunk_info ChunkInfo = ReadFileChunk(Path, 0, Info.Size, Result);
-            if (ChunkInfo.Size > 0) {
-                return Result;
+            File_Chunk_Info chunk_info = ReadFileChunk(path, 0, info.size, result);
+            if (chunk_info.size > 0) {
+                return result;
             }
             else {
-                FreeMemory(Result);
+                FreeMemory(result);
             }
         }
         return nullptr;
     }
 
-    bool WriteEntireFile(string Path, memory_size Size, void* Memory) {
+    bool WriteEntireFile(String Path, memory_size Size, void* Memory) {
         return WriteFileChunk(Path, 0, Size, Memory);
     }
 };
@@ -1141,25 +1358,25 @@ void Raise(const char* ErrorMessage) {
     Assert(false, ErrorMessage);
 }
 
-uint64 SeedRNG(memory_arena* Arena) {
-    uint64 Seed = 0;
+uint64 SeedRNG(Arena* arena) {
+    uint64 seed = 0;
 
 #ifdef _DEBUG
-    time_t Seconds = time(nullptr);
-    tm* TimeInfo = localtime(&Seconds);
-    Seed = TimeInfo->tm_mday + 123456789;
+    time_t seconds = time(nullptr);
+    tm* time_info = localtime(&seconds);
+    seed = time_info->tm_mday + 123456789;
 #else
     Seed = Platform.GetWallClock();
 #endif
     for (int i = 0; i < 8; i++) {
-        Seed ^= Seed << 13;
-        Seed ^= Seed >> 7;
-        Seed ^= Seed << 17;
+        seed ^= seed << 13;
+        seed ^= seed >> 7;
+        seed ^= seed << 17;
     }
 
-    string SeedText = Format(Arena, "RNG seed: {U}.", 1, Seed);
-    Log(log_level::Info, SeedText.Content);
-    return Seed;
+    String seed_text = Format(arena, "RNG seed: {U}.", 1, seed);
+    Log(log_level::Info, seed_text.content);
+    return seed;
 }
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
@@ -1169,8 +1386,8 @@ uint64 SeedRNG(memory_arena* Arena) {
 struct time_record {
     uint64 CycleCount;
     
-    string FileName;
-    string FunctionName;
+    String FileName;
+    String FunctionName;
     
     int LineNumber;
     int HitCount;

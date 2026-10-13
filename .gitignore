@@ -1,5 +1,7 @@
 # Visual Studio
 .vs/
+CppProperties.json
+cpp.hint
 
 # Visual Studio Code
 .vscode/*

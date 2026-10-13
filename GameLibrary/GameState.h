@@ -32,15 +32,15 @@ struct game_entity {
     game_entity* Parent = nullptr;
     game_entity* Follow = nullptr;
     collider Collider = SphereCollider(V3(0,0,0), 1.0f);
-    color Color = color::WHITE;
+    Color color = Color::WHITE;
 
     transform Transform = IdentityTransform;
     v3 Velocity = V3(0,0,0);
     v3 AngularVelocity = V3(0,0,0);
 
     // Rendering
-    game_mesh_id MeshID = Mesh_Sphere_ID;
-    game_texture_id TextureID = Texture_Empty_ID;
+    game_mesh* Mesh = nullptr;
+    Texture* texture = nullptr;
 
     // View
     v3 Anchor = V3(0,0,0);
@@ -165,28 +165,28 @@ ENUM(character_action_id,
 
 struct character_action {
     character_action_id ID;
-    game_animation_id AnimationID;
+    game_animation* Animation;
     bool Loop;
 };
 
-character_action CharacterAction(character_action_id ID) {
+character_action GetCharacterAction(Asset_Manager* manager, character_action_id ID) {
     character_action Result = {};
     Result.ID = ID;
 
     switch(ID) {
         case Character_Action_Idle_ID: {
-            Result.AnimationID = Animation_Idle_ID;
+            Result.Animation = GetAnimation(manager, "Idle");
             Result.Loop = true;
         } break;
         case Character_Action_Walk_ID: {
-            Result.AnimationID = Animation_Walk_ID;
+            Result.Animation = GetAnimation(manager, "Walk");
             Result.Loop = true;
         } break;
         case Character_Action_Jump_ID: {
-            Result.AnimationID = Animation_Jump_ID;
+            Result.Animation = GetAnimation(manager, "Jump");
         } break;
         case Character_Action_Attack_ID: {
-            Result.AnimationID = Animation_Attack_ID;
+            Result.Animation = GetAnimation(manager, "Attack");
         } break;
         default: Assert(false);
     }
@@ -194,7 +194,12 @@ character_action CharacterAction(character_action_id ID) {
     return Result;
 }
 
-character_action GetCharacterAction(character_action CurrentAction, game_animator* Animator, game_input* Input) {
+character_action GetCharacterAction(
+    character_action CurrentAction, 
+    Asset_Manager* manager,
+    game_animator* Animator, 
+    game_input* Input
+) {
     bool JumpingInput = Input->Mode == Keyboard && Input->Keyboard.Space.JustPressed ||
                         Input->Mode == Controller && Input->Controller.BButton.JustPressed;
 
@@ -216,33 +221,33 @@ character_action GetCharacterAction(character_action CurrentAction, game_animato
                 Animator->CurrentFrame = 0;
             }
 
-            if     (JumpingInput) Result = CharacterAction(Character_Action_Jump_ID);
-            else if (MovingInput) Result = CharacterAction(Character_Action_Walk_ID);
-            else if (AttackInput) Result = CharacterAction(Character_Action_Attack_ID);
+            if     (JumpingInput) Result = GetCharacterAction(manager, Character_Action_Jump_ID);
+            else if (MovingInput) Result = GetCharacterAction(manager, Character_Action_Walk_ID);
+            else if (AttackInput) Result = GetCharacterAction(manager, Character_Action_Attack_ID);
         } break;
         case Character_Action_Walk_ID: {
             if (JumpingInput) {
-                Result = CharacterAction(Character_Action_Jump_ID);
+                Result = GetCharacterAction(manager, Character_Action_Jump_ID);
                 Animator->CurrentFrame = 0;
             }
             else if (AttackInput) {
-                Result = CharacterAction(Character_Action_Attack_ID);
+                Result = GetCharacterAction(manager, Character_Action_Attack_ID);
                 Animator->CurrentFrame = 0;
             }
             else if (!MovingInput) {
                 Animator->Active = false;
-                Result = CharacterAction(Character_Action_Idle_ID);
+                Result = GetCharacterAction(manager, Character_Action_Idle_ID);
             }
         } break;
         case Character_Action_Jump_ID: {
             if (!Animator->Active) {
-                Result = CharacterAction(Character_Action_Idle_ID);
+                Result = GetCharacterAction(manager, Character_Action_Idle_ID);
                 Animator->CurrentFrame = 0;
             }
         } break;
         case Character_Action_Attack_ID: {
             if (!Animator->Active) {
-                Result = CharacterAction(Character_Action_Idle_ID);
+                Result = GetCharacterAction(manager, Character_Action_Idle_ID);
                 Animator->CurrentFrame = 0;
             }
         } break;
@@ -268,12 +273,19 @@ struct game_state {
     bool Exit;
 };
 
-game_entity* CreateEntity(free_list<game_entity>& Entities, const char* Name, game_entity_type Type, bool Active = true) {
+game_entity CreateEntity(
+    const char* Name, 
+    game_entity_type Type, 
+    game_mesh* Mesh = nullptr,
+    bool Active = true
+) {
     game_entity Entity;
 
     strcpy(Entity.Name, Name);
     Entity.Type = Type;
     Entity.Active = Active;
+    Entity.Mesh = Mesh;
+
     switch(Type) {
         case Camera_Entity_Type: {
             Entity.Angle = 0;
@@ -281,7 +293,6 @@ game_entity* CreateEntity(free_list<game_entity>& Entities, const char* Name, ga
             Entity.Distance = 10.0f;
         } break;
         case Character_Entity_Type: {
-            Entity.MeshID = Mesh_Body_ID;
             Entity.Flags = entity_flag::render | entity_flag::movable | entity_flag::animated;
         } break;
         case Prop_Entity_Type: {
@@ -295,6 +306,10 @@ game_entity* CreateEntity(free_list<game_entity>& Entities, const char* Name, ga
         }
     }
 
+    return Entity;
+}
+
+game_entity* AddEntity(free_list<game_entity>& Entities, game_entity Entity) {
     uint32 Index = Entities.Insert(Entity);
     game_entity* Result = &Entities[Index];
     Result->Index = Index;

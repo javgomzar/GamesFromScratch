@@ -198,9 +198,9 @@ void UpdateGameState(
             bool Outline = Entity->Hovered;
             PushMesh(
                 Group, 
-                Entity->MeshID, 
+                Entity->Mesh, 
                 .Color = Entity->Color,
-                .TextureID = Entity->TextureID, 
+                .Texture = Entity->Texture, 
                 .Transform = Entity->Transform, 
                 .Outline = Outline
             );
@@ -252,7 +252,7 @@ extern "C" GAME_UPDATE(GameUpdate)
         // Initialize entities
         State->Entities = free_list<game_entity>(&Memory->Permanent, MAX_ENTITIES);
 
-        game_entity* Camera = CreateEntity(State->Entities, "Camera", Camera_Entity_Type);
+        game_entity* Camera = AddEntity(State->Entities, CreateEntity("Camera", Camera_Entity_Type));
         State->ActiveCamera = Camera;
         Camera->Angle = -45.0f;
         Camera->Pitch = 22.5f;

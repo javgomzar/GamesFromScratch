@@ -1631,7 +1631,7 @@ RENDERER_RENDER {
 	TIMED_BLOCK;
 	
 	for (int i = 0; i < vertex_layout_id_count; i++) {
-		memory_arena* Arena = &Group->VertexBuffer.Vertices[i];
+		Arena* Arena = &Group->VertexBuffer.Vertices[i];
 		glNamedBufferSubData(OpenGL.VBOs[i], 0, Arena->Used, Arena->Base);
 	}
 	glNamedBufferSubData(OpenGL.EBO, 0, Group->VertexBuffer.Elements.Used, Group->VertexBuffer.Elements.Base);

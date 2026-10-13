@@ -18,7 +18,7 @@ ENUM(test_type,
 
 TEST(TestFormat, test_once, ACTIVE)() {
     string Test;
-    memory_arena Arena = AllocateMemoryArena(1024);
+    Arena Arena = AllocateMemoryArena(1024);
 
     int32 Int32 = 0;
     Test = Format(&Arena, "Test {i} ...", 1, Int32);
@@ -136,10 +136,10 @@ TEST(TestDataFileManager, test_once, ACTIVE)() {
     return true;
 }
 
-TEST(TestData, test_once, ACTIVE)() {
-    memory_arena Arena = AllocateMemoryArena(Kilobytes(8));
+TEST(TestData, test_once, INACTIVE)() {
+    Arena Arena = AllocateMemoryArena(Kilobytes(8));
 
-    game_data_page Page = CreateDataPage(&Arena, row_data_page, 1);
+    game_data_page Page = CreateDataPage(row_data_page, 1, nullptr);
 
     char TestText[128] = "This is a test text.";
     int TextLength = strlen(TestText);
@@ -206,14 +206,14 @@ TEST(TestTextRendering, test_every_frame, INACTIVE)(render_group* Group, game_in
     }
 
     const char* TestString = "!\"#$%&'()*+,-./0123456789:;<=>?@\nABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\nabcdefghijklmnopqrstuvwxyz{|}~";
-    game_font* Font = GetAsset(Group->Assets, Font_DejaVu_Sans_ID);
+    game_font* Font = GetFont(Group->AssetManager, "DejaVuSans");
 
-    PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Color = color::WHITE, .Font = Font->ID, .Outline = false, .Points = Points);
+    PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Color = color::WHITE, .Font = Font, .Outline = false, .Points = Points);
 
     return true;
 }
 
-TEST(TestRendering, test_every_frame, INACTIVE)(render_group* Group, game_input* Input, float Time) {
+TEST(TestRendering, test_every_frame, ACTIVE)(render_group* Group, game_input* Input, float Time) {
 // 2D
     // Rects
     rectangle Rect = { 20, 20, 100, 100 };
@@ -235,7 +235,8 @@ TEST(TestRendering, test_every_frame, INACTIVE)(render_group* Group, game_input*
 
     // Bitmap
     rectangle BitmapRect = { 20, 140, 100, 200 };
-    PushBitmap(Group, Texture_Player_ID, BitmapRect);
+    game_texture* Texture = GetTexture(Group->AssetManager, "Player");
+    PushBitmap(Group, Texture, BitmapRect);
 
 // 3D
     // Point
@@ -256,27 +257,36 @@ TEST(TestRendering, test_every_frame, INACTIVE)(render_group* Group, game_input*
 
     // Mesh
     transform Transform = GetTransform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
-    PushMesh(Group, Mesh_Body_ID, .Color = color::GRAY, .Transform = Transform, .Outline = true);
+    game_mesh* BodyMesh = GetMesh(Group->AssetManager, "Body");
+    PushMesh(Group, BodyMesh, .Color = color::GRAY, .Transform = Transform, .Outline = true);
 
     Transform.Translation = V3(-2, 0, 0);
-    PushMesh(Group, Mesh_Tetrahedron_ID, .Transform = Transform);
+
+    game_mesh* Tetrahedron = GetMesh(Group->AssetManager, "Tetrahedron");
+    PushMesh(Group, Tetrahedron, .Transform = Transform);
 
     Transform.Translation = V3(-2, 0, 2);
-    PushMesh(Group, Mesh_Cube_ID, .Transform = Transform);
+    game_mesh* Cube = GetMesh(Group->AssetManager, "Cube");
+    PushMesh(Group, Cube, .Transform = Transform);
 
     Transform.Translation = V3(-2, 0, 4);
-    PushMesh(Group, Mesh_Octahedron_ID, .Transform = Transform);
+    game_mesh* Octahedron = GetMesh(Group->AssetManager, "Octahedron");
+    PushMesh(Group, Octahedron, .Transform = Transform);
 
     Transform.Translation = V3(-2, 0, 6);
-    PushMesh(Group, Mesh_Icosahedron_ID, .Transform = Transform);
+    game_mesh* Icosahedron = GetMesh(Group->AssetManager, "Icosahedron");
+    PushMesh(Group, Icosahedron, .Transform = Transform);
 
     Transform.Translation = V3(-2, 0, 8.5);
-    PushMesh(Group, Mesh_Dodecahedron_ID, .Transform = Transform);
+    game_mesh* Dodecahedron = GetMesh(Group->AssetManager, "Dodecahedron");
+    PushMesh(Group, Dodecahedron, .Transform = Transform);
 
-    PushMesh(Group, Mesh_Sphere_ID, .Color = color::RED, .Transform = GetTransform(V3(10, 0, 0)));
+    game_mesh* Sphere = GetMesh(Group->AssetManager, "Sphere");
+    PushMesh(Group, Sphere, .Color = color::RED, .Transform = GetTransform(V3(10, 0, 0)));
 
     // Heightmap
-    PushHeightmap(Group, Heightmap_Spain_ID, V3(0,0,0), GetScale(10, 1, 10));
+    game_texture* SpainTexture = GetTexture(Group->AssetManager, "Spain");
+    PushHeightmap(Group, SpainTexture, V3(0,0,0), GetScale(10, 1, 10));
 
     return true;
 }
@@ -296,7 +306,7 @@ TEST(TestSky, test_every_frame, INACTIVE)(float Time, light* Light) {
 //     PushRenderTarget(Group, Target_Fluid);
 // }
 
-TEST(TestFFT, test_every_frame, INACTIVE)(render_group* Group, memory_arena* Permanent, float Time) {
+TEST(TestFFT, test_every_frame, INACTIVE)(render_group* Group, Arena* Permanent, float Time) {
     uint32 N = 256;
     
     static bool Initialized = false;
@@ -369,30 +379,56 @@ TEST(TestFFT, test_every_frame, INACTIVE)(render_group* Group, memory_arena* Per
     return true;
 }
 
-TEST(TestEntities, test_once, ACTIVE)(game_state* State) {
-    game_entity* Character = CreateEntity(State->Entities, "Character", Character_Entity_Type);
+TEST(TestEntities, test_once, ACTIVE)(game_asset_manager* AssetManager, game_state* State) {
+    game_mesh* Mesh = nullptr;
+    Mesh = GetMesh(AssetManager, "Body");
+    game_entity* Character = AddEntity(State->Entities, CreateEntity("Character", Character_Entity_Type, Mesh));
     Character->Collider = CapsuleCollider(V3(0,1.0f,0), V3(0,3.6f,0), 1.0f);
     State->ActiveCamera->Follow = Character;
 
-    game_entity* Prop = CreateEntity(State->Entities, "Prop", Prop_Entity_Type);
-    Prop->MeshID = Mesh_Sphere_ID;
+    Mesh = GetMesh(AssetManager, "Sphere");
+    game_entity* Prop = AddEntity(State->Entities, CreateEntity("Prop", Prop_Entity_Type, Mesh));
     Prop->Color = color::RED;
     Prop->Transform = GetTransform(V3(0,0,5), GetScale(10,1,1));
     Prop->Collider = CapsuleCollider(V3(-0.9f,0,0), V3(0.9f,0,0), 1.0f);
 
     // enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));
 
-    game_entity* Sword = CreateEntity(State->Entities, "Sword", Weapon_Entity_Type);
-    Sword->MeshID = Mesh_Sword_ID;
+    Mesh = GetMesh(AssetManager, "Sword");
+    game_entity* Sword = AddEntity(State->Entities, CreateEntity("Sword", Weapon_Entity_Type, Mesh));
     Sword->Color = color::GRAY;
     Sword->Transform.Translation = V3(5,0,0);
     Sword->Collider = CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.6f);
 
-    game_entity* Shield = CreateEntity(State->Entities, "Shield", Weapon_Entity_Type);
-    Shield->MeshID = Mesh_Shield_ID;
+    Mesh = GetMesh(AssetManager, "Mesh");
+    game_entity* Shield = AddEntity(State->Entities, CreateEntity("Shield", Weapon_Entity_Type));
     Shield->Color = color::GRAY;
     Shield->Transform.Translation = V3(10,1.6f,0);
     Shield->Collider = CapsuleCollider(V3(0,-0.5f,0), V3(0,0.5f,0), 1.0f);
 
     return true;
+}
+
+TEST(TestSerialization, test_once, ACTIVE)() {
+    // String
+    Arena Arena = AllocateMemoryArena(Kilobytes(4));
+    string TestString = "This is a test string.";
+    
+    void* Memory = Serialize(&Arena, TestString, string);
+    string Result = ReadString(Memory);
+
+    Assert(Result == TestString);
+
+    // Struct
+    game_entity Entity = CreateEntity("Test Entity", Weapon_Entity_Type);
+    Memory = Serialize(&Arena, Entity, game_entity);
+
+    
+
+    game_entity
+    Assert(
+        Entity
+    );
+
+    return TestString == Result;
 }

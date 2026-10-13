@@ -10,8 +10,8 @@ int main(int argc, char* argv[]) {
     Platform.PerformanceCounterFrequency = PerfCountFrequencyResult.QuadPart;
 #endif
 
-    memory_arena Permanent = MemoryArena(ArenaSize, TextBuffer);
-    memory_arena Transient = MemoryArena(ArenaSize, TextBuffer + ArenaSize);
+    Arena Permanent = MemoryArena(ArenaSize, TextBuffer);
+    Arena Transient = MemoryArena(ArenaSize, TextBuffer + ArenaSize);
 
     build_configuration Config = ReadBuildConfiguration(&Permanent, argv[1]);
 

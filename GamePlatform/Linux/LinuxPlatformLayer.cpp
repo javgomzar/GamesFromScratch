@@ -62,7 +62,7 @@ int main() {
 
     // Memory arenas
     Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
-    memory_arena FontsArena = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
+    Arena FontsArena = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
 
     // Assets
     game_assets* Assets = &Memory.Assets;

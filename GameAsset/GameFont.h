@@ -1,8 +1,8 @@
-#include "GamePlatform.h"
-#include "GameMath.h"
-
 #ifndef GAME_FONT
 #define GAME_FONT
+
+#include "GamePlatform.h"
+#include "GameMath.h"
 
 #include <vector>
 
@@ -22,6 +22,7 @@ struct composite_glyph_record {
     char Child;
 };
 
+INTROSPECT
 struct glyph_contour_point {
     uint32 Index;
     float X;
@@ -33,6 +34,7 @@ v2 GetContourPointV2(glyph_contour_point* ContourPoint) {
     return V2(ContourPoint->X, ContourPoint->Y);
 }
 
+INTROSPECT
 struct glyph_contour {
     glyph_contour_point* Points;
     uint16 Endpoint;
@@ -41,6 +43,7 @@ struct glyph_contour {
     bool IsExterior;
 };
 
+INTROSPECT
 struct game_font_character {
     char Letter;
     int16 nContours;
@@ -65,8 +68,6 @@ struct game_font_character {
 
 struct preprocessed_font {
     uint64 Size;
-    file_info FileInfo;
-    void* FileContent;
     uint32 GlyphOffsets[FONT_CHARACTERS_COUNT];
     uint32 LocaOffset;
     uint32 GlyfOffset;
@@ -92,8 +93,9 @@ struct preprocessed_font {
     int16 MaxY;
 };
 
+INTROSPECT
 struct game_font {
-    game_font_id ID;
+    string Name;
     uint16 SpaceAdvance;
     uint16 LineJump;
     int16 MinX;
@@ -515,7 +517,7 @@ void ClosestPoints(glyph_polygon P, glyph_polygon Q, link** OutP, link** OutQ) {
 	Then, the output of this function will be the polygon given by vertices 
 	`v_j, ..., v_m, v_1, ..., v_j, w_i, ..., w_n, w_1, ..., w_i`.
 */
-glyph_polygon Concatenate(memory_arena* Arena, glyph_polygon P, glyph_polygon Q) {
+glyph_polygon Concatenate(Arena* Arena, glyph_polygon P, glyph_polygon Q) {
 	glyph_polygon Result = {};
 
 	link* V = nullptr;
@@ -664,10 +666,6 @@ bool IsInside(glyph_polygon P, v2 Q) {
 
 const float DPI = 96.0f;
 
-preprocessed_font PreprocessFont(file_info FileInfo);
-game_font LoadFont(memory_arena* Arena, preprocessed_font* Font);
-//glyph_triangulation ComputeTriangulation(memory_arena* Arena, game_font* Font);
-
 float GetCharMaxHeight(game_font* Font, float Points) {
     float PixelsPerEm = Points * (DPI / 72.0f) / Font->UnitsPerEm;
     return Font->MaxY * PixelsPerEm;
@@ -801,11 +799,10 @@ int16 GetTTFCoordinate(bool IsShort, bool RepeatOrPositive, int16 Last, uint8*& 
 // | Font preprocessing                                                                                                                       |
 // +------------------------------------------------------------------------------------------------------------------------------------------+
 
-preprocessed_font PreprocessFont(file_info FileInfo, void* FileContent) {
+preprocessed_font PreprocessFont(void* FileContent) {
     using namespace ttf;
 
     preprocessed_font Result = {};
-    Result.FileContent = FileContent;
     uint8* FilePointer = (uint8*)FileContent;
 
     font_header Header = ParseTTFHeader(FilePointer);
@@ -984,7 +981,6 @@ preprocessed_font PreprocessFont(file_info FileInfo, void* FileContent) {
         if (c != ' ') Result.GlyphIDs[c - '!'] = GlyphID;
 
         uint32 Offset = GlyphOffsets[GlyphID];
-        Assert(Offset < FileInfo.Size);
         uint32 GlyphLength = GlyphOffsets[GlyphID + 1] - Offset;
         uint8* GlyphData = GlyfTable + Offset;
         if (GlyphLength > 0) {
@@ -1136,10 +1132,18 @@ preprocessed_font PreprocessFont(file_info FileInfo, void* FileContent) {
     return Result;
 }
 
-// +------------------------------------------------------------------------------------------------------------------------------------------+
-// | Font loading                                                                                                                             |
-// +------------------------------------------------------------------------------------------------------------------------------------------+
-game_font LoadFont(memory_arena* Permanent, memory_arena* Transient, preprocessed_font* Font) {
+/*
++------------------------------------------------------------------------------------------------------------------------------------------+
+| Font loading                                                                                                                             |
++------------------------------------------------------------------------------------------------------------------------------------------+
+*/
+
+game_font LoadFont(
+    Arena* Permanent, 
+    Arena* Transient, 
+    preprocessed_font* Font,
+    void* FileContent
+) {
     using namespace ttf;
 
     game_font Result = {};
@@ -1153,7 +1157,9 @@ game_font LoadFont(memory_arena* Permanent, memory_arena* Transient, preprocesse
     Result.MinY = Font->MinY;
     Result.MaxY = Font->MaxY;
 
-    uint8* FilePointer = (uint8*)Font->FileContent;
+    uint8* FilePointer = (uint8*)FileContent;
+
+    uint64 TransientStart = Transient->Used;
 
     uint32* GlyphOffsets = PushArray(Transient, Font->nGlyphs+1, uint32);
     uint32* LocationsTable = (uint32*)(FilePointer + Font->LocaOffset);
@@ -1397,10 +1403,12 @@ game_font LoadFont(memory_arena* Permanent, memory_arena* Transient, preprocesse
         }
     }
 
+    PopSize(Transient, Transient->Used - TransientStart);
+
     return Result;
 }
 
-uint32 WriteFontVertices(memory_arena* Arena, game_font* Font) {
+uint32 WriteFontVertices(Arena* Arena, game_font* Font) {
     uint32 Index = 0;
     Font->Vertices = (float*)(Arena->Base + Arena->Used);
     for (char c = '!'; c <= '~'; c++) {
@@ -1452,7 +1460,7 @@ uint32 WriteFontVertices(memory_arena* Arena, game_font* Font) {
 }
 
 void WriteFontCurveTriangles(
-    memory_arena* Arena,
+    Arena* Arena,
     game_font* Font
 ) {
     xarray<uint32> InteriorTriangles;
@@ -1524,7 +1532,7 @@ void WriteFontCurveTriangles(
     }
 }
 
-void WriteFontSolidTriangles(memory_arena* Permanent, memory_arena* Transient, game_font* Font) {
+void WriteFontSolidTriangles(Arena* Permanent, Arena* Transient, game_font* Font) {
     using namespace ttf;
 
     uint32 Offset = 3 * Font->nCurveTriangles;
@@ -1738,7 +1746,7 @@ void WriteFontSolidTriangles(memory_arena* Permanent, memory_arena* Transient, g
     }
 }
 
-void TriangulateFont(memory_arena* FontsArena, memory_arena* Transient, game_font* Font) {
+void TriangulateFont(Arena* FontsArena, Arena* Transient, game_font* Font) {
     WriteFontVertices(FontsArena, Font);
     WriteFontCurveTriangles(FontsArena, Font);
     WriteFontSolidTriangles(FontsArena, Transient, Font);

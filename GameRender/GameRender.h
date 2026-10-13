@@ -28,14 +28,14 @@ struct element_buffer_entry {
 };
 
 struct vertex_buffer {
-    memory_arena Vertices[vertex_layout_id_count];
-    memory_arena Elements;
+    Arena Vertices[vertex_layout_id_count];
+    Arena Elements;
     uint32 VertexCount[vertex_layout_id_count];
     uint32 ElementCount;
 };
 
 /* Initializes several vertex buffers and element buffers. Returns total memory used.*/
-inline memory_size InitializeVertexBuffer(vertex_buffer* Buffer, memory_arena* Arena) {
+inline memory_size InitializeVertexBuffer(vertex_buffer* Buffer, Arena* Arena) {
     memory_size TotalSize = 0;
     memory_size Size = 0;
 
@@ -58,7 +58,7 @@ inline memory_size InitializeVertexBuffer(vertex_buffer* Buffer, memory_arena* A
 }
 
 vertex_buffer_entry PushVertexEntry(vertex_buffer* VertexBuffer, uint64 Count, vertex_layout_id LayoutID) {
-    memory_arena* Arena = &VertexBuffer->Vertices[LayoutID];
+    Arena* Arena = &VertexBuffer->Vertices[LayoutID];
     
     vertex_buffer_entry Entry;
     Entry.Count = Count;
@@ -102,35 +102,32 @@ void ClearVertexBuffer(vertex_buffer* Buffer) {
 const memory_size TEXT_BUFFER_SIZE = Kilobytes(16);
 
 struct text_buffer {
-    memory_arena Instances[game_font_id_count][FONT_CHARACTERS_COUNT];
-    uint32 Count[game_font_id_count][FONT_CHARACTERS_COUNT];
+    game_font* Font;
+    Arena Instances[FONT_CHARACTERS_COUNT];
+    uint32 Count[FONT_CHARACTERS_COUNT];
 };
 
-void InitializeTextBuffer(memory_arena* Arena, text_buffer* TextBuffer) {
-    for (int Font = 0; Font < game_font_id_count; Font++) {
-        for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
-            TextBuffer->Instances[Font][c] = SuballocateMemoryArena(Arena, TEXT_BUFFER_SIZE);
-            TextBuffer->Count[Font][c] = 0;
-        }
+void InitializeTextBuffer(Arena* Arena, text_buffer* TextBuffer) {
+    for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+        TextBuffer->Instances[c] = SuballocateMemoryArena(Arena, TEXT_BUFFER_SIZE);
+        TextBuffer->Count[c] = 0;
     }
 }
 
 void ClearTextBuffer(text_buffer* TextBuffer) {
-    for (int Font = 0; Font < game_font_id_count; Font++) {
-        for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
-            ClearArena(&TextBuffer->Instances[Font][c]);
-            TextBuffer->Count[Font][c] = 0;
-        }
+    for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+        ClearArena(&TextBuffer->Instances[c]);
+        TextBuffer->Count[c] = 0;
     }
 }
 
-void PushTextEntry(text_buffer* TextBuffer, game_font_id FontID, char Char, v2 Pen, float Size, color Color = color::WHITE) {
-    memory_arena* Arena = &TextBuffer->Instances[FontID][Char - '!'];
+void PushTextEntry(text_buffer* TextBuffer, game_font* Font, char Char, v2 Pen, float Size, Color color = Color::WHITE) {
+    Arena* Arena = &TextBuffer->Instances[Char - '!'];
     float* Data = PushArray(Arena, 7, float);
     *Data++ = Pen.X; *Data++ = Pen.Y;
     *Data++ = Size;
-    *Data++ = Color.R; *Data++ = Color.G; *Data++ = Color.B; *Data++ = Color.A;
-    TextBuffer->Count[FontID][Char - '!']++;
+    *Data++ = color.R; *Data++ = color.G; *Data++ = color.B; *Data++ = color.A;
+    TextBuffer->Count[Char - '!']++;
 }
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -167,7 +164,7 @@ ENUM(render_group_target,
 
 struct render_clear_command {
     render_group_target Target;
-    color Color;
+    Color color;
 };
 
 ENUM(render_primitive,
@@ -193,15 +190,13 @@ FLAGS(render_flag,
 );
 
 struct render_primitive_optional_arguments {
-    color Color = color::WHITE;
+    Color color = Color::WHITE;
     render_flag Flags;
-    game_heightmap* Heightmap = nullptr;
     vertex_layout_id InstanceLayoutID;
     int nElements = 0;
     int nInstances = 0;
     float Order = 0.0f;
-    int PatchParameter = 4;
-    game_texture* Texture = nullptr;
+    Texture* texture = nullptr;
     float Thickness = 2.0f;
     transform Transform = IdentityTransform;
 };
@@ -210,8 +205,7 @@ struct render_primitive_options {
     render_flag Flags;
     float Thickness = 2.0f;
     transform Transform = IdentityTransform;
-    game_texture* Texture = nullptr;
-    game_heightmap* Heightmap = nullptr;
+    Texture* texture = nullptr;
     int PatchParameter = 4;
 };
 
@@ -222,28 +216,28 @@ struct render_primitive_command {
     instance_buffer_entry InstanceEntry = {0};
     float* Vertices = 0;
     render_primitive_options Options;
-    color Color;
+    Color color;
 };
 
 struct render_text_options {
-    color Color        = color::WHITE;
-    game_font_id Font  = Font_DejaVu_Sans_ID;
+    Color color        = Color::WHITE;
+    game_font* Font    = nullptr;
     bool Outline       = false;
-    color OutlineColor = color::BLACK;
+    Color OutlineColor = Color::BLACK;
     float OutlineWidth = 2.0f;
     float Points       = 20.0f;
 };
 
 struct render_mesh_options {
-    armature* Armature = nullptr;
-    color Color = color::WHITE;
-    game_texture_id TextureID = Texture_Empty_ID;
-    transform Transform = IdentityTransform;
-    bool Outline = false;
+    armature* armature  = nullptr;
+    Color     color     = Color::WHITE;
+    Texture*  texture   = nullptr;
+    transform transform = IdentityTransform;
+    bool      outline   = false;
 };
 
 struct render_mesh_command {
-    game_mesh_id MeshID;
+    game_mesh* Mesh;
     render_mesh_options Options;
 };
 
@@ -271,7 +265,7 @@ struct render_shader_pass_command {
     shader_pass_type Type;
     render_group_target Source;
     render_group_target Target;
-    color Color;
+    Color color;
     int Level;
     float Width;
     bool ClearTarget;
@@ -293,7 +287,7 @@ struct render_compute_command {
     render_group_target Target;
     iv3 nGroups;
     matrix3 Kernel;
-    color Color;
+    Color color;
     int Level;
     float Width;
 };
@@ -312,12 +306,12 @@ enum wrap_mode {
     Wrap_Crop
 };
 
-struct light {
-    color Color;
-    v3 Direction;
-    v3 CameraPosition;
-    float Ambient;
-    float Diffuse;
+struct Light {
+    Color color;
+    v3 direction;
+    v3 camera_position;
+    float ambient;
+    float diffuse;
 };
 
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -344,10 +338,10 @@ struct render_group {
     render_group_target_description RenderTargets[render_group_target_count];
     vertex_buffer VertexBuffer;
     text_buffer TextBuffer;
-    light Light;
-    game_asset_manager* Assets;
+    Light light;
+    Asset_Manager* asset_manager;
     game_font* DebugFont;
-    memory_arena* Transient;
+    Arena* Transient;
     int32 Width;
     int32 Height;
     uint32 EntryCount;
@@ -367,9 +361,9 @@ struct render_group {
 
 void InitializeRenderGroup(
     render_group* Group, 
-    memory_arena* Permanent,
-    memory_arena* Transient,
-    game_asset_manager* Assets,
+    Arena* Permanent,
+    Arena* Transient,
+    Asset_Manager* AssetManager,
     int32 Width,
     int32 Height
 ) {
@@ -378,8 +372,8 @@ void InitializeRenderGroup(
     Group->Width = Width;
     Group->Height = Height;
 
-    Group->Assets = Assets;
-    Group->DebugFont = GetAsset(Assets, Font_DejaVu_Sans_Mono_ID);
+    Group->asset_manager = AssetManager;
+    // Group->DebugFont = GetFont(AssetManager, "DejaVuSansMono");
     
     Group->Debug = false;
     Group->DebugNormals = false;
@@ -387,10 +381,10 @@ void InitializeRenderGroup(
     Group->DebugBones = false;
 
     // Lighting
-    Group->Light.Color = color::WHITE;
-    Group->Light.Direction = normalize(V3(-0.5, -1, 1));
-    Group->Light.Ambient = 0.5f;
-    Group->Light.Diffuse = 0.5f;
+    Group->light.color = Color::WHITE;
+    Group->light.direction = normalize(V3(-0.5, -1, 1));
+    Group->light.ambient = 0.5f;
+    Group->light.diffuse = 0.5f;
 
     // Vertex & element buffers
     InitializeVertexBuffer(&Group->VertexBuffer, Permanent);
@@ -589,7 +583,7 @@ void PushShaderPass(
     shader_pass_type Type,
     render_group_target Source,
     render_group_target Target,
-    color Color,
+    Color color,
     float Order = SORT_ORDER_SHADER_PASSES
 ) {
     render_command Command;
@@ -601,7 +595,7 @@ void PushShaderPass(
 
     render_shader_pass_command ShaderCommand;
     ShaderCommand.Type = Type;
-    ShaderCommand.Color = Color;
+    ShaderCommand.color = color;
     ShaderCommand.Source = Source;
     ShaderCommand.Target = Target;
     
@@ -665,7 +659,7 @@ void PushJumpFloodCompute(
 
 void PushOutlineCompute(
     render_group* Group,
-    color Color,
+    Color color,
     float Width,
     float Order = 0.0f
 ) {
@@ -679,7 +673,7 @@ void PushOutlineCompute(
     render_compute_command ComputeCommand = {};
     ComputeCommand.Type = compute_outline;
     ComputeCommand.Target = Target_Postprocessing_Outline;
-    ComputeCommand.Color = Color;
+    ComputeCommand.color = color;
     ComputeCommand.Width = Width;
     ComputeCommand.nGroups.X = (Group->Width + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
     ComputeCommand.nGroups.Y = (Group->Height + COMPUTE_GROUP_SIZE - 1) / COMPUTE_GROUP_SIZE;
@@ -754,7 +748,7 @@ void PushFFT(
 // | Render commands                                                                                                                                                  |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void PushClear(render_group* Group, color Color, render_group_target Target = Target_Output) {
+void PushClear(render_group* Group, Color color, render_group_target Target = Target_Output) {
     render_command Command;
     Command.Index = Group->nClearCommands;
     Command.Priority = 0.0f;
@@ -763,7 +757,7 @@ void PushClear(render_group* Group, color Color, render_group_target Target = Ta
 
     render_clear_command Clear;
     Clear.Target = Target;
-    Clear.Color = Color;
+    Clear.color = color;
     
     Group->ClearCommands[Group->nClearCommands++] = Clear;
 }
@@ -793,18 +787,16 @@ render_primitive_command* _PushPrimitiveCommand(
         .Flags = Arguments.Flags,
         .Thickness = Arguments.Thickness,
         .Transform = Arguments.Transform,
-        .Texture = Arguments.Texture,
-        .Heightmap = Arguments.Heightmap,
-        .PatchParameter = Arguments.PatchParameter,
+        .texture = Arguments.texture,
     };
     PrimitiveCommand->Primitive = Primitive;
-    PrimitiveCommand->Color = Arguments.Color;
+    PrimitiveCommand->color = Arguments.color;
 
     int nElements = Arguments.nElements;
     int nInstances = Arguments.nInstances;
 
     if (nVertices > 0) {
-        if (Arguments.Heightmap || Arguments.Flags & render_flag::water) {
+        if (Arguments.Flags & render_flag::water) {
             PrimitiveCommand->VertexEntry.Count = nVertices;
             PrimitiveCommand->VertexEntry.LayoutID = LayoutID;
         }
@@ -815,7 +807,7 @@ render_primitive_command* _PushPrimitiveCommand(
     }
 
     if (nElements > 0) {
-        if (Arguments.Heightmap || Arguments.Flags & render_flag::water) {
+        if (Arguments.Flags & render_flag::water) {
             PrimitiveCommand->ElementEntry.Count = nElements;
         }
         else {
@@ -832,26 +824,26 @@ render_primitive_command* _PushPrimitiveCommand(
 
 #define PushPrimitiveCommand(Group, Primitive, LayoutID, nVertices, ...) _PushPrimitiveCommand(Group, Primitive, LayoutID, nVertices, { __VA_ARGS__ })
 
-void PushPoint(render_group* Group, v2 Point, color Color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
+void PushPoint(render_group* Group, v2 Point, Color color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
     float* Vertices = (float*)PushPrimitiveCommand(
         Group,
         render_primitive_point, 
         vertex_layout_v2_id, 
         1,
-        .Color = Color,
+        .color = color,
         .Order = Order
     )->VertexEntry.Pointer;
     Vertices[0] = Point.X;
     Vertices[1] = Point.Y;
 }
 
-void PushPoint(render_group* Group, v3 Point, color Color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
+void PushPoint(render_group* Group, v3 Point, Color color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
     float* Vertices = PushPrimitiveCommand(
         Group, 
         render_primitive_point,
         vertex_layout_v3_id, 
         1,
-        .Color = Color,
+        .color = color,
         .Flags = render_flag::depth_test,
         .Order = Order
     )->Vertices;
@@ -864,7 +856,7 @@ void PushLine(
     render_group* Group,
     v2 Start,
     v2 End,
-    color Color,
+    Color color,
     float Thickness = 2.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -873,7 +865,7 @@ void PushLine(
         render_primitive_line,
         vertex_layout_v2_id,
         2,
-        .Color = Color,
+        .color = color,
         .Order = Order,
         .Thickness = Thickness
     )->Vertices;
@@ -887,7 +879,7 @@ void PushLine(
     render_group* Group,
     v3 Start,
     v3 End,
-    color Color,
+    Color color,
     float Thickness = 2.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -896,7 +888,7 @@ void PushLine(
         render_primitive_line,
         vertex_layout_v3_id,
         2,
-        .Color = Color,
+        .color = color,
         .Flags = render_flag::depth_test,
         .Order = Order,
         .Thickness = Thickness
@@ -912,20 +904,20 @@ void PushLine(
 void PushRay(
     render_group* Group,
     ray Ray,
-    color Color,
+    Color color,
     float Thickness = 2.0f,
     float Length = 10.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     v3 Start = Ray.Point;
     v3 End = Start + Length * Ray.Direction;
-    PushLine(Group, Start, End, Color, Thickness, Order);
+    PushLine(Group, Start, End, color, Thickness, Order);
 }
 
 void PushTriangle(
     render_group* Group,
     triangle3 Triangle,
-    color Color,
+    Color color,
     float Order = SORT_ORDER_MESHES
 ) {
     float* Vertices = PushPrimitiveCommand(
@@ -933,7 +925,7 @@ void PushTriangle(
         render_primitive_triangle,
         vertex_layout_v3_id,
         3,
-        .Color = Color,
+        .color = color,
         .Flags = render_flag::depth_test,
         .Order = Order
     )->Vertices;
@@ -951,7 +943,7 @@ void PushTriangle(
 void PushTriangle(
     render_group* Group,
     triangle2 Triangle,
-    color Color,
+    Color color,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     float* Vertices = PushPrimitiveCommand(
@@ -959,7 +951,7 @@ void PushTriangle(
         render_primitive_triangle,
         vertex_layout_v2_id,
         3,
-        .Color = Color,
+        .color = color,
         .Order = Order
     )->Vertices;
 
@@ -975,7 +967,7 @@ void PushCircle(
     render_group* Group,
     v2 Center,
     float Radius,
-    color Color,
+    Color color,
     float Order = SORT_ORDER_DEBUG_OVERLAY,
     int nVertices = 30
 ) {
@@ -987,7 +979,7 @@ void PushCircle(
         render_primitive_triangle,
         vertex_layout_v2_id,
         N+1,
-        .Color = Color,
+        .color = color,
         .nElements = 3*N,
         .Order = Order
     );
@@ -1020,7 +1012,7 @@ void PushCircle(
     v3 Center,
     float Radius, 
     v3 Normal,
-    color Color,
+    Color color,
     float Order = SORT_ORDER_MESHES,
     int nVertices = 32
 ) {
@@ -1036,7 +1028,7 @@ void PushCircle(
         render_primitive_triangle,
         vertex_layout_v3_id,
         N+1,
-        .Color = Color,
+        .color = color,
         .Flags = render_flag::depth_test,
         .nElements = 3*N,
         .Order = Order,
@@ -1069,7 +1061,7 @@ void PushCircunference(
     render_group* Group,
     v2 Center,
     float Radius,
-    color Color,
+    Color color,
     float Thickness = 2.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY,
     int nVertices = 32
@@ -1082,7 +1074,7 @@ void PushCircunference(
         render_primitive_line_strip,
         vertex_layout_v2_id,
         N+1,
-        .Color = Color,
+        .color = color,
         .Order = Order,
         .Thickness = Thickness
     )->Vertices;
@@ -1105,7 +1097,7 @@ void PushCircunference(
     v3 Center,
     v3 Normal,
     float Radius,
-    color Color,
+    Color color,
     float Thickness = 2.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY,
     int nVertices = 32
@@ -1118,7 +1110,7 @@ void PushCircunference(
         render_primitive_line_strip,
         vertex_layout_v3_id,
         N+1,
-        .Color = Color,
+        .color = color,
         .Flags = render_flag::depth_test,
         .Order = Order
     )->Vertices;
@@ -1149,7 +1141,7 @@ void PushArc(
     basis Basis,
     float Radius,
     double Angle,
-    color Color,
+    Color color,
     float Thickness = 2.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY,
     int nVertices = 32
@@ -1162,7 +1154,7 @@ void PushArc(
         render_primitive_line_strip,
         vertex_layout_v3_id,
         N,
-        .Color = Color,
+        .color = color,
         .Flags = render_flag::depth_test,
         .Order = Order
     )->Vertices;
@@ -1181,7 +1173,7 @@ void PushArc(
 void PushRect(
     render_group* Group,
     rectangle Rect,
-    color Color,
+    Color color,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     render_primitive_command* Result = PushPrimitiveCommand(
@@ -1189,7 +1181,7 @@ void PushRect(
         render_primitive_triangle,
         vertex_layout_v2_id,
         4,
-        .Color = Color,
+        .color = color,
         .nElements = 6,
         .Order = Order
     );
@@ -1218,7 +1210,7 @@ void PushRect(
     v3 HeightAxis,
     float Width,
     float Height,
-    color Color,
+    Color color,
     float Order = SORT_ORDER_MESHES
 ) {
     render_primitive_command* Result = PushPrimitiveCommand(
@@ -1226,7 +1218,7 @@ void PushRect(
         render_primitive_triangle,
         vertex_layout_v3_id,
         4,
-        .Color = Color,
+        .color = color,
         .Flags = render_flag::depth_test,
         .nElements = 6,
         .Order = Order
@@ -1259,7 +1251,7 @@ void PushRect(
 void PushRectOutline(
     render_group* Group,
     rectangle Rect,
-    color Color,
+    Color color,
     float Thickness = 2.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -1268,7 +1260,7 @@ void PushRectOutline(
         render_primitive_line_strip,
         vertex_layout_v2_id,
         5,
-        .Color = Color,
+        .color = color,
         .Order = Order,
         .Thickness = Thickness
     )->Vertices;
@@ -1282,7 +1274,7 @@ void PushRectOutline(
 
 void PushBitmap(
     render_group* Group, 
-    game_texture* Bitmap, 
+    Texture* texture, 
     rectangle Rect, 
     float Order = SORT_ORDER_DEBUG_OVERLAY,
     wrap_mode WrapMode = Wrap_Clamp,
@@ -1297,11 +1289,11 @@ void PushBitmap(
         4,
         .nElements = 6,
         .Order = Order,
-        .Texture = Bitmap
+        .texture = texture
     );
 
-    int Width = Bitmap->Width;
-    int Height = Bitmap->Height;
+    int Width = texture->width;
+    int Height = texture->height;
     float MinTexX = 0.0f;
     float MaxTexX = 1.0f;
     float MinTexY = 0.0f;
@@ -1354,19 +1346,6 @@ void PushBitmap(
     Elements[5] = Result->VertexEntry.Offset + 1;
 }
 
-void PushBitmap(
-    render_group* Group, 
-    game_texture_id ID, 
-    rectangle Rect, 
-    float Order = SORT_ORDER_DEBUG_OVERLAY,
-    wrap_mode Mode = Wrap_Clamp,
-    v2 Size = V2(1.0, 1.0),
-    v2 Offset = V2(0,0)
-) {
-    game_texture* Bitmap = GetAsset(Group->Assets, ID);
-    PushBitmap(Group, Bitmap, Rect, Order, Mode, Size, Offset, false);
-}
-
 void _PushText(
     render_group* Group,
     v2 Position,
@@ -1388,13 +1367,12 @@ void _PushText(
         if (String[i] >= '!' && String[i] <= '~') nCharacters++;
     }
 
-    game_font* Font = GetAsset(Group->Assets, Options.Font);
-    color Color = Options.Color;
+    Color color = Options.color;
     
     v2 Pen = Position;
     float DPI = 96;
-    float Size = Options.Points * (DPI / 72.0f) / Font->UnitsPerEm;
-    float LineJump = Font->LineJump * Size;
+    float Size = Options.Points * (DPI / 72.0f) / Options.Font->UnitsPerEm;
+    float LineJump = Options.Font->LineJump * Size;
 
     for (int i = 0; i < String.Length; i++) {
         char c = String[i];
@@ -1412,12 +1390,12 @@ void _PushText(
 
         // Space
         else if (c == ' ') {
-            Pen.X += Font->SpaceAdvance * Size;
+            Pen.X += Options.Font->SpaceAdvance * Size;
         }
 
         // Character
         else if ('!' <= c && c <= '~') {
-            game_font_character* pCharacter = Font->Characters + (c - '!');
+            game_font_character* pCharacter = Options.Font->Characters + (c - '!');
             float HorizontalAdvance = pCharacter->Width * Size;
             // if (Options.Wrapped && (Pen.X + HorizontalAdvance > Group->Width)) {
             //     Pen.X = Position.X;
@@ -1425,7 +1403,7 @@ void _PushText(
             // }
 
             if (pCharacter->nContours > 0) {
-                PushTextEntry(&Group->TextBuffer, Options.Font, c, Pen, Size, Options.Color);
+                PushTextEntry(&Group->TextBuffer, Options.Font, c, Pen, Size, Options.color);
 
                 if (Options.Outline) {
                     // TODO: Add text outline back
@@ -1456,12 +1434,12 @@ void PushFillbar(
     string Description,
     float FillPercentage,
     rectangle Rect,
-    color Color = color::RED
+    Color color = Color::RED
 ) {
-    PushRect(Group, Rect, color::DARK_GRAY);
+    PushRect(Group, Rect, Color::DARK_GRAY);
     rectangle SmallRect = Rect;
     SmallRect.Width *= FillPercentage;
-    PushRect(Group, SmallRect, Color);
+    PushRect(Group, SmallRect, color);
 
     v2 Position = LeftTop(Rect);
     PushText(Group, Position + V2(5.0f, 15.0f), Description, .Points = 10);
@@ -1478,14 +1456,14 @@ void PushFillbar(
     int Used,
     int Max,
     rectangle Rect,
-    color Color = color::RED
+    Color color = Color::RED
 ) {
     float FillPercentage = (float)Used / (float)Max;
     float Points = 8;
-    PushRect(Group, Rect, color::DARK_GRAY);
+    PushRect(Group, Rect, Color::DARK_GRAY);
     rectangle SmallRect = Rect;
     SmallRect.Width *= FillPercentage;
-    PushRect(Group, Rect, Color);
+    PushRect(Group, Rect, color);
 
     v2 Position = LeftTop(Rect);
     PushText(Group, Position + V2(5.0f, 15.0f), Description, .Points = Points);
@@ -1505,19 +1483,19 @@ void PushFillbar(
     v3 HeightAxis,
     float Width,
     float Height,
-    color Color = color::RED
+    Color color = Color::RED
 ) {
     float FillPercentage = (float)Used / (float)Max;
-    PushRect(Group, LeftTop, WidthAxis, HeightAxis, Width, Height, color::DARK_GRAY);
+    PushRect(Group, LeftTop, WidthAxis, HeightAxis, Width, Height, Color::DARK_GRAY);
     float SmallWidth = FillPercentage * Width;
-    PushRect(Group, LeftTop, WidthAxis, HeightAxis, SmallWidth, Height, color::RED);
+    PushRect(Group, LeftTop, WidthAxis, HeightAxis, SmallWidth, Height, Color::RED);
 }
 
 void PushCubeOutline(
     render_group* Group,
     v3 Position,
     scale Scale = GetScale(1.0),
-    color Color = color::WHITE,
+    Color color = Color::WHITE,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
     render_primitive_command* Result = PushPrimitiveCommand(
@@ -1525,7 +1503,7 @@ void PushCubeOutline(
         render_primitive_line,
         vertex_layout_v3_id,
         8,
-        .Color = Color,
+        .color = color,
         .Flags = render_flag::depth_test,
         .nElements = 24,
         .Order = Order
@@ -1665,23 +1643,23 @@ void PushCubeOutline(
 
 void _PushMesh(
     render_group* Group,
-    game_mesh_id MeshID,
+    game_mesh* Mesh,
     render_mesh_options Options
 ) {
     
     render_command Command = {};
     Command.Type = render_mesh;
-    Command.Priority = Options.Outline ? SORT_ORDER_OUTLINED_MESHES : SORT_ORDER_MESHES;
+    Command.Priority = Options.outline ? SORT_ORDER_OUTLINED_MESHES : SORT_ORDER_MESHES;
     Command.Index = Group->nMeshCommands++;
     PushCommand(Group, Command);
 
     render_mesh_command* MeshCommand = &Group->MeshCommands[Command.Index];
-    MeshCommand->MeshID = MeshID;
+    MeshCommand->Mesh = Mesh;
     MeshCommand->Options = Options;
-    MeshCommand->Options.Outline = false;
+    MeshCommand->Options.outline = false;
 
     // Outlines
-    if (Options.Outline) {
+    if (Options.outline) {
         render_command OutlineCommand = {};
         OutlineCommand.Type = render_mesh;
         OutlineCommand.Priority = SORT_ORDER_CLEAR + 1.0f;
@@ -1689,10 +1667,10 @@ void _PushMesh(
         PushCommand(Group, OutlineCommand);
 
         render_mesh_command* OutlineMeshCommand = &Group->MeshCommands[OutlineCommand.Index];
-        OutlineMeshCommand->MeshID = MeshID;
-        OutlineMeshCommand->Options.Transform = Options.Transform;
-        OutlineMeshCommand->Options.Color = color::WHITE;
-        OutlineMeshCommand->Options.Outline = true;
+        OutlineMeshCommand->Mesh = Mesh;
+        OutlineMeshCommand->Options.transform = Options.transform;
+        OutlineMeshCommand->Options.color = Color::WHITE;
+        OutlineMeshCommand->Options.outline = true;
 
         if (!Group->PushOutline) {
             PushRenderTarget(Group, Target_Outline, Target_Postprocessing_Outline, SORT_ORDER_CLEAR + 1.0f);
@@ -1708,7 +1686,7 @@ void _PushMesh(
                 PushJumpFloodCompute(Group, Level, JumpOrder);
                 Level >>= 1;
             }
-            PushOutlineCompute(Group, color::WHITE, 4.0f, JumpOrder + 1.0f);
+            PushOutlineCompute(Group, Color::WHITE, 4.0f, JumpOrder + 1.0f);
 
             PushRenderTarget(Group, Target_Postprocessing_Outline, Target_World, SORT_ORDER_OUTLINED_MESHES - 0.1f);
             Group->PushOutline = true;
@@ -1716,34 +1694,34 @@ void _PushMesh(
     }
 
     // Debug bones rendering
-    if (Group->Debug && Group->DebugBones && Options.Armature) {
+    if (Group->Debug && Group->DebugBones && Options.armature) {
         v3* Vertices = (v3*)PushPrimitiveCommand(
             Group, 
             render_primitive_line,
             vertex_layout_v3_id,
-            2 * Options.Armature->nBones,
-            .Color = color::BLACK,
+            2 * Options.armature->nBones,
+            .color = Color::BLACK,
             .Flags = render_flag::debug_bones,
             .Order = SORT_ORDER_DEBUG_OVERLAY,
             .Thickness = 2.5f
         )->Vertices;
 
-        for (int i = 0; i < Options.Armature->nBones; i++) {
-            bone Bone = Options.Armature->Bones[i];
+        for (int i = 0; i < Options.armature->nBones; i++) {
+            bone Bone = Options.armature->Bones[i];
             transform BoneTransform = Bone.Transform;
-            v3 Head = BoneTransform * Options.Transform * Bone.Segment.Head;
-            v3 Tail = BoneTransform * Options.Transform * Bone.Segment.Tail;
+            v3 Head = BoneTransform * Options.transform * Bone.Segment.Head;
+            v3 Tail = BoneTransform * Options.transform * Bone.Segment.Tail;
             Vertices[2*i] = Head;
             Vertices[2*i+1] = Tail;
         }
     }
 }
 
-#define PushMesh(Group, MeshID, ...) _PushMesh(Group, MeshID, { __VA_ARGS__ })
+#define PushMesh(Group, Mesh, ...) _PushMesh(Group, Mesh, { __VA_ARGS__ })
 
 void PushHeightmap(
     render_group* Group, 
-    game_heightmap* Heightmap,
+    Texture* heightmap,
     v3 LeftBottom,
     scale S,
     float Order = SORT_ORDER_MESHES
@@ -1757,23 +1735,11 @@ void PushHeightmap(
         vertex_layout_v3_v2_id, 
         nVertices,
         .Flags = render_flag::depth_test,
-        .Heightmap = Heightmap,
         .nElements = nElements,
         .Order = Order,
-        .PatchParameter = 4,
-        .Transform = GetTransform(LeftBottom, Quaternion(1.0f), S)
+        .texture = heightmap,
+        .Transform = GetTransform(LeftBottom, Quaternion(1.0f), S),
     );
-}
-
-void PushHeightmap(
-    render_group* Group, 
-    game_heightmap_id ID,
-    v3 LeftBottom,
-    scale S,
-    float Order = SORT_ORDER_MESHES
-) {
-    game_heightmap* Heightmap = GetAsset(Group->Assets, ID);
-    PushHeightmap(Group, Heightmap, LeftBottom, S, Order);
 }
 
 void PushWater(render_group* Group, v3 Position, scale S) {
@@ -1781,14 +1747,13 @@ void PushWater(render_group* Group, v3 Position, scale S) {
     int nElements = 4*(HEIGHTMAP_RESOLUTION-1)*(HEIGHTMAP_RESOLUTION-1);
 
     PushPrimitiveCommand(
-        Group, 
+        Group,
         render_primitive_patches,
         vertex_layout_v3_v2_id, 
         nVertices,
         .Flags = render_flag::depth_test | render_flag::water,
         .nElements = nElements,
         .Order = SORT_ORDER_MESHES,
-        .PatchParameter = 4,
         .Transform = GetTransform(Position, Quaternion(1.0f), S),
     );
 }
@@ -1853,21 +1818,21 @@ void PushSky(render_group* Group) {
 // | Entities                                                                                                                                                         |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-void PushCollider(render_group* Group, collider Collider, transform Transform, color Color) {
+void PushCollider(render_group* Group, collider Collider, transform Transform, Color color) {
     v3 Position = Transform.Translation + Collider.Offset;
     switch (Collider.Type) {
         case Rect_Collider: {
-            PushRectOutline(Group, Rectangle(Collider), Color);
+            PushRectOutline(Group, Rectangle(Collider), color);
         } break;
 
         case Cube_Collider: {
-            PushCubeOutline(Group, Position, GetScale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), Color);
+            PushCubeOutline(Group, Position, GetScale(Collider.Cube.HalfWidth,Collider.Cube.HalfHeight,Collider.Cube.HalfDepth), color);
         } break;
 
         case Sphere_Collider: {
-            PushCircunference(Group, Position, V3(1,0,0), Collider.Sphere.Radius, Color);
-            PushCircunference(Group, Position, V3(0,1,0), Collider.Sphere.Radius, Color);
-            PushCircunference(Group, Position, V3(0,0,1), Collider.Sphere.Radius, Color);
+            PushCircunference(Group, Position, V3(1,0,0), Collider.Sphere.Radius, color);
+            PushCircunference(Group, Position, V3(0,1,0), Collider.Sphere.Radius, color);
+            PushCircunference(Group, Position, V3(0,0,1), Collider.Sphere.Radius, color);
         } break;
 
         case Capsule_Collider: {
@@ -1880,12 +1845,12 @@ void PushCollider(render_group* Group, collider Collider, transform Transform, c
             v3 D = normalize(Tail - Head);
 
             // Top part
-            PushArc(Group, Tail, Basis, Collider.Capsule.Distance, 180, Color);
+            PushArc(Group, Tail, Basis, Collider.Capsule.Distance, 180, color);
             v3 Temp = Basis.X;
             Basis.X = Basis.Z;
             Basis.Z = Temp;
-            PushArc(Group, Tail, Basis, Collider.Capsule.Distance, 180, Color);
-            PushCircunference(Group, Tail, D, Collider.Capsule.Distance, Color);
+            PushArc(Group, Tail, Basis, Collider.Capsule.Distance, 180, color);
+            PushCircunference(Group, Tail, D, Collider.Capsule.Distance, color);
 
             // Vertical lines
             v3 Offset[4] = { Basis.X, -Basis.X, Basis.Z, -Basis.Z };
@@ -1894,20 +1859,20 @@ void PushCollider(render_group* Group, collider Collider, transform Transform, c
                     Group, 
                     Tail + Collider.Capsule.Distance * Offset[i], 
                     Head + Collider.Capsule.Distance * Offset[i],
-                    Color
+                    color
                 );
             }
 
             // Bottom part
-            PushCircunference(Group, Head, D, Collider.Capsule.Distance, Color);
+            PushCircunference(Group, Head, D, Collider.Capsule.Distance, color);
             Basis = ST * Identity3;
             Basis.X = -Basis.X;
             Basis.Y = -Basis.Y;
-            PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color);
+            PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, color);
             Temp = Basis.X;
             Basis.X = Basis.Z;
             Basis.Z = Temp;
-            PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, Color);
+            PushArc(Group, Head, Basis, Collider.Capsule.Distance, 180, color);
 
             Collider.Capsule.Segment = Transform * Collider.Capsule.Segment;
         } break;
@@ -1924,12 +1889,12 @@ void PushCollider(render_group* Group, collider Collider, transform Transform, c
 
 const float DEBUG_ENTRIES_TEXT_POINTS = 10.0f;
 
-void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
+void PushDebugVector(render_group* Group, v2 Vector, v2 Position, Color color) {
     v2 Orthogonal = perp(normalize(V2(Vector.X, Vector.Y)));
     float OrthogonalLength = 0.005333f * Group->Height;
 
     int Thickness = fmax(1.0f, 0.0025f * Group->Height);
-    PushLine(Group, Position, Position + 0.875 * Vector, Color, Thickness, SORT_ORDER_DEBUG_OVERLAY);
+    PushLine(Group, Position, Position + 0.875 * Vector, color, Thickness, SORT_ORDER_DEBUG_OVERLAY);
     triangle2 Arrowhead1 = {
         Position + Vector,
         Position + 0.875 * Vector,
@@ -1938,7 +1903,7 @@ void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
     PushTriangle(
         Group,
         Arrowhead1,
-        Color, 
+        color, 
         SORT_ORDER_DEBUG_OVERLAY
     );
     triangle2 Arrowhead2 = {
@@ -1949,18 +1914,18 @@ void PushDebugVector(render_group* Group, v2 Vector, v2 Position, color Color) {
     PushTriangle(
         Group,
         Arrowhead2,
-        Color, 
+        color, 
         SORT_ORDER_DEBUG_OVERLAY
     );
 }
 
-void PushDebugVector(render_group* Group, basis CameraBasis, v3 Vector, v3 Position, color Color) {
+void PushDebugVector(render_group* Group, basis CameraBasis, v3 Vector, v3 Position, Color color) {
     v2 CameraCoordinates = perp(V2(dot(Vector, CameraBasis.X), dot(Vector, CameraBasis.Y)));
     v3 Orthogonal = normalize(CameraCoordinates.X * CameraBasis.X + CameraCoordinates.Y * CameraBasis.Y);
     float OrthogonalLength = (modulus(Vector) / 15.0f);
 
     int Thickness = fmax(1.0f, 0.0025f *  Group->Height);
-    PushLine(Group, Position, Position + 0.875f * Vector, Color, Thickness, SORT_ORDER_MESHES);
+    PushLine(Group, Position, Position + 0.875f * Vector, color, Thickness, SORT_ORDER_MESHES);
     
     // Arrow head
     triangle3 Triangle = {
@@ -1968,13 +1933,13 @@ void PushDebugVector(render_group* Group, basis CameraBasis, v3 Vector, v3 Posit
         Position + 0.875 * Vector,
         Position + 0.8 * Vector - OrthogonalLength * Orthogonal,
     };
-    PushTriangle(Group, Triangle, Color, SORT_ORDER_MESHES);
+    PushTriangle(Group, Triangle, color, SORT_ORDER_MESHES);
     Triangle = {
         Position + Vector,
         Position + 0.875 * Vector,
         Position + 0.8 * Vector + OrthogonalLength * Orthogonal,
     };
-    PushTriangle(Group, Triangle, Color, SORT_ORDER_MESHES);
+    PushTriangle(Group, Triangle, color, SORT_ORDER_MESHES);
 }
 
 void PushDebugFustrum(
@@ -2039,7 +2004,7 @@ void PushDebugGrid(render_group* Group, float Alpha) {
         render_primitive_line,
         vertex_layout_v3_id,
         nVertices,
-        .Color = ChangeAlpha(color::WHITE, 0.2f),
+        .color = ChangeAlpha(Color::WHITE, 0.2f),
         .Flags = render_flag::depth_test | render_flag::overwrite_alpha,
         .Order = SORT_ORDER_MESHES,
         .Thickness = 1.0f
@@ -2085,7 +2050,7 @@ void PushDebugPlot(
     float* Data,
     v2 Position,
     int dx,
-    color Color = color::WHITE,
+    Color color = Color::WHITE,
     float Thickness = 2.0f,
     float Order = SORT_ORDER_DEBUG_OVERLAY
 ) {
@@ -2094,7 +2059,7 @@ void PushDebugPlot(
         render_primitive_line_strip,
         vertex_layout_v2_id,
         N,
-        .Color = Color,
+        .color = color,
         .Order = Order,
         .Thickness = Thickness
     )->Vertices;
@@ -2107,7 +2072,7 @@ void PushDebugPlot(
 }
 
 inline uint16 ComputeTimeRecordsColWidths(
-    memory_arena* Arena,
+    Arena* Arena,
     game_font* Font, float Points,
     uint16 nRecords, time_record* TimeRecords,
     float* FunctionColWidth,
@@ -2156,23 +2121,23 @@ void PushTimeRecordsPartial(
         time_record* Record = TimeRecords + i;
 
         if (Record->HitCount > 0) {
-            PushText(Group, V2(*X, *Y), Record->FunctionName, .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
+            PushText(Group, V2(*X, *Y), Record->FunctionName, .Font = Group->DebugFont, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X += FunctionColWidth + HMargin;
 
             Text = Format(Group->Transient, "{i}", 1, Record->HitCount);
             Width = GetTextWidth(Text, Group->DebugFont, DEBUG_ENTRIES_TEXT_POINTS);
             *X += HitsColWidth - Width;
-            PushText(Group, V2(*X, *Y), Text, .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
+            PushText(Group, V2(*X, *Y), Text, .Font = Group->DebugFont, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X += Width + HMargin;
             
             Text = Format(Group->Transient, "{f2}", 1, Record->CycleCount / 1000000.0f);
             Width = GetTextWidth(Text, Group->DebugFont, DEBUG_ENTRIES_TEXT_POINTS);
             *X += MCyclesColWidth - Width;
-            PushText(Group, V2(*X, *Y), Text, .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
+            PushText(Group, V2(*X, *Y), Text, .Font = Group->DebugFont, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X += Width + HMargin;
 
             Text = Format(Group->Transient, "{s}:{i}", 2, Record->FileName, Record->LineNumber);
-            PushText(Group, V2(*X, *Y), Text, .Font = Group->DebugFont->ID, .Points = DEBUG_ENTRIES_TEXT_POINTS);
+            PushText(Group, V2(*X, *Y), Text, .Font = Group->DebugFont, .Points = DEBUG_ENTRIES_TEXT_POINTS);
             *X = Group->Width - TotalWidth + HMargin;
 
             *Y += RecordHeight;
@@ -2218,26 +2183,26 @@ void PushTimeRecords(
     float RecordHeight = GetCharMaxHeight(Font, Points);
     float TotalHeight = (RecordHeight) * (nTotalRecords + 1) + 2 * VMargin;
 
-    PushRect(Group, { Group->Width - TotalWidth, Group->Height - TotalHeight, TotalWidth, TotalHeight }, ChangeAlpha(color::BLACK, 0.7f));
+    PushRect(Group, { Group->Width - TotalWidth, Group->Height - TotalHeight, TotalWidth, TotalHeight }, ChangeAlpha(Color::BLACK, 0.7f));
 
     float RecordX = Group->Width - TotalWidth + HMargin;
     float RecordY = Group->Height - TotalHeight + RecordHeight + 0.5f * VMargin;
 
     // Push header
     float X = RecordX + 0.5f * (FunctionColWidth - FunctionHeaderWidth);
-    PushText(Group, V2(X, RecordY), "Function", .Font = Group->DebugFont->ID, .Points = Points);
+    PushText(Group, V2(X, RecordY), "Function", .Font = Group->DebugFont, .Points = Points);
     RecordX += FunctionColWidth + HMargin;
 
     X = RecordX + 0.5f * (HitsColWidth - HitsHeaderWidth);
-    PushText(Group, V2(X, RecordY), "Hits", .Font = Group->DebugFont->ID, .Points = Points);
+    PushText(Group, V2(X, RecordY), "Hits", .Font = Group->DebugFont, .Points = Points);
     RecordX += HitsColWidth + HMargin;
 
     X = RecordX + 0.5f * (MCyclesColWidth - MCyclesHeaderWidth);
-    PushText(Group, V2(X, RecordY), "MCycles", .Font = Group->DebugFont->ID, .Points = Points);
+    PushText(Group, V2(X, RecordY), "MCycles", .Font = Group->DebugFont, .Points = Points);
     RecordX += MCyclesColWidth + HMargin;
 
     X = RecordX + 0.5f * (FileColWidth - FileHeaderWidth);
-    PushText(Group, V2(X, RecordY), "File", .Font = Group->DebugFont->ID, .Points = Points);
+    PushText(Group, V2(X, RecordY), "File", .Font = Group->DebugFont, .Points = Points);
 
     RecordX = Group->Width - TotalWidth + HMargin;
     RecordY += RecordHeight + 0.5f * VMargin;

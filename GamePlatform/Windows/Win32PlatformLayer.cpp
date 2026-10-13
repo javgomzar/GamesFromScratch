@@ -672,7 +672,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     game_code GameCode = { 0 };
     LoadGameCode(&GameCode, SourceDLLName, TempDLLName);
-    memory_size PermanentStorageSize = Megabytes(64);
+    memory_size PermanentStorageSize = Megabytes(128);
     void* GameMemoryBlock = Win32AllocateMemory(PermanentStorageSize);
     Memory.Permanent = MemoryArena(PermanentStorageSize, (uint8*)GameMemoryBlock);
     TimeRecords = (time_record*)&Memory.TimeRecordsPlatform;
@@ -682,15 +682,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     Memory.GameState = pGameState;
 
     // Memory arenas
-    Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(1));
+    Memory.Transient = SuballocateMemoryArena(&Memory.Permanent, Megabytes(64));
     Memory.DebugInfo.Arena = &Memory.Transient;
 
     // Assets
-    Memory.AssetManager = InitializeAssetManager(&Memory.Permanent, &Memory.Transient);
-    LoadAllAssets(&Memory.AssetManager);
-    const char* AssetsPath = "GameAsset\\game_assets";
-    // WriteAssetsFile(AssetsPath);
-    // LoadAssetsFromFile(&FontsArena, Assets, AssetsPath);
+    //Memory.AssetManager = InitializeAssetManager(&Memory.Permanent, &Memory.Transient);
 
     // Recording and playback
     record_and_playback RecordPlayback;
@@ -730,6 +726,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     // Initilize render API
     InitializeRenderer(
+        &Memory.Permanent,
         Group,
         Window,
         hInstance,

@@ -45,6 +45,7 @@ char* ReadFile(const char* Path, size_t* FileSize = nullptr) {
 }
 
 const char* const PrimitiveTypes[] = {
+    "void",
     "bool",
     "char",
     "string",
@@ -67,7 +68,7 @@ const char* const PrimitiveTypes[] = {
     "quaternion",
     "color",
     "collider",
-    "memory_arena"
+    "Arena"
 };
 const int nPrimitiveTypes = ArrayCount(PrimitiveTypes);
 
@@ -80,10 +81,15 @@ int main() {
     "#define GAME_ENUMS\n\n"
     );
 
-    fprintf(EnumsFile, "enum debug_type {\n");
+    fprintf(EnumsFile, "enum game_type {\n");
     for (int i = 0; i < nPrimitiveTypes; i++) {
-        fprintf(EnumsFile, "    debug_%s,\n", PrimitiveTypes[i]);
+        fprintf(EnumsFile, "    type_%s,\n", PrimitiveTypes[i]);
     }
+
+    fprintf(StructsFile, 
+    "#ifndef GAME_STRUCTS\n"
+    "#define GAME_STRUCTS\n\n"
+    );
 
     std::vector<std::string> EnumDebugTypes = {};
     std::vector<std::string> EnumValues = {};
@@ -95,7 +101,7 @@ int main() {
     std::vector<std::string> StructMembers = {};
 
     char Buffer[256];
-    memory_arena Arena = AllocateMemoryArena(Kilobytes(8));
+    Arena Arena = AllocateMemoryArena(Kilobytes(8));
     build_configuration Config = ReadBuildConfiguration(&Arena, "GameBuild/build.conf");
     tokenizer InputFilesTokenizer = InitTokenizer(Config.MetaprogrammingInputFiles.Content, Config.MetaprogrammingInputFiles.Length);
     
@@ -151,7 +157,7 @@ int main() {
                     char StructTypeText[MAX_TOKEN_LENGTH] = {};
                     strncpy(StructTypeText, StructType.Text, StructType.Length);
 
-                    sprintf(Buffer, "debug_%s", StructTypeText);
+                    sprintf(Buffer, "type_%s", StructTypeText);
                     StructDebugTypes.push_back(std::string(Buffer));
 
                     Token = RequireToken(Tokenizer, Token_OpenBrace);
@@ -180,19 +186,20 @@ int main() {
                         }
                         char MemberTypeDebugText[MAX_TOKEN_LENGTH] = {};
                         char MemberTypeText[MAX_TOKEN_LENGTH] = {};
-                        if (MemberType == "char" && (ArraySize > 0 || IsPointer)) {
-                            strcpy(MemberTypeDebugText, "string");
-                            strcpy(MemberTypeText, "char");
-                            ArraySize = 0;
-                        }
-                        else {
+                        // if (MemberType == "char" && (ArraySize > 0 || IsPointer)) {
+                        //     strcpy(MemberTypeDebugText, "string");
+                        //     strcpy(MemberTypeText, "char");
+                        //     ArraySize = 0;
+                        // }
+                        // else {
                             strncpy(MemberTypeDebugText, MemberType.Text, MemberType.Length);
                             strncpy(MemberTypeText, MemberType.Text, MemberType.Length);
-                        }
+                        //}
                         char MemberNameText[MAX_TOKEN_LENGTH] = {};
                         strncpy(MemberNameText, MemberName.Text, MemberName.Length);
-                        sprintf(Buffer, "    {\"%s\", debug_%s, debug_%s, sizeof(%s), (uint64)(&((%s*)0)->%s),%d, %s},\n", 
-                            MemberNameText, StructTypeText, MemberTypeDebugText, MemberTypeText, StructTypeText, MemberNameText,
+                        std::string SizeOfArg = IsPointer ? "void*" : std::string(MemberTypeText);
+                        sprintf(Buffer, "    {\"%s\", type_%s, type_%s, sizeof(%s), (uint64)(&((%s*)0)->%s),%d, %s},\n", 
+                            MemberNameText, StructTypeText, MemberTypeDebugText, SizeOfArg.c_str(), StructTypeText, MemberNameText,
                             ArraySize, IsPointer ? "true" : "false");
                         std::string StructMember = Buffer;
                         StructMembers.push_back(StructMember);
@@ -209,7 +216,7 @@ int main() {
                 token EnumName = RequireToken(Tokenizer, Token_Identifier);
                 char EnumNameText[MAX_TOKEN_LENGTH] = {};
                 strncpy(EnumNameText, EnumName.Text, EnumName.Length);
-                sprintf(Buffer, "debug_%s", EnumNameText);
+                sprintf(Buffer, "type_%s", EnumNameText);
                 EnumDebugTypes.push_back(std::string(Buffer));
 
                 Token = RequireToken(Tokenizer, Token_Comma);
@@ -219,14 +226,14 @@ int main() {
                     Token = RequireToken(Tokenizer, Token_Identifier);
                     char TokenText[MAX_TOKEN_LENGTH] = {};
                     strncpy(TokenText, Token.Text, Token.Length);
-                    sprintf(Buffer, "    {debug_%s, \"%s\", %d},\n", EnumNameText, TokenText, Value++);
+                    sprintf(Buffer, "    {type_%s, \"%s\", %d},\n", EnumNameText, TokenText, Value++);
                     EnumValues.push_back(std::string(Buffer));
                     Token = GetToken(Tokenizer);
                     if (Token.Type != Token_CloseParen && Token.Type != Token_Comma) {
                         throw "Should be a comma.";
                     };
                 }
-                sprintf(Buffer, "    {debug_%s, \"%s_count\", %d},\n", EnumNameText, EnumNameText, Value);
+                sprintf(Buffer, "    {type_%s, \"%s_count\", %d},\n", EnumNameText, EnumNameText, Value);
                 EnumValues.push_back(std::string(Buffer));
                 sprintf(Buffer, "%s_count", EnumNameText);
                 Constants[std::string(Buffer)] = Value;
@@ -251,7 +258,7 @@ int main() {
                     strncpy(FlagValueText, FlagValue.Text, FlagValue.Length);
                     Token = GetToken(Tokenizer);
                     if (Token.Type == Token_Comma || Token.Type == Token_CloseParen) {
-                        sprintf(Buffer, "    {debug_type::debug_%s, \"%s\", %d},\n", FlagsNameText, FlagValueText, 1 << Bit);
+                        sprintf(Buffer, "    {type_%s, \"%s\", %d},\n", FlagsNameText, FlagValueText, 1 << Bit);
                         FlagValues.push_back(std::string(Buffer));
                         sprintf(Buffer, "    %s = 1 << %d,\n", FlagValueText, Bit);
                         FlagDeclarations += std::string(Buffer);
@@ -282,7 +289,7 @@ int main() {
     }
 
     for (const std::string& FlagName : FlagDebugTypes) {
-        fprintf(EnumsFile, "    debug_%s,\n", FlagName.c_str());
+        fprintf(EnumsFile, "    type_%s,\n", FlagName.c_str());
     }
 
     for (const std::string& StructName : StructDebugTypes) {
@@ -294,17 +301,17 @@ int main() {
     fprintf(EnumsFile, "%s", FlagDeclarations.c_str());
 
     int nEnums = EnumDebugTypes.size();
-    fprintf(EnumsFile, "bool IsEnumType(debug_type Type) { return Type > %d && Type < %d; }\n", 
+    fprintf(EnumsFile, "bool IsEnumType(game_type Type) { return Type > %d && Type < %d; }\n", 
         nPrimitiveTypes - 1, nPrimitiveTypes + nEnums
     );
 
-    fprintf(EnumsFile, "bool IsFlagType(debug_type Type) { return Type > %d && Type < %d; }\n\n",
+    fprintf(EnumsFile, "bool IsFlagType(game_type Type) { return Type > %d && Type < %d; }\n\n",
         nPrimitiveTypes + nEnums - 1, nPrimitiveTypes + nEnums + nFlagTypes
     );
 
     fprintf(EnumsFile,
     "struct debug_enum_value {\n"
-    "    debug_type EnumType;\n"
+    "    game_type EnumType;\n"
     "    const char* Identifier;\n"
     "    int Value;\n"
     "};\n\n");
@@ -351,15 +358,15 @@ int main() {
     fprintf(EnumsFile, "#endif");
 
     int nStructs = StructDebugTypes.size();
-    fprintf(StructsFile, "bool IsStructType(debug_type Type) { return Type > %d && Type < %d; }\n\n", 
+    fprintf(StructsFile, "bool IsStructType(game_type Type) { return Type > %d && Type < %d; }\n\n", 
         nPrimitiveTypes + nEnums + nFlagTypes - 1, nPrimitiveTypes + nEnums + nFlagTypes + nStructs
     );
 
     fprintf(StructsFile,
     "struct debug_struct_member {\n"
     "    const char* Name;\n"
-    "    debug_type StructType;\n"
-    "    debug_type MemberType;\n"
+    "    game_type StructType;\n"
+    "    game_type MemberType;\n"
     "    uint64 Size;\n"
     "    uint64 Offset;\n"
     "    int ArraySize;\n"
@@ -380,6 +387,8 @@ int main() {
         fprintf(StructsFile, "debug_struct_member* StructMembers = 0;\n\n");
     }
 
+    fprintf(StructsFile, "\n#endif");
+
     fclose(StructsFile);
     fclose(EnumsFile);
 
@@ -393,9 +402,10 @@ int main() {
     "#include \"Tests.h\"\n\n");
 
     std::string MemorySetup = "    render_group* Group = &Memory->RenderGroup;\n"
+    "    game_asset_manager* AssetManager = &Memory->AssetManager;\n"
     "    game_state* State = Memory->GameState;\n"
-    "    memory_arena* Permanent = &Memory->Permanent;\n"
-    "    memory_arena* Transient = &Memory->Transient;\n"
+    "    Arena* Permanent = &Memory->Permanent;\n"
+    "    Arena* Transient = &Memory->Transient;\n"
     "    game_input* Input = &Memory->Input;\n"
     "    light* Light = &Memory->RenderGroup.Light;\n"
     "    float Time = State->Time;\n"
@@ -408,7 +418,13 @@ int main() {
     tokenizer Tokenizer = InitTokenizer(TestsContent, TestsFileSize);
     token Token = GetToken(Tokenizer);
     while (Token.Type != Token_End) {
-        if (Token == "TEST") {
+        if (Token.Type == Token_Colon) {
+            Token = GetToken(Tokenizer);
+            if (Token.Type == Token_Colon) {
+                Token = GetToken(Tokenizer);
+            }
+        }
+        else if (Token == "TEST") {
             RequireToken(Tokenizer, Token_OpenParen);
             token TestNameToken = RequireToken(Tokenizer, Token_Identifier);
 
