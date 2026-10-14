@@ -1585,16 +1585,16 @@ void ScreenCapture(int32 Width, int32 Height) {
 
     // File name
     time_t t = time(nullptr);
-    struct tm tm;
-    localtime_s(&tm, &t);
+    struct tm timestamp;
+    localtime_s(&timestamp, &t);
     char Filename[100];
     sprintf_s(Filename, "Captures/Screenshot %d-%02d-%02d_%02d-%02d-%02d.bmp",
-        tm.tm_year + 1900,
-        tm.tm_mon + 1,
-        tm.tm_mday,
-        tm.tm_hour,
-        tm.tm_min,
-        tm.tm_sec
+        timestamp.tm_year + 1900,
+        timestamp.tm_mon + 1,
+        timestamp.tm_mday,
+        timestamp.tm_hour,
+        timestamp.tm_min,
+        timestamp.tm_sec
     );
 
     HANDLE hFile = CreateFileA(Filename, GENERIC_READ | GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);

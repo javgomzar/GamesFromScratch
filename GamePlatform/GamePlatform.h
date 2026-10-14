@@ -200,9 +200,9 @@ struct String {
     };
 };
 
-char* CopyString(Arena* arena, String String) {
-    char* result = PushArray(arena, String.length, char);
-    strncpy(result, String.content, String.length);
+char* CopyString(Arena* arena, String string) {
+    char* result = PushArray(arena, string.length, char);
+    strncpy(result, string.content, string.length);
     return result;
 }
 
@@ -1055,21 +1055,21 @@ public:
 +---------------------------------------------------------------------------------------------------------------------------------+
 */
 
-enum log_mode {
-    File_Log_Mode,
-    Terminal_Log_Mode
+enum class Log_Mode {
+    File,
+    Terminal
 };
 
-enum class log_level {
+enum class Log_Level {
     Info,
     Test,
     Warn,
     Error
 };
 
-log_mode LOG_MODE = Terminal_Log_Mode;
+Log_Mode LOG_MODE = Log_Mode::Terminal;
 
-void Log(log_level Level, String Content);
+void Log(Log_Level Level, String Content);
 
 /*
 +---------------------------------------------------------------------------------------------------------------------------------+
@@ -1354,8 +1354,8 @@ struct platform_api {
     UNKNOWN_OPERATING_SYSTEM
 #endif
 
-void Raise(const char* ErrorMessage) {
-    Assert(false, ErrorMessage);
+void Raise(const char* error_message) {
+    Assert(false, error_message);
 }
 
 uint64 SeedRNG(Arena* arena) {
@@ -1375,7 +1375,7 @@ uint64 SeedRNG(Arena* arena) {
     }
 
     String seed_text = Format(arena, "RNG seed: {U}.", 1, seed);
-    Log(log_level::Info, seed_text.content);
+    Log(Log_Level::Info, seed_text.content);
     return seed;
 }
 
@@ -1383,40 +1383,40 @@ uint64 SeedRNG(Arena* arena) {
 // | Timing                                                                                                                          |
 // +---------------------------------------------------------------------------------------------------------------------------------+
 
-struct time_record {
-    uint64 CycleCount;
+struct Time_Record {
+    uint64 cycle_count;
     
-    String FileName;
-    String FunctionName;
+    String file_name;
+    String function_name;
     
-    int LineNumber;
-    int HitCount;
+    int line_number;
+    int hit_count;
 };
 
 const int MAX_TIME_RECORDS = 128;
-time_record *TimeRecords = nullptr;
+Time_Record *time_records = nullptr;
 
-struct timed_block {
-    time_record* Record;
-    uint64 StartCycles;
-    uint32 Aux;
+struct Timed_Block {
+    Time_Record* record;
+    uint64 start_cycles;
+    uint32 aux;
 
-    timed_block(int Counter, const char* FileName, int LineNumber, const char* FunctionName) {
-        Record = TimeRecords + Counter;
-        Record->FileName = FileName;
-        Record->FunctionName = FunctionName;
-        Record->LineNumber = LineNumber;
-        Record->HitCount++;
-        StartCycles = Platform.GetWallClock();
+    Timed_Block(int counter, const char* file_name, int line_number, const char* function_name) {
+        record = time_records + counter;
+        record->file_name = file_name;
+        record->function_name = function_name;
+        record->line_number = line_number;
+        record->hit_count++;
+        start_cycles = Platform.GetWallClock();
     }
 
-    ~timed_block() {
-        Record->CycleCount += Platform.GetWallClock() - StartCycles;
+    ~Timed_Block() {
+        record->cycle_count += Platform.GetWallClock() - start_cycles;
     }
 };
 
-#define TIMED_BLOCK__(Line) timed_block TimedBlock_##Line(__COUNTER__, __FILE__, __LINE__, __FUNCTION__)
-#define TIMED_BLOCK_(Line) TIMED_BLOCK__(Line);
+#define TIMED_BLOCK__(line) Timed_Block timed_block_##line(__COUNTER__, __FILE__, __LINE__, __FUNCTION__)
+#define TIMED_BLOCK_(line) TIMED_BLOCK__(line);
 #define TIMED_BLOCK TIMED_BLOCK_(__LINE__)
 
 #endif

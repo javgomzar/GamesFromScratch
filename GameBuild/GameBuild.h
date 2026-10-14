@@ -91,7 +91,7 @@ const char* GetCompilerFlags(Compiler compiler, Build_Mode mode) {
 struct Build_Configuration {
     Build_Mode mode;
     Compiler compiler;
-    renderer renderer;
+    Renderer renderer;
     String compiler_path;
     String include;
     String lib;
@@ -113,199 +113,199 @@ Build_Configuration ReadBuildConfiguration(Arena* arena, String config_file_path
     File_Info config_file_info;
     void* config_file = Platform.ReadEntireFile(config_file_path.content, &config_file_info);
     if (config_file) {
-        Tokenizer tokenizer = InitTokenizer(config_file, config_file_info.Size);
-        Token token = GetToken(Tokenizer);
+        Tokenizer tokenizer = InitTokenizer(config_file, config_file_info.size);
+        Token token = GetToken(tokenizer);
     
-        while(Token.Type != Token_End) {
+        while(token.type != Token_End) {
             // Comments
-            if (Token.Type == Token_Pound) {
-                AdvanceUntilNextLine(Tokenizer);
+            if (token.type == Token_Pound) {
+                AdvanceUntilNextLine(tokenizer);
             }
     
-            else if (Token.Type == Token_Identifier) {
+            else if (token.type == Token_Identifier) {
                 // Mode
-                if (Token == "MODE") {
-                    RequireToken(Tokenizer, Token_Equal);
-                    token ModeToken = RequireToken(Tokenizer, Token_Identifier);
-                    Config.Mode = GetBuildMode(ModeToken);
+                if (token == "MODE") {
+                    RequireToken(tokenizer, Token_Equal);
+                    Token mode_token = RequireToken(tokenizer, Token_Identifier);
+                    config.mode = GetBuildMode(mode_token);
                 }
     
                 // Compiler
-                else if (Token == "COMPILER") {
-                    RequireToken(Tokenizer, Token_Equal);
-                    Config.Compiler = GetCompiler(RequireToken(Tokenizer, Token_Identifier));
+                else if (token == "COMPILER") {
+                    RequireToken(tokenizer, Token_Equal);
+                    config.compiler = GetCompiler(RequireToken(tokenizer, Token_Identifier));
                 }
     
                 // Compiler path
-                else if (Token == "COMPILER_PATH") {
-                    RequireToken(Tokenizer, Token_Equal);
-                    Config.CompilerPath.content = Tokenizer.At;
-                    Config.CompilerPath.length = ParsePath(Tokenizer.At);
-                    Advance(Tokenizer, Config.CompilerPath.length);
+                else if (token == "COMPILER_PATH") {
+                    RequireToken(tokenizer, Token_Equal);
+                    config.compiler_path.content = tokenizer.at;
+                    config.compiler_path.length = ParsePath(tokenizer.at);
+                    Advance(tokenizer, config.compiler_path.length);
                 }
 
                 // Precompiled headers
-                else if (Token == "PRECOMPILE_HEADERS") {
-                    RequireToken(Tokenizer, Token_Equal);
-                    Config.PCH = ParseBool(Tokenizer);
+                else if (token == "PRECOMPILE_HEADERS") {
+                    RequireToken(tokenizer, Token_Equal);
+                    config.pch = ParseBool(tokenizer);
                 }
     
                 // Include
-                else if (Token == "INCLUDE") {
-                    RequireToken(Tokenizer, Token_Equal);
+                else if (token == "INCLUDE") {
+                    RequireToken(tokenizer, Token_Equal);
 
-                    Config.Include.length = 0;
-                    Config.Include.content = (const char*)(arena->base + arena->used);
+                    config.include.length = 0;
+                    config.include.content = (const char*)(arena->base + arena->used);
 
                     int Index = 0;
                     do {
-                        AdvanceUntilNextLine(Tokenizer);
-                        char* Pointer = PushArray(arena, 3, char);
-                        Config.Include.length += 3;
-                        if (Config.Compiler == MSVC) {
-                            *Pointer++ = '/';
+                        AdvanceUntilNextLine(tokenizer);
+                        char* pointer = PushArray(arena, 3, char);
+                        config.include.length += 3;
+                        if (config.compiler == MSVC) {
+                            *pointer++ = '/';
                         }
-                        else if (Config.Compiler == clang) {
-                            *Pointer++ = '-';
+                        else if (config.compiler == clang) {
+                            *pointer++ = '-';
                         }
-                        *Pointer++ = 'I';
-                        *Pointer++ = '\"';
-                        int PathLength = ParsePath(Tokenizer.At);
-                        PushArray(arena, PathLength + 1, char);
-                        Config.Include.length += PathLength + 1;
-                        strncpy(Pointer, Tokenizer.At, PathLength);
-                        Advance(Tokenizer, PathLength);
-                        Pointer += PathLength;
-                        *Pointer++ = '\"';
-                        if (Tokenizer.At[0] != ';') {
+                        *pointer++ = 'I';
+                        *pointer++ = '\"';
+                        int path_length = ParsePath(tokenizer.at);
+                        PushArray(arena, path_length + 1, char);
+                        config.include.length += path_length + 1;
+                        strncpy(pointer, tokenizer.at, path_length);
+                        Advance(tokenizer, path_length);
+                        pointer += path_length;
+                        *pointer++ = '\"';
+                        if (tokenizer.at[0] != ';') {
                             PushArray(arena, 1, char);
-                            *Pointer++ = '\0';
+                            *pointer++ = '\0';
                             break;
                         }
                         PushArray(arena, 1, char);
-                        Config.Include.length += 1;
-                        *Pointer++ = ' ';
+                        config.include.length += 1;
+                        *pointer++ = ' ';
                     } while (true);
                 }
     
                 // Lib
-                else if (Token == "LIB") {
-                    RequireToken(Tokenizer, Token_Equal);
+                else if (token == "LIB") {
+                    RequireToken(tokenizer, Token_Equal);
 
-                    Config.Lib.length = 0;
-                    Config.Lib.content = (char*)(arena->base + arena->used);
+                    config.lib.length = 0;
+                    config.lib.content = (char*)(arena->base + arena->used);
 
                     do {
-                        AdvanceUntilNextLine(Tokenizer);
-                        char* Pointer = PushArray(arena, 10, char);
-                        strncpy(Pointer, "/LIBPATH:\"", 10);
-                        Config.Lib.length += 10;
-                        int PathLength = ParsePath(Tokenizer.At);
-                        Pointer = PushArray(arena, PathLength + 1, char);
-                        Config.Lib.length += PathLength + 1;
-                        strncpy(Pointer, Tokenizer.At, PathLength);
-                        Advance(Tokenizer, PathLength);
-                        Pointer += PathLength;
-                        *Pointer++ = '\"';
-                        if (Tokenizer.At[0] != ';') {
+                        AdvanceUntilNextLine(tokenizer);
+                        char* pointer = PushArray(arena, 10, char);
+                        strncpy(pointer, "/LIBPATH:\"", 10);
+                        config.lib.length += 10;
+                        int path_length = ParsePath(tokenizer.at);
+                        pointer = PushArray(arena, path_length + 1, char);
+                        config.lib.length += path_length + 1;
+                        strncpy(pointer, tokenizer.at, path_length);
+                        Advance(tokenizer, path_length);
+                        pointer += path_length;
+                        *pointer++ = '\"';
+                        if (tokenizer.at[0] != ';') {
                             PushArray(arena, 1, char);
-                            *Pointer++ = '\0';
+                            *pointer++ = '\0';
                             break;
                         }
                         PushArray(arena, 1, char);
-                        Config.Lib.length += 1;
-                        *Pointer++ = ' ';
+                        config.lib.length += 1;
+                        *pointer++ = ' ';
                     } while (true);
                 }
 
                 // Linked libraries
-                else if (Token == "LINK") {
-                    RequireToken(Tokenizer, Token_Equal);
-                    Config.LinkedLibs.length = 0;
-                    Config.LinkedLibs.content = (char*)(arena->base + arena->used);
+                else if (token == "LINK") {
+                    RequireToken(tokenizer, Token_Equal);
+                    config.linked_libs.length = 0;
+                    config.linked_libs.content = (char*)(arena->base + arena->used);
                     do {
-                        token Library = RequireToken(Tokenizer, Token_Identifier);
-                        RequireToken(Tokenizer, Token_Dot);
-                        RequireToken(Tokenizer, "lib");
-                        char* LinkedLibraries = PushArray(arena, Library.length + 4, char);
-                        strncpy(LinkedLibraries, Library.Text, Library.length + 4);
-                        Config.LinkedLibs.length += Library.length + 4;
-                        if (Tokenizer.At[0] != ';') {
+                        Token library = RequireToken(tokenizer, Token_Identifier);
+                        RequireToken(tokenizer, Token_Dot);
+                        RequireToken(tokenizer, "lib");
+                        char* linked_libraries = PushArray(arena, library.length + 4, char);
+                        strncpy(linked_libraries, library.text, library.length + 4);
+                        config.linked_libs.length += library.length + 4;
+                        if (tokenizer.at[0] != ';') {
                             break;
                         }
-                        RequireToken(Tokenizer, Token_Semicolon);
+                        RequireToken(tokenizer, Token_Semicolon);
                         char* Space = PushArray(arena, 1, char);
                         *Space = ' ';
-                        Config.LinkedLibs.length += 1;
+                        config.linked_libs.length += 1;
                     } while(true);
                 }
     
                 // Metaprogramming source file
-                else if (Token == "META") {
-                    RequireToken(Tokenizer, Token_Equal);
-                    Config.Preprocess = true;
-                    int MetaprogrammingFilePathLength = ParsePath(Tokenizer.At);
-                    char* Pointer = PushArray(arena, MetaprogrammingFilePathLength + 1, char);
-                    strncpy(Pointer, Tokenizer.At, MetaprogrammingFilePathLength);
-                    Config.MetaprogrammingCodePath.length = MetaprogrammingFilePathLength;
-                    Config.MetaprogrammingCodePath.content = Pointer;
-                    AdvanceUntilNextLine(Tokenizer);
+                else if (token == "META") {
+                    RequireToken(tokenizer, Token_Equal);
+                    config.preprocess = true;
+                    int metaprogramming_file_path_length = ParsePath(tokenizer.at);
+                    char* pointer = PushArray(arena, metaprogramming_file_path_length + 1, char);
+                    strncpy(pointer, tokenizer.at, metaprogramming_file_path_length);
+                    config.metaprogramming_code_path.length = metaprogramming_file_path_length;
+                    config.metaprogramming_code_path.content = pointer;
+                    AdvanceUntilNextLine(tokenizer);
                 }
 
                 // Metaprogramming input files
-                else if (Token == "META_FILES") {
-                    RequireToken(Tokenizer, Token_Equal);
-                    AdvanceWhitespaceAndComments(Tokenizer);
-                    Config.MetaprogrammingInputFiles.content = Tokenizer.At;
-                    Config.MetaprogrammingInputFiles.length = 0;
-                    Config.nMetaprogrammingInputFiles = 0;
+                else if (token == "META_FILES") {
+                    RequireToken(tokenizer, Token_Equal);
+                    AdvanceWhitespaceAndComments(tokenizer);
+                    config.metaprogramming_input_files.content = tokenizer.at;
+                    config.metaprogramming_input_files.length = 0;
+                    config.metaprogramming_input_file_count = 0;
                     do {
-                        AdvanceWhitespaceAndComments(Tokenizer);
-                        int PathLength = ParsePath(Tokenizer.At);
-                        Advance(Tokenizer, PathLength);
-                        Config.nMetaprogrammingInputFiles += 1;
-                        const char* End = Tokenizer.At;
-                        if (Tokenizer.At[0] != ';') {
-                            Config.MetaprogrammingInputFiles.length = End - Config.MetaprogrammingInputFiles.content;
+                        AdvanceWhitespaceAndComments(tokenizer);
+                        int PathLength = ParsePath(tokenizer.at);
+                        Advance(tokenizer, PathLength);
+                        config.metaprogramming_input_file_count += 1;
+                        const char* End = tokenizer.at;
+                        if (tokenizer.at[0] != ';') {
+                            config.metaprogramming_input_files.length = End - config.metaprogramming_input_files.content;
                             break;
                         }
-                        Token = RequireToken(Tokenizer, Token_Semicolon);
-                    } while(Token.Type == Token_Semicolon);
+                        token = RequireToken(tokenizer, Token_Semicolon);
+                    } while(token.type == Token_Semicolon);
                 }
     
                 // Renderer
-                else if (Token == "RENDERER") {
-                    RequireToken(Tokenizer, Token_Equal);
-                    token RendererToken = RequireToken(Tokenizer, Token_Identifier);
-                    Config.Renderer = GetRenderer(RendererToken);
-                    Config.RendererLibs = GetRendererLibs(Config.Renderer);
+                else if (token == "RENDERER") {
+                    RequireToken(tokenizer, Token_Equal);
+                    Token renderer_token = RequireToken(tokenizer, Token_Identifier);
+                    config.renderer = GetRenderer(renderer_token);
+                    config.renderer_libs = GetRendererLibs(config.renderer);
                 }
             }
     
-            Token = GetToken(Tokenizer);
+            token = GetToken(tokenizer);
         }
 
-        Config.CompilerFlags = GetCompilerFlags(Config.Compiler, Config.Mode);
-        Config.PCHOutputFile = Config.Mode == Debug ? "debug_pch" : "pch";
+        config.compiler_flags = GetCompilerFlags(config.compiler, config.mode);
+        config.pch_output_file = config.mode == Debug ? "debug_pch" : "pch";
         if (SystemOS == Windows) {
-            Config.PCHOutputPath = Format(arena, "bin" PATH_SEPARATOR "{s}.pch", 1, Config.PCHOutputFile);
-            Config.MetaprogrammingOutputFile = "bin" PATH_SEPARATOR "Meta.exe";
+            config.pch_output_path = Format(arena, "bin" PATH_SEPARATOR "{s}.pch", 1, config.pch_output_path);
+            config.metaprogramming_output_file = "bin" PATH_SEPARATOR "Meta.exe";
         }
         else {
-            Config.PCHOutputPath = Format(arena, "bin" PATH_SEPARATOR "{s}.gch", 1, Config.PCHOutputFile);
-            Config.MetaprogrammingOutputFile = "bin" PATH_SEPARATOR "Meta";
+            config.pch_output_path = Format(arena, "bin" PATH_SEPARATOR "{s}.gch", 1, config.pch_output_path);
+            config.metaprogramming_output_file = "bin" PATH_SEPARATOR "Meta";
         }
     }
     else {
-        String Error = Format(arena, "Build configuration file {s} not found.", 1, ConfigurationFilePath);
-        Raise(Error.content);
+        String error = Format(arena, "Build configuration file {s} not found.", 1, config_file_path);
+        Raise(error.content);
     }
 
-    return Config;
+    return config;
 }
 
-void LogCompilationResult(arena* arena, String Name, int32 ExitCode, uint64 Start, uint64 End) {
-    log_level Level = ExitCode == 0 ? log_level::Info : log_level::Error;
+void LogCompilationResult(Arena* arena, String Name, int32 ExitCode, uint64 Start, uint64 End) {
+    Log_Level Level = ExitCode == 0 ? Log_Level::Info : Log_Level::Error;
     String LogString;
     if (ExitCode == 0) {
         LogString = Format(arena, "{s} code compiled in {f2} milliseconds.", 2, Name, 1000.0f * GetSecondsElapsed(Start, End));
@@ -316,20 +316,20 @@ void LogCompilationResult(arena* arena, String Name, int32 ExitCode, uint64 Star
     Log(Level, LogString.content);
 }
 
-process_info CompileMetaprogramming(arena* arena, build_configuration* Config) {
-    Log(log_level::Info, "Compiling metaprogramming code.");
+process_info CompileMetaprogramming(Arena* arena, Build_Configuration* config) {
+    Log(Log_Level::Info, "Compiling metaprogramming code.");
     char* Command = (char*)(arena->base + arena->used);
-    switch(Config->Compiler) {
+    switch(config->compiler) {
         case MSVC: {
             Format(arena,
                 "{s} /std:c++20 /nologo /W0 {s} /Fo\"bin\\Meta.obj\" /Fd\"bin\\Meta.pdb\" {s} {s} "
                 "/link {s} /OUT:\"bin\\Meta.exe\" /PDB:\"bin\\Meta.pdb\"", 
                 5,
-                Config->CompilerPath, 
-                Config->Include, 
-                Config->MetaprogrammingCodePath, 
-                Config->CompilerFlags, 
-                Config->Lib
+                config->compiler_path, 
+                config->include, 
+                config->metaprogramming_code_path, 
+                config->compiler_flags, 
+                config->lib
             );
         } break;
 
@@ -337,10 +337,10 @@ process_info CompileMetaprogramming(arena* arena, build_configuration* Config) {
             Format(arena,
                 "{s} -std=c++20 {s} {s} -o bin/Meta", 
                 4,
-                Config->CompilerPath, 
-                Config->Include, 
-                Config->MetaprogrammingCodePath, 
-                Config->CompilerFlags
+                config->compiler_path, 
+                config->include, 
+                config->metaprogramming_code_path, 
+                config->compiler_flags
             );
         } break;
 
@@ -350,52 +350,51 @@ process_info CompileMetaprogramming(arena* arena, build_configuration* Config) {
 }
 
 /* Compiles the meta-program (if needed) and runs it.*/
-void MetaProgram(arena* arena, build_configuration* Config) {
-    File_Info MetaprogrammingSource = Platform.GetFileInfo(Config->MetaprogrammingCodePath.content);
-    File_Info MetaprogrammingBinary;
+void MetaProgram(Arena* arena, Build_Configuration* config) {
+    File_Info metaprogramming_source = Platform.GetFileInfo(config->metaprogramming_code_path.content);
+    File_Info metaprogramming_binary;
 
-    bool MetaprogrammingBinaryExists = Platform.FileExists(Config->MetaprogrammingOutputFile.content);        
-    if (MetaprogrammingBinaryExists) {
-        MetaprogrammingBinary = Platform.GetFileInfo(Config->MetaprogrammingOutputFile.content);
+    bool metaprogramming_binary_exists = Platform.FileExists(config->metaprogramming_output_file.content);        
+    if (metaprogramming_binary_exists) {
+        metaprogramming_binary = Platform.GetFileInfo(config->metaprogramming_output_file.content);
     }
     
-    int32 WaitResult = 0;
-    uint64 MetaprogrammingCompilationStart = 0;
-    uint64 MetaprogrammingCompilationEnd = 0;
-    process_info MetaprogrammingCompilation = {};
-    if (!MetaprogrammingBinaryExists || MetaprogrammingSource.Timestamp > MetaprogrammingBinary.Timestamp) {
-        MetaprogrammingCompilationStart = Platform.GetWallClock();
-        MetaprogrammingCompilation = CompileMetaprogramming(arena, Config);
-        WaitResult = Platform.WaitForProcess(&MetaprogrammingCompilation, -1);
-        MetaprogrammingCompilationEnd = Platform.GetWallClock();
-        LogCompilationResult(arena, "Metaprogramming", WaitResult, MetaprogrammingCompilationStart, MetaprogrammingCompilationEnd);
+    int32 wait_result = 0;
+    uint64 metaprogramming_compilation_start = 0;
+    uint64 metaprogramming_compilation_end = 0;
+    process_info metaprogramming_compilation = {};
+    if (!metaprogramming_binary_exists || metaprogramming_source.timestamp > metaprogramming_binary.timestamp) {
+        metaprogramming_compilation_start = Platform.GetWallClock();
+        metaprogramming_compilation = CompileMetaprogramming(arena, config);
+        wait_result = Platform.WaitForProcess(&metaprogramming_compilation, -1);
+        metaprogramming_compilation_end = Platform.GetWallClock();
+        LogCompilationResult(arena, "Metaprogramming", wait_result, metaprogramming_compilation_start, metaprogramming_compilation_end);
     }
 
-    char* MetaCommand = PushArray(arena, 64, char);
-    strncpy(MetaCommand, Config->MetaprogrammingOutputFile.content, 64);
-    uint64 MetaprogrammingExecutionStart = Platform.GetWallClock();
-    process_info MetaprogrammingExecution = Platform.RunCommand(MetaCommand);
-    WaitResult = Platform.WaitForProcess(&MetaprogrammingExecution, -1);
-    if (WaitResult >= 0) {
-        uint64 End = Platform.GetWallClock();
-        float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
-        log_level Level = WaitResult > 0 ? log_level::Error : log_level::Info;
-        String LogText;
-        if (WaitResult == 0) {
-            LogText = Format(arena, "Metaprogramming executed in {f2} milliseconds.", 1, 1000.0f * Time);
+    char* meta_command = PushArray(arena, 64, char);
+    strncpy(meta_command, config->metaprogramming_output_file.content, 64);
+    uint64 metaprogramming_execution_start = Platform.GetWallClock();
+    process_info metaprogramming_execution = Platform.RunCommand(meta_command);
+    wait_result = Platform.WaitForProcess(&metaprogramming_execution, -1);
+    if (wait_result >= 0) {
+        uint64 end = Platform.GetWallClock();
+        float time = GetSecondsElapsed(metaprogramming_execution_start, end);
+        Log_Level level = wait_result > 0 ? Log_Level::Error : Log_Level::Info;
+        String log_text;
+        if (wait_result == 0) {
+            log_text = Format(arena, "Metaprogramming executed in {f2} milliseconds.", 1, 1000.0f * time);
         }
         else {
-            LogText = Format(arena, "Metaprogramming execution failed with code '{i}'", 1, WaitResult);
+            log_text = Format(arena, "Metaprogramming execution failed with code '{i}'", 1, wait_result);
         }
-        Log(Level, LogText.content);
+        Log(level, log_text.content);
     }
 }
 
-process_info CompilePlatformLayer(arena* arena, build_configuration* Config) {
-    char* Command = (char*)(arena->base + arena->used);
-    switch (Config->Compiler) {
+process_info CompilePlatformLayer(Arena* arena, Build_Configuration* config) {
+    char* command = (char*)(arena->base + arena->used);
+    switch (config->compiler) {
         case MSVC: {
-            
             String CommandString = Format(arena,
                 "{s} /std:c++20 /nologo /W0 "
                 "GamePlatform\\Windows\\Win32PlatformLayer.cpp bin\\{s}.obj " 
@@ -406,16 +405,16 @@ process_info CompilePlatformLayer(arena* arena, build_configuration* Config) {
                 "/link {s} {s} {s} "
                 "GamePlatform\\Windows\\Win32PlatformLayer.res /MACHINE:X64",
                 10,
-                Config->CompilerPath, 
-                Config->PCHOutputFile, 
-                GetRendererString(Config->Renderer), 
-                Config->CompilerFlags, 
-                Config->PCHOutputFile, 
-                Config->PCHOutputFile, 
-                Config->Include, 
-                Config->Lib,
-                Config->LinkedLibs,
-                Config->RendererLibs
+                config->compiler_path,
+                config->pch_output_file,
+                GetRendererString(config->renderer),
+                config->compiler_flags,
+                config->pch_output_file,
+                config->pch_output_file,
+                config->include,
+                config->lib,
+                config->linked_libs,
+                config->renderer_libs
             );
         } break;
 
@@ -424,21 +423,21 @@ process_info CompilePlatformLayer(arena* arena, build_configuration* Config) {
                 "{s} -std=c++20 -fPIC {s} {s} -include-pch bin/{s}.gch "
                 "LinuxPlatformLayer/LinuxPlatformLayer.cpp {s} -o bin/RunGame && chmod +x bin/RunGame",
                 5,
-                Config->CompilerPath,
-                Config->CompilerFlags,
-                Config->Include,
-                Config->PCHOutputFile,
-                Config->RendererLibs
+                config->compiler_path,
+                config->compiler_flags,
+                config->include,
+                config->pch_output_file,
+                config->renderer_libs
             );
         };
     }
 
-    return Platform.RunCommand(Command);
+    return Platform.RunCommand(command);
 }
 
-process_info CompileGameLibrary(arena* arena, build_configuration* Config) {
+process_info CompileGameLibrary(Arena* arena, Build_Configuration* config) {
     char* Command = (char*)(arena->base + arena->used);
-    switch(Config->Compiler) {
+    switch(config->compiler) {
         case MSVC: {
             Format(arena,
                 "{s} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS "
@@ -448,13 +447,13 @@ process_info CompileGameLibrary(arena* arena, build_configuration* Config) {
                 "/PDB:\"bin\\GameLibrary.pdb\" "
                 "/ILK:\"bin\\GameLibrary.ilk\" /OUT:\"bin\\GameLibrary.dll\"",
                 7,
-                Config->CompilerPath, 
-                Config->CompilerFlags, 
-                Config->Include, 
-                Config->PCHOutputFile, 
-                Config->PCHOutputFile, 
-                Config->Lib, 
-                Config->PCHOutputFile
+                config->compiler_path, 
+                config->compiler_flags, 
+                config->include, 
+                config->pch_output_file, 
+                config->pch_output_file, 
+                config->lib, 
+                config->pch_output_file
             );
         } break;
 
@@ -462,10 +461,10 @@ process_info CompileGameLibrary(arena* arena, build_configuration* Config) {
             Format(arena,
                 "{s} -std=c++20 -shared -fPIC {s} {s} -include-pch bin/{s}.gch GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
                 4,
-                Config->CompilerPath,
-                Config->CompilerFlags,
-                Config->Include,
-                Config->PCHOutputFile
+                config->compiler_path,
+                config->compiler_flags,
+                config->include,
+                config->pch_output_file
             );
         } break;
     }
@@ -473,20 +472,20 @@ process_info CompileGameLibrary(arena* arena, build_configuration* Config) {
     return Platform.RunCommand(Command);
 }
 
-process_info CompileGameLibraryHot(arena* arena, build_configuration* Config) {
+process_info CompileGameLibraryHot(Arena* arena, Build_Configuration* config) {
 #if _WIN32
-    int nHotReloads = 0;
-    String PDBFile = Format(arena, "bin\\GameLibrary{i}.pdb", 1, nHotReloads);
-    bool Exists;
+    int hot_reload_count = 0;
+    String pdb_file = Format(arena, "bin\\GameLibrary{i}.pdb", 1, hot_reload_count);
+    bool exists;
     do {
-        Exists = Platform.FileExists(PDBFile.content);
-        if (Exists) {
-            nHotReloads += 1;
-            PopArray(arena, PDBFile.length + 1, char);
-            PDBFile = Format(arena, "bin\\GameLibrary{i}.pdb", 1, nHotReloads);
+        exists = Platform.FileExists(pdb_file.content);
+        if (exists) {
+            hot_reload_count += 1;
+            PopArray(arena, pdb_file.length + 1, char);
+            pdb_file = Format(arena, "bin\\GameLibrary{i}.pdb", 1, hot_reload_count);
         }
-    } while(Exists);
-    char* Command = (char*)(arena->base + arena->used);
+    } while(exists);
+    char* command = (char*)(arena->base + arena->used);
     Format(arena,
         "{s} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {s} {s} "
         "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" "
@@ -494,27 +493,27 @@ process_info CompileGameLibraryHot(arena* arena, build_configuration* Config) {
         "/PDB:\"{s}\" /ILK:\"bin\\GameLibrary.ilk\" "
         "/OUT:\"bin\\GameLibrary.dll\"",
         8,
-        Config->CompilerPath, 
-        Config->CompilerFlags, 
-        Config->Include, 
-        Config->PCHOutputFile, 
-        Config->PCHOutputFile, 
-        Config->Lib, 
-        Config->PCHOutputFile, 
-        PDBFile
+        config->compiler_path, 
+        config->compiler_flags, 
+        config->include, 
+        config->pch_output_file, 
+        config->pch_output_file, 
+        config->lib,
+        config->pch_output_file, 
+        pdb_file
     );
 #else
     char* Command = (char*)(arena->base + arena->used);
     Format(arena,
         "{s} -std=c++20 -shared -fPIC {s} {s} -include-pch bin/{s}.gch GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
         4,
-        Config->CompilerPath,
-        Config->CompilerFlags,
-        Config->Include,
-        Config->PCHOutput
+        config->CompilerPath,
+        config->CompilerFlags,
+        config->Include,
+        config->pchOutput
     );
 #endif
-    return Platform.RunCommand(Command);
+    return Platform.RunCommand(command);
 }
 
 #endif

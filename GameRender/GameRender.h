@@ -327,7 +327,7 @@ const int MAX_COMPUTE_COMMANDS = 32;
 const int MAX_COMPUTE_SHADER_PASS_COMMANDS = 32;
 const int MAX_RENDER_TARGET_COMMANDS = 16;
 
-struct render_group {
+struct Render_Group {
     render_command Entries[MAX_RENDER_ENTRIES];
     render_clear_command ClearCommands[MAX_CLEAR_COMMANDS];
     render_primitive_command PrimitiveCommands[MAX_PRIMITIVE_COMMANDS];

@@ -4,37 +4,20 @@
 #include "GamePlatform.h"
 #include "GameMath.h"
 
-// Platform independent structs and types
-struct game_offscreen_buffer {
-    void* Memory;
-    uint32 Height;
-    uint32 Width;
-    uint32 Pitch;
-    uint8 BytesPerPixel;
+
+struct Game_Button_State {
+    bool is_down;
+    bool was_down;
+    bool just_pressed;
+    bool just_lifted;
 };
-
-struct game_button_state {
-    bool IsDown;
-    bool WasDown;
-    bool JustPressed;
-    bool JustLifted;
-};
-
-
-// Joysticks values should be floats between 0 and 1
-/*struct joystick_coordinate {
-    float Start;
-    float Max;
-    float Min;
-    float End;
-};*/
 
 const int NUMBER_OF_CONTROLLER_BUTTONS = 16;
 
-struct game_controller_input {
+struct Game_Controller_Input {
     bool Any;
-    v2 LeftJoystick;
-    v2 RightJoystick;
+    V2 LeftJoystick;
+    V2 RightJoystick;
     union {
         game_button_state Buttons[NUMBER_OF_CONTROLLER_BUTTONS];
         struct {

@@ -129,12 +129,12 @@ inline int RandInt(int min, int max) {
 	return RandFloat() * (max - min) + min;
 }
 
-int _RandomEnum(game_type Type) {
+int _RandomEnum(Type type) {
     int i = ENUM_VALUES_SIZE;
     while(i > 0) {
-        debug_enum_value Entry = EnumValues[--i];
-        if (Entry.EnumType == Type) {
-            return RandInt(0, Entry.Value);
+        Debug_Enum_Value entry = ENUM_VALUES[--i];
+        if (entry.enum_type == type) {
+            return RandInt(0, entry.value);
         }
     }
     Assert(false, "Type wasn't found in enum list.");

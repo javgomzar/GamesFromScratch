@@ -17,34 +17,34 @@
 
 #define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
 
-FILE* OpenFile(const char* Path, const char* Permissions) {
-    FILE* File = fopen(Path, Permissions);
-    if (!File) {
+FILE* OpenFile(const char* path, const char* permissions) {
+    FILE* file = fopen(path, permissions);
+    if (!file) {
         perror("Failed to open file");
         abort();
     }
-    fseek(File, 0, SEEK_SET);
-    return File;
+    fseek(file, 0, SEEK_SET);
+    return file;
 }
 
-char* ReadFile(const char* Path, size_t* FileSize = nullptr) {
-    FILE* File = OpenFile(Path, "r");
+char* ReadFile(const char* path, size_t* file_size = nullptr) {
+    FILE* file = OpenFile(path, "r");
 
-    fseek(File, 0, SEEK_END);
-    size_t Size = ftell(File);
-    if (FileSize) {
-        *FileSize = Size;
+    fseek(file, 0, SEEK_END);
+    size_t size = ftell(file);
+    if (file_size) {
+        *file_size = size;
     }
-    fseek(File, 0, SEEK_SET);
+    fseek(file, 0, SEEK_SET);
 
-    char* Result = (char*)malloc(Size + 1);
-    fread(Result, Size, 1, File);
-    Result[Size] = 0;
-    fclose(File);
-    return Result;
+    char* result = (char*)malloc(size + 1);
+    fread(result, size, 1, file);
+    result[size] = 0;
+    fclose(file);
+    return result;
 }
 
-const char* const PrimitiveTypes[] = {
+const char* const PRIMITIVE_TYPES[] = {
     "void",
     "bool",
     "char",
@@ -70,457 +70,451 @@ const char* const PrimitiveTypes[] = {
     "collider",
     "Arena"
 };
-const int nPrimitiveTypes = ArrayCount(PrimitiveTypes);
+const int PRIMITIVE_TYPE_COUNT = ArrayCount(PRIMITIVE_TYPES);
 
 int main() {
-    FILE* EnumsFile = OpenFile("GameBuild" PATH_SEPARATOR "GameEnums.h", "w");
-    FILE* StructsFile = OpenFile("GameBuild" PATH_SEPARATOR "GameStructs.h", "w");
+    FILE* enums_file = OpenFile("GameBuild" PATH_SEPARATOR "GameEnums.h", "w");
+    FILE* structs_file = OpenFile("GameBuild" PATH_SEPARATOR "GameStructs.h", "w");
 
-    fprintf(EnumsFile,
+    fprintf(enums_file,
     "#ifndef GAME_ENUMS\n"
     "#define GAME_ENUMS\n\n"
     );
 
-    fprintf(EnumsFile, "enum game_type {\n");
-    for (int i = 0; i < nPrimitiveTypes; i++) {
-        fprintf(EnumsFile, "    type_%s,\n", PrimitiveTypes[i]);
+    fprintf(enums_file, "enum Type {\n");
+    for (int i = 0; i < PRIMITIVE_TYPE_COUNT; i++) {
+        fprintf(enums_file, "    Type_%s,\n", PRIMITIVE_TYPES[i]);
     }
 
-    fprintf(StructsFile, 
+    fprintf(structs_file, 
     "#ifndef GAME_STRUCTS\n"
     "#define GAME_STRUCTS\n\n"
     );
 
-    std::vector<std::string> EnumDebugTypes = {};
-    std::vector<std::string> EnumValues = {};
-    std::vector<std::string> FlagDebugTypes = {};
-    std::vector<std::string> FlagValues = {};
-    std::string FlagDeclarations = "";
-    unsigned int nFlagTypes = 0;
-    std::vector<std::string> StructDebugTypes = {};
-    std::vector<std::string> StructMembers = {};
+    std::vector<std::string> enum_debug_types = {};
+    std::vector<std::string> enum_values = {};
+    std::vector<std::string> flag_debug_types = {};
+    std::vector<std::string> flag_values = {};
+    std::string flag_declarations = "";
+    unsigned int flag_type_count = 0;
+    std::vector<std::string> struct_debug_types = {};
+    std::vector<std::string> struct_members = {};
 
-    char Buffer[256];
-    Arena Arena = AllocateMemoryArena(Kilobytes(8));
-    build_configuration Config = ReadBuildConfiguration(&Arena, "GameBuild/build.conf");
-    tokenizer InputFilesTokenizer = InitTokenizer(Config.MetaprogrammingInputFiles.Content, Config.MetaprogrammingInputFiles.Length);
+    char buffer[256];
+    Arena arena = AllocateMemoryArena(Kilobytes(8));
+    Build_Configuration config = ReadBuildConfiguration(&arena, "GameBuild/build.conf");
+    Tokenizer input_files_tokenizer = InitTokenizer(config.metaprogramming_input_files.content, config.metaprogramming_input_files.length);
     
-    std::map<std::string, int> Constants;
-    for (int i = 0; i < Config.nMetaprogrammingInputFiles; i++) {
-        int PathLength = ParsePath(InputFilesTokenizer.At);
-        strncpy(Buffer, InputFilesTokenizer.At, PathLength);
-        Buffer[PathLength] = '\0';
-        Advance(InputFilesTokenizer, PathLength);
-        if (i < Config.nMetaprogrammingInputFiles-1) {
-            RequireToken(InputFilesTokenizer, Token_Semicolon);
-            AdvanceWhitespaceAndComments(InputFilesTokenizer);
+    std::map<std::string, int> constants;
+    for (int i = 0; i < config.metaprogramming_input_file_count; i++) {
+        int path_length = ParsePath(input_files_tokenizer.at);
+        strncpy(buffer, input_files_tokenizer.at, path_length);
+        buffer[path_length] = '\0';
+        Advance(input_files_tokenizer, path_length);
+        if (i < config.metaprogramming_input_file_count-1) {
+            RequireToken(input_files_tokenizer, Token_Semicolon);
+            AdvanceWhitespaceAndComments(input_files_tokenizer);
         }
 
-        char* FileContent = ReadFile(Buffer);
+        char* file_content = ReadFile(buffer);
 
-        tokenizer Tokenizer = InitTokenizer(FileContent);
-        token Token = GetToken(Tokenizer);
-        while (Token.Type != Token_End) {
-            if (Token == "const") {
-                Token = GetToken(Tokenizer);
-                if (Token == "int") {
-                    Token = RequireToken(Tokenizer, Token_Identifier);
-                    std::string ConstantName(Token.Text, Token.Length);
-                    Token = RequireToken(Tokenizer, Token_Equal);
-                    int Value = ParseInt(Tokenizer);
-                    Constants[ConstantName] = Value;
+        Tokenizer tokenizer = InitTokenizer(file_content);
+        Token token = GetToken(tokenizer);
+        while (token.type != Token_End) {
+            if (token == "const") {
+                token = GetToken(tokenizer);
+                if (token == "int") {
+                    token = RequireToken(tokenizer, Token_Identifier);
+                    std::string constant_name(token.text, token.length);
+                    token = RequireToken(tokenizer, Token_Equal);
+                    int Value = ParseInt(tokenizer);
+                    constants[constant_name] = Value;
                 }
-                else if (Token == "int32") {
-                    Token = RequireToken(Tokenizer, Token_Identifier);
-                    std::string ConstantName(Token.Text, Token.Length);
-                    Token = RequireToken(Tokenizer, Token_Equal);
-                    Token = RequireToken(Tokenizer, Token_Identifier);
-                    std::string FirstAddend(Token.Text, Token.Length);
-                    int Value = Constants[FirstAddend];
-                    Token = RequireToken(Tokenizer, Token_Plus);
-                    while (Token.Type != Token_Semicolon) {
-                        if (Token.Type != Token_Plus) {
+                else if (token == "int32") {
+                    token = RequireToken(tokenizer, Token_Identifier);
+                    std::string constant_name(token.text, token.length);
+                    token = RequireToken(tokenizer, Token_Equal);
+                    token = RequireToken(tokenizer, Token_Identifier);
+                    std::string first_addend(token.text, token.length);
+                    int Value = constants[first_addend];
+                    token = RequireToken(tokenizer, Token_Plus);
+                    while (token.type != Token_Semicolon) {
+                        if (token.type != Token_Plus) {
                             throw "Should be a plus sign.";
                         };
-                        Token = RequireToken(Tokenizer, Token_Identifier);
-                        std::string Addend(Token.Text, Token.Length);
-                        Value += Constants[Addend];
-                        Token = GetToken(Tokenizer);
+                        token = RequireToken(tokenizer, Token_Identifier);
+                        std::string addend(token.text, token.length);
+                        Value += constants[addend];
+                        token = GetToken(tokenizer);
                     }
-                    Constants[ConstantName] = Value;
+                    constants[constant_name] = Value;
                 }
             }
-            else if (Token == "INTROSPECT") {
-                Token = GetToken(Tokenizer);
-                if (Token == "struct") {
-                    token StructType = RequireToken(Tokenizer, Token_Identifier);
-                    char StructTypeText[MAX_TOKEN_LENGTH] = {};
-                    strncpy(StructTypeText, StructType.Text, StructType.Length);
+            else if (token == "INTROSPECT") {
+                token = GetToken(tokenizer);
+                if (token == "struct") {
+                    Token struct_type = RequireToken(tokenizer, Token_Identifier);
+                    char struct_type_text[MAX_TOKEN_LENGTH] = {};
+                    strncpy(struct_type_text, struct_type.text, struct_type.length);
 
-                    sprintf(Buffer, "type_%s", StructTypeText);
-                    StructDebugTypes.push_back(std::string(Buffer));
+                    sprintf(buffer, "Type_%s", struct_type_text);
+                    struct_debug_types.push_back(std::string(buffer));
 
-                    Token = RequireToken(Tokenizer, Token_OpenBrace);
-                    Token = RequireToken(Tokenizer, Token_Identifier);
-                    while (Token.Type != Token_CloseBrace && Token.Type != Token_End) {
-                        token MemberType = Token;
-                        token MemberName = GetToken(Tokenizer);
-                        bool IsPointer = false;
-                        if (MemberName.Type == Token_Asterisk) {
-                            MemberName = GetToken(Tokenizer);
-                            IsPointer = true;
+                    token = RequireToken(tokenizer, Token_OpenBrace);
+                    token = RequireToken(tokenizer, Token_Identifier);
+                    while (token.type != Token_CloseBrace && token.type != Token_End) {
+                        Token member_type = token;
+                        Token member_name = GetToken(tokenizer);
+                        bool is_pointer = false;
+                        if (member_name.type == Token_Asterisk) {
+                            member_name = GetToken(tokenizer);
+                            is_pointer = true;
                         }
-                        Token = GetToken(Tokenizer);
-                        int ArraySize = 0;
-                        if (Token.Type == Token_OpenBracket) {
-                            Token = GetToken(Tokenizer);
-                            if (Token.Type == Token_Identifier) {
-                                ArraySize = Constants[std::string(Token.Text, Token.Length)];
+                        token = GetToken(tokenizer);
+                        int array_size = 0;
+                        if (token.type == Token_OpenBracket) {
+                            token = GetToken(tokenizer);
+                            if (token.type == Token_Identifier) {
+                                array_size = constants[std::string(token.text, token.length)];
                             }
-                            else if (Token.Type == Token_Constant_Integer) {
-                                char* End;
-                                ArraySize = strtol(Token.Text, &End, 10);
+                            else if (token.type == Token_Constant_Integer) {
+                                char* end;
+                                array_size = strtol(token.text, &end, 10);
                             }
-                            Token = RequireToken(Tokenizer, Token_CloseBracket);
-                            Token = RequireToken(Tokenizer, Token_Semicolon);
+                            token = RequireToken(tokenizer, Token_CloseBracket);
+                            token = RequireToken(tokenizer, Token_Semicolon);
                         }
-                        char MemberTypeDebugText[MAX_TOKEN_LENGTH] = {};
-                        char MemberTypeText[MAX_TOKEN_LENGTH] = {};
-                        // if (MemberType == "char" && (ArraySize > 0 || IsPointer)) {
-                        //     strcpy(MemberTypeDebugText, "string");
-                        //     strcpy(MemberTypeText, "char");
-                        //     ArraySize = 0;
-                        // }
-                        // else {
-                            strncpy(MemberTypeDebugText, MemberType.Text, MemberType.Length);
-                            strncpy(MemberTypeText, MemberType.Text, MemberType.Length);
-                        //}
-                        char MemberNameText[MAX_TOKEN_LENGTH] = {};
-                        strncpy(MemberNameText, MemberName.Text, MemberName.Length);
-                        std::string SizeOfArg = IsPointer ? "void*" : std::string(MemberTypeText);
-                        sprintf(Buffer, "    {\"%s\", type_%s, type_%s, sizeof(%s), (uint64)(&((%s*)0)->%s),%d, %s},\n", 
-                            MemberNameText, StructTypeText, MemberTypeDebugText, SizeOfArg.c_str(), StructTypeText, MemberNameText,
-                            ArraySize, IsPointer ? "true" : "false");
-                        std::string StructMember = Buffer;
-                        StructMembers.push_back(StructMember);
-                        while (Token.Type != Token_Semicolon && Token.Type != Token_End) {
-                            Token = GetToken(Tokenizer);
+                        char member_type_debug_text[MAX_TOKEN_LENGTH] = {};
+                        char member_type_text[MAX_TOKEN_LENGTH] = {};
+                        strncpy(member_type_debug_text, member_type.text, member_type.length);
+                        strncpy(member_type_text, member_type.text, member_type.length);
+
+                        char member_name_text[MAX_TOKEN_LENGTH] = {};
+                        strncpy(member_name_text, member_name.text, member_name.length);
+                        std::string sizeof_arg = is_pointer ? "void*" : std::string(member_type_text);
+                        sprintf(buffer, "    {\"%s\", Type_%s, Type_%s, sizeof(%s), (uint64)(&((%s*)0)->%s),%d, %s},\n", 
+                            member_name_text, struct_type_text, member_type_debug_text, sizeof_arg.c_str(), struct_type_text, member_name_text,
+                            array_size, is_pointer ? "true" : "false");
+                        std::string struct_member = buffer;
+                        struct_members.push_back(struct_member);
+                        while (token.type != Token_Semicolon && token.type != Token_End) {
+                            token = GetToken(tokenizer);
                         };
-                        Token = GetToken(Tokenizer);
+                        token = GetToken(tokenizer);
                     }
                 }
             }
-            else if (Token == "ENUM") {
-                RequireToken(Tokenizer, Token_OpenParen);
+            else if (token == "ENUM") {
+                RequireToken(tokenizer, Token_OpenParen);
 
-                token EnumName = RequireToken(Tokenizer, Token_Identifier);
-                char EnumNameText[MAX_TOKEN_LENGTH] = {};
-                strncpy(EnumNameText, EnumName.Text, EnumName.Length);
-                sprintf(Buffer, "type_%s", EnumNameText);
-                EnumDebugTypes.push_back(std::string(Buffer));
+                Token enum_name = RequireToken(tokenizer, Token_Identifier);
+                char enum_name_text[MAX_TOKEN_LENGTH] = {};
+                strncpy(enum_name_text, enum_name.text, enum_name.length);
+                sprintf(buffer, "Type_%s", enum_name_text);
+                enum_debug_types.push_back(std::string(buffer));
 
-                Token = RequireToken(Tokenizer, Token_Comma);
+                token = RequireToken(tokenizer, Token_Comma);
 
-                int Value = 0;
-                while(Token.Type != Token_CloseParen) {
-                    Token = RequireToken(Tokenizer, Token_Identifier);
-                    char TokenText[MAX_TOKEN_LENGTH] = {};
-                    strncpy(TokenText, Token.Text, Token.Length);
-                    sprintf(Buffer, "    {type_%s, \"%s\", %d},\n", EnumNameText, TokenText, Value++);
-                    EnumValues.push_back(std::string(Buffer));
-                    Token = GetToken(Tokenizer);
-                    if (Token.Type != Token_CloseParen && Token.Type != Token_Comma) {
+                int value = 0;
+                while(token.type != Token_CloseParen) {
+                    token = RequireToken(tokenizer, Token_Identifier);
+                    char token_text[MAX_TOKEN_LENGTH] = {};
+                    strncpy(token_text, token.text, token.length);
+                    sprintf(buffer, "    {Type_%s, \"%s\", %d},\n", enum_name_text, token_text, value++);
+                    enum_values.push_back(std::string(buffer));
+                    token = GetToken(tokenizer);
+                    if (token.type != Token_CloseParen && token.type != Token_Comma) {
                         throw "Should be a comma.";
                     };
                 }
-                sprintf(Buffer, "    {type_%s, \"%s_count\", %d},\n", EnumNameText, EnumNameText, Value);
-                EnumValues.push_back(std::string(Buffer));
-                sprintf(Buffer, "%s_count", EnumNameText);
-                Constants[std::string(Buffer)] = Value;
+                sprintf(buffer, "    {Type_%s, \"%s_count\", %d},\n", enum_name_text, enum_name_text, value);
+                enum_values.push_back(std::string(buffer));
+                sprintf(buffer, "%s_count", enum_name_text);
+                constants[std::string(buffer)] = value;
             }
-            else if (Token == "FLAGS") {
-                RequireToken(Tokenizer, Token_OpenParen);
+            else if (token == "FLAGS") {
+                RequireToken(tokenizer, Token_OpenParen);
 
-                token FlagsName = RequireToken(Tokenizer, Token_Identifier);
-                char FlagsNameText[MAX_TOKEN_LENGTH] = {};
-                strncpy(FlagsNameText, FlagsName.Text, FlagsName.Length);
-                FlagDebugTypes.push_back(std::string(FlagsNameText));
+                Token flags_name = RequireToken(tokenizer, Token_Identifier);
+                char flags_name_text[MAX_TOKEN_LENGTH] = {};
+                strncpy(flags_name_text, flags_name.text, flags_name.length);
+                flag_debug_types.push_back(std::string(flags_name_text));
 
-                sprintf(Buffer, "enum class %s : uint64 {\n    none = 0,\n", FlagsNameText);
-                FlagDeclarations += std::string(Buffer);
+                sprintf(buffer, "enum class %s : uint64 {\n    none = 0,\n", flags_name_text);
+                flag_declarations += std::string(buffer);
 
-                RequireToken(Tokenizer, Token_Comma);
+                RequireToken(tokenizer, Token_Comma);
 
-                int Bit = 0;
-                while(Token.Type != Token_CloseParen) {
-                    token FlagValue = RequireToken(Tokenizer, Token_Identifier);
-                    char FlagValueText[MAX_TOKEN_LENGTH] = {};
-                    strncpy(FlagValueText, FlagValue.Text, FlagValue.Length);
-                    Token = GetToken(Tokenizer);
-                    if (Token.Type == Token_Comma || Token.Type == Token_CloseParen) {
-                        sprintf(Buffer, "    {type_%s, \"%s\", %d},\n", FlagsNameText, FlagValueText, 1 << Bit);
-                        FlagValues.push_back(std::string(Buffer));
-                        sprintf(Buffer, "    %s = 1 << %d,\n", FlagValueText, Bit);
-                        FlagDeclarations += std::string(Buffer);
-                        Bit++;
+                int bit = 0;
+                while(token.type != Token_CloseParen) {
+                    Token flag_value = RequireToken(tokenizer, Token_Identifier);
+                    char flag_value_text[MAX_TOKEN_LENGTH] = {};
+                    strncpy(flag_value_text, flag_value.text, flag_value.length);
+                    token = GetToken(tokenizer);
+                    if (token.type == Token_Comma || token.type == Token_CloseParen) {
+                        sprintf(buffer, "    {Type_%s, \"%s\", %d},\n", flags_name_text, flag_value_text, 1 << bit);
+                        flag_values.push_back(std::string(buffer));
+                        sprintf(buffer, "    %s = 1 << %d,\n", flag_value_text, bit);
+                        flag_declarations += std::string(buffer);
+                        bit++;
                     }
-                    else if (Token.Type == Token_Equal) {
-                        FlagDeclarations += std::string("    ") + std::string(FlagValueText) + std::string(" = ");
-                        Token = GetToken(Tokenizer);
-                        while (Token.Type != Token_Comma && Token.Type != Token_CloseParen) {
-                            FlagDeclarations += std::string(Token.Text, Token.Length);
-                            Token = GetToken(Tokenizer);
+                    else if (token.type == Token_Equal) {
+                        flag_declarations += std::string("    ") + std::string(flag_value_text) + std::string(" = ");
+                        token = GetToken(tokenizer);
+                        while (token.type != Token_Comma && token.type != Token_CloseParen) {
+                            flag_declarations += std::string(token.text, token.length);
+                            token = GetToken(tokenizer);
                         }
-                        FlagDeclarations += std::string(",\n");
+                        flag_declarations += std::string(",\n");
                     }
                 }
-                FlagDeclarations += std::string("};\n\n");
-                nFlagTypes += 1;
+                flag_declarations += std::string("};\n\n");
+                flag_type_count += 1;
             }
 
-            Token = GetToken(Tokenizer);
+            token = GetToken(tokenizer);
         }
 
-        free(FileContent);
+        free(file_content);
     }
 
-    for (const std::string& EnumName : EnumDebugTypes) {
-        fprintf(EnumsFile, "    %s,\n", EnumName.c_str());
+    for (const std::string& enum_name : enum_debug_types) {
+        fprintf(enums_file, "    %s,\n", enum_name.c_str());
     }
 
-    for (const std::string& FlagName : FlagDebugTypes) {
-        fprintf(EnumsFile, "    type_%s,\n", FlagName.c_str());
+    for (const std::string& flag_name : flag_debug_types) {
+        fprintf(enums_file, "    Type_%s,\n", flag_name.c_str());
     }
 
-    for (const std::string& StructName : StructDebugTypes) {
-        fprintf(EnumsFile, "    %s,\n", StructName.c_str());
+    for (const std::string& struct_name : struct_debug_types) {
+        fprintf(enums_file, "    %s,\n", struct_name.c_str());
     }
 
-    fprintf(EnumsFile, "};\n\n");
+    fprintf(enums_file, "};\n\n");
 
-    fprintf(EnumsFile, "%s", FlagDeclarations.c_str());
+    fprintf(enums_file, "%s", flag_declarations.c_str());
 
-    int nEnums = EnumDebugTypes.size();
-    fprintf(EnumsFile, "bool IsEnumType(game_type Type) { return Type > %d && Type < %d; }\n", 
-        nPrimitiveTypes - 1, nPrimitiveTypes + nEnums
+    int enum_count = enum_debug_types.size();
+    fprintf(enums_file, "bool IsEnumType(Type type) { return type > %d && type < %d; }\n", 
+        PRIMITIVE_TYPE_COUNT - 1, PRIMITIVE_TYPE_COUNT + enum_count
     );
 
-    fprintf(EnumsFile, "bool IsFlagType(game_type Type) { return Type > %d && Type < %d; }\n\n",
-        nPrimitiveTypes + nEnums - 1, nPrimitiveTypes + nEnums + nFlagTypes
+    fprintf(enums_file, "bool IsFlagType(Type type) { return type > %d && type < %d; }\n\n",
+        PRIMITIVE_TYPE_COUNT + enum_count - 1, PRIMITIVE_TYPE_COUNT + enum_count + flag_type_count
     );
 
-    fprintf(EnumsFile,
-    "struct debug_enum_value {\n"
-    "    game_type EnumType;\n"
-    "    const char* Identifier;\n"
-    "    int Value;\n"
+    fprintf(enums_file,
+    "struct Debug_Enum_Value {\n"
+    "    Type enum_type;\n"
+    "    const char* identifier;\n"
+    "    int value;\n"
     "};\n\n");
 
-    fprintf(EnumsFile, "const int ENUM_VALUES_SIZE = %d;\n", (int)EnumValues.size());
-    if (EnumValues.size() > 0) {
-        fprintf(EnumsFile, "debug_enum_value EnumValues[ENUM_VALUES_SIZE] = {\n");
+    fprintf(enums_file, "const int ENUM_VALUES_SIZE = %d;\n", (int)enum_values.size());
+    if (enum_values.size() > 0) {
+        fprintf(enums_file, "Debug_Enum_Value ENUM_VALUES[ENUM_VALUES_SIZE] = {\n");
 
-        for (const std::string& EnumValue : EnumValues) {
-            fprintf(EnumsFile, "%s", EnumValue.c_str());
+        for (const std::string& EnumValue : enum_values) {
+            fprintf(enums_file, "%s", EnumValue.c_str());
         }
 
-        fprintf(EnumsFile, "};\n\n");
+        fprintf(enums_file, "};\n\n");
     }
     else {
-        fprintf(EnumsFile, "debug_enum_value* EnumValues = 0;\n\n");
+        fprintf(enums_file, "Debug_Enum_Value* ENUM_VALUES = 0;\n\n");
     }
 
-    fprintf(EnumsFile, "const int FLAG_VALUES_SIZE = %d;\n", (int)FlagValues.size());
-    if (FlagValues.size() > 0) {
-        fprintf(EnumsFile, "debug_enum_value FlagValues[FLAG_VALUES_SIZE] = {\n");
+    fprintf(enums_file, "const int FLAG_VALUES_SIZE = %d;\n", (int)flag_values.size());
+    if (flag_values.size() > 0) {
+        fprintf(enums_file, "Debug_Enum_Value FLAG_VALUES[FLAG_VALUES_SIZE] = {\n");
 
-        for (const std::string& FlagValue : FlagValues) {
-            fprintf(EnumsFile, "%s", FlagValue.c_str());
+        for (const std::string& flag_value : flag_values) {
+            fprintf(enums_file, "%s", flag_value.c_str());
         }
 
-        fprintf(EnumsFile, "};\n\n");
+        fprintf(enums_file, "};\n\n");
 
-        for (const std::string& FlagName : FlagDebugTypes) {
-            fprintf(EnumsFile, "constexpr %s operator|(%s a, %s b) { return (%s)((uint64)a | (uint64)b); }\n", 
-                FlagName.c_str(), FlagName.c_str(), FlagName.c_str(), FlagName.c_str());
-            fprintf(EnumsFile, "constexpr %s& operator|=(%s& a, %s b) { return a = a | b; }\n", 
-                FlagName.c_str(), FlagName.c_str(), FlagName.c_str());
-            fprintf(EnumsFile, "constexpr bool operator&(%s a, %s b) { return (uint64)a & (uint64)b; }\n", 
-                FlagName.c_str(), FlagName.c_str());
-            fprintf(EnumsFile, "constexpr %s operator~(%s a) { return (%s)(~(uint64)a); }\n\n", 
-                FlagName.c_str(), FlagName.c_str(), FlagName.c_str());
+        for (const std::string& flag_name : flag_debug_types) {
+            fprintf(enums_file, "constexpr %s operator|(%s a, %s b) { return (%s)((uint64)a | (uint64)b); }\n", 
+                flag_name.c_str(), flag_name.c_str(), flag_name.c_str(), flag_name.c_str());
+            fprintf(enums_file, "constexpr %s& operator|=(%s& a, %s b) { return a = a | b; }\n", 
+                flag_name.c_str(), flag_name.c_str(), flag_name.c_str());
+            fprintf(enums_file, "constexpr bool operator&(%s a, %s b) { return (uint64)a & (uint64)b; }\n", 
+                flag_name.c_str(), flag_name.c_str());
+            fprintf(enums_file, "constexpr %s operator~(%s a) { return (%s)(~(uint64)a); }\n\n", 
+                flag_name.c_str(), flag_name.c_str(), flag_name.c_str());
         }
     }
     else {
-        fprintf(EnumsFile, "debug_enum_value* FlagValues = nullptr;\n\n");
+        fprintf(enums_file, "debug_enum_value* flag_values = nullptr;\n\n");
     }
 
-    fprintf(EnumsFile, "#endif");
+    fprintf(enums_file, "#endif");
 
-    int nStructs = StructDebugTypes.size();
-    fprintf(StructsFile, "bool IsStructType(game_type Type) { return Type > %d && Type < %d; }\n\n", 
-        nPrimitiveTypes + nEnums + nFlagTypes - 1, nPrimitiveTypes + nEnums + nFlagTypes + nStructs
+    int struct_count = struct_debug_types.size();
+    fprintf(structs_file, "bool IsStructType(Type type) { return Type > %d && Type < %d; }\n\n", 
+        PRIMITIVE_TYPE_COUNT + enum_count + flag_type_count - 1, PRIMITIVE_TYPE_COUNT + enum_count + flag_type_count + struct_count
     );
 
-    fprintf(StructsFile,
-    "struct debug_struct_member {\n"
-    "    const char* Name;\n"
-    "    game_type StructType;\n"
-    "    game_type MemberType;\n"
-    "    uint64 Size;\n"
-    "    uint64 Offset;\n"
-    "    int ArraySize;\n"
-    "    bool IsPointer;\n"
+    fprintf(structs_file,
+    "struct Debug_Struct_Member {\n"
+    "    const char* name;\n"
+    "    Type struct_type;\n"
+    "    Type member_type;\n"
+    "    uint64 size;\n"
+    "    uint64 offset;\n"
+    "    int array_size;\n"
+    "    bool is_pointer;\n"
     "};\n\n");
 
-    fprintf(StructsFile, "const int STRUCT_MEMBERS_SIZE = %d;\n", (int)StructMembers.size());
-    if (StructMembers.size() > 0) {
-        fprintf(StructsFile, "debug_struct_member StructMembers[STRUCT_MEMBERS_SIZE] = {\n");
+    fprintf(structs_file, "const int STRUCT_MEMBERS_SIZE = %d;\n", (int)struct_members.size());
+    if (struct_members.size() > 0) {
+        fprintf(structs_file, "Debug_Struct_Member struct_members[STRUCT_MEMBERS_SIZE] = {\n");
 
-        for (const std::string& StructMember : StructMembers) {
-            fprintf(StructsFile, "%s", StructMember.c_str());
+        for (const std::string& StructMember : struct_members) {
+            fprintf(structs_file, "%s", StructMember.c_str());
         }
 
-        fprintf(StructsFile, "};\n");
+        fprintf(structs_file, "};\n");
     }
     else {
-        fprintf(StructsFile, "debug_struct_member* StructMembers = 0;\n\n");
+        fprintf(structs_file, "Debug_Struct_Member* struct_members = 0;\n\n");
     }
 
-    fprintf(StructsFile, "\n#endif");
+    fprintf(structs_file, "\n#endif");
 
-    fclose(StructsFile);
-    fclose(EnumsFile);
+    fclose(structs_file);
+    fclose(enums_file);
 
     // Tests
 
-    size_t TestsFileSize;
-    char* TestsContent = ReadFile("GameTest" PATH_SEPARATOR "Tests.h", &TestsFileSize);
-    FILE* TestOutputFile = OpenFile("GameTest" PATH_SEPARATOR "GameTest.h", "w");
+    size_t tests_file_size;
+    char* tests_content = ReadFile("GameTest" PATH_SEPARATOR "Tests.h", &tests_file_size);
+    FILE* test_output_file = OpenFile("GameTest" PATH_SEPARATOR "GameTest.h", "w");
 
-    fprintf(TestOutputFile, 
+    fprintf(test_output_file, 
     "#include \"Tests.h\"\n\n");
 
-    std::string MemorySetup = "    render_group* Group = &Memory->RenderGroup;\n"
+    std::string memory_setup = "    Render_Group* group = &memory->render_group;\n"
     "    game_asset_manager* AssetManager = &Memory->AssetManager;\n"
     "    game_state* State = Memory->GameState;\n"
     "    Arena* Permanent = &Memory->Permanent;\n"
     "    Arena* Transient = &Memory->Transient;\n"
     "    game_input* Input = &Memory->Input;\n"
-    "    light* Light = &Memory->RenderGroup.Light;\n"
+    "    Light* light = &Memory->RenderGroup.Light;\n"
     "    float Time = State->Time;\n"
     "    bool Result = false;\n";
 
-    std::string OnceTests = std::string("void RunOnceTests(game_memory* Memory) {\n") + MemorySetup;
-    std::string ReloadTests = std::string("void RunReloadTests(game_memory* Memory) {\n" + MemorySetup);
-    std::string EveryFrameTests = std::string("void RunEveryFrameTests(game_memory* Memory) {\n" + MemorySetup);
+    std::string once_tests = std::string("void RunOnceTests(game_memory* Memory) {\n") + memory_setup;
+    std::string reload_tests = std::string("void Runreload_tests(game_memory* Memory) {\n" + memory_setup);
+    std::string every_frame_tests = std::string("void Runevery_frame_tests(game_memory* Memory) {\n" + memory_setup);
 
-    tokenizer Tokenizer = InitTokenizer(TestsContent, TestsFileSize);
-    token Token = GetToken(Tokenizer);
-    while (Token.Type != Token_End) {
-        if (Token.Type == Token_Colon) {
-            Token = GetToken(Tokenizer);
-            if (Token.Type == Token_Colon) {
-                Token = GetToken(Tokenizer);
+    Tokenizer tokenizer = InitTokenizer(tests_content, tests_file_size);
+    Token token = GetToken(tokenizer);
+    while (token.type != Token_End) {
+        if (token.type == Token_Colon) {
+            token = GetToken(tokenizer);
+            if (token.type == Token_Colon) {
+                token = GetToken(tokenizer);
             }
         }
-        else if (Token == "TEST") {
-            RequireToken(Tokenizer, Token_OpenParen);
-            token TestNameToken = RequireToken(Tokenizer, Token_Identifier);
+        else if (token == "TEST") {
+            RequireToken(tokenizer, Token_OpenParen);
+            Token test_name_token = RequireToken(tokenizer, Token_Identifier);
 
-            RequireToken(Tokenizer, Token_Comma);
-            token TestType = RequireToken(Tokenizer, Token_Identifier);
+            RequireToken(tokenizer, Token_Comma);
+            Token test_type = RequireToken(tokenizer, Token_Identifier);
             
-            RequireToken(Tokenizer, Token_Comma);
-            token TestActiveToken = RequireToken(Tokenizer, Token_Identifier);
-            bool TestActive = TestActiveToken == "ACTIVE";
-            RequireToken(Tokenizer, Token_CloseParen);
+            RequireToken(tokenizer, Token_Comma);
+            Token test_active_token = RequireToken(tokenizer, Token_Identifier);
+            bool test_active = test_active_token == "ACTIVE";
+            RequireToken(tokenizer, Token_CloseParen);
 
-            if (TestActive) {
-                std::string TestName = std::string(TestNameToken.Text, TestNameToken.Length);
-                if (TestType == "test_once") {
-                    OnceTests += std::string("\n"
+            if (test_active) {
+                std::string test_name = std::string(test_name_token.text, test_name_token.length);
+                if (test_type == "test_once") {
+                    once_tests += std::string("\n"
                     "    try { Result = "
-                    ) + TestName + std::string("(");
-                    token PreviousToken = RequireToken(Tokenizer, Token_OpenParen);
-                    Token = GetToken(Tokenizer);
-                    while (Token.Type != Token_CloseParen) {
-                        PreviousToken = Token;
-                        Token = GetToken(Tokenizer);
-                        if (Token.Type == Token_Comma) {
-                            OnceTests += std::string(PreviousToken.Text, PreviousToken.Length) + std::string(", ");
+                    ) + test_name + std::string("(");
+                    Token previous_token = RequireToken(tokenizer, Token_OpenParen);
+                    token = GetToken(tokenizer);
+                    while (token.type != Token_CloseParen) {
+                        previous_token = token;
+                        token = GetToken(tokenizer);
+                        if (token.type == Token_Comma) {
+                            once_tests += std::string(previous_token.text, previous_token.length) + std::string(", ");
                         }
-                        else if (Token.Type == Token_CloseParen) {
-                            OnceTests += std::string(PreviousToken.Text, PreviousToken.Length);
+                        else if (token.type == Token_CloseParen) {
+                            once_tests += std::string(previous_token.text, previous_token.length);
                         }
                     }
-                    OnceTests += std::string(
+                    once_tests += std::string(
                     "); }\n"
                     "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); }\n"
                     "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); }\n"
                     );
 
-                    OnceTests += std::string("    if(Result) { Log(log_level::Test, \"Test '") + TestName + std::string("' was correctly executed.\"); }\n");
-                    OnceTests += std::string("    else       { Log(log_level::Error, \"Test '") + TestName + std::string("' failed.\"); }\n");
+                    once_tests += std::string("    if(Result) { Log(log_level::Test, \"Test '") + test_name + std::string("' was correctly executed.\"); }\n");
+                    once_tests += std::string("    else       { Log(log_level::Error, \"Test '") + test_name + std::string("' failed.\"); }\n");
                 }
-                else if (TestType == "test_reload") {
-                    ReloadTests += std::string("\n"
+                else if (test_type == "test_reload") {
+                    reload_tests += std::string("\n"
                     "    try { Result = "
-                    ) + TestName + std::string("(");
-                    token PreviousToken = RequireToken(Tokenizer, Token_OpenParen);
-                    Token = GetToken(Tokenizer);
-                    while (Token.Type != Token_CloseParen) {
-                        PreviousToken = Token;
-                        Token = GetToken(Tokenizer);
-                        if (Token.Type == Token_Comma) {
-                            ReloadTests += std::string(PreviousToken.Text, PreviousToken.Length) + std::string(", ");
+                    ) + test_name + std::string("(");
+                    Token previous_token = RequireToken(tokenizer, Token_OpenParen);
+                    token = GetToken(tokenizer);
+                    while (token.type != Token_CloseParen) {
+                        previous_token = token;
+                        token = GetToken(tokenizer);
+                        if (token.type == Token_Comma) {
+                            reload_tests += std::string(previous_token.text, previous_token.length) + std::string(", ");
                         }
-                        else if (Token.Type == Token_CloseParen) {
-                            ReloadTests += std::string(PreviousToken.Text, PreviousToken.Length);
+                        else if (token.type == Token_CloseParen) {
+                            reload_tests += std::string(previous_token.text, previous_token.length);
                         }
                     }
-                    ReloadTests += std::string(
+                    reload_tests += std::string(
                     "); }\n"
                     "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); }\n"
                     "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); }\n"
                     );
-                    ReloadTests += std::string("    if(Result) { Log(log_level::Test, \"Test '") + TestName + std::string("' was correctly executed.\"); }\n");
-                    ReloadTests += std::string("    else       { Log(log_level::Error, \"Test '") + TestName + std::string("' failed.\"); }\n");
+                    reload_tests += std::string("    if(Result) { Log(log_level::Test, \"Test '") + test_name + std::string("' was correctly executed.\"); }\n");
+                    reload_tests += std::string("    else       { Log(log_level::Error, \"Test '") + test_name + std::string("' failed.\"); }\n");
                 }
-                else if (TestType == "test_every_frame") {
-                    EveryFrameTests += std::string("\n"
+                else if (test_type == "test_every_frame") {
+                    every_frame_tests += std::string("\n"
                     "    try { Result = "
-                    ) + TestName + std::string("(");
-                    token PreviousToken = RequireToken(Tokenizer, Token_OpenParen);
-                    Token = GetToken(Tokenizer);
-                    while (Token.Type != Token_CloseParen) {
-                        PreviousToken = Token;
-                        Token = GetToken(Tokenizer);
-                        if (Token.Type == Token_Comma) {
-                            EveryFrameTests += std::string(PreviousToken.Text, PreviousToken.Length) + std::string(", ");
+                    ) + test_name + std::string("(");
+                    Token previous_token = RequireToken(tokenizer, Token_OpenParen);
+                    token = GetToken(tokenizer);
+                    while (token.type != Token_CloseParen) {
+                        previous_token = token;
+                        token = GetToken(tokenizer);
+                        if (token.type == Token_Comma) {
+                            every_frame_tests += std::string(previous_token.text, previous_token.length) + std::string(", ");
                         }
-                        else if (Token.Type == Token_CloseParen) {
-                            EveryFrameTests += std::string(PreviousToken.Text, PreviousToken.Length);
+                        else if (token.type == Token_CloseParen) {
+                            every_frame_tests += std::string(previous_token.text, previous_token.length);
                         }
                     }
-                    EveryFrameTests += std::string(
+                    every_frame_tests += std::string(
                     "); }\n"
                     "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); }\n"
                     "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); }\n"
                     );
-                    EveryFrameTests += std::string("    if (!Result) { Log(log_level::Error, \"Test '") + TestName + std::string("' failed.\"); }\n");
+                    every_frame_tests += std::string("    if (!Result) { Log(log_level::Error, \"Test '") + test_name + std::string("' failed.\"); }\n");
                 }
             }
         }
 
-        Token = GetToken(Tokenizer);
+        token = GetToken(tokenizer);
     }
-    OnceTests += std::string("}");
-    ReloadTests += std::string("}");
-    EveryFrameTests += std::string("}");
-    fprintf(TestOutputFile,"%s\n\n%s\n\n%s", OnceTests.c_str(), ReloadTests.c_str(), EveryFrameTests.c_str());
+    once_tests += std::string("}");
+    reload_tests += std::string("}");
+    every_frame_tests += std::string("}");
+    fprintf(test_output_file,"%s\n\n%s\n\n%s", once_tests.c_str(), reload_tests.c_str(), every_frame_tests.c_str());
 
-    fclose(TestOutputFile);
+    fclose(test_output_file);
 
     return 0;
 }
