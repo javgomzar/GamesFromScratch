@@ -1,25 +1,25 @@
 #include "GameBuild.h"
 
-constexpr int ArenaSize = Kilobytes(8);
-static char TextBuffer[2*ArenaSize];
+constexpr int ARENA_SIZE = Kilobytes(8);
+static char TEXT_BUFFER[2*ARENA_SIZE];
 
 int main(int argc, char* argv[]) {
 #if _WIN32
-    LARGE_INTEGER PerfCountFrequencyResult;
-    QueryPerformanceFrequency(&PerfCountFrequencyResult);
-    Platform.PerformanceCounterFrequency = PerfCountFrequencyResult.QuadPart;
+    LARGE_INTEGER perf_count_frequency_result;
+    QueryPerformanceFrequency(&perf_count_frequency_result);
+    Platform.PerformanceCounterFrequency = perf_count_frequency_result.QuadPart;
 #endif
 
-    Arena Permanent = MemoryArena(ArenaSize, TextBuffer);
-    Arena Transient = MemoryArena(ArenaSize, TextBuffer + ArenaSize);
+    Arena permanent = MemoryArena(ARENA_SIZE, TEXT_BUFFER);
+    Arena transient = MemoryArena(ARENA_SIZE, TEXT_BUFFER + ARENA_SIZE);
 
-    build_configuration Config = ReadBuildConfiguration(&Permanent, argv[1]);
+    Build_Configuration config = ReadBuildConfiguration(&permanent, argv[1]);
 
     // Hot reload
     if (argc == 3 && argv[2]) {
         if (strcmp(argv[2], "-hot") != 0) {
-            string ErrorText = Format(&Transient, "Incorrect argument '{s}', try '-hot'.", 1, argv[2]);
-            Log(log_level::Error, ErrorText.Content);
+            String ErrorText = Format(&Transient, "Incorrect argument '{s}', try '-hot'.", 1, argv[2]);
+            Log(Log_Level::Error, ErrorText.Content);
             return 2;
         }
         

@@ -27,7 +27,7 @@ struct waveformat {
 
 INTROSPECT
 struct game_sound {
-    string Name;
+    String Name;
     waveformat WaveFormat;
     uint32 SampleCount;
     uint32 Played;
@@ -79,15 +79,15 @@ int16 Amplitude = 4000;
 float WriteSineWave(game_sound_buffer* pSoundBuffer, float Hz, float InitialPhase) {
     uint32 SampleCount = pSoundBuffer->BufferSize;
     float SineWavePeriod = (float)(pSoundBuffer->SamplesPerSecond) / Hz;
-    float PhaseIncrement = (2.0f * Pi) / (float)SineWavePeriod;
+    float PhaseIncrement = TAU / (float)SineWavePeriod;
 
     float Phase = InitialPhase;
     int16* SampleOut = pSoundBuffer->SampleOut;
     for (uint32 SampleIndex = 0; SampleIndex < SampleCount; SampleIndex++) {
         float SineValue = sinf(Phase);
         Phase += PhaseIncrement;
-        while (Phase > Tau) {
-            Phase -= Tau;
+        while (Phase > TAU) {
+            Phase -= TAU;
         }
         uint16 SampleValue = (uint16)(SineValue * Amplitude);
         *SampleOut++ = SampleValue; // LEFT

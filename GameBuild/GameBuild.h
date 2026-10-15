@@ -316,7 +316,7 @@ void LogCompilationResult(Arena* arena, String Name, int32 ExitCode, uint64 Star
     Log(Level, LogString.content);
 }
 
-process_info CompileMetaprogramming(Arena* arena, Build_Configuration* config) {
+Process_Info CompileMetaprogramming(Arena* arena, Build_Configuration* config) {
     Log(Log_Level::Info, "Compiling metaprogramming code.");
     char* Command = (char*)(arena->base + arena->used);
     switch(config->compiler) {
@@ -362,7 +362,7 @@ void MetaProgram(Arena* arena, Build_Configuration* config) {
     int32 wait_result = 0;
     uint64 metaprogramming_compilation_start = 0;
     uint64 metaprogramming_compilation_end = 0;
-    process_info metaprogramming_compilation = {};
+    Process_Info metaprogramming_compilation = {};
     if (!metaprogramming_binary_exists || metaprogramming_source.timestamp > metaprogramming_binary.timestamp) {
         metaprogramming_compilation_start = Platform.GetWallClock();
         metaprogramming_compilation = CompileMetaprogramming(arena, config);
@@ -374,7 +374,7 @@ void MetaProgram(Arena* arena, Build_Configuration* config) {
     char* meta_command = PushArray(arena, 64, char);
     strncpy(meta_command, config->metaprogramming_output_file.content, 64);
     uint64 metaprogramming_execution_start = Platform.GetWallClock();
-    process_info metaprogramming_execution = Platform.RunCommand(meta_command);
+    Process_Info metaprogramming_execution = Platform.RunCommand(meta_command);
     wait_result = Platform.WaitForProcess(&metaprogramming_execution, -1);
     if (wait_result >= 0) {
         uint64 end = Platform.GetWallClock();
@@ -391,11 +391,11 @@ void MetaProgram(Arena* arena, Build_Configuration* config) {
     }
 }
 
-process_info CompilePlatformLayer(Arena* arena, Build_Configuration* config) {
+Process_Info CompilePlatformLayer(Arena* arena, Build_Configuration* config) {
     char* command = (char*)(arena->base + arena->used);
     switch (config->compiler) {
         case MSVC: {
-            String CommandString = Format(arena,
+            String command_string = Format(arena,
                 "{s} /std:c++20 /nologo /W0 "
                 "GamePlatform\\Windows\\Win32PlatformLayer.cpp bin\\{s}.obj " 
                 "/D GAME_RENDER_API_{s} {s} "
@@ -435,7 +435,7 @@ process_info CompilePlatformLayer(Arena* arena, Build_Configuration* config) {
     return Platform.RunCommand(command);
 }
 
-process_info CompileGameLibrary(Arena* arena, Build_Configuration* config) {
+Process_Info CompileGameLibrary(Arena* arena, Build_Configuration* config) {
     char* Command = (char*)(arena->base + arena->used);
     switch(config->compiler) {
         case MSVC: {
@@ -472,7 +472,7 @@ process_info CompileGameLibrary(Arena* arena, Build_Configuration* config) {
     return Platform.RunCommand(Command);
 }
 
-process_info CompileGameLibraryHot(Arena* arena, Build_Configuration* config) {
+Process_Info CompileGameLibraryHot(Arena* arena, Build_Configuration* config) {
 #if _WIN32
     int hot_reload_count = 0;
     String pdb_file = Format(arena, "bin\\GameLibrary{i}.pdb", 1, hot_reload_count);
@@ -507,10 +507,10 @@ process_info CompileGameLibraryHot(Arena* arena, Build_Configuration* config) {
     Format(arena,
         "{s} -std=c++20 -shared -fPIC {s} {s} -include-pch bin/{s}.gch GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
         4,
-        config->CompilerPath,
-        config->CompilerFlags,
-        config->Include,
-        config->pchOutput
+        config->compiler_path,
+        config->compiler_flags,
+        config->include,
+        config->pch_output
     );
 #endif
     return Platform.RunCommand(command);

@@ -1,179 +1,179 @@
 #include "GamePlatform.h"
 #include "GameMath.h"
-#include "Tokenizer.h"
+#include "tokenizer.h"
 
 
-ENUM(vertex_type,
-    vertex_type_empty,
-    vertex_type_float,
-    vertex_type_v2,
-    vertex_type_v3,
-    vertex_type_v4,
-    vertex_type_int,
-    vertex_type_iv2,
-    vertex_type_iv3,
-    vertex_type_iv4,
-    vertex_type_mat2,
-    vertex_type_mat3,
-    vertex_type_mat4
+ENUM(Vertex_Type,
+    Vertex_Type_empty,
+    Vertex_Type_float,
+    Vertex_Type_V2,
+    Vertex_Type_V3,
+    Vertex_Type_V4,
+    Vertex_Type_int,
+    Vertex_Type_IV2,
+    Vertex_Type_IV3,
+    Vertex_Type_IV4,
+    Vertex_Type_Matrix2,
+    Vertex_Type_Matrix3,
+    Vertex_Type_Matrix4
 );
 
-bool IsFloatType(vertex_type Type) {
+bool IsFloatType(Vertex_Type type) {
     return 
-        Type == vertex_type_float ||
-        Type == vertex_type_v2 ||
-        Type == vertex_type_v3 ||
-        Type == vertex_type_v4 ||
-        Type == vertex_type_mat2 ||
-        Type == vertex_type_mat3 ||
-        Type == vertex_type_mat4;
+        type == Vertex_Type_float ||
+        type == Vertex_Type_V2 ||
+        type == Vertex_Type_V3 ||
+        type == Vertex_Type_V4 ||
+        type == Vertex_Type_Matrix2 ||
+        type == Vertex_Type_Matrix3 ||
+        type == Vertex_Type_Matrix4;
 }
 
-bool IsIntegerType(vertex_type Type) {
+bool IsIntegerType(Vertex_Type type) {
     return
-        Type == vertex_type_int ||
-        Type == vertex_type_iv2 ||
-        Type == vertex_type_iv3 ||
-        Type == vertex_type_iv4;
+        type == Vertex_Type_int ||
+        type == Vertex_Type_IV2 ||
+        type == Vertex_Type_IV3 ||
+        type == Vertex_Type_IV4;
 }
 
-uint32 GetVertexTypeSizeInBytes(vertex_type Type) {
-    switch (Type) {
-        case vertex_type_float: { return 4; } break;
-        case vertex_type_v2:  { return 8; } break;
-        case vertex_type_v3:  { return 12; } break;
-        case vertex_type_v4:  { return 16; } break;
-        case vertex_type_int:   { return 4; } break;
-        case vertex_type_iv2: { return 8; } break;
-        case vertex_type_iv3: { return 12; } break;
-        case vertex_type_iv4: { return 16; } break;
-        case vertex_type_mat2:  { return 16; } break;
-        case vertex_type_mat3:  { return 36; } break;
-        case vertex_type_mat4:  { return 64; } break;
+uint32 GetVertexTypeSizeInBytes(Vertex_Type type) {
+    switch (type) {
+        case Vertex_Type_float: { return 4; } break;
+        case Vertex_Type_V2:  { return 8; } break;
+        case Vertex_Type_V3:  { return 12; } break;
+        case Vertex_Type_V4:  { return 16; } break;
+        case Vertex_Type_int:   { return 4; } break;
+        case Vertex_Type_IV2: { return 8; } break;
+        case Vertex_Type_IV3: { return 12; } break;
+        case Vertex_Type_IV4: { return 16; } break;
+        case Vertex_Type_Matrix2:  { return 16; } break;
+        case Vertex_Type_Matrix3:  { return 36; } break;
+        case Vertex_Type_Matrix4:  { return 64; } break;
         default: Raise("Invalid vertex attribute type.");
     }
     return 0;
 }
 
 // Returns number of elements for a given shader type. For example, output is 3 for type `vec3`.
-int GetVertexTypeSize(vertex_type Type) {
-    switch (Type) {
-        case vertex_type_float: { return 1; } break;
-        case vertex_type_v2:  { return 2; } break;
-        case vertex_type_v3:  { return 3; } break;
-        case vertex_type_v4:  { return 4; } break;
-        case vertex_type_int:   { return 1; } break;
-        case vertex_type_iv2: { return 2; } break;
-        case vertex_type_iv3: { return 3; } break;
-        case vertex_type_iv4: { return 4; } break;
-        case vertex_type_mat2:  { return 4; } break;
-        case vertex_type_mat3:  { return 9; } break;
-        case vertex_type_mat4:  { return 16; } break;
+int GetVertexTypeSize(Vertex_Type type) {
+    switch (type) {
+        case Vertex_Type_float: { return 1; } break;
+        case Vertex_Type_V2:  { return 2; } break;
+        case Vertex_Type_V3:  { return 3; } break;
+        case Vertex_Type_V4:  { return 4; } break;
+        case Vertex_Type_int:   { return 1; } break;
+        case Vertex_Type_IV2: { return 2; } break;
+        case Vertex_Type_IV3: { return 3; } break;
+        case Vertex_Type_IV4: { return 4; } break;
+        case Vertex_Type_Matrix2:  { return 4; } break;
+        case Vertex_Type_Matrix3:  { return 9; } break;
+        case Vertex_Type_Matrix4:  { return 16; } break;
         default: Raise("Invalid vertex attribute type.");
     }
     return 0;
 }
 
-struct vertex_attribute {
-    vertex_type Type;
-    uint32 Location;
-    uint32 Size;
-    uint32 Offset;
+struct Vertex_Attribute {
+    Vertex_Type type;
+    uint32 location;
+    uint32 size;
+    uint32 offset;
 };
 
-bool operator!=(vertex_attribute Attribute1, vertex_attribute Attribute2) {
+bool operator!=(Vertex_Attribute attribute1, Vertex_Attribute attribute2) {
     return 
-        Attribute1.Type != Attribute2.Type ||
-        Attribute1.Location != Attribute2.Location ||
-        Attribute1.Size != Attribute2.Size ||
-        Attribute1.Offset != Attribute2.Offset;
+        attribute1.type != attribute2.type ||
+        attribute1.location != attribute2.location ||
+        attribute1.size != attribute2.size ||
+        attribute1.offset != attribute2.offset;
 }
 
-ENUM(vertex_layout_id,
-    vertex_layout_v2_id,
-    vertex_layout_v2_v2_id,
-    vertex_layout_v3_id,
-    vertex_layout_v3_v2_id,
-    vertex_layout_v3_v2_v3_id,
-    vertex_layout_v3_v4_id,
-    vertex_layout_v4_id,
-    vertex_layout_bones_id
+ENUM(Vertex_Layout_ID,
+    Vertex_Layout_V2_id,
+    Vertex_Layout_V2_V2_id,
+    Vertex_Layout_V3_id,
+    Vertex_Layout_V3_V2_id,
+    Vertex_Layout_V3_V2_V3_id,
+    Vertex_Layout_V3_V4_id,
+    Vertex_Layout_V4_id,
+    Vertex_Layout_bones_id
 );
 
 const uint8 MAX_VERTEX_ATTRIBUTES = 16;
-struct vertex_layout {
-    vertex_layout_id ID;
-    vertex_attribute Attributes[MAX_VERTEX_ATTRIBUTES];
-    uint32 Stride;
-    uint8 nAttributes;
+struct Vertex_Layout {
+    Vertex_Layout_ID id;
+    Vertex_Attribute attributes[MAX_VERTEX_ATTRIBUTES];
+    uint32 stride;
+    uint8 attribute_count;
 };
 
-void AddAttribute(vertex_layout* VertexLayout, vertex_type Type) {
-    vertex_attribute* Attribute = &VertexLayout->Attributes[VertexLayout->nAttributes];
-    Attribute->Location = VertexLayout->nAttributes++;
-    Attribute->Type = Type;
-    Attribute->Size = GetVertexTypeSizeInBytes(Type);
-    Attribute->Offset = VertexLayout->Stride;
-    VertexLayout->Stride += Attribute->Size;
+void AddAttribute(Vertex_Layout* Vertex_Layout, Vertex_Type type) {
+    Vertex_Attribute* attribute = &Vertex_Layout->attributes[Vertex_Layout->attribute_count];
+    attribute->location = Vertex_Layout->attribute_count++;
+    attribute->type = type;
+    attribute->size = GetVertexTypeSizeInBytes(type);
+    attribute->offset = Vertex_Layout->stride;
+    Vertex_Layout->stride += attribute->size;
 }
 
-vertex_layout VertexLayout(vertex_layout_id ID, int nAttributes, ...) {
-    vertex_layout Result = {};
-    Result.ID = ID;
-    Result.Stride = 0;
-    Result.nAttributes = 0;
+Vertex_Layout VertexLayout(Vertex_Layout_ID id, int attribute_count, ...) {
+    Vertex_Layout result = {};
+    result.id = id;
+    result.stride = 0;
+    result.attribute_count = 0;
 
-    va_list Types;
-    va_start(Types, nAttributes);
+    va_list types;
+    va_start(types, attribute_count);
 
-    for (int i = 0; i < nAttributes; i++) {
-        vertex_type Type = va_arg(Types, vertex_type);
-        AddAttribute(&Result, Type);
+    for (int i = 0; i < attribute_count; i++) {
+        Vertex_Type type = va_arg(types, Vertex_Type);
+        AddAttribute(&result, type);
     }
-    return Result;
+    return result;
 }
 
-vertex_layout VertexLayouts[vertex_layout_id_count] = {
-    VertexLayout(vertex_layout_v2_id,       1, vertex_type_v2),
-    VertexLayout(vertex_layout_v2_v2_id,    2, vertex_type_v2, vertex_type_v2),
-    VertexLayout(vertex_layout_v3_id,       1, vertex_type_v3),
-    VertexLayout(vertex_layout_v3_v2_id,    2, vertex_type_v3, vertex_type_v2),
-    VertexLayout(vertex_layout_v3_v2_v3_id, 3, vertex_type_v3, vertex_type_v2, vertex_type_v3),
-    VertexLayout(vertex_layout_v3_v4_id,    2, vertex_type_v3, vertex_type_v4),
-    VertexLayout(vertex_layout_v4_id,       1, vertex_type_v4),
-    VertexLayout(vertex_layout_bones_id,    5, vertex_type_v3, vertex_type_v2, vertex_type_v3, vertex_type_iv2, vertex_type_v2),
+Vertex_Layout VERTEX_LAYOUTS[Vertex_Layout_ID_count] = {
+    VertexLayout(Vertex_Layout_V2_id,       1, Vertex_Type_V2),
+    VertexLayout(Vertex_Layout_V2_V2_id,    2, Vertex_Type_V2, Vertex_Type_V2),
+    VertexLayout(Vertex_Layout_V3_id,       1, Vertex_Type_V3),
+    VertexLayout(Vertex_Layout_V3_V2_id,    2, Vertex_Type_V3, Vertex_Type_V2),
+    VertexLayout(Vertex_Layout_V3_V2_V3_id, 3, Vertex_Type_V3, Vertex_Type_V2, Vertex_Type_V3),
+    VertexLayout(Vertex_Layout_V3_V4_id,    2, Vertex_Type_V3, Vertex_Type_V4),
+    VertexLayout(Vertex_Layout_V4_id,       1, Vertex_Type_V4),
+    VertexLayout(Vertex_Layout_bones_id,    5, Vertex_Type_V3, Vertex_Type_V2, Vertex_Type_V3, Vertex_Type_IV2, Vertex_Type_V2),
 };
 
-bool FindCompatibleVertexLayout(vertex_layout VertexLayout, vertex_layout_id* Result = nullptr) {
-    for (int i = 0; i < vertex_layout_id_count; i++) {
-        vertex_layout TestLayout = VertexLayouts[i];
-        if (TestLayout.nAttributes == VertexLayout.nAttributes) {
+bool FindCompatibleVertexLayout(Vertex_Layout vertex_layout, Vertex_Layout_ID* result = nullptr) {
+    for (int i = 0; i < Vertex_Layout_ID_count; i++) {
+        Vertex_Layout test_layout = VERTEX_LAYOUTS[i];
+        if (test_layout.attribute_count == vertex_layout.attribute_count) {
             bool Compatible = true;
-            for (int j = 0; j < TestLayout.nAttributes; j++) {
-                vertex_attribute Attribute = TestLayout.Attributes[j];
-                vertex_attribute ShaderAttribute = VertexLayout.Attributes[j];
+            for (int j = 0; j < test_layout.attribute_count; j++) {
+                Vertex_Attribute attribute = test_layout.attributes[j];
+                Vertex_Attribute shader_attribute = vertex_layout.attributes[j];
 
-                if (ShaderAttribute.Type != vertex_type_empty && ShaderAttribute.Type != Attribute.Type) {
+                if (shader_attribute.type != Vertex_Type_empty && shader_attribute.type != attribute.type) {
                     Compatible = false;
                     break;
                 }
             }
 
             if (Compatible) {
-                if (Result) *Result = TestLayout.ID;
+                if (result) *result = test_layout.id;
                 return true;
             }
         }
     }
 
-    Result = nullptr;
+    result = nullptr;
     return false;
 }
 
-bool operator==(vertex_layout Layout1, vertex_layout Layout2) {
-    if (Layout1.Stride == Layout2.Stride && Layout1.nAttributes == Layout2.nAttributes) {
-        for (int i = 0; i < Layout1.nAttributes; i++) {
-            if (Layout1.Attributes[i] != Layout2.Attributes[i]) {
+bool operator==(Vertex_Layout Layout1, Vertex_Layout Layout2) {
+    if (Layout1.stride == Layout2.stride && Layout1.attribute_count == Layout2.attribute_count) {
+        for (int i = 0; i < Layout1.attribute_count; i++) {
+            if (Layout1.attributes[i] != Layout2.attributes[i]) {
                 return false;
             }
         }
@@ -182,65 +182,65 @@ bool operator==(vertex_layout Layout1, vertex_layout Layout2) {
     return false;
 }
 
-v2 ParseV2(tokenizer& Tokenizer) {
-    v2 Result;
-    Result.X = ParseFloat(Tokenizer);
-    Result.Y = ParseFloat(Tokenizer);
-    return Result;
+V2 ParseV2(Tokenizer& tokenizer) {
+    V2 result;
+    result.x = ParseFloat(tokenizer);
+    result.y = ParseFloat(tokenizer);
+    return result;
 }
 
-v3 ParseV3(tokenizer& Tokenizer) {
-    v3 Result;
-    Result.X = ParseFloat(Tokenizer);
-    Result.Y = ParseFloat(Tokenizer);
-    Result.Z = ParseFloat(Tokenizer);
-    return Result;
+V3 ParseV3(Tokenizer& tokenizer) {
+    V3 result;
+    result.x = ParseFloat(tokenizer);
+    result.y = ParseFloat(tokenizer);
+    result.z = ParseFloat(tokenizer);
+    return result;
 }
 
-v4 ParseV4(tokenizer& Tokenizer) {
-    v4 Result;
-    Result.X = ParseFloat(Tokenizer);
-    Result.Y = ParseFloat(Tokenizer);
-    Result.Z = ParseFloat(Tokenizer);
-    Result.W = ParseFloat(Tokenizer);
-    return Result;
+V4 ParseV4(Tokenizer& tokenizer) {
+    V4 result;
+    result.x = ParseFloat(tokenizer);
+    result.y = ParseFloat(tokenizer);
+    result.z = ParseFloat(tokenizer);
+    result.w = ParseFloat(tokenizer);
+    return result;
 }
 
-quaternion ParseQuaternion(tokenizer& Tokenizer) {
-    quaternion Result;
-    Result.c = ParseFloat(Tokenizer);
-    Result.i = ParseFloat(Tokenizer);
-    Result.j = ParseFloat(Tokenizer);
-    Result.k = ParseFloat(Tokenizer);
-    return Result;
+Quaternion ParseQuaternion(Tokenizer& tokenizer) {
+    Quaternion result;
+    result.c = ParseFloat(tokenizer);
+    result.i = ParseFloat(tokenizer);
+    result.j = ParseFloat(tokenizer);
+    result.k = ParseFloat(tokenizer);
+    return result;
 }
 
-iv2 ParseIV2(tokenizer& Tokenizer) {
-    iv2 Result;
-    Result.X = ParseInt(Tokenizer);
-    Result.Y = ParseInt(Tokenizer);
-    return Result;
+IV2 ParseIV2(Tokenizer& tokenizer) {
+    IV2 result;
+    result.x = ParseInt(tokenizer);
+    result.y = ParseInt(tokenizer);
+    return result;
 }
 
-iv3 ParseIV3(tokenizer& Tokenizer) {
-    iv3 Result;
-    Result.X = ParseInt(Tokenizer);
-    Result.Y = ParseInt(Tokenizer);
-    Result.Z = ParseInt(Tokenizer);
-    return Result;
+IV3 ParseIV3(Tokenizer& tokenizer) {
+    IV3 result;
+    result.x = ParseInt(tokenizer);
+    result.y = ParseInt(tokenizer);
+    result.z = ParseInt(tokenizer);
+    return result;
 }
 
-uv2 ParseUV2(tokenizer& Tokenizer) {
-    uv2 Result;
-    Result.X = Parseuint32(Tokenizer);
-    Result.Y = Parseuint32(Tokenizer);
-    return Result;
+UV2 ParseUV2(Tokenizer& tokenizer) {
+    UV2 result;
+    result.x = Parseuint32(tokenizer);
+    result.y = Parseuint32(tokenizer);
+    return result;
 }
 
-uv3 ParseUV3(tokenizer& Tokenizer) {
-    uv3 Result;
-    Result.X = Parseuint32(Tokenizer);
-    Result.Y = Parseuint32(Tokenizer);
-    Result.Z = Parseuint32(Tokenizer);
-    return Result;
+UV3 ParseUV3(Tokenizer& tokenizer) {
+    UV3 result;
+    result.x = Parseuint32(tokenizer);
+    result.y = Parseuint32(tokenizer);
+    result.z = Parseuint32(tokenizer);
+    return result;
 }

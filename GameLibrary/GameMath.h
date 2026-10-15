@@ -344,7 +344,7 @@ inline float modulus(V2 A) {
 	return sqrt(dot(A, A));
 }
 
-inline float Getangle(V2 A, V2 B) {
+inline float GetAngle(V2 A, V2 B) {
 	float mA = modulus(A);
 	float mB = modulus(B);
 	if (mA < EPSILON || mB < EPSILON) {

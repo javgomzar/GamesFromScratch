@@ -29,7 +29,7 @@ struct Asset_Header {
 };
 
 struct Asset {
-    string path;
+    String path;
     array<Asset_ID> sounds;
     array<Asset_ID> textures;
     array<Asset_ID> meshes;
@@ -73,14 +73,14 @@ void AddAsset(
     asset->path = path;
     bool process = force_process;
     if (Platform.FileExists(path)) {
-        timestamp asset_file_time = Platform.GetFileInfo(path).Timestamp;
+        Timestamp asset_file_time = Platform.GetFileInfo(path).timestamp;
         for (const char* file : files) {
             if (!Platform.FileExists(path)) {
-                Log(log_level::Error, "Failed to add file to asset.");
+                Log(Log_Level::Error, "Failed to add file to asset.");
                 continue;
             }
 
-            timestamp import_file_time = Platform.GetFileInfo(path).Timestamp;
+            Timestamp import_file_time = Platform.GetFileInfo(path).timestamp;
             if (import_file_time > asset_file_time) {
                 process = true;
             }
@@ -100,7 +100,7 @@ void AddAsset(
 
         // Count asset types
         for (const char* file : files) {
-            string extension = GetFileExtension(file);
+            String extension = GetFileExtension(file);
             if (extension == "glb") {
                 // TODO
             }
@@ -114,14 +114,14 @@ void AddAsset(
                 // TODO
             }
             else {
-                Log(log_level::Error, "Invalid asset file extension.");
+                Log(Log_Level::Error, "Invalid asset file extension.");
             }
         }
 
         asset->textures = array<Asset_ID>(&manager->arena, texture_count);
 
         for (const char* file : files) {
-            string extension = GetFileExtension(file);
+            String extension = GetFileExtension(file);
             if (extension == "glb") {
                 // TODO
             }
@@ -139,7 +139,7 @@ void AddAsset(
                 // TODO
             }
             else {
-                Log(log_level::Error, "Invalid asset file extension.");
+                Log(Log_Level::Error, "Invalid asset file extension.");
             }
         }
     }
@@ -150,7 +150,7 @@ void AddAsset(
 
 //     Asset->Animations = array<game_animation>(Transient, Asset->Header.nAnimations);
 //     Asset->Fonts = array<game_font>(Transient, Asset->Header.nFonts);
-//     Asset->Meshes = array<game_mesh>(Transient, Asset->Header.nMeshes);
+//     Asset->Meshes = array<Mesh>(Transient, Asset->Header.nMeshes);
 //     Asset->Sounds = array<game_sound>(Transient, Asset->Header.nSounds);
 //     Asset->Texts = array<game_text>(Transient, Asset->Header.nTexts);
 //     Asset->Textures = array<game_texture>(Transient, Asset->Header.nTextures);
@@ -227,7 +227,7 @@ void AddAsset(
 //         Asset->Header.nImportFiles * sizeof(game_asset_import_file) + 
 //         Asset->Header.nAnimations * sizeof(game_animation) + 
 //         Asset->Header.nFonts * sizeof(game_font) + 
-//         Asset->Header.nMeshes * sizeof(game_mesh) + 
+//         Asset->Header.nMeshes * sizeof(Mesh) + 
 //         Asset->Header.nSounds * sizeof(game_sound) + 
 //         Asset->Header.nTexts * sizeof(game_text) + 
 //         Asset->Header.nTextures * sizeof(game_texture) +
@@ -263,10 +263,10 @@ void AddAsset(
 //         }
 //     }
 
-//     game_mesh* Meshes = nullptr;
+//     Mesh* Meshes = nullptr;
 //     if (Asset->Header.nMeshes > 0) {
 //         for (int i = 0; i < Asset->Header.nMeshes; i++) {
-//             game_mesh* Mesh = PushStruct(&FileArena, game_mesh);
+//             Mesh* Mesh = PushStruct(&FileArena, Mesh);
 //             if (i == 0) Meshes = Mesh;
 //         }
 //     }
@@ -330,7 +330,7 @@ void AddAsset(
 
 //             case game_asset_import_file_type::MESH: {
 //                 preprocessed_mesh* PreprocessedMesh = &Asset->PreprocessedMeshes[nthPreprocessedMesh++];
-//                 game_mesh* Mesh = Meshes + nthMesh++;
+//                 Mesh* Mesh = Meshes + nthMesh++;
 //                 *Mesh = LoadMesh(&FileArena, PreprocessedMesh, ImportFile->Content);
 //                 Mesh->Name = GetFileNameWithoutExtension(ImportFile->File.Path);
 //                 Mesh->Vertices = nullptr;
@@ -590,7 +590,7 @@ void AddAsset(
 //             } break;
 
 //             case Asset_Type_Mesh: {
-//                 game_mesh* Mesh = GetAsset(Manager, Asset.ID.Mesh);
+//                 Mesh* Mesh = GetAsset(Manager, Asset.ID.Mesh);
 //                 Mesh->Vertices = (void*)(FileContent + Asset.Offset);
 //                 uint32 Stride = VertexLayouts[Mesh->VertexLayoutID].Stride;
 //                 Mesh->Edges = (uint32*)((uint8*)Mesh->Vertices + Stride * Mesh->nVertices);
@@ -653,11 +653,11 @@ void AddAsset(
 //     return nullptr;
 // }
 
-// game_mesh* GetMesh(game_asset_manager* AssetManager, string Name) {
+// Mesh* GetMesh(game_asset_manager* AssetManager, string Name) {
 //     for (int i = 0; i < AssetManager->Assets.Count; i++) {
 //         game_asset* Asset = &AssetManager->Assets[i];
 //         for (int j = 0; j < Asset->Header.nMeshes; j++) {
-//             game_mesh* Mesh = &Asset->Meshes[j];
+//             Mesh* Mesh = &Asset->Meshes[j];
 //             if (Mesh->Name == Name) {
 //                 return Mesh;
 //             }

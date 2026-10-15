@@ -630,7 +630,7 @@ uint32 OpenGLLinkComputeShader(uint32 ShaderID) {
 
 struct openGL {
 	openGL_framebuffer Target[render_group_target_count];
-	openGL_mesh_buffer MeshBuffer[game_mesh_id_count];
+	openGL_mesh_buffer MeshBuffer[Mesh_id_count];
 	openGL_font_buffer FontBuffer[game_font_id_count];
 	openGL_heightmap_buffer HeightmapBuffer;
 	uint32 Texture[game_bitmap_id_count];
@@ -1376,13 +1376,13 @@ RENDERER_INITIALIZE {
 		}
 
 		// Mesh vertex buffers
-		for (int i = 0; i < game_mesh_id_count; i++) {
+		for (int i = 0; i < Mesh_id_count; i++) {
 			openGL_mesh_buffer* MeshBuffer = &OpenGL.MeshBuffer[i];
 			glCreateVertexArrays(1, &MeshBuffer->VAO);
 			glCreateBuffers(1, &MeshBuffer->VBO);
 			glCreateBuffers(1, &MeshBuffer->EBO);
 
-			game_mesh* Mesh = &Assets->Mesh[i];
+			Mesh* Mesh = &Assets->Mesh[i];
 			uint64 VerticesSize = GetMeshVerticesSize(Mesh->nVertices, Mesh->Armature.nBones > 0);
 			uint64 ElementsSize = 3 * sizeof(uint32) * Mesh->nFaces + 2 * sizeof(uint32) * Mesh->nEdges;
 
@@ -1741,7 +1741,7 @@ RENDERER_RENDER {
 				render_mesh_command MeshCommand = Group->MeshCommands[Command.Index];
 				render_mesh_options Options = MeshCommand.Options;
 
-				game_mesh* Mesh = GetAsset(Group->Assets, MeshCommand.MeshID);
+				Mesh* Mesh = GetAsset(Group->Assets, MeshCommand.MeshID);
 
 				openGL_shader_pipeline_id PipelineID = Mesh->Armature.nBones > 0 ? Shader_Pipeline_Mesh_Bones_ID : Shader_Pipeline_Mesh_ID;
 				if (Options.Outline) {

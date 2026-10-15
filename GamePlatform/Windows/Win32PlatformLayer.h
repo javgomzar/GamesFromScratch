@@ -3,8 +3,8 @@
 
 System_OS SystemOS = Windows;
 
-#define RENDERER_INITIALIZE void InitializeRenderer(Arena* Arena, render_group* Group, HWND Window, HINSTANCE Instance, HDC DeviceContext)
-#define RENDERER_RENDER void Render(render_group* Group, matrix4 View, game_input* Input, HWND Window, double Time)
+#define RENDERER_INITIALIZE void InitializeRenderer(Arena* arena, Render_Group* group, HWND window, HINSTANCE instance, HDC device_context)
+#define RENDERER_RENDER void Render(Render_Group* group, matrix4 view, game_input* input, HWND Window, double Time)
 
 void Log(Log_Level level, String string) {
     // Level
@@ -263,49 +263,49 @@ PLATFORM_GET_WALL_CLOCK(Win32GetWallClock) {
 }
 
 PLATFORM_RUN_COMMAND(Win32RunCommand) {
-    STARTUPINFOA StartInfo = {};
-    StartInfo.cb = sizeof(StartInfo);
+    STARTUPINFOA start_info = {};
+    start_info.cb = sizeof(start_info);
 
-    PROCESS_INFORMATION ProcessInfo = {};
+    PROCESS_INFORMATION process_info = {};
 
-    bool Success = CreateProcessA(NULL, Command, NULL, NULL, FALSE, 0, NULL, NULL, &StartInfo, &ProcessInfo);
-    if (!Success) {
-        DWORD Err = GetLastError();
-        char ErrorBuffer[2048];
-        sprintf_s(ErrorBuffer, "Error '%d' when trying to run command:\n    %s", Err, Command);
-        Log(Log_Level::Error, ErrorBuffer);
+    bool success = CreateProcessA(NULL, command, NULL, NULL, FALSE, 0, NULL, NULL, &start_info, &process_info);
+    if (!success) {
+        DWORD err = GetLastError();
+        char error_buffer[2048];
+        sprintf_s(error_buffer, "Error '%d' when trying to run command:\n    %s", err, command);
+        Log(Log_Level::Error, error_buffer);
     }
 
-    process_info Process = {};
-    Process.Handle = ProcessInfo.hProcess;
-    Process.ThreadHandle = ProcessInfo.hThread;
-    Process.Running = Success;
+    Process_Info result = {};
+    result.handle = process_info.hProcess;
+    result.thread_handle = process_info.hThread;
+    result.running = success;
 
-    return Process;
+    return result;
 }
 
 PLATFORM_WAIT_FOR_PROCESS(Win32WaitForProcess) {
-    DWORD Waitresult = WaitForSingleObject(Process->Handle, Timeout);
+    DWORD wait_result = WaitForSingleObject(process->handle, timeout);
     int32 result = -1;
-    if (Waitresult == WAIT_FAILED) {
-        char ErrorBuffer[128] = {};
-        DWORD ErrorCode = GetLastError();
-        sprintf_s(ErrorBuffer, "Error while waiting for a process to end. Error code '%d'.", ErrorCode);
-        Log(Log_Level::Error, ErrorBuffer);
+    if (wait_result == WAIT_FAILED) {
+        char error_buffer[128] = {};
+        DWORD error_code = GetLastError();
+        sprintf_s(error_buffer, "Error while waiting for a process to end. Error code '%d'.", error_code);
+        Log(Log_Level::Error, error_buffer);
         return result;
     }
-    else if (Waitresult == WAIT_OBJECT_0) {
-        Process->Running = false;
-        DWORD ExitCode = 0;
-        GetExitCodeProcess(Process->Handle, &ExitCode);
-        result = ExitCode;
-        CloseHandle(Process->Handle);
-        CloseHandle(Process->ThreadHandle);
+    else if (wait_result == WAIT_OBJECT_0) {
+        process->running = false;
+        DWORD exit_code = 0;
+        GetExitCodeProcess(process->handle, &exit_code);
+        result = exit_code;
+        CloseHandle(process->handle);
+        CloseHandle(process->thread_handle);
     }
     return result;
 }
 
-platform_api Platform = {
+Platform_API Platform = {
     .AllocateMemory = Win32AllocateMemory,
     .FreeMemory = Win32FreeMemory,
     .FileExists = Win32FileExists,
@@ -320,39 +320,39 @@ platform_api Platform = {
     .WaitForProcess = Win32WaitForProcess,
 };
 
-void SaveBMP(const char* Path, int32 Width, int32 Height, uint32 Offset, uint32 HeaderSize, void* Header, void* Pixels) {
-    HANDLE hFile = CreateFileA(Path, GENERIC_READ | GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
-    if (hFile != INVALID_HANDLE_VALUE) {
-        uint32 Size = Offset + 4 * Width * Height;
-        HANDLE hMapping = CreateFileMappingA(hFile, NULL, PAGE_READWRITE, 0, Size, NULL);
-        if (!hMapping) {
-            DWORD WinError = GetLastError();
+void SaveBMP(const char* path, int32 width, int32 height, uint32 offset, uint32 header_size, void* header, void* pixels) {
+    HANDLE file_handle = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
+    if (file_handle != INVALID_HANDLE_VALUE) {
+        uint32 size = offset + 4 * width * height;
+        HANDLE mapping_handle = CreateFileMappingA(file_handle, NULL, PAGE_READWRITE, 0, size, NULL);
+        if (!mapping_handle) {
+            DWORD win_error = GetLastError();
             Log(Log_Level::Error, "Memory map for file returned invalid handle.");
             Assert(false);
         }
 
-        uint8* Memory = (uint8*)MapViewOfFile(hMapping, FILE_MAP_WRITE, 0, 0, Size);
-        memcpy(Memory, Header, HeaderSize);
+        uint8* memory = (uint8*)MapViewOfFile(mapping_handle, FILE_MAP_WRITE, 0, 0, size);
+        memcpy(memory, header, header_size);
 
-        uint8* PixelDst = Memory + Offset;
-        memcpy(PixelDst, Pixels, 4 * Width * Height);
+        uint8* pixeldst = memory + offset;
+        memcpy(pixeldst, pixels, 4 * width * height);
 
-        FlushViewOfFile(Memory, Size);
-        UnmapViewOfFile(Memory);
-        CloseHandle(hMapping);
-        CloseHandle(hFile);
+        FlushViewOfFile(memory, size);
+        UnmapViewOfFile(memory);
+        CloseHandle(mapping_handle);
+        CloseHandle(file_handle);
     }
     else {
         // Debug
-        DWORD WinError = GetLastError();
-        if (WinError == ERROR_PATH_NOT_FOUND) {
+        DWORD win_error = GetLastError();
+        if (win_error == ERROR_PATH_NOT_FOUND) {
             Log(Log_Level::Error, "Path not found.");
         }
         Assert(false);
     }
 }
 
-inline float GetSecondsElapsed(uint64 Start, uint64 End) {
-    uint64 TimeElapsed = End - Start;
-    return TimeElapsed / (float)Platform.PerformanceCounterFrequency;
+inline float GetSecondsElapsed(uint64 start, uint64 end) {
+    uint64 timeelapsed = end - start;
+    return timeelapsed / (float)Platform.performance_counter_frequency;
 }

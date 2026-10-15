@@ -21,75 +21,75 @@ typedef size_t memory_size;
 
 #define INTROSPECT
 
-#define ENUM_START(Name) enum Name {
-#define ENUM_END(Name) Name##_count }
-#define ENUM(Name, ...) ENUM_START(Name) __VA_ARGS__, ENUM_END(Name);
+#define ENUM_START(name) enum name {
+#define ENUM_END(name) name##_count }
+#define ENUM(name, ...) ENUM_START(name) __VA_ARGS__, ENUM_END(name);
 
 #define FLAGS(...)
 
 #define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
 
-uint16 BigEndian(uint16 LittleEndian) {
-    return (LittleEndian << 8) | (LittleEndian >> 8);
+uint16 BigEndian(uint16 little_endian) {
+    return (little_endian << 8) | (little_endian >> 8);
 }
 
-uint32 BigEndian(uint32 LittleEndian) {
-    return ((LittleEndian >> 24) & 0x000000FF) |
-           ((LittleEndian >> 8)  & 0x0000FF00) |
-           ((LittleEndian << 8)  & 0x00FF0000) |
-           ((LittleEndian << 24) & 0xFF000000);
+uint32 BigEndian(uint32 little_endian) {
+    return ((little_endian >> 24) & 0x000000FF) |
+           ((little_endian >> 8)  & 0x0000FF00) |
+           ((little_endian << 8)  & 0x00FF0000) |
+           ((little_endian << 24) & 0xFF000000);
 }
 
-uint64 BigEndian(uint64 LittleEndian) {
-    return ((LittleEndian >> 56) & 0x00000000000000FF) |
-           ((LittleEndian >> 40) & 0x000000000000FF00) |
-           ((LittleEndian >> 24) & 0x0000000000FF0000) |
-           ((LittleEndian >> 8)  & 0x00000000FF000000) |
-           ((LittleEndian << 8)  & 0x000000FF00000000) |
-           ((LittleEndian << 24) & 0x0000FF0000000000) |
-           ((LittleEndian << 40) & 0x00FF000000000000) |
-           ((LittleEndian << 56) & 0xFF00000000000000);
+uint64 BigEndian(uint64 little_endian) {
+    return ((little_endian >> 56) & 0x00000000000000FF) |
+           ((little_endian >> 40) & 0x000000000000FF00) |
+           ((little_endian >> 24) & 0x0000000000FF0000) |
+           ((little_endian >> 8)  & 0x00000000FF000000) |
+           ((little_endian << 8)  & 0x000000FF00000000) |
+           ((little_endian << 24) & 0x0000FF0000000000) |
+           ((little_endian << 40) & 0x00FF000000000000) |
+           ((little_endian << 56) & 0xFF00000000000000);
 }
 
-int16 BigEndian(int16 LittleEndian) {
-    uint16 Unsigned = BigEndian(*(uint16*)&LittleEndian);
+int16 BigEndian(int16 little_endian) {
+    uint16 Unsigned = BigEndian(*(uint16*)&little_endian);
     return *(int16*)&Unsigned;
 }
 
-int32 BigEndian(int32 LittleEndian) {
-    uint32 Unsigned = BigEndian(*(uint32*)&LittleEndian);
+int32 BigEndian(int32 little_endian) {
+    uint32 Unsigned = BigEndian(*(uint32*)&little_endian);
     return *(int32*)&Unsigned;
 }
 
-int64 BigEndian(int64 LittleEndian) {
-    uint64 Unsigned = BigEndian(*(uint64*)&LittleEndian);
+int64 BigEndian(int64 little_endian) {
+    uint64 Unsigned = BigEndian(*(uint64*)&little_endian);
     return *(int64*)&Unsigned;
 }
 
-inline uint8 MSB32(uint32 X) {
+inline uint8 MSB32(uint32 x) {
 	unsigned long result = 0;
 #ifdef _WIN32
-	_BitScanReverse(&result, X);
+	_BitScanReverse(&result, x);
 #else
-    result = 31 - __builtin_clz(X);
+    result = 31 - __builtin_clz(x);
 #endif
 	return (uint32)result;
 }
 
-inline uint8 MSB64(uint64 X) {
+inline uint8 MSB64(uint64 x) {
 	unsigned long result = 0;
 #ifdef _WIN32
-	_BitScanReverse64(&result, X);
+	_BitScanReverse64(&result, x);
 #else
-    result = 31 - __builtin_clzll(X);
+    result = 31 - __builtin_clzll(x);
 #endif
 	return (uint32)result;
 }
 
-inline void Assert(bool assertion, const char* Message = "") {
+inline void Assert(bool assertion, const char* message = "") {
 #ifdef _DEBUG
     if (!assertion)
-        throw Message;
+        throw message;
 #endif
 }
 
@@ -105,9 +105,9 @@ struct Arena {
     uint8* base;
 };
 
-inline void ZeroSize(memory_size Size, void* Memory) {
-    if (Size > 0) {
-        memset(Memory, 0, Size);
+inline void ZeroSize(memory_size size, void* memory) {
+    if (size > 0) {
+        memset(memory, 0, size);
     }
 }
 
@@ -1137,14 +1137,13 @@ String GetFileNameWithoutExtension(String path) {
     return filename;
 }
 
-// Record and playback
-struct record_and_playback {
-    void* RecordFile;
-    int RecordIndex;
-    void* PlaybackFile;
-    int PlaybackIndex;
-    void* GameMemoryBlock;
-    uint64 TotalSize;
+struct Record_And_Playback {
+    void* record_file;
+    int record_index;
+    void* playback_file;
+    int playback_index;
+    void* game_memory_block;
+    uint64 total_size;
 };
 
 /*
@@ -1155,36 +1154,36 @@ struct record_and_playback {
 
 const uint8 MAX_SUPPORTED_MONITORS = 8;
 
-struct monitor_info {
-    uint8 ID;
-    char DeviceName[128];
-    char DisplayName[128];
+struct Monitor_Info {
+    uint8 id;
+    char device_name[128];
+    char display_name[128];
     struct {
-        float Left;
-        float Top;
-        float Width;
-        float Height;
-    } WorkArea;
+        float left;
+        float top;
+        float width;
+        float height;
+    } work_area;
     struct {
-        float Left;
-        float Top;
-        float Width;
-        float Height;
-    } MonitorRect;
-    bool IsPrimary;
+        float left;
+        float top;
+        float width;
+        float height;
+    } monitor_rect;
+    bool is_primary;
 };
 
 /*
 +------------------------------------------------------------------------------------------------------------------------------------------+
-| Multithreading                                                                                                                           |
+| Multi-threading                                                                                                                           |
 +------------------------------------------------------------------------------------------------------------------------------------------+
 */
 
-struct process_info {
-    int PID;
-    void* Handle;
-    void* ThreadHandle;
-    bool Running;
+struct Process_Info {
+    int pid;
+    void* handle;
+    void* thread_handle;
+    bool running;
 };
 
 // struct thread_info {
@@ -1267,59 +1266,59 @@ enum System_OS {
 };
 
 #define PLATFORM_ALLOCATE_MEMORY(name) void* name(memory_size size)
-typedef PLATFORM_ALLOCATE_MEMORY(platform_allocate_memory);
+typedef PLATFORM_ALLOCATE_MEMORY(Platform_Allocate_Memory);
 
 #define PLATFORM_FREE_MEMORY(name) void name(void* memory)
-typedef PLATFORM_FREE_MEMORY(platform_free_memory);
+typedef PLATFORM_FREE_MEMORY(Platform_Free_Memory);
 
 #define PLATFORM_FILE_EXISTS(name) bool name(String path)
-typedef PLATFORM_FILE_EXISTS(platform_file_exists);
+typedef PLATFORM_FILE_EXISTS(Platform_File_Exists);
 
 #define PLATFORM_READ_FILE_CHUNK(name) File_Chunk_Info name(String path, memory_size offset, memory_size chunk_size, void* memory)
-typedef PLATFORM_READ_FILE_CHUNK(platform_read_file_chunk);
+typedef PLATFORM_READ_FILE_CHUNK(Platform_Read_File_Chunk);
 
 #define PLATFORM_WRITE_FILE_CHUNK(name) bool name(String path, memory_size offset, memory_size chunk_size, void* memory)
-typedef PLATFORM_WRITE_FILE_CHUNK(platform_write_file_chunk);
+typedef PLATFORM_WRITE_FILE_CHUNK(Platform_Write_File_Chunk);
 
 #define PLATFORM_APPEND_TO_FILE(name) bool name(String path, uint64 size, void* memory)
-typedef PLATFORM_APPEND_TO_FILE(platform_append_to_file);
+typedef PLATFORM_APPEND_TO_FILE(Platform_Append_To_File);
 
 #define PLATFORM_COPY_FILE(name) bool name(String source, String destination)
-typedef PLATFORM_COPY_FILE(platform_copy_file);
+typedef PLATFORM_COPY_FILE(Platform_Copy_File);
 
 #define PLATFORM_DELETE_FILE(name) bool name(String path)
-typedef PLATFORM_DELETE_FILE(platform_delete_file);
+typedef PLATFORM_DELETE_FILE(Platform_Delete_File);
 
 #define PLATFORM_GET_FILE_INFO(name) File_Info name(String path)
-typedef PLATFORM_GET_FILE_INFO(platform_get_file_info);
+typedef PLATFORM_GET_FILE_INFO(Platform_Get_File_Info);
 
 /*
     This function should be accompanied by a QueryPerformanceFrequency function that sets the
     .PerformanceCounterFrequency member of the Platform struct.
 */
 #define PLATFORM_GET_WALL_CLOCK(name) uint64 name()
-typedef PLATFORM_GET_WALL_CLOCK(platform_get_wall_clock);
+typedef PLATFORM_GET_WALL_CLOCK(Platform_Get_Wall_Clock);
 
-#define PLATFORM_RUN_COMMAND(name) process_info name(char* Command)
-typedef PLATFORM_RUN_COMMAND(platform_run_command);
+#define PLATFORM_RUN_COMMAND(name) Process_Info name(char* command)
+typedef PLATFORM_RUN_COMMAND(Platform_Run_Command);
 
-#define PLATFORM_WAIT_FOR_PROCESS(name) int32 name(process_info* Process, uint32 Timeout)
-typedef PLATFORM_WAIT_FOR_PROCESS(platform_wait_for_process);
+#define PLATFORM_WAIT_FOR_PROCESS(name) int32 name(Process_Info* process, uint32 timeout)
+typedef PLATFORM_WAIT_FOR_PROCESS(Platform_Wait_For_Process);
 
-struct platform_api {
-    platform_allocate_memory*     AllocateMemory;
-    platform_free_memory*         FreeMemory;
-    platform_file_exists*         FileExists;
-    platform_get_file_info*       GetFileInfo;
-    platform_read_file_chunk*     ReadFileChunk;
-    platform_write_file_chunk*    WriteFileChunk;
-    platform_append_to_file*      AppendToFile;
-    platform_copy_file*           FileCopy;
-    platform_delete_file*         FileDelete;
-    platform_get_wall_clock*      GetWallClock;
-    platform_run_command*         RunCommand;
-    platform_wait_for_process*    WaitForProcess;
-    uint64                        PerformanceCounterFrequency;
+struct Platform_API {
+    Platform_Allocate_Memory*     AllocateMemory;
+    Platform_Free_Memory*         FreeMemory;
+    Platform_File_Exists*         FileExists;
+    Platform_Get_File_Info*       GetFileInfo;
+    Platform_Read_File_Chunk*     ReadFileChunk;
+    Platform_Write_File_Chunk*    WriteFileChunk;
+    Platform_Append_To_File*      AppendToFile;
+    Platform_Copy_File*           FileCopy;
+    Platform_Delete_File*         FileDelete;
+    Platform_Get_Wall_Clock*      GetWallClock;
+    Platform_Run_Command*         RunCommand;
+    Platform_Wait_For_Process*    WaitForProcess;
+    uint64                        performance_counter_frequency;
 
     void* ReadEntireFile(String path, File_Info* file_info = nullptr) {
         File_Info info = GetFileInfo(path);
@@ -1341,8 +1340,8 @@ struct platform_api {
         return nullptr;
     }
 
-    bool WriteEntireFile(String Path, memory_size Size, void* Memory) {
-        return WriteFileChunk(Path, 0, Size, Memory);
+    bool WriteEntireFile(String path, memory_size size, void* memory) {
+        return WriteFileChunk(path, 0, size, memory);
     }
 };
 
@@ -1363,10 +1362,10 @@ uint64 SeedRNG(Arena* arena) {
 
 #ifdef _DEBUG
     time_t seconds = time(nullptr);
-    tm* time_info = localtime(&seconds);
-    seed = time_info->tm_mday + 123456789;
+    tm* local_time = localtime(&seconds);
+    seed = local_time->tm_mday + 123456789;
 #else
-    Seed = Platform.GetWallClock();
+    seed = Platform.GetWallClock();
 #endif
     for (int i = 0; i < 8; i++) {
         seed ^= seed << 13;

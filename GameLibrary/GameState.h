@@ -39,7 +39,7 @@ struct game_entity {
     v3 AngularVelocity = V3(0,0,0);
 
     // Rendering
-    game_mesh* Mesh = nullptr;
+    Mesh* Mesh = nullptr;
     Texture* texture = nullptr;
 
     // View
@@ -276,7 +276,7 @@ struct game_state {
 game_entity CreateEntity(
     const char* Name, 
     game_entity_type Type, 
-    game_mesh* Mesh = nullptr,
+    Mesh* Mesh = nullptr,
     bool Active = true
 ) {
     game_entity Entity;

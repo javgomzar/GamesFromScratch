@@ -17,66 +17,66 @@ ENUM(test_type,
 #define TEST(Name, Type, Active) bool Name
 
 TEST(TestFormat, test_once, ACTIVE)() {
-    string Test;
-    Arena Arena = AllocateMemoryArena(1024);
+    String Test;
+    Arena arena = AllocateMemoryArena(1024);
 
     int32 Int32 = 0;
-    Test = Format(&Arena, "Test {i} ...", 1, Int32);
-    Assert(Test == string("Test 0 ..."), "Int32 formatting failed.");
+    Test = Format(&arena, "Test {i} ...", 1, Int32);
+    Assert(Test == String("Test 0 ..."), "Int32 formatting failed.");
     Int32 = -112312492;
-    Test = Format(&Arena, "Test {i} ...", 1, Int32);
-    Assert(Test == string("Test -112312492 ..."), "Int32 formatting failed.");
+    Test = Format(&arena, "Test {i} ...", 1, Int32);
+    Assert(Test == String("Test -112312492 ..."), "Int32 formatting failed.");
 
-    ClearArena(&Arena);
+    Clear(&arena);
 
     int64 Int64 = 0;
-    Test = Format(&Arena, "Test {I} ...", 1, Int64);
-    Assert(Test == string("Test 0 ..."), "Int64 formatting failed.");
+    Test = Format(&arena, "Test {I} ...", 1, Int64);
+    Assert(Test == String("Test 0 ..."), "Int64 formatting failed.");
     Int64 = -1982938423712312492;
-    Test = Format(&Arena, "Test {I} ...", 1, Int64);
-    Assert(Test == string("Test -1982938423712312492 ..."), "Int64 formatting failed.");
+    Test = Format(&arena, "Test {I} ...", 1, Int64);
+    Assert(Test == String("Test -1982938423712312492 ..."), "Int64 formatting failed.");
 
-    ClearArena(&Arena);
+    Clear(&arena);
 
     uint32 Uint32 = 0;
-    Test = Format(&Arena, "Test {u} ...", 1, Uint32);
-    Assert(Test == string("Test 0 ..."), "Uint32 formatting failed.");
+    Test = Format(&arena, "Test {u} ...", 1, Uint32);
+    Assert(Test == String("Test 0 ..."), "Uint32 formatting failed.");
     Uint32 = 112312492;
-    Test = Format(&Arena, "Test {u} ...", 1, Uint32);
-    Assert(Test == string("Test 112312492 ..."), "Uint32 formatting failed.");
+    Test = Format(&arena, "Test {u} ...", 1, Uint32);
+    Assert(Test == String("Test 112312492 ..."), "Uint32 formatting failed.");
 
-    ClearArena(&Arena);
+    Clear(&arena);
 
     uint64 Uint64 = 0;
-    Test = Format(&Arena, "Test {U} ...", 1, Uint64);
-    Assert(Test == string("Test 0 ..."), "Uint64 formatting failed.");
+    Test = Format(&arena, "Test {U} ...", 1, Uint64);
+    Assert(Test == String("Test 0 ..."), "Uint64 formatting failed.");
     Uint64 = 1982938423712312492;
-    Test = Format(&Arena, "Test {U} ...", 1, Uint64);
-    Assert(Test == string("Test 1982938423712312492 ..."), "Uint64 formatting failed.");
+    Test = Format(&arena, "Test {U} ...", 1, Uint64);
+    Assert(Test == String("Test 1982938423712312492 ..."), "Uint64 formatting failed.");
 
-    ClearArena(&Arena);
+    Clear(&arena);
 
     uint64 Hex = 12379813738877118345ULL;
-    Test = Format(&Arena, "Test {x} ...", 1, Hex);
+    Test = Format(&arena, "Test {x} ...", 1, Hex);
     Assert(Test == "Test 0xabcdef0123456789 ...", "Hex formatting failed.");
 
-    ClearArena(&Arena);
+    Clear(&arena);
 
-    Test = Format(&Arena, "Hello {s}!", 1, string("world"));
-    Assert(Test == string("Hello world!"), "String formatting failed.");
+    Test = Format(&arena, "Hello {s}!", 1, String("world"));
+    Assert(Test == String("Hello world!"), "String formatting failed.");
 
-    ClearArena(&Arena);
+    Clear(&arena);
 
     double Float = -0.1;
-    Test = Format(&Arena, "Test {f3} ...", 1, Float);
-    Assert(Test == string("Test -0.100 ..."), "float formatting failed.");
+    Test = Format(&arena, "Test {f3} ...", 1, Float);
+    Assert(Test == String("Test -0.100 ..."), "float formatting failed.");
 
-    ClearArena(&Arena);
+    Clear(&arena);
 
-    Test = Format(&Arena, "Test {i} {I} {u} {U} {s} {f3} ...", 6, Int32, Int64, Uint32, Uint64, string("Hola"), 123.123);
-    Assert(Test == string("Test -112312492 -1982938423712312492 112312492 1982938423712312492 Hola 123.123 ..."), "Multiple arguments formatting failed.");
+    Test = Format(&arena, "Test {i} {I} {u} {U} {s} {f3} ...", 6, Int32, Int64, Uint32, Uint64, String("Hola"), 123.123);
+    Assert(Test == String("Test -112312492 -1982938423712312492 112312492 1982938423712312492 Hola 123.123 ..."), "Multiple arguments formatting failed.");
     
-    FreeMemoryArena(&Arena);
+    Free(&arena);
 
     return true;
 }
@@ -137,7 +137,7 @@ TEST(TestDataFileManager, test_once, ACTIVE)() {
 }
 
 TEST(TestData, test_once, INACTIVE)() {
-    Arena Arena = AllocateMemoryArena(Kilobytes(8));
+    Arena arena = AllocateMemoryArena(Kilobytes(8));
 
     game_data_page Page = CreateDataPage(row_data_page, 1, nullptr);
 
@@ -152,20 +152,20 @@ TEST(TestData, test_once, INACTIVE)() {
     game_data_slot* ReadSlot = GetSlot(Page, Slot->ID);
     char* ReadPointer = (char*)Page.Header + Slot->Offset;
 
-    Log(log_level::Info, ReadPointer);
+    Log(Log_Level::Info, ReadPointer);
 
     Assert(Page.Header->Size == TextLength + sizeof(game_data_page_header) + sizeof(game_data_slot));
 
-    FreeMemoryArena(&Arena);
-    Log(log_level::Info, "Data test ended.");
+    Free(&arena);
+    Log(Log_Level::Info, "Data test ended.");
 
     return true;
 }
 
-TEST(TestInstancedRendering, test_every_frame, INACTIVE)(render_group* Group) {
+TEST(TestInstancedRendering, test_every_frame, INACTIVE)(Render_Group* group) {
     int nInstances = 100;
-    render_primitive_command* Command = PushPrimitiveCommand(
-        Group,
+    Render_Primitive_Command* command = PushPrimitiveCommand(
+        group,
         render_primitive_triangle,
         vertex_layout_v2_id,
         6,
@@ -174,7 +174,7 @@ TEST(TestInstancedRendering, test_every_frame, INACTIVE)(render_group* Group) {
         .Order = SORT_ORDER_DEBUG_OVERLAY
     );
 
-    float* Vertices = Command->Vertices;
+    float* Vertices = command->Vertices;
     *Vertices++ = 0.0; *Vertices++ = 0.0;
     *Vertices++ = 0.0; *Vertices++ = 1.0;
     *Vertices++ = 1.0; *Vertices++ = 0.0;
@@ -256,32 +256,32 @@ TEST(TestRendering, test_every_frame, ACTIVE)(render_group* Group, game_input* I
     PushTriangle(Group, Triangle3, color::RED);
 
     // Mesh
-    transform Transform = GetTransform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
-    game_mesh* BodyMesh = GetMesh(Group->AssetManager, "Body");
+    Transform transform = GetTransform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
+    Mesh* BodyMesh = GetMesh(Group->AssetManager, "Body");
     PushMesh(Group, BodyMesh, .Color = color::GRAY, .Transform = Transform, .Outline = true);
 
-    Transform.Translation = V3(-2, 0, 0);
+    transform.Translation = V3(-2, 0, 0);
 
-    game_mesh* Tetrahedron = GetMesh(Group->AssetManager, "Tetrahedron");
+    Mesh* Tetrahedron = GetMesh(Group->AssetManager, "Tetrahedron");
     PushMesh(Group, Tetrahedron, .Transform = Transform);
 
     Transform.Translation = V3(-2, 0, 2);
-    game_mesh* Cube = GetMesh(Group->AssetManager, "Cube");
+    Mesh* Cube = GetMesh(Group->AssetManager, "Cube");
     PushMesh(Group, Cube, .Transform = Transform);
 
     Transform.Translation = V3(-2, 0, 4);
-    game_mesh* Octahedron = GetMesh(Group->AssetManager, "Octahedron");
+    Mesh* Octahedron = GetMesh(Group->AssetManager, "Octahedron");
     PushMesh(Group, Octahedron, .Transform = Transform);
 
     Transform.Translation = V3(-2, 0, 6);
-    game_mesh* Icosahedron = GetMesh(Group->AssetManager, "Icosahedron");
+    Mesh* Icosahedron = GetMesh(Group->AssetManager, "Icosahedron");
     PushMesh(Group, Icosahedron, .Transform = Transform);
 
     Transform.Translation = V3(-2, 0, 8.5);
-    game_mesh* Dodecahedron = GetMesh(Group->AssetManager, "Dodecahedron");
+    Mesh* Dodecahedron = GetMesh(Group->AssetManager, "Dodecahedron");
     PushMesh(Group, Dodecahedron, .Transform = Transform);
 
-    game_mesh* Sphere = GetMesh(Group->AssetManager, "Sphere");
+    Mesh* Sphere = GetMesh(Group->AssetManager, "Sphere");
     PushMesh(Group, Sphere, .Color = color::RED, .Transform = GetTransform(V3(10, 0, 0)));
 
     // Heightmap
@@ -380,7 +380,7 @@ TEST(TestFFT, test_every_frame, INACTIVE)(render_group* Group, Arena* Permanent,
 }
 
 TEST(TestEntities, test_once, ACTIVE)(game_asset_manager* AssetManager, game_state* State) {
-    game_mesh* Mesh = nullptr;
+    Mesh* Mesh = nullptr;
     Mesh = GetMesh(AssetManager, "Body");
     game_entity* Character = AddEntity(State->Entities, CreateEntity("Character", Character_Entity_Type, Mesh));
     Character->Collider = CapsuleCollider(V3(0,1.0f,0), V3(0,3.6f,0), 1.0f);
@@ -411,17 +411,17 @@ TEST(TestEntities, test_once, ACTIVE)(game_asset_manager* AssetManager, game_sta
 
 TEST(TestSerialization, test_once, ACTIVE)() {
     // String
-    Arena Arena = AllocateMemoryArena(Kilobytes(4));
-    string TestString = "This is a test string.";
+    Arena arena = AllocateMemoryArena(Kilobytes(4));
+    String TestString = "This is a test String.";
     
-    void* Memory = Serialize(&Arena, TestString, string);
-    string Result = ReadString(Memory);
+    void* Memory = Serialize(&arena, TestString, String);
+    String Result = ReadString(Memory);
 
     Assert(Result == TestString);
 
     // Struct
     game_entity Entity = CreateEntity("Test Entity", Weapon_Entity_Type);
-    Memory = Serialize(&Arena, Entity, game_entity);
+    Memory = Serialize(&arena, Entity, game_entity);
 
     
 

@@ -14,11 +14,11 @@
 const int BONE_NAME_LENGTH = 32;
 
 INTROSPECT
-struct bone {
+struct Bone {
     int ID;
     char Name[BONE_NAME_LENGTH];
-    segment3 Segment;
-    transform Transform;
+    Segment3 Segment;
+    Transform transform;
 };
 
 const int MAX_ARMATURE_BONES = 32;
@@ -26,14 +26,14 @@ const int MAX_ARMATURE_BONES = 32;
 INTROSPECT
 struct armature {
     uint32 nBones;
-    bone Bones[MAX_ARMATURE_BONES];
+    Bone Bones[MAX_ARMATURE_BONES];
 };
 
 INTROSPECT
-struct game_mesh {
-    string Name;
+struct Mesh {
+    String Name;
     armature Armature;
-    vertex_layout_id VertexLayoutID;
+    Vertex_Layout_ID VertexLayoutID;
     uint32 nVertices;
     void* Vertices;
     uint32* Edges;
@@ -54,15 +54,15 @@ struct preprocessed_mesh {
 
 preprocessed_mesh PreprocessMesh(void* FileContent) {
     preprocessed_mesh Result = {};
-    tokenizer Tokenizer = InitTokenizer(FileContent);
+    Tokenizer tokenizer = InitTokenizer(FileContent);
 
-    token Token = RequireToken(Tokenizer, Token_Identifier);
-    while (Token.Type == Token_Identifier) {
-        if (Token == "nV")   Result.nVertices = Parseuint32(Tokenizer);
-        else if (Token == "nE") Result.nEdges = Parseuint32(Tokenizer);
-        else if (Token == "nF") Result.nFaces = Parseuint32(Tokenizer);
-        else if (Token == "nB") Result.nBones = Parseuint32(Tokenizer);
-        Token = GetToken(Tokenizer);
+    Token token = RequireToken(tokenizer, Token_Identifier);
+    while (token.type == Token_Identifier) {
+        if (token == "nV")   Result.nVertices = Parseuint32(tokenizer);
+        else if (token == "nE") Result.nEdges = Parseuint32(tokenizer);
+        else if (token == "nF") Result.nFaces = Parseuint32(tokenizer);
+        else if (token == "nB") Result.nBones = Parseuint32(tokenizer);
+        token = GetToken(tokenizer);
     }
     return Result;
 }
@@ -72,10 +72,10 @@ uint32 GetMeshVerticesSize(uint32 nVertices, bool HasArmature) {
     return VertexSize * nVertices;
 }
 
-game_mesh LoadMesh(Arena* Arena, preprocessed_mesh* Preprocessed, void* FileContent) {
-    game_mesh Result = {};
-    tokenizer Tokenizer = InitTokenizer(FileContent);
-    AdvanceUntilLine(Tokenizer, 2);
+Mesh LoadMesh(Arena* arena, preprocessed_mesh* Preprocessed, void* FileContent) {
+    Mesh Result = {};
+    Tokenizer tokenizer = InitTokenizer(FileContent);
+    AdvanceUntilLine(tokenizer, 2);
 
     Result.nVertices = Preprocessed->nVertices;
     Result.nEdges = Preprocessed->nEdges;
@@ -83,13 +83,13 @@ game_mesh LoadMesh(Arena* Arena, preprocessed_mesh* Preprocessed, void* FileCont
     Result.Armature.nBones = Preprocessed->nBones;
     bool HasArmature = Result.Armature.nBones > 0;
     uint32 VerticesSize = GetMeshVerticesSize(Preprocessed->nVertices, HasArmature);
-    Result.Vertices = PushSize(Arena, VerticesSize);
-    Result.VertexLayoutID = HasArmature ? vertex_layout_bones_id : vertex_layout_v3_v2_v3_id;
+    Result.Vertices = PushSize(arena, VerticesSize);
+    Result.VertexLayoutID = HasArmature ? Vertex_Layout_bones_id : Vertex_Layout_V3_V2_V3_id;
     if (Preprocessed->nEdges > 0) {
-        Result.Edges = PushArray(Arena, 2 * Preprocessed->nEdges, uint32);
+        Result.Edges = PushArray(arena, 2 * Preprocessed->nEdges, uint32);
     }
     if (Preprocessed->nFaces > 0) {
-        Result.Faces = PushArray(Arena, 3 * Preprocessed->nFaces, uint32);
+        Result.Faces = PushArray(arena, 3 * Preprocessed->nFaces, uint32);
     }
 
     Result.MinX = FLT_MAX;
@@ -101,73 +101,73 @@ game_mesh LoadMesh(Arena* Arena, preprocessed_mesh* Preprocessed, void* FileCont
 
     float* pOutV = (float*)Result.Vertices;
     for (int i = 0; i < Result.nVertices; i++) {
-        v3 Position = ParseV3(Tokenizer);
-        v3 Normal = ParseV3(Tokenizer);
-        v2 Texture = ParseV2(Tokenizer);
+        V3 Position = ParseV3(tokenizer);
+        V3 Normal = ParseV3(tokenizer);
+        V2 Texture = ParseV2(tokenizer);
 
-        if (Position.X < Result.MinX) {
-            Result.MinX = Position.X;
+        if (Position.x < Result.MinX) {
+            Result.MinX = Position.x;
         }
-        if (Position.X > Result.MaxX) {
-            Result.MaxX = Position.X;
+        if (Position.x > Result.MaxX) {
+            Result.MaxX = Position.x;
         }
-        if (Position.Y < Result.MinY) {
-            Result.MinY = Position.Y;
+        if (Position.y < Result.MinY) {
+            Result.MinY = Position.y;
         }
-        if (Position.Y > Result.MaxY) {
-            Result.MaxY = Position.Y;
+        if (Position.y > Result.MaxY) {
+            Result.MaxY = Position.y;
         }
-        if (Position.Z < Result.MinZ) {
-            Result.MinZ = Position.Z;
+        if (Position.z < Result.MinZ) {
+            Result.MinZ = Position.z;
         }
-        if (Position.Z > Result.MaxZ) {
-            Result.MaxZ = Position.Z;
+        if (Position.z > Result.MaxZ) {
+            Result.MaxZ = Position.z;
         }
 
-        *pOutV++ = Position.X; *pOutV++ = Position.Y; *pOutV++ = Position.Z;
-        *pOutV++ = Texture.X;  *pOutV++ = Texture.Y;
-        *pOutV++ = Normal.X;   *pOutV++ = Normal.Y;   *pOutV++ = Normal.Z;
+        *pOutV++ = Position.x; *pOutV++ = Position.y; *pOutV++ = Position.z;
+        *pOutV++ = Texture.x;  *pOutV++ = Texture.y;
+        *pOutV++ = Normal.x;   *pOutV++ = Normal.y;   *pOutV++ = Normal.z;
 
         if (HasArmature) {
-            iv2 BoneIDs = ParseIV2(Tokenizer);
-            v2 Weights = ParseV2(Tokenizer);
+            IV2 BoneIDs = ParseIV2(tokenizer);
+            V2 Weights = ParseV2(tokenizer);
             int32* pOutB = (int32*)pOutV;
-            *pOutB++ = BoneIDs.X;
-            *pOutB++ = BoneIDs.Y;
+            *pOutB++ = BoneIDs.x;
+            *pOutB++ = BoneIDs.y;
 
             pOutV = (float*)pOutB;
-            *pOutV++ = Weights.X;
-            *pOutV++ = Weights.Y;
+            *pOutV++ = Weights.x;
+            *pOutV++ = Weights.y;
         }
     }
 
     uint32* pOutE = Result.Edges;
     for (int i = 0; i < Result.nEdges; i++) {
-        uv2 Edge = ParseUV2(Tokenizer);
-        *pOutE++ = Edge.X;
-        *pOutE++ = Edge.Y;
+        UV2 Edge = ParseUV2(tokenizer);
+        *pOutE++ = Edge.x;
+        *pOutE++ = Edge.y;
     }
 
     uint32* pOutF = Result.Faces;
     for (int i = 0; i < Result.nFaces; i++) {
-        uv3 Face = ParseUV3(Tokenizer);
-        *pOutF++ = Face.X;
-        *pOutF++ = Face.Y;
-        *pOutF++ = Face.Z;
+        UV3 Face = ParseUV3(tokenizer);
+        *pOutF++ = Face.x;
+        *pOutF++ = Face.y;
+        *pOutF++ = Face.z;
     }
 
-    token Token;
+    Token token;
     for (int i = 0; i < Result.Armature.nBones; i++) {
-        bone Bone = {};
-        Bone.ID = Parseuint32(Tokenizer);
-        Token = RequireToken(Tokenizer, Token_Identifier);
-        int Length = Token.Length < BONE_NAME_LENGTH ? Token.Length : BONE_NAME_LENGTH;
+        Bone bone = {};
+        bone.ID = Parseuint32(tokenizer);
+        token = RequireToken(tokenizer, Token_Identifier);
+        int Length = token.length < BONE_NAME_LENGTH ? token.length : BONE_NAME_LENGTH;
         for (int j = 0; j < Length; j++) {
-            Bone.Name[j] = Token.Text[j];
+            bone.Name[j] = token.text[j];
         }
-        Bone.Segment.Head = ParseV3(Tokenizer);
-        Bone.Segment.Tail = ParseV3(Tokenizer);
-        Result.Armature.Bones[Bone.ID] = Bone;
+        bone.Segment.head = ParseV3(tokenizer);
+        bone.Segment.tail = ParseV3(tokenizer);
+        Result.Armature.Bones[bone.ID] = bone;
     }
 
     return Result;

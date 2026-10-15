@@ -41,7 +41,7 @@ ENUM(instanced_layout_id,
 );
 
 struct directX_mesh {
-    game_mesh* Mesh;
+    Mesh* Mesh;
     directX_mesh_buffer Buffer;
 };
 
@@ -1102,7 +1102,7 @@ void DirectXLoadAsset(Arena* Arena, game_asset* Asset) {
     if (Asset->Header.nMeshes > 0) {
         DirectX.Meshes = array<directX_mesh>(Arena, Asset->Header.nMeshes);
         for (int i = 0; i < Asset->Header.nMeshes; i++) {
-            game_mesh* Mesh = &Asset->Meshes[i];
+            Mesh* Mesh = &Asset->Meshes[i];
 
             directX_mesh* DirectXMesh = &DirectX.Meshes[i];
             uint64 VerticesSize = GetMeshVerticesSize(Mesh->nVertices, Mesh->Armature.nBones > 0);
@@ -1138,7 +1138,7 @@ directX_texture* GetDirectXTexture(game_texture* Texture) {
     return nullptr;
 }
 
-directX_mesh* GetDirectXMesh(game_mesh* Mesh) {
+directX_mesh* GetDirectXMesh(Mesh* Mesh) {
     for (int i = 0; i < DirectX.Meshes.Count; i++) {
         directX_mesh* DirectXMesh = &DirectX.Meshes[i];
         if (DirectXMesh->Mesh == Mesh) {
@@ -1827,7 +1827,7 @@ RENDERER_RENDER {
                 render_mesh_command MeshCommand = Group->MeshCommands[Command.Index];
                 render_mesh_options Options = MeshCommand.Options;
 
-                game_mesh* Mesh = MeshCommand.Mesh;
+                Mesh* Mesh = MeshCommand.Mesh;
                 directX_mesh* DirectXMesh = GetDirectXMesh(Mesh);
 
                 ID3D11Buffer** VertexBuffer = &DirectXMesh->Buffer.Vertex;
