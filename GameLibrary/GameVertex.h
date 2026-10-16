@@ -1,6 +1,10 @@
+#ifndef GAME_VERTEX_H
+#define GAME_VERTEX_H
+
 #include "GamePlatform.h"
 #include "GameMath.h"
 #include "tokenizer.h"
+#include "GameAsset.h"
 
 
 ENUM(Vertex_Type,
@@ -170,6 +174,128 @@ bool FindCompatibleVertexLayout(Vertex_Layout vertex_layout, Vertex_Layout_ID* r
     return false;
 }
 
+
+constexpr memory_size VERTEX_BUFFER_SIZE = Kilobytes(64);
+constexpr memory_size INDEX_BUFFER_SIZE = Kilobytes(8);
+
+struct Vertex_Buffer_Entry {
+    uint32 offset;
+    uint32 count;
+    Vertex_Layout_ID layout_id;
+    void* pointer;
+};
+
+typedef Vertex_Buffer_Entry Instance_Buffer_Entry;
+
+struct Element_Buffer_Entry {
+    uint32 offset;
+    uint32 count;
+    uint32* pointer;
+};
+
+struct Vertex_Buffer {
+    Arena vertices[Vertex_Layout_ID_count];
+    uint32 vertex_count[Vertex_Layout_ID_count];
+    Arena indices;
+    uint32 index_count;
+};
+
+/* Initializes several vertex buffers and element buffers. Returns total memory used.*/
+inline memory_size InitializeVertexBuffer(Vertex_Buffer* buffer, Arena* arena) {
+    memory_size total_size = 0;
+    memory_size size = 0;
+
+    // Vertex buffers (one per layout)
+    for (int i = 0; i < Vertex_Layout_ID_count; i++) {
+        buffer->vertex_count[i] = 0;
+        size = VERTEX_BUFFER_SIZE;
+        buffer->vertices[i] = SuballocateMemoryArena(arena, size);
+
+        total_size += size;
+    }
+
+    // Element buffers
+    buffer->index_count = 0;
+    size = INDEX_BUFFER_SIZE;
+    buffer->indices = SuballocateMemoryArena(arena, size);
+    total_size += size;
+
+    return total_size;
+}
+
+Vertex_Buffer_Entry PushVertexEntry(Vertex_Buffer* vertex_buffer, uint64 count, Vertex_Layout_ID layout_id) {
+    Arena* arena = &vertex_buffer->vertices[layout_id];
+    
+    Vertex_Buffer_Entry entry;
+    entry.count = count;
+    entry.layout_id = layout_id;
+    entry.offset = vertex_buffer->vertex_count[layout_id];
+    
+    memory_size size = count * VERTEX_LAYOUTS[layout_id].stride;
+    void* destination = PushSize(arena, size);
+    entry.pointer = destination;
+
+    vertex_buffer->vertex_count[layout_id] += count;
+    return entry;
+}
+
+Element_Buffer_Entry PushElementEntry(Vertex_Buffer* vertex_buffer, uint64 index_count) {
+    Element_Buffer_Entry entry;
+    entry.count = index_count;
+    entry.offset = vertex_buffer->index_count;
+
+    memory_size size = index_count * sizeof(uint32);
+    void* destination = PushSize(&vertex_buffer->indices, size);
+    entry.pointer = (uint32*)destination;
+
+    vertex_buffer->index_count += index_count;
+    return entry;
+}
+
+Instance_Buffer_Entry PushInstanceEntry(Vertex_Buffer* VertexBuffer, uint64 Count, Vertex_Layout_ID LayoutID) {
+    return PushVertexEntry(VertexBuffer, Count, LayoutID);
+}
+
+void ClearVertexBuffer(Vertex_Buffer* buffer) {
+    for (int i = 0; i < Vertex_Layout_ID_count; i++) {
+        Clear(&buffer->vertices[i]);
+        buffer->vertex_count[i] = 0;
+    }
+    Clear(&buffer->indices);
+    buffer->index_count = 0;
+}
+
+const memory_size TEXT_BUFFER_SIZE = Kilobytes(16);
+
+struct Text_Buffer {
+    Font* font;
+    Arena instances[FONT_CHARACTERS_COUNT];
+    uint32 count[FONT_CHARACTERS_COUNT];
+};
+
+void InitializeTextBuffer(Arena* Arena, Text_Buffer* text_buffer) {
+    for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+        text_buffer->instances[c] = SuballocateMemoryArena(Arena, TEXT_BUFFER_SIZE);
+        text_buffer->count[c] = 0;
+    }
+}
+
+void ClearTextBuffer(Text_Buffer* text_buffer) {
+    for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+        Clear(&text_buffer->instances[c]);
+        text_buffer->count[c] = 0;
+    }
+}
+
+void PushTextEntry(Text_Buffer* text_buffer, Font* Font, char Char, V2 Pen, float Size, Color color = Color::WHITE) {
+    Arena* Arena = &text_buffer->instances[Char - '!'];
+    float* Data = PushArray(Arena, 7, float);
+    *Data++ = Pen.x; *Data++ = Pen.y;
+    *Data++ = Size;
+    *Data++ = color.R; *Data++ = color.G; *Data++ = color.B; *Data++ = color.A;
+    text_buffer->count[Char - '!']++;
+}
+
 bool operator==(Vertex_Layout Layout1, Vertex_Layout Layout2) {
     if (Layout1.stride == Layout2.stride && Layout1.attribute_count == Layout2.attribute_count) {
         for (int i = 0; i < Layout1.attribute_count; i++) {
@@ -244,3 +370,5 @@ UV3 ParseUV3(Tokenizer& tokenizer) {
     result.z = Parseuint32(tokenizer);
     return result;
 }
+
+#endif

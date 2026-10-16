@@ -10,6 +10,7 @@
 
 typedef uint32 Asset_ID;
 
+#include "GameColor.h"
 #include "animation.h"
 #include "GameFont.h"
 #include "GameTexture.h"

@@ -1354,7 +1354,7 @@ inline bool operator!=(Quaternion Q1, Quaternion Q2) {
 	return Q1.c != Q2.c || Q1.i == Q2.i || Q1.j == Q2.j || Q1.k == Q2.k; 
 }
 
-inline Matrix3 Matrix(Quaternion Q) {
+inline Matrix3 Rotation_Matrix(Quaternion Q) {
 	Matrix3 result;
 	result.xx  = (2.0f * (Q.c * Q.c + Q.i * Q.i) - 1.0f);
 	result.xy  = 2.0f * (Q.i * Q.j - Q.c * Q.k);
@@ -1465,8 +1465,8 @@ inline bool operator!=(Transform transform1, Transform transform2) {
 		   transform1.rotation == transform2.rotation;
 }
 
-inline Matrix4 Matrix(Transform transform) {
-	Matrix3 rotation = Matrix(transform.rotation);
+inline Matrix4 TRS_Matrix(Transform transform) {
+	Matrix3 rotation = Rotation_Matrix(transform.rotation);
 	Matrix4 result;
 	result.x = transform.scale.x * V4(rotation.xx, rotation.xy, rotation.xz, 0);
 	result.y = transform.scale.y * V4(rotation.yx, rotation.yy, rotation.yz, 0);
