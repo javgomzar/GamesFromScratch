@@ -21,9 +21,9 @@ typedef size_t memory_size;
 
 #define INTROSPECT
 
-#define ENUM_START(name) enum name {
-#define ENUM_END(name) name##_count }
-#define ENUM(name, ...) ENUM_START(name) __VA_ARGS__, ENUM_END(name);
+#define ENUM_START(Name) enum Name {
+#define ENUM_END(Name) Name##_Count }
+#define ENUM(Name, ...) ENUM_START(Name) __VA_ARGS__, ENUM_END(Name);
 
 #define FLAGS(...)
 
@@ -171,7 +171,7 @@ inline Arena SuballocateMemoryArena(Arena* arena, memory_size size) {
 */
 
 struct String {
-    int length;
+    memory_size length;
     const char* content;
 
     String() {
@@ -616,63 +616,46 @@ uint64 GetLength(linked_list List) {
 */
 template <typename T> class array {
 private:
-    T* Data;
+    T* data;
 public:
-    uint32 Count;
-    uint32 Size;
+    uint32 length;
 
     array() {
-        Data = nullptr;
-        Count = 0;
-        Size = 0;
+        length = 0;
+        data = nullptr;
     }
 
-    array(Arena* Arena, uint32 N) {
-        Size = N;
-        Count = 0;
-        Data = PushArray(Arena, N, T);
+    array(Arena& arena, uint32 N) {
+        length = N;
+        data = PushArray(arena, N, T);
     }
 
     ~array() {
-        Data = nullptr;
-        Size = 0;
+        length = 0;
+        data = nullptr;
     }
 
-    bool IsFull() {
-        return Count == Size;
+    T& operator[](int64 index) const {
+        if (-index > length || index >= length) {
+            Log(Log_Level::Error, "Array index out of bounds.");
+        }
+        else if (index >= 0) {
+            return data[index];
+        }
+        else if (index < 0) {
+            return data[length - index];
+        }
     }
 
-    T* Insert(T Value) {
-        T* result = nullptr;
-        if (Count < Size) {
-            result = Data + Count;
-            Data[Count++] = Value;
+    const T& operator[](int64 index) const {
+        if (-index > length || index >= length) {
+            Log(Log_Level::Error, "Array index out of bounds.");
         }
-        return result;
-    }
-
-    T& operator[](int64 Index) {
-        if (-Index > Count || Index >= Count) {
-            throw "Array index out of bounds.";
+        else if (index >= 0) {
+            return data[index];
         }
-        else if (Index >= 0) {
-            return Data[Index];
-        }
-        else if (Index < 0) {
-            return Data[Count - Index];
-        }
-        Assert(false, "Invalid code path.");
-    }
-
-    const T& operator[](int64 Index) const {
-        if (-Index > Count || Index >= Count) {
-            throw "Array index out of bounds.";
-        }
-        else if (Index >= 0) {
-            return Data[Index];
-        }
-        else if (Index < 0) {
-            return Data[Count - Index];
+        else if (index < 0) {
+            return data[length - index];
         }
     }
 };
@@ -815,31 +798,32 @@ public:
 
 template <typename S, typename T> class hash_table {
 private:
-    uint32 Size;
-    uint32 Used;
-    struct entry {
-        uint64 Hash;
-        S Key;
-        T Value;
-    }* Entries;
-    bool* Deleted;
+    uint32 size;
+    uint32 used;
+    struct Entry {
+        uint64 hash;
+        S key;
+        T value;
+    }* entries;
+    bool* deleted;
 
-    uint64 Hash(S Key) {
-        S LocalCopy = Key;
-        return XXH64(&LocalCopy, sizeof(S), 0);
+    uint64 Hash(S key) {
+        S local_copy = key;
+        return XXH64(&local_copy, sizeof(S), 0);
     }
 
     bool Resize() {
-        uint32 NewSize = 2*Size;
-        void* NewContent = calloc(NewSize, sizeof(entry));
-        if (NewContent) {
-            entry* NewEntries = (entry*)NewContent;
-            for (int i = 0; i < Size; i++) {
-                entry* Entry = Entries + i;
-                if (Entry->Key.Length > 0) {
-                    uint32 NewIndex = Entry->Hash % NewSize;
-                    entry* NewEntry = NewEntries + NewIndex;
-                    while (NewEntry->Key.Length > 0) {
+        uint32 new_size = 2*size;
+        void* new_content = calloc(new_size, sizeof(Entry));
+        bool* new_deleted
+        if (new_content) {
+            Entry* new_entries = (Entry*)new_content;
+            for (int i = 0; i < size; i++) {
+                if (!deleted[i]) {
+                    Entry* entry = entries + i;
+                    uint32 new_index = entry->hash % new_size;
+                    Entry* new_entry = new_entries + new_index;
+                    while (new_entry->key.length > 0) {
                         NewIndex = (NewIndex + 1) % NewSize;
                         NewEntry = NewEntries + NewIndex;
                     }
@@ -884,9 +868,12 @@ private:
     }
 
 public:
-    hash_table(uint32 SizeExponent = 6) {
-        Used = 0;
-        Size = 1 << SizeExponent;
+    hash_table(uint32 size_exponent = 6) {
+        used = 0;
+        size = 1 << size_exponent;
+        void* memory = calloc(1, size * (sizeof(bool) + sizeof(entry)));
+        deleted = memory;
+        entries = 
         Entries = (entry*)calloc(Size, sizeof(entry));
         Deleted = (bool*)calloc(Size, sizeof(bool));
     }
@@ -1064,7 +1051,8 @@ enum class Log_Level {
     Info,
     Test,
     Warn,
-    Error
+    Error,
+    Fatal
 };
 
 Log_Mode LOG_MODE = Log_Mode::Terminal;
