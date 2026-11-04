@@ -1,5 +1,4 @@
-#ifndef GAME_PLATFORM
-#define GAME_PLATFORM
+#pragma once
 
 #include <pch.h>
 
@@ -1414,5 +1413,3 @@ struct Timed_Block {
 #define TIMED_BLOCK__(line) Timed_Block timed_block_##line(__COUNTER__, __FILE__, __LINE__, __FUNCTION__)
 #define TIMED_BLOCK_(line) TIMED_BLOCK__(line);
 #define TIMED_BLOCK TIMED_BLOCK_(__LINE__)
-
-#endif

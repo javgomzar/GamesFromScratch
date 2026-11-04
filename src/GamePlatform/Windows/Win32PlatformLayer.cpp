@@ -2,13 +2,13 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 
-#include "GameLibrary.h"
-#include "GameBuild.h"
-// #include "GameShader.h"
-
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_IMPLEMENTATION
 #include "xxhash.h"
+
+#include "GameLibrary.h"
+#include "build.h"
+// #include "GameShader.h"
 
 // #if GAME_RENDER_API_DIRECTX
 //     #include "DirectX11Render.h"
@@ -583,16 +583,13 @@ int APIENTRY wWinMain(
     // }
 
     // Performance counting initialization
-    LARGE_INTEGER PerfCountFrequencyResult;
-    QueryPerformanceFrequency(&PerfCountFrequencyResult);
-    Platform.performance_counter_frequency = PerfCountFrequencyResult.QuadPart;
+    LARGE_INTEGER performance_counter_frequency_result;
+    QueryPerformanceFrequency(&performance_counter_frequency_result);
+    Platform.performance_counter_frequency = performance_counter_frequency_result.QuadPart;
 
     // Initialize global strings
     LoadStringA(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    DWORD WinError = GetLastError();
-
     LoadStringA(hInstance, IDC_WIN32PLATFORMLAYER, szWindowClass, MAX_LOADSTRING);
-    WinError = GetLastError();
 
     MyRegisterClass(hInstance);
 
@@ -616,9 +613,9 @@ int APIENTRY wWinMain(
     // Console for logging
     AllocConsole();
     HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD ConsoleMode = 0;
-    GetConsoleMode(hConsole, &ConsoleMode);
-    SetConsoleMode(hConsole, ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    DWORD console_mode = 0;
+    GetConsoleMode(hConsole, &console_mode);
+    SetConsoleMode(hConsole, console_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
     // Set up for main loop
     const LPCSTR source_dll_name = "bin\\GameLibrary.dll";
@@ -709,10 +706,10 @@ int APIENTRY wWinMain(
     }
 
     // Code compilation setup
-    Build_Configuration build_config = ReadBuildConfiguration(memory.permanent, "GameBuild\\build.conf");
+    Build_Configuration build_config = ReadBuildConfiguration(memory.permanent, "build\\build.conf");
     Process_Info LibraryCompilation = {};
     uint64 LibraryCompilationStart = 0;
-    char MetaFile[] = "bin\\Meta.exe";
+    char MetaFile[] = "bin\\meta.exe";
     Process_Info MetaprogrammingCompilation = {};
     uint64 MetaprogrammingCompilationStart = 0;
     Process_Info MetaprogrammingExecution = {};

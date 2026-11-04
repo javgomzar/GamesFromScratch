@@ -2,12 +2,13 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 
-#include "GameLibrary.h"
-#include "GameTest.h"
-
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_IMPLEMENTATION
 #include "xxhash.h"
+
+#include "GameLibrary.h"
+#include "GameTest.h"
+
 
 // Sound
 void GameOutputSound(Asset_Manager* asset_manager, game_sound_buffer* sound_buffer, State* state, Input* input) {

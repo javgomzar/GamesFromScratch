@@ -5,7 +5,7 @@
 #include <slang-com-ptr.h>
 
 #include "GamePlatform.h"
-#include "GameBuild.h"
+#include "build.h"
 
 
 struct game_shader_entry_point {

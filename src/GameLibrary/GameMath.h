@@ -4,7 +4,7 @@
 #pragma once
 
 #include "GamePlatform.h"
-#include "GameEnums.h"
+#include "enum.h"
 #include "Tokenizer.h"
 
 

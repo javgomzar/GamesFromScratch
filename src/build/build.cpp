@@ -1,4 +1,4 @@
-#include "GameBuild.h"
+#include "build.h"
 
 constexpr int ARENA_SIZE = Kilobytes(8);
 static char TEXT_BUFFER[2*ARENA_SIZE];

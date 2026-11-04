@@ -1,6 +1,6 @@
 #include "GameInput.h"
 #include "GameLibrary.h"
-#include "GameBuild.h"
+#include "build.h"
 #include <linux/input-event-codes.h>
 #include <GLFW/glfw3.h>
 
@@ -134,7 +134,7 @@ int main() {
 
     // Compilation setup
     build_configuration BuildConfiguration = {};
-    ReadBuildConfiguration("GameBuild/build.conf", &BuildConfiguration);
+    ReadBuildConfiguration("build/build.conf", &BuildConfiguration);
     process_info LibraryCompilation = {};
     uint64 LibraryCompilationStart = 0;
     char MetaFile[32] = "bin/Meta";

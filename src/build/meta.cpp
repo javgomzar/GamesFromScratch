@@ -6,7 +6,7 @@
 #include <string>
 #include <cstring>
 
-#include "GameBuild.h"
+#include "build.h"
 #include "Tokenizer.h"
 
 #if _WIN32
@@ -73,8 +73,8 @@ const char* const PRIMITIVE_TYPES[] = {
 const int PRIMITIVE_TYPE_COUNT = ArrayCount(PRIMITIVE_TYPES);
 
 int main() {
-    FILE* enums_file = OpenFile("src/GameBuild" PATH_SEPARATOR "GameEnums.h", "w");
-    FILE* structs_file = OpenFile("src/GameBuild" PATH_SEPARATOR "GameStructs.h", "w");
+    FILE* enums_file = OpenFile("src" PATH_SEPARATOR "build" PATH_SEPARATOR "enum.h", "w");
+    FILE* structs_file = OpenFile("src" PATH_SEPARATOR "build" PATH_SEPARATOR "struct.h", "w");
 
     fprintf(enums_file,
     "#ifndef GAME_ENUMS\n"

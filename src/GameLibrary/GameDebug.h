@@ -1,7 +1,7 @@
 #ifndef GAME_DEBUG
 #define GAME_DEBUG
 
-#include "GameStructs.h"
+#include "struct.h"
 #include "GameRender.h"
 
 // +---------------------------------------------------------------------------------------------------------------------------------+

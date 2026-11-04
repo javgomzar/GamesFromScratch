@@ -2,7 +2,7 @@ COMPILER=MSVC
 COMPILER_PATH={VISUAL_STUDIO_INSTALLATION_FOLDER}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\{MSVC_VERSION}\bin\Hostx64\x64\cl.exe
 PRECOMPILE_HEADERS=true
 
-META=GameBuild\Meta.cpp
+META=build\meta.cpp
 META_FILES=
 GameAsset\GameAsset.h;
 GameAsset\GameMesh.h;
@@ -23,13 +23,13 @@ INCLUDE=
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\Include\{WINDOWS_SDK_VERSION}\ucrt;
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\Include\{WINDOWS_SDK_VERSION}\um;
 {WINDOWS_SDK_INSTALLATION_FOLDER}\Windows Kits\10\Include\{WINDOWS_SDK_VERSION}\shared;
-.\GameAsset;
-.\GameLibrary;
-.\GameBuild;
-.\GameData;
-.\GamePlatform;
-.\GamePlatform\Win32PlatformLayer;
-.\GamePlatform\LinuxPlatformLayer
+.\src\GameAsset;
+.\src\GameLibrary;
+.\src\build;
+.\src\GameData;
+.\src\GamePlatform;
+.\src\GamePlatform\Win32PlatformLayer;
+.\src\GamePlatform\LinuxPlatformLayer
 
 LIB=
 .\Linking\lib;

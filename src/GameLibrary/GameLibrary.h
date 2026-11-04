@@ -27,7 +27,7 @@
 #pragma once
 
 #include "GamePlatform.h"
-#include "GameEnums.h"
+#include "enum.h"
 #include "GameMath.h"
 #include "GameInput.h"
 #include "GameAsset.h"

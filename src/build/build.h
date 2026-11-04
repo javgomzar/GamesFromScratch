@@ -163,7 +163,6 @@ Build_Configuration ReadBuildConfiguration(Arena& permanent, String config_file_
                     config.include.length = 0;
                     config.include.content = (const char*)(permanent.base + permanent.used);
 
-                    int Index = 0;
                     do {
                         AdvanceUntilNextLine(tokenizer);
                         char* pointer = PushArray(permanent, 3, char);
