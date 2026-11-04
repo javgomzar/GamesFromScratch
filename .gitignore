@@ -12,27 +12,17 @@ compile_commands.json
 .cache
 
 # Game assets
-GameAsset/Files
-GameAsset/TestFiles
-GameAsset/game_assets
-
-# Game data
-GameData/Data
-
-# Metaprogramming
-GameBuild/GameEnums.h
-GameBuild/GameStructs.h
-GameTest/GameTest.h
+asset/
 
 # Screen captures
-Captures/*
+captures/*
 
 # Binaries
 bin/
 **/*.spv
 
-# Linking
-Linking/
+# Third party
+vendor/
 
 # Batch scripts
 scripts/env.bat
@@ -40,4 +30,5 @@ scripts/hot.bat
 scripts/meta.bat
 
 # Build
-GameBuild/build.conf
+build/build.conf
+build/obj

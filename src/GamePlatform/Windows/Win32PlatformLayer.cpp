@@ -740,6 +740,8 @@ int APIENTRY wWinMain(
     bool FirstFrame = true;
 
     // Main loop
+    Log(Log_Level::Info, "Running.");
+
     while (memory.running) {
         // Hot reloading code
         if (
@@ -1019,6 +1021,8 @@ int APIENTRY wWinMain(
         // uint64 EndCounter = Win32GetWallClock();
         // LastCounter = EndCounter;
         // LastCycleCount = EndCycleCount;
+
+        debug_info->entry_count = 0;
 
         memory.time_records_platform_count = __COUNTER__;
     }

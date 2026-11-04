@@ -54,9 +54,9 @@ String GetRendererString(Renderer renderer) {
 const char* GetRendererLibs(Renderer renderer) {
     if (SystemOS == Windows) {
         switch(renderer) {
-            case Renderer::OpenGL:  return "slang.lib glew32.lib";
-            case Renderer::DirectX: return "slang.lib D3d11.lib d3dcompiler.lib";
-            case Renderer::Vulkan:  return "slang.lib vulkan-1.lib shaderc_combined.lib";
+            case Renderer::OpenGL:  return "glew32.lib";
+            case Renderer::DirectX: return "D3d11.lib d3dcompiler.lib";
+            case Renderer::Vulkan:  return "vulkan-1.lib shaderc_combined.lib";
         }
     }
     else if (SystemOS == Linux) {
@@ -99,6 +99,9 @@ struct Build_Configuration {
     String linked_libs;
     String renderer_libs;
     String compiler_flags;
+    String pch_source_dir;
+    String pch_header_path;
+    String pch_source_path;
     String pch_output_file;
     String pch_output_path;
     String metaprogramming_code_path;
@@ -145,6 +148,13 @@ Build_Configuration ReadBuildConfiguration(Arena& permanent, String config_file_
                 else if (token == "PRECOMPILE_HEADERS") {
                     RequireToken(tokenizer, Token_Equal);
                     config.pch = ParseBool(tokenizer);
+                }
+
+                else if (token == "PRECOMPILED_HEADERS_PATH") {
+                    RequireToken(tokenizer, Token_Equal);
+                    config.pch_source_dir.content = tokenizer.at;
+                    config.pch_source_dir.length = ParsePath(tokenizer.at);
+                    Advance(tokenizer, config.pch_source_dir.length);
                 }
     
                 else if (token == "INCLUDE") {
@@ -285,6 +295,8 @@ Build_Configuration ReadBuildConfiguration(Arena& permanent, String config_file_
         if (SystemOS == Windows) {
             config.pch_output_path = Format(permanent, "bin" PATH_SEPARATOR "{s}.pch", 1, config.pch_output_file);
             config.metaprogramming_output_file = "bin" PATH_SEPARATOR "Meta.exe";
+            config.pch_header_path = Format(permanent, "{s}" PATH_SEPARATOR "pch.h", 1, config.pch_source_dir);
+            config.pch_source_path = Format(permanent, "{s}" PATH_SEPARATOR "pch.cpp", 1, config.pch_source_dir);
         }
         else {
             config.pch_output_path = Format(permanent, "bin" PATH_SEPARATOR "{s}.gch", 1, config.pch_output_file);
@@ -317,8 +329,8 @@ Process_Info CompileMetaprogramming(Arena& arena, Build_Configuration* config) {
     switch(config->compiler) {
         case MSVC: {
             Format(arena,
-                "{s} /std:c++20 /nologo {s} /Fo\"bin\\Meta.obj\" /Fd\"bin\\Meta.pdb\" {s} {s} "
-                "/link {s} /OUT:\"bin\\Meta.exe\" /PDB:\"bin\\Meta.pdb\"", 
+                "{s} /std:c++20 /nologo {s} /Fo\"build\\obj\\meta.obj\" /Fd\"bin\\meta.pdb\" {s} {s} "
+                "/link {s} /OUT:\"bin\\meta.exe\" /PDB:\"bin\\meta.pdb\"", 
                 5,
                 config->compiler_path, 
                 config->include, 
@@ -392,13 +404,13 @@ Process_Info CompilePlatformLayer(Arena& arena, Build_Configuration* config) {
         case MSVC: {
             String command_string = Format(arena,
                 "{s} /std:c++20 /nologo "
-                "GamePlatform\\Windows\\Win32PlatformLayer.cpp bin\\{s}.obj " 
+                "src\\GamePlatform\\Windows\\Win32PlatformLayer.cpp build\\obj\\{s}.obj " 
                 "/D GAME_RENDER_API_{s} {s} "
                 "/Fe\"bin\\RunGame.exe\" "
-                "/Fo\"bin\\Win32PlatformLayer.obj\" "
+                "/Fo\"build\\obj\\Win32PlatformLayer.obj\" "
                 "/Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" {s} "
                 "/link {s} {s} {s} "
-                "GamePlatform\\Windows\\Win32PlatformLayer.res /MACHINE:X64",
+                "src\\GamePlatform\\Windows\\Win32PlatformLayer.res /MACHINE:X64",
                 10,
                 config->compiler_path,
                 config->pch_output_file,
@@ -436,9 +448,9 @@ Process_Info CompileGameLibrary(Arena& arena, Build_Configuration* config) {
         case MSVC: {
             Format(arena,
                 "{s} /std:c++20 /nologo /D GAMELIBRARY_EXPORTS "
-                "GameLibrary\\GameLibrary.cpp {s} {s} /Fo\"bin\\GameLibrary.obj\" "
+                "src\\GameLibrary\\GameLibrary.cpp {s} {s} /Fo\"build\\obj\\GameLibrary.obj\" "
                 "/Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" "
-                "/link {s} bin\\{s}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
+                "/link {s} build\\obj\\{s}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
                 "/PDB:\"bin\\GameLibrary.pdb\" "
                 "/ILK:\"bin\\GameLibrary.ilk\" /OUT:\"bin\\GameLibrary.dll\"",
                 7,
@@ -482,9 +494,9 @@ Process_Info CompileGameLibraryHot(Arena& arena, Build_Configuration& config) {
     } while(exists);
     char* command = (char*)(arena.base + arena.used);
     Format(arena,
-        "{s} /std:c++20 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {s} {s} "
-        "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" "
-        "/link {s} bin\\{s}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
+        "{s} /std:c++20 /nologo /D GAMELIBRARY_EXPORTS src\\GameLibrary\\GameLibrary.cpp {s} {s} "
+        "/Fo\"build\\obj\\GameLibrary.obj\" /Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" "
+        "/link {s} build\\obj\\{s}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
         "/PDB:\"{s}\" /ILK:\"bin\\GameLibrary.ilk\" "
         "/OUT:\"bin\\GameLibrary.dll\"",
         8,

@@ -73,8 +73,8 @@ const char* const PRIMITIVE_TYPES[] = {
 const int PRIMITIVE_TYPE_COUNT = ArrayCount(PRIMITIVE_TYPES);
 
 int main() {
-    FILE* enums_file = OpenFile("GameBuild" PATH_SEPARATOR "GameEnums.h", "w");
-    FILE* structs_file = OpenFile("GameBuild" PATH_SEPARATOR "GameStructs.h", "w");
+    FILE* enums_file = OpenFile("src/GameBuild" PATH_SEPARATOR "GameEnums.h", "w");
+    FILE* structs_file = OpenFile("src/GameBuild" PATH_SEPARATOR "GameStructs.h", "w");
 
     fprintf(enums_file,
     "#ifndef GAME_ENUMS\n"
@@ -102,7 +102,7 @@ int main() {
 
     char buffer[256];
     Arena arena = AllocateMemoryArena(Kilobytes(8));
-    Build_Configuration config = ReadBuildConfiguration(arena, "GameBuild/build.conf");
+    Build_Configuration config = ReadBuildConfiguration(arena, "build/build.conf");
     Tokenizer input_files_tokenizer = InitTokenizer(config.metaprogramming_input_files.content, config.metaprogramming_input_files.length);
     
     std::map<std::string, int> constants;
@@ -389,8 +389,8 @@ int main() {
     // Tests
 
     size_t tests_file_size;
-    char* tests_content = ReadFile("GameTest" PATH_SEPARATOR "Tests.h", &tests_file_size);
-    FILE* test_output_file = OpenFile("GameTest" PATH_SEPARATOR "GameTest.h", "w");
+    char* tests_content = ReadFile("src" PATH_SEPARATOR "GameTest" PATH_SEPARATOR "Tests.h", &tests_file_size);
+    FILE* test_output_file = OpenFile("src" PATH_SEPARATOR "GameTest" PATH_SEPARATOR "GameTest.h", "w");
 
     fprintf(test_output_file, 
     "#include \"Tests.h\"\n\n");

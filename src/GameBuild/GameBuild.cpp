@@ -37,10 +37,9 @@ int main(int argc, char* argv[]) {
         Process_Info pch_process = {};
         if (config.pch) {
             bool precompile_headers = true;
-            const char* pch_source_path = "GameBuild" PATH_SEPARATOR "pch.h";
-            if (Platform.FileExists(pch_source_path) && Platform.FileExists(config.pch_output_path.content)) {
+            if (Platform.FileExists(config.pch_header_path) && Platform.FileExists(config.pch_output_path.content)) {
                 File_Info precompiled_headers_output = Platform.GetFileInfo(config.pch_output_path.content);
-                File_Info precompiled_headers_source = Platform.GetFileInfo(pch_source_path);
+                File_Info precompiled_headers_source = Platform.GetFileInfo(config.pch_header_path);
                 precompile_headers = precompiled_headers_source.timestamp > precompiled_headers_output.timestamp;
             }
             if (precompile_headers) {
@@ -50,11 +49,12 @@ int main(int argc, char* argv[]) {
                 switch (config.compiler) {
                     case MSVC: {
                         Format(transient,
-                            "{s} /std:c++20 /nologo {s} GameBuild/pch.cpp /c {s} "
-                            "/Yc\"pch.h\" /Fp\"{s}\" /Fo\"bin\\{s}.obj\" /Fd\"bin\\{s}.pdb\"",
-                            6,
+                            "{s} /std:c++20 /nologo {s} {s} /c {s} "
+                            "/Yc\"pch.h\" /Fp\"{s}\" /Fo\"build\\obj\\{s}.obj\" /Fd\"bin\\{s}.pdb\"",
+                            7,
                             config.compiler_path, 
                             config.include,
+                            config.pch_source_path,
                             config.compiler_flags,
                             config.pch_output_path,
                             config.pch_output_file,
