@@ -1,4 +1,7 @@
 #include "pch.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+
 #include "GameLibrary.h"
 #include "GameTest.h"
 
@@ -7,16 +10,16 @@
 #include "xxhash.h"
 
 // Sound
-void GameOutputSound(game_asset_manager* Assets, game_sound_buffer* pSoundBuffer, game_state* pGameState, game_input* Input) {
+void GameOutputSound(Asset_Manager* asset_manager, game_sound_buffer* sound_buffer, State* state, Input* input) {
     
-    Silence(pSoundBuffer);
+    Silence(sound_buffer);
 
     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
     //WriteSineWave(pSoundBuffer, 480, 0);
 }
 
 // Debug
-void LogGameDebugRecords(render_group* Group);
+void LogGameDebugRecords(Render_Group* group);
 
 void TestPerformance() {
     //TIMED_BLOCK;
@@ -24,91 +27,91 @@ void TestPerformance() {
 }
 
 void UpdateGameState(
-    debug_info* DebugInfo, 
-    render_group* Group, 
-    game_state* State, 
-    game_input* Input
+    Debug_Info* debug_info,
+    Render_Group* group,
+    State* state, 
+    Input* input
 ) {
-    uint32 UpdatedEntities = 0;
-    uint32 Index = 0;
-    while (UpdatedEntities < State->Entities.Count) {
-        game_entity* Entity = nullptr;
-        if (State->Entities.IsOccupied[Index]) {
-            Entity = &State->Entities[Index++];
-            UpdatedEntities++;
+    uint32 updated_entities = 0;
+    uint32 index = 0;
+    while (updated_entities < state->entities.count) {
+        Entity* entity = nullptr;
+        if (state->entities.occupied[index]) {
+            entity = &state->entities[index++];
+            updated_entities++;
         }
         else {
-            Index++;
+            index++;
             continue;
         }
 
-        if (!Entity->Active) continue;
+        if (!entity->active) continue;
 
-        switch(Entity->Type) {
+        switch(entity->type) {
             case Camera_Entity_Type: {
-                if (Entity->Active) {
-                    State->ActiveCamera = Entity;
-                    if (Input->Mode == Keyboard) {
+                if (entity->active) {
+                    state->active_camera = entity;
+                    if (input->mode == Keyboard) {
                         // Zoom
-                        if (Input->Mouse.Wheel > 0)      Entity->Distance /= 1.2f;
-                        else if (Input->Mouse.Wheel < 0) Entity->Distance *= 1.2f;
+                        if (input->mouse.wheel > 0)      entity->distance /= 1.2f;
+                        else if (input->mouse.wheel < 0) entity->distance *= 1.2f;
 
                         // Orbit around position
                         if (
-                            Input->Mouse.MiddleClick.IsDown && 
-                            Input->Mouse.MiddleClick.WasDown &&
-                            Input->Mouse.Cursor.X >= 0 && Input->Mouse.Cursor.X <= Group->Width &&
-                            Input->Mouse.Cursor.Y >= 0 && Input->Mouse.Cursor.Y <= Group->Height
+                            input->mouse.middle_click.is_down && 
+                            input->mouse.middle_click.was_down &&
+                            input->mouse.cursor.x >= 0 && input->mouse.cursor.x <= group->width &&
+                            input->mouse.cursor.y >= 0 && input->mouse.cursor.y <= group->height
                         ) {
-                            v2 Offset = Input->Mouse.Cursor - Input->Mouse.LastCursor;
-                            double AngularVelocity = 0.5;
+                            V2 offset = input->mouse.cursor - input->mouse.last_cursor;
+                            double angular_velocity = 0.5;
                 
-                            Entity->Angle -= AngularVelocity * Offset.X;
-                            Entity->Pitch += AngularVelocity * Offset.Y;
+                            entity->angle -= angular_velocity * offset.x;
+                            entity->pitch += angular_velocity * offset.y;
                         }
                     }
 
-                    if (Input->Mode == Controller) {
-                        v2 Joystic = V2(Input->Controller.RightJoystick.X, Input->Controller.RightJoystick.Y);
+                    if (input->mode == Controller) {
+                        V2 joystic = input->controller.right_joystick;
 
-                        if (modulus(Joystic) > 0.1) {
-                            Entity->Angle -= 3.0 * Joystic.X;
-                            Entity->Pitch -= 3.0 * Joystic.Y;
+                        if (modulus(joystic) > 0.1) {
+                            entity->angle -= 3.0 * joystic.x;
+                            entity->pitch -= 3.0 * joystic.y;
                         }
                     }
 
-                    Entity->Angle = NormalizeAngle(Entity->Angle);
-                    Entity->Pitch = NormalizeAngle(Entity->Pitch);
-                    Entity->Transform.Translation = Entity->Anchor + Entity->Distance * Radial(Entity->Angle, Entity->Pitch);
+                    entity->angle = NormalizeAngle(entity->angle);
+                    entity->pitch = NormalizeAngle(entity->pitch);
+                    entity->transform.translation = entity->anchor + entity->distance * Radial(entity->angle, entity->pitch);
                 }
             } break;
 
             case Character_Entity_Type: {
                 // Collision
-                Entity->Collided = false;
-                uint32 TestedEntities = 0;
-                uint32 TestIndex = 0;
-                while (TestedEntities < State->Entities.Count) {
-                    game_entity* TestEntity = nullptr;
-                    if (State->Entities.IsOccupied[TestIndex]) {
-                        TestEntity = &State->Entities[TestIndex++];
-                        TestedEntities++;
+                entity->collided = false;
+                uint32 tested_entities = 0;
+                uint32 test_index = 0;
+                while (tested_entities < state->entities.count) {
+                    Entity* test_entity = nullptr;
+                    if (state->entities.occupied[test_index]) {
+                        test_entity = &state->entities[test_index++];
+                        tested_entities++;
                     }
                     else {
-                        TestIndex++;
+                        test_index++;
                         continue;
                     }
 
-                    if (TestEntity == Entity) {
+                    if (test_entity == entity) {
                         continue;
                     }
 
-                    if (Collide(Entity, TestEntity)) {
-                        Entity->Collided = true;
-                        TestEntity->Collided = true;
+                    if (Collide(entity, test_entity)) {
+                        entity->collided = true;
+                        test_entity->collided = true;
                     }
                     else {
-                        TestEntity->Collided = false;
+                        test_entity->collided = false;
                     }
                 }
             } break;
@@ -118,8 +121,8 @@ void UpdateGameState(
             } break;
 
             case Weapon_Entity_Type: {
-                if (Entity->Parent == nullptr) {
-                    Entity->AngularVelocity = V3(0,1,0);
+                if (entity->parent == nullptr) {
+                    entity->angular_velocity = V3(0,1,0);
                 }
             } break;
 
@@ -129,84 +132,84 @@ void UpdateGameState(
         }
 
         // Movement by input
-        if (Entity->Flags & entity_flag::movable) {
-            v3 Direction = V3(0,0,0);
-            float Speed = 20.0f;
-            if (Input->Mode == Keyboard) {
-                bool Left = Input->Keyboard.A.IsDown;
-                bool Right = Input->Keyboard.D.IsDown;
-                bool Up = Input->Keyboard.W.IsDown;
-                bool Down = Input->Keyboard.S.IsDown;
-                if (Right) { Direction.X += 1.0f; }
-                if (Left)  { Direction.X -= 1.0f; }
-                if (Up)    { Direction.Z += 1.0f; }
-                if (Down)  { Direction.Z -= 1.0f; }
-                Direction = normalize(Direction);
-                if (Input->Keyboard.Space.IsDown) Direction.Y += 1.0f;
-                if (Input->Keyboard.Shift.IsDown) Direction.Y -= 1.0f;
+        if (entity->flags & Entity_Flag::Movable) {
+            V3 direction = V3(0,0,0);
+            float speed = 20.0f;
+            if (input->mode == Keyboard) {
+                bool left = input->keyboard.A.is_down;
+                bool right = input->keyboard.D.is_down;
+                bool up = input->keyboard.W.is_down;
+                bool down = input->keyboard.S.is_down;
+                if (right) { direction.x += 1.0f; }
+                if (left)  { direction.x -= 1.0f; }
+                if (up)    { direction.z += 1.0f; }
+                if (down)  { direction.z -= 1.0f; }
+                direction = normalize(direction);
+                if (input->keyboard.space.is_down) direction.y += 1.0f;
+                if (input->keyboard.shift.is_down) direction.y -= 1.0f;
             }
-            else if (Input->Mode == Controller) {
-                v2 Normalized = normalize(Input->Controller.LeftJoystick);
-                Direction.X = Normalized.X;
-                Direction.Z = Normalized.Y;
-                Speed = 20.0f * modulus(Input->Controller.LeftJoystick);
+            else if (input->mode == Controller) {
+                V2 normalized = normalize(input->controller.left_joystick);
+                direction.x = normalized.x;
+                direction.z = normalized.y;
+                speed = 20.0f * modulus(input->controller.left_joystick);
             }
 
-            if (modulus(Direction) > Epsilon) {
-                basis HorizontalBasis = GetCameraBasis(State->ActiveCamera->Angle, 0);
+            if (modulus(direction) > EPSILON) {
+                Basis horizontal_basis = GetCameraBasis(state->active_camera->angle, 0);
                 // Direction is in coordinates relative to camera
-                float Angle = atan2f(-Direction.X, -Direction.Z);
-                Direction = Direction.Y * V3(0.0, 1.0, 0.0) + Direction.X * HorizontalBasis.X + Direction.Z * HorizontalBasis.Z;
-                Entity->Velocity = Speed * Direction;
-                Entity->Transform.Rotation = Quaternion(Angle - State->ActiveCamera->Angle * Degrees, V3(0,1,0));
+                float angle = atan2f(-direction.x, -direction.z);
+                direction = direction.y * V3(0.0, 1.0, 0.0) + direction.x * horizontal_basis.x + direction.z * horizontal_basis.z;
+                entity->velocity = speed * direction;
+                entity->transform.rotation = BuildQuaternion(angle - state->active_camera->angle * DEGREES, V3(0,1,0));
             }
             else {
-                Entity->Velocity = V3(0,0,0);
+                entity->velocity = V3(0,0,0);
             }
         }
         // Movable flag overrides follow mechanic
-        else if (Entity->Follow) {
-            v3 Displacement = Entity->Follow->Transform.Translation - Entity->Anchor;
-            Displacement.Y = 0;
-            float Distance = modulus(Displacement);
-            float MinDistance = .01f;
-            if (Distance >= MinDistance) Entity->Velocity = 20.0f * (Distance - MinDistance) * normalize(Displacement);
-            else                         Entity->Velocity = V3(0,0,0);
+        else if (entity->follow) {
+            V3 displacement = entity->follow->transform.translation - entity->anchor;
+            displacement.y = 0;
+            float distance = modulus(displacement);
+            float min_distance = .01f;
+            if (distance >= min_distance) entity->velocity = 20.0f * (distance - min_distance) * normalize(displacement);
+            else                          entity->velocity = V3(0,0,0);
         }
 
         // Kinematics
-        if (Entity->Velocity != V3(0,0,0)) {
-            Entity->Transform.Translation += State->dt * Entity->Velocity;
-            Entity->Anchor += State->dt * Entity->Velocity;
+        if (entity->velocity != V3(0,0,0)) {
+            entity->transform.translation += state->dt * entity->velocity;
+            entity->anchor += state->dt * entity->velocity;
         }
-        if (Entity->AngularVelocity != V3(0,0,0)) {
-            Entity->Transform.Rotation = Entity->Transform.Rotation * Quaternion(State->dt, Entity->AngularVelocity);
+        if (entity->angular_velocity != V3(0,0,0)) {
+            entity->transform.rotation = entity->transform.rotation * BuildQuaternion(state->dt, entity->angular_velocity);
         }
         
         // Animation
-        if (Entity->Flags & entity_flag::animated) {
+        if (entity->flags & Entity_Flag::Animated) {
             // TODO
         }
 
         // Rendering
-        if (Entity->Flags & entity_flag::render) {
-            game_entity* Camera = State->ActiveCamera;
-            basis Basis = GetCameraBasis(Camera->Angle, Camera->Pitch);
-            ray Ray = MouseRay(Group->Width, Group->Height, Camera->Anchor - Camera->Distance * Basis.Z, Basis, Input->Mouse.Cursor);
-            collider Collider = Entity->Transform * Entity->Collider;
-            Entity->Hovered = Raycast(Ray, Collider);
-            bool Outline = Entity->Hovered;
-            PushMesh(
-                Group, 
-                Entity->Mesh, 
-                .Color = Entity->Color,
-                .Texture = Entity->Texture, 
-                .Transform = Entity->Transform, 
-                .Outline = Outline
-            );
+        if (entity->flags & Entity_Flag::Render) {
+            Entity* camera = state->active_camera;
+            Basis basis = GetCameraBasis(camera->angle, camera->pitch);
+            Ray ray = MouseRay(group->width, group->height, camera->anchor - camera->distance * basis.z, basis, input->mouse.cursor);
+            Collider collider = entity->transform * entity->collider;
+            entity->hovered = Raycast(ray, collider);
+            bool outline = entity->hovered;
+            // PushMesh(
+            //     Group, 
+            //     Entity->Mesh, 
+            //     .Color = Entity->Color,
+            //     .Texture = Entity->Texture, 
+            //     .Transform = Entity->Transform, 
+            //     .Outline = Outline
+            // );
 
-            if (Group->Debug && Group->DebugColliders) {
-                PushCollider(Group, Entity->Collider, Entity->Transform, Entity->Collided ? color::RED : color::YELLOW);
+            if (group->debug && group->debug_colliders) {
+                // PushCollider(group, entity->collider, entity->transform, entity->collided ? Color::RED : Color::YELLOW);
             }
         }
     }
@@ -215,108 +218,108 @@ void UpdateGameState(
 // Main
 extern "C" GAME_UPDATE(GameUpdate)
 {
-    if (Memory->HotReload) {
-        RNG.Seed = SeedRNG(&Memory->Transient);
-        RNG.State = RNG.Seed;
+    if (memory->hot_reload) {
+        rng.seed = SeedRNG(memory->transient);
+        rng.state = rng.seed;
 
-        TimeRecords = (time_record*)&Memory->TimeRecordsLibrary;
+        time_records = (Time_Record*)&memory->time_records_library;
 
-        if (Memory->Test) {
-            RunReloadTests(Memory);
+        if (memory->test) {
+            // RunReloadTests(memory);
         }
 
 #ifdef _WIN32
-        LARGE_INTEGER PerfCountFrequencyResult;
-        QueryPerformanceFrequency(&PerfCountFrequencyResult);
-        Platform.PerformanceCounterFrequency = PerfCountFrequencyResult.QuadPart;
+        LARGE_INTEGER perf_count_frequency_result;
+        QueryPerformanceFrequency(&perf_count_frequency_result);
+        Platform.performance_counter_frequency = perf_count_frequency_result.QuadPart;
 #endif
         
-        Memory->HotReload = false;
+        memory->hot_reload = false;
     }
 
-    render_group* Group = &Memory->RenderGroup;
-    game_input* Input = &Memory->Input;
-    game_state* State = Memory->GameState;
-    game_asset_manager* Assets = &Memory->AssetManager;
-    debug_info* DebugInfo = &Memory->DebugInfo;
+    Render_Group* group = &memory->render_group;
+    Input* input = &memory->input;
+    State* state = memory->state;
+    Asset_Manager* asset_manager = &memory->asset_manager;
+    Debug_Info* debug_info = &memory->debug_info;
 {
     TIMED_BLOCK;
 
-    float Time = State->Time;
-    game_entity* ActiveCamera = State->ActiveCamera;
+    float time = state->time;
+    Entity* active_camera = state->active_camera;
 
-    bool FirstFrame = false;
-    if (!Memory->IsInitialized) {
-        FirstFrame = true;
+    bool first_frame = false;
+    if (!memory->initialized) {
+        first_frame = true;
 
         // Initialize entities
-        State->Entities = free_list<game_entity>(&Memory->Permanent, MAX_ENTITIES);
+        state->entities = Free_List<Entity>(memory->permanent, MAX_ENTITIES);
 
-        game_entity* Camera = AddEntity(State->Entities, CreateEntity("Camera", Camera_Entity_Type));
-        State->ActiveCamera = Camera;
-        Camera->Angle = -45.0f;
-        Camera->Pitch = 22.5f;
-        Camera->Anchor = V3(0, 3.2f, 0);
+        Entity* camera = AddEntity(state->entities, CreateEntity("Camera", Camera_Entity_Type));
+        state->active_camera = camera;
+        camera->angle = -45.0f;
+        camera->pitch = 22.5f;
+        camera->anchor = V3(0, 3.2f, 0);
 
-        if (Memory->Test) {
-            RunOnceTests(Memory);
+        if (memory->test) {
+            // RunOnceTests(memory);
         }
 
-        State->Emitter = AllocateParticleEmitter(&Memory->Permanent, 200);
-        SetParticleEmitterCircle(State->Emitter, V3(0,0,0), 1.0f, V3(0,1,0));
-        State->Emitter->ParticleLifetime = 2.0f;
+        state->emitter = AllocateParticleEmitter(memory->permanent, 200);
+        SetParticleEmitterCircle(state->emitter, V3(0,0,0), 1.0f, V3(0,1,0));
+        state->emitter->ParticleLifetime = 2.0f;
 
-        Memory->IsInitialized = true;
+        memory->initialized = true;
     }
 
-    PushClear(Group, color::BLACK, Target_None);
-    PushClear(Group, color::EMPTY, Target_World);
-    PushClear(Group, color::EMPTY, Target_Outline);
-    PushClear(Group, color::EMPTY, Target_Postprocessing_Outline);
-    PushClear(Group, color::MAGENTA, Target_PingPong);
-    PushClear(Group, color::BLACK, Target_Output);
+    // PushClear(group, Color::BLACK, Target_None);
+    // PushClear(group, Color::EMPTY, Target_World);
+    // PushClear(group, Color::EMPTY, Target_Outline);
+    // PushClear(group, Color::EMPTY, Target_Postprocessing_Outline);
+    // PushClear(group, Color::MAGENTA, Target_PingPong);
+    // PushClear(group, Color::BLACK, Target_Output);
 
-    if (Memory->Test) {
-        RunEveryFrameTests(Memory);
+    if (memory->test) {
+        // RunEveryFrameTests(Memory);
     }
 
-    UpdateGameState(DebugInfo, Group, State, Input);
+    UpdateGameState(debug_info, group, state, input);
 
-    PushSky(Group);
+    // PushSky(Group);
     
     // GameOutputSound(Assets, SoundBuffer, State, Input);
     
-    UpdateUI(Memory, Input);
+    // UpdateUI(Memory, Input);
 
-    PushRenderTarget(Group, Target_World, Target_Output);
+    // PushRenderTarget(Group, Target_World, Target_Output);
 
-    Group->Light.CameraPosition = State->ActiveCamera->Transform.Translation;
+    group->light.camera_position = state->active_camera->transform.translation;
 
-    static bool Screenshot = false;
-    if (Input->Keyboard.F10.WasDown && !Input->Keyboard.F10.IsDown) {
-        Screenshot = true;
+    static bool screenshot = false;
+    if (input->keyboard.F10.was_down && !input->keyboard.F10.is_down) {
+        screenshot = true;
     }
 
-    static double ScreenRectAlpha = 1.0;
-    if (Screenshot) {
-        ScreenRectAlpha -= 0.05;
-        if (ScreenRectAlpha < 0.0) {
-            Screenshot = false;
-            ScreenRectAlpha = 1.0;
+    static double screen_rect_alpha = 1.0;
+    if (screenshot) {
+        screen_rect_alpha -= 0.05;
+        if (screen_rect_alpha < 0.0) {
+            screenshot = false;
+            screen_rect_alpha = 1.0;
         }
         else {
-            rectangle ScreenRect = { 0, 0, (float)Group->Width, (float)Group->Height };
-            PushRect(Group, ScreenRect, ChangeAlpha(color::WHITE, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
+            Rect screen_rect = { 0, 0, (float)group->width, (float)group->height };
+            // PushRect(group, screen_rect, ChangeAlpha(Color::WHITE, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
-    PushRenderTarget(Group, Target_Output, Target_None, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
+    // PushRenderTarget(Group, Target_Output, Target_None, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
 }
-    Memory->nTimeRecordsLibrary = __COUNTER__;
-    if (Group->Debug) {
-        PushTimeRecords(
-            Group, 
-            Memory->nTimeRecordsLibrary, Memory->TimeRecordsLibrary, 
-            Memory->nTimeRecordsPlatform, Memory->TimeRecordsPlatform
-        );
+    memory->time_records_library_count = __COUNTER__;
+    if (group->debug) {
+        // PushTimeRecords(
+        //     Group, 
+        //     Memory->nTimeRecordsLibrary, Memory->TimeRecordsLibrary, 
+        //     Memory->nTimeRecordsPlatform, Memory->TimeRecordsPlatform
+        // );
     }
 }

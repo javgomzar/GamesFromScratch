@@ -40,34 +40,29 @@
 // | Game memory                                                                                                                     |
 // +---------------------------------------------------------------------------------------------------------------------------------+
 
-/*
-    This struct will manage all necessary memory for the game. The current layout of this memory will be
-        - First, the `game_state`.
-        - Second, vertex and element buffers for rendering.
-        - Then, memory that will be managed by memory arenas. Strings, transient memory (erased each frame) and general purpose arena.
-*/
-struct game_memory {
-    game_asset_manager AssetManager;
-    render_group RenderGroup;
-    game_input Input;
-    game_state* GameState;
-    Arena Permanent;
-    Arena Transient;
-    debug_info DebugInfo;
-    time_record TimeRecordsLibrary[MAX_TIME_RECORDS];
-    time_record TimeRecordsPlatform[MAX_TIME_RECORDS];
-    uint16 nTimeRecordsLibrary;
-    uint16 nTimeRecordsPlatform;
-    bool IsInitialized;
-    bool HotReload;
-    bool Running;
-    bool Test;
+struct Memory {
+    Asset_Manager asset_manager;
+    Render_Group render_group;
+    Input input;
+    State* state;
+    Arena permanent;
+    Arena transient;
+    Debug_Info debug_info;
+    Time_Record time_records_library[MAX_TIME_RECORDS];
+    Time_Record time_records_platform[MAX_TIME_RECORDS];
+    uint16 time_records_library_count;
+    uint16 time_records_platform_count;
+    bool initialized;
+    bool hot_reload;
+    bool running;
+    bool test;
+    bool pause;
 };
 
-#include "GameUI.h"
+// #include "GameUI.h"
 
-#define GAME_UPDATE_INPUTS game_memory* Memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer
+#define GAME_UPDATE_INPUTS Memory* memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer
 #define GAME_UPDATE(name) GAMELIBRARY_API void name(GAME_UPDATE_INPUTS)
-typedef GAME_UPDATE(game_update);
+typedef GAME_UPDATE(Game_Update);
 
 #endif

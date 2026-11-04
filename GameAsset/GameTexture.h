@@ -67,7 +67,7 @@ struct bitmap_header_v5 {
 };
 #pragma pack(pop)
 
-INTROSPECT
+
 struct Texture {
     Asset_ID id;
     int32 width;

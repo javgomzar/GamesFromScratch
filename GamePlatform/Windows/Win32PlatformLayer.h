@@ -7,24 +7,22 @@ System_OS SystemOS = Windows;
 #define RENDERER_RENDER void Render(Render_Group* group, matrix4 view, game_input* input, HWND Window, double Time)
 
 void Log(Log_Level level, String string) {
-    // Level
     char level_string[16];
     switch (level) {
+        case Log_Level::Test:  { strncpy_s(level_string, "[TEST]  ", 8); } break;
         case Log_Level::Info:  { strncpy_s(level_string, "[INFO]  ", 8); } break;
         case Log_Level::Warn:  { strncpy_s(level_string, "[WARN]  ", 8); } break;
         case Log_Level::Error: { strncpy_s(level_string, "[ERROR] ", 8); } break;
-        case Log_Level::Test:  { strncpy_s(level_string, "[TEST]  ", 8); } break;
+        case Log_Level::Fatal: { strncpy_s(level_string, "[FATAL] ", 8); } break;
     }
     level_string[8] = 0;
 
-    // Timestamp
     time_t t = time(NULL);
     struct tm tm;
     localtime_s(&tm, &t);
     char date[21];
     sprintf_s(date, "%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
-    // Logging
     switch (LOG_MODE) {
         case Log_Mode::File:
         {
@@ -48,16 +46,21 @@ void Log(Log_Level level, String string) {
             SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
             WriteConsoleA(console, date, 20, NULL, NULL);
             switch (level) {
+                case Log_Level::Test:  { SetConsoleTextAttribute(console, FOREGROUND_GREEN); } break;
                 case Log_Level::Info:  { SetConsoleTextAttribute(console, FOREGROUND_GREEN | FOREGROUND_BLUE); } break;
                 case Log_Level::Warn:  { SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN); } break;
-                case Log_Level::Error: { SetConsoleTextAttribute(console, FOREGROUND_RED); } break;
-                case Log_Level::Test:  { SetConsoleTextAttribute(console, FOREGROUND_GREEN); } break;
+                case Log_Level::Error: { SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_INTENSITY); } break;
+                case Log_Level::Fatal: { SetConsoleTextAttribute(console, FOREGROUND_RED); }
             }
             WriteConsoleA(console, level_string, 8, NULL, NULL);
             SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
             WriteConsoleA(console, string.content, string.length, NULL, NULL);
             WriteConsoleA(console, "\n", 1, NULL, NULL);
         } break;
+    }
+
+    if (level == Log_Level::Fatal) {
+        exit(1);
     }
 }
 
@@ -129,19 +132,14 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         LARGE_INTEGER large_offset;
         large_offset.QuadPart = offset;
         if (!SetFilePointerEx(file_handle, large_offset, NULL, FILE_BEGIN)) {
-            sprintf_s(text_buffer, "Couldn't set file pointer to offset %I64u at file %s.", offset, path);
+            sprintf_s(text_buffer, "Couldn't set file pointer to offset %I64u at file %s.", offset, path_buffer);
             Log(Log_Level::Error, text_buffer);
             return result;
         }
         
         DWORD bytes_read;
-        if (ReadFile(file_handle, memory, chunk_size, &bytes_read, NULL) && bytes_read == chunk_size) {
-#if _DEBUG
-            sprintf_s(text_buffer, "%d bytes read from file %s.", bytes_read, path_buffer);
-            Log(Log_Level::Info, text_buffer);
-#endif
-        }
-        else {
+        bool success = ReadFile(file_handle, memory, chunk_size, &bytes_read, NULL);
+        if (!success || bytes_read != chunk_size) {
             sprintf_s(text_buffer, "Couldn't read chunk from file %s.", path_buffer);
             Log(Log_Level::Error, text_buffer);
         }

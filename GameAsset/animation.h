@@ -18,7 +18,7 @@ struct Joint {
 struct Armature {
     Asset_ID id;
     Joint_ID root_joint;
-    array<Joint> joints;
+    Array<Joint> joints;
     Matrix4 global_transform;
 };
 

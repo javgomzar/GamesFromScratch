@@ -5,6 +5,32 @@
 #include "GameMath.h"
 
 
+// XInput
+#define XINPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
+typedef XINPUT_GET_STATE(xinput_get_state);
+XINPUT_GET_STATE(XInputGetStateStub) {
+    return ERROR_DEVICE_NOT_CONNECTED;
+}
+static xinput_get_state* XInputGetState_ = XInputGetStateStub;
+#define XInputGetState XInputGetState_
+
+#define XINPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration)
+typedef XINPUT_SET_STATE(xinput_set_state);
+XINPUT_SET_STATE(XInputSetStateStub) {
+    return ERROR_DEVICE_NOT_CONNECTED;
+}
+static xinput_set_state* XInputSetState_ = XInputSetStateStub;
+#define XInputSetState XInputSetState_
+
+static void LoadXInput(void) {
+    HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
+    if (XInputLibrary) {
+        XInputGetState = (xinput_get_state*)GetProcAddress(XInputLibrary, "XInputGetState");
+        XInputSetState = (xinput_set_state*)GetProcAddress(XInputLibrary, "XInputSetState");
+    }
+    else Raise("Couldn't load XInput DLL.");
+}
+
 struct Button_State {
     bool is_down;
     bool was_down;
@@ -109,7 +135,7 @@ struct Keyboard_Input {
             Button_State page_down;
         };
     };
-    bool Any;
+    bool any;
 };
 
 struct Mouse_Input {

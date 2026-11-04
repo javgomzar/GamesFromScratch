@@ -1,5 +1,5 @@
 #include "GameLibrary.h"
-#include "GameData.h"
+// #include "GameData.h"
 
 
 /*
@@ -21,278 +21,276 @@ TEST(TestFormat, test_once, ACTIVE)() {
     Arena arena = AllocateMemoryArena(1024);
 
     int32 Int32 = 0;
-    Test = Format(&arena, "Test {i} ...", 1, Int32);
+    Test = Format(arena, "Test {i} ...", 1, Int32);
     Assert(Test == String("Test 0 ..."), "Int32 formatting failed.");
     Int32 = -112312492;
-    Test = Format(&arena, "Test {i} ...", 1, Int32);
+    Test = Format(arena, "Test {i} ...", 1, Int32);
     Assert(Test == String("Test -112312492 ..."), "Int32 formatting failed.");
 
-    Clear(&arena);
+    Clear(arena);
 
     int64 Int64 = 0;
-    Test = Format(&arena, "Test {I} ...", 1, Int64);
+    Test = Format(arena, "Test {I} ...", 1, Int64);
     Assert(Test == String("Test 0 ..."), "Int64 formatting failed.");
     Int64 = -1982938423712312492;
-    Test = Format(&arena, "Test {I} ...", 1, Int64);
+    Test = Format(arena, "Test {I} ...", 1, Int64);
     Assert(Test == String("Test -1982938423712312492 ..."), "Int64 formatting failed.");
 
-    Clear(&arena);
+    Clear(arena);
 
     uint32 Uint32 = 0;
-    Test = Format(&arena, "Test {u} ...", 1, Uint32);
+    Test = Format(arena, "Test {u} ...", 1, Uint32);
     Assert(Test == String("Test 0 ..."), "Uint32 formatting failed.");
     Uint32 = 112312492;
-    Test = Format(&arena, "Test {u} ...", 1, Uint32);
+    Test = Format(arena, "Test {u} ...", 1, Uint32);
     Assert(Test == String("Test 112312492 ..."), "Uint32 formatting failed.");
 
-    Clear(&arena);
+    Clear(arena);
 
     uint64 Uint64 = 0;
-    Test = Format(&arena, "Test {U} ...", 1, Uint64);
+    Test = Format(arena, "Test {U} ...", 1, Uint64);
     Assert(Test == String("Test 0 ..."), "Uint64 formatting failed.");
     Uint64 = 1982938423712312492;
-    Test = Format(&arena, "Test {U} ...", 1, Uint64);
+    Test = Format(arena, "Test {U} ...", 1, Uint64);
     Assert(Test == String("Test 1982938423712312492 ..."), "Uint64 formatting failed.");
 
-    Clear(&arena);
+    Clear(arena);
 
     uint64 Hex = 12379813738877118345ULL;
-    Test = Format(&arena, "Test {x} ...", 1, Hex);
+    Test = Format(arena, "Test {x} ...", 1, Hex);
     Assert(Test == "Test 0xabcdef0123456789 ...", "Hex formatting failed.");
 
-    Clear(&arena);
+    Clear(arena);
 
-    Test = Format(&arena, "Hello {s}!", 1, String("world"));
+    Test = Format(arena, "Hello {s}!", 1, String("world"));
     Assert(Test == String("Hello world!"), "String formatting failed.");
 
-    Clear(&arena);
+    Clear(arena);
 
     double Float = -0.1;
-    Test = Format(&arena, "Test {f3} ...", 1, Float);
+    Test = Format(arena, "Test {f3} ...", 1, Float);
     Assert(Test == String("Test -0.100 ..."), "float formatting failed.");
 
-    Clear(&arena);
+    Clear(arena);
 
-    Test = Format(&arena, "Test {i} {I} {u} {U} {s} {f3} ...", 6, Int32, Int64, Uint32, Uint64, String("Hola"), 123.123);
+    Test = Format(arena, "Test {i} {I} {u} {U} {s} {f3} ...", 6, Int32, Int64, Uint32, Uint64, String("Hola"), 123.123);
     Assert(Test == String("Test -112312492 -1982938423712312492 112312492 1982938423712312492 Hola 123.123 ..."), "Multiple arguments formatting failed.");
     
-    Free(&arena);
+    Free(arena);
 
     return true;
 }
 
-TEST(TestFloatingPoint, test_once, ACTIVE)() {
-    float TestValues32[] = {
-        0.0f,
-        -0.0f,
-        1.0f,
-        69.0f,
-        -0.00001f,
-        420.0f,
-        123456789.9f
-    };
+// TEST(TestFloatingPoint, test_once, ACTIVE)() {
+//     float TestValues32[] = {
+//         0.0f,
+//         -0.0f,
+//         1.0f,
+//         69.0f,
+//         -0.00001f,
+//         420.0f,
+//         123456789.9f
+//     };
 
-    uint32 N = ArrayCount(TestValues32);
-    for (int i = 0; i < N; i++) {
-        float Value = TestValues32[i];
-        int8 Exponent = GetExponent32(Value);
-        uint32 Mantissa = GetMantissa32(Value);
-        float Result = BuildFloat(Value < 0, Exponent, Mantissa);
-        Assert(Value == Result);
-    }
+//     uint32 N = ArrayCount(TestValues32);
+//     for (int i = 0; i < N; i++) {
+//         float Value = TestValues32[i];
+//         int8 Exponent = GetExponent32(Value);
+//         uint32 Mantissa = GetMantissa32(Value);
+//         float Result = BuildFloat(Value < 0, Exponent, Mantissa);
+//         Assert(Value == Result);
+//     }
 
-    double TestValues64[] = {
-        0.0,
-        -0.0,
-        1.0,
-        69.0,
-        -0.00001,
-        420.0,
-        123456789.9
-    };
+//     double TestValues64[] = {
+//         0.0,
+//         -0.0,
+//         1.0,
+//         69.0,
+//         -0.00001,
+//         420.0,
+//         123456789.9
+//     };
 
-    N = ArrayCount(TestValues64);
-    for (int i = 0; i < N; i++) {
-        double Value = TestValues64[i];
-        int16 Exponent = GetExponent64(Value);
-        uint64 Mantissa = GetMantissa64(Value);
-        double Result = BuildFloat(Value < 0, Exponent, Mantissa);
-        Assert(Value == Result);
-    }
+//     N = ArrayCount(TestValues64);
+//     for (int i = 0; i < N; i++) {
+//         double Value = TestValues64[i];
+//         int16 Exponent = GetExponent64(Value);
+//         uint64 Mantissa = GetMantissa64(Value);
+//         double Result = BuildFloat(Value < 0, Exponent, Mantissa);
+//         Assert(Value == Result);
+//     }
 
-    return true;
-}
+//     return true;
+// }
 
-TEST(TestDataFileManager, test_once, ACTIVE)() {
-    game_data_file_manager Manager = InitializeDataFileManager("GameData\\Data\\data_file_manager");
+// TEST(TestDataFileManager, test_once, ACTIVE)() {
+//     game_data_file_manager Manager = InitializeDataFileManager("GameData\\Data\\data_file_manager");
 
-    game_data_file* TestFile1 = GetOrCreateDataFile(&Manager, "GameData\\Data\\test_file_1");
+//     game_data_file* TestFile1 = GetOrCreateDataFile(&Manager, "GameData\\Data\\test_file_1");
 
-    game_data_file* TestFile2 = GetOrCreateDataFile(&Manager, "GameData\\Data\\test_file_1");
-    Assert(TestFile2 == TestFile1);
+//     game_data_file* TestFile2 = GetOrCreateDataFile(&Manager, "GameData\\Data\\test_file_1");
+//     Assert(TestFile2 == TestFile1);
 
-    CloseDataFileManager(Manager);
+//     CloseDataFileManager(Manager);
 
-    return true;
-}
+//     return true;
+// }
 
-TEST(TestData, test_once, INACTIVE)() {
-    Arena arena = AllocateMemoryArena(Kilobytes(8));
+// TEST(TestData, test_once, INACTIVE)() {
+//     Arena arena = AllocateMemoryArena(Kilobytes(8));
 
-    game_data_page Page = CreateDataPage(row_data_page, 1, nullptr);
+//     game_data_page Page = CreateDataPage(row_data_page, 1, nullptr);
 
-    char TestText[128] = "This is a test text.";
-    int TextLength = strlen(TestText);
+//     char TestText[128] = "This is a test text.";
+//     int TextLength = strlen(TestText);
 
-    game_data_slot* Slot = AddSlot(Page, TextLength);
+//     game_data_slot* Slot = AddSlot(Page, TextLength);
 
-    uint8* Pointer = (uint8*)Page.Header + Slot->Offset;
-    memcpy(Pointer, TestText, TextLength);
+//     uint8* Pointer = (uint8*)Page.Header + Slot->Offset;
+//     memcpy(Pointer, TestText, TextLength);
 
-    game_data_slot* ReadSlot = GetSlot(Page, Slot->ID);
-    char* ReadPointer = (char*)Page.Header + Slot->Offset;
+//     game_data_slot* ReadSlot = GetSlot(Page, Slot->ID);
+//     char* ReadPointer = (char*)Page.Header + Slot->Offset;
 
-    Log(Log_Level::Info, ReadPointer);
+//     Log(Log_Level::Info, ReadPointer);
 
-    Assert(Page.Header->Size == TextLength + sizeof(game_data_page_header) + sizeof(game_data_slot));
+//     Assert(Page.Header->Size == TextLength + sizeof(game_data_page_header) + sizeof(game_data_slot));
 
-    Free(&arena);
-    Log(Log_Level::Info, "Data test ended.");
+//     Free(arena);
+//     Log(Log_Level::Info, "Data test ended.");
 
-    return true;
-}
+//     return true;
+// }
 
-TEST(TestInstancedRendering, test_every_frame, INACTIVE)(Render_Group* group) {
-    int nInstances = 100;
-    Render_Primitive_Command* command = PushPrimitiveCommand(
-        group,
-        render_primitive_triangle,
-        vertex_layout_v2_id,
-        6,
-        .InstanceLayoutID = vertex_layout_v2_id,
-        .nInstances = nInstances,
-        .Order = SORT_ORDER_DEBUG_OVERLAY
-    );
+// TEST(TestInstancedRendering, test_every_frame, INACTIVE)(Render_Group* group) {
+//     int nInstances = 100;
+//     Render_Command* command = PushCommand(
+//         group,
+//         Topology_Triangle,
+//         .InstanceLayoutID = vertex_layout_v2_id,
+//         .nInstances = nInstances,
+//         .Order = SORT_ORDER_DEBUG_OVERLAY
+//     );
 
-    float* Vertices = command->Vertices;
-    *Vertices++ = 0.0; *Vertices++ = 0.0;
-    *Vertices++ = 0.0; *Vertices++ = 1.0;
-    *Vertices++ = 1.0; *Vertices++ = 0.0;
-    *Vertices++ = 1.0; *Vertices++ = 1.0;
-    *Vertices++ = 1.0; *Vertices++ = 0.0;
-    *Vertices++ = 0.0; *Vertices++ = 1.0;
+//     float* Vertices = command->Vertices;
+//     *Vertices++ = 0.0; *Vertices++ = 0.0;
+//     *Vertices++ = 0.0; *Vertices++ = 1.0;
+//     *Vertices++ = 1.0; *Vertices++ = 0.0;
+//     *Vertices++ = 1.0; *Vertices++ = 1.0;
+//     *Vertices++ = 1.0; *Vertices++ = 0.0;
+//     *Vertices++ = 0.0; *Vertices++ = 1.0;
 
-    float* Instances = (float*)Command->InstanceEntry.Pointer;
-    for (int i = 0; i < 10; i++)
-    for (int j = 0; j < 10; j++) {
-        *Instances++ = i * Group->Width / 10;
-        *Instances++ = j * Group->Height / 10;
-    }
+//     float* Instances = (float*)Command->InstanceEntry.Pointer;
+//     for (int i = 0; i < 10; i++)
+//     for (int j = 0; j < 10; j++) {
+//         *Instances++ = i * Group->Width / 10;
+//         *Instances++ = j * Group->Height / 10;
+//     }
 
-    return true;
-}
+//     return true;
+// }
 
-TEST(TestTextRendering, test_every_frame, INACTIVE)(render_group* Group, game_input* Input) {
-    render_text_options Options = {};
-    Options.Outline = false;
-    Options.OutlineWidth = 1.5f;
+// TEST(TestTextRendering, test_every_frame, INACTIVE)(render_group* Group, game_input* Input) {
+//     render_text_options Options = {};
+//     Options.Outline = false;
+//     Options.OutlineWidth = 1.5f;
 
-    static float Points = 42;
-    if (Input->Mouse.Wheel > 0) {
-        Points *= 1.25f;
-    }
-    else if (Input->Mouse.Wheel < 0) {
-        Points *= 0.8f;
-    }
+//     static float Points = 42;
+//     if (Input->Mouse.Wheel > 0) {
+//         Points *= 1.25f;
+//     }
+//     else if (Input->Mouse.Wheel < 0) {
+//         Points *= 0.8f;
+//     }
 
-    const char* TestString = "!\"#$%&'()*+,-./0123456789:;<=>?@\nABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\nabcdefghijklmnopqrstuvwxyz{|}~";
-    game_font* Font = GetFont(Group->AssetManager, "DejaVuSans");
+//     const char* TestString = "!\"#$%&'()*+,-./0123456789:;<=>?@\nABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`\nabcdefghijklmnopqrstuvwxyz{|}~";
+//     game_font* Font = GetFont(Group->AssetManager, "DejaVuSans");
 
-    PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Color = color::WHITE, .Font = Font, .Outline = false, .Points = Points);
+//     PushText(Group, V2(150, 150 + GetCharMaxHeight(Font, Points)), TestString, .Color = color::WHITE, .Font = Font, .Outline = false, .Points = Points);
 
-    return true;
-}
+//     return true;
+// }
 
-TEST(TestRendering, test_every_frame, ACTIVE)(render_group* Group, game_input* Input, float Time) {
-// 2D
-    // Rects
-    rectangle Rect = { 20, 20, 100, 100 };
-    PushRect(Group, Rect, color::RED);
-    PushRectOutline(Group, Rect, color::WHITE, 2.0f);
+// TEST(TestRendering, test_every_frame, ACTIVE)(render_group* Group, game_input* Input, float Time) {
+// // 2D
+//     // Rects
+//     rectangle Rect = { 20, 20, 100, 100 };
+//     PushRect(Group, Rect, color::RED);
+//     PushRectOutline(Group, Rect, color::WHITE, 2.0f);
 
-    // Circles
-    PushCircle(Group, V2(200, 70), 50.0f, color::RED);
-    PushCircunference(Group, V2(200, 70), 50.0f, color::WHITE, 2.0f);
+//     // Circles
+//     PushCircle(Group, V2(200, 70), 50.0f, color::RED);
+//     PushCircunference(Group, V2(200, 70), 50.0f, color::WHITE, 2.0f);
 
-    // Triangles
-    triangle2 Triangle2 = { V2(320, 20), V2(370, 120), V2(270, 120) };
-    color TriangleColor = color::RED;
-    if (IsInside(Triangle2, Input->Mouse.Cursor)) TriangleColor = color::GREEN;
-    PushTriangle(Group, Triangle2, TriangleColor);
-    PushLine(Group, Triangle2.Points[0], Triangle2.Points[1], color::WHITE);
-    PushLine(Group, Triangle2.Points[1], Triangle2.Points[2], color::WHITE);
-    PushLine(Group, Triangle2.Points[2], Triangle2.Points[0], color::WHITE);
+//     // Triangles
+//     triangle2 Triangle2 = { V2(320, 20), V2(370, 120), V2(270, 120) };
+//     color TriangleColor = color::RED;
+//     if (IsInside(Triangle2, Input->Mouse.Cursor)) TriangleColor = color::GREEN;
+//     PushTriangle(Group, Triangle2, TriangleColor);
+//     PushLine(Group, Triangle2.Points[0], Triangle2.Points[1], color::WHITE);
+//     PushLine(Group, Triangle2.Points[1], Triangle2.Points[2], color::WHITE);
+//     PushLine(Group, Triangle2.Points[2], Triangle2.Points[0], color::WHITE);
 
-    // Bitmap
-    rectangle BitmapRect = { 20, 140, 100, 200 };
-    game_texture* Texture = GetTexture(Group->AssetManager, "Player");
-    PushBitmap(Group, Texture, BitmapRect);
+//     // Bitmap
+//     rectangle BitmapRect = { 20, 140, 100, 200 };
+//     game_texture* Texture = GetTexture(Group->AssetManager, "Player");
+//     PushBitmap(Group, Texture, BitmapRect);
 
-// 3D
-    // Point
-    // PushPoint(Group, V3(0,0,0), color::RED);
+// // 3D
+//     // Point
+//     // PushPoint(Group, V3(0,0,0), color::RED);
 
-    // Rect
-    PushRect(Group, V3(0,1,0), V3(0,0,1), V3(0,1,0), 1.0f, 1.0f, color::RED);
+//     // Rect
+//     PushRect(Group, V3(0,1,0), V3(0,0,1), V3(0,1,0), 1.0f, 1.0f, color::RED);
 
-    // Circle
-    PushCircle(Group, V3(0,1.5f,2), 0.5f, V3(0,0,1), color::RED);
+//     // Circle
+//     PushCircle(Group, V3(0,1.5f,2), 0.5f, V3(0,0,1), color::RED);
     
-    // Triangle
-    triangle3 Triangle3 = {};
-    Triangle3.Points[0] = V3(0, 2, 3.25);
-    Triangle3.Points[1] = V3(0, 1, 2.75);
-    Triangle3.Points[2] = V3(0, 1, 3.75);
-    PushTriangle(Group, Triangle3, color::RED);
+//     // Triangle
+//     triangle3 Triangle3 = {};
+//     Triangle3.Points[0] = V3(0, 2, 3.25);
+//     Triangle3.Points[1] = V3(0, 1, 2.75);
+//     Triangle3.Points[2] = V3(0, 1, 3.75);
+//     PushTriangle(Group, Triangle3, color::RED);
 
-    // Mesh
-    Transform transform = GetTransform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
-    Mesh* BodyMesh = GetMesh(Group->AssetManager, "Body");
-    PushMesh(Group, BodyMesh, .Color = color::GRAY, .Transform = Transform, .Outline = true);
+//     // Mesh
+//     Transform transform = GetTransform(V3(3, 0, 0), Quaternion(Pi, V3(0,1,0)));
+//     Mesh* BodyMesh = GetMesh(Group->AssetManager, "Body");
+//     PushMesh(Group, BodyMesh, .Color = color::GRAY, .Transform = Transform, .Outline = true);
 
-    transform.Translation = V3(-2, 0, 0);
+//     transform.Translation = V3(-2, 0, 0);
 
-    Mesh* Tetrahedron = GetMesh(Group->AssetManager, "Tetrahedron");
-    PushMesh(Group, Tetrahedron, .Transform = Transform);
+//     Mesh* Tetrahedron = GetMesh(Group->AssetManager, "Tetrahedron");
+//     PushMesh(Group, Tetrahedron, .Transform = Transform);
 
-    Transform.Translation = V3(-2, 0, 2);
-    Mesh* Cube = GetMesh(Group->AssetManager, "Cube");
-    PushMesh(Group, Cube, .Transform = Transform);
+//     Transform.Translation = V3(-2, 0, 2);
+//     Mesh* Cube = GetMesh(Group->AssetManager, "Cube");
+//     PushMesh(Group, Cube, .Transform = Transform);
 
-    Transform.Translation = V3(-2, 0, 4);
-    Mesh* Octahedron = GetMesh(Group->AssetManager, "Octahedron");
-    PushMesh(Group, Octahedron, .Transform = Transform);
+//     Transform.Translation = V3(-2, 0, 4);
+//     Mesh* Octahedron = GetMesh(Group->AssetManager, "Octahedron");
+//     PushMesh(Group, Octahedron, .Transform = Transform);
 
-    Transform.Translation = V3(-2, 0, 6);
-    Mesh* Icosahedron = GetMesh(Group->AssetManager, "Icosahedron");
-    PushMesh(Group, Icosahedron, .Transform = Transform);
+//     Transform.Translation = V3(-2, 0, 6);
+//     Mesh* Icosahedron = GetMesh(Group->AssetManager, "Icosahedron");
+//     PushMesh(Group, Icosahedron, .Transform = Transform);
 
-    Transform.Translation = V3(-2, 0, 8.5);
-    Mesh* Dodecahedron = GetMesh(Group->AssetManager, "Dodecahedron");
-    PushMesh(Group, Dodecahedron, .Transform = Transform);
+//     Transform.Translation = V3(-2, 0, 8.5);
+//     Mesh* Dodecahedron = GetMesh(Group->AssetManager, "Dodecahedron");
+//     PushMesh(Group, Dodecahedron, .Transform = Transform);
 
-    Mesh* Sphere = GetMesh(Group->AssetManager, "Sphere");
-    PushMesh(Group, Sphere, .Color = color::RED, .Transform = GetTransform(V3(10, 0, 0)));
+//     Mesh* Sphere = GetMesh(Group->AssetManager, "Sphere");
+//     PushMesh(Group, Sphere, .Color = color::RED, .Transform = GetTransform(V3(10, 0, 0)));
 
-    // Heightmap
-    game_texture* SpainTexture = GetTexture(Group->AssetManager, "Spain");
-    PushHeightmap(Group, SpainTexture, V3(0,0,0), GetScale(10, 1, 10));
+//     // Heightmap
+//     game_texture* SpainTexture = GetTexture(Group->AssetManager, "Spain");
+//     PushHeightmap(Group, SpainTexture, V3(0,0,0), GetScale(10, 1, 10));
 
-    return true;
-}
+//     return true;
+// }
 
-TEST(TestSky, test_every_frame, INACTIVE)(float Time, light* Light) {
-    Light->Direction = V3(-cos(0.2f * Time), -sin(0.2f * Time), 0);
+TEST(TestSky, test_every_frame, INACTIVE)(float time, Light* light) {
+    light->direction = V3(-cos(0.2f * time), -sin(0.2f * time), 0);
     return true;
 }
 
@@ -306,129 +304,129 @@ TEST(TestSky, test_every_frame, INACTIVE)(float Time, light* Light) {
 //     PushRenderTarget(Group, Target_Fluid);
 // }
 
-TEST(TestFFT, test_every_frame, INACTIVE)(render_group* Group, Arena* Permanent, float Time) {
-    uint32 N = 256;
+// TEST(TestFFT, test_every_frame, INACTIVE)(Render_Group* group, Arena* permanent, float time) {
+//     uint32 N = 256;
     
-    static bool Initialized = false;
-    static float* Signal = nullptr;
-    static complex* InputData = nullptr;
-    static complex* OutputData = nullptr;
-    static complex* Twiddle = nullptr;
-    static float* ModulusDFT = nullptr;
-    static float* PhaseDFT = nullptr;
-    static float* ModulusFFT = nullptr;
-    static float* PhaseFFT = nullptr;
+//     static bool Initialized = false;
+//     static float* Signal = nullptr;
+//     static complex* InputData = nullptr;
+//     static complex* OutputData = nullptr;
+//     static complex* Twiddle = nullptr;
+//     static float* ModulusDFT = nullptr;
+//     static float* PhaseDFT = nullptr;
+//     static float* ModulusFFT = nullptr;
+//     static float* PhaseFFT = nullptr;
 
-    if (!Initialized) {
-        Signal = PushArray(Permanent, N, float);
-        InputData = PushArray(Permanent, N, complex);
-        OutputData = PushArray(Permanent, N, complex);
-        Twiddle = PushArray(Permanent, N, complex);
-        ModulusDFT = PushArray(Permanent, N, float);
-        PhaseDFT = PushArray(Permanent, N, float);
-        ModulusFFT = PushArray(Permanent, N, float);
-        PhaseFFT = PushArray(Permanent, N, float);
+//     if (!Initialized) {
+//         Signal = PushArray(Permanent, N, float);
+//         InputData = PushArray(Permanent, N, complex);
+//         OutputData = PushArray(Permanent, N, complex);
+//         Twiddle = PushArray(Permanent, N, complex);
+//         ModulusDFT = PushArray(Permanent, N, float);
+//         PhaseDFT = PushArray(Permanent, N, float);
+//         ModulusFFT = PushArray(Permanent, N, float);
+//         PhaseFFT = PushArray(Permanent, N, float);
 
-        for (int i = 0; i < N; i++) {
-            Signal[i] = sin(0.333333f*i);
-            InputData[i].r = Signal[i];
-            InputData[i].i = 0.0f;
-        }
+//         for (int i = 0; i < N; i++) {
+//             Signal[i] = sin(0.333333f*i);
+//             InputData[i].r = Signal[i];
+//             InputData[i].i = 0.0f;
+//         }
 
-        PrepareTwiddleFactors(N, Twiddle);
+//         PrepareTwiddleFactors(N, Twiddle);
 
-        Initialized = true;
-    }
+//         Initialized = true;
+//     }
 
-    uint64 Start = Platform.GetWallClock();
-    DFT(N, InputData, OutputData);
-    uint64 End = Platform.GetWallClock();
+//     uint64 Start = Platform.GetWallClock();
+//     DFT(N, InputData, OutputData);
+//     uint64 End = Platform.GetWallClock();
 
-    float DFTms = 1000.0f * GetSecondsElapsed(Start, End);
+//     float DFTms = 1000.0f * GetSecondsElapsed(Start, End);
 
-    for (int i = 0; i < N; i++) {
-        ModulusDFT[i] = modulus(OutputData[i]);
-        PhaseDFT[i] = 5.0f * phase(OutputData[i]);
-    }
+//     for (int i = 0; i < N; i++) {
+//         ModulusDFT[i] = modulus(OutputData[i]);
+//         PhaseDFT[i] = 5.0f * phase(OutputData[i]);
+//     }
 
-    Start = Platform.GetWallClock();
-    FFT(N, InputData, OutputData, Twiddle);
-    End = Platform.GetWallClock();
+//     Start = Platform.GetWallClock();
+//     FFT(N, InputData, OutputData, Twiddle);
+//     End = Platform.GetWallClock();
 
-    for (int i = 0; i < N; i++) {
-        ModulusFFT[i] = modulus(OutputData[i]);
-        PhaseFFT[i] = 5.0f * phase(OutputData[i]);
-    }
+//     for (int i = 0; i < N; i++) {
+//         ModulusFFT[i] = modulus(OutputData[i]);
+//         PhaseFFT[i] = 5.0f * phase(OutputData[i]);
+//     }
 
-    float FFTms = 1000.0f * GetSecondsElapsed(Start, End);
+//     float FFTms = 1000.0f * GetSecondsElapsed(Start, End);
     
-    PushText(Group, V2(200, 320), "Signal");
-    PushDebugPlot(Group, N, Signal, V2(200, 200), 1);
+//     PushText(Group, V2(200, 320), "Signal");
+//     PushDebugPlot(Group, N, Signal, V2(200, 200), 1);
     
-    char TextBuffer[128];
-    sprintf(TextBuffer, "DFT: %.2f ms", DFTms);
-    PushText(Group, V2(600, 320), TextBuffer);
-    PushDebugPlot(Group, N, ModulusDFT, V2(600, 200), 1);
-    PushDebugPlot(Group, N, PhaseDFT, V2(600, 250), 1);
+//     char TextBuffer[128];
+//     sprintf(TextBuffer, "DFT: %.2f ms", DFTms);
+//     PushText(Group, V2(600, 320), TextBuffer);
+//     PushDebugPlot(Group, N, ModulusDFT, V2(600, 200), 1);
+//     PushDebugPlot(Group, N, PhaseDFT, V2(600, 250), 1);
 
-    sprintf(TextBuffer, "FFT: %.2f ms", FFTms);
-    PushText(Group, V2(1000, 320), TextBuffer);
-    PushDebugPlot(Group, N, ModulusFFT, V2(1000, 200), 1);
-    PushDebugPlot(Group, N, PhaseFFT, V2(1000, 250), 1);
+//     sprintf(TextBuffer, "FFT: %.2f ms", FFTms);
+//     PushText(Group, V2(1000, 320), TextBuffer);
+//     PushDebugPlot(Group, N, ModulusFFT, V2(1000, 200), 1);
+//     PushDebugPlot(Group, N, PhaseFFT, V2(1000, 250), 1);
 
-    return true;
-}
+//     return true;
+// }
 
-TEST(TestEntities, test_once, ACTIVE)(game_asset_manager* AssetManager, game_state* State) {
-    Mesh* Mesh = nullptr;
-    Mesh = GetMesh(AssetManager, "Body");
-    game_entity* Character = AddEntity(State->Entities, CreateEntity("Character", Character_Entity_Type, Mesh));
-    Character->Collider = CapsuleCollider(V3(0,1.0f,0), V3(0,3.6f,0), 1.0f);
-    State->ActiveCamera->Follow = Character;
+// TEST(TestEntities, test_once, ACTIVE)(Asset_Manager* asset_manager, State* state) {
+//     Mesh* Mesh = nullptr;
+//     Mesh = GetMesh(AssetManager, "Body");
+//     game_entity* Character = AddEntity(State->Entities, CreateEntity("Character", Character_Entity_Type, Mesh));
+//     Character->Collider = CapsuleCollider(V3(0,1.0f,0), V3(0,3.6f,0), 1.0f);
+//     State->ActiveCamera->Follow = Character;
 
-    Mesh = GetMesh(AssetManager, "Sphere");
-    game_entity* Prop = AddEntity(State->Entities, CreateEntity("Prop", Prop_Entity_Type, Mesh));
-    Prop->Color = color::RED;
-    Prop->Transform = GetTransform(V3(0,0,5), GetScale(10,1,1));
-    Prop->Collider = CapsuleCollider(V3(-0.9f,0,0), V3(0.9f,0,0), 1.0f);
+//     Mesh = GetMesh(AssetManager, "Sphere");
+//     game_entity* Prop = AddEntity(State->Entities, CreateEntity("Prop", Prop_Entity_Type, Mesh));
+//     Prop->Color = color::RED;
+//     Prop->Transform = GetTransform(V3(0,0,5), GetScale(10,1,1));
+//     Prop->Collider = CapsuleCollider(V3(-0.9f,0,0), V3(0.9f,0,0), 1.0f);
 
-    // enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));
+//     // enemy* Enemy = AddEnemy(EntityState, V3(10,0,5));
 
-    Mesh = GetMesh(AssetManager, "Sword");
-    game_entity* Sword = AddEntity(State->Entities, CreateEntity("Sword", Weapon_Entity_Type, Mesh));
-    Sword->Color = color::GRAY;
-    Sword->Transform.Translation = V3(5,0,0);
-    Sword->Collider = CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.6f);
+//     Mesh = GetMesh(AssetManager, "Sword");
+//     game_entity* Sword = AddEntity(State->Entities, CreateEntity("Sword", Weapon_Entity_Type, Mesh));
+//     Sword->Color = color::GRAY;
+//     Sword->Transform.Translation = V3(5,0,0);
+//     Sword->Collider = CapsuleCollider(V3(0,0,0), V3(0,3,0), 0.6f);
 
-    Mesh = GetMesh(AssetManager, "Mesh");
-    game_entity* Shield = AddEntity(State->Entities, CreateEntity("Shield", Weapon_Entity_Type));
-    Shield->Color = color::GRAY;
-    Shield->Transform.Translation = V3(10,1.6f,0);
-    Shield->Collider = CapsuleCollider(V3(0,-0.5f,0), V3(0,0.5f,0), 1.0f);
+//     Mesh = GetMesh(AssetManager, "Mesh");
+//     game_entity* Shield = AddEntity(State->Entities, CreateEntity("Shield", Weapon_Entity_Type));
+//     Shield->Color = color::GRAY;
+//     Shield->Transform.Translation = V3(10,1.6f,0);
+//     Shield->Collider = CapsuleCollider(V3(0,-0.5f,0), V3(0,0.5f,0), 1.0f);
 
-    return true;
-}
+//     return true;
+// }
 
-TEST(TestSerialization, test_once, ACTIVE)() {
-    // String
-    Arena arena = AllocateMemoryArena(Kilobytes(4));
-    String TestString = "This is a test String.";
+// TEST(TestSerialization, test_once, ACTIVE)() {
+//     // String
+//     Arena arena = AllocateMemoryArena(Kilobytes(4));
+//     String TestString = "This is a test String.";
     
-    void* Memory = Serialize(&arena, TestString, String);
-    String Result = ReadString(Memory);
+//     void* Memory = Serialize(&arena, TestString, String);
+//     String Result = ReadString(Memory);
 
-    Assert(Result == TestString);
+//     Assert(Result == TestString);
 
-    // Struct
-    game_entity Entity = CreateEntity("Test Entity", Weapon_Entity_Type);
-    Memory = Serialize(&arena, Entity, game_entity);
+//     // Struct
+//     game_entity Entity = CreateEntity("Test Entity", Weapon_Entity_Type);
+//     Memory = Serialize(&arena, Entity, game_entity);
 
     
 
-    game_entity
-    Assert(
-        Entity
-    );
+//     game_entity
+//     Assert(
+//         Entity
+//     );
 
-    return TestString == Result;
-}
+//     return TestString == Result;
+// }

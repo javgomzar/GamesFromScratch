@@ -58,7 +58,7 @@ inline uint32 Clamp(uint32 value, uint32 min, uint32 max) {
 }
 
 // Makes an angle be in the [0, 360) interval.
-inline float Normalizeangle(float angle) {
+inline float NormalizeAngle(float angle) {
 	if (angle >= 360) {
 		return angle - 360;
 	}
@@ -416,6 +416,10 @@ struct V3 {
 	float x, y, z;
 };
 
+V3 BuildV3(float x, float y, float z) { return {x, y, z}; }
+V3 BuildV3(float f, V2 v) { return {f, v.x, v.y}; }
+V3 BuildV3(V2 v, float f) { return {v.x, v.y, f}; }
+
 inline V3 Radial(float angle, float Pitch) {
 	float cosA = cosf(angle * DEGREES);
     float sinA = sinf(angle * DEGREES);
@@ -599,6 +603,11 @@ inline bool operator<(const IV4& lhs, const IV4& rhs) {
 struct V4 {
 	float x, y, z, w;
 };
+
+inline V4 BuildV4(float x, float y, float z, float w) { return {x, y, z, w}; }
+inline V4 BuildV4(V3 v, float f)                      { return {v.x, v.y, v.z, f}; }
+inline V4 BuildV4(V2 u, V2 v)                         { return {u.x, u.y, v.x, v.y}; }
+inline V4 BuildV4(float f, V3 v)                      { return {f, v.x, v.y, v.z}; }
 
 inline V4 operator+(V4 A, V4 B) {
 	return {A.x + B.x, A.y + B.y, A.z + B.z, A.w + B.w};
@@ -1291,7 +1300,7 @@ const Quaternion I = { 0.0, 1.0, 0.0, 0.0 };
 const Quaternion J = { 0.0, 0.0, 1.0, 0.0 };
 const Quaternion K = { 0.0, 0.0, 0.0, 1.0 };
 
-inline Quaternion GetQuaternion(float angle, V3 Vector) {
+inline Quaternion BuildQuaternion(float angle, V3 Vector) {
 	float sin_angle = sinf(angle / 2);
 	Vector = normalize(Vector);
 	return { cosf(angle / 2.0), sin_angle * Vector.x, sin_angle * Vector.y, sin_angle * Vector.z};
@@ -1379,7 +1388,7 @@ struct Scale {
 	float z;
 };
 
-inline Scale GetScale(float x = 1.0, float y = 1.0, float z = 1.0) {
+inline Scale BuildScale(float x = 1.0, float y = 1.0, float z = 1.0) {
 	return { x, y, z };
 };
 
@@ -1388,7 +1397,7 @@ inline Scale operator*(float C, Scale S) {
 }
 
 inline Scale operator*(Scale S, Scale T) {
-	return GetScale(S.x * T.x, S.y * T.y, S.z * T.z);
+	return BuildScale(S.x * T.x, S.y * T.y, S.z * T.z);
 }
 
 inline V3 operator*(Scale S, V3 Vector) {
@@ -1418,13 +1427,13 @@ struct Transform {
 	Quaternion rotation;
 };
 
-Transform IdentityTransform = { V3(0,0,0), GetScale(), Quaternion(1.0f) };
+Transform IdentityTransform = { V3(0,0,0), BuildScale(), Quaternion(1.0f) };
 
-inline Transform GetTransform(Quaternion Rotation, V3 Translation = V3(0,0,0), Scale Scaling = GetScale()) {
+inline Transform GetTransform(Quaternion Rotation, V3 Translation = V3(0,0,0), Scale Scaling = BuildScale()) {
 	return { Translation, Scaling, Rotation };
 }
 
-inline Transform GetTransform(V3 Translation, Quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f), Scale Scaling = GetScale()) {
+inline Transform GetTransform(V3 Translation, Quaternion Rotation = Quaternion(1.0f, 0.0f, 0.0f, 0.0f), Scale Scaling = BuildScale()) {
 	return { Translation, Scaling, Rotation };
 }
 
@@ -1540,7 +1549,7 @@ struct Ray {
 	V3 direction;
 };
 
-Ray GetRay(V3 point, V3 direction) {
+Ray BuildRay(V3 point, V3 direction) {
 	return { point, normalize(direction) };
 }
 
@@ -1555,18 +1564,18 @@ inline float SqDistance(Ray ray, V3 point) {
 	return dot(D,D);
 }
 
-struct segment2 {
-	V2 Head;
-	V2 Tail;
+struct Segment2 {
+	V2 head;
+	V2 tail;
 };
 
-inline bool AreParallel(segment2 S1, segment2 S2) {
-	return AreParallel(S1.Tail - S1.Head, S2.Tail - S2.Head);
+inline bool AreParallel(Segment2 S1, Segment2 S2) {
+	return AreParallel(S1.tail - S1.head, S2.tail - S2.head);
 }
 
-inline bool IsInside(segment2 S, V2 P) {
-	V2 u = S.Head - P;
-	V2 v = S.Tail - P;
+inline bool IsInside(Segment2 S, V2 P) {
+	V2 u = S.head - P;
+	V2 v = S.tail - P;
 
 	return AreParallel(u,v) && dot(u,v) <= 0;
 }
@@ -1576,14 +1585,14 @@ inline bool IsInside(segment2 S, V2 P) {
 	which will be given in the `IntersectionPoint` parameter. If result is 2, the two segments overlap over another segment, which will
 	be given in the `IntersectionSegment` parameter.
 */
-inline int Intersect(segment2 S1, segment2 S2, V2* IntersectionPoint, segment2* IntersectionSegment) {
+inline int Intersect(Segment2 S1, Segment2 S2, V2* IntersectionPoint, Segment2* IntersectionSegment) {
 	if (AreParallel(S1, S2)) {
-		V2 u = S1.Tail - S1.Head;
-		V2 v = S2.Head - S1.Head;
+		V2 u = S1.tail - S1.head;
+		V2 v = S2.head - S1.head;
 		if (AreParallel(u, v)) {
 			float R0 = dot(u, u);                 // Coordinates for S1.Tail
 			float R1 = dot(u, v);                 // Coordinates for S2.Head
-			float R2 = dot(u, S2.Tail - S1.Head); // Coordinates for S2.Tail
+			float R2 = dot(u, S2.tail - S1.head); // Coordinates for S2.Tail
 
 			// Swap if segments point in opposite directions
 			bool Swap = R2 - R1 < 0;
@@ -1591,27 +1600,27 @@ inline int Intersect(segment2 S1, segment2 S2, V2* IntersectionPoint, segment2* 
 				float Temp = R1;
 				R1 = R2;
 				R2 = Temp;
-				V2 Temp2 = S2.Head;
-				S2.Head = S2.Tail;
-				S2.Tail = Temp2;
+				V2 Temp2 = S2.head;
+				S2.head = S2.tail;
+				S2.tail = Temp2;
 			}
 
 			if (fabsf(R1) < EPSILON) {
 				if (R2 < EPSILON) {
-					*IntersectionPoint = S2.Head;
+					*IntersectionPoint = S2.head;
 					return 1;
 				}
 				else {
 					*IntersectionSegment = S2;
 					if (R2 > R0) {
-						IntersectionSegment->Tail = S1.Tail;
+						IntersectionSegment->tail = S1.tail;
 					}
 					return 2;
 				}
 			}
 			else if (R1 < 0) {
 				if (fabsf(R2) < EPSILON) {
-					*IntersectionPoint = S2.Tail;
+					*IntersectionPoint = S2.tail;
 					return 1;
 				}
 				else if (R2 < 0) {
@@ -1620,22 +1629,22 @@ inline int Intersect(segment2 S1, segment2 S2, V2* IntersectionPoint, segment2* 
 				else {
 					*IntersectionSegment = S1;
 					if (R2 < R0) {
-						IntersectionSegment->Tail = S2.Tail;
+						IntersectionSegment->tail = S2.tail;
 					}
 					return 2;
 				}
 			}
 			else {
 				if (fabsf(R1 - R0) < EPSILON) {
-					*IntersectionPoint = S2.Head;
+					*IntersectionPoint = S2.head;
 					return 1;
 				}
 				else if (R1 > R0) {
 					return 0;
 				}
 				else {
-					IntersectionSegment->Head = S2.Head;
-					IntersectionSegment->Tail = S1.Tail;
+					IntersectionSegment->head = S2.head;
+					IntersectionSegment->tail = S1.tail;
 					return 2;
 				}
 			}
@@ -1643,10 +1652,10 @@ inline int Intersect(segment2 S1, segment2 S2, V2* IntersectionPoint, segment2* 
 		return 0;
 	}
 	else {
-		V2 A = S1.Head;
-		V2 B = S1.Tail;
-		V2 C = S2.Head;
-		V2 D = S2.Tail;
+		V2 A = S1.head;
+		V2 B = S1.tail;
+		V2 C = S2.head;
+		V2 D = S2.tail;
 
 		float Orient1 = cross(B - A, C - A);
 		float Orient2 = cross(B - A, D - A);
@@ -1666,29 +1675,29 @@ inline int Intersect(segment2 S1, segment2 S2, V2* IntersectionPoint, segment2* 
 	return 0;
 }
 
-inline V2 ClosestPoint(segment2 Segment, V2 Point) {
-	V2 V = Segment.Tail - Segment.Head;
+inline V2 ClosestPoint(Segment2 Segment, V2 Point) {
+	V2 V = Segment.tail - Segment.head;
 
 	float t = dot(V, Point);
-	if (t <= 0.0f) return Segment.Head;
+	if (t <= 0.0f) return Segment.head;
 	float Denom = dot(V, V);
-	if (t >= Denom) return Segment.Tail;
-	else return Segment.Head + (t / Denom) * V;
+	if (t >= Denom) return Segment.tail;
+	else return Segment.head + (t / Denom) * V;
 }
 
-inline float SqDistance(segment2 Segment, V2 Point) {
-	V2 V = Segment.Tail - Segment.Head;
-	V2 R = Point - Segment.Head;
+inline float SqDistance(Segment2 Segment, V2 Point) {
+	V2 V = Segment.tail - Segment.head;
+	V2 R = Point - Segment.head;
 
 	R = project(R, V) - Point;
 	return dot(R,R);
 }
 
-inline float SqDistance(segment2 Segment1, segment2 Segment2) {
-	float d1 = SqDistance(Segment1, Segment2.Head);
-	float d2 = SqDistance(Segment1, Segment2.Tail);
-	float d3 = SqDistance(Segment2, Segment1.Head);
-	float d4 = SqDistance(Segment2, Segment2.Tail);
+inline float SqDistance(Segment2 Segment1, Segment2 Segment2) {
+	float d1 = SqDistance(Segment1, Segment2.head);
+	float d2 = SqDistance(Segment1, Segment2.tail);
+	float d3 = SqDistance(Segment2, Segment1.head);
+	float d4 = SqDistance(Segment2, Segment2.tail);
 
 	return fmin(d1, fmin(d2, fmin(d3, d4)));
 }
@@ -1708,12 +1717,12 @@ inline Segment3 operator*(Transform transform, Segment3 segment) {
 */
 inline Transform SegmentTransform(Segment3 segment) {
 	Transform result;
-	result.scale = GetScale();
+	result.scale = BuildScale();
 	result.translation = segment.head;
 	V3 V = segment.tail - segment.head;
 	float L = modulus(V);
 	float angle = acosf(V.y / L);
-	result.rotation = GetQuaternion(angle, V3(-V.z,0,V.x));
+	result.rotation = BuildQuaternion(angle, V3(-V.z,0,V.x));
 	return result;
 }
 
@@ -1850,15 +1859,15 @@ inline bool IsInside(triangle2 T, V2 P) {
 		return true;
 	}
 
-	segment2 S1 = { T.Points[0], T.Points[1] };
-	segment2 S2 = { T.Points[1], T.Points[2] };
-	segment2 S3 = { T.Points[2], T.Points[0] };
+	Segment2 S1 = { T.Points[0], T.Points[1] };
+	Segment2 S2 = { T.Points[1], T.Points[2] };
+	Segment2 S3 = { T.Points[2], T.Points[0] };
 
 	return IsInside(S1, P) || IsInside(S2, P) || IsInside(S3, P);
 }
 
 float SqDistance(triangle2 T, V2 P) {
-	segment2 E[3] = {
+	Segment2 E[3] = {
 		{ T.Points[0], T.Points[1] },
 		{ T.Points[1], T.Points[2] },
 		{ T.Points[2], T.Points[0] },
@@ -1945,43 +1954,39 @@ struct triangle3 {
 	V3 Points[3];
 };
 
-struct rectangle {
-	float Left;
-	float Top;
-	float Width;
-	float Height;
+struct Rect {
+	float left;
+	float top;
+	float width;
+	float height;
 };
 
-rectangle Rectangle(float Left, float Top, float Width, float Height) {
-	return {Left, Top, Width, Height};
+bool IsIn(Rect rect, V2 position) {
+	return rect.left <= position.x && position.x <= rect.left+rect.width &&
+		   rect.top  <= position.y && position.y <= rect.top+rect.height;
 }
 
-bool IsIn(rectangle Rect, V2 Position) {
-	return Rect.Left <= Position.x && Position.x <= Rect.Left+Rect.Width &&
-		   Rect.Top  <= Position.y && Position.y <= Rect.Top+Rect.Height;
+V2 LeftTop(Rect rect) {
+	return V2(rect.left, rect.top);
 }
 
-V2 LeftTop(rectangle Rect) {
-	return V2(Rect.Left, Rect.Top);
+V2 Center(Rect rect) {
+	return V2(rect.left + 0.5f * rect.width, rect.top  + 0.5f * rect.height);
 }
 
-V2 Center(rectangle Rect) {
-	return V2(Rect.Left + 0.5f * Rect.Width, Rect.Top  + 0.5f * Rect.Height);
-}
-
-bool Intersect(rectangle Rect1, rectangle Rect2) {
-	V2 C1 = Center(Rect1);
-	V2 C2 = Center(Rect2);
-	return fabsf(C1.x - C2.x) < 0.5f * (Rect1.Width  + Rect2.Width) && 
-	       fabsf(C1.y - C2.y) < 0.5f * (Rect1.Height + Rect2.Height);
+bool Intersect(Rect rect1, Rect rect2) {
+	V2 C1 = Center(rect1);
+	V2 C2 = Center(rect2);
+	return fabsf(C1.x - C2.x) < 0.5f * (rect1.width  + rect2.width) && 
+	       fabsf(C1.y - C2.y) < 0.5f * (rect1.height + rect2.height);
 }
 
 struct vector_plane {
 	V3 Normal;
 };
 
-vector_plane VectorPlane(V3 Normal) {
-	return { normalize(Normal) };
+vector_plane VectorPlane(V3 normal) {
+	return { normalize(normal) };
 }
 
 struct affine_plane {
@@ -2006,100 +2011,100 @@ inline float Distance(affine_plane Plane, V3 Point) {
 // | Colliders                                                                                                                                    |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-enum collider_type {
+enum Collider_Type {
     Rect_Collider,
     Cube_Collider,
     Sphere_Collider,
 	Capsule_Collider
 };
 
-struct collider {
-    collider_type Type;
-    V3 Offset;
+struct Collider {
+    Collider_Type type;
+    V3 offset;
     union {
 		struct {
-			float HalfWidth;
-			float HalfHeight;
-		} Rect;
+			float half_width;
+			float half_height;
+		} rect;
 		struct {
-			float HalfWidth;
-			float HalfHeight;
-			float HalfDepth;
-		} Cube;
+			float half_width;
+			float half_height;
+			float half_depth;
+		} cube;
 		struct {
-			float Radius;
-		} Sphere;
+			float radius;
+		} sphere;
 		struct {
-			Segment3 Segment;
-			float Distance;
-		} Capsule;
+			Segment3 segment;
+			float distance;
+		} capsule;
 	};
 };
 
-collider RectCollider(V2 Offset, float Width, float Height) {
-	collider result = {};
-	result.Type = Rect_Collider;
-	result.Offset = V3(Offset.x, Offset.y, 0);
-	result.Rect.HalfWidth = 0.5f * Width;
-	result.Rect.HalfHeight = 0.5f * Height;
+Collider RectCollider(V2 offset, float width, float height) {
+	Collider result = {};
+	result.type = Rect_Collider;
+	result.offset = V3(offset.x, offset.y, 0);
+	result.rect.half_width = 0.5f * width;
+	result.rect.half_height = 0.5f * height;
 	return result;
 }
 
-rectangle Rectangle(collider Collider) {
-	Assert(Collider.Type == Rect_Collider);
+Rect GetRect(Collider collider) {
+	Assert(collider.type == Rect_Collider);
 	return {
-		Collider.Offset.x - Collider.Rect.HalfWidth,
-		Collider.Offset.y - Collider.Rect.HalfHeight,
-		2.0f * Collider.Rect.HalfWidth,
-		2.0f * Collider.Rect.HalfHeight
+		collider.offset.x - collider.rect.half_width,
+		collider.offset.y - collider.rect.half_height,
+		2.0f * collider.rect.half_width,
+		2.0f * collider.rect.half_height
 	};
 }
 
-collider CubeCollider(V3 Offset, float Width, float Height, float Depth) {
-	collider result = {};
-	result.Type = Cube_Collider;
-	result.Offset = Offset;
-	result.Cube.HalfWidth = 0.5f * Width;
-	result.Cube.HalfHeight = 0.5f * Height;
-	result.Cube.HalfDepth = 0.5f * Depth;
+Collider CubeCollider(V3 offset, float width, float height, float depth) {
+	Collider result = {};
+	result.type = Cube_Collider;
+	result.offset = offset;
+	result.cube.half_width = 0.5f * width;
+	result.cube.half_height = 0.5f * height;
+	result.cube.half_depth = 0.5f * depth;
 	return result;
 }
 
-collider SphereCollider(V3 Offset, float Radius) {
-	collider result = {};
-	result.Type = Sphere_Collider;
-	result.Offset = Offset;
-	result.Sphere.Radius = Radius;
+Collider SphereCollider(V3 offset, float radius) {
+	Collider result = {};
+	result.type = Sphere_Collider;
+	result.offset = offset;
+	result.sphere.radius = radius;
 	return result;
 }
 
-collider CapsuleCollider(V3 Head, V3 Tail, float Distance) {
-	collider result = {};
-	result.Type = Capsule_Collider;
-	result.Offset = 0.5f * (Head + Tail);
-	result.Capsule.Segment = {Head, Tail};
-	result.Capsule.Distance = Distance;
+Collider CapsuleCollider(V3 head, V3 tail, float distance) {
+	Collider result = {};
+	result.type = Capsule_Collider;
+	result.offset = 0.5f * (head + tail);
+	result.capsule.segment = {head, tail};
+	result.capsule.distance = distance;
 	return result;
 }
 
-inline collider operator*(Transform T, collider C) {
-	switch(C.Type) {
+inline Collider operator*(Transform T, Collider C) {
+	switch(C.type) {
         case Rect_Collider: {
             V3 Displacement = T.translation;
 			Displacement.z = 0;
-			C.Offset += Displacement;
+			C.offset += Displacement;
 			return C;
         } break;
 
 		case Sphere_Collider:
         case Cube_Collider: {
             V3 Displacement = T.translation;
-			C.Offset += Displacement;
+			C.offset += Displacement;
 			return C;
         } break;
 
 		case Capsule_Collider: {
-			C.Capsule.Segment = T * C.Capsule.Segment;
+			C.capsule.segment = T * C.capsule.segment;
 			return C;
 		} break;
 
@@ -2108,25 +2113,25 @@ inline collider operator*(Transform T, collider C) {
 	return C;
 }
 
-bool Collide(collider Collider, V3 Position) {
-    switch(Collider.Type) {
+bool Collide(Collider collider, V3 position) {
+    switch(collider.type) {
         case Rect_Collider: {
-            return fabsf(Position.x - Collider.Offset.x) <= Collider.Rect.HalfWidth &&
-                   fabsf(Position.y - Collider.Offset.y) <= Collider.Rect.HalfHeight;
+            return fabsf(position.x - collider.offset.x) <= collider.rect.half_width &&
+                   fabsf(position.y - collider.offset.y) <= collider.rect.half_height;
         } break;
 
         case Cube_Collider: {
-            return fabsf(Position.x - Collider.Offset.x) <= Collider.Cube.HalfWidth &&
-                   fabsf(Position.y - Collider.Offset.y) <= Collider.Cube.HalfHeight &&
-                   fabsf(Position.z - Collider.Offset.z) <= Collider.Cube.HalfDepth;
+            return fabsf(position.x - collider.offset.x) <= collider.cube.half_width &&
+                   fabsf(position.y - collider.offset.y) <= collider.cube.half_height &&
+                   fabsf(position.z - collider.offset.z) <= collider.cube.half_depth;
         } break;
 
         case Sphere_Collider: {
-            return dot(Position - Collider.Offset, Position - Collider.Offset) <= Collider.Sphere.Radius * Collider.Sphere.Radius;
+            return dot(position - collider.offset, position - collider.offset) <= collider.sphere.radius * collider.sphere.radius;
         } break;
 
 		case Capsule_Collider: {
-			return SqDistance(Collider.Capsule.Segment, Position) <= Collider.Capsule.Distance * Collider.Capsule.Distance;
+			return SqDistance(collider.capsule.segment, position) <= collider.capsule.distance * collider.capsule.distance;
 		} break;
 
 		default: Assert(false);
@@ -2134,57 +2139,57 @@ bool Collide(collider Collider, V3 Position) {
     return false;
 }
 
-bool Collide(collider Collider1, collider Collider2) {
-	if (Collider1.Type == Collider2.Type) {
-		switch(Collider1.Type) {
+bool Collide(Collider collider1, Collider collider2) {
+	if (collider1.type == collider2.type) {
+		switch(collider1.type) {
 			case Rect_Collider: {
-				return Intersect(Rectangle(Collider1), Rectangle(Collider2));
+				return Intersect(GetRect(collider1), GetRect(collider2));
 			} break;
 			case Cube_Collider: {
-				float x[2] = { Collider1.Offset.x - Collider1.Cube.HalfWidth,  Collider1.Offset.x + Collider1.Cube.HalfWidth };
-				float y[2] = { Collider1.Offset.y - Collider1.Cube.HalfHeight, Collider1.Offset.y + Collider1.Cube.HalfHeight };
-				float z[2] = { Collider1.Offset.z - Collider1.Cube.HalfDepth,  Collider1.Offset.z + Collider1.Cube.HalfDepth };
+				float x[2] = { collider1.offset.x - collider1.cube.half_width,  collider1.offset.x + collider1.cube.half_width };
+				float y[2] = { collider1.offset.y - collider1.cube.half_height, collider1.offset.y + collider1.cube.half_height };
+				float z[2] = { collider1.offset.z - collider1.cube.half_depth,  collider1.offset.z + collider1.cube.half_depth };
 				for (int i = 0; i < 2; i++) 
 				for (int j = 0; j < 2; j++) 
 				for (int k = 0; k < 2; k++) {
-					if (Collide(Collider2, V3(x[i], y[j], z[k]))) return true;
+					if (Collide(collider2, V3(x[i], y[j], z[k]))) return true;
 				}
 				return false;
 			} break;
 			case Sphere_Collider: {
-				float SumRadii = Collider1.Sphere.Radius + Collider2.Sphere.Radius;
-				V3 r = Collider2.Offset - Collider1.Offset;
+				float SumRadii = collider1.sphere.radius + collider2.sphere.radius;
+				V3 r = collider2.offset - collider1.offset;
 				return dot(r, r) <= SumRadii * SumRadii;
 			} break;
 			case Capsule_Collider: {
-				float SumDistance = Collider1.Capsule.Distance + Collider1.Capsule.Distance;
-				return SqDistance(Collider1.Capsule.Segment, Collider2.Capsule.Segment) <= SumDistance * SumDistance;
+				float SumDistance = collider1.capsule.distance + collider1.capsule.distance;
+				return SqDistance(collider1.capsule.segment, collider2.capsule.segment) <= SumDistance * SumDistance;
 			} break;
 			default: Assert(false);
 		}
 	}
 	else {
-		if (Collider1.Type > Collider2.Type) {
-			collider C = Collider2;
-			Collider2 = Collider1;
-			Collider1 = C;
+		if (collider1.type > collider2.type) {
+			Collider C = collider2;
+			collider2 = collider1;
+			collider1 = C;
 		}
-		Assert(Collider1.Type != Rect_Collider);
-		switch (Collider1.Type) {
+		Assert(collider1.type != Rect_Collider);
+		switch (collider1.type) {
 			case Cube_Collider: {
 				Assert(false);
-				if (Collider2.Type == Sphere_Collider) {
+				if (collider2.type == Sphere_Collider) {
 
 				}
-				else if (Collider2.Type == Capsule_Collider) {
+				else if (collider2.type == Capsule_Collider) {
 
 				}
 			} break;
 
 			case Sphere_Collider: {
-				Assert(Collider2.Type == Capsule_Collider);
-				float SumDistances = Collider1.Sphere.Radius + Collider2.Capsule.Distance;
-				return SqDistance(Collider2.Capsule.Segment, Collider1.Offset) <= SumDistances * SumDistances;
+				Assert(collider2.type == Capsule_Collider);
+				float SumDistances = collider1.sphere.radius + collider2.capsule.distance;
+				return SqDistance(collider2.capsule.segment, collider1.offset) <= SumDistances * SumDistances;
 			} break;
 
 			default: Assert(false);
@@ -2264,20 +2269,20 @@ bool HitBoundingBox(float minB[3], float maxB[3], float origin[3], float dir[3],
     return true;				/* ray hits box */
 }
 
-bool Raycast(Ray ray, collider Collider) {
-	switch(Collider.Type) {
+bool Raycast(Ray ray, Collider collider) {
+	switch(collider.type) {
 		case Rect_Collider: {
-			return IsIn(Rectangle(Collider), V2(ray.point.x, ray.point.y));
+			return IsIn(GetRect(collider), V2(ray.point.x, ray.point.y));
 		} break;
 		case Cube_Collider: {
 			float minB[3] = { 0 };
-			minB[0] = Collider.Offset.x - Collider.Cube.HalfWidth / 2.0f;
-			minB[1] = Collider.Offset.y - Collider.Cube.HalfHeight / 2.0f;
-			minB[2] = Collider.Offset.z - Collider.Cube.HalfDepth / 2.0f;
+			minB[0] = collider.offset.x - collider.cube.half_width / 2.0f;
+			minB[1] = collider.offset.y - collider.cube.half_height / 2.0f;
+			minB[2] = collider.offset.z - collider.cube.half_depth / 2.0f;
 			float maxB[3] = { 0 };
-			maxB[0] = Collider.Offset.x + Collider.Cube.HalfWidth / 2.0f;
-			maxB[1] = Collider.Offset.y + Collider.Cube.HalfHeight / 2.0f;
-			maxB[2] = Collider.Offset.z + Collider.Cube.HalfDepth / 2.0f;
+			maxB[0] = collider.offset.x + collider.cube.half_width / 2.0f;
+			maxB[1] = collider.offset.y + collider.cube.half_height / 2.0f;
+			maxB[2] = collider.offset.z + collider.cube.half_depth / 2.0f;
 			float origin[3] = { ray.point.x, ray.point.y, ray.point.z };
 			float dir[3] = { ray.direction.x, ray.direction.y, ray.direction.z };
 			float coord[3] = { 0,0,0 };
@@ -2285,12 +2290,12 @@ bool Raycast(Ray ray, collider Collider) {
 			return HitBoundingBox(minB, maxB, origin, dir, coord);
 		} break;
 		case Sphere_Collider: {
-			float R = Collider.Sphere.Radius;
-			return SqDistance(ray, Collider.Offset) < R*R;
+			float R = collider.sphere.radius;
+			return SqDistance(ray, collider.offset) < R*R;
 		} break;
 		case Capsule_Collider: {
-			float R = Collider.Capsule.Distance;
-			return SqDistance(Collider.Capsule.Segment, ray) < R*R;
+			float R = collider.capsule.distance;
+			return SqDistance(collider.capsule.segment, ray) < R*R;
 		} break;
 		default: Assert(false);
 	}

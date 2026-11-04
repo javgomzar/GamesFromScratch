@@ -9,7 +9,7 @@
 // | Entities                                                                                                                                     |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-ENUM(game_entity_type,
+ENUM(Entity_type,
     Character_Entity_Type,
     Enemy_Entity_Type,
     Camera_Entity_Type,
@@ -17,62 +17,60 @@ ENUM(game_entity_type,
     Weapon_Entity_Type
 );
 
-FLAGS(entity_flag,
-    render,
-    movable,
-    animated
+FLAGS(Entity_Flag,
+    Render,
+    Movable,
+    Animated
 );
 
-INTROSPECT
-struct game_entity {
-    char Name[32];
-    uint32 Index;
-    entity_flag Flags = entity_flag::none;
-    game_entity_type Type;
-    game_entity* Parent = nullptr;
-    game_entity* Follow = nullptr;
-    collider Collider = SphereCollider(V3(0,0,0), 1.0f);
+struct Entity {
+    String name;
+    Entity_Flag flags = Entity_Flag::none;
+    Entity_type type;
+    Entity* parent = nullptr;
+    Entity* follow = nullptr;
+    Collider collider = SphereCollider(V3(0,0,0), 1.0f);
     Color color = Color::WHITE;
 
-    transform Transform = IdentityTransform;
-    v3 Velocity = V3(0,0,0);
-    v3 AngularVelocity = V3(0,0,0);
+    Transform transform = IdentityTransform;
+    V3 velocity = V3(0,0,0);
+    V3 angular_velocity = V3(0,0,0);
 
     // Rendering
-    Mesh* Mesh = nullptr;
+    Mesh* mesh = nullptr;
     Texture* texture = nullptr;
 
     // View
-    v3 Anchor = V3(0,0,0);
-    float Distance = 0.0f;
-    float Angle = 0.0f;
-    float Pitch = 0.0f;
+    V3 anchor = V3(0,0,0);
+    float distance = 0.0f;
+    float angle = 0.0f;
+    float pitch = 0.0f;
 
     // Combat
-    game_entity* LeftHand = nullptr;
-    game_entity* RightHand = nullptr;
+    Entity* left_hand = nullptr;
+    Entity* right_hand = nullptr;
 
-    bool Collided = false;
-    bool Active = false;
-    bool Hovered = false;
+    bool collided = false;
+    bool active = false;
+    bool hovered = false;
 };
 
-uint32 EntitySize = sizeof(game_entity);
+uint32 EntitySize = sizeof(Entity);
 
-bool Collide(game_entity* Entity1, game_entity* Entity2) {
-    collider Collider1 = Entity1->Collider;
-    Collider1.Offset += Entity1->Transform.Translation;
-    if (Collider1.Type == Capsule_Collider) {
-        Collider1.Capsule.Segment = Entity1->Transform * Collider1.Capsule.Segment;
+bool Collide(Entity* entity1, Entity* entity2) {
+    Collider collider1 = entity1->collider;
+    collider1.offset += entity1->transform.translation;
+    if (collider1.type == Capsule_Collider) {
+        collider1.capsule.segment = entity1->transform * collider1.capsule.segment;
     }
-    collider Collider2 = Entity2->Collider;
-    Collider2.Offset += Entity2->Transform.Translation;
-    if (Collider2.Type == Capsule_Collider) {
-        Collider2.Capsule.Segment = Entity2->Transform * Collider2.Capsule.Segment;
+    Collider Collider2 = entity2->collider;
+    Collider2.offset += entity2->transform.translation;
+    if (Collider2.type == Capsule_Collider) {
+        Collider2.capsule.segment = entity2->transform * Collider2.capsule.segment;
     }
-    if (Collide(Collider1, Collider2)) {
-        Entity1->Collided = true;
-        Entity2->Collided = true;
+    if (Collide(collider1, Collider2)) {
+        entity1->collided = true;
+        entity2->collided = true;
         return true;
     }
     return false;
@@ -89,51 +87,51 @@ bool Collide(game_entity* Entity1, game_entity* Entity2) {
         - The Z axis is back to front.
     Note that this basis is left-handed.
 */
-basis GetCameraBasis(float Angle, float Pitch) {
-    float cosA = cosf(Angle * Degrees);
-    float sinA = sinf(Angle * Degrees);
-    float cosP = cosf(Pitch * Degrees);
-    float sinP = sinf(Pitch * Degrees);
+Basis GetCameraBasis(float Angle, float Pitch) {
+    float cosA = cosf(Angle * DEGREES);
+    float sinA = sinf(Angle * DEGREES);
+    float cosP = cosf(Pitch * DEGREES);
+    float sinP = sinf(Pitch * DEGREES);
 
-    basis Result;
-    Result.X = V3(        cosA,  0.0,        -sinA);
-    Result.Y = V3(-sinA * sinP, cosP, -cosA * sinP);
-    Result.Z = V3(-sinA * cosP,-sinP, -cosA * cosP);
+    Basis Result;
+    Result.x = V3(        cosA,  0.0,        -sinA);
+    Result.y = V3(-sinA * sinP, cosP, -cosA * sinP);
+    Result.z = V3(-sinA * cosP,-sinP, -cosA * cosP);
     return Result;
 }
 
-matrix4 GetViewMatrix(matrix3 Basis, float Distance, v3 Position) {
-	Basis = transpose(Basis);
+Matrix4 GetViewMatrix(Matrix3 basis, float distance, V3 position) {
+	basis = transpose(basis);
 
-	v3 Translation = V3(0, 0, Distance) - Position * Basis;
-	matrix4 Result;
-	Result.X = V4(Basis.X, 0);
-	Result.Y = V4(Basis.Y, 0);
-	Result.Z = V4(Basis.Z, 0);
-	Result.W = V4(Translation, 1);
+	V3 translation = V3(0, 0, distance) - position * basis;
+	Matrix4 result;
+	result.x = BuildV4(basis.x, 0);
+	result.y = BuildV4(basis.y, 0);
+	result.z = BuildV4(basis.z, 0);
+	result.w = BuildV4(translation, 1);
 
-	return Result;
+	return result;
 }
 
-v2 GetScreenPosition(float ScreenWidth, float ScreenHeight, matrix4 View, v3 WorldPosition) {
-    v4 Point = V4(WorldPosition, 1);
-    matrix4 Projection = GetWorldProjectionMatrix(ScreenWidth, ScreenHeight);
-    v4 ViewPoint = Point * View * Projection;
-    float Factor = ViewPoint.W == 0 ? 0 : 1.0f/ViewPoint.W;
-    v2 DevicePoint = Factor * V2(ViewPoint.X, ViewPoint.Y);
-    v2 ScreenPoint = V2(
-        0.5f * (1.0f + DevicePoint.X) * ScreenWidth,
-        0.5f * (1.0f - DevicePoint.Y) * ScreenHeight
+V2 GetScreenPosition(float ScreenWidth, float ScreenHeight, Matrix4 View, V3 WorldPosition) {
+    V4 Point = BuildV4(WorldPosition, 1);
+    Matrix4 Projection = GetWorldProjectionMatrix(ScreenWidth, ScreenHeight);
+    V4 ViewPoint = Point * View * Projection;
+    float Factor = ViewPoint.w == 0 ? 0 : 1.0f/ViewPoint.w;
+    V2 DevicePoint = Factor * V2(ViewPoint.x, ViewPoint.y);
+    V2 ScreenPoint = V2(
+        0.5f * (1.0f + DevicePoint.x) * ScreenWidth,
+        0.5f * (1.0f - DevicePoint.y) * ScreenHeight
     );
     return ScreenPoint;
 }
 
-ray MouseRay(float Width, float Height, v3 CameraPosition, basis CameraBasis, v2 Mouse) {
-	v3 Direction =
-        (2.0 * Mouse.X / Width - 1.0) *    CameraBasis.X +
-        (Height - 2.0 * Mouse.Y) / Width * CameraBasis.Y + 
-                                           CameraBasis.Z;
-	ray Result = Ray(CameraPosition, Direction);
+Ray MouseRay(float Width, float Height, V3 CameraPosition, Basis CameraBasis, V2 Mouse) {
+	V3 Direction =
+        (2.0 * Mouse.x / Width - 1.0) *    CameraBasis.x +
+        (Height - 2.0 * Mouse.y) / Width * CameraBasis.y + 
+                                           CameraBasis.z;
+	Ray Result = BuildRay(CameraPosition, Direction);
 	return Result;
 }
 
@@ -141,14 +139,14 @@ ray MouseRay(float Width, float Height, v3 CameraPosition, basis CameraBasis, v2
 // | Weapons                                                                                                                                      |
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 
-transform WeaponTransforms[] = {
+Transform WeaponTransforms[] = {
     GetTransform(
-        V3(0.5f,2.0f,0),
-        Quaternion(-0.25f * Tau, V3(0,1,0)) * Quaternion(-0.25f * Tau, V3(1,0,0))
+        BuildV3(0.5f,2.0f,0),
+        BuildQuaternion(-0.25f * TAU, BuildV3(0,1,0)) * BuildQuaternion(-0.25f * TAU, V3(1,0,0))
     ),
     GetTransform(
-        V3(-0.7f,2.2f,0),
-        Quaternion(0.5f * Tau, V3(0,0,1)) * Quaternion(0.25f * Tau, V3(1,0,0))
+        BuildV3(-0.7f,2.2f,0),
+        BuildQuaternion(0.5f * TAU, BuildV3(0,0,1)) * BuildQuaternion(0.25f * TAU, V3(1,0,0))
     ),
 };
 
@@ -165,98 +163,98 @@ ENUM(character_action_id,
 
 struct character_action {
     character_action_id ID;
-    game_animation* Animation;
+    Animation* animation;
     bool Loop;
 };
 
-character_action GetCharacterAction(Asset_Manager* manager, character_action_id ID) {
-    character_action Result = {};
-    Result.ID = ID;
+// character_action GetCharacterAction(Asset_Manager* manager, character_action_id ID) {
+//     character_action Result = {};
+//     Result.ID = ID;
 
-    switch(ID) {
-        case Character_Action_Idle_ID: {
-            Result.Animation = GetAnimation(manager, "Idle");
-            Result.Loop = true;
-        } break;
-        case Character_Action_Walk_ID: {
-            Result.Animation = GetAnimation(manager, "Walk");
-            Result.Loop = true;
-        } break;
-        case Character_Action_Jump_ID: {
-            Result.Animation = GetAnimation(manager, "Jump");
-        } break;
-        case Character_Action_Attack_ID: {
-            Result.Animation = GetAnimation(manager, "Attack");
-        } break;
-        default: Assert(false);
-    }
+//     switch(ID) {
+//         case Character_Action_Idle_ID: {
+//             Result.animation = GetAnimation(manager, "Idle");
+//             Result.Loop = true;
+//         } break;
+//         case Character_Action_Walk_ID: {
+//             Result.animation = GetAnimation(manager, "Walk");
+//             Result.Loop = true;
+//         } break;
+//         case Character_Action_Jump_ID: {
+//             Result.animation = GetAnimation(manager, "Jump");
+//         } break;
+//         case Character_Action_Attack_ID: {
+//             Result.animation = GetAnimation(manager, "Attack");
+//         } break;
+//         default: Assert(false);
+//     }
 
-    return Result;
-}
+//     return Result;
+// }
 
-character_action GetCharacterAction(
-    character_action CurrentAction, 
-    Asset_Manager* manager,
-    game_animator* Animator, 
-    game_input* Input
-) {
-    bool JumpingInput = Input->Mode == Keyboard && Input->Keyboard.Space.JustPressed ||
-                        Input->Mode == Controller && Input->Controller.BButton.JustPressed;
+// character_action GetCharacterAction(
+//     character_action CurrentAction, 
+//     Asset_Manager* manager,
+//     Animator* animator, 
+//     Input* input
+// ) {
+//     bool JumpingInput = input->mode == Keyboard && input->keyboard.space.just_pressed ||
+//                         input->mode == Controller && input->controller.B_button.just_pressed;
 
-    bool AttackInput = Input->Mode == Keyboard && Input->Keyboard.E.JustPressed ||
-                       Input->Mode == Controller && Input->Controller.XButton.JustPressed;
+//     bool AttackInput = input->mode == Keyboard && input->keyboard.E.just_pressed ||
+//                        input->mode == Controller && input->controller.X_button.just_pressed;
 
-    bool KeyboardMoving = Input->Keyboard.W.IsDown != Input->Keyboard.S.IsDown ||
-                          Input->Keyboard.A.IsDown != Input->Keyboard.D.IsDown;
-    bool ControllerMoving = fabs(Input->Controller.LeftJoystick.X) > 0.1 || fabs(Input->Controller.LeftJoystick.Y) > 0.1;
-    bool MovingInput = (Input->Mode == Keyboard && KeyboardMoving) ||
-                       (Input->Mode == Controller && ControllerMoving);
+//     bool KeyboardMoving = input->keyboard.W.is_down != input->keyboard.S.is_down ||
+//                           input->keyboard.A.is_down != input->keyboard.D.is_down;
+//     bool ControllerMoving = fabs(input->controller.left_joystick.x) > 0.1 || fabs(input->controller.left_joystick.y) > 0.1;
+//     bool MovingInput = (input->mode == Keyboard && KeyboardMoving) ||
+//                        (input->mode == Controller && ControllerMoving);
 
-    character_action Result = CurrentAction;
+//     character_action Result = CurrentAction;
 
-    switch(CurrentAction.ID) {
-        case Character_Action_Idle_ID: {
-            Animator->Active = true;
-            if (JumpingInput || MovingInput || AttackInput) {
-                Animator->CurrentFrame = 0;
-            }
+//     switch(CurrentAction.ID) {
+//         case Character_Action_Idle_ID: {
+//             animator->Active = true;
+//             if (JumpingInput || MovingInput || AttackInput) {
+//                 animator->CurrentFrame = 0;
+//             }
 
-            if     (JumpingInput) Result = GetCharacterAction(manager, Character_Action_Jump_ID);
-            else if (MovingInput) Result = GetCharacterAction(manager, Character_Action_Walk_ID);
-            else if (AttackInput) Result = GetCharacterAction(manager, Character_Action_Attack_ID);
-        } break;
-        case Character_Action_Walk_ID: {
-            if (JumpingInput) {
-                Result = GetCharacterAction(manager, Character_Action_Jump_ID);
-                Animator->CurrentFrame = 0;
-            }
-            else if (AttackInput) {
-                Result = GetCharacterAction(manager, Character_Action_Attack_ID);
-                Animator->CurrentFrame = 0;
-            }
-            else if (!MovingInput) {
-                Animator->Active = false;
-                Result = GetCharacterAction(manager, Character_Action_Idle_ID);
-            }
-        } break;
-        case Character_Action_Jump_ID: {
-            if (!Animator->Active) {
-                Result = GetCharacterAction(manager, Character_Action_Idle_ID);
-                Animator->CurrentFrame = 0;
-            }
-        } break;
-        case Character_Action_Attack_ID: {
-            if (!Animator->Active) {
-                Result = GetCharacterAction(manager, Character_Action_Idle_ID);
-                Animator->CurrentFrame = 0;
-            }
-        } break;
-        default: Raise("Invalid character action");
-    }
+//             if     (JumpingInput) Result = GetCharacterAction(manager, Character_Action_Jump_ID);
+//             else if (MovingInput) Result = GetCharacterAction(manager, Character_Action_Walk_ID);
+//             else if (AttackInput) Result = GetCharacterAction(manager, Character_Action_Attack_ID);
+//         } break;
+//         case Character_Action_Walk_ID: {
+//             if (JumpingInput) {
+//                 Result = GetCharacterAction(manager, Character_Action_Jump_ID);
+//                 animator->CurrentFrame = 0;
+//             }
+//             else if (AttackInput) {
+//                 Result = GetCharacterAction(manager, Character_Action_Attack_ID);
+//                 animator->CurrentFrame = 0;
+//             }
+//             else if (!MovingInput) {
+//                 animator->Active = false;
+//                 Result = GetCharacterAction(manager, Character_Action_Idle_ID);
+//             }
+//         } break;
+//         case Character_Action_Jump_ID: {
+//             if (!animator->Active) {
+//                 Result = GetCharacterAction(manager, Character_Action_Idle_ID);
+//                 animator->CurrentFrame = 0;
+//             }
+//         } break;
+//         case Character_Action_Attack_ID: {
+//             if (!animator->Active) {
+//                 Result = GetCharacterAction(manager, Character_Action_Idle_ID);
+//                 animator->CurrentFrame = 0;
+//             }
+//         } break;
+//         default: Raise("Invalid character action");
+//     }
 
-    Animator->Loop = Result.Loop;
-    return Result;
-}
+//     animator->Loop = Result.Loop;
+//     return Result;
+// }
 /*
 +----------------------------------------------------------------------------------------------------------------------------------------------+
 | Game state                                                                                                                                   |
@@ -264,56 +262,55 @@ character_action GetCharacterAction(
 */
 const int MAX_ENTITIES = 128;
 
-struct game_state {
-    free_list<game_entity> Entities;
-    particle_emitter* Emitter;
-    game_entity* ActiveCamera;
+struct State {
+    Free_List<Entity> entities;
+    particle_emitter* emitter;
+    Entity* active_camera;
     double dt;
-    float Time;
-    bool Exit;
+    float time;
+    bool exit;
 };
 
-game_entity CreateEntity(
-    const char* Name, 
-    game_entity_type Type, 
-    Mesh* Mesh = nullptr,
-    bool Active = true
+Entity CreateEntity(
+    const char* name, 
+    Entity_type type, 
+    Mesh* mesh = nullptr,
+    bool active = true
 ) {
-    game_entity Entity;
+    Entity entity;
 
-    strcpy(Entity.Name, Name);
-    Entity.Type = Type;
-    Entity.Active = Active;
-    Entity.Mesh = Mesh;
+    // strcpy(entity.name, name);
+    entity.type = type;
+    entity.active = active;
+    entity.mesh = mesh;
 
-    switch(Type) {
+    switch(type) {
         case Camera_Entity_Type: {
-            Entity.Angle = 0;
-            Entity.Pitch = 0;
-            Entity.Distance = 10.0f;
+            entity.angle = 0;
+            entity.pitch = 0;
+            entity.distance = 10.0f;
         } break;
         case Character_Entity_Type: {
-            Entity.Flags = entity_flag::render | entity_flag::movable | entity_flag::animated;
+            entity.flags = Entity_Flag::Render | Entity_Flag::Movable | Entity_Flag::Animated;
         } break;
         case Prop_Entity_Type: {
-            Entity.Flags = entity_flag::render;
+            entity.flags = Entity_Flag::Render;
         } break;
         case Weapon_Entity_Type: {
-            Entity.Flags = entity_flag::render;
+            entity.flags = Entity_Flag::Render;
         } break;
         default: {
             Raise("Invalid entity type.");
         }
     }
 
-    return Entity;
+    return entity;
 }
 
-game_entity* AddEntity(free_list<game_entity>& Entities, game_entity Entity) {
-    uint32 Index = Entities.Insert(Entity);
-    game_entity* Result = &Entities[Index];
-    Result->Index = Index;
-    return Result;
+Entity* AddEntity(Free_List<Entity>& entities, Entity entity) {
+    uint32 index = entities.Insert(entity);
+    Entity* result = &entities[index];
+    return result;
 }
 
 #endif

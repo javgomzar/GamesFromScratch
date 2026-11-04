@@ -4,6 +4,7 @@
 #include "GamePlatform.h"
 #include "GameMath.h"
 #include "tokenizer.h"
+#include "parse.h"
 #include "GameAsset.h"
 
 
@@ -21,6 +22,33 @@ ENUM(Vertex_Type,
     Vertex_Type_Matrix3,
     Vertex_Type_Matrix4
 );
+
+ENUM(Vertex_ID,
+    Vertex_Position_ID,
+    Vertex_Joint_ID,
+    Vertex_Surface_ID,
+    Vertex_Text_ID
+);
+
+typedef V3 Vertex_Position;
+
+struct Vertex_Joint {
+    IV4 joints;
+    V4 weights;
+};
+
+struct Vertex_Surface {
+    Color color;
+    V3 normal;
+    V2 texture;
+};
+
+struct Vertex_Text {
+    Color color;
+    V2 pen;
+    float depth;
+    float size;
+};
 
 bool IsFloatType(Vertex_Type type) {
     return 
@@ -59,8 +87,8 @@ uint32 GetVertexTypeSizeInBytes(Vertex_Type type) {
     return 0;
 }
 
-// Returns number of elements for a given shader type. For example, output is 3 for type `vec3`.
-int GetVertexTypeSize(Vertex_Type type) {
+// Returns number of components for a given shader type. For example, returns 3 for type `vec3`.
+int GetVertexTypeComponents(Vertex_Type type) {
     switch (type) {
         case Vertex_Type_float: { return 1; } break;
         case Vertex_Type_V2:  { return 2; } break;
@@ -93,20 +121,9 @@ bool operator!=(Vertex_Attribute attribute1, Vertex_Attribute attribute2) {
         attribute1.offset != attribute2.offset;
 }
 
-ENUM(Vertex_Layout_ID,
-    Vertex_Layout_V2_id,
-    Vertex_Layout_V2_V2_id,
-    Vertex_Layout_V3_id,
-    Vertex_Layout_V3_V2_id,
-    Vertex_Layout_V3_V2_V3_id,
-    Vertex_Layout_V3_V4_id,
-    Vertex_Layout_V4_id,
-    Vertex_Layout_bones_id
-);
-
-const uint8 MAX_VERTEX_ATTRIBUTES = 16;
+const uint8 MAX_VERTEX_ATTRIBUTES = 8;
 struct Vertex_Layout {
-    Vertex_Layout_ID id;
+    Vertex_ID id;
     Vertex_Attribute attributes[MAX_VERTEX_ATTRIBUTES];
     uint32 stride;
     uint8 attribute_count;
@@ -121,7 +138,7 @@ void AddAttribute(Vertex_Layout* Vertex_Layout, Vertex_Type type) {
     Vertex_Layout->stride += attribute->size;
 }
 
-Vertex_Layout VertexLayout(Vertex_Layout_ID id, int attribute_count, ...) {
+Vertex_Layout VertexLayout(Vertex_ID id, int attribute_count, ...) {
     Vertex_Layout result = {};
     result.id = id;
     result.stride = 0;
@@ -137,164 +154,101 @@ Vertex_Layout VertexLayout(Vertex_Layout_ID id, int attribute_count, ...) {
     return result;
 }
 
-Vertex_Layout VERTEX_LAYOUTS[Vertex_Layout_ID_count] = {
-    VertexLayout(Vertex_Layout_V2_id,       1, Vertex_Type_V2),
-    VertexLayout(Vertex_Layout_V2_V2_id,    2, Vertex_Type_V2, Vertex_Type_V2),
-    VertexLayout(Vertex_Layout_V3_id,       1, Vertex_Type_V3),
-    VertexLayout(Vertex_Layout_V3_V2_id,    2, Vertex_Type_V3, Vertex_Type_V2),
-    VertexLayout(Vertex_Layout_V3_V2_V3_id, 3, Vertex_Type_V3, Vertex_Type_V2, Vertex_Type_V3),
-    VertexLayout(Vertex_Layout_V3_V4_id,    2, Vertex_Type_V3, Vertex_Type_V4),
-    VertexLayout(Vertex_Layout_V4_id,       1, Vertex_Type_V4),
-    VertexLayout(Vertex_Layout_bones_id,    5, Vertex_Type_V3, Vertex_Type_V2, Vertex_Type_V3, Vertex_Type_IV2, Vertex_Type_V2),
+Vertex_Layout VERTEX_LAYOUTS[Vertex_ID_Count] = {
+    VertexLayout(Vertex_Position_ID, 1, Vertex_Type_V3),
+    VertexLayout(Vertex_Joint_ID,    2, Vertex_Type_V4, Vertex_Type_IV4),
+    VertexLayout(Vertex_Surface_ID,  3, Vertex_Type_V4, Vertex_Type_V3, Vertex_Type_V2),
+    VertexLayout(Vertex_Text_ID,     4, Vertex_Type_V4, Vertex_Type_V2, Vertex_Type_float, Vertex_Type_float),
 };
 
-bool FindCompatibleVertexLayout(Vertex_Layout vertex_layout, Vertex_Layout_ID* result = nullptr) {
-    for (int i = 0; i < Vertex_Layout_ID_count; i++) {
-        Vertex_Layout test_layout = VERTEX_LAYOUTS[i];
-        if (test_layout.attribute_count == vertex_layout.attribute_count) {
-            bool Compatible = true;
-            for (int j = 0; j < test_layout.attribute_count; j++) {
-                Vertex_Attribute attribute = test_layout.attributes[j];
-                Vertex_Attribute shader_attribute = vertex_layout.attributes[j];
+// bool FindCompatibleVertexLayout(Vertex_Layout vertex_layout, Vertex_Layout_ID* result = nullptr) {
+//     for (int i = 0; i < Vertex_Layout_ID_count; i++) {
+//         Vertex_Layout test_layout = VERTEX_LAYOUTS[i];
+//         if (test_layout.attribute_count == vertex_layout.attribute_count) {
+//             bool Compatible = true;
+//             for (int j = 0; j < test_layout.attribute_count; j++) {
+//                 Vertex_Attribute attribute = test_layout.attributes[j];
+//                 Vertex_Attribute shader_attribute = vertex_layout.attributes[j];
 
-                if (shader_attribute.type != Vertex_Type_empty && shader_attribute.type != attribute.type) {
-                    Compatible = false;
-                    break;
-                }
-            }
+//                 if (shader_attribute.type != Vertex_Type_empty && shader_attribute.type != attribute.type) {
+//                     Compatible = false;
+//                     break;
+//                 }
+//             }
 
-            if (Compatible) {
-                if (result) *result = test_layout.id;
-                return true;
-            }
-        }
-    }
+//             if (Compatible) {
+//                 if (result) *result = test_layout.id;
+//                 return true;
+//             }
+//         }
+//     }
 
-    result = nullptr;
-    return false;
-}
-
-
-constexpr memory_size VERTEX_BUFFER_SIZE = Kilobytes(64);
-constexpr memory_size INDEX_BUFFER_SIZE = Kilobytes(8);
+//     result = nullptr;
+//     return false;
+// }
 
 struct Vertex_Buffer_Entry {
     uint32 offset;
     uint32 count;
-    Vertex_Layout_ID layout_id;
     void* pointer;
 };
 
-typedef Vertex_Buffer_Entry Instance_Buffer_Entry;
-
-struct Element_Buffer_Entry {
-    uint32 offset;
-    uint32 count;
-    uint32* pointer;
-};
-
 struct Vertex_Buffer {
-    Arena vertices[Vertex_Layout_ID_count];
-    uint32 vertex_count[Vertex_Layout_ID_count];
-    Arena indices;
-    uint32 index_count;
+    Arena memory;
+    uint32 capacity;
+    uint32 vertex_count;
+    uint32 stride;
 };
 
-/* Initializes several vertex buffers and element buffers. Returns total memory used.*/
-inline memory_size InitializeVertexBuffer(Vertex_Buffer* buffer, Arena* arena) {
-    memory_size total_size = 0;
-    memory_size size = 0;
-
-    // Vertex buffers (one per layout)
-    for (int i = 0; i < Vertex_Layout_ID_count; i++) {
-        buffer->vertex_count[i] = 0;
-        size = VERTEX_BUFFER_SIZE;
-        buffer->vertices[i] = SuballocateMemoryArena(arena, size);
-
-        total_size += size;
+Vertex_Buffer_Entry PushVertices(Vertex_Buffer* buffer, uint64 count) {
+    if (buffer->vertex_count + count >= buffer->capacity) {
+        Log(Log_Level::Error, "Vertex buffer overflow");
+        return {};
     }
-
-    // Element buffers
-    buffer->index_count = 0;
-    size = INDEX_BUFFER_SIZE;
-    buffer->indices = SuballocateMemoryArena(arena, size);
-    total_size += size;
-
-    return total_size;
-}
-
-Vertex_Buffer_Entry PushVertexEntry(Vertex_Buffer* vertex_buffer, uint64 count, Vertex_Layout_ID layout_id) {
-    Arena* arena = &vertex_buffer->vertices[layout_id];
     
     Vertex_Buffer_Entry entry;
     entry.count = count;
-    entry.layout_id = layout_id;
-    entry.offset = vertex_buffer->vertex_count[layout_id];
-    
-    memory_size size = count * VERTEX_LAYOUTS[layout_id].stride;
-    void* destination = PushSize(arena, size);
-    entry.pointer = destination;
-
-    vertex_buffer->vertex_count[layout_id] += count;
+    entry.offset = buffer->vertex_count;
+    entry.pointer = PushSize(buffer->memory, count * buffer->stride);
+    buffer->vertex_count += count;
     return entry;
 }
 
-Element_Buffer_Entry PushElementEntry(Vertex_Buffer* vertex_buffer, uint64 index_count) {
-    Element_Buffer_Entry entry;
-    entry.count = index_count;
-    entry.offset = vertex_buffer->index_count;
-
-    memory_size size = index_count * sizeof(uint32);
-    void* destination = PushSize(&vertex_buffer->indices, size);
-    entry.pointer = (uint32*)destination;
-
-    vertex_buffer->index_count += index_count;
-    return entry;
+void ClearVertexBuffer(Vertex_Buffer& buffer) {
+    Clear(buffer.memory);
+    buffer.vertex_count = 0;
 }
 
-Instance_Buffer_Entry PushInstanceEntry(Vertex_Buffer* VertexBuffer, uint64 Count, Vertex_Layout_ID LayoutID) {
-    return PushVertexEntry(VertexBuffer, Count, LayoutID);
-}
+// const memory_size TEXT_BUFFER_SIZE = Kilobytes(16);
 
-void ClearVertexBuffer(Vertex_Buffer* buffer) {
-    for (int i = 0; i < Vertex_Layout_ID_count; i++) {
-        Clear(&buffer->vertices[i]);
-        buffer->vertex_count[i] = 0;
-    }
-    Clear(&buffer->indices);
-    buffer->index_count = 0;
-}
+// struct Text_Buffer {
+//     Font* font;
+//     Arena instances[FONT_CHARACTERS_COUNT];
+//     uint32 count[FONT_CHARACTERS_COUNT];
+// };
 
-const memory_size TEXT_BUFFER_SIZE = Kilobytes(16);
+// void InitializeTextBuffer(Arena* Arena, Text_Buffer* text_buffer) {
+//     for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+//         text_buffer->instances[c] = SuballocateMemoryArena(Arena, TEXT_BUFFER_SIZE);
+//         text_buffer->count[c] = 0;
+//     }
+// }
 
-struct Text_Buffer {
-    Font* font;
-    Arena instances[FONT_CHARACTERS_COUNT];
-    uint32 count[FONT_CHARACTERS_COUNT];
-};
+// void ClearTextBuffer(Text_Buffer* text_buffer) {
+//     for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
+//         Clear(&text_buffer->instances[c]);
+//         text_buffer->count[c] = 0;
+//     }
+// }
 
-void InitializeTextBuffer(Arena* Arena, Text_Buffer* text_buffer) {
-    for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
-        text_buffer->instances[c] = SuballocateMemoryArena(Arena, TEXT_BUFFER_SIZE);
-        text_buffer->count[c] = 0;
-    }
-}
-
-void ClearTextBuffer(Text_Buffer* text_buffer) {
-    for (int c = 0; c < FONT_CHARACTERS_COUNT; c++) {
-        Clear(&text_buffer->instances[c]);
-        text_buffer->count[c] = 0;
-    }
-}
-
-void PushTextEntry(Text_Buffer* text_buffer, Font* Font, char Char, V2 Pen, float Size, Color color = Color::WHITE) {
-    Arena* Arena = &text_buffer->instances[Char - '!'];
-    float* Data = PushArray(Arena, 7, float);
-    *Data++ = Pen.x; *Data++ = Pen.y;
-    *Data++ = Size;
-    *Data++ = color.R; *Data++ = color.G; *Data++ = color.B; *Data++ = color.A;
-    text_buffer->count[Char - '!']++;
-}
+// void PushTextEntry(Text_Buffer* text_buffer, Font* Font, char Char, V2 Pen, float Size, Color color = Color::WHITE) {
+//     Arena* Arena = &text_buffer->instances[Char - '!'];
+//     float* Data = PushArray(Arena, 7, float);
+//     *Data++ = Pen.x; *Data++ = Pen.y;
+//     *Data++ = Size;
+//     *Data++ = color.R; *Data++ = color.G; *Data++ = color.B; *Data++ = color.A;
+//     text_buffer->count[Char - '!']++;
+// }
 
 bool operator==(Vertex_Layout Layout1, Vertex_Layout Layout2) {
     if (Layout1.stride == Layout2.stride && Layout1.attribute_count == Layout2.attribute_count) {

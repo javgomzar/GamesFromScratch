@@ -7,108 +7,108 @@ int main(int argc, char* argv[]) {
 #if _WIN32
     LARGE_INTEGER perf_count_frequency_result;
     QueryPerformanceFrequency(&perf_count_frequency_result);
-    Platform.PerformanceCounterFrequency = perf_count_frequency_result.QuadPart;
+    Platform.performance_counter_frequency = perf_count_frequency_result.QuadPart;
 #endif
 
     Arena permanent = MemoryArena(ARENA_SIZE, TEXT_BUFFER);
     Arena transient = MemoryArena(ARENA_SIZE, TEXT_BUFFER + ARENA_SIZE);
 
-    Build_Configuration config = ReadBuildConfiguration(&permanent, argv[1]);
+    Build_Configuration config = ReadBuildConfiguration(permanent, argv[1]);
 
     // Hot reload
     if (argc == 3 && argv[2]) {
         if (strcmp(argv[2], "-hot") != 0) {
-            String ErrorText = Format(&Transient, "Incorrect argument '{s}', try '-hot'.", 1, argv[2]);
-            Log(Log_Level::Error, ErrorText.Content);
+            String error_text = Format(transient, "Incorrect argument '{s}', try '-hot'.", 1, argv[2]);
+            Log(Log_Level::Error, error_text.content);
             return 2;
         }
         
-        MetaProgram(&Transient, &Config);
+        MetaProgram(transient, &config);
         
-        uint64 LibraryCompilationStart = Platform.GetWallClock();
-        process_info LibraryCompilation = CompileGameLibraryHot(&Transient, &Config);
-        int32 WaitResult = Platform.WaitForProcess(&LibraryCompilation, -1);
-        uint64 LibraryCompilationEnd = Platform.GetWallClock();
-        LogCompilationResult(&Transient, "Game library", WaitResult, LibraryCompilationStart, LibraryCompilationEnd);
+        uint64 library_compilation_start = Platform.GetWallClock();
+        Process_Info library_compilation = CompileGameLibraryHot(transient, config);
+        int32 wait_result = Platform.WaitForProcess(&library_compilation, -1);
+        uint64 library_compilation_end = Platform.GetWallClock();
+        LogCompilationResult(transient, "Game library", wait_result, library_compilation_start, library_compilation_end);
     }
     // Normal compilation
     else if (argc == 2) {
         // Precompiled headers
-        process_info PCHProcess = {};
-        if (Config.PCH) {
-            bool PrecompileHeaders = true;
-            const char* PCHSourcePath = "GameBuild" PATH_SEPARATOR "pch.h";
-            if (Platform.FileExists(PCHSourcePath) && Platform.FileExists(Config.PCHOutputPath.Content)) {
-                file_info PrecompiledHeadersOutput = Platform.GetFileInfo(Config.PCHOutputPath.Content);
-                file_info PrecompiledHeadersSource = Platform.GetFileInfo(PCHSourcePath);
-                PrecompileHeaders = PrecompiledHeadersSource.Timestamp > PrecompiledHeadersOutput.Timestamp;
+        Process_Info pch_process = {};
+        if (config.pch) {
+            bool precompile_headers = true;
+            const char* pch_source_path = "GameBuild" PATH_SEPARATOR "pch.h";
+            if (Platform.FileExists(pch_source_path) && Platform.FileExists(config.pch_output_path.content)) {
+                File_Info precompiled_headers_output = Platform.GetFileInfo(config.pch_output_path.content);
+                File_Info precompiled_headers_source = Platform.GetFileInfo(pch_source_path);
+                precompile_headers = precompiled_headers_source.timestamp > precompiled_headers_output.timestamp;
             }
-            if (PrecompileHeaders) {
-                Log(log_level::Info, "Compiling pre-compiled headers.");
+            if (precompile_headers) {
+                Log(Log_Level::Info, "Compiling pre-compiled headers.");
 
-                char* Command = (char*)(Transient.Base + Transient.Used);
-                switch (Config.Compiler) {
+                char* command = (char*)(transient.base + transient.used);
+                switch (config.compiler) {
                     case MSVC: {
-                        Format(&Transient,
-                            "{s} /std:c++20 /nologo /W0 {s} GameBuild/pch.cpp /c {s} "
+                        Format(transient,
+                            "{s} /std:c++20 /nologo {s} GameBuild/pch.cpp /c {s} "
                             "/Yc\"pch.h\" /Fp\"{s}\" /Fo\"bin\\{s}.obj\" /Fd\"bin\\{s}.pdb\"",
                             6,
-                            Config.CompilerPath, 
-                            Config.Include, 
-                            Config.CompilerFlags, 
-                            Config.PCHOutputPath, 
-                            Config.PCHOutputFile, 
-                            Config.PCHOutputFile
+                            config.compiler_path, 
+                            config.include,
+                            config.compiler_flags,
+                            config.pch_output_path,
+                            config.pch_output_file,
+                            config.pch_output_file
                         );
                     } break;
 
                     case clang: {
-                        Format(&Transient,
+                        Format(transient,
                             "{s} -x c++-header -std=c++20 -fPIC {s} {s} GameBuild/pch.h -o {s}",
                             4,
-                            Config.CompilerPath, 
-                            Config.CompilerFlags,
-                            Config.Include, 
-                            Config.PCHOutputPath
+                            config.compiler_path, 
+                            config.compiler_flags,
+                            config.include, 
+                            config.pch_output_path
                         );
                     } break;
 
                     default: Raise("Invalid compiler. Currently only MSVC is supported.");
                 }
 
-                uint64 Start = Platform.GetWallClock();
-                PCHProcess = Platform.RunCommand(Command);
-                uint32 ExitCode = Platform.WaitForProcess(&PCHProcess, -1);
-                uint64 End = Platform.GetWallClock();
+                uint64 start = Platform.GetWallClock();
+                pch_process = Platform.RunCommand(command);
+                uint32 exit_code = Platform.WaitForProcess(&pch_process, -1);
+                uint64 end = Platform.GetWallClock();
 
-                LogCompilationResult(&Transient, "Precompiled headers", ExitCode, Start, End);
-                ClearArena(&Transient);
+                LogCompilationResult(transient, "Precompiled headers", exit_code, start, end);
+                Clear(transient);
             }
         }
 
         // Metaprogramming
-        if (Config.Preprocess) {
-            MetaProgram(&Transient, &Config);
+        if (config.preprocess) {
+            MetaProgram(transient, &config);
         }
 
         // Platform layer
-        uint64 PlatformStart = Platform.GetWallClock();
-        process_info PlatformProcess = CompilePlatformLayer(&Transient, &Config);
-        uint32 PlatformExitCode = Platform.WaitForProcess(&PlatformProcess, -1);
-        uint64 PlatformEnd = Platform.GetWallClock();
-        const char* OSLayerName = SystemOS == Windows ? "Windows platform layer" : "Linux platform layer";
-        LogCompilationResult(&Transient, OSLayerName, PlatformExitCode, PlatformStart, PlatformEnd);
-        ClearArena(&Transient);
+        uint64 platform_start = Platform.GetWallClock();
+        Process_Info platform_process = CompilePlatformLayer(transient, &config);
+        uint32 platform_exit_code = Platform.WaitForProcess(&platform_process, -1);
+        uint64 platform_end = Platform.GetWallClock();
+        const char* os_layer_name = SystemOS == Windows ? "Windows platform layer" : "Linux platform layer";
+        LogCompilationResult(transient, os_layer_name, platform_exit_code, platform_start, platform_end);
+        Clear(transient);
 
         // Game library
-        uint64 LibraryStart = Platform.GetWallClock();
-        process_info LibraryProcess = CompileGameLibrary(&Transient, &Config);
-        int32 LibraryExitCode = Platform.WaitForProcess(&LibraryProcess, -1);
-        uint64 LibraryEnd = Platform.GetWallClock();
-        LogCompilationResult(&Transient, "Game library", LibraryExitCode, LibraryStart, LibraryEnd);
+        uint64 library_start = Platform.GetWallClock();
+        Process_Info library_process = CompileGameLibrary(transient, &config);
+        int32 library_exit_code = Platform.WaitForProcess(&library_process, -1);
+        uint64 library_end = Platform.GetWallClock();
+        LogCompilationResult(transient, "Game library", library_exit_code, library_start, library_end);
     }
     else {
-        Log(log_level::Error, "No build configuration file provided. Usage: Build <build.conf file path> [-hot]");
+        Log(Log_Level::Error, "No build configuration file provided. Usage: Build <build.conf file path> [-hot]");
     }
 
     return 0;

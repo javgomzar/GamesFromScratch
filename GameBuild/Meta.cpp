@@ -48,7 +48,7 @@ const char* const PRIMITIVE_TYPES[] = {
     "void",
     "bool",
     "char",
-    "string",
+    "String",
     "int8",
     "int16",
     "int",
@@ -61,13 +61,13 @@ const char* const PRIMITIVE_TYPES[] = {
     "memory_size",
     "float",
     "double",
-    "v2",
-    "v3",
-    "v4",
-    "scale",
-    "quaternion",
-    "color",
-    "collider",
+    "V2",
+    "V3",
+    "V4",
+    "Scale",
+    "Quaternion",
+    "Color",
+    "Collider",
     "Arena"
 };
 const int PRIMITIVE_TYPE_COUNT = ArrayCount(PRIMITIVE_TYPES);
@@ -102,7 +102,7 @@ int main() {
 
     char buffer[256];
     Arena arena = AllocateMemoryArena(Kilobytes(8));
-    Build_Configuration config = ReadBuildConfiguration(&arena, "GameBuild/build.conf");
+    Build_Configuration config = ReadBuildConfiguration(arena, "GameBuild/build.conf");
     Tokenizer input_files_tokenizer = InitTokenizer(config.metaprogramming_input_files.content, config.metaprogramming_input_files.length);
     
     std::map<std::string, int> constants;
@@ -352,7 +352,7 @@ int main() {
     fprintf(enums_file, "#endif");
 
     int struct_count = struct_debug_types.size();
-    fprintf(structs_file, "bool IsStructType(Type type) { return Type > %d && Type < %d; }\n\n", 
+    fprintf(structs_file, "bool IsStructType(Type type) { return type > %d && type < %d; }\n\n", 
         PRIMITIVE_TYPE_COUNT + enum_count + flag_type_count - 1, PRIMITIVE_TYPE_COUNT + enum_count + flag_type_count + struct_count
     );
 
@@ -396,18 +396,18 @@ int main() {
     "#include \"Tests.h\"\n\n");
 
     std::string memory_setup = "    Render_Group* group = &memory->render_group;\n"
-    "    game_asset_manager* AssetManager = &Memory->AssetManager;\n"
-    "    game_state* State = Memory->GameState;\n"
-    "    Arena* Permanent = &Memory->Permanent;\n"
-    "    Arena* Transient = &Memory->Transient;\n"
-    "    game_input* Input = &Memory->Input;\n"
-    "    Light* light = &Memory->RenderGroup.Light;\n"
-    "    float Time = State->Time;\n"
-    "    bool Result = false;\n";
+    "    Asset_Manager* asset_manager = &memory->asset_manager;\n"
+    "    State* state = memory->state;\n"
+    "    Arena* permanent = &memory->permanent;\n"
+    "    Arena* transient = &memory->transient;\n"
+    "    Input* input = &memory->input;\n"
+    "    Light* light = &memory->render_group.light;\n"
+    "    float time = state->time;\n"
+    "    bool result = false;\n";
 
-    std::string once_tests = std::string("void RunOnceTests(game_memory* Memory) {\n") + memory_setup;
-    std::string reload_tests = std::string("void Runreload_tests(game_memory* Memory) {\n" + memory_setup);
-    std::string every_frame_tests = std::string("void Runevery_frame_tests(game_memory* Memory) {\n" + memory_setup);
+    std::string once_tests = std::string("void RunOnceTests(Memory* memory) {\n") + memory_setup;
+    std::string reload_tests = std::string("void RunReloadTests(Memory* memory) {\n" + memory_setup);
+    std::string every_frame_tests = std::string("void RunEveryFrameTests(Memory* memory) {\n" + memory_setup);
 
     Tokenizer tokenizer = InitTokenizer(tests_content, tests_file_size);
     Token token = GetToken(tokenizer);
@@ -434,7 +434,7 @@ int main() {
                 std::string test_name = std::string(test_name_token.text, test_name_token.length);
                 if (test_type == "test_once") {
                     once_tests += std::string("\n"
-                    "    try { Result = "
+                    "    try { result = "
                     ) + test_name + std::string("(");
                     Token previous_token = RequireToken(tokenizer, Token_OpenParen);
                     token = GetToken(tokenizer);
@@ -450,16 +450,16 @@ int main() {
                     }
                     once_tests += std::string(
                     "); }\n"
-                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); }\n"
-                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); }\n"
+                    "    catch(const char* error_message) { Log(Log_Level::Error, error_message); }\n"
+                    "    catch(...) { Log(Log_Level::Error, \"Unknown test error.\"); }\n"
                     );
 
-                    once_tests += std::string("    if(Result) { Log(log_level::Test, \"Test '") + test_name + std::string("' was correctly executed.\"); }\n");
-                    once_tests += std::string("    else       { Log(log_level::Error, \"Test '") + test_name + std::string("' failed.\"); }\n");
+                    once_tests += std::string("    if(result) { Log(Log_Level::Test, \"Test '") + test_name + std::string("' was correctly executed.\"); }\n");
+                    once_tests += std::string("    else       { Log(Log_Level::Error, \"Test '") + test_name + std::string("' failed.\"); }\n");
                 }
                 else if (test_type == "test_reload") {
                     reload_tests += std::string("\n"
-                    "    try { Result = "
+                    "    try { result = "
                     ) + test_name + std::string("(");
                     Token previous_token = RequireToken(tokenizer, Token_OpenParen);
                     token = GetToken(tokenizer);
@@ -475,15 +475,15 @@ int main() {
                     }
                     reload_tests += std::string(
                     "); }\n"
-                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); }\n"
-                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); }\n"
+                    "    catch(const char* error_message) { Log(Log_Level::Error, error_message); }\n"
+                    "    catch(...) { Log(Log_Level::Error, \"Unknown test error.\"); }\n"
                     );
-                    reload_tests += std::string("    if(Result) { Log(log_level::Test, \"Test '") + test_name + std::string("' was correctly executed.\"); }\n");
-                    reload_tests += std::string("    else       { Log(log_level::Error, \"Test '") + test_name + std::string("' failed.\"); }\n");
+                    reload_tests += std::string("    if(result) { Log(Log_Level::Test, \"Test '") + test_name + std::string("' was correctly executed.\"); }\n");
+                    reload_tests += std::string("    else       { Log(Log_Level::Error, \"Test '") + test_name + std::string("' failed.\"); }\n");
                 }
                 else if (test_type == "test_every_frame") {
                     every_frame_tests += std::string("\n"
-                    "    try { Result = "
+                    "    try { result = "
                     ) + test_name + std::string("(");
                     Token previous_token = RequireToken(tokenizer, Token_OpenParen);
                     token = GetToken(tokenizer);
@@ -499,10 +499,10 @@ int main() {
                     }
                     every_frame_tests += std::string(
                     "); }\n"
-                    "    catch(const char* ErrorMessage) { Log(log_level::Error, ErrorMessage); }\n"
-                    "    catch(...) { Log(log_level::Error, \"Unknown test error.\"); }\n"
+                    "    catch(const char* error_message) { Log(Log_Level::Error, error_message); }\n"
+                    "    catch(...) { Log(Log_Level::Error, \"Unknown test error.\"); }\n"
                     );
-                    every_frame_tests += std::string("    if (!Result) { Log(log_level::Error, \"Test '") + test_name + std::string("' failed.\"); }\n");
+                    every_frame_tests += std::string("    if (!Result) { Log(Log_Level::Error, \"Test '") + test_name + std::string("' failed.\"); }\n");
                 }
             }
         }

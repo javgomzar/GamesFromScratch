@@ -31,12 +31,12 @@ struct Asset_Header {
 
 struct Asset {
     String path;
-    array<Asset_ID> sounds;
-    array<Asset_ID> textures;
-    array<Asset_ID> meshes;
-    array<Asset_ID> materials;
-    array<Asset_ID> skeletons;
-    array<Asset_ID> animations;
+    Array<Asset_ID> sounds;
+    Array<Asset_ID> textures;
+    Array<Asset_ID> meshes;
+    Array<Asset_ID> materials;
+    Array<Asset_ID> skeletons;
+    Array<Asset_ID> animations;
 };
 
 struct Catalog {
@@ -49,29 +49,30 @@ struct Asset_Manager {
     Asset_ID next_id;
     Arena arena;
     Catalog catalog;
-    hash_table<Asset_ID, Texture*> textures;
+    Hash_Table<Asset_ID, Texture*> textures;
     // hash_table<Asset_ID, Mesh*> meshes;
     // hash_table<Asset_ID, Material*> materials;
 };
 
-Asset_ID CreateID(Asset_Manager* manager) {
-    return manager->next_id++;
+Asset_ID CreateID(Asset_Manager& manager) {
+    return manager.next_id++;
 }
 
-Texture* AddTexture(Asset_Manager* manager) {
-    Texture* texture = PushStruct(&manager->arena, Texture);
+Texture* AddTexture(Asset_Manager& manager) {
+    Texture* texture = PushStruct(manager.arena, Texture);
     texture->id = CreateID(manager);
-    manager->textures.Insert(texture->id, texture);
+    manager.textures.Insert(texture->id, texture);
+    return texture;
 }
 
 void AddAsset(
-    Asset_Manager* manager,
-    Asset* asset,
+    Asset_Manager& manager,
+    Asset& asset,
     const char* path,
     std::initializer_list<const char*> files,
     bool force_process = false
 ) {
-    asset->path = path;
+    asset.path = path;
     bool process = force_process;
     if (Platform.FileExists(path)) {
         Timestamp asset_file_time = Platform.GetFileInfo(path).timestamp;
@@ -119,7 +120,7 @@ void AddAsset(
             }
         }
 
-        asset->textures = array<Asset_ID>(&manager->arena, texture_count);
+        asset.textures = Array<Asset_ID>(manager.arena, texture_count);
 
         for (const char* file : files) {
             String extension = GetFileExtension(file);
@@ -130,11 +131,11 @@ void AddAsset(
                 // TODO
             }
             else if (extension == "jpeg" || extension == "jpg" || extension == "png") {
-                Texture* texture = PushStruct(&manager->arena, Texture);
+                Texture* texture = PushStruct(manager.arena, Texture);
                 texture->id = CreateID(manager);
                 texture->pixels = stbi_load(file, &texture->width, &texture->height, &texture->channels, 0);
                 texture->size = GetPixelsSize(texture->width, texture->height, texture->channels);
-                manager->textures.Insert(texture->id, texture);
+                manager.textures.Insert(texture->id, texture);
             }
             else if (extension == "wav") {
                 // TODO
@@ -680,7 +681,7 @@ void AddAsset(
 //     return nullptr;
 // }
 
-Asset_Manager InitializeAssetManager(Arena* permanent) {
+Asset_Manager InitializeAssetManager(Arena& permanent) {
     Asset_Manager result;
     result.arena = SuballocateMemoryArena(permanent, Megabytes(1));
     result.next_id = 1;

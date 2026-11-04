@@ -124,40 +124,40 @@ inline Arena AllocateMemoryArena(memory_size size) {
     return MemoryArena(size, base);
 }
 
-inline void Free(Arena* arena) {
-    free(arena->base);
-    arena->base = nullptr;
-    arena->size = 0;
-    arena->used = 0;
+inline void Free(Arena& arena) {
+    free(arena.base);
+    arena.base = nullptr;
+    arena.size = 0;
+    arena.used = 0;
 }
 
-inline void Clear(Arena* arena) {
-    ZeroSize(arena->used, arena->base);
-    arena->used = 0;
+inline void Clear(Arena& arena) {
+    ZeroSize(arena.used, arena.base);
+    arena.used = 0;
 }
 
 #define PushStruct(arena, type) (type *)PushSize_(arena, sizeof(type))
 #define PushArray(arena, count, type) (type *)PushSize_(arena, count*sizeof(type))
 #define PushSize(arena, size) (void*)PushSize_(arena, size)
-inline void* PushSize_(Arena* arena, memory_size size) {
-    Assert(arena->size >= arena->used + size);
-    void* result = arena->base + arena->used;
-    arena->used += size;
+inline void* PushSize_(Arena& arena, memory_size size) {
+    Assert(arena.size >= arena.used + size);
+    void* result = arena.base + arena.used;
+    arena.used += size;
     return result;
 }
 
 #define PopStruct(arena, type) (type *)PopSize_(arena, sizeof(type))
 #define PopArray(arena, count, type) (type *)PopSize_(arena, count*sizeof(type))
 #define PopSize(arena, size) (void*)PopSize_(arena, size)
-inline void* PopSize_(Arena* arena, memory_size size) {
-    memory_size bytes_erased = size < arena->used ? size : arena->used;
-    void* result = (void*)(arena->base + arena->used - bytes_erased);
+inline void* PopSize_(Arena& arena, memory_size size) {
+    memory_size bytes_erased = size < arena.used ? size : arena.used;
+    void* result = (void*)(arena.base + arena.used - bytes_erased);
     ZeroSize(bytes_erased, result);
-    arena->used -= bytes_erased;
+    arena.used -= bytes_erased;
     return result;
 }
 
-inline Arena SuballocateMemoryArena(Arena* arena, memory_size size) {
+inline Arena SuballocateMemoryArena(Arena& arena, memory_size size) {
     Arena result = {};
     result.base = (uint8*)PushSize(arena, size);
     result.size = size;
@@ -171,7 +171,7 @@ inline Arena SuballocateMemoryArena(Arena* arena, memory_size size) {
 */
 
 struct String {
-    memory_size length;
+    int64 length;
     const char* content;
 
     String() {
@@ -200,13 +200,13 @@ struct String {
     };
 };
 
-char* CopyString(Arena* arena, String string) {
+char* CopyString(Arena& arena, String string) {
     char* result = PushArray(arena, string.length, char);
     strncpy(result, string.content, string.length);
     return result;
 }
 
-String PersistString(Arena* arena, String string) {
+String PersistString(Arena& arena, String string) {
     int* length = PushArray(arena, 1, int);
     *length = string.length;
     char* content = CopyString(arena, string);
@@ -241,9 +241,8 @@ String Slice(String string, int start, int end) {
     return result;
 }
 
-String Format(Arena* arena, const char* format, int input_count, ...) {
+String Format(Arena& arena, const char* format, int input_count, ...) {
     String result = {};
-    result.length = 0;
     int format_length = strlen(format);
 
     if (format_length == 0) {
@@ -251,7 +250,7 @@ String Format(Arena* arena, const char* format, int input_count, ...) {
         return result;
     }
 
-    char* pointer = (char*)(arena->base + arena->used);
+    char* pointer = (char*)(arena.base + arena.used);
     result.content = pointer;
 
     va_list args;
@@ -468,575 +467,6 @@ String Split(String& input, char separator) {
 }
 
 /*
-+------------------------------------------------------------------------------------------------------------------------------------------+
-| Data structures                                                                                                                          |
-+------------------------------------------------------------------------------------------------------------------------------------------+
-*/
-
-/*
-    Memory for elements must be previously allocated.
-*/
-template <typename T> class stack {
-private:
-    T* Top;
-    T* Base;
-public:
-    uint64 n;
-    uint64 Capacity;
-
-    stack(uint64 MaxSize = 32) {
-        n = 0;
-        T* Memory = (T*)calloc(32, sizeof(T));
-        Top = Memory;
-        Base = Memory;
-        Capacity = MaxSize;
-    }
-
-    ~stack() {
-        free(Top);
-        n = 0;
-        Capacity = 0;
-    }
-
-    void Push(T Element) {
-        if (n < Capacity) {
-            *Top++ = Element;
-            n++;
-        }
-        else Assert(false, "Stack is full.");
-    }
-
-    T Pop() {
-        if (n > 0) {
-            Top--;
-            T result = *Top;
-            *Top = {};
-            n--;
-            return result;
-        }
-        return {};
-    }
-
-    void Clear() {
-        ZeroSize(n * sizeof(T), Top - n);
-        Top = Top - n;
-        n = 0;
-    }
-
-    const T& operator[](uint32 i) const {
-        Assert(0 <= i && i < n);
-        return Base[i];
-    }
-};
-
-struct link {
-    link* Previous;
-    link* Next;
-    void* Data;
-};
-
-void Attach(struct link* Link1, struct link* Link2) {
-    Assert(Link1 || Link2, "Two empty links tried to be linked.");
-    if (Link1) {
-        Link1->Next = Link2;
-    }
-    if (Link2) {
-        Link2->Previous = Link1;
-    }
-}
-
-void Delete(struct link* ThisLink) {
-    Attach(ThisLink->Previous, ThisLink->Next);
-    ThisLink->Previous = nullptr;
-    ThisLink->Next = nullptr;
-}
-
-/*
-    Doubly-linked list. All links must have been allocated somewhere previously.
-*/
-struct linked_list {
-    struct link* First;
-    struct link* Last;
-
-    void PushBack(struct link* Element) {
-        if (!First || !Last) {
-            First = Element;
-        }
-        else {
-            Attach(Last, Element);
-        }
-        Last = Element;
-    }
-
-    void PushFront(struct link* Element) {
-        if (!First || !Last) {
-            Last = Element;
-        }
-        else {
-            Attach(Element, First);
-        }
-        First = Element;
-    }
-
-    void MakeCircular() {
-        Attach(Last, First);
-    }
-
-    void Break(struct link* Link) {
-        if (First == Link) First = Link->Next;
-        if (Last == Link)  Last  = Link->Previous;
-        Delete(Link);
-    }
-
-    bool IsEmpty() {
-        return !First && !Last;
-    }
-};
-
-inline linked_list Concatenate(linked_list L1, linked_list L2) {
-    linked_list result = {};
-    result.First = L1.First;
-    Attach(L1.Last, L2.First);
-    result.Last = L2.Last;
-    return result;
-}
-
-uint64 GetLength(linked_list List) {
-	struct link* Link = List.First;
-	uint64 result = 0;
-    do {
-		Link = Link->Next;
-        result++;
-    } while (Link && Link != List.First);
-	return result;
-}
-
-/*
-    Fixed length array.
-*/
-template <typename T> class array {
-private:
-    T* data;
-public:
-    uint32 length;
-
-    array() {
-        length = 0;
-        data = nullptr;
-    }
-
-    array(Arena& arena, uint32 N) {
-        length = N;
-        data = PushArray(arena, N, T);
-    }
-
-    ~array() {
-        length = 0;
-        data = nullptr;
-    }
-
-    T& operator[](int64 index) const {
-        if (-index > length || index >= length) {
-            Log(Log_Level::Error, "Array index out of bounds.");
-        }
-        else if (index >= 0) {
-            return data[index];
-        }
-        else if (index < 0) {
-            return data[length - index];
-        }
-    }
-
-    const T& operator[](int64 index) const {
-        if (-index > length || index >= length) {
-            Log(Log_Level::Error, "Array index out of bounds.");
-        }
-        else if (index >= 0) {
-            return data[index];
-        }
-        else if (index < 0) {
-            return data[length - index];
-        }
-    }
-};
-
-/*
-    Fixed length lists that track available slots.
-*/
-template <typename T> class free_list {
-private:
-    T* Slots;
-    uint32* FreeSlots;
-public:
-    bool* IsOccupied;
-    uint32 Size = 0;
-    uint32 Count = 0;
-    uint32 FreeCount = 0;
-
-    free_list(Arena* Arena, uint32 N) {
-        Size = N;
-        Slots = PushArray(Arena, N, T);
-        FreeSlots = PushArray(Arena, N, uint32);
-        IsOccupied = PushArray(Arena, N, bool);
-    }
-
-    uint32 Insert(T Element) {
-        Assert(Count < Size);
-        
-        uint32 result;
-        if (FreeCount > 0) {
-            result = FreeSlots[FreeCount--];
-        }
-        else {
-            result = Count++;
-        }
-
-        Slots[result] = Element;
-        IsOccupied[result] = true;
-        return result;
-    }
-
-    T& operator[](uint32 Index) {
-        return Slots[Index];
-    }
-
-    T operator[](uint32 Index) const {
-        return Slots[Index];
-    }
-
-    void Remove(uint32 Index) {
-        if (IsOccupied[Index]) {
-            FreeSlots[FreeCount++] = Index;
-            IsOccupied[Index] = false;
-            Count--;
-        }
-    }
-};
-
-// Naive implementation of exponential array (see https://www.youtube.com/watch?v=i-h95QIGchY)
-
-const int MAX_XARRAY_CHUNKS = 32;
-
-struct xarray_meta {
-    uint8 Shift;          // Exponent for size of first chunk
-    uint8 nChunks;
-    uint32 ElementSize;
-};
-
-struct xarray_header {
-    uint64 n;
-    uint8* Chunks[];
-};
-
-static inline void* xar_get(xarray_header* Xar, xarray_meta Meta, uint64 i) {
-    uint32 ChunkIndex = 0;
-    uint64 ChunkSize = 1 << Meta.Shift;
-    uint64 Element = i;
-
-    uint64 nShifts = i >> Meta.Shift;
-    if (nShifts > 0) {
-        ChunkIndex = MSB64(nShifts);
-        Element -= ChunkSize << ChunkIndex;
-        ChunkIndex++;
-    }
-
-    return Xar->Chunks[ChunkIndex] + Element * Meta.ElementSize; 
-}
-
-template <typename T> class xarray {
-private:
-    xarray_meta Meta;
-    xarray_header* Header;
-
-    void NewChunk(memory_size Size) {
-        if (Meta.nChunks >= MAX_XARRAY_CHUNKS) {
-            Assert(false, "Xarray chunk index overflow.");
-        }
-        Header->Chunks[Meta.nChunks++] = (uint8*)malloc(Size);
-    }
-
-public:
-    xarray() {
-        Meta = { 4, 0, sizeof(T) };
-        Header = (xarray_header*)calloc(MAX_XARRAY_CHUNKS + 1, sizeof(void*));
-        NewChunk(Meta.ElementSize * (1 << Meta.Shift));
-    }
-
-    ~xarray() {
-        for (int i = 0; i < Meta.nChunks; i++) {
-            free(Header->Chunks[i]);
-        }
-
-        free(Header);
-    }
-
-    const T& operator[] (uint64 i) const {
-        Assert(0 <= i && i < Header->n, "Index out of range.");
-        return *(T*)xar_get(Header, Meta, i);
-    }
-
-    T* Insert(const T& Element = {}) {
-        uint64 TotalSize = Meta.ElementSize * (1 << (Meta.Shift + Meta.nChunks - 1));
-        uint64 NewIndex = Header->n++;
-        if (Header->n * sizeof(T) >= TotalSize) {
-            NewChunk(TotalSize);
-        }
-
-        T* pointer = (T*)xar_get(Header, Meta, NewIndex);
-        *pointer = Element;
-        return pointer;
-    }
-
-    uint64 Size() {
-        return Header->n;
-    }
-
-    void Clear() {
-        Header->n = 0;
-    }
-};
-
-template <typename S, typename T> class hash_table {
-private:
-    uint32 size;
-    uint32 used;
-    struct Entry {
-        uint64 hash;
-        S key;
-        T value;
-    }* entries;
-    bool* deleted;
-
-    uint64 Hash(S key) {
-        S local_copy = key;
-        return XXH64(&local_copy, sizeof(S), 0);
-    }
-
-    bool Resize() {
-        uint32 new_size = 2*size;
-        void* new_content = calloc(new_size, sizeof(Entry));
-        bool* new_deleted
-        if (new_content) {
-            Entry* new_entries = (Entry*)new_content;
-            for (int i = 0; i < size; i++) {
-                if (!deleted[i]) {
-                    Entry* entry = entries + i;
-                    uint32 new_index = entry->hash % new_size;
-                    Entry* new_entry = new_entries + new_index;
-                    while (new_entry->key.length > 0) {
-                        NewIndex = (NewIndex + 1) % NewSize;
-                        NewEntry = NewEntries + NewIndex;
-                    }
-                    *NewEntry = *Entry;
-                }
-            }
-            free(Entries);
-            Entries = NewEntries;
-            Size = NewSize;
-            bool* NewDeleted = (bool*)calloc(NewSize, sizeof(bool));
-            if (NewDeleted) {
-                free(Deleted);
-                Deleted = NewDeleted;
-            }
-            else {
-                Assert(false);
-            }
-        }
-        else {
-            Assert(false);
-        }
-        return NewContent != nullptr;
-    }
-
-    uint32 Search(uint64 H, S Key, bool CanBeDeleted = false) {
-        uint32 Index = H % Size;
-        entry* Entry = Entries + Index;
-        if (Entry->Key == nullptr) {
-            return Index;
-        }
-        while (Entry->Key) {
-            if (
-                CanBeDeleted && Deleted[Index] || 
-                !Deleted[Index] && H == Entry->Hash && Entry->Key == Key
-            ) {
-                return Index;
-            }
-            Index = (Index + 1) % Size;
-            Entry = Entries + Index;
-        }
-        return Index;
-    }
-
-public:
-    hash_table(uint32 size_exponent = 6) {
-        used = 0;
-        size = 1 << size_exponent;
-        void* memory = calloc(1, size * (sizeof(bool) + sizeof(entry)));
-        deleted = memory;
-        entries = 
-        Entries = (entry*)calloc(Size, sizeof(entry));
-        Deleted = (bool*)calloc(Size, sizeof(bool));
-    }
-
-    ~hash_table() {
-        free(Entries);
-    }
-
-    void Insert(S Key, T Value) {
-        uint64 H = Hash(Key);
-        uint32 Index = Search(H, Key, true);
-        entry* Entry = Entries + Index;
-        if (Entry->Key == nullptr) {
-            Used += 1;
-            if (Used >= 0.75f * Size) {
-                Resize();
-                Entry = Entries + Search(H, Key);
-            }
-        }
-        else if (Deleted[Index]) {
-            Deleted[Index] = false;
-        }
-        Entry->Hash = H;
-        Entry->Key = Key;
-        Entry->Value = Value;
-    }
-
-    void Delete(S Key) {
-        uint64 H = Hash(Key);
-        uint32 Index = Search(H, Key);
-        entry* Entry = Entries + Index;
-        if (Entry->Key && !Deleted[Index]) {
-            Deleted[Index] = true;
-        }
-    }
-
-    T Get(S Key) {
-        uint64 H = Hash(Key);
-        uint32 Index = Search(H, Key);
-        entry* Entry = Entries + Index;
-        return Entry->Value;
-    }
-};
-
-template <typename T> class hash_table<String, T> {
-private:
-    uint32 Size;
-    uint32 Used;
-    struct entry {
-        uint64 Hash;
-        String Key;
-        T Value;
-    }* Entries;
-    bool* Deleted;
-
-    uint64 Hash(String Key) {
-        return XXH64(Key.content, Key.length, 0);
-    }
-
-    bool Resize() {
-        uint32 NewSize = 2*Size;
-        void* NewContent = calloc(NewSize, sizeof(entry));
-        if (NewContent) {
-            entry* NewEntries = (entry*)NewContent;
-            for (int i = 0; i < Size; i++) {
-                entry* Entry = Entries + i;
-                if (Entry->Key.Length > 0) {
-                    uint32 NewIndex = Entry->Hash % NewSize;
-                    entry* NewEntry = NewEntries + NewIndex;
-                    while (NewEntry->Key.Length > 0) {
-                        NewIndex = (NewIndex + 1) % NewSize;
-                        NewEntry = NewEntries + NewIndex;
-                    }
-                    *NewEntry = *Entry;
-                }
-            }
-            free(Entries);
-            Entries = NewEntries;
-            Size = NewSize;
-            bool* NewDeleted = (bool*)calloc(NewSize, sizeof(bool));
-            if (NewDeleted) {
-                free(Deleted);
-                Deleted = NewDeleted;
-            }
-            else {
-                Assert(false);
-            }
-        }
-        else {
-            Assert(false);
-        }
-        return NewContent != nullptr;
-    }
-
-    uint32 Search(uint64 H, const char* Key, bool CanBeDeleted = false) {
-        uint32 Index = H % Size;
-        entry* Entry = Entries + Index;
-        if (Entry->Key == nullptr) {
-            return Index;
-        }
-        while (Entry->Key) {
-            if (
-                CanBeDeleted && Deleted[Index] || 
-                !Deleted[Index] && H == Entry->Hash && strcmp(Entry->Key, Key) == 0
-            ) {
-                return Index;
-            }
-            Index = (Index + 1) % Size;
-            Entry = Entries + Index;
-        }
-        return Index;
-    }
-
-public:
-    hash_table(uint32 SizeExponent = 6) {
-        Used = 0;
-        Size = 1 << SizeExponent;
-        Entries = (entry*)calloc(Size, sizeof(entry));
-        Deleted = (bool*)calloc(Size, sizeof(bool));
-    }
-
-    ~hash_table() {
-        free(Entries);
-    }
-
-    void Insert(const char* Key, T Value) {
-        uint64 H = Hash(Key);
-        uint32 Index = Search(H, Key, true);
-        entry* Entry = Entries + Index;
-        if (Entry->Key == nullptr) {
-            Used += 1;
-            if (Used >= 0.75f * Size) {
-                Resize();
-                Entry = Entries + Search(H, Key);
-            }
-        }
-        else if (Deleted[Index]) {
-            Deleted[Index] = false;
-        }
-        Entry->Hash = H;
-        Entry->Key = Key;
-        Entry->Value = Value;
-    }
-
-    void Delete(const char* Key) {
-        uint64 H = Hash(Key);
-        uint32 Index = Search(H, Key);
-        entry* Entry = Entries + Index;
-        if (Entry->Key && !Deleted[Index]) {
-            Deleted[Index] = true;
-        }
-    }
-
-    T Get(const char* Key) {
-        uint64 H = Hash(Key);
-        uint32 Index = Search(H, Key);
-        entry* Entry = Entries + Index;
-        Assert(Entry->Key);
-        return Entry->Value;
-    }
-};
-
-/*
 +---------------------------------------------------------------------------------------------------------------------------------+
 | Logging                                                                                                                         |
 +---------------------------------------------------------------------------------------------------------------------------------+
@@ -1058,6 +488,585 @@ enum class Log_Level {
 Log_Mode LOG_MODE = Log_Mode::Terminal;
 
 void Log(Log_Level Level, String Content);
+
+/*
++------------------------------------------------------------------------------------------------------------------------------------------+
+| Data structures                                                                                                                          |
++------------------------------------------------------------------------------------------------------------------------------------------+
+*/
+
+/*
+    Memory for elements must be previously allocated.
+*/
+template <typename T> class Stack {
+private:
+    T* top;
+    T* base;
+public:
+    uint64 n;
+    uint64 capacity;
+
+    Stack(uint64 max_size = 32) {
+        n = 0;
+        T* memory = (T*)calloc(32, sizeof(T));
+        top = memory;
+        base = memory;
+        capacity = max_size;
+    }
+
+    ~Stack() {
+        free(top);
+        n = 0;
+        capacity = 0;
+    }
+
+    void Push(T element) {
+        if (n < capacity) {
+            *top++ = element;
+            n++;
+        }
+        else Assert(false, "Stack is full.");
+    }
+
+    T Pop() {
+        if (n > 0) {
+            top--;
+            T result = *top;
+            *top = {};
+            n--;
+            return result;
+        }
+        return {};
+    }
+
+    void Clear() {
+        ZeroSize(n * sizeof(T), top - n);
+        top -= n;
+        n = 0;
+    }
+
+    const T& operator[](uint32 i) const {
+        Assert(0 <= i && i < n);
+        return base[i];
+    }
+};
+
+struct Link {
+    Link* previous;
+    Link* next;
+    void* data;
+};
+
+void Attach(struct Link* link1, struct Link* link2) {
+    Assert(link1 || link2, "Two empty links tried to be linked.");
+    if (link1) {
+        link1->next = link2;
+    }
+    if (link2) {
+        link2->previous = link1;
+    }
+}
+
+void Delete(struct Link* this_link) {
+    Attach(this_link->previous, this_link->next);
+    this_link->previous = nullptr;
+    this_link->next = nullptr;
+}
+
+/*
+    Doubly-linked list. All links must have been allocated somewhere previously.
+*/
+struct Linked_List {
+    struct Link* first;
+    struct Link* last;
+
+    void PushBack(struct Link* element) {
+        if (!first || !last) {
+            first = element;
+        }
+        else {
+            Attach(last, element);
+        }
+        last = element;
+    }
+
+    void PushFront(struct Link* element) {
+        if (!first || !last) {
+            last = element;
+        }
+        else {
+            Attach(element, first);
+        }
+        first = element;
+    }
+
+    void MakeCircular() {
+        Attach(last, first);
+    }
+
+    void Break(struct Link* link) {
+        if (first == link) first = link->next;
+        if (last == link)  last  = link->previous;
+        Delete(link);
+    }
+
+    bool IsEmpty() {
+        return !first && !last;
+    }
+};
+
+inline Linked_List Concatenate(Linked_List list1, Linked_List list2) {
+    Linked_List result = {};
+    result.first = list1.first;
+    Attach(list1.last, list2.first);
+    result.last = list2.last;
+    return result;
+}
+
+uint64 GetLength(Linked_List list) {
+	struct Link* link = list.first;
+	uint64 result = 0;
+    do {
+		link = link->next;
+        result++;
+    } while (link && link != list.first);
+	return result;
+}
+
+/*
+    Fixed length array.
+*/
+template <typename T> class Array {
+private:
+    T* data;
+public:
+    uint32 length;
+
+    Array() {
+        length = 0;
+        data = nullptr;
+    }
+
+    Array(Arena& arena, uint32 N) {
+        length = N;
+        data = PushArray(arena, N, T);
+    }
+
+    ~Array() {
+        length = 0;
+        data = nullptr;
+    }
+
+    T& operator[](int64 index) const {
+        if (-index > length || index >= length) {
+            Log(Log_Level::Error, "Array index out of bounds.");
+        }
+        else if (index >= 0) {
+            return data[index];
+        }
+        else if (index < 0) {
+            return data[length - index];
+        }
+    }
+};
+
+/*
+    Fixed length lists that track available slots.
+*/
+template <typename T> class Free_List {
+private:
+    T* slots;
+    uint32* free_slots;
+public:
+    bool* occupied;
+    uint32 size = 0;
+    uint32 count = 0;
+    uint32 free_count = 0;
+
+    Free_List(Arena& arena, uint32 n) {
+        size = n;
+        slots = PushArray(arena, n, T);
+        free_slots = PushArray(arena, n, uint32);
+        occupied = PushArray(arena, n, bool);
+    }
+
+    uint32 Insert(T element) {
+        Assert(count < size);
+        
+        uint32 result;
+        if (free_count > 0) {
+            result = free_slots[free_count--];
+        }
+        else {
+            result = count++;
+        }
+
+        slots[result] = element;
+        occupied[result] = true;
+        return result;
+    }
+
+    T& operator[](uint32 index) {
+        return slots[index];
+    }
+
+    T operator[](uint32 index) const {
+        return slots[index];
+    }
+
+    void Remove(uint32 index) {
+        if (occupied[index]) {
+            free_slots[free_count++] = index;
+            occupied[index] = false;
+            count--;
+        }
+    }
+};
+
+// Naive implementation of exponential array (see https://www.youtube.com/watch?v=i-h95QIGchY)
+
+const int MAX_XARRAY_CHUNKS = 32;
+
+struct XArray_Meta {
+    uint8 shift;          // Exponent for size of first chunk
+    uint8 chunk_count;
+    uint32 element_size;
+};
+
+struct XArray_Header {
+    uint64 n;
+    uint8* chunks[];
+};
+
+static inline void* XArrayGet(XArray_Header* header, XArray_Meta meta, uint64 i) {
+    uint32 chunk_index = 0;
+    uint64 chunk_size = 1 << meta.shift;
+    uint64 element = i;
+
+    uint64 shift_count = i >> meta.shift;
+    if (shift_count > 0) {
+        chunk_index = MSB64(shift_count);
+        element -= chunk_size << chunk_index;
+        chunk_index++;
+    }
+
+    return header->chunks[chunk_index] + element * meta.element_size; 
+}
+
+template <typename T> class XArray {
+private:
+    XArray_Meta meta;
+    XArray_Header* header;
+
+    void NewChunk(memory_size size) {
+        if (meta.chunk_count >= MAX_XARRAY_CHUNKS) {
+            Assert(false, "Xarray chunk index overflow.");
+        }
+        header->chunks[meta.chunk_count++] = (uint8*)malloc(size);
+    }
+
+public:
+    XArray() {
+        meta = { 4, 0, sizeof(T) };
+        header = (XArray_Header*)calloc(MAX_XARRAY_CHUNKS + 1, sizeof(void*));
+        NewChunk(meta.element_size * (1 << meta.shift));
+    }
+
+    ~XArray() {
+        for (int i = 0; i < meta.chunk_count; i++) {
+            free(header->chunks[i]);
+        }
+
+        free(header);
+    }
+
+    const T& operator[] (uint64 i) const {
+        Assert(0 <= i && i < header->n, "Index out of range.");
+        return *(T*)XArrayGet(header, meta, i);
+    }
+
+    T* Insert(const T& element = {}) {
+        uint64 total_size = meta.element_size * (1 << (meta.shift + meta.chunk_count - 1));
+        uint64 new_index = header->n++;
+        if (header->n * sizeof(T) >= total_size) {
+            NewChunk(total_size);
+        }
+
+        T* pointer = (T*)XArrayGet(header, meta, new_index);
+        *pointer = element;
+        return pointer;
+    }
+
+    uint64 Size() {
+        return header->n;
+    }
+
+    void Clear() {
+        header->n = 0;
+    }
+};
+
+template <typename S, typename T> class Hash_Table {
+private:
+    memory_size mask;
+    memory_size used;
+    struct Entry {
+        uint64 hash;
+        S key;
+        T value;
+    }* entries;
+    bool* occupied;
+
+    uint64 Hash(S key) {
+        return XXH64(&key, sizeof(S), 0);
+    }
+
+    void Resize() {
+        memory_size size = mask + 1;
+        memory_size new_size = size << 1;
+        memory_size new_mask = new_size - 1;
+        void* new_memory = calloc(new_size, sizeof(bool) + sizeof(Entry));
+        Entry* new_entries = (Entry*)new_memory;
+        bool* new_occupied = (bool*)(new_entries + new_size);
+
+        for (memory_size i = 0; i < size; i++) {
+            if (occupied[i]) {
+                Entry* entry = entries + i;
+                memory_size new_index = entry->hash & new_mask;
+    
+                while (new_occupied[new_index]) {
+                    new_index = (new_index + 1) & new_mask;
+                }
+                
+                Entry* new_entry = new_entries + new_index;
+                *new_entry = *entry;
+                new_occupied[new_index] = true;
+            }
+        }
+
+        free(entries);
+        entries = new_entries;
+        occupied = new_occupied;
+        mask = new_mask;
+    }
+
+    memory_size Find(uint64 hash, S key, bool& found) {
+        memory_size index = hash & mask;
+
+        memory_size test_index = index;
+        while (occupied[test_index]) {
+            Entry* entry = entries + test_index;
+            if (entry->hash == hash && entry->key == key) {
+                found = true;
+                return test_index;
+            }
+            test_index = (test_index + 1) & mask;
+            if (test_index == index) break;
+        }
+        found = false;
+        return test_index;
+    }
+
+public:
+    Hash_Table(uint32 size_exponent = 6) {
+        used = 0;
+        memory_size size = (uint64)1 << size_exponent;
+        mask = size - 1;
+        void* memory = calloc(size, sizeof(bool) + sizeof(Entry));
+        entries = (Entry*)memory;
+        occupied = (bool*)(entries + size);
+    }
+
+    ~Hash_Table() {
+        free(entries);
+        used = 0;
+        mask = 0;
+        entries = nullptr;
+        occupied = nullptr;
+    }
+
+    void Insert(S key, T value) {
+        uint64 hash = Hash(key);
+        bool found;
+        memory_size index = Find(hash, key, found);
+        Entry* entry = entries + index;
+        if (!found) {
+            used += 1;
+            // Resize if 50% full
+            if (2 * used >= mask + 1) {
+                Resize();
+                index = Find(hash, key, found);
+                entry = entries + index;
+            }
+            occupied[index] = true;
+            entry->hash = hash;
+            entry->key = key;
+        }
+        entry->value = value;
+    }
+
+    void Delete(S key) {
+        uint64 hash = Hash(key);
+        bool found;
+        memory_size index = Find(hash, key, found);
+        if (!found) return;
+
+        used -= 1;
+        memory_size next_index = index;
+        while (true) {
+            next_index = (next_index + 1) & mask;
+            if (!occupied[next_index]) break;
+            Entry* next_entry = entries + next_index;
+            memory_size ideal_index = next_entry->hash & mask;
+            bool stays = (index <= next_index) ?
+                (index < ideal_index && ideal_index <= next_index) : 
+                (index < ideal_index || ideal_index <= next_index);
+            if (stays) continue;
+            entries[index] = entries[next_index];
+            index = next_index;
+        }
+        occupied[index] = false;
+    }
+
+    bool Get(S key, T** value) {
+        uint64 hash = Hash(key);
+        bool found;
+        memory_size index = Find(hash, key, found);
+        if (found) *value = &entries[index].value;
+        return found;
+    }
+};
+
+template <typename T> class Hash_Table<String, T> {
+private:
+    memory_size mask;
+    memory_size used;
+    struct Entry {
+        uint64 hash;
+        String key;
+        T value;
+    }* entries;
+    bool* occupied;
+
+    uint64 Hash(String key) {
+        return XXH64(key.content, key.length, 0);
+    }
+
+    void Resize() {
+        memory_size size = mask + 1;
+        memory_size new_size = size << 1;
+        memory_size new_mask = new_size - 1;
+        void* new_memory = calloc(new_size, sizeof(bool) + sizeof(Entry));
+        Entry* new_entries = (Entry*)new_memory;
+        bool* new_occupied = (bool*)(new_entries + new_size);
+
+        for (memory_size i = 0; i < size; i++) {
+            if (occupied[i]) {
+                Entry* entry = entries + i;
+                memory_size new_index = entry->hash & new_mask;
+    
+                while (new_occupied[new_index]) {
+                    new_index = (new_index + 1) & new_mask;
+                }
+                
+                Entry* new_entry = new_entries + new_index;
+                *new_entry = *entry;
+                new_occupied[new_index] = true;
+            }
+        }
+
+        free(entries);
+        entries = new_entries;
+        occupied = new_occupied;
+        mask = new_mask;
+    }
+
+    memory_size Find(uint64 hash, String key, bool& found) {
+        memory_size index = hash & mask;
+
+        memory_size test_index = index;
+        while (occupied[test_index]) {
+            Entry* entry = entries + test_index;
+            if (entry->hash == hash && entry->key == key) {
+                found = true;
+                return test_index;
+            }
+            test_index = (test_index + 1) & mask;
+            if (test_index == index) break;
+        }
+        found = false;
+        return test_index;
+    }
+
+public:
+    Hash_Table(uint32 size_exponent = 6) {
+        used = 0;
+        memory_size size = (uint64)1 << size_exponent;
+        mask = size - 1;
+        void* memory = calloc(size, sizeof(bool) + sizeof(Entry));
+        entries = (Entry*)memory;
+        occupied = (bool*)(entries + size);
+    }
+
+    ~Hash_Table() {
+        free(entries);
+        used = 0;
+        mask = 0;
+        entries = nullptr;
+        occupied = nullptr;
+    }
+
+    T* Insert(String key) {
+        uint64 hash = Hash(key);
+        bool found;
+        memory_size index = Find(hash, key, found);
+        Entry* entry = entries + index;
+        if (!found) {
+            used += 1;
+            // Resize if 50% full
+            if (2 * used >= mask + 1) {
+                Resize();
+                index = Find(hash, key, found);
+                entry = entries + index;
+            }
+            occupied[index] = true;
+            entry->hash = hash;
+            entry->key = key;
+        }
+        return &entry->value;
+    }
+
+    void Delete(String key) {
+        uint64 hash = Hash(key);
+        bool found;
+        memory_size index = Find(hash, key, found);
+        if (!found) return;
+
+        used -= 1;
+        memory_size next_index = index;
+        while (true) {
+            next_index = (next_index + 1) & mask;
+            if (!occupied[next_index]) break;
+            Entry* next_entry = entries + next_index;
+            memory_size ideal_index = next_entry->hash & mask;
+            bool stays = (index <= next_index) ?
+                (index < ideal_index && ideal_index <= next_index) : 
+                (index < ideal_index || ideal_index <= next_index);
+            if (stays) continue;
+            entries[index] = entries[next_index];
+            index = next_index;
+        }
+        occupied[index] = false;
+    }
+
+    bool Get(String key, T** value) {
+        uint64 hash = Hash(key);
+        bool found;
+        memory_size index = Find(hash, key, found);
+        if (found) *value = &entries[index].value;
+        return found;
+    }
+};
 
 /*
 +---------------------------------------------------------------------------------------------------------------------------------+
@@ -1282,7 +1291,7 @@ typedef PLATFORM_GET_FILE_INFO(Platform_Get_File_Info);
 
 /*
     This function should be accompanied by a QueryPerformanceFrequency function that sets the
-    .PerformanceCounterFrequency member of the Platform struct.
+    .performance_counter_frequency member of the Platform struct.
 */
 #define PLATFORM_GET_WALL_CLOCK(name) uint64 name()
 typedef PLATFORM_GET_WALL_CLOCK(Platform_Get_Wall_Clock);
@@ -1345,7 +1354,7 @@ void Raise(const char* error_message) {
     Assert(false, error_message);
 }
 
-uint64 SeedRNG(Arena* arena) {
+uint64 SeedRNG(Arena& arena) {
     uint64 seed = 0;
 
 #ifdef _DEBUG
@@ -1362,7 +1371,7 @@ uint64 SeedRNG(Arena* arena) {
     }
 
     String seed_text = Format(arena, "RNG seed: {U}.", 1, seed);
-    Log(Log_Level::Info, seed_text.content);
+    Log(Log_Level::Info, seed_text);
     return seed;
 }
 

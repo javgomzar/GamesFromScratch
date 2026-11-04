@@ -3,228 +3,165 @@
 
 #include "GameLibrary.h"
 
-enum ui_axis {
-    axis_x,
-    axis_y
-};
-
-ui_axis Opposite(ui_axis Axis) {
-    return Axis == axis_x ? axis_y : axis_x;
-}
-
-enum ui_alignment {
-    ui_alignment_free,
-    ui_alignment_center,
-    ui_alignment_min,
-    ui_alignment_max
+enum UI_Alignment {
+    UI_Alignment_Free,
+    UI_Alignment_Center,
+    UI_Alignment_Min,
+    UI_Alignment_Max
 };
 
 /*
-    Returns the relative offset of a `Contained` length when fitting it inside a `Container` following `Alignment` (center, min or max).
-    Optional `Margin` input adds a margin to this computation.
-        - Example: `Align(ui_alignment_center, 100.0f, 50.0f) == 25.0f`
+    Returns the relative offset of a `contained` length when fitting it inside a `container` following `alignment` (Center, Min or Max).
+    Optional `pad` input adds padding to this computation.
+        - Example: `Align(UI_Alignment_Center, 100.0f, 50.0f) == 25.0f`
 */
-float Align(ui_alignment Alignment, float Container, float Contained, float Margin = 0.0f) {
-    switch(Alignment) {
-        case ui_alignment_center: { return 0.5f * (Container - Contained); } break;
-        case ui_alignment_min:    { return Margin; } break;
-        case ui_alignment_max:    { return Container - Contained - Margin; } break;
+float Align(UI_Alignment alignment, float container, float contained, float pad = 0.0f) {
+    switch(alignment) {
+        case UI_Alignment_Center: { return 0.5f * (container - contained); } break;
+        case UI_Alignment_Min:    { return pad; } break;
+        case UI_Alignment_Max:    { return container - contained - pad; } break;
         default: Raise("Invalid alignment.");
     }
     return 0;
 }
 
-enum ui_size_type {
-    ui_size_null,
-    ui_size_pixels,
-    ui_size_text,
-    ui_size_percent_of_parent,
-    ui_size_sum_of_children,
-    ui_size_max_of_children
+enum UI_Size_Type {
+    UI_Size_Null,
+    UI_Size_Pixels,
+    UI_Size_Text,
+    UI_Size_Proportion,
+    UI_Size_Sum,
+    UI_Size_Max
 };
 
-struct ui_size {
-    ui_size_type Type;
-    float Value;
-    float Min = 0;
-    float Max = FLT_MAX;
+struct UI_Size {
+    UI_Size_Type type;
+    float value;
+    float min = 0;
+    float max = FLT_MAX;
 };
 
 // This size will be skipped when computing children dependent sizes and layout
-ui_size UISizeNull(float Value = 0.0f) {
-    return { ui_size_null, Value };
+UI_Size UISizeNull(float value = 0.0f) {
+    return { UI_Size_Null, value };
 }
 
-ui_size UISizePixels(float Value) {
-    return { ui_size_pixels, Value, Value, Value };
+UI_Size UISizePixels(float value) {
+    return { UI_Size_Pixels, value, value, value };
 }
 
-ui_size UISizePercentParent(float Value, float Min = 0.0f, float Max = FLT_MAX) {
-    return { ui_size_percent_of_parent, Value, Min, Max };
+UI_Size UISizePercentParent(float value, float min = 0.0f, float max = FLT_MAX) {
+    return { UI_Size_Proportion, value, min, max };
 }
 
-ui_size UISizeMaxChildren(float Min = 0.0f, float Max = FLT_MAX) {
-    return { ui_size_max_of_children, Min, Min, Max };
+UI_Size UISizeMaxChildren(float min = 0.0f, float max = FLT_MAX) {
+    return { UI_Size_Max, min, min, max };
 }
 
-ui_size UISizeSumChildren(float InitialValue = 0.0f, float Max = FLT_MAX) {
-    return { ui_size_sum_of_children, InitialValue, InitialValue, Max };
+UI_Size UISizeSumChildren(float initial_value = 0.0f, float max = FLT_MAX) {
+    return { UI_Size_Sum, initial_value, initial_value, max };
 }
 
-FLAGS(ui_flag,
-    render_text,
-    render_rect,
-    stack_children_x,
-    stack_children_y
+FLAGS(UI_Flags,
+    Drag
 );
 
-typedef uint64 ui_element_id;
+FLAGS(UI_Draw,
+    Rect,
+    Text,
+    Fillbar,
+    Slider,
+    Checkbox
+);
 
-struct ui_element {
-    char Name[64];
-    ui_element* Parent;
-    ui_element* Previous;
-    ui_element* Next;
-    debug_entry* DebugEntry;
+struct UI_Element {
+    String name;
+    UI_Flags flags;
+    UI_Element* parent;
+    UI_Element* previous;
+    UI_Element* next;
 
-    color Color;
-    game_font* Font;
-    rectangle Rect;
-    float RelativePosition[2];
-    float Margins[2];
-    float Points;
-    float Scroll;
+    Color color;
+    Font* font;
+    Rect rect;
+    float relative_position[2];
+    float pad[2];
+    float points;
+    float scroll;
 
-    ui_element_id ID;
-    uint32 Index;
+    UI_Size size[2];
+    UI_Alignment alignment[2];
+    uint64 last_frame;
 
-    ui_size Size[2];
-    ui_alignment Alignment[2];
-    ui_flag Flags;
-
-    bool Hovered;
-    bool Clicked;
-    bool Dragged;
-    bool Expanded;
+    bool hovered;
+    bool clicked;
+    bool dragged;
+    bool expanded;
 };
 
 const int MAX_UI_ELEMENTS = 256;
-struct ui_hierarchy {
-    ui_element Elements[MAX_UI_ELEMENTS];
-    ui_element* Parent;
-    ui_element* First;
-    ui_element* Current;
-    ui_element* Last;
-    uint32 Count;
+struct UI_Hierarchy {
+    Hash_Table<String, UI_Element> elements;
+    UI_Element* parent;
+    UI_Element* first;
+    UI_Element* current;
+    UI_Element* last;
+    uint32 count;
 };
 
-struct ui_context {
-    ui_hierarchy Tree;
-    render_group* Group;
-    game_input* Input;
-    debug_info* DebugInfo;
-    stack<ui_element_id> IDStack;
-    uint32 CurrentIndex;
+struct UI_Context {
+    UI_Hierarchy tree;
+    Render_Group* group;
+    Input* input;
+    Debug_Info* debug_info;
+    uint64 frame;
 };
 
-static ui_context UI = {};
+static UI_Context ui_context = {};
 
-void UISizeText(const char * Text, int Points, ui_size* Sizes) {
-    rectangle Rect;
-    GetTextWidthAndHeight(Text, UI.Group->DebugFont, Points, &Rect.Width, &Rect.Height);
-    Sizes[axis_x].Type = ui_size_text;
-    Sizes[axis_x].Value = Rect.Width;
-    Sizes[axis_y].Type = ui_size_text;
-    Sizes[axis_y].Value = Rect.Height;
+void UISizeText(const char* text, int points, UI_Size& size_x, UI_Size& size_y) {
+    Rect rect;
+    GetTextWidthAndHeight(text, ui_context.group->debug_font, points, &rect.width, &rect.height);
+    size_x.type = UI_Size_Text;
+    size_x.value = rect.width;
+    size_y.type = UI_Size_Text;
+    size_y.value = rect.height;
 }
 
-void PushID(ui_element_id ID) {
-    UI.IDStack.Push(ID);
-    UI.CurrentIndex = 0;
-}
-
-void PushID(const char* String) {
-    PushID(XXH64(String, strlen(String), 0));
-}
-
-void PopID() {
-    UI.IDStack.Pop();
-    UI.CurrentIndex = 0;
-}
-
-ui_element_id GetID(const char* String) {
-    uint32 i = 0;
-    bool UseIndex = false;
-    while (String[i]) {
-        if (String[i] == '#' && String[i+1] == '#') {
-            i = UI.CurrentIndex++;
-            UseIndex = true;
-            break;
-        }
-        i++;
-    }
-
-    uint64 StackHash = 2166136261u;
-    for (int j = 0; j < UI.IDStack.n; j++) {
-        ui_element_id ID = UI.IDStack[j];
-        StackHash ^= ID;
-        StackHash *= 16777619u;
-    }
-    uint64 TextHash = XXH64(String, strlen(String), 0);
-    StackHash ^= TextHash;
-    StackHash *= 16777619u;
-    if (UseIndex) {
-        StackHash ^= i;
-        StackHash *= 16777619u;
-    }
-    return StackHash;
-}
-
-void PushParent(ui_element* Parent) {
-    PushID(Parent->ID);
-    Parent->Parent = UI.Tree.Parent;
-    UI.Tree.Parent = Parent;
-}
-
-void PopParent() {
-    if (!UI.Tree.Parent) Raise("No parent in the stack.");
-    UI.Tree.Parent = UI.Tree.Parent->Parent;
-    PopID();
-}
-
-ui_element* NewUIElement(uint32 ID) {
-    if (UI.Tree.Count >= MAX_UI_ELEMENTS) Raise("UI Elements Tree is FULL!!");
-    ui_element* Result = &UI.Tree.Elements[UI.Tree.Count++];
-    *Result = {};
-    Result->ID = ID;
-    Result->Index = UI.CurrentIndex;
-    Result->Scroll = 0;
-    Result->Font = UI.Group->DebugFont;
-    Result->Color = color::WHITE;
-    return Result;
-}
-
-struct ui_element_options {
-    ui_alignment AlignmentX = ui_alignment_free;
-    ui_alignment AlignmentY = ui_alignment_free;
-    color        Color      = color::WHITE;
-    ui_flag      Flags      = ui_flag::none;
-    game_font*   Font       = nullptr;
-    float        MarginX    = 0.0f;
-    float        MarginY    = 0.0f;
-    float        Points     = 20.0f;
-    ui_size      SizeX      = UISizeNull();
-    ui_size      SizeY      = UISizeNull();
-    ui_axis      Stack      = axis_y;
+struct UI_Element_Options {
+    UI_Alignment alignment_x = UI_Alignment_Free;
+    UI_Alignment alignment_y = UI_Alignment_Free;
+    Color        color      = Color::WHITE;
+    UI_Flags     flags      = UI_Flags::none;
+    UI_Draw      draw_flags = UI_Draw::none;
+    Font*        font       = nullptr;
+    float        margin_x   = 0.0f;
+    float        margin_y   = 0.0f;
+    float        points     = 20.0f;
 };
 
-ui_element* _PushUIElement(
+UI_Element* AddUIElement(
+    String name,
+    UI_Size sizes[2],
+    UI_Element_Options options,
+    int children_count,
+    ...
+) {
+    UI_Element* element = ui_context.tree.elements.Insert(name);
+    element->last_frame = ui_context.frame;
+    element->size[0] = sizes[0];
+    element->size[1] = sizes[1];
+    element->alignment[0] = options.alignment_x;
+    element->alignment[1] = options.alignment_y;
+}
+
+UI_Element* _PushUIElement(
     const char* Name,
-    ui_element_options Options = {}
+    UI_Element_Options Options = {}
 ) {
     bool Found = false;
     uint32 ID = GetID(Name);
-    ui_element* Element = 0;
+    UI_Element* Element = 0;
     for (int i = 0; i < MAX_UI_ELEMENTS; i++) {
         Element = &UI.Tree.Elements[i];
         if (ID == Element->ID) {
@@ -236,7 +173,7 @@ ui_element* _PushUIElement(
     if (!UI.Tree.First) UI.Tree.First = Element;
 
     Element->Parent = UI.Tree.Parent;
-    ui_size Sizes[2] = { Options.SizeX, Options.SizeY };
+    UI_Size Sizes[2] = { Options.SizeX, Options.SizeY };
     Element->Size[axis_x] = Sizes[axis_x];
     Element->Size[axis_y] = Sizes[axis_y];
     Element->Margins[axis_x] = Options.MarginX;
@@ -245,15 +182,15 @@ ui_element* _PushUIElement(
     float* RectSizes[2] = { &Element->Rect.Width, &Element->Rect.Height };
     for (int i = 0; i < 2; i++) {
         switch(Sizes[i].Type) {
-            case ui_size_null:
-            case ui_size_percent_of_parent:
-            case ui_size_sum_of_children:
-            case ui_size_max_of_children: break;
+            case UI_Size_null:
+            case UI_Size_percent_of_parent:
+            case UI_Size_sum_of_children:
+            case UI_Size_max_of_children: break;
 
-            case ui_size_text:
-            case ui_size_pixels: {
-                Element->Size[i].Value = Sizes[i].Value;
-                *RectSizes[i] = Sizes[i].Value;
+            case UI_Size_text:
+            case UI_Size_pixels: {
+                Element->Size[i].value = Sizes[i].value;
+                *RectSizes[i] = Sizes[i].value;
             } break;
 
             default: Raise("Invalid size type");
@@ -289,14 +226,14 @@ ui_element* _PushUIElement(
 
 #define PushUIElement(Name, ...) _PushUIElement(Name, { __VA_ARGS__ })
 
-void BeginContext(game_memory* Memory, game_input* Input) {
-    UI.Group = &Memory->RenderGroup;
-    UI.Input = Input;
-    UI.DebugInfo = &Memory->DebugInfo;
+void BeginContext(Memory* memory, Input* input) {
+    ui_context.group = &memory->render_group;
+    ui_context.input = input;
+    ui_context.debug_info = &memory->debug_info;
 }
 
 void ComputeSizes() {
-    ui_element* Element = UI.Tree.First;
+    UI_Element* element = UI.Tree.First;
     if (!Element) return;
 
     float GroupSizes[2] = { (float)UI.Group->Width, (float)UI.Group->Height };
@@ -305,35 +242,35 @@ void ComputeSizes() {
     while (Element) {
         for (int i = 0; i < 2; i++) {
             switch(Element->Size[i].Type) {
-                case ui_size_null:
-                case ui_size_pixels:
-                case ui_size_text: {
-                    if (i == axis_x) Element->Rect.Width = Element->Size[i].Value;
-                    else             Element->Rect.Height = Element->Size[i].Value;
+                case UI_Size_null:
+                case UI_Size_pixels:
+                case UI_Size_text: {
+                    if (i == axis_x) Element->Rect.Width = Element->Size[i].value;
+                    else             Element->Rect.Height = Element->Size[i].value;
                 } break;
 
-                case ui_size_percent_of_parent: {
-                    ui_element* Parent = Element->Parent;
-                    float ParentSize = Parent ? Parent->Size[i].Value : GroupSizes[i];
+                case UI_Size_percent_of_parent: {
+                    UI_Element* Parent = Element->Parent;
+                    float ParentSize = Parent ? Parent->Size[i].value : GroupSizes[i];
                     float ParentMargin = Parent ? Parent->Margins[i] : 0;
 
-                    if (i == axis_x) Element->Rect.Width  = Element->Size[i].Value * ParentSize - 2.0f * ParentMargin;
-                    else             Element->Rect.Height = Element->Size[i].Value * ParentSize - 2.0f * ParentMargin;
+                    if (i == axis_x) Element->Rect.Width  = Element->Size[i].value * ParentSize - 2.0f * ParentMargin;
+                    else             Element->Rect.Height = Element->Size[i].value * ParentSize - 2.0f * ParentMargin;
                 } break;
 
-                case ui_size_max_of_children: 
-                case ui_size_sum_of_children: { 
-                    Element->Size[i].Value += Element->Margins[i];
+                case UI_Size_max_of_children: 
+                case UI_Size_sum_of_children: { 
+                    Element->Size[i].value += Element->Margins[i];
                 } break;
                 
                 default: Raise("Invalid size type.");
             }
 
-            if (Element->Size[i].Value > Element->Size[i].Max) {
-                Element->Size[i].Value = Element->Size[i].Max;
+            if (Element->Size[i].value > Element->Size[i].max) {
+                Element->Size[i].value = Element->Size[i].max;
             }
-            if (Element->Size[i].Value < Element->Size[i].Min) {
-                Element->Size[i].Value = Element->Size[i].Min;
+            if (Element->Size[i].value < Element->Size[i].min) {
+                Element->Size[i].value = Element->Size[i].min;
             }
         }
 
@@ -345,21 +282,21 @@ void ComputeSizes() {
 
     // Go from bottom to top computing sizes that depend on children
     while (Element) {
-        ui_element* Parent = Element->Parent;
+        UI_Element* Parent = Element->Parent;
         if (Parent) {
             for (int i = 0; i < 2; i++) {
-                if (Element->Size[i].Type != ui_size_null) {
-                    if (Parent->Size[i].Type == ui_size_max_of_children) {
-                        float ChildValue = Element->Size[i].Value + 2.0f * Parent->Margins[i];
-                        if (ChildValue > Parent->Size[i].Value) Parent->Size[i].Value = ChildValue;
+                if (Element->Size[i].Type != UI_Size_null) {
+                    if (Parent->Size[i].Type == UI_Size_max_of_children) {
+                        float Childvalue = Element->Size[i].value + 2.0f * Parent->Margins[i];
+                        if (Childvalue > Parent->Size[i].value) Parent->Size[i].value = Childvalue;
                     }
-                    else if (Parent->Size[i].Type == ui_size_sum_of_children) {
-                        Parent->Size[i].Value += Element->Size[i].Value + Parent->Margins[i];
+                    else if (Parent->Size[i].Type == UI_Size_sum_of_children) {
+                        Parent->Size[i].value += Element->Size[i].value + Parent->Margins[i];
                     }
                 }
             }
-            Parent->Rect.Width = Parent->Size[axis_x].Value;
-            Parent->Rect.Height = Parent->Size[axis_y].Value;
+            Parent->Rect.Width = Parent->Size[axis_x].value;
+            Parent->Rect.Height = Parent->Size[axis_y].value;
         }
         
         if (!Element->Previous) break;
@@ -372,11 +309,11 @@ void ComputeSizes() {
     while (Element) {
         for (int i = 0; i < 2; i++) {
             float Result = 0;
-            if (Element->Size[i].Type == ui_size_percent_of_parent) {
-                ui_element* Parent = Element->Parent;
-                float ParentSize = Parent ? Parent->Size[i].Value : GroupSizes[i];
+            if (Element->Size[i].Type == UI_Size_percent_of_parent) {
+                UI_Element* Parent = Element->Parent;
+                float ParentSize = Parent ? Parent->Size[i].value : GroupSizes[i];
                 float ParentMargin = Parent ? Parent->Margins[i] : 0;
-                Result = Element->Size[i].Value * ParentSize - 2.0f * ParentMargin;
+                Result = Element->Size[i].value * ParentSize - 2.0f * ParentMargin;
 
                 if (i == axis_x) Element->Rect.Width  = Result;
                 else             Element->Rect.Height = Result;
@@ -390,7 +327,7 @@ void ComputeSizes() {
 
 void ComputeLayout() {
     // Compute relative positions
-    ui_element* Element = UI.Tree.First;
+    UI_Element* Element = UI.Tree.First;
     if (!Element) return;
 
     while(Element) {
@@ -398,13 +335,13 @@ void ComputeLayout() {
         if (Element->Flags & (ui_flag::stack_children_x | ui_flag::stack_children_y)) {
             ui_axis StackAxis = (Element->Flags & ui_flag::stack_children_x) ? axis_x : axis_y;
 
-            float NextValue = Element->Margins[StackAxis] + Element->Size[StackAxis].Min;
-            ui_element* Child = Element->Next;
+            float Nextvalue = Element->Margins[StackAxis] + Element->Size[StackAxis].min;
+            UI_Element* Child = Element->Next;
             while (Child) {
                 if (Child->Parent == Element) {
-                    if (Child->Size[StackAxis].Type != ui_size_null) {
-                        Child->RelativePosition[StackAxis] = NextValue;
-                        NextValue += Element->Margins[StackAxis] + Child->Size[StackAxis].Value;
+                    if (Child->Size[StackAxis].Type != UI_Size_null) {
+                        Child->RelativePosition[StackAxis] = Nextvalue;
+                        Nextvalue += Element->Margins[StackAxis] + Child->Size[StackAxis].value;
                     }
                 }
 
@@ -433,8 +370,8 @@ void ComputeLayout() {
         float* ElementRectSize = &Element->Rect.Width;
         for (int i = 0; i < 2; i++) {
             ElementRectPos[i] = ParentPosition[i] + Element->RelativePosition[i];
-            ui_alignment Alignment = Element->Alignment[i];
-            if (Alignment != ui_alignment_free)
+            UI_Alignment Alignment = Element->Alignment[i];
+            if (Alignment != UI_Alignment_free)
                 ElementRectPos[i] += Align(Alignment, ParentSizes[i], ElementRectSize[i], ParentMargins[i]);
         }
 
@@ -447,7 +384,7 @@ void ComputeLayout() {
 void RenderUI() {
     rectangle Screen = {0, 0, (float)UI.Group->Width, (float)UI.Group->Height};
 
-    ui_element* Element = UI.Tree.First;
+    UI_Element* Element = UI.Tree.First;
     while (Element) {
         v2 Position = LeftTop(Element->Rect);
         if (Intersect(Screen, Element->Rect)) {
@@ -477,9 +414,9 @@ void UISidebar(ui_axis Axis) {
     Assert(UI.Tree.Parent);
     ui_axis OppositeAxis = Opposite(Axis);
 
-    ui_alignment Alignments[2];
-    Alignments[Axis] = ui_alignment_free;
-    Alignments[OppositeAxis] = ui_alignment_max;
+    UI_Alignment Alignments[2];
+    Alignments[Axis] = UI_Alignment_free;
+    Alignments[OppositeAxis] = UI_Alignment_max;
 
     float ParentsSize[2]       = { UI.Tree.Parent->Rect.Width, UI.Tree.Parent->Rect.Height };
     float ParentsParentSize[2] = { (float)UI.Group->Width, (float)UI.Group->Height };
@@ -489,10 +426,10 @@ void UISidebar(ui_axis Axis) {
     }
     
     float SideBarSize = ParentsParentSize[Axis] / ParentsSize[Axis] * ParentsParentSize[Axis];
-    ui_size Size[2] = {};
+    UI_Size Size[2] = {};
     Size[Axis] = UISizeNull(SideBarSize);
     Size[OppositeAxis] = UISizePixels(SIDEBAR_WIDTH);
-    ui_element* Element = PushUIElement(
+    UI_Element* Element = PushUIElement(
         "Sidebar",
         .AlignmentX = Alignments[axis_x],
         .AlignmentY = Alignments[axis_y],
@@ -522,20 +459,20 @@ void UISidebar(ui_axis Axis) {
 }
 
 struct ui_menu {
-    ui_element* Element;
-    ui_alignment Alignment;
+    UI_Element* Element;
+    UI_Alignment Alignment;
     ui_axis StackAxis;
 
     ui_menu(
         const char* Text,
-        ui_element_options Options = {}
+        UI_Element_options Options = {}
     ) {
         Options.Color = ChangeAlpha(color::BLACK, 0.7f);
         StackAxis = Options.Stack;
         Alignment = StackAxis == axis_x ? Options.AlignmentX : Options.AlignmentY;
         ui_axis NoStack = Opposite(StackAxis);
         Options.Flags |= ui_flag::render_rect;
-        ui_size Sizes[2] = {};
+        UI_Size Sizes[2] = {};
         if (StackAxis == axis_x) {
             Options.Flags |= ui_flag::stack_children_x;
             Sizes[axis_x] = UISizeSumChildren();
@@ -560,7 +497,7 @@ struct ui_menu {
         float ElementSize = StackAxis == axis_x ? Element->Rect.Width : Element->Rect.Height;
         if (ElementSize > ParentSize) {
             UISidebar(StackAxis);
-            Element->Alignment[StackAxis] = ui_alignment_free;
+            Element->Alignment[StackAxis] = UI_Alignment_free;
         }
         else {
             Element->Alignment[StackAxis] = Alignment;
@@ -582,14 +519,14 @@ struct ui_dropdown {
         float Points = 12;
         float Width = 0, Height = 0;
         GetTextWidthAndHeight(Text, Font, Points, &Width, &Height);
-        ui_size Sizes[2] = {
+        UI_Size Sizes[2] = {
             UISizeMaxChildren(Width),
             UISizeSumChildren(Height)
         };
         
-        ui_element* Element = PushUIElement(
+        UI_Element* Element = PushUIElement(
             Text, 
-            .AlignmentX = ui_alignment_min, .AlignmentY = ui_alignment_min,
+            .AlignmentX = UI_Alignment_min, .AlignmentY = UI_Alignment_min,
             .Flags = ui_flag::render_text | ui_flag::stack_children_y,
             .Points = Points,
             .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
@@ -622,34 +559,34 @@ struct ui_dropdown {
 
 void _UIText(
     const char* Text,
-    ui_element_options Options = {}
+    UI_Element_options Options = {}
 ) {
-    ui_size Sizes[2];
+    UI_Size Sizes[2];
     UISizeText(Text, Options.Points, Sizes);
     Options.Flags |= ui_flag::render_text;
     Options.SizeX = Sizes[axis_x];
     Options.SizeY = Sizes[axis_y];
-    ui_element* Element = PushUIElement(Text, Options);
+    UI_Element* Element = PushUIElement(Text, Options);
 }
 
 #define UIText(Text, ...) _UIText(Text, { __VA_ARGS__ })
 
 bool UIButton(const char* Text, float Points = 20.0f) {
-    ui_size Sizes[2];
+    UI_Size Sizes[2];
     UISizeText(Text, Points, Sizes);
-    ui_element* Element = PushUIElement(
+    UI_Element* Element = PushUIElement(
         Text, 
-        .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_center,
+        .AlignmentX = UI_Alignment_center, .AlignmentY = UI_Alignment_center,
         .Flags = ui_flag::render_text,
         .Points = Points,
         .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
     );
     if (Element->Parent) {
         if (Element->Parent->Flags & ui_flag::stack_children_x) {
-            Element->Alignment[0] = ui_alignment_free;
+            Element->Alignment[0] = UI_Alignment_free;
         }
         if (Element->Parent->Flags & ui_flag::stack_children_y) {
-            Element->Alignment[1] = ui_alignment_free;
+            Element->Alignment[1] = UI_Alignment_free;
         }
     }
 
@@ -661,25 +598,25 @@ bool UIButton(const char* Text, float Points = 20.0f) {
     return Element->Clicked;
 }
 
-void UIDebugValue(debug_entry* Entry) {
-    ui_size Sizes[2] = {
-        {ui_size_pixels, 0},
-        {ui_size_pixels, 0},
+void UIDebugvalue(debug_entry* Entry) {
+    UI_Size Sizes[2] = {
+        {UI_Size_pixels, 0},
+        {UI_Size_pixels, 0},
     };
-    UpdateAndSizeDebugEntry(UI.Group->DebugFont, Entry, &Sizes[axis_x].Value, &Sizes[axis_y].Value);
+    UpdateAndSizeDebugEntry(UI.Group->DebugFont, Entry, &Sizes[axis_x].value, &Sizes[axis_y].value);
 
-    ui_element* Element = PushUIElement(
+    UI_Element* Element = PushUIElement(
         Entry->Name.Content, 
-        .AlignmentX = ui_alignment_min,
+        .AlignmentX = UI_Alignment_min,
         .SizeX = Sizes[axis_x], .SizeY = Sizes[axis_y]
     );
     Element->DebugEntry = Entry;
     if (IsStructType(Entry->Type)) {
-        Element->Size[axis_x] = UISizeMaxChildren(Sizes[axis_x].Value);
-        Element->Size[axis_y] = UISizeSumChildren(Sizes[axis_y].Value);
+        Element->Size[axis_x] = UISizeMaxChildren(Sizes[axis_x].value);
+        Element->Size[axis_y] = UISizeSumChildren(Sizes[axis_y].value);
         Element->Flags = ui_flag::stack_children_y;
         if (Element->Hovered) Element->Color = color::YELLOW;
-        if (Entry->Value) {
+        if (Entry->value) {
             Element->Expanded = false;
         }
         else if (Element->Clicked) {
@@ -694,7 +631,7 @@ void UIDebugValue(debug_entry* Entry) {
                 if (Member.StructType == Entry->Type) {
                     if (!Found) Found = true;
                     while (Member.StructType == Entry->Type) {
-                        uint8* Pointer = (uint8*)Entry->Value + Member.Offset;
+                        uint8* Pointer = (uint8*)Entry->value + Member.Offset;
                         if (Member.IsPointer) {
                             debug_entry* ChildEntry = _AddDebugEntry(
                                 UI.DebugInfo, 
@@ -705,7 +642,7 @@ void UIDebugValue(debug_entry* Entry) {
                                 Entry->Editable, 
                                 Entry
                             );
-                            UIDebugValue(ChildEntry);
+                            UIDebugvalue(ChildEntry);
                         }
                         else if (Member.ArraySize > 0) {
                             debug_entry* ChildEntries = _AddDebugArray(
@@ -718,7 +655,7 @@ void UIDebugValue(debug_entry* Entry) {
                                 Entry
                             );
                             for (int j = 0; j < Member.ArraySize; j++) {
-                                UIDebugValue(&ChildEntries[j]);
+                                UIDebugvalue(&ChildEntries[j]);
                             }
                         }
                         else {
@@ -731,7 +668,7 @@ void UIDebugValue(debug_entry* Entry) {
                                 Entry->Editable, 
                                 Entry
                             );
-                            UIDebugValue(ChildEntry);
+                            UIDebugvalue(ChildEntry);
                         }
                         i++;
                         if (i < STRUCT_MEMBERS_SIZE) Member = StructMembers[i];
@@ -769,7 +706,7 @@ void UpdateUI(
     if (ShowMainMenu) {
         ui_menu MainMenu = UIMenu(
             "Main menu", 
-            .AlignmentX = ui_alignment_center, .AlignmentY = ui_alignment_center,
+            .AlignmentX = UI_Alignment_center, .AlignmentY = UI_Alignment_center,
             .MarginX = 50.0f, .MarginY = 20.0f
         );
 
@@ -835,7 +772,7 @@ void UpdateUI(
         
         ui_menu DebugMenu = UIMenu(
             "Debug Menu",
-            .AlignmentX = ui_alignment_min, .AlignmentY = ui_alignment_min,
+            .AlignmentX = UI_Alignment_min, .AlignmentY = UI_Alignment_min,
             .MarginX = 5.0f
         );
 
@@ -843,7 +780,7 @@ void UpdateUI(
         int nEntries = DebugInfo->nEntries;
         for (; i < nEntries; i++) {
             debug_entry* Entry = &DebugInfo->Entries[i];
-            UIDebugValue(Entry);
+            UIDebugvalue(Entry);
         }
 
         if (UIDropdown(Arenas)) {
@@ -860,7 +797,7 @@ void UpdateUI(
             nEntries = DebugInfo->nEntries;
             for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];
-                UIDebugValue(Entry);
+                UIDebugvalue(Entry);
             }
         }
 
@@ -881,7 +818,7 @@ void UpdateUI(
             nEntries = DebugInfo->nEntries;
             for (; i < nEntries; i++) {
                 debug_entry* Entry = &DebugInfo->Entries[i];
-                UIDebugValue(Entry);
+                UIDebugvalue(Entry);
             }
         }
         

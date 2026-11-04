@@ -212,10 +212,9 @@ Tokenizer InitTokenizer(void* at, int length = 0, bool ignore_whitespace = true)
     return result;
 }
 
-void Advance(Tokenizer& Tokenizer) {
+bool Advance(Tokenizer& Tokenizer) {
     if (Tokenizer.at[0] == '\0') {
-        throw "Tokenizer reached EOF";
-        return;
+        return false;
     }
     else if (Tokenizer.at[0] == '\n') {
         Tokenizer.line++;
@@ -225,6 +224,7 @@ void Advance(Tokenizer& Tokenizer) {
         Tokenizer.column++;
     }
     Tokenizer.at++;
+    return true;
 }
 
 void Advance(Tokenizer& Tokenizer, int nChars) {
@@ -447,121 +447,7 @@ Token GetToken(Tokenizer& Tokenizer) {
     }
 
     Token.text = TokenStart;
-    
     return Token;
-}
-
-Token RequireToken(Tokenizer& tokenizer, const char* text) {
-    Token token = GetToken(tokenizer);
-    if (token == text) {
-        return token;
-    }
-    else {
-        char error_buffer[256];
-        char token_text[MAX_TOKEN_LENGTH] = "";
-        strncpy(token_text, token.text, token.length);
-        sprintf(
-            error_buffer, 
-            "Token `%s` at line %d, column %d should be `%s`.", 
-            token_text, token.line, token.column, text
-        );
-        throw error_buffer;
-    }
-    return token;
-}
-
-Token RequireToken(Tokenizer& tokenizer, Token_Type type) {
-    Token token = GetToken(tokenizer);
-    if (token.type == type) {
-        return token;
-    }
-    else {
-        char error_buffer[256];
-        char token_text[MAX_TOKEN_LENGTH] = {};
-        strncpy(token_text, token.text, token.length);
-        sprintf(
-            error_buffer, 
-            "Token `%s` at line %d, column %d is type '%s' but should be '%s'.", 
-            token_text, token.line, token.column, TOKEN_TYPE_NAME[token.type], TOKEN_TYPE_NAME[type]
-        );
-        throw error_buffer;
-    }
-    return token;
-}
-
-// Parsing
-bool ParseBool(Tokenizer& tokenizer) {
-    Token token = RequireToken(tokenizer, Token_Identifier);
-    return token == "true" || token == "True" || token == "TRUE" || token == "1";
-}
-
-unsigned int Parseuint32(Tokenizer& tokenizer) {
-    Token token = RequireToken(tokenizer, Token_Constant_Integer);
-    char* end;
-    return strtol(token.text, &end, 10);
-}
-
-int ParseInt(Tokenizer& tokenizer) {
-    char* end = 0;
-    Token token = GetToken(tokenizer);
-    bool negative = false;
-    if (token.type == Token_Minus) {
-        negative = true;
-        token = GetToken(tokenizer);
-    }
-    if (token.type != Token_Constant_Integer) {
-        throw "Tried to parse int but didn't find a number.";
-    };
-    int result = strtol(token.text, &end, 10);
-    return negative ? -result : result;
-}
-
-float ParseFloat(Tokenizer& tokenizer) {
-    char* end = 0;
-    Token token = GetToken(tokenizer);
-    bool negative = false;
-    if (token.type == Token_Minus) {
-        negative = true;
-        token = GetToken(tokenizer);
-    }
-    if (token.type != Token_Constant_Decimal && token.type != Token_Constant_Integer) {
-        throw "Tried to parse float but didn't find a number.";
-    }
-    float result = strtof(token.text, &end);
-    return negative ? -result : result;
-}
-
-double ParseDouble(Tokenizer& tokenizer) {
-    char* end = 0;
-    Token token = GetToken(tokenizer);
-    bool negative = false;
-    if (token.type == Token_Minus) {
-        negative = true;
-        token = GetToken(tokenizer);
-    }
-    if (token.type == Token_Constant_Decimal || token.type == Token_Constant_Integer) {
-        throw "Tried to parse float but didn't find a number.";
-    };
-    double result = strtod(token.text, &end);
-    return negative ? -result : result;
-}
-
-// If input pointer is a string that represents a path, returns the string length of the path. If not, returns 0.
-int ParsePath(const char* text) {
-    int result = 0;
-    while (text[0] != '\0' && text[0] != ';' && text[0] != '\n' && text[0] != '\r') {
-#ifdef _WIN32
-        if (
-            text[0] == '<' || text[0] == '>' || text[0] == '|' || text[0] == '?' || text[0] == '*' ||
-            text[0] >= 0 && text[0] < 32
-        ) {
-            throw "Invalid character in path.";
-        }
-#endif
-        result++;
-        text++;
-    }
-    return result;
 }
 
 #endif

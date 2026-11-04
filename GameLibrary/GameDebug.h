@@ -8,326 +8,328 @@
 // | Debug info                                                                                                                      |
 // +---------------------------------------------------------------------------------------------------------------------------------+
 
-struct debug_entry {
-    string Name;
-    debug_entry* Parent;
-    Arena* Arena;
-    void* Value;
-    string ValueString;
-    game_type Type;
-    bool Editable;
+struct Debug_Entry {
+    String name;
+    Debug_Entry* parent;
+    Arena* arena;
+    void* value;
+    String value_string;
+    Type type;
+    bool editable;
 };
 
 const int MAX_DEBUG_ENTRIES = 128;
-struct debug_info {
-    debug_entry Entries[MAX_DEBUG_ENTRIES];
-    Arena* Arena;
-    int nEntries;
-    float FPS;
-    float UsedTime;
-    float UsedMCyclesPerFrame;
-    float UsedMemory;
+struct Debug_Info {
+    Debug_Entry entries[MAX_DEBUG_ENTRIES];
+    Arena arena;
+    int entry_count;
+    float fps;
+    float used_time;
+    float used_mcycles_per_frame;
+    float used_memory;
 };
 
-debug_entry* _AddDebugEntry(
-    debug_info* DebugInfo, 
-    string Name, 
-    game_type Type, 
-    int Size, 
-    void* Value, 
-    bool Editable, 
-    debug_entry* Parent = nullptr
+Debug_Entry* _AddDebugEntry(
+    Debug_Info* debug_info, 
+    String name, 
+    Type type, 
+    int size, 
+    void* value, 
+    bool editable, 
+    Debug_Entry* parent = nullptr
 ) {
-    debug_entry* Entry = &DebugInfo->Entries[DebugInfo->nEntries++];
-    Entry->Name = Name;
-    Entry->Parent = Parent;
-    Entry->Arena = DebugInfo->Arena;
-    Entry->Value = Value;
-    Entry->Type = Type;
-    Entry->Editable = Editable;
+    Debug_Entry* entry = &debug_info->entries[debug_info->entry_count++];
+    entry->name = name;
+    entry->parent = parent;
+    entry->arena = &debug_info->arena;
+    entry->value = value;
+    entry->type = type;
+    entry->editable = editable;
 
-    return Entry;
+    return entry;
 }
 
-debug_entry* _AddDebugArray(
-    debug_info* DebugInfo,
-    string Name,
-    game_type Type,
-    int Size,
-    void* Value,
-    uint32 Count,
-    debug_entry* Parent = nullptr
+Debug_Entry* _AddDebugArray(
+    Debug_Info* debug_info,
+    String name,
+    Type type,
+    int size,
+    void* value,
+    uint32 count,
+    Debug_Entry* parent = nullptr
 ) {
-    uint8* Memory = (uint8*)Value;
-    debug_entry* Result = 0;
-    for (int i = 0; i < Count; i++) {
-        string Text = Format(DebugInfo->Arena, "{s}[{i}]", 2, Name, i);
-        if (i == 0) Result = _AddDebugEntry(DebugInfo, Text, Type, Size, Memory, false, Parent);
-        else        _AddDebugEntry(DebugInfo, Text, Type, Size, Memory, false, Parent);
-        Memory += Size;
+    uint8* memory = (uint8*)value;
+    Debug_Entry* result = 0;
+    for (int i = 0; i < count; i++) {
+        String text = Format(debug_info->arena, "{s}[{i}]", 2, name, i);
+        if (i == 0) result = _AddDebugEntry(debug_info, text, type, size, memory, false, parent);
+        else                 _AddDebugEntry(debug_info, text, type, size, memory, false, parent);
+        memory += size;
+    }
+    return result;
+}
+
+Debug_Entry* _AddDebugPointerArray(
+    Debug_Info* debug_info,
+    String name,
+    Type type,
+    int size,
+    void* value,
+    uint32 count,
+    Debug_Entry* parent = nullptr
+) {
+    uint8* memory = (uint8*)value;
+    Debug_Entry* Result = 0;
+    for (int i = 0; i < count; i++) {
+        String text = Format(debug_info->arena, "{s}[{i}]", 2, name, i);
+        if (i == 0) Result = _AddDebugEntry(debug_info, text, type, size, *(void**)memory, false, parent);
+        else        _AddDebugEntry(debug_info, text, type, size, *(void**)memory, false, parent);
+        memory += sizeof(void*);
     }
     return Result;
 }
 
-debug_entry* _AddDebugPointerArray(
-    debug_info* DebugInfo,
-    string Name,
-    game_type Type,
-    int Size,
-    void* Value,
-    uint32 Count,
-    debug_entry* Parent = nullptr
-) {
-    uint8* Memory = (uint8*)Value;
-    debug_entry* Result = 0;
-    for (int i = 0; i < Count; i++) {
-        string Text = Format(DebugInfo->Arena, "{s}[{i}]", 2, Name, i);
-        if (i == 0) Result = _AddDebugEntry(DebugInfo, Text, Type, Size, *(void**)Memory, false, Parent);
-        else        _AddDebugEntry(DebugInfo, Text, Type, Size, *(void**)Memory, false, Parent);
-        Memory += sizeof(void*);
-    }
-    return Result;
-}
+#define DEBUG_VALUE(variable, type)               _AddDebugEntry(debug_info, #variable, Type_##type, sizeof(type), &(variable), false)
+#define DEBUG_POINTER(pointer, type)              _AddDebugEntry(debug_info, #pointer,  Type_##type, sizeof(type), (void*)pointer, false)
+#define DEBUG_ARRAY(pointer, count, type)         _AddDebugArray(debug_info, #pointer,  Type_##type, sizeof(type), (void*)pointer, count)
+#define DEBUG_POINTER_ARRAY(pointer, count, type) _AddDebugPointerArray(debug_info, #pointer, Type_##type, sizeof(type), (void*)pointer, count)
+#define DEBUG_EDIT_VALUE(variable, type)          _AddDebugEntry(debug_info, #variable, Type_##type, sizeof(type), &(variable), true)
 
-#define DEBUG_VALUE(Variable, Type)               _AddDebugEntry(DebugInfo, #Variable, type_##Type, sizeof(Type), &(Variable), false)
-#define DEBUG_POINTER(Pointer, Type)              _AddDebugEntry(DebugInfo, #Pointer,  type_##Type, sizeof(Type), (void*)Pointer, false)
-#define DEBUG_ARRAY(Pointer, Count, Type)         _AddDebugArray(DebugInfo, #Pointer,  type_##Type, sizeof(Type), (void*)Pointer, Count)
-#define DEBUG_POINTER_ARRAY(Pointer, Count, Type) _AddDebugPointerArray(DebugInfo, #Pointer,  type_##Type, sizeof(Type), (void*)Pointer, Count)
-#define DEBUG_EDIT_VALUE(Variable, Type)          _AddDebugEntry(DebugInfo, #Variable, type_##Type, sizeof(Type), &(Variable), true)
+constexpr float DEBUG_ENTRIES_TEXT_POINTS = 20.0f;
 
-void UpdateAndSizeDebugEntry(game_font* Font, debug_entry* Entry, float* OutWidth, float* OutHeight) {
-    float Points = DEBUG_ENTRIES_TEXT_POINTS;
+void UpdateAndSizeDebugEntry(Font* font, Debug_Entry* entry, OUT float* out_width, OUT float* out_height) {
+    float points = DEBUG_ENTRIES_TEXT_POINTS;
 
-    float ValueWidth = 0, ValueHeight = 0;
-    if (Entry->Value) {
-        switch(Entry->Type) {
-            case type_bool: {
-                bool Value = *(bool*)Entry->Value;
-                Entry->ValueString = Value ? "true" : "false";
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+    float value_width = 0, value_height = 0;
+    if (entry->value) {
+        switch(entry->type) {
+            case Type_bool: {
+                bool value = *(bool*)entry->value;
+                entry->value_string = value ? "true" : "false";
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_char: {
-                char Value = *(char*)Entry->Value;
-                switch (Value) {
-                    case '\a': { Entry->ValueString = "\'\\a\'"; } break;
-                    case '\b': { Entry->ValueString = "\'\\b\'"; } break;
-                    case '\f': { Entry->ValueString = "\'\\f\'"; } break;
-                    case '\n': { Entry->ValueString = "\'\\n\'"; } break;
-                    case '\r': { Entry->ValueString = "\'\\r\'"; } break;
-                    case '\t': { Entry->ValueString = "\'\\t\'"; } break;
-                    case '\v': { Entry->ValueString = "\'\\v\'"; } break;
-                    case '\\': { Entry->ValueString = "\'\\\\\'"; } break;
-                    case '\'': { Entry->ValueString = "\'\\'\'"; } break;
-                    case '\"': { Entry->ValueString = "\'\\\"\'"; } break;
-                    case '\0': { Entry->ValueString = "\'\\0\'"; } break;
+            case Type_char: {
+                char value = *(char*)entry->value;
+                switch (value) {
+                    case '\a': { entry->value_string = "\'\\a\'"; } break;
+                    case '\b': { entry->value_string = "\'\\b\'"; } break;
+                    case '\f': { entry->value_string = "\'\\f\'"; } break;
+                    case '\n': { entry->value_string = "\'\\n\'"; } break;
+                    case '\r': { entry->value_string = "\'\\r\'"; } break;
+                    case '\t': { entry->value_string = "\'\\t\'"; } break;
+                    case '\v': { entry->value_string = "\'\\v\'"; } break;
+                    case '\\': { entry->value_string = "\'\\\\\'"; } break;
+                    case '\'': { entry->value_string = "\'\\'\'"; } break;
+                    case '\"': { entry->value_string = "\'\\\"\'"; } break;
+                    case '\0': { entry->value_string = "\'\\0\'"; } break;
                     default: {
-                        if (Value >= ' ' && Value <= '~') {
-                            char* Pointer = PushArray(Entry->Arena, 4, char);
+                        if (value >= ' ' && value <= '~') {
+                            char* Pointer = PushArray(*entry->arena, 4, char);
                             Pointer[0] = '\'';
-                            Pointer[1] = Value;
+                            Pointer[1] = value;
                             Pointer[2] = '\'';
                             Pointer[3] = '\0';
-                            Entry->ValueString = Pointer;
+                            entry->value_string = Pointer;
                         } else {
-                            // Entry->ValueString = Format(Entry->Arena, "\'\\x{:02x}\'", (unsigned char)Value);
+                            // entry->value_string = Format(entry->arena, "\'\\x{:02x}\'", (unsigned char)value);
                             Raise("Invalid char.");
                         }
                     }
                 }
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_string: {
-                Entry->ValueString = (char*)Entry->Value;
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_String: {
+                entry->value_string = (char*)entry->value;
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_int8: {
-                int8 Value = *(int8*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{i}", 1, (int32)Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_int8: {
+                int8 value = *(int8*)entry->value;
+                entry->value_string = Format(*entry->arena, "{i}", 1, (int32)value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_int16: {
-                int16 Value = *(int16*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{i}", 1, (int32)Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_int16: {
+                int16 value = *(int16*)entry->value;
+                entry->value_string = Format(*entry->arena, "{i}", 1, (int32)value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_int: {
-                int Value = *(int*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{i}", 1, Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_int: {
+                int value = *(int*)entry->value;
+                entry->value_string = Format(*entry->arena, "{i}", 1, value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_int32:{
-                int32 Value = *(int32*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{i}", 1, Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_int32:{
+                int32 value = *(int32*)entry->value;
+                entry->value_string = Format(*entry->arena, "{i}", 1, value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_int64:{
-                int64 Value = *(int64*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{I}", 1, Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_int64:{
+                int64 value = *(int64*)entry->value;
+                entry->value_string = Format(*entry->arena, "{I}", 1, value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_uint8:{
-                uint8 Value = *(uint8*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{u}", 1, (uint8)Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_uint8:{
+                uint8 value = *(uint8*)entry->value;
+                entry->value_string = Format(*entry->arena, "{u}", 1, (uint8)value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_uint16:{
-                uint16 Value = *(uint16*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{u}", 1, (uint16)Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_uint16:{
+                uint16 value = *(uint16*)entry->value;
+                entry->value_string = Format(*entry->arena, "{u}", 1, (uint16)value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_uint32:{
-                uint32 Value = *(uint32*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{u}", 1, Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_uint32:{
+                uint32 value = *(uint32*)entry->value;
+                entry->value_string = Format(*entry->arena, "{u}", 1, value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_uint64: {
-                uint64 Value = *(uint64*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{U}", 1, Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_uint64: {
+                uint64 value = *(uint64*)entry->value;
+                entry->value_string = Format(*entry->arena, "{U}", 1, value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_memory_size: {
-                memory_size Value = *(memory_size*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{U}", 1, Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_memory_size: {
+                memory_size value = *(memory_size*)entry->value;
+                entry->value_string = Format(*entry->arena, "{U}", 1, value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_float: {
-                float Value = *(float*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{f3}", 1, Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_float: {
+                float value = *(float*)entry->value;
+                entry->value_string = Format(*entry->arena, "{f3}", 1, value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_double: {
-                double Value = *(double*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{f3}", 1, Value);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_double: {
+                double value = *(double*)entry->value;
+                entry->value_string = Format(*entry->arena, "{f3}", 1, value);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_v2: {
-                v2 Value = *(v2*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "V2({f3}, {f3})", 2, Value.X, Value.Y);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_V2: {
+                V2 value = *(V2*)entry->value;
+                entry->value_string = Format(*entry->arena, "V2({f3}, {f3})", 2, value.x, value.y);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_v3: {
-                v3 Value = *(v3*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "V3({f3}, {f3}, {f3})", 3, Value.X, Value.Y, Value.Z);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_V3: {
+                V3 value = *(V3*)entry->value;
+                entry->value_string = Format(*entry->arena, "V3({f3}, {f3}, {f3})", 3, value.x, value.y, value.z);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_v4: {
-                v4 Value = *(v4*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "V4({f3}, {f3}, {f3}, {f3})", 4, Value.X, Value.Y, Value.Z, Value.W);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_V4: {
+                V4 value = *(V4*)entry->value;
+                entry->value_string = Format(*entry->arena, "V4({f3}, {f3}, {f3}, {f3})", 4, value.x, value.y, value.z, value.w);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_scale: {
-                scale Value = *(scale*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "Scale({f3}, {f3}, {f3})", 3, Value.X, Value.Y, Value.Z);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_Scale: {
+                Scale value = *(Scale*)entry->value;
+                entry->value_string = Format(*entry->arena, "Scale({f3}, {f3}, {f3})", 3, value.x, value.y, value.z);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_quaternion: {
-                quaternion Value = *(quaternion*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{f3} + {f3}i + {f3}j + {f3}k", 4, Value.c, Value.i, Value.j, Value.k);
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+            case Type_Quaternion: {
+                Quaternion value = *(Quaternion*)entry->value;
+                entry->value_string = Format(*entry->arena, "{f3} + {f3}i + {f3}j + {f3}k", 4, value.c, value.i, value.j, value.k);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_color: {
-                Entry->ValueString = string();
-                ValueWidth = 2.0f * GetCharMaxHeight(Font, Points);
+            case Type_Color: {
+                entry->value_string = String();
+                value_width = 2.0f * GetCharMaxHeight(font, points);
             } break;
 
-            case type_collider: {
-                collider Value = *(collider*)Entry->Value;
-                switch(Value.Type) {
+            case Type_Collider: {
+                Collider value = *(Collider*)entry->value;
+                switch(value.type) {
                     case Rect_Collider: {
-                        Entry->ValueString = Format(Entry->Arena, "(Rect) {f3} x {f3}", 2, Value.Rect.HalfWidth, Value.Rect.HalfHeight);
+                        entry->value_string = Format(*entry->arena, "(Rect) {f3} x {f3}", 2, value.rect.half_width, value.rect.half_height);
                     } break;
 
                     case Cube_Collider: {
-                        Entry->ValueString = Format(Entry->Arena, "(Cube) {f3} x {f3} x {f3}", 3, Value.Cube.HalfWidth, Value.Cube.HalfHeight, Value.Cube.HalfDepth);
+                        entry->value_string = Format(*entry->arena, "(Cube) {f3} x {f3} x {f3}", 3, value.cube.half_width, value.cube.half_height, value.cube.half_depth);
                     } break;
 
                     case Sphere_Collider: {
-                        Entry->ValueString = Format(Entry->Arena, "(Sphere) Radius={f3}", 1, Value.Sphere.Radius);
+                        entry->value_string = Format(*entry->arena, "(Sphere) Radius={f3}", 1, value.sphere.radius);
                     } break;
 
                     case Capsule_Collider: {
-                        Entry->ValueString = Format(Entry->Arena, "(Capsule) Radius={f3}", 1, Value.Capsule.Distance);
+                        entry->value_string = Format(*entry->arena, "(Capsule) Radius={f3}", 1, value.capsule.distance);
                     } break;
 
                     default: Raise("Invalid collider type");
                 }
 
-                GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
             } break;
 
-            case type_Arena: {
-                Arena Arena = *(Arena*)Entry->Value;
-                Entry->ValueString = Format(Entry->Arena, "{f3}", 1, (float)Arena.Used / (float)Arena.Size);
-                *OutWidth = 450.0f;
-                *OutHeight = 20.0f;
+            case Type_Arena: {
+                Arena arena = *(Arena*)entry->value;
+                entry->value_string = Format(*entry->arena, "{f3}", 1, (float)arena.used / (float)arena.size);
+                *out_width = 450.0f;
+                *out_height = 20.0f;
                 return;
             } break;
             
             default: {
-                if (IsEnumType(Entry->Type)) {
-                    int Value = *(int*)Entry->Value;
+                if (IsEnumType(entry->type)) {
+                    int value = *(int*)entry->value;
                     for (int i = 0; i < ENUM_VALUES_SIZE; i++) {
-                        debug_enum_value EnumValue = EnumValues[i];
-                        if (EnumValue.EnumType == Entry->Type && EnumValue.Value == Value) {
-                            Entry->ValueString = Format(Entry->Arena, "{s} ({i})", 2, string(EnumValue.Identifier), Value);
-                            GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                        Debug_Enum_Value enum_value = ENUM_VALUES[i];
+                        if (enum_value.enum_type == entry->type && enum_value.value == value) {
+                            entry->value_string = Format(*entry->arena, "{s} ({i})", 2, String(enum_value.identifier), value);
+                            GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
                             break;
                         }
                     }
                 }
-                else if (IsFlagType(Entry->Type)) {
+                else if (IsFlagType(entry->type)) {
                     int Matches = 0;
-                    int Value = *(int*)Entry->Value;
-                    char* Result = (char*)(Entry->Arena->Base + Entry->Arena->Used);
+                    int value = *(int*)entry->value;
+                    char* Result = (char*)(entry->arena->base + entry->arena->used);
                     for (int i = 0; i < FLAG_VALUES_SIZE; i++) {
-                        debug_enum_value FlagValue = FlagValues[i];
-                        if (FlagValue.EnumType == Entry->Type && (FlagValue.Value & Value)) {
+                        Debug_Enum_Value flag_value = FLAG_VALUES[i];
+                        if (flag_value.enum_type == entry->type && (flag_value.value & value)) {
                             if (Matches == 0) {
-                                CopyString(Entry->Arena, FlagValue.Identifier);
+                                CopyString(*entry->arena, flag_value.identifier);
                             }
                             else {
-                                CopyString(Entry->Arena, " | ");
-                                CopyString(Entry->Arena, FlagValue.Identifier);
+                                CopyString(*entry->arena, " | ");
+                                CopyString(*entry->arena, flag_value.identifier);
                             }
 
                             Matches++;
                         }
                     }
                     if (Matches == 0) {
-                        CopyString(Entry->Arena, "none");
+                        CopyString(*entry->arena, "none");
                     }
-                    Format(Entry->Arena, " ({i})", 1, Value);
-                    Entry->ValueString = Result;
-                    GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                    Format(*entry->arena, " ({i})", 1, value);
+                    entry->value_string = Result;
+                    GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
                 }
-                else if (IsStructType(Entry->Type)) {
-                    if (Entry->Value == 0) {
-                        Entry->ValueString = "NULL";
-                        GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                else if (IsStructType(entry->type)) {
+                    if (entry->value == 0) {
+                        entry->value_string = "NULL";
+                        GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
                     }
                     else {
-                        Entry->ValueString = Format(Entry->Arena, "0x{x}", (uint64)Entry->Value);
-                        GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+                        entry->value_string = Format(*entry->arena, "0x{x}", (uint64)entry->value);
+                        GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
                     }
                 }
                 else Raise("Invalid debug type.");
@@ -335,97 +337,96 @@ void UpdateAndSizeDebugEntry(game_font* Font, debug_entry* Entry, float* OutWidt
         }
     }
     else {
-        Entry->ValueString = "NULL";
-        GetTextWidthAndHeight(Entry->ValueString, Font, Points, &ValueWidth, &ValueHeight);
+        entry->value_string = "NULL";
+        GetTextWidthAndHeight(entry->value_string, font, points, &value_width, &value_height);
     }
 
-    float Width = 0,     Height = GetCharMaxHeight(Font, Points), 
-      NameWidth = 0, NameHeight = 0;
-    GetTextWidthAndHeight(Entry->Name, Font, Points, &Width, &Height);
-    GetTextWidthAndHeight(": ", Font, Points, &NameWidth, &NameHeight);
-    Width += NameWidth + ValueWidth;
-    Height = fmax(Height, ValueHeight);
+    float width = 0,      height = GetCharMaxHeight(font, points), 
+     name_width = 0, name_height = 0;
+    GetTextWidthAndHeight(entry->name, font, points, &width, &height);
+    GetTextWidthAndHeight(": ", font, points, &name_width, &name_height);
+    width += name_width + value_width;
+    height = fmax(height, value_height);
 
-    debug_entry* Parent = Entry->Parent;
-    while (Parent) {
-        Width += 20.0f;
-        Parent = Parent->Parent;
+    Debug_Entry* parent = entry->parent;
+    while (parent) {
+        width += 20.0f;
+        parent = parent->parent;
     }
 
-    *OutWidth = Width;
-    *OutHeight = Height;
+    *out_width = width;
+    *out_height = height;
 }
 
-void PushDebugEntry(render_group* Group, debug_entry* Entry, v2 Position, color Color) {
-    float Points = DEBUG_ENTRIES_TEXT_POINTS;
-    float LineHeight = GetCharMaxHeight(Group->DebugFont, Points);
+void PushDebugEntry(Arena& transient, Render_Group* group, Debug_Entry* entry, V2 position, Color color) {
+    float points = DEBUG_ENTRIES_TEXT_POINTS;
+    float line_height = GetCharMaxHeight(group->debug_font, points);
 
-    v2 TextCursor = Position + V2(0, LineHeight);
-    debug_entry* Parent = Entry->Parent;
-    while (Parent) {
-        TextCursor.X += 20.0f;
-        Parent = Parent->Parent;
+    V2 text_cursor = position + V2(0, line_height);
+    Debug_Entry* parent = entry->parent;
+    while (parent) {
+        text_cursor.x += 20.0f;
+        parent = parent->parent;
     }
 
-    string Name = Format(Group->Transient, "{s}: ", 1, Entry->Name);
-    if (Entry->Type != type_Arena) {
-        PushText(Group, TextCursor, Name, .Color = Color, .Font = Group->DebugFont, .Points = Points);
+    String name = Format(transient, "{s}: ", 1, entry->name);
+    if (entry->type != Type_Arena) {
+        // PushText(group, text_cursor, name, .color = color, .font = group->debug_font, .points = points);
     }
 
-    float Width, Height;
-    GetTextWidthAndHeight(Name, Group->DebugFont, Points, &Width, &Height);
-    TextCursor.X += Width;
+    float width, height;
+    GetTextWidthAndHeight(name, group->debug_font, points, &width, &height);
+    text_cursor.x += width;
 
-    switch(Entry->Type) {
-        case type_bool: {
-            bool Value = *(bool*)Entry->Value;
-            PushText(Group, TextCursor, Entry->ValueString, 
-                .Color = Value ? color::CYAN : color::RED, .Font = Group->DebugFont, .Points = Points);
+    switch(entry->type) {
+        case Type_bool: {
+            bool value = *(bool*)entry->value;
+            // PushText(group, text_cursor, entry->value_string, 
+            //     .color = value ? color::CYAN : color::RED, .Font = Group->DebugFont, .points = points);
         } break;
 
-        case type_char:
-        case type_string:
-        case type_int8:
-        case type_int16:
-        case type_int:
-        case type_int32:
-        case type_int64:
-        case type_uint8:
-        case type_uint16:
-        case type_uint32:
-        case type_uint64:
-        case type_memory_size:
-        case type_float:
-        case type_double:
-        case type_v2:
-        case type_v3:
-        case type_v4:
-        case type_scale:
-        case type_quaternion:
-        case type_collider:
+        case Type_char:
+        case Type_String:
+        case Type_int8:
+        case Type_int16:
+        case Type_int:
+        case Type_int32:
+        case Type_int64:
+        case Type_uint8:
+        case Type_uint16:
+        case Type_uint32:
+        case Type_uint64:
+        case Type_memory_size:
+        case Type_float:
+        case Type_double:
+        case Type_V2:
+        case Type_V3:
+        case Type_V4:
+        case Type_Scale:
+        case Type_Quaternion:
+        case Type_Collider:
         {
-            PushText(Group, TextCursor, Entry->ValueString, 
-                .Color = Color, .Font = Group->DebugFont, .Points = Points);
+            // PushText(group, text_cursor, entry->value_string, 
+            //     .color = color, .font = group->debug_font, .points = points);
         } break;
 
-        case type_color: {
-            rectangle Rect = { TextCursor.X, Position.Y + 3.0f, 2.0f * LineHeight, LineHeight };
-            color Color = *(color*)Entry->Value;
-            PushRect(Group, Rect, Color);
-            PushRectOutline(Group, Rect, color::GRAY, 1.0f);
+        case Type_Color: {
+            Color color = *(Color*)entry->value;
+            PushRect(group, text_cursor.x, position.y + 3.0f, 2.0f * line_height, line_height, color);
+            // PushRectOutline(group, rect, Color::GRAY, 1.0f);
         } break;
 
-        case type_Arena: {
-            tokenizer Tokenizer = InitTokenizer(Entry->ValueString.Content);
-            float Percentage = ParseFloat(Tokenizer);
-            rectangle Rect = Rectangle(Position.X, Position.Y, 450.0f, 20.0f);
-            PushFillbar(Group, Entry->Name.Content, Percentage, Rect);
+        case Type_Arena: {
+            Tokenizer tokenizer = InitTokenizer(entry->value_string.content);
+            float percentage = ParseFloat(tokenizer);
+            Rect rect = { position.x, position.y, 450.0f, 20.0f };
+            // PushFillbar(group, entry->name.content, Percentage, Rect);
         } break;
 
         default: {
-            if (IsEnumType(Entry->Type) || IsFlagType(Entry->Type) || IsStructType(Entry->Type)) {
-                PushText(Group, TextCursor, Entry->ValueString, 
-                    .Color = Color, .Font = Group->DebugFont, .Points = Points);
+            if (IsEnumType(entry->type) || IsFlagType(entry->type) || IsStructType(entry->type)) {
+                // PushText(group, text_cursor, entry->value_string, 
+                //     .color = color, .font = group->debug_font, .points = points);
             }
         }
     }

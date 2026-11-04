@@ -3,6 +3,7 @@
 
 #include "GamePlatform.h"
 #include "Tokenizer.h"
+#include "parse.h"
 
 
 enum Build_Mode {
@@ -108,7 +109,7 @@ struct Build_Configuration {
     bool pch;
 };
 
-Build_Configuration ReadBuildConfiguration(Arena* arena, String config_file_path) {
+Build_Configuration ReadBuildConfiguration(Arena& permanent, String config_file_path) {
     Build_Configuration config;
     File_Info config_file_info;
     void* config_file = Platform.ReadEntireFile(config_file_path.content, &config_file_info);
@@ -123,20 +124,17 @@ Build_Configuration ReadBuildConfiguration(Arena* arena, String config_file_path
             }
     
             else if (token.type == Token_Identifier) {
-                // Mode
                 if (token == "MODE") {
                     RequireToken(tokenizer, Token_Equal);
                     Token mode_token = RequireToken(tokenizer, Token_Identifier);
                     config.mode = GetBuildMode(mode_token);
                 }
     
-                // Compiler
                 else if (token == "COMPILER") {
                     RequireToken(tokenizer, Token_Equal);
                     config.compiler = GetCompiler(RequireToken(tokenizer, Token_Identifier));
                 }
     
-                // Compiler path
                 else if (token == "COMPILER_PATH") {
                     RequireToken(tokenizer, Token_Equal);
                     config.compiler_path.content = tokenizer.at;
@@ -144,23 +142,21 @@ Build_Configuration ReadBuildConfiguration(Arena* arena, String config_file_path
                     Advance(tokenizer, config.compiler_path.length);
                 }
 
-                // Precompiled headers
                 else if (token == "PRECOMPILE_HEADERS") {
                     RequireToken(tokenizer, Token_Equal);
                     config.pch = ParseBool(tokenizer);
                 }
     
-                // Include
                 else if (token == "INCLUDE") {
                     RequireToken(tokenizer, Token_Equal);
 
                     config.include.length = 0;
-                    config.include.content = (const char*)(arena->base + arena->used);
+                    config.include.content = (const char*)(permanent.base + permanent.used);
 
                     int Index = 0;
                     do {
                         AdvanceUntilNextLine(tokenizer);
-                        char* pointer = PushArray(arena, 3, char);
+                        char* pointer = PushArray(permanent, 3, char);
                         config.include.length += 3;
                         if (config.compiler == MSVC) {
                             *pointer++ = '/';
@@ -171,48 +167,47 @@ Build_Configuration ReadBuildConfiguration(Arena* arena, String config_file_path
                         *pointer++ = 'I';
                         *pointer++ = '\"';
                         int path_length = ParsePath(tokenizer.at);
-                        PushArray(arena, path_length + 1, char);
+                        PushArray(permanent, path_length + 1, char);
                         config.include.length += path_length + 1;
                         strncpy(pointer, tokenizer.at, path_length);
                         Advance(tokenizer, path_length);
                         pointer += path_length;
                         *pointer++ = '\"';
                         if (tokenizer.at[0] != ';') {
-                            PushArray(arena, 1, char);
+                            PushArray(permanent, 1, char);
                             *pointer++ = '\0';
                             break;
                         }
-                        PushArray(arena, 1, char);
+                        PushArray(permanent, 1, char);
                         config.include.length += 1;
                         *pointer++ = ' ';
                     } while (true);
                 }
     
-                // Lib
                 else if (token == "LIB") {
                     RequireToken(tokenizer, Token_Equal);
 
                     config.lib.length = 0;
-                    config.lib.content = (char*)(arena->base + arena->used);
+                    config.lib.content = (char*)(permanent.base + permanent.used);
 
                     do {
                         AdvanceUntilNextLine(tokenizer);
-                        char* pointer = PushArray(arena, 10, char);
+                        char* pointer = PushArray(permanent, 10, char);
                         strncpy(pointer, "/LIBPATH:\"", 10);
                         config.lib.length += 10;
                         int path_length = ParsePath(tokenizer.at);
-                        pointer = PushArray(arena, path_length + 1, char);
+                        pointer = PushArray(permanent, path_length + 1, char);
                         config.lib.length += path_length + 1;
                         strncpy(pointer, tokenizer.at, path_length);
                         Advance(tokenizer, path_length);
                         pointer += path_length;
                         *pointer++ = '\"';
                         if (tokenizer.at[0] != ';') {
-                            PushArray(arena, 1, char);
+                            PushArray(permanent, 1, char);
                             *pointer++ = '\0';
                             break;
                         }
-                        PushArray(arena, 1, char);
+                        PushArray(permanent, 1, char);
                         config.lib.length += 1;
                         *pointer++ = ' ';
                     } while (true);
@@ -222,19 +217,19 @@ Build_Configuration ReadBuildConfiguration(Arena* arena, String config_file_path
                 else if (token == "LINK") {
                     RequireToken(tokenizer, Token_Equal);
                     config.linked_libs.length = 0;
-                    config.linked_libs.content = (char*)(arena->base + arena->used);
+                    config.linked_libs.content = (char*)(permanent.base + permanent.used);
                     do {
                         Token library = RequireToken(tokenizer, Token_Identifier);
                         RequireToken(tokenizer, Token_Dot);
                         RequireToken(tokenizer, "lib");
-                        char* linked_libraries = PushArray(arena, library.length + 4, char);
+                        char* linked_libraries = PushArray(permanent, library.length + 4, char);
                         strncpy(linked_libraries, library.text, library.length + 4);
                         config.linked_libs.length += library.length + 4;
                         if (tokenizer.at[0] != ';') {
                             break;
                         }
                         RequireToken(tokenizer, Token_Semicolon);
-                        char* Space = PushArray(arena, 1, char);
+                        char* Space = PushArray(permanent, 1, char);
                         *Space = ' ';
                         config.linked_libs.length += 1;
                     } while(true);
@@ -245,7 +240,7 @@ Build_Configuration ReadBuildConfiguration(Arena* arena, String config_file_path
                     RequireToken(tokenizer, Token_Equal);
                     config.preprocess = true;
                     int metaprogramming_file_path_length = ParsePath(tokenizer.at);
-                    char* pointer = PushArray(arena, metaprogramming_file_path_length + 1, char);
+                    char* pointer = PushArray(permanent, metaprogramming_file_path_length + 1, char);
                     strncpy(pointer, tokenizer.at, metaprogramming_file_path_length);
                     config.metaprogramming_code_path.length = metaprogramming_file_path_length;
                     config.metaprogramming_code_path.content = pointer;
@@ -288,23 +283,23 @@ Build_Configuration ReadBuildConfiguration(Arena* arena, String config_file_path
         config.compiler_flags = GetCompilerFlags(config.compiler, config.mode);
         config.pch_output_file = config.mode == Debug ? "debug_pch" : "pch";
         if (SystemOS == Windows) {
-            config.pch_output_path = Format(arena, "bin" PATH_SEPARATOR "{s}.pch", 1, config.pch_output_path);
+            config.pch_output_path = Format(permanent, "bin" PATH_SEPARATOR "{s}.pch", 1, config.pch_output_file);
             config.metaprogramming_output_file = "bin" PATH_SEPARATOR "Meta.exe";
         }
         else {
-            config.pch_output_path = Format(arena, "bin" PATH_SEPARATOR "{s}.gch", 1, config.pch_output_path);
+            config.pch_output_path = Format(permanent, "bin" PATH_SEPARATOR "{s}.gch", 1, config.pch_output_file);
             config.metaprogramming_output_file = "bin" PATH_SEPARATOR "Meta";
         }
     }
     else {
-        String error = Format(arena, "Build configuration file {s} not found.", 1, config_file_path);
+        String error = Format(permanent, "Build configuration file {s} not found.", 1, config_file_path);
         Raise(error.content);
     }
 
     return config;
 }
 
-void LogCompilationResult(Arena* arena, String Name, int32 ExitCode, uint64 Start, uint64 End) {
+void LogCompilationResult(Arena& arena, String Name, int32 ExitCode, uint64 Start, uint64 End) {
     Log_Level Level = ExitCode == 0 ? Log_Level::Info : Log_Level::Error;
     String LogString;
     if (ExitCode == 0) {
@@ -316,13 +311,13 @@ void LogCompilationResult(Arena* arena, String Name, int32 ExitCode, uint64 Star
     Log(Level, LogString.content);
 }
 
-Process_Info CompileMetaprogramming(Arena* arena, Build_Configuration* config) {
+Process_Info CompileMetaprogramming(Arena& arena, Build_Configuration* config) {
     Log(Log_Level::Info, "Compiling metaprogramming code.");
-    char* Command = (char*)(arena->base + arena->used);
+    char* Command = (char*)(arena.base + arena.used);
     switch(config->compiler) {
         case MSVC: {
             Format(arena,
-                "{s} /std:c++20 /nologo /W0 {s} /Fo\"bin\\Meta.obj\" /Fd\"bin\\Meta.pdb\" {s} {s} "
+                "{s} /std:c++20 /nologo {s} /Fo\"bin\\Meta.obj\" /Fd\"bin\\Meta.pdb\" {s} {s} "
                 "/link {s} /OUT:\"bin\\Meta.exe\" /PDB:\"bin\\Meta.pdb\"", 
                 5,
                 config->compiler_path, 
@@ -350,7 +345,7 @@ Process_Info CompileMetaprogramming(Arena* arena, Build_Configuration* config) {
 }
 
 /* Compiles the meta-program (if needed) and runs it.*/
-void MetaProgram(Arena* arena, Build_Configuration* config) {
+void MetaProgram(Arena& arena, Build_Configuration* config) {
     File_Info metaprogramming_source = Platform.GetFileInfo(config->metaprogramming_code_path.content);
     File_Info metaprogramming_binary;
 
@@ -391,12 +386,12 @@ void MetaProgram(Arena* arena, Build_Configuration* config) {
     }
 }
 
-Process_Info CompilePlatformLayer(Arena* arena, Build_Configuration* config) {
-    char* command = (char*)(arena->base + arena->used);
+Process_Info CompilePlatformLayer(Arena& arena, Build_Configuration* config) {
+    char* command = (char*)(arena.base + arena.used);
     switch (config->compiler) {
         case MSVC: {
             String command_string = Format(arena,
-                "{s} /std:c++20 /nologo /W0 "
+                "{s} /std:c++20 /nologo "
                 "GamePlatform\\Windows\\Win32PlatformLayer.cpp bin\\{s}.obj " 
                 "/D GAME_RENDER_API_{s} {s} "
                 "/Fe\"bin\\RunGame.exe\" "
@@ -435,12 +430,12 @@ Process_Info CompilePlatformLayer(Arena* arena, Build_Configuration* config) {
     return Platform.RunCommand(command);
 }
 
-Process_Info CompileGameLibrary(Arena* arena, Build_Configuration* config) {
-    char* Command = (char*)(arena->base + arena->used);
+Process_Info CompileGameLibrary(Arena& arena, Build_Configuration* config) {
+    char* Command = (char*)(arena.base + arena.used);
     switch(config->compiler) {
         case MSVC: {
             Format(arena,
-                "{s} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS "
+                "{s} /std:c++20 /nologo /D GAMELIBRARY_EXPORTS "
                 "GameLibrary\\GameLibrary.cpp {s} {s} /Fo\"bin\\GameLibrary.obj\" "
                 "/Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" "
                 "/link {s} bin\\{s}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
@@ -472,7 +467,7 @@ Process_Info CompileGameLibrary(Arena* arena, Build_Configuration* config) {
     return Platform.RunCommand(Command);
 }
 
-Process_Info CompileGameLibraryHot(Arena* arena, Build_Configuration* config) {
+Process_Info CompileGameLibraryHot(Arena& arena, Build_Configuration& config) {
 #if _WIN32
     int hot_reload_count = 0;
     String pdb_file = Format(arena, "bin\\GameLibrary{i}.pdb", 1, hot_reload_count);
@@ -485,21 +480,21 @@ Process_Info CompileGameLibraryHot(Arena* arena, Build_Configuration* config) {
             pdb_file = Format(arena, "bin\\GameLibrary{i}.pdb", 1, hot_reload_count);
         }
     } while(exists);
-    char* command = (char*)(arena->base + arena->used);
+    char* command = (char*)(arena.base + arena.used);
     Format(arena,
-        "{s} /std:c++20 /W0 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {s} {s} "
+        "{s} /std:c++20 /nologo /D GAMELIBRARY_EXPORTS GameLibrary\\GameLibrary.cpp {s} {s} "
         "/Fo\"bin\\GameLibrary.obj\" /Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" "
         "/link {s} bin\\{s}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
         "/PDB:\"{s}\" /ILK:\"bin\\GameLibrary.ilk\" "
         "/OUT:\"bin\\GameLibrary.dll\"",
         8,
-        config->compiler_path, 
-        config->compiler_flags, 
-        config->include, 
-        config->pch_output_file, 
-        config->pch_output_file, 
-        config->lib,
-        config->pch_output_file, 
+        config.compiler_path, 
+        config.compiler_flags, 
+        config.include, 
+        config.pch_output_file, 
+        config.pch_output_file, 
+        config.lib,
+        config.pch_output_file, 
         pdb_file
     );
 #else
