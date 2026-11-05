@@ -802,7 +802,6 @@ int APIENTRY wWinMain(
         
         int64 NewDLLWriteTime = Win32GetFileInfo(source_dll_name).timestamp;
         if (NewDLLWriteTime > code.dll_last_write_time) {
-            static int Loads = 0;
             UnloadGameCode(&code);
             LoadGameCode(&code, source_dll_name, temp_dll_name);
             if (code.is_valid) {
