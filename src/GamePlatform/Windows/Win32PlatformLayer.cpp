@@ -8,6 +8,7 @@
 
 #include "GameLibrary.h"
 #include "build.h"
+#include "code.h"
 // #include "GameShader.h"
 
 // #if GAME_RENDER_API_DIRECTX
@@ -489,67 +490,6 @@ void ProcessPendingMessages(HWND window, Input* input, Record_And_Playback* reco
     }
 }
 
-// Dynamic library loading
-void GameUpdateStub(GAME_UPDATE_INPUTS) {}
-
-struct Game_Code {
-    bool is_valid;
-    int64 dll_last_write_time;
-    HMODULE game_code_dll;
-    Game_Update* update;
-};
-
-void LoadGameCode(Game_Code* result, LPCSTR source_dll_name, LPCSTR temp_dll_name) {
-    result->update = GameUpdateStub;
-
-    char error_text[256];
-    DWORD last_error = 0;
-
-    bool copy_result = Win32FileCopy(source_dll_name, temp_dll_name);
-    if (!copy_result) {
-        last_error = GetLastError();
-        if (last_error == ERROR_SHARING_VIOLATION) {
-            int retries = 0;
-            do {
-                Log(Log_Level::Warn, "Retrying game code loading after sharing violation.");
-                Sleep(100);
-                copy_result = Win32FileCopy(source_dll_name, temp_dll_name);
-                retries++;
-                if (retries > 100) {
-                    Log(Log_Level::Error, "Max number of retries reached.");
-                    break;
-                }
-            } while (!copy_result);
-        }
-        else {
-            sprintf_s(error_text, "Error copying file %s into %s. Error code %d.", source_dll_name, temp_dll_name, last_error);
-            Log(Log_Level::Error, error_text);
-            return;
-        }
-    }
-
-    result->game_code_dll = LoadLibraryA(temp_dll_name);
-    if (result->game_code_dll) {
-        result->update = (Game_Update*)GetProcAddress(result->game_code_dll, "GameUpdate");
-        result->is_valid = (result->update);
-
-        result->dll_last_write_time = Win32GetFileInfo(source_dll_name).timestamp;
-    }
-    else {
-        last_error = GetLastError();
-        sprintf_s(error_text, "Error loading game code. Error code %d.", last_error);
-        Log(Log_Level::Error, error_text); // If error is 126 (dependency error while loading DLL) try using Process Monitor.
-    }
-}
-
-void UnloadGameCode(Game_Code* code) {
-    if (code->game_code_dll) {
-        bool UnloadResult = FreeLibrary(code->game_code_dll);
-    }
-
-    code->is_valid = false;
-    code->update = GameUpdateStub;
-}
 
 // Main window callback
 int APIENTRY wWinMain(
@@ -618,11 +558,6 @@ int APIENTRY wWinMain(
     SetConsoleMode(hConsole, console_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
     // Set up for main loop
-    const LPCSTR source_dll_name = "bin\\GameLibrary.dll";
-    const LPCSTR temp_dll_name = "bin\\GameLibraryTemp.dll";
-
-    Game_Code code = { 0 };
-    LoadGameCode(&code, source_dll_name, temp_dll_name);
     memory_size permanent_storage_size = Megabytes(128);
     void* game_memory_block = Win32AllocateMemory(permanent_storage_size);
     memory.permanent = MemoryArena(permanent_storage_size, (uint8*)game_memory_block);
@@ -706,14 +641,8 @@ int APIENTRY wWinMain(
     }
 
     // Code compilation setup
-    Build_Configuration build_config = ReadBuildConfiguration(memory.permanent, "build\\build.conf");
-    Process_Info LibraryCompilation = {};
-    uint64 LibraryCompilationStart = 0;
-    char MetaFile[] = "bin\\meta.exe";
-    Process_Info MetaprogrammingCompilation = {};
-    uint64 MetaprogrammingCompilationStart = 0;
-    Process_Info MetaprogrammingExecution = {};
-    uint64 MetaprogrammingExecutionStart = 0;
+    memory.code.Initialize(memory.permanent);
+
     char LogBuffer[64] = {};
 
     // Slang setup

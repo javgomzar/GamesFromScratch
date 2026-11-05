@@ -44,6 +44,7 @@ struct Memory {
     Asset_Manager asset_manager;
     Render_Group render_group;
     Input input;
+    Game_Code code;
     State* state;
     Arena permanent;
     Arena transient;
