@@ -20,6 +20,7 @@
 #include <format>
 #include <math.h>
 #include <float.h>
+#include <cassert>
 
 // XXHash library - non cryptographic hash
 #include <xxhash.h>

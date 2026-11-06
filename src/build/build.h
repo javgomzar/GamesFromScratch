@@ -1,9 +1,10 @@
 #ifndef GAME_BUILD_H
 #define GAME_BUILD_H
 
-#include "GamePlatform.h"
-#include "Tokenizer.h"
+#include "common.h"
+#include "tokenizer.h"
 #include "parse.h"
+#include <platform.h>
 
 
 enum Build_Mode {

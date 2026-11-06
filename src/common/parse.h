@@ -1,8 +1,8 @@
 #ifndef GAME_PARSE_H
 #define GAME_PARSE_H
 
-#include "GamePlatform.h"
-#include "Tokenizer.h"
+#include <platform.h>
+#include "tokenizer.h"
 
 
 void ReportIncorrectToken(Token token, const char* text) {
