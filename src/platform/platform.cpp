@@ -1,5 +1,12 @@
 #include "platform.h"
 
+
+void Log::Info(String message)  { LogLevel(Level::Info, message); }
+void Log::Test(String message)  { LogLevel(Level::Test, message); }
+void Log::Warn(String message)  { LogLevel(Level::Warn, message); }
+void Log::Error(String message) { LogLevel(Level::Error, message); }
+void Log::Fatal(String message) { LogLevel(Level::Fatal, message); }
+
 String GetFileName(String path) {
     String result;
     
@@ -40,6 +47,30 @@ String GetFileNameWithoutExtension(String path) {
     return filename;
 }
 
+void* Platform::ReadEntireFile(String path, File_Info* file_info) {
+    File_Info info = GetFileInfo(path);
+    if (file_info) {
+        *file_info = info;
+    }
+
+    if (info.size > 0) {
+        void* result = AllocateMemory(info.size);
+
+        File_Chunk_Info chunk_info = ReadFileChunk(path, 0, info.size, result);
+        if (chunk_info.size > 0) {
+            return result;
+        }
+        else {
+            FreeMemory(result);
+        }
+    }
+    return nullptr;
+}
+
+bool Platform::WriteEntireFile(String path, memory_size size, void* memory) {
+    return WriteFileChunk(path, 0, size, memory);
+}
+
 uint64 SeedRNG(Arena& arena) {
     uint64 seed = 0;
 
@@ -56,7 +87,20 @@ uint64 SeedRNG(Arena& arena) {
         seed ^= seed << 17;
     }
 
-    String seed_text = Format(arena, "RNG seed: {U}.", 1, seed);
-    Log(Log_Level::Info, seed_text);
+    String seed_text = String::Format(arena, "RNG seed: {U}.", 1, seed);
+    Log::Info(seed_text);
     return seed;
+}
+
+Timed_Block::Timed_Block(int counter, const char* file_name, int line_number, const char* function_name) {
+    record = time_records + counter;
+    record->file_name = file_name;
+    record->function_name = function_name;
+    record->line_number = line_number;
+    record->hit_count++;
+    start_cycles = Platform::GetWallClock();
+}
+
+Timed_Block::~Timed_Block() {
+    record->cycle_count += Platform::GetWallClock() - start_cycles;
 }

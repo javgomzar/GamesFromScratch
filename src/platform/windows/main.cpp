@@ -6,8 +6,8 @@
 #define XXH_IMPLEMENTATION
 #include "xxhash.h"
 
+#include <build.h>
 #include "GameLibrary.h"
-#include "build.h"
 #include "code.h"
 // #include "GameShader.h"
 

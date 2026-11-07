@@ -1,19 +1,15 @@
-#include "platform.h"
-#include "Resource.h"
+#include "windows_platform.h"
 
-System_OS SystemOS = Windows;
+Platform::System_OS Platform::OS = Windows;
 
-#define RENDERER_INITIALIZE void InitializeRenderer(Arena* arena, Render_Group* group, HWND window, HINSTANCE instance, HDC device_context)
-#define RENDERER_RENDER void Render(Render_Group* group, matrix4 view, game_input* input, HWND Window, double Time)
-
-void Log(Log_Level level, String string) {
+void Log::LogLevel(Log::Level level, String message) {
     char level_string[16];
     switch (level) {
-        case Log_Level::Test:  { strncpy_s(level_string, "[TEST]  ", 8); } break;
-        case Log_Level::Info:  { strncpy_s(level_string, "[INFO]  ", 8); } break;
-        case Log_Level::Warn:  { strncpy_s(level_string, "[WARN]  ", 8); } break;
-        case Log_Level::Error: { strncpy_s(level_string, "[ERROR] ", 8); } break;
-        case Log_Level::Fatal: { strncpy_s(level_string, "[FATAL] ", 8); } break;
+        case Log::Level::Test:  { strncpy_s(level_string, "[TEST]  ", 8); } break;
+        case Log::Level::Info:  { strncpy_s(level_string, "[INFO]  ", 8); } break;
+        case Log::Level::Warn:  { strncpy_s(level_string, "[WARN]  ", 8); } break;
+        case Log::Level::Error: { strncpy_s(level_string, "[ERROR] ", 8); } break;
+        case Log::Level::Fatal: { strncpy_s(level_string, "[FATAL] ", 8); } break;
     }
     level_string[8] = 0;
 
@@ -23,108 +19,108 @@ void Log(Log_Level level, String string) {
     char date[21];
     sprintf_s(date, "%d-%02d-%02d %02d:%02d:%02d ", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
 
-    switch (LOG_MODE) {
-        case Log_Mode::File:
+    switch (mode) {
+        case Mode::File:
         {
             HANDLE file_handle = CreateFileA("log.log", FILE_APPEND_DATA, NULL, NULL, OPEN_ALWAYS, NULL, NULL);
             if (file_handle != INVALID_HANDLE_VALUE) {
                 DWORD bytes_written = 0;
                 WriteFile(file_handle, date, 20, &bytes_written, 0);
                 WriteFile(file_handle, level_string, 8, &bytes_written, 0);
-                WriteFile(file_handle, string.content, string.length, &bytes_written, 0);
+                WriteFile(file_handle, message.content, message.length, &bytes_written, 0);
             }
             else {
-                Assert(false);
+                Raise("Invalid file handle.");
             }
 
             CloseHandle(file_handle);
         } break;
 
-        case Log_Mode::Terminal:
+        case Mode::Terminal:
         {
             HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
             SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
             WriteConsoleA(console, date, 20, NULL, NULL);
             switch (level) {
-                case Log_Level::Test:  { SetConsoleTextAttribute(console, FOREGROUND_GREEN); } break;
-                case Log_Level::Info:  { SetConsoleTextAttribute(console, FOREGROUND_GREEN | FOREGROUND_BLUE); } break;
-                case Log_Level::Warn:  { SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN); } break;
-                case Log_Level::Error: { SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_INTENSITY); } break;
-                case Log_Level::Fatal: { SetConsoleTextAttribute(console, FOREGROUND_RED); }
+                case Level::Test:  { SetConsoleTextAttribute(console, FOREGROUND_GREEN); } break;
+                case Level::Info:  { SetConsoleTextAttribute(console, FOREGROUND_GREEN | FOREGROUND_BLUE); } break;
+                case Level::Warn:  { SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN); } break;
+                case Level::Error: { SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_INTENSITY); } break;
+                case Level::Fatal: { SetConsoleTextAttribute(console, FOREGROUND_RED); }
             }
             WriteConsoleA(console, level_string, 8, NULL, NULL);
             SetConsoleTextAttribute(console, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
-            WriteConsoleA(console, string.content, string.length, NULL, NULL);
+            WriteConsoleA(console, message.content, message.length, NULL, NULL);
             WriteConsoleA(console, "\n", 1, NULL, NULL);
         } break;
     }
 
-    if (level == Log_Level::Fatal) {
+    if (level == Level::Fatal) {
         exit(1);
     }
 }
 
-PLATFORM_ALLOCATE_MEMORY(Win32AllocateMemory) {
+void* Platform::AllocateMemory(memory_size size) {
     void* result = VirtualAlloc(0, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (!result) {
-        DWORD ErrorCode = GetLastError();
+        DWORD error_code = GetLastError();
         char text_buffer[128];
-        sprintf_s(text_buffer, "Couldn't allocate %I64u bytes. Error %d.", size, ErrorCode);
-        Log(Log_Level::Error, text_buffer);
+        sprintf_s(text_buffer, "Couldn't allocate %I64u bytes. Error %d.", size, error_code);
+        Log::Error(text_buffer);
     }
     return result;
 }
 
-PLATFORM_FREE_MEMORY(Win32FreeMemory) {
+void Platform::FreeMemory(void* memory) {
     if (memory) {
         VirtualFree(memory, 0, MEM_RELEASE);
     }
 }
 
-PLATFORM_FILE_EXISTS(Win32FileExists) {
+bool Platform::FileExists(String path) {
     static char path_buffer[MAX_PATH];
     strncpy_s(path_buffer, path.content, path.length);
     return GetFileAttributesA(path_buffer) != INVALID_FILE_ATTRIBUTES;
 }
 
-PLATFORM_GET_FILE_INFO(Win32GetFileInfo) {
+File_Info Platform::GetFileInfo(String path) {
     File_Info result = {};
     result.path = path;
 
     char path_buffer[MAX_PATH];
     strncpy_s(path_buffer, path.content, path.length);
 
-    WIN32_FIND_DATAA FindData = {};
-    HANDLE FileHandle = FindFirstFileA(path_buffer, &FindData);
-    if (FileHandle != INVALID_HANDLE_VALUE) {
-        *(FILETIME*)&result.timestamp = FindData.ftLastWriteTime;
-        ULARGE_INTEGER Size = {FindData.nFileSizeLow, FindData.nFileSizeHigh};
-        result.size = Size.QuadPart;
-        FindClose(FileHandle);
+    WIN32_FIND_DATAA find_data = {};
+    HANDLE file_handle = FindFirstFileA(path_buffer, &find_data);
+    if (file_handle != INVALID_HANDLE_VALUE) {
+        *(FILETIME*)&result.timestamp = find_data.ftLastWriteTime;
+        ULARGE_INTEGER size = {find_data.nFileSizeLow, find_data.nFileSizeHigh};
+        result.size = size.QuadPart;
+        FindClose(file_handle);
     }
     else {
-        DWORD ErrorCode = GetLastError();
-        char ErrorBuffer[MAX_PATH + 32];
-        if (ErrorCode == ERROR_PATH_NOT_FOUND) {
-            sprintf_s(ErrorBuffer, "Path %s not found.", path_buffer);
+        DWORD error_code = GetLastError();
+        char error_buffer[MAX_PATH + 32];
+        if (error_code == ERROR_PATH_NOT_FOUND) {
+            sprintf_s(error_buffer, "Path %s not found.", path_buffer);
         }
-        else if (ErrorCode == ERROR_FILE_NOT_FOUND) {
-            sprintf_s(ErrorBuffer, "File %s not found.", path_buffer);
+        else if (error_code == ERROR_FILE_NOT_FOUND) {
+            sprintf_s(error_buffer, "File %s not found.", path_buffer);
         }
-        Log(Log_Level::Error, ErrorBuffer);
+        Log::Error(error_buffer);
     }
 
     return result;
 }
 
-PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
+File_Chunk_Info Platform::ReadFileChunk(String path, memory_size offset, memory_size chunk_size, void* memory) {
     char path_buffer[MAX_PATH];
     strncpy_s(path_buffer, path.content, path.length);
 
     File_Chunk_Info result = {};
     result.size = 0;
     result.offset = offset;
-    result.info = Win32GetFileInfo(path);
+    result.info = GetFileInfo(path);
 
     char text_buffer[256];
     HANDLE file_handle = CreateFileA(path_buffer, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
@@ -133,7 +129,7 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         large_offset.QuadPart = offset;
         if (!SetFilePointerEx(file_handle, large_offset, NULL, FILE_BEGIN)) {
             sprintf_s(text_buffer, "Couldn't set file pointer to offset %I64u at file %s.", offset, path_buffer);
-            Log(Log_Level::Error, text_buffer);
+            Log::Error(text_buffer);
             return result;
         }
         
@@ -141,29 +137,29 @@ PLATFORM_READ_FILE_CHUNK(Win32ReadFileChunk) {
         bool success = ReadFile(file_handle, memory, chunk_size, &bytes_read, NULL);
         if (!success || bytes_read != chunk_size) {
             sprintf_s(text_buffer, "Couldn't read chunk from file %s.", path_buffer);
-            Log(Log_Level::Error, text_buffer);
+            Log::Error(text_buffer);
         }
         result.size = bytes_read;
         CloseHandle(file_handle);
         return result;
     }
 
-    DWORD WinError = GetLastError();
-    if (WinError == ERROR_PATH_NOT_FOUND) {
+    DWORD error = GetLastError();
+    if (error == ERROR_PATH_NOT_FOUND) {
         sprintf_s(text_buffer, "Path %s not found.", path_buffer);
     }
-    else if (WinError == ERROR_SHARING_VIOLATION) {
+    else if (error == ERROR_SHARING_VIOLATION) {
         sprintf_s(text_buffer, "File %s sharing violation.", path_buffer);
     }
     else {
-        sprintf_s(text_buffer, "Couldn't read file %s. Error %d.", path_buffer, WinError);
+        sprintf_s(text_buffer, "Couldn't read file %s. Error %d.", path_buffer, error);
     }
-    Log(Log_Level::Error, text_buffer);
+    Log::Error(text_buffer);
 
     return result;
 }
 
-PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
+bool Platform::WriteFileChunk(String path, memory_size offset, memory_size chunk_size, void* memory) {
     bool result = false;
     char path_buffer[MAX_PATH];
     strncpy_s(path_buffer, path.content, path.length);
@@ -177,31 +173,36 @@ PLATFORM_WRITE_FILE_CHUNK(Win32WriteFileChunk) {
             if (WriteFile(FileHandle, memory, chunk_size, &BytesWritten, NULL)) {
                 sprintf_s(text_buffer, "%d bytes written to file %s.", BytesWritten, path_buffer);
                 result = BytesWritten == chunk_size;
-                Log(result ? Log_Level::Info : Log_Level::Error, text_buffer);
+                if (result) {
+                    Log::Info(text_buffer);
+                }
+                else {
+                    Log::Error(text_buffer);
+                }
             }
         }
         else {
             sprintf_s(text_buffer, "Couldn't set file pointer to %I64u at file %s.", offset, path_buffer);
-            Log(Log_Level::Error, text_buffer);
+            Log::Error(text_buffer);
         }
         CloseHandle(FileHandle);
     }
 
     if (!result) {
-        DWORD WinError = GetLastError();
-        if (WinError == ERROR_PATH_NOT_FOUND) {
+        DWORD error = GetLastError();
+        if (error == ERROR_PATH_NOT_FOUND) {
             sprintf_s(text_buffer, "Path %s not found.", path_buffer);
         }
         else {
-            sprintf_s(text_buffer, "Couldn't write to file %s. Error %d.", path_buffer, WinError);
+            sprintf_s(text_buffer, "Couldn't write to file %s. Error %d.", path_buffer, error);
         }
-        Log(Log_Level::Error, text_buffer);
+        Log::Error(text_buffer);
     }
 
     return result;
 }
 
-PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
+bool Platform::AppendToFile(String path, memory_size size, void* memory) {
     char text_buffer[256];
     bool result = false;
 
@@ -214,53 +215,58 @@ PLATFORM_APPEND_TO_FILE(Win32AppendToFile) {
             if (WriteFile(file_handle, memory, size, &bytes_written, 0)) {
                 sprintf_s(text_buffer, "%d bytes appended to file %s.", bytes_written, path_buffer);
                 result = bytes_written == size;
-                Log(result ? Log_Level::Info : Log_Level::Error, text_buffer);
+                if (result) {
+                    Log::Info(text_buffer);
+                }
+                else {
+                    Log::Error(text_buffer);
+                }
             }
         }
         else {
             sprintf_s(text_buffer, "Couldn't set file pointer to end at file %s.", path_buffer);
-            Log(Log_Level::Error, text_buffer);
+            Log::Error(text_buffer);
         }
         CloseHandle(file_handle);
     }
     
     if (!result) {
-        DWORD WinError = GetLastError();
-        if (WinError == ERROR_PATH_NOT_FOUND) {
+        DWORD error = GetLastError();
+        if (error == ERROR_PATH_NOT_FOUND) {
             sprintf_s(text_buffer, "Path %s not found.", path_buffer);
         }
         else {
-            sprintf_s(text_buffer, "Couldn't append to file %s. Error %d.", path_buffer, WinError);
+            sprintf_s(text_buffer, "Couldn't append to file %s. Error %d.", path_buffer, error);
         }
-        Log(Log_Level::Error, text_buffer);
+        Log::Error(text_buffer);
     }
 
     return result;
 }
 
-PLATFORM_COPY_FILE(Win32FileCopy) {
-    char SourceBuffer[256];
-    strncpy_s(SourceBuffer, source.content, source.length);
-    char DestinationBuffer[256];
-    strncpy_s(DestinationBuffer, destination.content, destination.length);
-    bool Copyresult = CopyFileA(SourceBuffer, DestinationBuffer, FALSE);
-    return Copyresult;
+bool Platform::FileCopy(String source, String destination) {
+    char source_buffer[256];
+    strncpy_s(source_buffer, source.content, source.length);
+    char destination_buffer[256];
+    strncpy_s(destination_buffer, destination.content, destination.length);
+    bool result = CopyFileA(source_buffer, destination_buffer, FALSE);
+    return result;
 }
 
-PLATFORM_DELETE_FILE(Win32FileDelete) {
+bool Platform::FileDelete(String path) {
     char path_buffer[MAX_PATH];
     strncpy_s(path_buffer, path.content, path.length);
-    bool Deleteresult = DeleteFileA(path_buffer);
-    return Deleteresult;
+    bool result = DeleteFileA(path_buffer);
+    return result;
 }
 
-PLATFORM_GET_WALL_CLOCK(Win32GetWallClock) {
+uint64 Platform::GetWallClock() {
     uint64 result = 0;
     QueryPerformanceCounter((LARGE_INTEGER*)&result);
     return result;
 }
 
-PLATFORM_RUN_COMMAND(Win32RunCommand) {
+Process_Info Platform::RunCommand(char* command) {
     STARTUPINFOA start_info = {};
     start_info.cb = sizeof(start_info);
 
@@ -271,7 +277,7 @@ PLATFORM_RUN_COMMAND(Win32RunCommand) {
         DWORD err = GetLastError();
         char error_buffer[2048];
         sprintf_s(error_buffer, "Error '%d' when trying to run command:\n    %s", err, command);
-        Log(Log_Level::Error, error_buffer);
+        Log::Error(error_buffer);
     }
 
     Process_Info result = {};
@@ -282,7 +288,7 @@ PLATFORM_RUN_COMMAND(Win32RunCommand) {
     return result;
 }
 
-PLATFORM_WAIT_FOR_PROCESS(Win32WaitForProcess) {
+int32 Platform::WaitForProcess() {
     DWORD wait_result = WaitForSingleObject(process->handle, timeout);
     int32 result = -1;
     if (wait_result == WAIT_FAILED) {
@@ -301,56 +307,4 @@ PLATFORM_WAIT_FOR_PROCESS(Win32WaitForProcess) {
         CloseHandle(process->thread_handle);
     }
     return result;
-}
-
-Platform_API Platform = {
-    .AllocateMemory = Win32AllocateMemory,
-    .FreeMemory = Win32FreeMemory,
-    .FileExists = Win32FileExists,
-    .GetFileInfo = Win32GetFileInfo,
-    .ReadFileChunk = Win32ReadFileChunk,
-    .WriteFileChunk = Win32WriteFileChunk,
-    .AppendToFile = Win32AppendToFile,
-    .FileCopy = Win32FileCopy,
-    .FileDelete = Win32FileDelete,
-    .GetWallClock = Win32GetWallClock,
-    .RunCommand = Win32RunCommand,
-    .WaitForProcess = Win32WaitForProcess,
-};
-
-void SaveBMP(const char* path, int32 width, int32 height, uint32 offset, uint32 header_size, void* header, void* pixels) {
-    HANDLE file_handle = CreateFileA(path, GENERIC_READ | GENERIC_WRITE, NULL, NULL, CREATE_ALWAYS, NULL, NULL);
-    if (file_handle != INVALID_HANDLE_VALUE) {
-        uint32 size = offset + 4 * width * height;
-        HANDLE mapping_handle = CreateFileMappingA(file_handle, NULL, PAGE_READWRITE, 0, size, NULL);
-        if (!mapping_handle) {
-            DWORD win_error = GetLastError();
-            Log(Log_Level::Error, "Memory map for file returned invalid handle.");
-            Assert(false);
-        }
-
-        uint8* memory = (uint8*)MapViewOfFile(mapping_handle, FILE_MAP_WRITE, 0, 0, size);
-        memcpy(memory, header, header_size);
-
-        uint8* pixeldst = memory + offset;
-        memcpy(pixeldst, pixels, 4 * width * height);
-
-        FlushViewOfFile(memory, size);
-        UnmapViewOfFile(memory);
-        CloseHandle(mapping_handle);
-        CloseHandle(file_handle);
-    }
-    else {
-        // Debug
-        DWORD win_error = GetLastError();
-        if (win_error == ERROR_PATH_NOT_FOUND) {
-            Log(Log_Level::Error, "Path not found.");
-        }
-        Assert(false);
-    }
-}
-
-inline float GetSecondsElapsed(uint64 start, uint64 end) {
-    uint64 timeelapsed = end - start;
-    return timeelapsed / (float)Platform.performance_counter_frequency;
 }
