@@ -55,7 +55,7 @@ uint64 SeedRNG(Arena& arena) {
     tm* local_time = localtime(&seconds);
     seed = local_time->tm_mday + 123456789;
 #else
-    seed = Platform.GetWallClock();
+    seed = Platform::GetWallClock();
 #endif
     for (int i = 0; i < 8; i++) {
         seed ^= seed << 13;

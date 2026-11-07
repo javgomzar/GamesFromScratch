@@ -192,7 +192,7 @@ struct Platform {
     static System_OS OS;
     static void* AllocateMemory(memory_size size);
     static void FreeMemory(void* memory);
-    static bool FileExists(String Path);
+    static bool FileExists(String path);
     static File_Chunk_Info ReadFileChunk(String path, memory_size offset, memory_size chunk_size, void* memory);
     static void* ReadEntireFile(String path, File_Info* file_info);
     static bool WriteFileChunk(String path, memory_size offset, memory_size chunk_size, void* memory);

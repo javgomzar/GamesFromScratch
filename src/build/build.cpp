@@ -20,11 +20,11 @@ void Build::ReadConfig(String config_file_path) {
                     Token mode_token = RequireToken(tokenizer, Token_Identifier);
                     if (mode_token == "DEBUG") {
                         Config::mode = Mode::Debug;
-                        Config::obj_dir = "build\\debug\\";
+                        Config::obj_dir = "build" PATH_SEPARATOR "debug" PATH_SEPARATOR;
                     }
                     else {
                         Config::mode = Mode::Release;
-                        Config::obj_dir = "build\\release\\";
+                        Config::obj_dir = "build" PATH_SEPARATOR "release" PATH_SEPARATOR;
                     }
                 }
     
@@ -163,6 +163,51 @@ void Build::ReadConfig(String config_file_path) {
                     }
                 }
 
+                // Source files
+                else if (token == "SOURCE") {
+                    RequireToken(tokenizer, Token_Equal);
+                    tokenizer.AdvanceWhitespaceAndComments();
+                    char* start = (char*)(permanent.base + permanent.used);
+                    memory_size length = 0;
+                    do {
+                        tokenizer.AdvanceWhitespaceAndComments();
+                        int path_length = ParsePath(tokenizer.at);
+                        String path = String(tokenizer.at, path_length);
+
+                        if (Platform::FileExists(path)) {
+                            String file_name = GetFileName(path);
+                            String obj_file = String::Format(transient, "{s}{s}", 2, Config::obj_dir, file_name);
+                            bool add = true;
+                            if (Platform::FileExists(obj_file)) {
+                                File_Info obj_info = Platform::GetFileInfo(obj_file);
+                                File_Info source_info = Platform::GetFileInfo(path);
+                                add = obj_info.timestamp < source_info.timestamp;
+                            }
+                            
+                            if (add) {
+                                String::Copy(permanent, obj_file);
+                                length += obj_file.length;
+                            }
+                        }
+                        else {
+                            String error_message = String::Format(transient, "Failed to find source file {s}.", 1, path);
+                            Log::Warn(error_message);
+                        }
+
+                        tokenizer.Advance(path_length);
+                        if (tokenizer.at[0] != ';') {
+                            break;
+                        }
+                        token = RequireToken(tokenizer, Token_Semicolon);
+                        char* space = permanent.Push<char>();
+                        *space = ' ';
+                    } while(token.type == Token_Semicolon);
+
+                    Config::obj_files = String(start, length);
+
+                    transient.Clear();
+                }
+
                 // Metaprogramming source file
                 else if (token == "META") {
                     RequireToken(tokenizer, Token_Equal);
@@ -253,6 +298,11 @@ void Build::ReadConfig(String config_file_path) {
         String error = String::Format(permanent, "Build configuration file {s} not found.", 1, config_file_path);
         Raise(error.content);
     }
+}
+
+void Build::Compile() {
+    char* command = 
+    String string = 
 }
 
 /* Compiles the meta-program (if needed) and runs it.*/

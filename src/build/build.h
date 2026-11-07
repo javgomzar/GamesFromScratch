@@ -37,7 +37,7 @@ struct Build {
         Vulkan,
     };
     
-    static struct Config {
+    struct Config {
         static Mode mode;
         static Compiler compiler;
         static Renderer renderer;
@@ -48,7 +48,10 @@ struct Build {
         static String linked_libs;
         static String renderer_libs;
         static String compiler_flags;
+        
+        static String source_files;
         static String obj_dir;
+        static String obj_files;
 
         static String pch_source_dir;
         static String pch_header_path;
@@ -73,8 +76,8 @@ struct Build {
     static Build_Process platform;
 
     static void ReadConfig(String config_file_path);
-    static void Compile(Build_Process& process);
-    static void LogResult(Build_Process& process);
+    static void Compile();
+    static void Link(Build_Process& process);
     static void MetaProgram();
     static void HotReload();
 };
