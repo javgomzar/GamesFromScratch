@@ -194,16 +194,17 @@ struct Platform {
     static void FreeMemory(void* memory);
     static bool FileExists(String Path);
     static File_Chunk_Info ReadFileChunk(String path, memory_size offset, memory_size chunk_size, void* memory);
+    static void* ReadEntireFile(String path, File_Info* file_info);
     static bool WriteFileChunk(String path, memory_size offset, memory_size chunk_size, void* memory);
+    static bool WriteEntireFile(String path, memory_size size, void* memory);
     static bool AppendToFile(String path, memory_size size, void* memory);
     static bool FileCopy(String source, String destination);
     static bool FileDelete(String path);
     static File_Info GetFileInfo(String path);
     static uint64 GetWallClock();
+    static float GetSecondsElapsed(uint64 start, uint64 end);
     static Process_Info RunCommand(char* command);
-    static int32 WaitForProcess(Process_Info* process, uint32 timeout);
-    static void* ReadEntireFile(String path, File_Info* file_info);
-    static bool WriteEntireFile(String path, memory_size size, void* memory);
+    static int32 WaitForProcess(Process_Info& process, uint32 timeout);
     static uint64 performance_counter_frequency;
 };
 

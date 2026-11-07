@@ -1,4 +1,5 @@
-#include "windows_platform.h"
+#include "platform.h"
+
 
 Platform::System_OS Platform::OS = Windows;
 
@@ -122,22 +123,22 @@ File_Chunk_Info Platform::ReadFileChunk(String path, memory_size offset, memory_
     result.offset = offset;
     result.info = GetFileInfo(path);
 
-    char text_buffer[256];
+    char error_buffer[256];
     HANDLE file_handle = CreateFileA(path_buffer, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, NULL, NULL);
     if (file_handle != INVALID_HANDLE_VALUE) {
         LARGE_INTEGER large_offset;
         large_offset.QuadPart = offset;
         if (!SetFilePointerEx(file_handle, large_offset, NULL, FILE_BEGIN)) {
-            sprintf_s(text_buffer, "Couldn't set file pointer to offset %I64u at file %s.", offset, path_buffer);
-            Log::Error(text_buffer);
+            sprintf_s(error_buffer, "Couldn't set file pointer to offset %I64u at file %s.", offset, path_buffer);
+            Log::Error(error_buffer);
             return result;
         }
         
         DWORD bytes_read;
         bool success = ReadFile(file_handle, memory, chunk_size, &bytes_read, NULL);
         if (!success || bytes_read != chunk_size) {
-            sprintf_s(text_buffer, "Couldn't read chunk from file %s.", path_buffer);
-            Log::Error(text_buffer);
+            sprintf_s(error_buffer, "Couldn't read chunk from file %s.", path_buffer);
+            Log::Error(error_buffer);
         }
         result.size = bytes_read;
         CloseHandle(file_handle);
@@ -146,17 +147,73 @@ File_Chunk_Info Platform::ReadFileChunk(String path, memory_size offset, memory_
 
     DWORD error = GetLastError();
     if (error == ERROR_PATH_NOT_FOUND) {
-        sprintf_s(text_buffer, "Path %s not found.", path_buffer);
+        sprintf_s(error_buffer, "Path %s not found.", path_buffer);
     }
     else if (error == ERROR_SHARING_VIOLATION) {
-        sprintf_s(text_buffer, "File %s sharing violation.", path_buffer);
+        sprintf_s(error_buffer, "File %s sharing violation.", path_buffer);
     }
     else {
-        sprintf_s(text_buffer, "Couldn't read file %s. Error %d.", path_buffer, error);
+        sprintf_s(error_buffer, "Couldn't read file %s. Error %d.", path_buffer, error);
     }
-    Log::Error(text_buffer);
+    Log::Error(error_buffer);
 
     return result;
+}
+
+void* Platform::ReadEntireFile(String path, File_Info* file_info = nullptr) {
+    char path_buffer[MAX_PATH];
+    strncpy_s(path_buffer, path.content, path.length);
+
+    char error_buffer[256];
+    HANDLE file_handle = CreateFileA(path_buffer, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    if (file_handle != INVALID_HANDLE_VALUE) {
+        LARGE_INTEGER size;
+        if (file_info) {
+            *file_info = GetFileInfo(path);
+            size.QuadPart = file_info->size;
+        }
+        else {
+            bool ok = GetFileSizeEx(file_handle, &size);
+            if (!ok) {
+                sprintf_s(error_buffer, "Failed to get size of file %s.", path_buffer);
+                Log::Error(error_buffer);
+                return nullptr;
+            }
+        }
+
+        if (size.QuadPart == 0) {
+            sprintf_s(error_buffer, "Skipped reading of empty file %s.", path_buffer);
+            Log::Warn(error_buffer);
+            return nullptr;
+        }
+
+        void* result = AllocateMemory(size.QuadPart);
+        DWORD bytes_read;
+        bool ok = ReadFile(file_handle, result, size.QuadPart, &bytes_read, NULL);
+        if (!ok || bytes_read != size.QuadPart) {
+            sprintf_s(error_buffer, "Failed to read file %s.", path_buffer);
+            Log::Error(error_buffer);
+            FreeMemory(result);
+            return nullptr;
+        }
+
+        CloseHandle(file_handle);
+        return result;
+    }
+    
+    DWORD error = GetLastError();
+    if (error == ERROR_PATH_NOT_FOUND) {
+        sprintf_s(error_buffer, "Path %s not found.", path_buffer);
+    }
+    else if (error == ERROR_SHARING_VIOLATION) {
+        sprintf_s(error_buffer, "File %s sharing violation.", path_buffer);
+    }
+    else {
+        sprintf_s(error_buffer, "Couldn't read file %s. Error %d.", path_buffer, error);
+    }
+    Log::Error(error_buffer);
+
+    return nullptr;
 }
 
 bool Platform::WriteFileChunk(String path, memory_size offset, memory_size chunk_size, void* memory) {
@@ -200,6 +257,10 @@ bool Platform::WriteFileChunk(String path, memory_size offset, memory_size chunk
     }
 
     return result;
+}
+
+bool Platform::WriteEntireFile(String path, memory_size size, void* memory) {
+    return WriteFileChunk(path, 0, size, memory);
 }
 
 bool Platform::AppendToFile(String path, memory_size size, void* memory) {
@@ -288,23 +349,28 @@ Process_Info Platform::RunCommand(char* command) {
     return result;
 }
 
-int32 Platform::WaitForProcess() {
-    DWORD wait_result = WaitForSingleObject(process->handle, timeout);
+int32 Platform::WaitForProcess(Process_Info& process, uint32 timeout) {
+    DWORD wait_result = WaitForSingleObject(process.handle, timeout);
     int32 result = -1;
     if (wait_result == WAIT_FAILED) {
         char error_buffer[128] = {};
         DWORD error_code = GetLastError();
         sprintf_s(error_buffer, "Error while waiting for a process to end. Error code '%d'.", error_code);
-        Log(Log_Level::Error, error_buffer);
+        Log::Error(error_buffer);
         return result;
     }
     else if (wait_result == WAIT_OBJECT_0) {
-        process->running = false;
+        process.running = false;
         DWORD exit_code = 0;
-        GetExitCodeProcess(process->handle, &exit_code);
+        GetExitCodeProcess(process.handle, &exit_code);
         result = exit_code;
-        CloseHandle(process->handle);
-        CloseHandle(process->thread_handle);
+        CloseHandle(process.handle);
+        CloseHandle(process.thread_handle);
     }
     return result;
+}
+
+float Platform::GetSecondsElapsed(uint64 start, uint64 end) {
+    uint64 timeelapsed = end - start;
+    return timeelapsed / (float)Platform::performance_counter_frequency;
 }

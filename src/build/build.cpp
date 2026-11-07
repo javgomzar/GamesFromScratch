@@ -1,59 +1,303 @@
 #include "build.h"
 
 
-constexpr int ARENA_SIZE = Kilobytes(8);
-static char TEXT_BUFFER[2*ARENA_SIZE];
-
-/* Compiles the meta-program (if needed) and runs it.*/
-void MetaProgram(Arena& arena, Build_Configuration* config) {
-    File_Info metaprogramming_source = Platform.GetFileInfo(config->metaprogramming_code_path.content);
-    File_Info metaprogramming_binary;
-
-    bool metaprogramming_binary_exists = Platform.FileExists(config->metaprogramming_output_file.content);        
-    if (metaprogramming_binary_exists) {
-        metaprogramming_binary = Platform.GetFileInfo(config->metaprogramming_output_file.content);
-    }
+void Build::ReadConfig(String config_file_path) {
+    File_Info config_file_info;
+    void* config_file = Platform::ReadEntireFile(config_file_path.content, &config_file_info);
+    if (config_file) {
+        Tokenizer tokenizer = Tokenizer(config_file, config_file_info.size);
+        Token token = tokenizer.GetToken();
     
-    int32 wait_result = 0;
-    uint64 metaprogramming_compilation_start = 0;
-    uint64 metaprogramming_compilation_end = 0;
-    Process_Info metaprogramming_compilation = {};
-    if (!metaprogramming_binary_exists || metaprogramming_source.timestamp > metaprogramming_binary.timestamp) {
-        metaprogramming_compilation_start = Platform.GetWallClock();
-        metaprogramming_compilation = CompileMetaprogramming(arena, config);
-        wait_result = Platform.WaitForProcess(&metaprogramming_compilation, -1);
-        metaprogramming_compilation_end = Platform.GetWallClock();
-        LogCompilationResult(arena, "Metaprogramming", wait_result, metaprogramming_compilation_start, metaprogramming_compilation_end);
-    }
+        while(token.type != Token_End) {
+            // Comments
+            if (token.type == Token_Pound) {
+                tokenizer.AdvanceUntilNextLine();
+            }
+    
+            else if (token.type == Token_Identifier) {
+                if (token == "MODE") {
+                    RequireToken(tokenizer, Token_Equal);
+                    Token mode_token = RequireToken(tokenizer, Token_Identifier);
+                    if (mode_token == "DEBUG") {
+                        Config::mode = Mode::Debug;
+                        Config::obj_dir = "build\\debug\\";
+                    }
+                    else {
+                        Config::mode = Mode::Release;
+                        Config::obj_dir = "build\\release\\";
+                    }
+                }
+    
+                else if (token == "COMPILER") {
+                    RequireToken(tokenizer, Token_Equal);
+                    Token compiler_token = RequireToken(tokenizer, Token_Identifier);
+                    if (compiler_token == "MSVC")       Config::compiler = Compiler::MSVC;
+                    else if (compiler_token == "clang") Config::compiler = Compiler::clang;
+                    else Raise("Invalid compiler. Currently only MSVC and clang are supported.");
+                }
+    
+                else if (token == "COMPILER_PATH") {
+                    RequireToken(tokenizer, Token_Equal);
+                    Config::compiler_path.content = tokenizer.at;
+                    Config::compiler_path.length = ParsePath(tokenizer.at);
+                    tokenizer.Advance(Config::compiler_path.length);
+                }
 
-    char* meta_command = PushArray(arena, 64, char);
-    strncpy(meta_command, config->metaprogramming_output_file.content, 64);
-    uint64 metaprogramming_execution_start = Platform.GetWallClock();
-    Process_Info metaprogramming_execution = Platform.RunCommand(meta_command);
-    wait_result = Platform.WaitForProcess(&metaprogramming_execution, -1);
-    if (wait_result >= 0) {
-        uint64 end = Platform.GetWallClock();
-        float time = GetSecondsElapsed(metaprogramming_execution_start, end);
-        Log_Level level = wait_result > 0 ? Log_Level::Error : Log_Level::Info;
-        String log_text;
-        if (wait_result == 0) {
-            log_text = Format(arena, "Metaprogramming executed in {f2} milliseconds.", 1, 1000.0f * time);
+                else if (token == "PRECOMPILE_HEADERS") {
+                    RequireToken(tokenizer, Token_Equal);
+                    Config::pch = ParseBool(tokenizer);
+                }
+
+                else if (token == "PRECOMPILED_HEADERS_PATH") {
+                    RequireToken(tokenizer, Token_Equal);
+                    Config::pch_source_dir.content = tokenizer.at;
+                    Config::pch_source_dir.length = ParsePath(tokenizer.at);
+                    tokenizer.Advance(Config::pch_source_dir.length);
+                }
+    
+                else if (token == "INCLUDE") {
+                    RequireToken(tokenizer, Token_Equal);
+
+                    Config::include.length = 0;
+                    Config::include.content = (const char*)(permanent.base + permanent.used);
+
+                    do {
+                        tokenizer.AdvanceUntilNextLine();
+                        char* pointer = permanent.PushArray<char>(3);
+                        Config::include.length += 3;
+                        if (Config::compiler == MSVC) {
+                            *pointer++ = '/';
+                        }
+                        else if (Config::compiler == clang) {
+                            *pointer++ = '-';
+                        }
+                        *pointer++ = 'I';
+                        *pointer++ = '\"';
+                        int path_length = ParsePath(tokenizer.at);
+                        permanent.PushArray<char>(path_length + 1);
+                        Config::include.length += path_length + 1;
+                        strncpy(pointer, tokenizer.at, path_length);
+                        tokenizer.Advance(path_length);
+                        pointer += path_length;
+                        *pointer++ = '\"';
+                        if (tokenizer.at[0] != ';') {
+                            permanent.Push<char>();
+                            *pointer++ = '\0';
+                            break;
+                        }
+                        permanent.Push<char>();
+                        Config::include.length += 1;
+                        *pointer++ = ' ';
+                    } while (true);
+                }
+    
+                else if (token == "LIB") {
+                    RequireToken(tokenizer, Token_Equal);
+
+                    Config::lib.length = 0;
+                    Config::lib.content = (char*)(permanent.base + permanent.used);
+
+                    do {
+                        tokenizer.AdvanceUntilNextLine();
+                        char* pointer = permanent.PushArray<char>(10);
+                        strncpy(pointer, "/LIBPATH:\"", 10);
+                        Config::lib.length += 10;
+                        int path_length = ParsePath(tokenizer.at);
+                        pointer = permanent.PushArray<char>(path_length + 1);
+                        Config::lib.length += path_length + 1;
+                        strncpy(pointer, tokenizer.at, path_length);
+                        tokenizer.Advance(path_length);
+                        pointer += path_length;
+                        *pointer++ = '\"';
+                        if (tokenizer.at[0] != ';') {
+                            permanent.Push<char>();
+                            *pointer++ = '\0';
+                            break;
+                        }
+                        permanent.Push<char>();
+                        Config::lib.length += 1;
+                        *pointer++ = ' ';
+                    } while (true);
+                }
+
+                // Linked libraries
+                else if (token == "LINK") {
+                    RequireToken(tokenizer, Token_Equal);
+                    Config::linked_libs.length = 0;
+                    Config::linked_libs.content = (char*)(permanent.base + permanent.used);
+                    do {
+                        Token library = RequireToken(tokenizer, Token_Identifier);
+                        RequireToken(tokenizer, Token_Dot);
+                        RequireToken(tokenizer, "lib");
+                        char* linked_libraries = permanent.PushArray<char>(library.length + 4);
+                        strncpy(linked_libraries, library.text, library.length + 4);
+                        Config::linked_libs.length += library.length + 4;
+                        if (tokenizer.at[0] != ';') {
+                            break;
+                        }
+                        RequireToken(tokenizer, Token_Semicolon);
+                        char* space = permanent.Push<char>();
+                        *space = ' ';
+                        Config::linked_libs.length += 1;
+                    } while(true);
+                }
+    
+                // Renderer
+                else if (token == "RENDERER") {
+                    RequireToken(tokenizer, Token_Equal);
+                    Token renderer_token = RequireToken(tokenizer, Token_Identifier);
+                    if      (renderer_token == "Vulkan")  Config::renderer = Renderer::Vulkan;
+                    else if (renderer_token == "DirectX") Config::renderer = Renderer::DirectX;
+                    else if (renderer_token == "OpenGL")  Config::renderer = Renderer::OpenGL;
+                    else Raise("Invalid renderer. Currently only OpenGL, DirectX or Vulkan are supported.");
+
+                    if (Platform::OS == Platform::Windows) {
+                        switch(Config::renderer) {
+                            case Renderer::OpenGL:  Config::renderer_libs = "glew32.lib";
+                            case Renderer::DirectX: Config::renderer_libs = "D3d11.lib d3dcompiler.lib";
+                            case Renderer::Vulkan:  Config::renderer_libs = "vulkan-1.lib shaderc_combined.lib";
+                        }
+                    }
+                    else if (Platform::OS == Platform::Linux) {
+                        Config::renderer_libs = "-lglfw";
+                    }
+                }
+
+                // Metaprogramming source file
+                else if (token == "META") {
+                    RequireToken(tokenizer, Token_Equal);
+                    Config::preprocess = true;
+                    int metaprogramming_file_path_length = ParsePath(tokenizer.at);
+                    char* pointer = permanent.PushArray<char>(metaprogramming_file_path_length + 1);
+                    strncpy(pointer, tokenizer.at, metaprogramming_file_path_length);
+                    Config::metaprogramming_code_path.length = metaprogramming_file_path_length;
+                    Config::metaprogramming_code_path.content = pointer;
+                    metaprogramming.output_mode = Build_Process::Output_Mode::EXE;
+                    tokenizer.AdvanceUntilNextLine();
+                }
+
+                // Metaprogramming input files
+                else if (token == "META_FILES") {
+                    RequireToken(tokenizer, Token_Equal);
+                    tokenizer.AdvanceWhitespaceAndComments();
+                    Config::metaprogramming_input_files.content = tokenizer.at;
+                    Config::metaprogramming_input_files.length = 0;
+                    Config::metaprogramming_input_file_count = 0;
+                    do {
+                        tokenizer.AdvanceWhitespaceAndComments();
+                        int path_length = ParsePath(tokenizer.at);
+                        tokenizer.Advance(path_length);
+                        Config::metaprogramming_input_file_count += 1;
+                        const char* End = tokenizer.at;
+                        if (tokenizer.at[0] != ';') {
+                            Config::metaprogramming_input_files.length = End - Config::metaprogramming_input_files.content;
+                            break;
+                        }
+                        token = RequireToken(tokenizer, Token_Semicolon);
+                    } while(token.type == Token_Semicolon);
+                }
+
+                // Platform layer main
+                else if (token == "PLATFORM") {
+                    RequireToken(tokenizer, Token_Equal);
+                    int path_length = ParsePath(tokenizer.at);
+                    platform.main = String(tokenizer.at, path_length);
+                    platform.output_mode = Build_Process::Output_Mode::EXE;
+                    tokenizer.Advance(path_length);
+                }
+
+                // Game library
+                else if (token == "GAME") {
+                    RequireToken(tokenizer, Token_Equal);
+                    int path_length = ParsePath(tokenizer.at);
+                    game_library.main = String(tokenizer.at, path_length);
+                    game_library.output_mode = Build_Process::Output_Mode::DLL;
+                    tokenizer.Advance(path_length);
+                }
+            }
+    
+            token = tokenizer.GetToken();
+        }
+
+        switch (Config::compiler) {
+            case MSVC: {
+                switch(Config::mode) {
+                    case Mode::Release: Config::compiler_flags = "/O2";
+                    case Mode::Debug:   Config::compiler_flags = "/D _DEBUG /EHsc /MDd /Zi /Od /fsanitize=address";
+                }
+            } break;
+
+            case clang: {
+                switch(Config::mode) {
+                    case Mode::Release: Config::compiler_flags = "-O2";
+                    case Mode::Debug:   Config::compiler_flags = "-g -D_DEBUG -fsanitize=address -fsanitize=undefined";
+                }
+            } break;
+
+            default: Raise("Invalid compiler. Only MSVC and clang are supported.");
+        }
+        
+        Config::pch_output_file = Config::mode == Mode::Debug ? "debug_pch" : "pch";
+        if (Platform::OS == Platform::Windows) {
+            Config::pch_output_path = String::Format(permanent, "bin" PATH_SEPARATOR "{s}.pch", 1, Config::pch_output_file);
+            Config::metaprogramming_output_file = "bin" PATH_SEPARATOR "Meta.exe";
+            Config::pch_header_path = String::Format(permanent, "{s}" PATH_SEPARATOR "pch.h", 1, Config::pch_source_dir);
+            Config::pch_source_path = String::Format(permanent, "{s}" PATH_SEPARATOR "pch.cpp", 1, Config::pch_source_dir);
         }
         else {
-            log_text = Format(arena, "Metaprogramming execution failed with code '{i}'", 1, wait_result);
+            Config::pch_output_path = String::Format(permanent, "bin" PATH_SEPARATOR "{s}.gch", 1, Config::pch_output_file);
+            Config::metaprogramming_output_file = "bin" PATH_SEPARATOR "Meta";
         }
-        Log(level, log_text.content);
+    }
+    else {
+        String error = String::Format(permanent, "Build configuration file {s} not found.", 1, config_file_path);
+        Raise(error.content);
     }
 }
 
-Process_Info CompilePlatformLayer(Arena& arena, Build_Configuration* config) {
+/* Compiles the meta-program (if needed) and runs it.*/
+void Build::MetaProgram() {
+    File_Info metaprogramming_source = Platform::GetFileInfo(Config::metaprogramming_code_path);
+    File_Info metaprogramming_binary;
+
+    bool metaprogramming_binary_exists = Platform::FileExists(Config::metaprogramming_output_file);        
+    if (metaprogramming_binary_exists) {
+        metaprogramming_binary = Platform::GetFileInfo(Config::metaprogramming_output_file);
+    }
+    
+    if (!metaprogramming_binary_exists || metaprogramming_source.timestamp > metaprogramming_binary.timestamp) {
+        Build::Compile(metaprogramming);
+    }
+
+    char* meta_command = transient.PushArray<char>(64);
+    strncpy(meta_command, Config::metaprogramming_output_file.content, 64);
+    uint64 metaprogramming_execution_start = Platform::GetWallClock();
+    Process_Info metaprogramming_execution = Platform::RunCommand(meta_command);
+    int32 wait_result = Platform::WaitForProcess(metaprogramming_execution, -1);
+    if (wait_result >= 0) {
+        uint64 end = Platform::GetWallClock();
+        float time = Platform::GetSecondsElapsed(metaprogramming_execution_start, end);
+        if (wait_result == 0) {
+            String log_text = String::Format(transient, "Metaprogramming executed in {f2} milliseconds.", 1, 1000.0f * time);
+            Log::Info(log_text);
+        }
+        else {
+            String log_text = String::Format(transient, "Metaprogramming execution failed with code '{i}'", 1, wait_result);
+            Log::Error(log_text);
+        }
+    }
+
+    transient.Clear();
+}
+
+void Build::CompilePlatformLayer(Arena& arena) {
     char* command = (char*)(arena.base + arena.used);
-    switch (config->compiler) {
-        case MSVC: {
-            String command_string = Format(arena,
+    switch (Config::compiler) {
+        case Config::MSVC: {
+            String command_string = String::Format(arena,
                 "{s} /std:c++20 /nologo "
                 "src\\GamePlatform\\Windows\\Win32PlatformLayer.cpp build\\obj\\{s}.obj " 
-                "/D GAME_RENDER_API_{s} {s} "
+                "{s} "
                 "/Fe\"bin\\RunGame.exe\" "
                 "/Fo\"build\\obj\\Win32PlatformLayer.obj\" "
                 "/Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" {s} "
@@ -62,7 +306,6 @@ Process_Info CompilePlatformLayer(Arena& arena, Build_Configuration* config) {
                 10,
                 config->compiler_path,
                 config->pch_output_file,
-                GetRendererString(config->renderer),
                 config->compiler_flags,
                 config->pch_output_file,
                 config->pch_output_file,
@@ -74,7 +317,7 @@ Process_Info CompilePlatformLayer(Arena& arena, Build_Configuration* config) {
         } break;
 
         case clang: {
-            Format(arena,
+            String::Format(arena,
                 "{s} -std=c++20 -fPIC {s} {s} -include-pch bin/{s}.gch "
                 "LinuxPlatformLayer/LinuxPlatformLayer.cpp {s} -o bin/RunGame && chmod +x bin/RunGame",
                 5,
@@ -87,14 +330,14 @@ Process_Info CompilePlatformLayer(Arena& arena, Build_Configuration* config) {
         };
     }
 
-    return Platform.RunCommand(command);
+    return Platform::RunCommand(command);
 }
 
-Process_Info CompileGameLibrary(Arena& arena, Build_Configuration* config) {
+Process_Info CompileGameLibrary(Arena& arena) {
     char* Command = (char*)(arena.base + arena.used);
     switch(config->compiler) {
         case MSVC: {
-            Format(arena,
+            String::Format(arena,
                 "{s} /std:c++20 /nologo /D GAMELIBRARY_EXPORTS "
                 "src\\GameLibrary\\GameLibrary.cpp {s} {s} /Fo\"build\\obj\\GameLibrary.obj\" "
                 "/Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" "
@@ -113,7 +356,7 @@ Process_Info CompileGameLibrary(Arena& arena, Build_Configuration* config) {
         } break;
 
         case clang: {
-            Format(arena,
+            String::Format(arena,
                 "{s} -std=c++20 -shared -fPIC {s} {s} -include-pch bin/{s}.gch GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
                 4,
                 config->compiler_path,
@@ -124,116 +367,118 @@ Process_Info CompileGameLibrary(Arena& arena, Build_Configuration* config) {
         } break;
     }
 
-    return Platform.RunCommand(Command);
+    return Platform::RunCommand(Command);
 }
 
-int main(int argc, char* argv[]) {
-#if _WIN32
-    LARGE_INTEGER perf_count_frequency_result;
-    QueryPerformanceFrequency(&perf_count_frequency_result);
-    Platform.performance_counter_frequency = perf_count_frequency_result.QuadPart;
-#endif
+Process_Info CompileMetaprogramming(Arena& arena, Build_Configuration* config) {
+    Log::Info("Compiling metaprogramming code.");
+    char* Command = (char*)(arena.base + arena.used);
+    switch(config->compiler) {
+        case MSVC: {
+            String::Format(arena,
+                "{s} /std:c++20 /nologo {s} /Fo\"build\\obj\\meta.obj\" /Fd\"bin\\meta.pdb\" {s} {s} "
+                "/link {s} /OUT:\"bin\\meta.exe\" /PDB:\"bin\\meta.pdb\"", 
+                5,
+                config->compiler_path, 
+                config->include, 
+                config->metaprogramming_code_path, 
+                config->compiler_flags, 
+                config->lib
+            );
+        } break;
 
-    Arena permanent = MemoryArena(ARENA_SIZE, TEXT_BUFFER);
-    Arena transient = MemoryArena(ARENA_SIZE, TEXT_BUFFER + ARENA_SIZE);
+        case clang: {
+            String::Format(arena,
+                "{s} -std=c++20 {s} {s} -o bin/Meta", 
+                4,
+                config->compiler_path, 
+                config->include, 
+                config->metaprogramming_code_path, 
+                config->compiler_flags
+            );
+        } break;
 
-    Build_Configuration config = ReadBuildConfiguration(permanent, argv[1]);
-
-    // Hot reload
-    if (argc == 3 && argv[2]) {
-        if (strcmp(argv[2], "-hot") != 0) {
-            String error_text = Format(transient, "Incorrect argument '{s}', try '-hot'.", 1, argv[2]);
-            Log(Log_Level::Error, error_text.content);
-            return 2;
-        }
-        
-        MetaProgram(transient, &config);
-        
-        uint64 library_compilation_start = Platform.GetWallClock();
-        Process_Info library_compilation = CompileGameLibraryHot(transient, config);
-        int32 wait_result = Platform.WaitForProcess(&library_compilation, -1);
-        uint64 library_compilation_end = Platform.GetWallClock();
-        LogCompilationResult(transient, "Game library", wait_result, library_compilation_start, library_compilation_end);
+        default: Raise("Invalid compiler. Only MSVC and clang are supported for now.");
     }
-    // Normal compilation
-    else if (argc == 2) {
-        // Precompiled headers
-        Process_Info pch_process = {};
-        if (config.pch) {
-            bool precompile_headers = true;
-            if (Platform.FileExists(config.pch_header_path) && Platform.FileExists(config.pch_output_path.content)) {
-                File_Info precompiled_headers_output = Platform.GetFileInfo(config.pch_output_path.content);
-                File_Info precompiled_headers_source = Platform.GetFileInfo(config.pch_header_path);
-                precompile_headers = precompiled_headers_source.timestamp > precompiled_headers_output.timestamp;
-            }
-            if (precompile_headers) {
-                Log(Log_Level::Info, "Compiling pre-compiled headers.");
+    return Platform::RunCommand(Command);
+}
 
-                char* command = (char*)(transient.base + transient.used);
-                switch (config.compiler) {
-                    case MSVC: {
-                        Format(transient,
-                            "{s} /std:c++20 /nologo {s} {s} /c {s} "
-                            "/Yc\"pch.h\" /Fp\"{s}\" /Fo\"build\\obj\\{s}.obj\" /Fd\"bin\\{s}.pdb\"",
-                            7,
-                            config.compiler_path, 
-                            config.include,
-                            config.pch_source_path,
-                            config.compiler_flags,
-                            config.pch_output_path,
-                            config.pch_output_file,
-                            config.pch_output_file
-                        );
-                    } break;
-
-                    case clang: {
-                        Format(transient,
-                            "{s} -x c++-header -std=c++20 -fPIC {s} {s} GameBuild/pch.h -o {s}",
-                            4,
-                            config.compiler_path, 
-                            config.compiler_flags,
-                            config.include, 
-                            config.pch_output_path
-                        );
-                    } break;
-
-                    default: Raise("Invalid compiler. Currently only MSVC is supported.");
-                }
-
-                uint64 start = Platform.GetWallClock();
-                pch_process = Platform.RunCommand(command);
-                uint32 exit_code = Platform.WaitForProcess(&pch_process, -1);
-                uint64 end = Platform.GetWallClock();
-
-                LogCompilationResult(transient, "Precompiled headers", exit_code, start, end);
-                Clear(transient);
-            }
-        }
-
-        // Metaprogramming
-        if (config.preprocess) {
-            MetaProgram(transient, &config);
-        }
-
-        // Platform layer
-        uint64 platform_start = Platform.GetWallClock();
-        Process_Info platform_process = CompilePlatformLayer(transient, &config);
-        uint32 platform_exit_code = Platform.WaitForProcess(&platform_process, -1);
-        uint64 platform_end = Platform.GetWallClock();
-        const char* os_layer_name = SystemOS == Windows ? "Windows platform layer" : "Linux platform layer";
-        LogCompilationResult(transient, os_layer_name, platform_exit_code, platform_start, platform_end);
-        Clear(transient);
-
-        // Game library
-        uint64 library_start = Platform.GetWallClock();
-        Process_Info library_process = CompileGameLibrary(transient, &config);
-        int32 library_exit_code = Platform.WaitForProcess(&library_process, -1);
-        uint64 library_end = Platform.GetWallClock();
-        LogCompilationResult(transient, "Game library", library_exit_code, library_start, library_end);
+void Build::LogResult(Build_Process& process) {
+    if (process.result == 0) {
+        String message = String::Format(Build::transient, 
+            "{s} code compiled in {f2} milliseconds.", 2, process.name, 1000.0f * Platform::GetSecondsElapsed(process.start, process.end));
+        Log::Info(message);
     }
     else {
-        Log(Log_Level::Error, "No build configuration file provided. Usage: Build <build.conf file path> [-hot]");
+        String message = String::Format(Build::transient, "{s} code compilation failed, exit code '{i}'.", 2, process.name, process.result);
+        Log::Error(message);
     }
+}
 
-    return 0;
+void Build::Compile(Build_Process& process) {
+    char* command = (char*)(transient.base + transient.used);
+    String::Format(transient, 
+        "{s} /std:c++20 /nologo {s} {s} /Fo\"{s}\" /Fd\"bin\\{s}.pdb\" {s} "
+        "/link {s}",
+        0,
+        Config::compiler_path,
+
+    );
+
+    process.start = Platform::GetWallClock();
+    process.info = Platform::RunCommand(command);
+    process.result = Platform::WaitForProcess(process.info, -1);
+    process.end = Platform::GetWallClock();
+
+    LogResult(process);
+    transient.Clear();
+}
+
+void Build::HotReload() {
+    game_library.start = Platform::GetWallClock();
+#if _WIN32
+    int hot_reload_count = 0;
+    String pdb_file = String::Format(transient, "bin\\GameLibrary{i}.pdb", 1, hot_reload_count);
+    bool exists;
+    do {
+        exists = Platform::FileExists(pdb_file.content);
+        if (exists) {
+            hot_reload_count += 1;
+            transient.PopArray<char>(pdb_file.length + 1);
+            pdb_file = String::Format(transient, "bin\\GameLibrary{i}.pdb", 1, hot_reload_count);
+        }
+    } while(exists);
+
+    char* command = (char*)(transient.base + transient.used);
+    String::Format(transient,
+        "{s} /std:c++20 /nologo /D GAMELIBRARY_EXPORTS src\\GameLibrary\\GameLibrary.cpp {s} {s} "
+        "/Fo\"build\\obj\\GameLibrary.obj\" /Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" "
+        "/link {s} build\\obj\\{s}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
+        "/PDB:\"{s}\" /ILK:\"bin\\GameLibrary.ilk\" "
+        "/OUT:\"bin\\GameLibrary.dll\"",
+        8,
+        Config::compiler_path, 
+        Config::compiler_flags, 
+        Config::include, 
+        Config::pch_output_file, 
+        Config::pch_output_file, 
+        Config::lib,
+        Config::pch_output_file, 
+        pdb_file
+    );
+#else
+    char* Command = (char*)(arena->base + arena->used);
+    Format(arena,
+        "{s} -std=c++20 -shared -fPIC {s} {s} -include-pch bin/{s}.gch GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
+        4,
+        config->compiler_path,
+        config->compiler_flags,
+        config->include,
+        config->pch_output
+    );
+#endif
+    game_library.info = Platform::RunCommand(command);
+    game_library.result = Platform::WaitForProcess(game_library.info, -1);
+    game_library.end = Platform::GetWallClock();
+    LogResult(game_library);
 }

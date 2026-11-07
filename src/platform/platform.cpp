@@ -43,32 +43,8 @@ String GetFileExtension(String path) {
 String GetFileNameWithoutExtension(String path) {
     String filename = GetFileName(path);
     String extension = GetFileExtension(path);
-    filename.length -= filename.length + 1;
+    filename.length -= extension.length + 1;
     return filename;
-}
-
-void* Platform::ReadEntireFile(String path, File_Info* file_info) {
-    File_Info info = GetFileInfo(path);
-    if (file_info) {
-        *file_info = info;
-    }
-
-    if (info.size > 0) {
-        void* result = AllocateMemory(info.size);
-
-        File_Chunk_Info chunk_info = ReadFileChunk(path, 0, info.size, result);
-        if (chunk_info.size > 0) {
-            return result;
-        }
-        else {
-            FreeMemory(result);
-        }
-    }
-    return nullptr;
-}
-
-bool Platform::WriteEntireFile(String path, memory_size size, void* memory) {
-    return WriteFileChunk(path, 0, size, memory);
 }
 
 uint64 SeedRNG(Arena& arena) {

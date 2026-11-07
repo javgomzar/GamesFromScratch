@@ -1,34 +1,34 @@
 # Visual Studio
-.vs/
+/.vs/
 CppProperties.json
 cpp.hint
 
 # Visual Studio Code
-.vscode/*
-!.vscode/launch.json
+/.vscode/*
+!/.vscode/launch.json
 
 # clangd
 compile_commands.json
 .cache
 
 # Game assets
-asset/
+/asset/
 
 # Screen captures
-captures/*
+/captures/*
 
 # Binaries
-bin/
+/bin/
 **/*.spv
 
 # Third party
-vendor/
+/vendor/
 
 # Batch scripts
-scripts/env.bat
-scripts/hot.bat
-scripts/meta.bat
+/scripts/env.bat
+/scripts/hot.bat
+/scripts/meta.bat
 
 # Build
-build/build.conf
-build/obj
+/build/
+!build.conf.template
