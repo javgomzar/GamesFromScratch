@@ -1,6 +1,8 @@
 #include "platform.h"
 
 
+Log::Mode Log::mode = Mode::Terminal;
+
 void Log::Info(String message)  { LogLevel(Level::Info, message); }
 void Log::Test(String message)  { LogLevel(Level::Test, message); }
 void Log::Warn(String message)  { LogLevel(Level::Warn, message); }
@@ -69,7 +71,7 @@ uint64 SeedRNG(Arena& arena) {
 }
 
 Timed_Block::Timed_Block(int counter, const char* file_name, int line_number, const char* function_name) {
-    record = time_records + counter;
+    // record = time_records + counter;
     record->file_name = file_name;
     record->function_name = function_name;
     record->line_number = line_number;

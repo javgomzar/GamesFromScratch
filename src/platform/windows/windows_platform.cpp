@@ -3,6 +3,14 @@
 
 Platform::System_OS Platform::OS = Windows;
 
+uint64 GetPerformanceCounterFrequency() {
+    LARGE_INTEGER performance_counter_frequency_result;
+    QueryPerformanceFrequency(&performance_counter_frequency_result);
+    return performance_counter_frequency_result.QuadPart;
+}
+
+uint64 Platform::performance_counter_frequency = GetPerformanceCounterFrequency();
+
 void Log::LogLevel(Log::Level level, String message) {
     char level_string[16];
     switch (level) {
@@ -29,9 +37,6 @@ void Log::LogLevel(Log::Level level, String message) {
                 WriteFile(file_handle, date, 20, &bytes_written, 0);
                 WriteFile(file_handle, level_string, 8, &bytes_written, 0);
                 WriteFile(file_handle, message.content, message.length, &bytes_written, 0);
-            }
-            else {
-                Raise("Invalid file handle.");
             }
 
             CloseHandle(file_handle);

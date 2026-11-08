@@ -24,60 +24,63 @@ struct Build_Process {
 
 struct Build {
     enum class Mode {
+        None,
         Release,
         Debug,
     };
-    enum Compiler {
+    enum class Compiler {
+        None,
         MSVC,
         clang
     };
-    enum Renderer {
+    enum class Renderer {
+        None,
         OpenGL,
         DirectX,
         Vulkan,
     };
     
     struct Config {
-        static Mode mode;
-        static Compiler compiler;
-        static Renderer renderer;
+        Mode mode;
+        Compiler compiler;
+        Renderer renderer;
 
-        static String compiler_path;
-        static String include;
-        static String lib;
-        static String linked_libs;
-        static String renderer_libs;
-        static String compiler_flags;
+        String compiler_path;
+        String include;
+        String lib;
+        String linked_libs;
+        String renderer_libs;
+        String compiler_flags;
         
-        static String source_files;
-        static String obj_dir;
-        static String obj_files;
+        String source_files;
+        String obj_dir;
+        String obj_files;
 
-        static String pch_source_dir;
-        static String pch_header_path;
-        static String pch_source_path;
-        static String pch_output_file;
-        static String pch_output_path;
+        String pch_source_dir;
+        String pch_header_path;
+        String pch_source_path;
+        String pch_output_file;
+        String pch_output_path;
 
-        static String metaprogramming_code_path;
-        static String metaprogramming_output_file;
-        static String metaprogramming_input_files;
-        static int metaprogramming_input_file_count;
+        String metaprogramming_code_path;
+        String metaprogramming_output_file;
+        String metaprogramming_input_files;
+        int metaprogramming_input_file_count;
 
-        static bool preprocess;
-        static bool pch;
-    };
+        bool preprocess;
+        bool pch;
+    } config;
 
-    static Arena permanent;
-    static Arena transient;
+    Arena permanent;
+    Arena transient;
 
-    static Build_Process metaprogramming;
-    static Build_Process game_library;
-    static Build_Process platform;
+    Build_Process metaprogramming;
+    Build_Process game_library;
+    Build_Process platform;
 
-    static void ReadConfig(String config_file_path);
-    static void Compile();
-    static void Link(Build_Process& process);
-    static void MetaProgram();
-    static void HotReload();
+    Build(memory_size arena_size, String config_file_path);
+    void Compile();
+    // void Link(Build_Process& process);
+    // void MetaProgram();
+    // void HotReload();
 };

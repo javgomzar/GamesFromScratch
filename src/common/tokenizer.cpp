@@ -38,7 +38,7 @@ bool Token::operator==(const char* rhs) {
     return true;
 };
 
-Tokenizer::Tokenizer(const char* text, int max_length = 0, bool should_ignore_whitespace = true) {
+Tokenizer::Tokenizer(const char* text, int max_length, bool should_ignore_whitespace) {
     start = text;
     at = text;
     line = 1;
@@ -48,7 +48,7 @@ Tokenizer::Tokenizer(const char* text, int max_length = 0, bool should_ignore_wh
     ignore_whitespace = should_ignore_whitespace;
 }
 
-Tokenizer::Tokenizer(void* memory, int max_length = 0, bool should_ignore_whitespace = true) {
+Tokenizer::Tokenizer(void* memory, int max_length, bool should_ignore_whitespace) {
     start = (char*)memory;
     at = start;
     line = 1;

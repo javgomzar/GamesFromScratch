@@ -224,9 +224,6 @@ struct Time_Record {
     int hit_count;
 };
 
-const int MAX_TIME_RECORDS = 128;
-Time_Record *time_records = nullptr;
-
 struct Timed_Block {
     Time_Record* record;
     uint64 start_cycles;

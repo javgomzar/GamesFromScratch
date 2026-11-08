@@ -1,10 +1,6 @@
 #include "common.h"
 
 
-void Raise(const char* error_message) {
-    assert(false, error_message);
-}
-
 void ZeroSize(memory_size size, void* memory) {
     if (size > 0) {
         memset(memory, 0, size);
@@ -194,7 +190,6 @@ String String::Format(Arena& arena, const char* format, int input_count, ...) {
     int format_length = strlen(format);
 
     if (format_length == 0) {
-        result.content = nullptr;
         return result;
     }
 
@@ -376,7 +371,7 @@ String String::Format(Arena& arena, const char* format, int input_count, ...) {
                 } break;
 
                 default: {
-                    Raise("Invalid format flag.");
+                    assert(false);
                 }
             }
 
