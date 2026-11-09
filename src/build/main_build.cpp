@@ -2,13 +2,8 @@
 
 
 int main(int argc, char* argv[]) {
-#if _WIN32
-    LARGE_INTEGER perf_count_frequency_result;
-    QueryPerformanceFrequency(&perf_count_frequency_result);
-    Platform::performance_counter_frequency = perf_count_frequency_result.QuadPart;
-#endif
-
-    Build build = Build(Kilobytes(8), argv[1]);
+    Build build = Build(Kilobytes(8));
+    build.ReadConfig(argv[1]);
 
     // Hot reload
     if (argc == 3 && argv[2]) {
@@ -23,60 +18,9 @@ int main(int argc, char* argv[]) {
     }
     // Normal compilation
     else if (argc == 2) {
+        
         build.Compile();
-
-        // // Precompiled headers
-        // Process_Info pch_process = {};
-        // if (config.pch) {
-        //     bool precompile_headers = true;
-        //     if (Platform::FileExists(config.pch_header_path) && Platform::FileExists(config.pch_output_path.content)) {
-        //         File_Info precompiled_headers_output = Platform::GetFileInfo(config.pch_output_path.content);
-        //         File_Info precompiled_headers_source = Platform::GetFileInfo(config.pch_header_path);
-        //         precompile_headers = precompiled_headers_source.timestamp > precompiled_headers_output.timestamp;
-        //     }
-        //     if (precompile_headers) {
-        //         Log::Info("Compiling pre-compiled headers.");
-
-        //         char* command = (char*)(transient.base + transient.used);
-        //         switch (config.compiler) {
-        //             case MSVC: {
-        //                 String::Format(transient,
-        //                     "{s} /std:c++20 /nologo {s} {s} /c {s} "
-        //                     "/Yc\"pch.h\" /Fp\"{s}\" /Fo\"build\\obj\\{s}.obj\" /Fd\"bin\\{s}.pdb\"",
-        //                     7,
-        //                     config.compiler_path, 
-        //                     config.include,
-        //                     config.pch_source_path,
-        //                     config.compiler_flags,
-        //                     config.pch_output_path,
-        //                     config.pch_output_file,
-        //                     config.pch_output_file
-        //                 );
-        //             } break;
-
-        //             case clang: {
-        //                 String::Format(transient,
-        //                     "{s} -x c++-header -std=c++20 -fPIC {s} {s} GameBuild/pch.h -o {s}",
-        //                     4,
-        //                     config.compiler_path, 
-        //                     config.compiler_flags,
-        //                     config.include, 
-        //                     config.pch_output_path
-        //                 );
-        //             } break;
-
-        //             default: Raise("Invalid compiler. Currently only MSVC is supported.");
-        //         }
-
-        //         uint64 start = Platform::GetWallClock();
-        //         pch_process = Platform::RunCommand(command);
-        //         uint32 exit_code = Platform::WaitForProcess(&pch_process, -1);
-        //         uint64 end = Platform::GetWallClock();
-
-        //         LogCompilationResult(transient, "Precompiled headers", exit_code, start, end);
-        //         transient.Clear();
-        //     }
-        // }
+        build.transient.Clear();
 
         // // Metaprogramming
         // if (config.preprocess) {

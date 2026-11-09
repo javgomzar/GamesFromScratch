@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "platform.h"
 
 
@@ -48,6 +49,21 @@ String GetFileNameWithoutExtension(String path) {
     filename.length -= extension.length + 1;
     return filename;
 }
+
+bool NeedsUpdate(String source_path, String destination_path) {
+    if (Platform::FileExists(source_path)) {
+        File_Info source = Platform::GetFileInfo(source_path);
+        if (Platform::FileExists(destination_path)) {
+            File_Info destination = Platform::GetFileInfo(destination_path);
+            return destination.timestamp < source.timestamp;
+        }
+        return true;
+    }
+    Log::Error("Source file doesn't exist.");
+    return false;
+}
+
+const uint8 MAX_SUPPORTED_MONITORS = 8;
 
 uint64 SeedRNG(Arena& arena) {
     uint64 seed = 0;

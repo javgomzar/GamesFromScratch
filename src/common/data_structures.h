@@ -59,23 +59,34 @@ public:
     }
 };
 
-struct Link {
-    Link* previous;
-    Link* next;
-    void* data;
-};
+template <typename T> class Link {
+private:
+    Link<T>* previous;
+    Link<T>* next;
+public:
+    T* data;
 
-void Attach(Link* link1, Link* link2);
-void Delete(Link* this_link);
+    void Attach(Link& rhs) {
+        next = &rhs;
+        rhs.previous = this;
+    }
+
+    void Delete() {
+        Attach(*previous, next);
+        previous = nullptr;
+        next = nullptr;
+    }
+};
 
 /*
     Doubly-linked list. All links must have been allocated somewhere previously.
 */
-struct Linked_List {
-    struct Link* first;
-    struct Link* last;
+template <typename T> class Linked_List {
+public:
+    Link<T>* first;
+    Link<T>* last;
 
-    void PushBack(struct Link* element) {
+    void PushBack(Link<T>* element) {
         if (!first || !last) {
             first = element;
         }
@@ -85,7 +96,7 @@ struct Linked_List {
         last = element;
     }
 
-    void PushFront(struct Link* element) {
+    void PushFront(struct Link<T>* element) {
         if (!first || !last) {
             last = element;
         }
@@ -99,7 +110,7 @@ struct Linked_List {
         Attach(last, first);
     }
 
-    void Break(struct Link* link) {
+    void Break(Link<T>* link) {
         if (first == link) first = link->next;
         if (last == link)  last  = link->previous;
         Delete(link);
@@ -110,7 +121,7 @@ struct Linked_List {
     }
 
     uint64 Length(Linked_List list) {
-        struct Link* link = list.first;
+        Link* link = list.first;
         uint64 result = 0;
         do {
             link = link->next;
@@ -118,9 +129,14 @@ struct Linked_List {
         } while (link && link != list.first);
         return result;
     }
+
+    void Concatenate(Linked_List rhs) {
+        Attach(last, rhs.first);
+        last = rhs.last;
+        return result;
+    }
 };
 
-Linked_List Concatenate(Linked_List list1, Linked_List list2);
 
 /*
     Fixed length array.

@@ -1,6 +1,11 @@
 #pragma once
 
-#include <pch.h>
+#include <stdint.h>
+#include <cstring>
+#include <intrin.h>
+#include <cassert>
+#include <stdarg.h>
+#include <math.h>
 
 typedef uint8_t uint8;
 typedef uint16_t uint16;
@@ -27,8 +32,6 @@ typedef size_t memory_size;
 #define FLAGS(...)
 
 #define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
-
-void Raise(const char* error_message);
 
 uint16 BigEndian(uint16 little_endian);
 
@@ -125,10 +128,9 @@ public:
 
     static String Read(void* memory);
 
-    /*
-        Split a `String` given a separator. Beware that the `input` parameter will be modified.
-    */
     static String Split(String& input, char separator);
+
+    static String Join(Arena& arena, String separator, int count, ...);
 
     static String Format(Arena& arena, const char* format, int input_count, ...);
 };

@@ -1,4 +1,6 @@
 #include "platform.h"
+#include <windows.h>
+#include <string>
 
 
 Platform::System_OS Platform::OS = Windows;

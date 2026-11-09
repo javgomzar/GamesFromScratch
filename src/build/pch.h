@@ -8,6 +8,7 @@
 
 // C RunTime Header Files
 #include <stdlib.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <stdarg.h>
 #include <malloc.h>
@@ -21,6 +22,8 @@
 #include <math.h>
 #include <float.h>
 #include <cassert>
+#include <vector>
+#include <map>
 
 // XXHash library - non cryptographic hash
 #include <xxhash.h>

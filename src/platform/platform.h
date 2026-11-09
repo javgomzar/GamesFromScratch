@@ -1,6 +1,7 @@
 #pragma once
 
-#include "common.h"
+#include <common.h>
+#include <time.h>
 
 /*
 +---------------------------------------------------------------------------------------------------------------------------------+
@@ -69,14 +70,13 @@ struct Record_And_Playback {
 String GetFileName(String path);
 String GetFileExtension(String path);
 String GetFileNameWithoutExtension(String path);
+bool NeedsUpdate(String source_path, String destination_path);
 
 /*
 +------------------------------------------------------------------------------------------------------------------------------------------+
 | Monitor info                                                                                                                             |
 +------------------------------------------------------------------------------------------------------------------------------------------+
 */
-
-const uint8 MAX_SUPPORTED_MONITORS = 8;
 
 struct Monitor_Info {
     uint8 id;

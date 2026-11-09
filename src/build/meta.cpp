@@ -1,13 +1,7 @@
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <map>
-#include <vector>
-#include <string>
-#include <cstring>
+#include "pch.h"
 
 #include "build.h"
-#include "Tokenizer.h"
+#include "tokenizer.h"
 
 #if _WIN32
 #define PATH_SEPARATOR "\\"
@@ -101,28 +95,31 @@ int main() {
     std::vector<std::string> struct_members = {};
 
     char buffer[256];
-    Arena arena = AllocateMemoryArena(Kilobytes(8));
-    Build_Configuration config = ReadBuildConfiguration(arena, "build/build.conf");
-    Tokenizer input_files_tokenizer = InitTokenizer(config.metaprogramming_input_files.content, config.metaprogramming_input_files.length);
+    Build build = Build(Kilobytes(8));
+    build.ReadConfig("build/build.conf");
+    Tokenizer input_files_tokenizer = Tokenizer(
+        build.config.metaprogramming_input_files.content,
+        build.config.metaprogramming_input_files.length
+    );
     
     std::map<std::string, int> constants;
-    for (int i = 0; i < config.metaprogramming_input_file_count; i++) {
+    for (int i = 0; i < build.config.metaprogramming_input_file_count; i++) {
         int path_length = ParsePath(input_files_tokenizer.at);
         strncpy(buffer, input_files_tokenizer.at, path_length);
         buffer[path_length] = '\0';
-        Advance(input_files_tokenizer, path_length);
-        if (i < config.metaprogramming_input_file_count-1) {
+        input_files_tokenizer.Advance(path_length);
+        if (i < build.config.metaprogramming_input_file_count-1) {
             RequireToken(input_files_tokenizer, Token_Semicolon);
-            AdvanceWhitespaceAndComments(input_files_tokenizer);
+            input_files_tokenizer.AdvanceWhitespaceAndComments();
         }
 
         char* file_content = ReadFile(buffer);
 
-        Tokenizer tokenizer = InitTokenizer(file_content);
-        Token token = GetToken(tokenizer);
+        Tokenizer tokenizer = Tokenizer(file_content);
+        Token token = tokenizer.GetToken();
         while (token.type != Token_End) {
             if (token == "const") {
-                token = GetToken(tokenizer);
+                token = tokenizer.GetToken();
                 if (token == "int") {
                     token = RequireToken(tokenizer, Token_Identifier);
                     std::string constant_name(token.text, token.length);
@@ -145,13 +142,13 @@ int main() {
                         token = RequireToken(tokenizer, Token_Identifier);
                         std::string addend(token.text, token.length);
                         Value += constants[addend];
-                        token = GetToken(tokenizer);
+                        token = tokenizer.GetToken();
                     }
                     constants[constant_name] = Value;
                 }
             }
             else if (token == "INTROSPECT") {
-                token = GetToken(tokenizer);
+                token = tokenizer.GetToken();
                 if (token == "struct") {
                     Token struct_type = RequireToken(tokenizer, Token_Identifier);
                     char struct_type_text[MAX_TOKEN_LENGTH] = {};
@@ -164,16 +161,16 @@ int main() {
                     token = RequireToken(tokenizer, Token_Identifier);
                     while (token.type != Token_CloseBrace && token.type != Token_End) {
                         Token member_type = token;
-                        Token member_name = GetToken(tokenizer);
+                        Token member_name = tokenizer.GetToken();
                         bool is_pointer = false;
                         if (member_name.type == Token_Asterisk) {
-                            member_name = GetToken(tokenizer);
+                            member_name = tokenizer.GetToken();
                             is_pointer = true;
                         }
-                        token = GetToken(tokenizer);
+                        token = tokenizer.GetToken();
                         int array_size = 0;
                         if (token.type == Token_OpenBracket) {
-                            token = GetToken(tokenizer);
+                            token = tokenizer.GetToken();
                             if (token.type == Token_Identifier) {
                                 array_size = constants[std::string(token.text, token.length)];
                             }
@@ -198,9 +195,9 @@ int main() {
                         std::string struct_member = buffer;
                         struct_members.push_back(struct_member);
                         while (token.type != Token_Semicolon && token.type != Token_End) {
-                            token = GetToken(tokenizer);
+                            token = tokenizer.GetToken();
                         };
-                        token = GetToken(tokenizer);
+                        token = tokenizer.GetToken();
                     }
                 }
             }
@@ -222,7 +219,7 @@ int main() {
                     strncpy(token_text, token.text, token.length);
                     sprintf(buffer, "    {Type_%s, \"%s\", %d},\n", enum_name_text, token_text, value++);
                     enum_values.push_back(std::string(buffer));
-                    token = GetToken(tokenizer);
+                    token = tokenizer.GetToken();
                     if (token.type != Token_CloseParen && token.type != Token_Comma) {
                         throw "Should be a comma.";
                     };
@@ -250,7 +247,7 @@ int main() {
                     Token flag_value = RequireToken(tokenizer, Token_Identifier);
                     char flag_value_text[MAX_TOKEN_LENGTH] = {};
                     strncpy(flag_value_text, flag_value.text, flag_value.length);
-                    token = GetToken(tokenizer);
+                    token = tokenizer.GetToken();
                     if (token.type == Token_Comma || token.type == Token_CloseParen) {
                         sprintf(buffer, "    {Type_%s, \"%s\", %d},\n", flags_name_text, flag_value_text, 1 << bit);
                         flag_values.push_back(std::string(buffer));
@@ -260,10 +257,10 @@ int main() {
                     }
                     else if (token.type == Token_Equal) {
                         flag_declarations += std::string("    ") + std::string(flag_value_text) + std::string(" = ");
-                        token = GetToken(tokenizer);
+                        token = tokenizer.GetToken();
                         while (token.type != Token_Comma && token.type != Token_CloseParen) {
                             flag_declarations += std::string(token.text, token.length);
-                            token = GetToken(tokenizer);
+                            token = tokenizer.GetToken();
                         }
                         flag_declarations += std::string(",\n");
                     }
@@ -272,7 +269,7 @@ int main() {
                 flag_type_count += 1;
             }
 
-            token = GetToken(tokenizer);
+            token = tokenizer.GetToken();
         }
 
         free(file_content);
@@ -389,8 +386,8 @@ int main() {
     // Tests
 
     size_t tests_file_size;
-    char* tests_content = ReadFile("src" PATH_SEPARATOR "GameTest" PATH_SEPARATOR "Tests.h", &tests_file_size);
-    FILE* test_output_file = OpenFile("src" PATH_SEPARATOR "GameTest" PATH_SEPARATOR "GameTest.h", "w");
+    char* tests_content = ReadFile("src" PATH_SEPARATOR "test" PATH_SEPARATOR "tests.h", &tests_file_size);
+    FILE* test_output_file = OpenFile("src" PATH_SEPARATOR "test" PATH_SEPARATOR "test.h", "w");
 
     fprintf(test_output_file, 
     "#include \"Tests.h\"\n\n");
@@ -409,13 +406,13 @@ int main() {
     std::string reload_tests = std::string("void RunReloadTests(Memory* memory) {\n" + memory_setup);
     std::string every_frame_tests = std::string("void RunEveryFrameTests(Memory* memory) {\n" + memory_setup);
 
-    Tokenizer tokenizer = InitTokenizer(tests_content, tests_file_size);
-    Token token = GetToken(tokenizer);
+    Tokenizer tokenizer = Tokenizer(tests_content, tests_file_size);
+    Token token = tokenizer.GetToken();
     while (token.type != Token_End) {
         if (token.type == Token_Colon) {
-            token = GetToken(tokenizer);
+            token = tokenizer.GetToken();
             if (token.type == Token_Colon) {
-                token = GetToken(tokenizer);
+                token = tokenizer.GetToken();
             }
         }
         else if (token == "TEST") {
@@ -437,10 +434,10 @@ int main() {
                     "    try { result = "
                     ) + test_name + std::string("(");
                     Token previous_token = RequireToken(tokenizer, Token_OpenParen);
-                    token = GetToken(tokenizer);
+                    token = tokenizer.GetToken();
                     while (token.type != Token_CloseParen) {
                         previous_token = token;
-                        token = GetToken(tokenizer);
+                        token = tokenizer.GetToken();
                         if (token.type == Token_Comma) {
                             once_tests += std::string(previous_token.text, previous_token.length) + std::string(", ");
                         }
@@ -462,10 +459,10 @@ int main() {
                     "    try { result = "
                     ) + test_name + std::string("(");
                     Token previous_token = RequireToken(tokenizer, Token_OpenParen);
-                    token = GetToken(tokenizer);
+                    token = tokenizer.GetToken();
                     while (token.type != Token_CloseParen) {
                         previous_token = token;
-                        token = GetToken(tokenizer);
+                        token = tokenizer.GetToken();
                         if (token.type == Token_Comma) {
                             reload_tests += std::string(previous_token.text, previous_token.length) + std::string(", ");
                         }
@@ -486,10 +483,10 @@ int main() {
                     "    try { result = "
                     ) + test_name + std::string("(");
                     Token previous_token = RequireToken(tokenizer, Token_OpenParen);
-                    token = GetToken(tokenizer);
+                    token = tokenizer.GetToken();
                     while (token.type != Token_CloseParen) {
                         previous_token = token;
-                        token = GetToken(tokenizer);
+                        token = tokenizer.GetToken();
                         if (token.type == Token_Comma) {
                             every_frame_tests += std::string(previous_token.text, previous_token.length) + std::string(", ");
                         }
@@ -507,7 +504,7 @@ int main() {
             }
         }
 
-        token = GetToken(tokenizer);
+        token = tokenizer.GetToken();
     }
     once_tests += std::string("}");
     reload_tests += std::string("}");

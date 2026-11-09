@@ -1,10 +1,6 @@
-#ifndef GAME_PARSE_H
-#define GAME_PARSE_H
+#include "pch.h"
+#include "parse.h"
 
-#include <platform.h>
-#include "tokenizer.h"
-
-const int MAX_TOKEN_LENGTH = 128;
 
 const char* TOKEN_TYPE_NAME[] = {
     "unknown",
@@ -185,5 +181,3 @@ int ParsePath(const char* text) {
     }
     return result;
 }
-
-#endif

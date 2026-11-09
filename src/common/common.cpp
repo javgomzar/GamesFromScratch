@@ -1,3 +1,4 @@
+#include "pch.h"
 #include "common.h"
 
 
@@ -182,6 +183,29 @@ String String::Split(String& input, char separator) {
             result.length++;
         }
     }
+    return result;
+}
+
+/*
+    Joins an arbitrary number of strings given a separator. The number of strings to be joined must be provided.
+*/
+String String::Join(Arena& arena, String separator, int count, ...) {
+    va_list args;
+    va_start(args, count);
+
+    String result = String((char*)(arena.base + arena.used), 0);
+    for (int i = 0; i < count - 1; ++i) {
+        String string = va_arg(args, String);
+        String::Copy(arena, string);
+        String::Copy(arena, separator);
+        result.length += string.length + separator.length;
+    }
+
+    String string = va_arg(args, String);
+    String::Copy(arena, string);
+    result.length += string.length;
+
+    va_end(args);
     return result;
 }
 

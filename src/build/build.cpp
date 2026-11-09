@@ -1,7 +1,15 @@
+#include "pch.h"
 #include "build.h"
 
 
-Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_size), transient(arena_size) {
+Build::Build(memory_size arena_size) : 
+    permanent(arena_size), transient(arena_size),
+    metaprogramming("Metaprogramming", String(), Build_Process::Output_Mode::EXE),
+    platform("Platform layer", String(), Build_Process::Output_Mode::EXE),
+    game_library("Game library", String(), Build_Process::Output_Mode::DLL)
+{}
+
+void Build::ReadConfig(String config_file_path) {
     File_Info config_file_info;
     void* config_file = Platform::ReadEntireFile(config_file_path.content, &config_file_info);
     if (config_file) {
@@ -19,20 +27,20 @@ Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_
                     RequireToken(tokenizer, Token_Equal);
                     Token mode_token = RequireToken(tokenizer, Token_Identifier);
                     if (mode_token == "DEBUG") {
-                        config.mode = Mode::Debug;
-                        config.obj_dir = "build" PATH_SEPARATOR "debug" PATH_SEPARATOR;
+                        config.mode = Build_Config::Mode::Debug;
+                        config.obj_dir = "build" PATH_SEPARATOR "debug/";
                     }
                     else {
-                        config.mode = Mode::Release;
-                        config.obj_dir = "build" PATH_SEPARATOR "release" PATH_SEPARATOR;
+                        config.mode = Build_Config::Mode::Release;
+                        config.obj_dir = "build" PATH_SEPARATOR "release/";
                     }
                 }
     
                 else if (token == "COMPILER") {
                     RequireToken(tokenizer, Token_Equal);
                     Token compiler_token = RequireToken(tokenizer, Token_Identifier);
-                    if (compiler_token == "MSVC")       config.compiler = Compiler::MSVC;
-                    else if (compiler_token == "clang") config.compiler = Compiler::clang;
+                    if (compiler_token == "MSVC")       config.compiler = Build_Config::Compiler::MSVC;
+                    else if (compiler_token == "clang") config.compiler = Build_Config::Compiler::clang;
                     else Log::Fatal("Invalid compiler. Currently only MSVC and clang are supported.");
                 }
     
@@ -50,9 +58,9 @@ Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_
 
                 else if (token == "PRECOMPILED_HEADERS_PATH") {
                     RequireToken(tokenizer, Token_Equal);
-                    config.pch_source_dir.content = tokenizer.at;
-                    config.pch_source_dir.length = ParsePath(tokenizer.at);
-                    tokenizer.Advance(config.pch_source_dir.length);
+                    int path_length = ParsePath(tokenizer.at);
+                    config.pch_source_dir = String(tokenizer.at, path_length);
+                    tokenizer.Advance(path_length);
                 }
     
                 else if (token == "INCLUDE") {
@@ -65,10 +73,10 @@ Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_
                         tokenizer.AdvanceUntilNextLine();
                         char* pointer = permanent.PushArray<char>(3);
                         config.include.length += 3;
-                        if (config.compiler == Compiler::MSVC) {
+                        if (config.compiler == Build_Config::Compiler::MSVC) {
                             *pointer++ = '/';
                         }
-                        else if (config.compiler == Compiler::clang) {
+                        else if (config.compiler == Build_Config::Compiler::clang) {
                             *pointer++ = '-';
                         }
                         *pointer++ = 'I';
@@ -146,16 +154,16 @@ Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_
                 else if (token == "RENDERER") {
                     RequireToken(tokenizer, Token_Equal);
                     Token renderer_token = RequireToken(tokenizer, Token_Identifier);
-                    if      (renderer_token == "Vulkan")  config.renderer = Renderer::Vulkan;
-                    else if (renderer_token == "DirectX") config.renderer = Renderer::DirectX;
-                    else if (renderer_token == "OpenGL")  config.renderer = Renderer::OpenGL;
+                    if      (renderer_token == "Vulkan")  config.renderer = Build_Config::Renderer::Vulkan;
+                    else if (renderer_token == "DirectX") config.renderer = Build_Config::Renderer::DirectX;
+                    else if (renderer_token == "OpenGL")  config.renderer = Build_Config::Renderer::OpenGL;
                     else Log::Fatal("Invalid renderer. Currently only OpenGL, DirectX or Vulkan are supported.");
 
                     if (Platform::OS == Platform::Windows) {
                         switch(config.renderer) {
-                            case Renderer::OpenGL:  config.renderer_libs = "glew32.lib";
-                            case Renderer::DirectX: config.renderer_libs = "D3d11.lib d3dcompiler.lib";
-                            case Renderer::Vulkan:  config.renderer_libs = "vulkan-1.lib shaderc_combined.lib";
+                            case Build_Config::Renderer::OpenGL:  config.renderer_libs = "glew32.lib";
+                            case Build_Config::Renderer::DirectX: config.renderer_libs = "D3d11.lib d3dcompiler.lib";
+                            case Build_Config::Renderer::Vulkan:  config.renderer_libs = "vulkan-1.lib shaderc_combined.lib";
                         }
                     }
                     else if (Platform::OS == Platform::Linux) {
@@ -167,45 +175,47 @@ Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_
                 else if (token == "SOURCE") {
                     RequireToken(tokenizer, Token_Equal);
                     tokenizer.AdvanceWhitespaceAndComments();
-                    char* start = (char*)(permanent.base + permanent.used);
-                    memory_size length = 0;
+                    char* source_files_start = (char*)(permanent.base + permanent.used);
+                    memory_size source_files_length = 0;
+
+                    char* obj_files_start = (char*)(transient.base + transient.used);
+                    memory_size obj_files_length = 0;
+
+                    char temp_buffer[1024];
+                    Arena temp_arena = Arena(1024, temp_buffer);
                     do {
                         tokenizer.AdvanceWhitespaceAndComments();
                         int path_length = ParsePath(tokenizer.at);
                         String source_file = String(tokenizer.at, path_length);
+                        String file_name = GetFileNameWithoutExtension(source_file);
+                        String obj_file = String::Format(temp_arena, "{s}{s}.obj", 2, config.obj_dir, file_name);
 
-                        bool add = true;
-                        if (Platform::FileExists(path)) {
-                            String file_name = GetFileNameWithoutExtension(path);
-                            String obj_file = String::Format(transient, "{s}{s}.obj", 2, config.obj_dir, file_name);
-                            if (Platform::FileExists(obj_file)) {
-                                File_Info obj_info = Platform::GetFileInfo(obj_file);
-                                File_Info source_info = Platform::GetFileInfo(path);
-                                add = obj_info.timestamp < source_info.timestamp;
-                            }
-                            
-                            if (add) {
-                                String::Copy(permanent, obj_file);
-                                length += obj_file.length;
-                            }
+                        bool update = NeedsUpdate(source_file, obj_file);
+                        if (update) {
+                            String::Copy(permanent, source_file);
+                            source_files_length += source_file.length;
                         }
-                        else {
-                            String error_message = String::Format(transient, "Failed to find source file {s}.", 1, path);
-                            Log::Warn(error_message);
-                        }
+                        String::Copy(transient, obj_file);
+                        obj_files_length += obj_file.length;
+                        temp_arena.Clear();
 
                         tokenizer.Advance(path_length);
                         if (tokenizer.at[0] != ';') {
                             break;
                         }
                         token = RequireToken(tokenizer, Token_Semicolon);
-                        if (add) {
+                        if (update) {
                             char* space = permanent.Push<char>();
                             *space = ' ';
+                            ++source_files_length;
                         }
+                        char* space = transient.Push<char>();
+                        *space = ' ';
+                        ++obj_files_length;
                     } while(token.type == Token_Semicolon);
 
-                    config.obj_files = String(start, length);
+                    config.source_files = String(source_files_start, source_files_length);
+                    config.obj_files = String::Copy(permanent, String(obj_files_start, obj_files_length));
 
                     transient.Clear();
                 }
@@ -217,9 +227,7 @@ Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_
                     int metaprogramming_file_path_length = ParsePath(tokenizer.at);
                     char* pointer = permanent.PushArray<char>(metaprogramming_file_path_length + 1);
                     strncpy(pointer, tokenizer.at, metaprogramming_file_path_length);
-                    config.metaprogramming_code_path.length = metaprogramming_file_path_length;
-                    config.metaprogramming_code_path.content = pointer;
-                    metaprogramming.output_mode = Build_Process::Output_Mode::EXE;
+                    metaprogramming.main = String(pointer, metaprogramming_file_path_length);
                     tokenizer.AdvanceUntilNextLine();
                 }
 
@@ -249,7 +257,6 @@ Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_
                     RequireToken(tokenizer, Token_Equal);
                     int path_length = ParsePath(tokenizer.at);
                     platform.main = String(tokenizer.at, path_length);
-                    platform.output_mode = Build_Process::Output_Mode::EXE;
                     tokenizer.Advance(path_length);
                 }
 
@@ -258,7 +265,6 @@ Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_
                     RequireToken(tokenizer, Token_Equal);
                     int path_length = ParsePath(tokenizer.at);
                     game_library.main = String(tokenizer.at, path_length);
-                    game_library.output_mode = Build_Process::Output_Mode::DLL;
                     tokenizer.Advance(path_length);
                 }
             }
@@ -267,33 +273,31 @@ Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_
         }
 
         switch (config.compiler) {
-            case Compiler::MSVC: {
+            case Build_Config::Compiler::MSVC: {
                 switch(config.mode) {
-                    case Mode::Release: config.compiler_flags = "/O2";
-                    case Mode::Debug:   config.compiler_flags = "/D _DEBUG /EHsc /MDd /Zi /Od /fsanitize=address";
+                    case Build_Config::Mode::Release: config.compiler_flags = "/O2";
+                    case Build_Config::Mode::Debug:   config.compiler_flags = "/D _DEBUG /EHsc /MDd /Zi /Od /fsanitize=address";
                 }
             } break;
 
-            case Compiler::clang: {
+            case Build_Config::Compiler::clang: {
                 switch(config.mode) {
-                    case Mode::Release: config.compiler_flags = "-O2";
-                    case Mode::Debug:   config.compiler_flags = "-g -D_DEBUG -fsanitize=address -fsanitize=undefined";
+                    case Build_Config::Mode::Release: config.compiler_flags = "-O2";
+                    case Build_Config::Mode::Debug:   config.compiler_flags = "-g -D_DEBUG -fsanitize=address -fsanitize=undefined";
                 }
             } break;
 
             default: Log::Fatal("Invalid compiler. Only MSVC and clang are supported.");
         }
         
-        config.pch_output_file = config.mode == Mode::Debug ? "debug_pch" : "pch";
+        config.pch_output_file = config.mode == Build_Config::Mode::Debug ? "debug_pch" : "pch";
         if (Platform::OS == Platform::Windows) {
             config.pch_output_path = String::Format(permanent, "bin" PATH_SEPARATOR "{s}.pch", 1, config.pch_output_file);
-            config.metaprogramming_output_file = "bin" PATH_SEPARATOR "Meta.exe";
             config.pch_header_path = String::Format(permanent, "{s}" PATH_SEPARATOR "pch.h", 1, config.pch_source_dir);
             config.pch_source_path = String::Format(permanent, "{s}" PATH_SEPARATOR "pch.cpp", 1, config.pch_source_dir);
         }
         else {
             config.pch_output_path = String::Format(permanent, "bin" PATH_SEPARATOR "{s}.gch", 1, config.pch_output_file);
-            config.metaprogramming_output_file = "bin" PATH_SEPARATOR "Meta";
         }
     }
     else {
@@ -302,62 +306,204 @@ Build::Build(memory_size arena_size, String config_file_path) : permanent(arena_
     }
 }
 
+void LogResult(Arena& transient, int32 exit_code, String text, uint64 start, uint64 end) {
+    if (exit_code == 0) {
+        String message = String::Format(transient,
+            "{s} done in {f2} milliseconds.", 2, text, 1000.0f * Platform::GetSecondsElapsed(start, end));
+        Log::Info(message);
+    }
+    else {
+        String message = String::Format(transient, "{s} failed, exit code '{i}'.", 2, text, exit_code);
+        Log::Error(message);
+    }
+}
+
+void Build_Process::Link(Arena& transient, Build_Config& config) {
+    String start_message = String::Format(transient, "{s} compilation started.", 1, name);
+    Log::Info(start_message);
+    
+    char* command = nullptr;
+    switch (config.compiler) {
+        case Build_Config::Compiler::MSVC: {
+            switch (output_mode) {
+                case Build_Process::Output_Mode::EXE: {
+
+                } break;
+            }
+
+            command = (char*)(transient.base + transient.used);
+            String command_string = String::Format(transient, "{s} /std:c++20 /nologo {s} "
+                "{s} {s}/Fo\"{s}\"",
+                5,
+                config.compiler_path,
+                config.include
+
+            );
+        } break;
+
+        case Build_Config::Compiler::clang: {
+            Log::Fatal("Not implemented.");
+        } break;
+    }
+
+    uint64 start = Platform::GetWallClock();
+    Process_Info process = Platform::RunCommand(command);
+    uint32 exit_code = Platform::WaitForProcess(process, -1);
+    uint64 end = Platform::GetWallClock();
+
+    LogResult(transient, exit_code, name, start, end);
+
+    transient.Clear();
+}
+
 void Build::Compile() {
+    // Precompiled headers
+    if (config.pch && NeedsUpdate(config.pch_header_path, config.pch_output_path)) {
+        Log::Info("Precompiling headers.");
+        char* command = (char*)(transient.base + transient.used);
+        switch (config.compiler) {
+            case Build_Config::Compiler::MSVC: {
+                String::Format(transient,
+                    "{s} /std:c++20 /nologo {s} {s} /c {s} "
+                    "/Yc\"pch.h\" /Fp\"{s}\" /Fo\"{s}{s}.obj\" /Fd\"bin\\{s}.pdb\"",
+                    8,
+                    config.compiler_path, 
+                    config.include,
+                    config.pch_source_path,
+                    config.compiler_flags,
+                    config.pch_output_path,
+                    config.obj_dir,
+                    config.pch_output_file,
+                    config.pch_output_file
+                );
+            } break;
+
+            case Build_Config::Compiler::clang: {
+                String::Format(transient,
+                    "{s} -x c++-header -std=c++20 -fPIC {s} {s} GameBuild/pch.h -o {s}",
+                    4,
+                    config.compiler_path, 
+                    config.compiler_flags,
+                    config.include, 
+                    config.pch_output_path
+                );
+            } break;
+
+            default: Log::Fatal("Invalid compiler. Currently only MSVC and clang are supported.");
+        }
+
+        uint64 start = Platform::GetWallClock();
+        Process_Info process = Platform::RunCommand(command);
+        uint32 exit_code = Platform::WaitForProcess(process, -1);
+        uint64 end = Platform::GetWallClock();
+
+        LogResult(transient, exit_code, "Headers precompilation", start, end);
+    }
+
+    // Metaprogramming
+    if (config.preprocess) {
+        MetaProgram();
+    }
+
+    // Source files compilation
+    String source_files = String((char*)(permanent.base + permanent.used), 0);
+
+    if (config.source_files.length > 0) {
+        String::Copy(permanent, config.source_files);
+        char* space = permanent.Push<char>();
+        *space = ' ';
+        source_files.length += config.source_files.length + 1;
+    }
+
+    String platform_file_name = GetFileNameWithoutExtension(platform.main);
+    String platform_obj = String::Format(transient, "{s}{s}.obj", 2, config.obj_dir, platform_file_name);
+    platform.update = NeedsUpdate(platform.main, platform_obj);
+
+    if (platform.update) {
+        String::Copy(permanent, platform.main);
+        char* space = permanent.Push<char>();
+        *space = ' ';
+        source_files.length += platform.main.length + 1;
+    }
+
+    String game_file_name = GetFileNameWithoutExtension(game_library.main);
+    String game_obj = String::Format(transient, "{s}{s}.obj", 2, config.obj_dir, game_file_name);
+    game_library.update = NeedsUpdate(game_library.main, game_obj);
+
+    if (game_library.update) {
+        String::Copy(permanent, game_library.main);
+        char* space = permanent.Push<char>();
+        *space = ' ';
+        source_files.length += game_library.main.length + 1;
+    }
+
     char* command = (char*)(transient.base + transient.used);
-    String string = String::Format(transient, "{s} /std:c++20 /nologo /c /MP "
-        "{s} /Fo\"{s}\" "
-        "/Yu\"pch.h\" /Fp\"bin\\{s}.pch\" {s}",
-        4,
+    String string = String::Format(transient,
+        "{s} /std:c++20 /nologo /c /MP {s} {s}/Fo\"{s}\" "
+        "/Yu\"pch.h\" /Fp\"bin\\{s}.pch\" /Fd\"bin\\{s}.pdb\" {s}",
+        7,
         config.compiler_path,
         config.compiler_flags,
+        source_files,
         config.obj_dir,
+        config.pch_output_file,
         config.pch_output_file,
         config.include
     );
-
+    
+    uint64 start = Platform::GetWallClock();
     Process_Info process = Platform::RunCommand(command);
-    int32 wait_result = Platform::WaitForProcess(process, -1);
+    uint32 exit_code = Platform::WaitForProcess(process, -1);
+    uint64 end = Platform::GetWallClock();
 
-    if (wait_result > 0) {
-        Log::Error("Error");
-    }
-
+    LogResult(transient, exit_code, "Source files compilation", start, end);
 }
 
 // /* Compiles the meta-program (if needed) and runs it.*/
-// void Build::MetaProgram() {
-//     File_Info metaprogramming_source = Platform::GetFileInfo(config.metaprogramming_code_path);
-//     File_Info metaprogramming_binary;
+void Build::MetaProgram() {
+    String meta_file_name = GetFileNameWithoutExtension(metaprogramming.main);
+    String meta_binary = String::Format(transient, "bin\\{s}.exe", 1, meta_file_name);
+    metaprogramming.update = NeedsUpdate(metaprogramming.main, meta_binary);
 
-//     bool metaprogramming_binary_exists = Platform::FileExists(config.metaprogramming_output_file);        
-//     if (metaprogramming_binary_exists) {
-//         metaprogramming_binary = Platform::GetFileInfo(config.metaprogramming_output_file);
-//     }
-    
-//     if (!metaprogramming_binary_exists || metaprogramming_source.timestamp > metaprogramming_binary.timestamp) {
-//         Build::Compile(metaprogramming);
-//     }
+    if (metaprogramming.update) {
+        Log::Info("Compiling metaprogramming code.");
+        char* command = (char*)(transient.base + transient.used);
+        String command_string = String::Format(transient,
+            "{s} /std:c++20 /nologo {s} /Fo\"{s}{s}.obj\" /Fd\"bin\\{s}.pdb\" {s} {s} "
+            "/link {s} {s} /OUT:\"{s}\" /PDB:\"bin\\{s}.pdb\"", 
+            11,
+            config.compiler_path,
+            config.include,
+            config.obj_dir,
+            meta_file_name,
+            meta_file_name,
+            metaprogramming.main,
+            config.compiler_flags,
+            config.lib,
+            config.obj_files,
+            meta_binary,
+            meta_file_name
+        );
 
-//     char* meta_command = transient.PushArray<char>(64);
-//     strncpy(meta_command, config.metaprogramming_output_file.content, 64);
-//     uint64 metaprogramming_execution_start = Platform::GetWallClock();
-//     Process_Info metaprogramming_execution = Platform::RunCommand(meta_command);
-//     int32 wait_result = Platform::WaitForProcess(metaprogramming_execution, -1);
-//     if (wait_result >= 0) {
-//         uint64 end = Platform::GetWallClock();
-//         float time = Platform::GetSecondsElapsed(metaprogramming_execution_start, end);
-//         if (wait_result == 0) {
-//             String log_text = String::Format(transient, "Metaprogramming executed in {f2} milliseconds.", 1, 1000.0f * time);
-//             Log::Info(log_text);
-//         }
-//         else {
-//             String log_text = String::Format(transient, "Metaprogramming execution failed with code '{i}'", 1, wait_result);
-//             Log::Error(log_text);
-//         }
-//     }
+        uint64 start = Platform::GetWallClock();
+        Process_Info process = Platform::RunCommand(command);
+        uint32 exit_code = Platform::WaitForProcess(process, -1);
+        uint64 end = Platform::GetWallClock();
 
-//     transient.Clear();
-// }
+        LogResult(transient, exit_code, "Metaprogramming compilation", start, end);
+    }
+
+    char* meta_command = (char*)(transient.base + transient.used);
+    String meta_execution = String::Copy(transient, meta_binary);
+
+    uint64 start = Platform::GetWallClock();
+    Process_Info process = Platform::RunCommand(meta_command);
+    uint32 exit_code = Platform::WaitForProcess(process, -1);
+    uint64 end = Platform::GetWallClock();
+
+    LogResult(transient, exit_code, "Metaprogramming execution", start, end);
+    transient.Clear();
+}
 
 // void Build::CompilePlatformLayer(Arena& arena) {
 //     char* command = (char*)(arena.base + arena.used);
@@ -437,70 +583,6 @@ void Build::Compile() {
 //     }
 
 //     return Platform::RunCommand(Command);
-// }
-
-// Process_Info CompileMetaprogramming(Arena& arena, Build_Configuration* config) {
-//     Log::Info("Compiling metaprogramming code.");
-//     char* Command = (char*)(arena.base + arena.used);
-//     switch(config->compiler) {
-//         case MSVC: {
-//             String::Format(arena,
-//                 "{s} /std:c++20 /nologo {s} /Fo\"build\\obj\\meta.obj\" /Fd\"bin\\meta.pdb\" {s} {s} "
-//                 "/link {s} /OUT:\"bin\\meta.exe\" /PDB:\"bin\\meta.pdb\"", 
-//                 5,
-//                 config->compiler_path, 
-//                 config->include, 
-//                 config->metaprogramming_code_path, 
-//                 config->compiler_flags, 
-//                 config->lib
-//             );
-//         } break;
-
-//         case clang: {
-//             String::Format(arena,
-//                 "{s} -std=c++20 {s} {s} -o bin/Meta", 
-//                 4,
-//                 config->compiler_path, 
-//                 config->include, 
-//                 config->metaprogramming_code_path, 
-//                 config->compiler_flags
-//             );
-//         } break;
-
-//         default: Raise("Invalid compiler. Only MSVC and clang are supported for now.");
-//     }
-//     return Platform::RunCommand(Command);
-// }
-
-// void Build::LogResult(Build_Process& process) {
-//     if (process.result == 0) {
-//         String message = String::Format(Build::transient, 
-//             "{s} code compiled in {f2} milliseconds.", 2, process.name, 1000.0f * Platform::GetSecondsElapsed(process.start, process.end));
-//         Log::Info(message);
-//     }
-//     else {
-//         String message = String::Format(Build::transient, "{s} code compilation failed, exit code '{i}'.", 2, process.name, process.result);
-//         Log::Error(message);
-//     }
-// }
-
-// void Build::Compile(Build_Process& process) {
-//     char* command = (char*)(transient.base + transient.used);
-//     String::Format(transient, 
-//         "{s} /std:c++20 /nologo {s} {s} /Fo\"{s}\" /Fd\"bin\\{s}.pdb\" {s} "
-//         "/link {s}",
-//         0,
-//         config.compiler_path,
-
-//     );
-
-//     process.start = Platform::GetWallClock();
-//     process.info = Platform::RunCommand(command);
-//     process.result = Platform::WaitForProcess(process.info, -1);
-//     process.end = Platform::GetWallClock();
-
-//     LogResult(process);
-//     transient.Clear();
 // }
 
 // void Build::HotReload() {

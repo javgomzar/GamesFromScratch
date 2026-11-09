@@ -3,6 +3,7 @@
 #include <platform.h>
 #include "tokenizer.h"
 
+inline constexpr int MAX_TOKEN_LENGTH = 128;
 
 void ReportIncorrectToken(Token token, const char* text);
 Token RequireToken(Tokenizer& tokenizer, const char* text);
@@ -11,7 +12,7 @@ Token RequireToken(Tokenizer& tokenizer, Token_Type type);
 
 bool ParseBool(Tokenizer& tokenizer);
 unsigned int Parseuint32(Tokenizer& tokenizer);
-bool ParseSign(Tokenizer& tokenizer, OUT Token& number);
+bool ParseSign(Tokenizer& tokenizer, Token& number);
 int ParseInt(Tokenizer& tokenizer);
 float ParseFloat(Tokenizer& tokenizer);
 bool ParseDouble(Tokenizer& tokenizer, double& result);
