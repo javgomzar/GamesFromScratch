@@ -38,8 +38,6 @@ enum Type {
     Type_Entity_Flag,
     Type_UI_Flags,
     Type_UI_Draw,
-    Type_Transform,
-    Type_Segment3,
 };
 
 enum class Render_Flag : uint64 {

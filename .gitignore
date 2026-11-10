@@ -24,10 +24,8 @@ compile_commands.json
 # Third party
 /vendor/
 
-# Batch scripts
+# Environment variables
 /scripts/env.bat
-/scripts/hot.bat
-/scripts/meta.bat
 
 # Build
 /build/

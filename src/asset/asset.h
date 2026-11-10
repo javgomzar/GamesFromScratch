@@ -1,22 +1,22 @@
-#ifndef GAME_ASSET
-#define GAME_ASSET
+#pragma once
 
 #include <initializer_list>
 #include "stb_image.h"
 
-#include "GamePlatform.h"
-#include "GameMath.h"
-#include "Tokenizer.h"
+#include "platform.h"
+#include "data_structures.h"
+#include "math.h"
+#include "tokenizer.h"
+#include <color.h>
 
 typedef uint32 Asset_ID;
 
-#include "GameColor.h"
 #include "animation.h"
-#include "GameFont.h"
-#include "GameTexture.h"
-#include "GameSound.h"
-#include "GameMesh.h"
-// #include "GameVideo.h"
+#include "font.h"
+#include "texture.h"
+#include "audio.h"
+#include "mesh.h"
+// #include "video.h"
 
 
 struct Asset_Header {

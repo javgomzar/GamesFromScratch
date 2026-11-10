@@ -42,6 +42,8 @@ struct Build_Config {
     String pch_output_file;
     String pch_output_path;
 
+    String metaprogramming_source;
+    String metaprogramming_main;
     String metaprogramming_input_files;
     int metaprogramming_input_file_count;
 
@@ -73,7 +75,6 @@ struct Build {
     Arena permanent;
     Arena transient;
 
-    Build_Process metaprogramming;
     Build_Process game_library;
     Build_Process platform;
 

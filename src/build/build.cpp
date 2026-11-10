@@ -4,7 +4,6 @@
 
 Build::Build(memory_size arena_size) : 
     permanent(arena_size), transient(arena_size),
-    metaprogramming("Metaprogramming", String(), Build_Process::Output_Mode::EXE),
     platform("Platform layer", String(), Build_Process::Output_Mode::EXE),
     game_library("Game library", String(), Build_Process::Output_Mode::DLL)
 {}
@@ -227,8 +226,31 @@ void Build::ReadConfig(String config_file_path) {
                     int metaprogramming_file_path_length = ParsePath(tokenizer.at);
                     char* pointer = permanent.PushArray<char>(metaprogramming_file_path_length + 1);
                     strncpy(pointer, tokenizer.at, metaprogramming_file_path_length);
-                    metaprogramming.main = String(pointer, metaprogramming_file_path_length);
+                    config.metaprogramming_main = String(pointer, metaprogramming_file_path_length);
                     tokenizer.AdvanceUntilNextLine();
+                }
+
+                else if (token == "META_SOURCE") {
+                    RequireToken(tokenizer, Token_Equal);
+                    tokenizer.AdvanceWhitespaceAndComments();
+                    config.metaprogramming_source.content = (char*)(permanent.base + permanent.used);
+                    config.metaprogramming_source.length = 0;
+                    do {
+                        tokenizer.AdvanceWhitespaceAndComments();
+                        int path_length = ParsePath(tokenizer.at);
+                        String source_file = String(tokenizer.at, path_length);
+                        String::Copy(permanent, source_file);
+                        config.metaprogramming_source.length += source_file.length;
+
+                        tokenizer.Advance(path_length);
+                        if (tokenizer.at[0] != ';') {
+                            break;
+                        }
+                        token = RequireToken(tokenizer, Token_Semicolon);
+                        char* space = permanent.Push<char>();
+                        *space = ' ';
+                        ++config.metaprogramming_source.length;
+                    } while(token.type == Token_Semicolon);
                 }
 
                 // Metaprogramming input files
@@ -461,28 +483,23 @@ void Build::Compile() {
 
 /* Compiles the meta-program (if needed) and runs it.*/
 void Build::MetaProgram() {
-    String meta_file_name = GetFileNameWithoutExtension(metaprogramming.main);
-    String meta_binary = String::Format(transient, "bin\\{s}.exe", 1, meta_file_name);
-    metaprogramming.update = NeedsUpdate(metaprogramming.main, meta_binary);
+    String meta_binary = "bin\\meta.exe";
+    bool update = NeedsUpdate(config.metaprogramming_main, meta_binary);
 
-    if (metaprogramming.update) {
+    if (update) {
         Log::Info("Compiling metaprogramming code.");
         char* command = (char*)(transient.base + transient.used);
         String command_string = String::Format(transient,
-            "{s} /std:c++20 /nologo {s} /Fo\"{s}{s}.obj\" /Fd\"bin\\{s}.pdb\" {s} {s} "
-            "/link {s} {s} /OUT:\"{s}\" /PDB:\"bin\\{s}.pdb\"", 
-            11,
+            "{s} /std:c++20 /nologo {s} /Fo\"{s}meta.obj\" /Fd\"bin\\meta.pdb\" {s} {s} "
+            "/link {s} {s} /OUT:\"bin\\meta.exe\" /PDB:\"bin\\meta.pdb\"", 
+            7,
             config.compiler_path,
             config.include,
             config.obj_dir,
-            meta_file_name,
-            meta_file_name,
-            metaprogramming.main,
+            config.metaprogramming_main,
             config.compiler_flags,
             config.lib,
-            config.obj_files,
-            meta_binary,
-            meta_file_name
+            config.obj_files
         );
 
         uint64 start = Platform::GetWallClock();
@@ -494,7 +511,7 @@ void Build::MetaProgram() {
     }
 
     char* meta_command = (char*)(transient.base + transient.used);
-    String meta_execution = String::Copy(transient, meta_binary);
+    String meta_execution = String::Copy(transient, "bin\\meta.exe");
 
     uint64 start = Platform::GetWallClock();
     Process_Info process = Platform::RunCommand(meta_command);

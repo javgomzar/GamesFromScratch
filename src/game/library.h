@@ -28,10 +28,10 @@
 #include "math.h"
 #include "input.h"
 #include "asset.h"
-#include "render.h"
-#include "particles.h"
-#include "state.h"
-#include "debug.h"
+//#include "render.h"
+//#include "particles.h"
+//#include "state.h"
+//#include "debug.h"
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
 // | Game memory                                                                                                                     |

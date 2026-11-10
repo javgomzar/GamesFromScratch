@@ -1,8 +1,7 @@
-#ifndef GAME_ANIMATION
-#define GAME_ANIMATION
+#pragma once
 
-#include "GamePlatform.h"
-#include "GameMath.h"
+#include "platform.h"
+#include "math.h"
 
 typedef int32 Joint_ID;
 
@@ -120,5 +119,3 @@ struct Animator {
 
 //     return result;
 // }
-
-#endif

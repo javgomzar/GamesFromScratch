@@ -7,7 +7,7 @@
 #include "xxhash.h"
 
 #include <build.h>
-#include "GameLibrary.h"
+#include <library.h>
 #include "code.h"
 // #include "GameShader.h"
 

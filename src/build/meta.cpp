@@ -14,7 +14,7 @@
 FILE* OpenFile(const char* path, const char* permissions) {
     FILE* file = fopen(path, permissions);
     if (!file) {
-        perror("Failed to open file");
+        perror(path);
         abort();
     }
     fseek(file, 0, SEEK_SET);
