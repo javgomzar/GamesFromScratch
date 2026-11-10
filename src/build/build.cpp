@@ -459,7 +459,7 @@ void Build::Compile() {
     LogResult(transient, exit_code, "Source files compilation", start, end);
 }
 
-// /* Compiles the meta-program (if needed) and runs it.*/
+/* Compiles the meta-program (if needed) and runs it.*/
 void Build::MetaProgram() {
     String meta_file_name = GetFileNameWithoutExtension(metaprogramming.main);
     String meta_binary = String::Format(transient, "bin\\{s}.exe", 1, meta_file_name);

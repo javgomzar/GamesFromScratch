@@ -1,8 +1,7 @@
-#ifndef GAME_INPUT
-#define GAME_INPUT
+#pragma once
 
-#include "GamePlatform.h"
-#include "GameMath.h"
+#include "platform.h"
+#include "math.h"
 
 
 // XInput
@@ -28,7 +27,7 @@ static void LoadXInput(void) {
         XInputGetState = (xinput_get_state*)GetProcAddress(XInputLibrary, "XInputGetState");
         XInputSetState = (xinput_set_state*)GetProcAddress(XInputLibrary, "XInputSetState");
     }
-    else Raise("Couldn't load XInput DLL.");
+    else Log::Fatal("Couldn't load XInput DLL.");
 }
 
 struct Button_State {
@@ -250,5 +249,3 @@ void LiftKey(Input* input, char key) {
     Button_State* button = GetKey(input, key);
     LiftButton(button);
 }
-
-#endif

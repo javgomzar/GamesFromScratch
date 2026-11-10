@@ -21,20 +21,17 @@
 #define GAMELIBRARY_API
 #endif
 
-#ifndef GAME_LIBRARY
-#define GAME_LIBRARY
-
 #pragma once
 
-#include "GamePlatform.h"
+#include <platform.h>
 #include "enum.h"
-#include "GameMath.h"
-#include "GameInput.h"
-#include "GameAsset.h"
-#include "GameRender.h"
-#include "Particles.h"
-#include "GameState.h"
-#include "GameDebug.h"
+#include "math.h"
+#include "input.h"
+#include "asset.h"
+#include "render.h"
+#include "particles.h"
+#include "state.h"
+#include "debug.h"
 
 // +---------------------------------------------------------------------------------------------------------------------------------+
 // | Game memory                                                                                                                     |
@@ -44,7 +41,6 @@ struct Memory {
     Asset_Manager asset_manager;
     Render_Group render_group;
     Input input;
-    Game_Code code;
     State* state;
     Arena permanent;
     Arena transient;
@@ -65,5 +61,3 @@ struct Memory {
 #define GAME_UPDATE_INPUTS Memory* memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer
 #define GAME_UPDATE(name) GAMELIBRARY_API void name(GAME_UPDATE_INPUTS)
 typedef GAME_UPDATE(Game_Update);
-
-#endif

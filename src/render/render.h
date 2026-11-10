@@ -2,7 +2,7 @@
 #define GAME_RENDER_H
 
 #pragma once
-#include "GameAsset.h"
+#include "asset.h"
 #include "GameColor.h"
 
 

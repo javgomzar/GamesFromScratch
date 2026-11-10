@@ -1,7 +1,6 @@
-#ifndef GAME_COLOR
-#define GAME_COLOR
+#pragma once
 
-#include "GameMath.h"
+#include "math.h"
 
 /*
 +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -84,5 +83,3 @@ Color Mix(Color color1, Color color2, float t) {
         (1-t)*color1.A + t*color2.A
     );
 }
-
-#endif

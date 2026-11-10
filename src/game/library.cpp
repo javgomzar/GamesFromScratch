@@ -4,10 +4,9 @@
 
 #define XXH_STATIC_LINKING_ONLY
 #define XXH_IMPLEMENTATION
-#include "xxhash.h"
+#include <xxhash.h>
 
-#include "GameLibrary.h"
-#include "GameTest.h"
+#include "library.h"
 
 
 // Sound
