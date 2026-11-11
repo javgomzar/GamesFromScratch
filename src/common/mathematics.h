@@ -184,6 +184,54 @@ bool operator<(IV4 lhs, IV4 rhs);
 
 /*
 +----------------------------------------------------------------------------------------------------------------------------------------+
+| Complex numbers                                                                                                                        |
++----------------------------------------------------------------------------------------------------------------------------------------+
+*/
+
+struct Complex {
+	float r; // Real part
+	float i; // Imaginary part
+    Complex(float R, float I);
+    Complex& operator+=(Complex rhs);
+    Complex& operator-=(Complex rhs);
+    Complex& operator*=(Complex rhs);
+    Complex& operator/=(Complex rhs);
+    Complex Conjugate();
+    Complex Inverse();
+    float Modulus();
+    float Phase();
+};
+
+Complex operator+(Complex lhs, Complex rhs);
+Complex operator-(Complex lhs, Complex rhs);
+Complex operator*(Complex lhs, Complex rhs);
+Complex operator/(Complex lhs, Complex rhs);
+
+Complex Expi(float alpha);
+
+struct Quaternion {
+	float c;
+	float i;
+	float j;
+	float k;
+    Quaternion(float C, float I, float J, float K);
+    Quaternion(float angle, V3 vector);
+    Quaternion Conjugate();
+};
+
+inline const Quaternion I = Quaternion(0.0, 1.0, 0.0, 0.0);
+inline const Quaternion J = Quaternion(0.0, 0.0, 1.0, 0.0);
+inline const Quaternion K = Quaternion(0.0, 0.0, 0.0, 1.0);
+
+Quaternion operator*(Quaternion lhs, Quaternion rhs);
+Quaternion operator+(Quaternion lhs, Quaternion rhs);
+Quaternion operator-(Quaternion lhs, Quaternion rhs);
+bool operator==(Quaternion lhs, Quaternion rhs);
+bool operator!=(Quaternion lhs, Quaternion rhs);
+V3 operator*(Quaternion lhs, V3 rhs);
+
+/*
++----------------------------------------------------------------------------------------------------------------------------------------+
 | Matrices                                                                                                                               |
 +----------------------------------------------------------------------------------------------------------------------------------------+
 */
@@ -244,6 +292,7 @@ union Matrix3 {
         float ZX, float ZY, float ZZ
     );
     Matrix3(V3 X, V3 Y, V3 Z);
+    Matrix3(Quaternion q);
     static const Matrix3 ID;
     Matrix3 operator-();
     Matrix3& operator*=(float f);
@@ -270,6 +319,7 @@ Basis Rotate(Basis basis, V3 w);
 Basis Complete(V3 x, V3 y);
 Basis Complete(V3 x);
 Basis Normalize(Basis basis);
+Basis operator*(Quaternion lhs, Basis rhs);
 
 union Matrix4 {
 	struct {
@@ -309,43 +359,37 @@ bool operator==(Matrix4 lhs, Matrix4 rhs);
 
 /*
 +----------------------------------------------------------------------------------------------------------------------------------------+
-| Complex numbers                                                                                                                        |
+| Transform                                                                                                                              |
 +----------------------------------------------------------------------------------------------------------------------------------------+
 */
 
-struct Complex {
-	float r; // Real part
-	float i; // Imaginary part
-    Complex(float R, float I);
-    Complex& operator+=(Complex rhs);
-    Complex& operator-=(Complex rhs);
-    Complex& operator*=(Complex rhs);
-    Complex& operator/=(Complex rhs);
-    Complex Conjugate();
-    Complex Inverse();
-    float Modulus();
-    float Phase();
+struct Scale {
+	float x;
+	float y;
+	float z;
+    Scale(float X, float Y, float Z);
 };
 
-Complex operator+(Complex lhs, Complex rhs);
-Complex operator-(Complex lhs, Complex rhs);
-Complex operator*(Complex lhs, Complex rhs);
-Complex operator/(Complex lhs, Complex rhs);
+Scale operator*(float lhs, Scale rhs);
+Scale operator*(Scale lhs, Scale rhs);
+V3 operator*(Scale lhs, V3 rhs);
+Basis operator*(Scale lhs, Basis rhs);
+bool operator==(Scale lhs, Scale rhs);
+bool operator!=(Scale lhs, Scale rhs);
 
-Complex Expi(float alpha);
-
-struct Quaternion {
-	float c;
-	float i;
-	float j;
-	float k;
-    Quaternion(float C, float I, float J, float K);
-    Quaternion(float angle, V3 vector);
-    Quaternion Conjugate();
+INTROSPECT
+struct Transform {
+	Quaternion rotation;
+	V3 translation;
+	Scale scale;
+    Transform(V3 t, Quaternion r, Scale s);
+    static const Transform ID;
 };
 
-inline const Quaternion I = Quaternion(0.0, 1.0, 0.0, 0.0);
-inline const Quaternion J = Quaternion(0.0, 0.0, 1.0, 0.0);
-inline const Quaternion K = Quaternion(0.0, 0.0, 0.0, 1.0);
-
-Quaternion operator*(Quaternion lhs, Quaternion rhs);
+V3 operator*(Transform lhs, V3 rhs);
+V4 operator*(Transform lhs, V4 rhs);
+Basis operator*(Transform lhs, Basis rhs);
+Transform operator*(Transform lhs, Transform rhs);
+bool operator==(Transform lhs, Transform rhs);
+bool operator!=(Transform lhs, Transform rhs);
+Matrix4 TRS_Matrix(Transform transform);

@@ -1,8 +1,8 @@
 #ifndef GAME_FONT
 #define GAME_FONT
 
-#include "GamePlatform.h"
-#include "GameMath.h"
+#include "platform.h"
+#include "math.h"
 
 #include <vector>
 

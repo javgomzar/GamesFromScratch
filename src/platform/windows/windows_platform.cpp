@@ -1,6 +1,5 @@
+#include "pch.h"
 #include "platform.h"
-#include <windows.h>
-#include <string>
 
 
 Platform::System_OS Platform::OS = Windows;
@@ -380,4 +379,30 @@ int32 Platform::WaitForProcess(Process_Info& process, uint32 timeout) {
 float Platform::GetSecondsElapsed(uint64 start, uint64 end) {
     uint64 timeelapsed = end - start;
     return timeelapsed / (float)Platform::performance_counter_frequency;
+}
+
+// XInput
+#define XINPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
+typedef XINPUT_GET_STATE(xinput_get_state);
+XINPUT_GET_STATE(XInputGetStateStub) {
+    return ERROR_DEVICE_NOT_CONNECTED;
+}
+static xinput_get_state* XInputGetState_ = XInputGetStateStub;
+#define XInputGetState XInputGetState_
+
+#define XINPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration)
+typedef XINPUT_SET_STATE(xinput_set_state);
+XINPUT_SET_STATE(XInputSetStateStub) {
+    return ERROR_DEVICE_NOT_CONNECTED;
+}
+static xinput_set_state* XInputSetState_ = XInputSetStateStub;
+#define XInputSetState XInputSetState_
+
+static void LoadXInput(void) {
+    HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
+    if (XInputLibrary) {
+        XInputGetState = (xinput_get_state*)GetProcAddress(XInputLibrary, "XInputGetState");
+        XInputSetState = (xinput_set_state*)GetProcAddress(XInputLibrary, "XInputSetState");
+    }
+    else Log::Fatal("Couldn't load XInput DLL.");
 }

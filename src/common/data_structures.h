@@ -33,7 +33,7 @@ public:
             *top++ = element;
             n++;
         }
-        else Assert(false, "Stack is full.");
+        else Log::Fatal("Stack is full.");
     }
 
     T Pop() {
@@ -54,7 +54,7 @@ public:
     }
 
     const T& operator[](uint32 i) const {
-        Assert(0 <= i && i < n);
+        assert(0 <= i && i < n);
         return base[i];
     }
 };
@@ -133,7 +133,6 @@ public:
     void Concatenate(Linked_List rhs) {
         Attach(last, rhs.first);
         last = rhs.last;
-        return result;
     }
 };
 
@@ -154,7 +153,7 @@ public:
 
     Array(Arena& arena, uint32 N) {
         length = N;
-        data = PushArray(arena, N, T);
+        data = arena.PushArray<T>(N);
     }
 
     ~Array() {
@@ -163,10 +162,8 @@ public:
     }
 
     T& operator[](int64 index) const {
-        if (-index > length || index >= length) {
-            Log(Log_Level::Error, "Array index out of bounds.");
-        }
-        else if (index >= 0) {
+        assert(-index > length || index >= length);
+        if (index >= 0) {
             return data[index];
         }
         else if (index < 0) {
@@ -190,13 +187,13 @@ public:
 
     Free_List(Arena& arena, uint32 n) {
         size = n;
-        slots = PushArray(arena, n, T);
-        free_slots = PushArray(arena, n, uint32);
-        occupied = PushArray(arena, n, bool);
+        slots = arena.PushArray<T>(n);
+        free_slots = arena.PushArray<uint32>(n);
+        occupied = arena.PushArray<bool>(n);
     }
 
     uint32 Insert(T element) {
-        Assert(count < size);
+        assert(count < size);
         
         uint32 result;
         if (free_count > 0) {
@@ -263,7 +260,7 @@ private:
 
     void NewChunk(memory_size size) {
         if (meta.chunk_count >= MAX_XARRAY_CHUNKS) {
-            Assert(false, "Xarray chunk index overflow.");
+            Log::Fatal("Xarray chunk index overflow.");
         }
         header->chunks[meta.chunk_count++] = (uint8*)malloc(size);
     }
@@ -284,7 +281,7 @@ public:
     }
 
     const T& operator[] (uint64 i) const {
-        Assert(0 <= i && i < header->n, "Index out of range.");
+        assert(0 <= i && i < header->n);
         return *(T*)Get(i);
     }
 
