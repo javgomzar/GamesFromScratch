@@ -820,23 +820,38 @@ Basis Complete(V3 x, V3 y) {
 }
 
 Basis Complete(V3 x) {
-	V3 y = cross(x, V3(1,0,0));
-	if (modulus(y) < EPSILON) {
-		y = cross(x, V3(0,1,0));
-		if (modulus(y) < EPSILON) {
-			y = cross(x, V3(0,0,1));
+	V3 y = Cross(x, V3(1,0,0));
+	if (Modulus(y) < EPSILON) {
+		y = Cross(x, V3(0,1,0));
+		if (Modulus(y) < EPSILON) {
+			y = Cross(x, V3(0,0,1));
 		}
 	}
-	return Complete(x, normalize(y));
+	return Complete(x, Normalize(y));
 }
 
-Basis normalize(Basis basis) {
-	Basis result;
-	result.x = normalize(basis.x);
-	result.y = normalize(basis.y);
-	result.z = normalize(basis.z);
-	return result;
+Basis Normalize(Basis basis) {
+	return Basis(
+		Normalize(basis.x),
+		Normalize(basis.y),
+		Normalize(basis.z)
+	);
 }
+
+Matrix4::Matrix4(
+	float XX, float XY, float XZ, float XW,
+	float YX, float YY, float YZ, float YW,
+	float ZX, float ZY, float ZZ, float ZW,
+	float WX, float WY, float WZ, float WW
+) : 
+	xx(XX), xy(XY), xz(XZ), xw(XW),
+	yx(YX), yy(YY), yz(YZ), yw(YW),
+	zx(ZX), zy(ZY), zz(ZZ), zw(ZW)
+{}
+
+Matrix4::Matrix4(V4 X, V4 Y, V4 Z, V4 W) : x(X), y(Y), z(Z), w(W) {}
+
+Matrix4::Matrix4(Matrix3 m) : x(m.x, 0), y(m.y, 0), z(m.z, 0), w(0, 0, 0, 1) {}
 
 const Matrix4 Matrix4::ID = Matrix4(
 	1,0,0,0,
@@ -845,304 +860,149 @@ const Matrix4 Matrix4::ID = Matrix4(
 	0,0,0,1
 );
 
-V4 col(Matrix4 A, int i) {
+V4 Matrix4::Col(int i) {
 	switch(i) {
-		case 0: return V4(A.xx, A.yx, A.zx, A.wx); break;
-		case 1: return V4(A.xy, A.yy, A.zy, A.wy); break;
-		case 2: return V4(A.xz, A.yz, A.zz, A.wz); break;
-		case 3: return V4(A.xw, A.yw, A.zw, A.ww); break;
+		case 0: return V4(xx, yx, zx, wx); break;
+		case 1: return V4(xy, yy, zy, wy); break;
+		case 2: return V4(xz, yz, zz, wz); break;
+		case 3: return V4(xw, yw, zw, ww); break;
 		default: Log::Fatal("Invalid column index for Matrix4");
 	};
 }
 
-Matrix4 transpose(Matrix4 A) {
-	Matrix4 result;
-	result.x = col(A, 0);
-	result.y = col(A, 1);
-	result.z = col(A, 2);
-	result.w = col(A, 3);
-	return result;
+Matrix3 Matrix4::Submatrix() {
+	return Matrix3(
+		xx, xy, xz,
+		yx, yy, yz,
+		zx, zy, zz
+	);
 }
 
-Matrix4 operator*(Matrix4 A, Matrix4 B) {
-	Matrix4 result;
-	result.xx = dot(A.x, col(B, 0));
-	result.xy = dot(A.x, col(B, 1));
-	result.xz = dot(A.x, col(B, 2));
-	result.xw = dot(A.x, col(B, 3));
-	result.yx = dot(A.y, col(B, 0));
-	result.yy = dot(A.y, col(B, 1));
-	result.yz = dot(A.y, col(B, 2));
-	result.yw = dot(A.y, col(B, 3));
-	result.zx = dot(A.z, col(B, 0));
-	result.zy = dot(A.z, col(B, 1));
-	result.zz = dot(A.z, col(B, 2));
-	result.zw = dot(A.z, col(B, 3));
-	result.wx = dot(A.w, col(B, 0));
-	result.wy = dot(A.w, col(B, 1));
-	result.wz = dot(A.w, col(B, 2));
-	result.ww = dot(A.w, col(B, 3));
-	return result;
+Matrix4 Matrix4::Transpose() {
+	return Matrix4(Col(0), Col(1), Col(2), Col(3));
 }
 
-V4 operator*(Matrix4 A, V4 V) {
-	V4 result;
-	result.x = dot(A.x, V);
-	result.y = dot(A.y, V);
-	result.z = dot(A.z, V);
-	result.w = dot(A.w, V);
-	return result;
+Matrix4 operator*(Matrix4 lhs, Matrix4 rhs) {
+	return Matrix4(
+		Dot(lhs.x, rhs.Col(0)),	Dot(lhs.x, rhs.Col(1)),	Dot(lhs.x, rhs.Col(2)),	Dot(lhs.x, rhs.Col(3)),
+		Dot(lhs.y, rhs.Col(0)),	Dot(lhs.y, rhs.Col(1)),	Dot(lhs.y, rhs.Col(2)),	Dot(lhs.y, rhs.Col(3)),
+		Dot(lhs.z, rhs.Col(0)),	Dot(lhs.z, rhs.Col(1)),	Dot(lhs.z, rhs.Col(2)),	Dot(lhs.z, rhs.Col(3)),
+		Dot(lhs.w, rhs.Col(0)),	Dot(lhs.w, rhs.Col(1)),	Dot(lhs.w, rhs.Col(2)),	Dot(lhs.w, rhs.Col(3))
+	);
 }
 
-V4 operator*(V4 V, Matrix4 A) {
-	V4 result;
-	result.x = dot(col(A, 0), V);
-	result.y = dot(col(A, 1), V);
-	result.z = dot(col(A, 2), V);
-	result.w = dot(col(A, 3), V);
-	return result;
+V4 operator*(Matrix4 lhs, V4 rhs) {
+	return V4(Dot(lhs.x, rhs), Dot(lhs.y, rhs), Dot(lhs.z, rhs), Dot(lhs.w, rhs));
 }
 
-bool operator==(Matrix4 A, Matrix4 B) {
+V4 operator*(V4 lhs, Matrix4 rhs) {
+	return V4(Dot(rhs.Col(0), lhs), Dot(rhs.Col(1), lhs), Dot(rhs.Col(2), lhs), Dot(rhs.Col(3), lhs));
+}
+
+bool operator==(Matrix4 lhs, Matrix4 rhs) {
 	for (int i = 0; i < 16; i++) {
-		if (fabs(A.element[i] - B.element[i]) > EPSILON) return false;
+		if (fabs(lhs.element[i] - rhs.element[i]) > EPSILON) return false;
 	}
 	return true;
 }
 
-Matrix3 Submatrix3(Matrix4 Matrix) {
-	return {
-		Matrix.xx, Matrix.xy, Matrix.xz,
-		Matrix.yx, Matrix.yy, Matrix.yz,
-		Matrix.zx, Matrix.zy, Matrix.zz
-	};
+/*
++----------------------------------------------------------------------------------------------------------------------------------------+
+| Complex numbers                                                                                                                        |
++----------------------------------------------------------------------------------------------------------------------------------------+
+*/
+
+Complex::Complex(float R, float I = 0) : r(R), i(I) {}
+
+Complex& Complex::operator+=(Complex rhs) {
+	r += rhs.r;
+	i += rhs.i;
+	return *this;
 }
 
-Matrix4 Matrix4FromMatrix3(Matrix3 m) {
-	Matrix4 result;
-	result.x = V4(m.xx, m.xy, m.xz, 0);
-	result.y = V4(m.yx, m.yy, m.yz, 0);
-	result.z = V4(m.zx, m.zx, m.zz, 0);
-	result.w = V4(0,0,0,1);
-	return result;
+Complex& Complex::operator-=(Complex rhs) {
+	r -= rhs.r;
+	i -= rhs.i;
+	return *this;
 }
 
-Matrix4 GetScreenProjectionMatrix(float Width, float Height) {
-	float a = 2.0f / Width;
-	float b = 2.0f / Height;
-
-	Matrix4 result = {
-		   a, 0.0f, 0.0f, 0.0f,
-		0.0f,   -b, 0.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 0.0f,
-	   -1.0f, 1.0f, 0.0f, 1.0f,
-	};
-
-	return result;
+Complex& Complex::operator*=(Complex rhs) {
+	Complex result = *this * rhs;
+	r = result.r;
+	i = result.i;
+	return *this;
 }
 
-Matrix4 GetWorldProjectionMatrix(float Width, float Height) {
-	float s_x = 1.0;
-	float s_y = Width / Height;
-	float s_z = 1.0;
-
-	Matrix4 result = {
-		  s_x, 0.0f, 0.0f, 0.0f,
-		0.0f,   s_y, 0.0f, 0.0f,
-		0.0f,  0.0f, 1.0f,   s_z,
-		0.0f,  0.0f,-1.0f, 0.0f,
-	};
-	
-	return result;
+Complex& Complex::operator/=(Complex rhs) {
+	Complex result = *this / rhs;
+	r = result.r;
+	i = result.i;
+	return *this;
 }
 
-// +----------------------------------------------------------------------------------------------------------------------------------------+
-// | Complex numbers                                                                                                                        |
-// +----------------------------------------------------------------------------------------------------------------------------------------+
-
-struct complex {
-	float r; // Real part
-	float i; // Imaginary part
-};
-
-complex Complex(float r, float i) {
-	return {r, i};
+Complex operator+(Complex lhs, Complex rhs) {
+	return Complex(lhs.r + rhs.r, lhs.i + rhs.i);
 }
 
-complex conjugate(complex A) {
-	return {
-		A.r,
-		-A.i
-	};
+Complex operator-(Complex lhs, Complex rhs) {
+	return Complex(lhs.r - rhs.r, lhs.i - rhs.i);
 }
 
-complex operator+(complex A, float B) {
-	return {
-		A.r + B,
-		A.i
-	};
+Complex operator*(Complex lhs, Complex rhs) {
+	return Complex(lhs.r * rhs.r - lhs.i * rhs.i, lhs.r * rhs.i + lhs.i * rhs.r);
 }
 
-complex& operator+=(complex& A, float B) {
-	A.r += B;
-	return A;
+Complex operator/(Complex lhs, Complex rhs) {
+	return lhs * rhs.Inverse();
 }
 
-complex operator+(float A, complex B) {
-	return {
-		A + B.r,
-		B.i
-	};
+Complex Complex::Conjugate() {
+	return Complex(r, -i);
 }
 
-complex operator-(float A, complex B) {
-	return {
-		A - B.r,
-		B.i
-	};
+float Complex::Modulus() {
+	return sqrt(r * r + i * i);
 }
 
-complex operator-(complex A, float B) {
-	return {
-		A.r - B,
-		A.i
-	};
+float Complex::Phase() {
+	return atan2f(i, r);
 }
 
-complex& operator-=(complex& A, float B) {
-	A.r -= B;
-	return A;
+Complex Complex::Inverse() {
+	return Conjugate() / Modulus();
 }
 
-complex operator*(complex A, float C) {
-	return {
-		A.r * C,
-		A.i * C
-	};
+Complex Expi(float alpha) {
+	return Complex(cos(alpha), sin(alpha));
 }
 
-complex operator*(float C, complex A) {
-	return {
-		A.r * C,
-		A.i * C
-	};
-}
+/*
++----------------------------------------------------------------------------------------------------------------------------------------+
+| Quaternions                                                                                                                            |
++----------------------------------------------------------------------------------------------------------------------------------------+
+*/
 
-complex& operator*=(complex& A, float B) {
-	A.r *= B;
-	A.i *= B;
-	return A;
-}
+Quaternion::Quaternion(float C, float I = 0, float J = 0, float K = 0) : c(C), i(I), j(J), k(K) {}
 
-complex operator/(complex A, float C) {
-	return {
-		A.r / C,
-		A.i / C
-	};
-}
-
-complex& operator/=(complex& A, float B) {
-	A.r /= B;
-	A.i /= B;
-	return A;
-}
-
-float modulus(complex A) {
-	return sqrt(A.r * A.r + A.i * A.i);
-}
-
-float phase(complex A) {
-	return atan2f(A.i, A.r);
-}
-
-complex inverse(complex A) {
-	return conjugate(A) / (A.r * A.r + A.i * A.i);
-}
-
-complex expi(float Alpha) {
-	return {
-		cos(Alpha),
-		sin(Alpha)
-	};
-}
-
-complex operator+(complex A, complex B) {
-	return {
-		A.r + B.r,
-		A.i + B.i
-	};
-}
-
-complex& operator+=(complex& A, complex B) {
-	A.r += B.r;
-	A.i += B.i;
-	return A;
-}
-
-complex operator-(complex A, complex B) {
-	return {
-		A.r - B.r,
-		A.i - B.i
-	};
-}
-
-complex& operator-=(complex& A, complex B) {
-	A.r -= B.r;
-	A.i -= B.i;
-	return A;
-}
-
-complex operator*(complex A, complex B) {
-	return {
-		A.r * B.r - A.i * B.i,
-		A.r * B.i + A.i * B.r
-	};
-}
-
-complex& operator*=(complex& A, complex B) {
-	A = A * B;
-	return A;
-}
-
-complex operator/(complex A, complex B) {
-	return A * inverse(B);
-}
-
-complex operator/(float A, complex B) {
-	return A * inverse(B);
-}
-
-// +----------------------------------------------------------------------------------------------------------------------------------------+
-// | Quaternions                                                                                                                            |
-// +----------------------------------------------------------------------------------------------------------------------------------------+
-
-struct Quaternion {
-	float c;
-	float i;
-	float j;
-	float k;
-};
-
-const Quaternion I = { 0.0, 1.0, 0.0, 0.0 };
-const Quaternion J = { 0.0, 0.0, 1.0, 0.0 };
-const Quaternion K = { 0.0, 0.0, 0.0, 1.0 };
-
-Quaternion BuildQuaternion(float angle, V3 Vector) {
+Quaternion::Quaternion(float angle, V3 vector) {
 	float sin_angle = sinf(angle / 2);
-	Vector = normalize(Vector);
-	return { cosf(angle / 2.0), sin_angle * Vector.x, sin_angle * Vector.y, sin_angle * Vector.z};
+	vector = Normalize(vector);
+	c = cosf(angle / 2.0);
+	i = sin_angle * vector.x;
+	j = sin_angle * vector.y;
+	k = sin_angle * vector.z;
 }
 
-Quaternion Conjugate(Quaternion q) {
-	return { q.c, -q.i, -q.j, -q.k};
+Quaternion Quaternion::Conjugate() {
+	return Quaternion(c, -i, -j, -k);
 }
 
-Quaternion operator*(Quaternion q1, Quaternion q2) {
+Quaternion operator*(Quaternion lhs, Quaternion rhs) {
 	return { 
-		q1.c * q2.c - q1.i * q2.i - q1.j * q2.j - q1.k * q2.k,
-		q1.c * q2.i + q1.i * q2.c + q1.j * q2.k - q1.k * q2.j,
-		q1.c * q2.j + q1.j * q2.c + q1.k * q2.i - q1.i * q2.k,
-		q1.c * q2.k + q1.k * q2.c + q1.i * q2.j - q1.j * q2.i,
+		lhs.c * rhs.c - lhs.i * rhs.i - lhs.j * rhs.j - lhs.k * rhs.k,
+		lhs.c * rhs.i + lhs.i * rhs.c + lhs.j * rhs.k - lhs.k * rhs.j,
+		lhs.c * rhs.j + lhs.j * rhs.c + lhs.k * rhs.i - lhs.i * rhs.k,
+		lhs.c * rhs.k + lhs.k * rhs.c + lhs.i * rhs.j - lhs.j * rhs.i,
 	};
 }
 

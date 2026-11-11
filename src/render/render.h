@@ -3,8 +3,37 @@
 
 #pragma once
 #include "asset.h"
-#include "GameColor.h"
+#include "color.h"
 
+
+Matrix4 GetScreenProjectionMatrix(float Width, float Height) {
+	float a = 2.0f / Width;
+	float b = 2.0f / Height;
+
+	Matrix4 result = {
+		   a, 0.0f, 0.0f, 0.0f,
+		0.0f,   -b, 0.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 0.0f,
+	   -1.0f, 1.0f, 0.0f, 1.0f,
+	};
+
+	return result;
+}
+
+Matrix4 GetWorldProjectionMatrix(float Width, float Height) {
+	float s_x = 1.0;
+	float s_y = Width / Height;
+	float s_z = 1.0;
+
+	Matrix4 result = {
+		  s_x, 0.0f, 0.0f, 0.0f,
+		0.0f,   s_y, 0.0f, 0.0f,
+		0.0f,  0.0f, 1.0f,   s_z,
+		0.0f,  0.0f,-1.0f, 0.0f,
+	};
+	
+	return result;
+}
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Render entries                                                                                                                               |

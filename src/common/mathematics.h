@@ -269,6 +269,7 @@ Basis Rotate(Basis basis, float angle);
 Basis Rotate(Basis basis, V3 w);
 Basis Complete(V3 x, V3 y);
 Basis Complete(V3 x);
+Basis Normalize(Basis basis);
 
 union Matrix4 {
 	struct {
@@ -287,5 +288,64 @@ union Matrix4 {
 	struct {
 		float element[4][4];
 	};
+    Matrix4(
+	    float XX, float XY, float XZ, float XW,
+	    float YX, float YY, float YZ, float YW,
+	    float ZX, float ZY, float ZZ, float ZW,
+	    float WX, float WY, float WZ, float WW
+    );
+    Matrix4(V4 X, V4 Y, V4 Z, V4 W);
+    Matrix4(Matrix3 m);
     static const Matrix4 ID;
+    V4 Col(int i);
+    Matrix3 Submatrix();
+    Matrix4 Transpose();
 };
+
+Matrix4 operator*(Matrix4 lhs, Matrix4 rhs);
+V4 operator*(Matrix4 lhs, V4 rhs);
+V4 operator*(V4 lhs, Matrix4 rhs);
+bool operator==(Matrix4 lhs, Matrix4 rhs);
+
+/*
++----------------------------------------------------------------------------------------------------------------------------------------+
+| Complex numbers                                                                                                                        |
++----------------------------------------------------------------------------------------------------------------------------------------+
+*/
+
+struct Complex {
+	float r; // Real part
+	float i; // Imaginary part
+    Complex(float R, float I);
+    Complex& operator+=(Complex rhs);
+    Complex& operator-=(Complex rhs);
+    Complex& operator*=(Complex rhs);
+    Complex& operator/=(Complex rhs);
+    Complex Conjugate();
+    Complex Inverse();
+    float Modulus();
+    float Phase();
+};
+
+Complex operator+(Complex lhs, Complex rhs);
+Complex operator-(Complex lhs, Complex rhs);
+Complex operator*(Complex lhs, Complex rhs);
+Complex operator/(Complex lhs, Complex rhs);
+
+Complex Expi(float alpha);
+
+struct Quaternion {
+	float c;
+	float i;
+	float j;
+	float k;
+    Quaternion(float C, float I, float J, float K);
+    Quaternion(float angle, V3 vector);
+    Quaternion Conjugate();
+};
+
+inline const Quaternion I = Quaternion(0.0, 1.0, 0.0, 0.0);
+inline const Quaternion J = Quaternion(0.0, 0.0, 1.0, 0.0);
+inline const Quaternion K = Quaternion(0.0, 0.0, 0.0, 1.0);
+
+Quaternion operator*(Quaternion lhs, Quaternion rhs);
