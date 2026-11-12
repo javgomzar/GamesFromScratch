@@ -42,7 +42,6 @@ private:
 	static uint64 seed;
 	static uint64 state;
     static void NextState();
-    static int _RandomEnum(Type type);
 public:
     static uint64 Seed();
     static float RandFloat();
@@ -52,8 +51,6 @@ public:
     static float Normal();
     static float Normal(float Mean, float StdDeviation);
 };
-
-#define RandomEnum(type) (Type)_RandomEnum(Type_##type)
 
 /*
 +----------------------------------------------------------------------------------------------------------------------------------------+

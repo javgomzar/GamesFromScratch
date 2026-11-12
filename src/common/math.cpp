@@ -167,19 +167,6 @@ int RNG::RandInt(int min, int max) {
 	return RandFloat() * (max - min) + min;
 }
 
-int RNG::_RandomEnum(Type type) {
-    int i = ENUM_VALUES_SIZE;
-    while(i > 0) {
-        Debug_Enum_Value entry = ENUM_VALUES[--i];
-        if (entry.enum_type == type) {
-            return RandInt(0, entry.value);
-        }
-    }
-	// Type wasn't found in enum list.
-    assert(false);
-    return 0;
-}
-
 float RNG::Normal() {
 	static bool UseSaved = false;
 	static float Savedvalue = 0.0f;
