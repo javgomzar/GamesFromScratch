@@ -621,8 +621,9 @@ V2 Matrix2::Col(int i) {
 	switch(i) {
 		case 0: return V2(xx, yx); break;
 		case 1: return V2(xy, yy); break;
-		default: Log::Fatal("Invalid column index for Matrix2.");
 	};
+	Log::Fatal("Invalid column index for Matrix2.");
+	return V2(0, 0);
 }
 
 Matrix2 Matrix2::Transpose() {
@@ -714,11 +715,12 @@ Matrix3& Matrix3::operator*=(float f) {
 
 V3 Matrix3::Col(int i) {
 	switch(i) {
-		case 0: return V3(xx, yx, zx); break;
-		case 1: return V3(xy, yy, zy); break;
-		case 2: return V3(xz, yz, zz); break;
-		default: Log::Fatal("Invalid column index for Matrix3.");
+		case 0: { return V3(xx, yx, zx); } break;
+		case 1: { return V3(xy, yy, zy); } break;
+		case 2: { return V3(xz, yz, zz); } break;
 	};
+	Log::Fatal("Invalid column index for Matrix3.");
+	return V3(0, 0, 0);
 }
 
 Matrix3 Matrix3::Transpose() {
@@ -866,8 +868,9 @@ V4 Matrix4::Col(int i) {
 		case 1: return V4(xy, yy, zy, wy); break;
 		case 2: return V4(xz, yz, zz, wz); break;
 		case 3: return V4(xw, yw, zw, ww); break;
-		default: Log::Fatal("Invalid column index for Matrix4");
 	};
+	Log::Fatal("Invalid column index for Matrix4");
+	return V4(0, 0, 0, 0);
 }
 
 Matrix3 Matrix4::Submatrix() {
@@ -1117,7 +1120,7 @@ bool operator!=(Transform lhs, Transform rhs) {
 		   lhs.rotation == rhs.rotation;
 }
 
-Matrix4 TRS_Matrix(Transform transform) {
+Matrix4 TRSMatrix(Transform transform) {
 	Matrix3 rotation = transform.rotation;
 	Matrix4 result = Matrix4(
 		transform.scale.x * V4(rotation.xx, rotation.xy, rotation.xz, 0),
@@ -1186,7 +1189,7 @@ void PrepareTwiddleFactors(uint32 N, Complex* twiddle) {
 	}
 }
 
-void FFT_Butterfly(uint32 stride, Complex* data, Complex twiddle) {
+void FFTButterfly(uint32 stride, Complex* data, Complex twiddle) {
 	Complex x0 = data[0];
 	Complex x1 = data[stride];
 
@@ -1208,7 +1211,7 @@ void FFT(uint32 N, Complex* input, Complex* output, Complex* twiddle) {
 	for (int p = 0; p < log2N; p++) {		
 		for (int block = 0; block < N; block += stride << 1)
 		for (int k = 0; k < stride; k++) {
-			FFT_Butterfly(stride, &output[block + k], twiddle[k * twiddle_stride]);
+			FFTButterfly(stride, &output[block + k], twiddle[k * twiddle_stride]);
 		}
 		
 		stride <<= 1;

@@ -1,7 +1,4 @@
-#ifndef GAME_TEXTURE
-#define GAME_TEXTURE
-
-#include "GameAsset.h"
+#pragma once
 
 #pragma pack(push, 1)
 struct bitmap_header {
@@ -245,5 +242,3 @@ const int HEIGHTMAP_RESOLUTION = 16;
 //     game_heightmap Result = ReadTexture(Format, FileContent);
 //     return Result;
 // }
-
-#endif

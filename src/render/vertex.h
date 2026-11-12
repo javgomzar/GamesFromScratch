@@ -1,11 +1,8 @@
-#ifndef GAME_VERTEX_H
-#define GAME_VERTEX_H
-
-#include "GamePlatform.h"
-#include "GameMath.h"
+#include "platform.h"
+#include "mathematics.h"
 #include "tokenizer.h"
 #include "parse.h"
-#include "GameAsset.h"
+#include "asset.h"
 
 
 ENUM(Vertex_Type,
@@ -22,6 +19,11 @@ ENUM(Vertex_Type,
     Vertex_Type_Matrix3,
     Vertex_Type_Matrix4
 );
+
+bool IsFloatType(Vertex_Type type);
+bool IsIntegerType(Vertex_Type type);
+uint32 GetVertexTypeSizeInBytes(Vertex_Type type);
+int GetVertexTypeComponents(Vertex_Type type);
 
 ENUM(Vertex_ID,
     Vertex_Position_ID,
@@ -49,62 +51,6 @@ struct Vertex_Text {
     float depth;
     float size;
 };
-
-bool IsFloatType(Vertex_Type type) {
-    return 
-        type == Vertex_Type_float ||
-        type == Vertex_Type_V2 ||
-        type == Vertex_Type_V3 ||
-        type == Vertex_Type_V4 ||
-        type == Vertex_Type_Matrix2 ||
-        type == Vertex_Type_Matrix3 ||
-        type == Vertex_Type_Matrix4;
-}
-
-bool IsIntegerType(Vertex_Type type) {
-    return
-        type == Vertex_Type_int ||
-        type == Vertex_Type_IV2 ||
-        type == Vertex_Type_IV3 ||
-        type == Vertex_Type_IV4;
-}
-
-uint32 GetVertexTypeSizeInBytes(Vertex_Type type) {
-    switch (type) {
-        case Vertex_Type_float: { return 4; } break;
-        case Vertex_Type_V2:  { return 8; } break;
-        case Vertex_Type_V3:  { return 12; } break;
-        case Vertex_Type_V4:  { return 16; } break;
-        case Vertex_Type_int:   { return 4; } break;
-        case Vertex_Type_IV2: { return 8; } break;
-        case Vertex_Type_IV3: { return 12; } break;
-        case Vertex_Type_IV4: { return 16; } break;
-        case Vertex_Type_Matrix2:  { return 16; } break;
-        case Vertex_Type_Matrix3:  { return 36; } break;
-        case Vertex_Type_Matrix4:  { return 64; } break;
-        default: Raise("Invalid vertex attribute type.");
-    }
-    return 0;
-}
-
-// Returns number of components for a given shader type. For example, returns 3 for type `vec3`.
-int GetVertexTypeComponents(Vertex_Type type) {
-    switch (type) {
-        case Vertex_Type_float: { return 1; } break;
-        case Vertex_Type_V2:  { return 2; } break;
-        case Vertex_Type_V3:  { return 3; } break;
-        case Vertex_Type_V4:  { return 4; } break;
-        case Vertex_Type_int:   { return 1; } break;
-        case Vertex_Type_IV2: { return 2; } break;
-        case Vertex_Type_IV3: { return 3; } break;
-        case Vertex_Type_IV4: { return 4; } break;
-        case Vertex_Type_Matrix2:  { return 4; } break;
-        case Vertex_Type_Matrix3:  { return 9; } break;
-        case Vertex_Type_Matrix4:  { return 16; } break;
-        default: Raise("Invalid vertex attribute type.");
-    }
-    return 0;
-}
 
 struct Vertex_Attribute {
     Vertex_Type type;
@@ -202,20 +148,20 @@ struct Vertex_Buffer {
 
 Vertex_Buffer_Entry PushVertices(Vertex_Buffer* buffer, uint64 count) {
     if (buffer->vertex_count + count >= buffer->capacity) {
-        Log(Log_Level::Error, "Vertex buffer overflow");
+        Log::Error("Vertex buffer overflow");
         return {};
     }
     
     Vertex_Buffer_Entry entry;
     entry.count = count;
     entry.offset = buffer->vertex_count;
-    entry.pointer = PushSize(buffer->memory, count * buffer->stride);
+    entry.pointer = buffer->memory.PushSize(count * buffer->stride);
     buffer->vertex_count += count;
     return entry;
 }
 
 void ClearVertexBuffer(Vertex_Buffer& buffer) {
-    Clear(buffer.memory);
+    buffer.memory.Clear();
     buffer.vertex_count = 0;
 }
 
@@ -261,68 +207,3 @@ bool operator==(Vertex_Layout Layout1, Vertex_Layout Layout2) {
     }
     return false;
 }
-
-V2 ParseV2(Tokenizer& tokenizer) {
-    V2 result;
-    result.x = ParseFloat(tokenizer);
-    result.y = ParseFloat(tokenizer);
-    return result;
-}
-
-V3 ParseV3(Tokenizer& tokenizer) {
-    V3 result;
-    result.x = ParseFloat(tokenizer);
-    result.y = ParseFloat(tokenizer);
-    result.z = ParseFloat(tokenizer);
-    return result;
-}
-
-V4 ParseV4(Tokenizer& tokenizer) {
-    V4 result;
-    result.x = ParseFloat(tokenizer);
-    result.y = ParseFloat(tokenizer);
-    result.z = ParseFloat(tokenizer);
-    result.w = ParseFloat(tokenizer);
-    return result;
-}
-
-Quaternion ParseQuaternion(Tokenizer& tokenizer) {
-    Quaternion result;
-    result.c = ParseFloat(tokenizer);
-    result.i = ParseFloat(tokenizer);
-    result.j = ParseFloat(tokenizer);
-    result.k = ParseFloat(tokenizer);
-    return result;
-}
-
-IV2 ParseIV2(Tokenizer& tokenizer) {
-    IV2 result;
-    result.x = ParseInt(tokenizer);
-    result.y = ParseInt(tokenizer);
-    return result;
-}
-
-IV3 ParseIV3(Tokenizer& tokenizer) {
-    IV3 result;
-    result.x = ParseInt(tokenizer);
-    result.y = ParseInt(tokenizer);
-    result.z = ParseInt(tokenizer);
-    return result;
-}
-
-UV2 ParseUV2(Tokenizer& tokenizer) {
-    UV2 result;
-    result.x = Parseuint32(tokenizer);
-    result.y = Parseuint32(tokenizer);
-    return result;
-}
-
-UV3 ParseUV3(Tokenizer& tokenizer) {
-    UV3 result;
-    result.x = Parseuint32(tokenizer);
-    result.y = Parseuint32(tokenizer);
-    result.z = Parseuint32(tokenizer);
-    return result;
-}
-
-#endif

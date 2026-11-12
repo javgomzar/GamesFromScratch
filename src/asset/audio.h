@@ -1,10 +1,8 @@
 #pragma once
 
-#include "GamePlatform.h"
-#include "GameMath.h"
+#include <platform.h>
+#include <mathematics.h>
 
-#ifndef GAME_SOUND
-#define GAME_SOUND
 
 /*
     TODO:
@@ -166,5 +164,3 @@ void PlayGameSound(game_sound* Sound, game_sound_buffer* pSoundBuffer) {
 
     Sound->Played += 2 * pSoundBuffer->BufferSize;
 }
-
-#endif

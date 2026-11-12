@@ -27,29 +27,18 @@ enum Type {
     Type_Collider,
     Type_Arena,
     Type_Topology,
+    Type_Entity_type,
+    Type_character_action_id,
     Type_Sort_Key,
     Type_Render_Group_Target,
     Type_Color_Format,
     Type_Vertex_Type,
     Type_Vertex_ID,
-    Type_Entity_type,
-    Type_character_action_id,
-    Type_Render_Flag,
     Type_Entity_Flag,
     Type_UI_Flags,
     Type_UI_Draw,
+    Type_Render_Flag,
     Type_Transform,
-};
-
-enum class Render_Flag : uint64 {
-    none = 0,
-    depth_test = 1 << 0,
-    stencil_test = 1 << 1,
-    overwrite_alpha = 1 << 2,
-    text_outline = 1 << 3,
-    debug_bones = 1 << 4,
-    sky = 1 << 5,
-    water = 1 << 6,
 };
 
 enum class Entity_Flag : uint64 {
@@ -73,6 +62,17 @@ enum class UI_Draw : uint64 {
     Checkbox = 1 << 4,
 };
 
+enum class Render_Flag : uint64 {
+    none = 0,
+    depth_test = 1 << 0,
+    stencil_test = 1 << 1,
+    overwrite_alpha = 1 << 2,
+    text_outline = 1 << 3,
+    debug_bones = 1 << 4,
+    sky = 1 << 5,
+    water = 1 << 6,
+};
+
 bool IsEnumType(Type type) { return type > 23 && type < 32; }
 bool IsFlagType(Type type) { return type > 31 && type < 36; }
 
@@ -91,6 +91,17 @@ Debug_Enum_Value ENUM_VALUES[ENUM_VALUES_SIZE] = {
     {Type_Topology, "Topology_Triangle_Strip", 4},
     {Type_Topology, "Topology_Patches", 5},
     {Type_Topology, "Topology_count", 6},
+    {Type_Entity_type, "Character_Entity_Type", 0},
+    {Type_Entity_type, "Enemy_Entity_Type", 1},
+    {Type_Entity_type, "Camera_Entity_Type", 2},
+    {Type_Entity_type, "Prop_Entity_Type", 3},
+    {Type_Entity_type, "Weapon_Entity_Type", 4},
+    {Type_Entity_type, "Entity_type_count", 5},
+    {Type_character_action_id, "Character_Action_Idle_ID", 0},
+    {Type_character_action_id, "Character_Action_Walk_ID", 1},
+    {Type_character_action_id, "Character_Action_Jump_ID", 2},
+    {Type_character_action_id, "Character_Action_Attack_ID", 3},
+    {Type_character_action_id, "character_action_id_count", 4},
     {Type_Sort_Key, "Sort_Background", 0},
     {Type_Sort_Key, "Sort_Terrain", 1},
     {Type_Sort_Key, "Sort_Meshes", 2},
@@ -128,28 +139,10 @@ Debug_Enum_Value ENUM_VALUES[ENUM_VALUES_SIZE] = {
     {Type_Vertex_ID, "Vertex_Surface_ID", 2},
     {Type_Vertex_ID, "Vertex_Text_ID", 3},
     {Type_Vertex_ID, "Vertex_ID_count", 4},
-    {Type_Entity_type, "Character_Entity_Type", 0},
-    {Type_Entity_type, "Enemy_Entity_Type", 1},
-    {Type_Entity_type, "Camera_Entity_Type", 2},
-    {Type_Entity_type, "Prop_Entity_Type", 3},
-    {Type_Entity_type, "Weapon_Entity_Type", 4},
-    {Type_Entity_type, "Entity_type_count", 5},
-    {Type_character_action_id, "Character_Action_Idle_ID", 0},
-    {Type_character_action_id, "Character_Action_Walk_ID", 1},
-    {Type_character_action_id, "Character_Action_Jump_ID", 2},
-    {Type_character_action_id, "Character_Action_Attack_ID", 3},
-    {Type_character_action_id, "character_action_id_count", 4},
 };
 
 const int FLAG_VALUES_SIZE = 16;
 Debug_Enum_Value FLAG_VALUES[FLAG_VALUES_SIZE] = {
-    {Type_Render_Flag, "depth_test", 1},
-    {Type_Render_Flag, "stencil_test", 2},
-    {Type_Render_Flag, "overwrite_alpha", 4},
-    {Type_Render_Flag, "text_outline", 8},
-    {Type_Render_Flag, "debug_bones", 16},
-    {Type_Render_Flag, "sky", 32},
-    {Type_Render_Flag, "water", 64},
     {Type_Entity_Flag, "Render", 1},
     {Type_Entity_Flag, "Movable", 2},
     {Type_Entity_Flag, "Animated", 4},
@@ -159,12 +152,14 @@ Debug_Enum_Value FLAG_VALUES[FLAG_VALUES_SIZE] = {
     {Type_UI_Draw, "Fillbar", 4},
     {Type_UI_Draw, "Slider", 8},
     {Type_UI_Draw, "Checkbox", 16},
+    {Type_Render_Flag, "depth_test", 1},
+    {Type_Render_Flag, "stencil_test", 2},
+    {Type_Render_Flag, "overwrite_alpha", 4},
+    {Type_Render_Flag, "text_outline", 8},
+    {Type_Render_Flag, "debug_bones", 16},
+    {Type_Render_Flag, "sky", 32},
+    {Type_Render_Flag, "water", 64},
 };
-
-constexpr Render_Flag operator|(Render_Flag a, Render_Flag b) { return (Render_Flag)((uint64)a | (uint64)b); }
-constexpr Render_Flag& operator|=(Render_Flag& a, Render_Flag b) { return a = a | b; }
-constexpr bool operator&(Render_Flag a, Render_Flag b) { return (uint64)a & (uint64)b; }
-constexpr Render_Flag operator~(Render_Flag a) { return (Render_Flag)(~(uint64)a); }
 
 constexpr Entity_Flag operator|(Entity_Flag a, Entity_Flag b) { return (Entity_Flag)((uint64)a | (uint64)b); }
 constexpr Entity_Flag& operator|=(Entity_Flag& a, Entity_Flag b) { return a = a | b; }
@@ -180,5 +175,10 @@ constexpr UI_Draw operator|(UI_Draw a, UI_Draw b) { return (UI_Draw)((uint64)a |
 constexpr UI_Draw& operator|=(UI_Draw& a, UI_Draw b) { return a = a | b; }
 constexpr bool operator&(UI_Draw a, UI_Draw b) { return (uint64)a & (uint64)b; }
 constexpr UI_Draw operator~(UI_Draw a) { return (UI_Draw)(~(uint64)a); }
+
+constexpr Render_Flag operator|(Render_Flag a, Render_Flag b) { return (Render_Flag)((uint64)a | (uint64)b); }
+constexpr Render_Flag& operator|=(Render_Flag& a, Render_Flag b) { return a = a | b; }
+constexpr bool operator&(Render_Flag a, Render_Flag b) { return (uint64)a & (uint64)b; }
+constexpr Render_Flag operator~(Render_Flag a) { return (Render_Flag)(~(uint64)a); }
 
 #endif

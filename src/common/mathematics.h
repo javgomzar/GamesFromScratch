@@ -383,6 +383,8 @@ struct Transform {
 	V3 translation;
 	Scale scale;
     Transform(V3 t, Quaternion r, Scale s);
+    Transform(Quaternion r, Scale s, V3 t);
+    
     static const Transform ID;
 };
 
@@ -392,4 +394,13 @@ Basis operator*(Transform lhs, Basis rhs);
 Transform operator*(Transform lhs, Transform rhs);
 bool operator==(Transform lhs, Transform rhs);
 bool operator!=(Transform lhs, Transform rhs);
-Matrix4 TRS_Matrix(Transform transform);
+Matrix4 TRSMatrix(Transform transform);
+
+// FFT
+uint32 BitReverse(uint32 x);
+uint32 BitReverse(uint32 x, uint32 log2N);
+float BitReverseFloat(uint32 x);
+void DFT(uint32 N, Complex* input, Complex* output);
+void PrepareTwiddleFactors(uint32 N, Complex* twiddle);
+void FFTButterfly(uint32 stride, Complex* data, Complex twiddle);
+void FFT(uint32 N, Complex* input, Complex* output, Complex* twiddle);

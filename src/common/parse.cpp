@@ -181,3 +181,58 @@ int ParsePath(const char* text) {
     }
     return result;
 }
+
+V2 ParseV2(Tokenizer& tokenizer) {
+    float x = ParseFloat(tokenizer);
+    float y = ParseFloat(tokenizer);
+    return V2(x, y);
+}
+
+V3 ParseV3(Tokenizer& tokenizer) {
+    float x = ParseFloat(tokenizer);
+    float y = ParseFloat(tokenizer);
+    float z = ParseFloat(tokenizer);
+    return V3(x, y, z);
+}
+
+V4 ParseV4(Tokenizer& tokenizer) {
+    float x = ParseFloat(tokenizer);
+    float y = ParseFloat(tokenizer);
+    float z = ParseFloat(tokenizer);
+    float w = ParseFloat(tokenizer);
+    return V4(x, y, z, w);
+}
+
+Quaternion ParseQuaternion(Tokenizer& tokenizer) {
+    float c = ParseFloat(tokenizer);
+    float i = ParseFloat(tokenizer);
+    float j = ParseFloat(tokenizer);
+    float k = ParseFloat(tokenizer);
+    return Quaternion(c, i, j, k);
+}
+
+IV2 ParseIV2(Tokenizer& tokenizer) {
+    int x = ParseInt(tokenizer);
+    int y = ParseInt(tokenizer);
+    return IV2(x, y);
+}
+
+IV3 ParseIV3(Tokenizer& tokenizer) {
+    int x = ParseInt(tokenizer);
+    int y = ParseInt(tokenizer);
+    int z = ParseInt(tokenizer);
+    return IV3(x, y, z);
+}
+
+UV2 ParseUV2(Tokenizer& tokenizer) {
+    uint32 x = Parseuint32(tokenizer);
+    uint32 y = Parseuint32(tokenizer);
+    return UV2(x, y);
+}
+
+UV3 ParseUV3(Tokenizer& tokenizer) {
+    uint32 x = Parseuint32(tokenizer);
+    uint32 y = Parseuint32(tokenizer);
+    uint32 z = Parseuint32(tokenizer);
+    return UV3(x, y, z);
+}

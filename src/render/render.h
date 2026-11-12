@@ -1,39 +1,10 @@
-#ifndef GAME_RENDER_H
-#define GAME_RENDER_H
-
 #pragma once
 #include "asset.h"
 #include "color.h"
 
 
-Matrix4 GetScreenProjectionMatrix(float Width, float Height) {
-	float a = 2.0f / Width;
-	float b = 2.0f / Height;
-
-	Matrix4 result = {
-		   a, 0.0f, 0.0f, 0.0f,
-		0.0f,   -b, 0.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 0.0f,
-	   -1.0f, 1.0f, 0.0f, 1.0f,
-	};
-
-	return result;
-}
-
-Matrix4 GetWorldProjectionMatrix(float Width, float Height) {
-	float s_x = 1.0;
-	float s_y = Width / Height;
-	float s_z = 1.0;
-
-	Matrix4 result = {
-		  s_x, 0.0f, 0.0f, 0.0f,
-		0.0f,   s_y, 0.0f, 0.0f,
-		0.0f,  0.0f, 1.0f,   s_z,
-		0.0f,  0.0f,-1.0f, 0.0f,
-	};
-	
-	return result;
-}
+Matrix4 GetScreenProjectionMatrix(float width, float height);
+Matrix4 GetWorldProjectionMatrix(float width, float height);
 
 // +----------------------------------------------------------------------------------------------------------------------------------------------+
 // | Render entries                                                                                                                               |
@@ -70,6 +41,20 @@ FLAGS(Render_Flag,
     water
 );
 
+enum wrap_mode {
+    Wrap_Clamp,
+    Wrap_Repeat,
+    Wrap_Crop
+};
+
+struct Light {
+    Color color;
+    V3 direction;
+    V3 camera_position;
+    float ambient;
+    float diffuse;
+};
+
 struct Render_Command {
     Sort_Key key;
     Topology topology;
@@ -94,7 +79,7 @@ struct Render_Command_Options {
     Render_Flag flags;
     Sort_Key order = Sort_Meshes;
     Texture* texture = nullptr;
-    Transform transform = IdentityTransform;
+    Transform transform = Transform::ID;
 };
 
 struct Render_Text_Options {
@@ -152,15 +137,15 @@ struct Light {
 // | Render group                                                                                                                                                     |
 // +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
-const int MAX_RENDER_ENTRIES = 16384;
+inline const int MAX_RENDER_ENTRIES = 16384;
 
 struct Render_Group {
     Render_Command entries[MAX_RENDER_ENTRIES];
     Render_Group_Target_Description targets[Render_Group_Target_Count];
     Vertex_Buffer vertex_buffer[Vertex_ID_Count];
     Light light;
-    Asset_Manager* asset_manager;
-    Font* debug_font;
+    Asset_Manager& asset_manager;
+    Font& debug_font;
     int32 width;
     int32 height;
     uint32 entry_count;
@@ -170,89 +155,13 @@ struct Render_Group {
     bool debug_colliders;
     bool push_outline;
     bool render_text;
+    Render_Group(
+        Arena& permanent,
+        Asset_Manager& asset_manager,
+        int32 width,
+        int32 height
+    );
 };
-
-void InitializeRenderGroup(
-    Render_Group* group, 
-    Arena* permanent,
-    Asset_Manager* asset_manager,
-    int32 width,
-    int32 height
-) {
-    group->width = width;
-    group->height = height;
-
-    group->asset_manager = asset_manager;
-    // group->DebugFont = GetFont(AssetManager, "DejaVuSansMono");
-    
-    group->debug = false;
-    group->debug_normals = false;
-    group->debug_colliders = false;
-    group->debug_bones = false;
-
-    // Lighting
-    group->light.color = Color::WHITE;
-    group->light.direction = normalize(V3(-0.5, -1, 1));
-    group->light.ambient = 0.5f;
-    group->light.diffuse = 0.5f;
-
-    // // Vertex & element buffers
-    // InitializeVertexBuffer(&group->vertex_buffer, permanent);
-
-    // // Text buffer
-    // InitializeTextBuffer(permanent, &group->text_buffer);
-
-    // Render targets
-    group->targets[Target_None] = {};
-
-    group->targets[Target_World] = {
-        .target = Target_World,
-        .format = Color_Format_RGBA,
-        .multisample = true,
-        .depth = true,
-        .stencil = false
-    };
-
-    group->targets[Target_Outline] = {
-        .target = Target_Outline,
-        .format = Color_Format_RGBA,
-        .multisample = true,
-        .depth = true,
-        .stencil = false
-    };
-
-    group->targets[Target_Postprocessing_Outline] = {
-        .target = Target_Postprocessing_Outline,
-        .format = Color_Format_RGBA,
-        .multisample = false,
-        .depth = false,
-        .stencil = false
-    };
-
-    group->targets[Target_Output] = {
-        .target = Target_Output,
-        .format = Color_Format_RGB,
-        .multisample = false,
-        .depth = true,
-        .stencil = false
-    };
-
-    group->targets[Target_PingPong] = {
-        .target = Target_PingPong,
-        .format = Color_Format_RGBA,
-        .multisample = false,
-        .depth = true,
-        .stencil = false
-    };
-
-    group->targets[Target_Fluid] = {
-        .target = Target_Fluid,
-        .format = Color_Format_RGB,
-        .multisample = false,
-        .depth = true,
-        .stencil = false
-    };
-}
 
 void Swap(Render_Group* group, int i, int j) {
     Render_Command entry = group->entries[i];
@@ -1851,5 +1760,3 @@ void PushPoint(Render_Group* group, float left, float top, Color color, Sort_Key
 //     PushTimeRecordsPartial(Group, TimeRecordsPlatform, nTimeRecordsLibrary, &RecordX, &RecordY, TotalWidth, RecordHeight, 
 //         FunctionColWidth, HitsColWidth, MCyclesColWidth, RecordHeight, HMargin, VMargin);
 // }
-
-#endif

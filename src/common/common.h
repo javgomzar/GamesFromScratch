@@ -34,19 +34,12 @@ typedef size_t memory_size;
 #define ArrayCount(arr) (sizeof((arr)) / sizeof((arr)[0]))
 
 uint16 BigEndian(uint16 little_endian);
-
 uint32 BigEndian(uint32 little_endian);
-
 uint64 BigEndian(uint64 little_endian);
-
 int16 BigEndian(int16 little_endian);
-
 int32 BigEndian(int32 little_endian);
-
 int64 BigEndian(int64 little_endian);
-
 uint8 MSB32(uint32 x);
-
 uint8 MSB64(uint64 x);
 
 /*
@@ -63,18 +56,13 @@ struct Arena {
     uint8* base;
 
     Arena(memory_size size);
-
     Arena(memory_size size, void* memory);
-
     Arena(Arena& arena, memory_size size);
-
     ~Arena();
-
     void Clear();
-
     void Free();
-
     void* PushSize(memory_size size);
+    void PopSize(memory_size size);
 
     template <typename T>
     T* Push() {
@@ -82,15 +70,13 @@ struct Arena {
     }
 
     template <typename T>
-    T* PushArray(memory_size count) {
-        return (T*)PushSize(count * sizeof(T));
-    }
-
-    void PopSize(memory_size size);
-
-    template <typename T>
     void Pop() {
         PopSize(sizeof(T));
+    }
+
+    template <typename T>
+    T* PushArray(memory_size count) {
+        return (T*)PushSize(count * sizeof(T));
     }
 
     template <typename T>
@@ -111,26 +97,17 @@ public:
     const char* content;
 
     String();
-
     String(const char* str);
-
     String(const char* str, int64 len);
 
     char operator[](int64 index) const;
-
     bool operator==(String rhs) const;
 
     String Slice(int start, int end) const;
-
     static char* Copy(Arena& arena, String string);
-
     static String Persist(Arena& arena, String string);
-
     static String Read(void* memory);
-
     static String Split(String& input, char separator);
-
     static String Join(Arena& arena, String separator, int count, ...);
-
     static String Format(Arena& arena, const char* format, int input_count, ...);
 };

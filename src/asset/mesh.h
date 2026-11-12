@@ -1,9 +1,6 @@
-#ifndef GAME_MESH
-#define GAME_MESH
-
-#include "GamePlatform.h"
-#include "GameMath.h"
-#include "GameVertex.h"
+#include "platform.h"
+#include "mathematics.h"
+#include "vertex.h"
 
 /*
 +----------------------------------------------------------------------------------------------------------------------------------------------+
@@ -47,7 +44,7 @@ struct preprocessed_mesh {
 
 preprocessed_mesh PreprocessMesh(void* FileContent) {
     preprocessed_mesh Result = {};
-    Tokenizer tokenizer = InitTokenizer(FileContent);
+    Tokenizer tokenizer = Tokenizer(FileContent);
 
     Token token = RequireToken(tokenizer, Token_Identifier);
     while (token.type == Token_Identifier) {
@@ -55,7 +52,7 @@ preprocessed_mesh PreprocessMesh(void* FileContent) {
         else if (token == "nE") Result.nEdges = Parseuint32(tokenizer);
         else if (token == "nF") Result.nFaces = Parseuint32(tokenizer);
         else if (token == "nB") Result.nBones = Parseuint32(tokenizer);
-        token = GetToken(tokenizer);
+        token = tokenizer.GetToken();
     }
     return Result;
 }
@@ -165,5 +162,3 @@ uint32 GetMeshVerticesSize(uint32 nVertices, bool HasArmature) {
 
 //     return Result;
 // }
-
-#endif

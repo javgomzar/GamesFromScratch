@@ -52,6 +52,7 @@ struct Asset_Manager {
     Hash_Table<Asset_ID, Texture*> textures;
     // hash_table<Asset_ID, Mesh*> meshes;
     // hash_table<Asset_ID, Material*> materials;
+    Asset_Manager(Arena& permanent);
 };
 
 Asset_ID CreateID(Asset_Manager& manager) {
@@ -59,7 +60,7 @@ Asset_ID CreateID(Asset_Manager& manager) {
 }
 
 Texture* AddTexture(Asset_Manager& manager) {
-    Texture* texture = PushStruct(manager.arena, Texture);
+    Texture* texture = manager.arena.Push<Texture>();
     texture->id = CreateID(manager);
     manager.textures.Insert(texture->id, texture);
     return texture;
@@ -74,15 +75,15 @@ void AddAsset(
 ) {
     asset.path = path;
     bool process = force_process;
-    if (Platform.FileExists(path)) {
-        Timestamp asset_file_time = Platform.GetFileInfo(path).timestamp;
+    if (Platform::FileExists(path)) {
+        Timestamp asset_file_time = Platform::GetFileInfo(path).timestamp;
         for (const char* file : files) {
-            if (!Platform.FileExists(path)) {
-                Log(Log_Level::Error, "Failed to add file to asset.");
+            if (!Platform::FileExists(path)) {
+                Log::Error("Failed to add file to asset.");
                 continue;
             }
 
-            Timestamp import_file_time = Platform.GetFileInfo(path).timestamp;
+            Timestamp import_file_time = Platform::GetFileInfo(path).timestamp;
             if (import_file_time > asset_file_time) {
                 process = true;
             }
@@ -116,7 +117,7 @@ void AddAsset(
                 // TODO
             }
             else {
-                Log(Log_Level::Error, "Invalid asset file extension.");
+                Log::Error("Invalid asset file extension.");
             }
         }
 
@@ -131,7 +132,7 @@ void AddAsset(
                 // TODO
             }
             else if (extension == "jpeg" || extension == "jpg" || extension == "png") {
-                Texture* texture = PushStruct(manager.arena, Texture);
+                Texture* texture = manager.arena.Push<Texture>();
                 texture->id = CreateID(manager);
                 texture->pixels = stbi_load(file, &texture->width, &texture->height, &texture->channels, 0);
                 texture->size = GetPixelsSize(texture->width, texture->height, texture->channels);
@@ -141,7 +142,7 @@ void AddAsset(
                 // TODO
             }
             else {
-                Log(Log_Level::Error, "Invalid asset file extension.");
+                Log::Error("Invalid asset file extension.");
             }
         }
     }
@@ -680,15 +681,3 @@ void AddAsset(
 //     }
 //     return nullptr;
 // }
-
-Asset_Manager InitializeAssetManager(Arena& permanent) {
-    Asset_Manager result;
-    result.arena = SuballocateMemoryArena(permanent, Megabytes(1));
-    result.next_id = 1;
-
-    // game_asset* Test = AddAsset(&Result, "GameAsset/Files/Manifest/Test.man" , game_asset_tag::TEST);
-
-    return result;
-}
-
-#endif

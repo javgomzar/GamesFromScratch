@@ -74,7 +74,7 @@ void UpdateGameState(
                     if (input->mode == Controller) {
                         V2 joystic = input->controller.right_joystick;
 
-                        if (modulus(joystic) > 0.1) {
+                        if (Modulus(joystic) > 0.1) {
                             entity->angle -= 3.0 * joystic.x;
                             entity->pitch -= 3.0 * joystic.y;
                         }
@@ -127,7 +127,7 @@ void UpdateGameState(
             } break;
 
             default: {
-                Raise("Invalid entity type.");
+                Log::Fatal("Invalid entity type.");
             }
         }
 
@@ -144,24 +144,24 @@ void UpdateGameState(
                 if (left)  { direction.x -= 1.0f; }
                 if (up)    { direction.z += 1.0f; }
                 if (down)  { direction.z -= 1.0f; }
-                direction = normalize(direction);
+                direction = Normalize(direction);
                 if (input->keyboard.space.is_down) direction.y += 1.0f;
                 if (input->keyboard.shift.is_down) direction.y -= 1.0f;
             }
             else if (input->mode == Controller) {
-                V2 normalized = normalize(input->controller.left_joystick);
+                V2 normalized = Normalize(input->controller.left_joystick);
                 direction.x = normalized.x;
                 direction.z = normalized.y;
-                speed = 20.0f * modulus(input->controller.left_joystick);
+                speed = 20.0f * Modulus(input->controller.left_joystick);
             }
 
-            if (modulus(direction) > EPSILON) {
+            if (Modulus(direction) > EPSILON) {
                 Basis horizontal_basis = GetCameraBasis(state->active_camera->angle, 0);
                 // Direction is in coordinates relative to camera
                 float angle = atan2f(-direction.x, -direction.z);
                 direction = direction.y * V3(0.0, 1.0, 0.0) + direction.x * horizontal_basis.x + direction.z * horizontal_basis.z;
                 entity->velocity = speed * direction;
-                entity->transform.rotation = BuildQuaternion(angle - state->active_camera->angle * DEGREES, V3(0,1,0));
+                entity->transform.rotation = Quaternion(angle - state->active_camera->angle * DEGREES, V3(0,1,0));
             }
             else {
                 entity->velocity = V3(0,0,0);
@@ -171,9 +171,9 @@ void UpdateGameState(
         else if (entity->follow) {
             V3 displacement = entity->follow->transform.translation - entity->anchor;
             displacement.y = 0;
-            float distance = modulus(displacement);
+            float distance = Modulus(displacement);
             float min_distance = .01f;
-            if (distance >= min_distance) entity->velocity = 20.0f * (distance - min_distance) * normalize(displacement);
+            if (distance >= min_distance) entity->velocity = 20.0f * (distance - min_distance) * Normalize(displacement);
             else                          entity->velocity = V3(0,0,0);
         }
 
@@ -183,7 +183,7 @@ void UpdateGameState(
             entity->anchor += state->dt * entity->velocity;
         }
         if (entity->angular_velocity != V3(0,0,0)) {
-            entity->transform.rotation = entity->transform.rotation * BuildQuaternion(state->dt, entity->angular_velocity);
+            entity->transform.rotation = entity->transform.rotation * Quaternion(state->dt, entity->angular_velocity);
         }
         
         // Animation
@@ -219,8 +219,8 @@ void UpdateGameState(
 extern "C" GAME_UPDATE(GameUpdate)
 {
     if (memory->hot_reload) {
-        rng.seed = SeedRNG(memory->transient);
-        rng.state = rng.seed;
+        uint64 seed = RNG::Seed();
+        String message = String::Format(memory->transient, "RNG seed: {U}.", 1, seed);
 
         time_records = (Time_Record*)&memory->time_records_library;
 
