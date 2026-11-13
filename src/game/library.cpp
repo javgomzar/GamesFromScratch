@@ -219,9 +219,6 @@ void UpdateGameState(
 extern "C" GAME_UPDATE(GameUpdate)
 {
     if (memory->hot_reload) {
-        uint64 seed = RNG::Seed();
-        String message = String::Format(memory->transient, "RNG seed: {U}.", 1, seed);
-
         time_records = (Time_Record*)&memory->time_records_library;
 
         if (memory->test) {
