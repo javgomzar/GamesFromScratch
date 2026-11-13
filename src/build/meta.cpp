@@ -1,5 +1,4 @@
 #include "pch.h"
-
 #include "build.h"
 #include "tokenizer.h"
 
@@ -66,21 +65,6 @@ const char* const PRIMITIVE_TYPES[] = {
 };
 const int PRIMITIVE_TYPE_COUNT = ArrayCount(PRIMITIVE_TYPES);
 
-int _RandomEnum(Type type) {
-    int i = ENUM_VALUES_SIZE;
-    while(i > 0) {
-        Debug_Enum_Value entry = ENUM_VALUES[--i];
-        if (entry.enum_type == type) {
-            return RNG::RandInt(0, entry.value);
-        }
-    }
-	// Type wasn't found in enum list.
-    assert(false);
-    return 0;
-}
-
-#define RandomEnum(type) (Type)_RandomEnum(Type_##type)
-
 int main() {
     FILE* enums_header = OpenFile("src" PATH_SEPARATOR "build" PATH_SEPARATOR "enum.h", "w");
     FILE* enums_source = OpenFile("src" PATH_SEPARATOR "build" PATH_SEPARATOR "enum.cpp", "w");
@@ -88,19 +72,30 @@ int main() {
     FILE* structs_header = OpenFile("src" PATH_SEPARATOR "build" PATH_SEPARATOR "struct.h", "w");
     FILE* structs_source = OpenFile("src" PATH_SEPARATOR "build" PATH_SEPARATOR "struct.cpp", "w");
 
-    fprintf(enums_source, "#include \"pch.h\"\n");
-    fprintf(enums_source, "#include \"enum.h\"\n\n\n");
+    fprintf(enums_source, 
+        "#include \"pch.h\"\n"
+        "#include \"enum.h\"\n\n\n"
+    );
 
-    fprintf(enums_header, "#pragma once\n\n\n");
-    fprintf(enums_header, "enum Type {\n");
+    fprintf(enums_header, 
+        "#pragma once\n\n"
+        "#include <platform.h>\n"
+        "#include <mathematics.h>\n\n\n"
+        "enum Type {\n"
+    );
     for (int i = 0; i < PRIMITIVE_TYPE_COUNT; i++) {
         fprintf(enums_header, "    Type_%s,\n", PRIMITIVE_TYPES[i]);
     }
 
-    fprintf(structs_source, "#include \"pch.h\"\n");
-    fprintf(structs_source, "#include \"struct.h\"\n\n\n");
+    fprintf(structs_source, 
+        "#include \"pch.h\"\n"
+        "#include \"struct.h\"\n\n\n"
+    );
 
-    fprintf(structs_header, "#pragma once\n\n");
+    fprintf(structs_header, 
+        "#pragma once\n\n"
+        "#include \"enum.h\"\n\n"
+    );
 
     std::vector<std::string> enum_debug_types = {};
     std::vector<std::string> enum_values = {};
@@ -177,7 +172,15 @@ int main() {
                     token = RequireToken(tokenizer, Token_OpenBrace);
                     token = RequireToken(tokenizer, Token_Identifier);
                     while (token.type != Token_CloseBrace && token.type != Token_End) {
-                        while (token == "static" || token == "const") {
+                        // Skip constructors, destructors and static members/methods
+                        if (token == "static" || token == struct_type || token.type == Token_Tilde) {
+                            while (token.type != Token_Semicolon && token.type != Token_End) {
+                                token = tokenizer.GetToken();
+                            }
+                            token = tokenizer.GetToken();
+                            continue;
+                        }
+                        if (token == "const") {
                             token = tokenizer.GetToken();
                         }
                         Token member_type = token;
@@ -212,6 +215,7 @@ int main() {
                             continue;
                         }
                         int array_size = 0;
+                        // Array member
                         if (token.type == Token_OpenBracket) {
                             token = tokenizer.GetToken();
                             if (token.type == Token_Identifier) {
@@ -280,7 +284,7 @@ int main() {
                 strncpy(flags_name_text, flags_name.text, flags_name.length);
                 flag_debug_types.push_back(std::string(flags_name_text));
 
-                sprintf(buffer, "enum class %s : uint64 {\n    none = 0,\n", flags_name_text);
+                sprintf(buffer, "enum class %s : uint64 {\n    None = 0,\n", flags_name_text);
                 flag_declarations += std::string(buffer);
 
                 RequireToken(tokenizer, Token_Comma);
@@ -335,11 +339,13 @@ int main() {
     fprintf(enums_header, "%s", flag_declarations.c_str());
 
     int enum_count = enum_debug_types.size();
-    fprintf(enums_header, "bool IsEnumType(Type type) { return type > %d && type < %d; }\n", 
+    fprintf(enums_header, "bool IsEnumType(Type type);\n");
+    fprintf(enums_source, "bool IsEnumType(Type type) { return type > %d && type < %d; }\n", 
         PRIMITIVE_TYPE_COUNT - 1, PRIMITIVE_TYPE_COUNT + enum_count
     );
 
-    fprintf(enums_header, "bool IsFlagType(Type type) { return type > %d && type < %d; }\n\n",
+    fprintf(enums_header, "bool IsFlagType(Type type);\n\n");
+    fprintf(enums_source, "bool IsFlagType(Type type) { return type > %d && type < %d; }\n\n",
         PRIMITIVE_TYPE_COUNT + enum_count - 1, PRIMITIVE_TYPE_COUNT + enum_count + flag_type_count
     );
 
@@ -350,49 +356,74 @@ int main() {
     "    int value;\n"
     "};\n\n");
 
-    fprintf(enums_header, "const int ENUM_VALUES_SIZE = %d;\n", (int)enum_values.size());
+    fprintf(enums_header, "inline constexpr int ENUM_VALUES_SIZE = %d;\n", (int)enum_values.size());
     if (enum_values.size() > 0) {
-        fprintf(enums_header, "Debug_Enum_Value ENUM_VALUES[ENUM_VALUES_SIZE] = {\n");
+        fprintf(enums_header, "extern const Debug_Enum_Value ENUM_VALUES[ENUM_VALUES_SIZE];\n");
+        fprintf(enums_source, "const Debug_Enum_Value ENUM_VALUES[ENUM_VALUES_SIZE] = {\n");
 
         for (const std::string& EnumValue : enum_values) {
-            fprintf(enums_header, "%s", EnumValue.c_str());
+            fprintf(enums_source, "%s", EnumValue.c_str());
         }
 
-        fprintf(enums_header, "};\n\n");
+        fprintf(enums_source, "};\n\n");
     }
     else {
-        fprintf(enums_header, "Debug_Enum_Value* ENUM_VALUES = 0;\n\n");
+        fprintf(enums_source, "Debug_Enum_Value* ENUM_VALUES = nullptr;\n\n");
     }
 
-    fprintf(enums_header, "const int FLAG_VALUES_SIZE = %d;\n", (int)flag_values.size());
+    fprintf(enums_header, "int _RandomEnum(Type type);\n");
+    fprintf(enums_header, "#define RandomEnum(type) (type)_RandomEnum(Type_##type)\n\n");
+
+    fprintf(enums_source, 
+        "int _RandomEnum(Type type) {\n"
+        "    for (int i = 0; i < ENUM_VALUES_SIZE; ++i) {\n"
+        "        Debug_Enum_Value entry = ENUM_VALUES[i];\n"
+        "        if (entry.enum_type == type) {\n"
+        "            return RNG::RandInt(0, entry.value);\n"
+        "        }\n"
+        "    }\n"
+        "    Log::Error(\"Type wasn't found in enum list.\");\n"
+        "    return 0;\n"
+        "}\n\n"
+    );
+
+    fprintf(enums_header, "inline constexpr int FLAG_VALUES_SIZE = %d;\n", (int)flag_values.size());
     if (flag_values.size() > 0) {
-        fprintf(enums_header, "Debug_Enum_Value FLAG_VALUES[FLAG_VALUES_SIZE] = {\n");
+        fprintf(enums_header, "extern const Debug_Enum_Value FLAG_VALUES[FLAG_VALUES_SIZE];\n");
+        fprintf(enums_source, "const Debug_Enum_Value FLAG_VALUES[FLAG_VALUES_SIZE] = {\n");
 
         for (const std::string& flag_value : flag_values) {
-            fprintf(enums_header, "%s", flag_value.c_str());
+            fprintf(enums_source, "%s", flag_value.c_str());
         }
 
-        fprintf(enums_header, "};\n\n");
+        fprintf(enums_source, "};\n\n");
 
         for (const std::string& flag_name : flag_debug_types) {
-            fprintf(enums_header, "constexpr %s operator|(%s a, %s b) { return (%s)((uint64)a | (uint64)b); }\n", 
-                flag_name.c_str(), flag_name.c_str(), flag_name.c_str(), flag_name.c_str());
-            fprintf(enums_header, "constexpr %s& operator|=(%s& a, %s b) { return a = a | b; }\n", 
+            fprintf(enums_header, "\n%s operator|(%s lhs, %s rhs);\n", 
                 flag_name.c_str(), flag_name.c_str(), flag_name.c_str());
-            fprintf(enums_header, "constexpr bool operator&(%s a, %s b) { return (uint64)a & (uint64)b; }\n", 
+            fprintf(enums_source, "\n%s operator|(%s lhs, %s rhs) { return (%s)((uint64)lhs | (uint64)rhs); }\n", 
+                flag_name.c_str(), flag_name.c_str(), flag_name.c_str(), flag_name.c_str());
+            fprintf(enums_header, "%s& operator|=(%s& lhs, %s rhs);\n", 
+                flag_name.c_str(), flag_name.c_str(), flag_name.c_str());
+            fprintf(enums_source, "%s& operator|=(%s& lhs, %s rhs) { return lhs = lhs | rhs; }\n", 
+                flag_name.c_str(), flag_name.c_str(), flag_name.c_str());
+            fprintf(enums_header, "bool operator&(%s lhs, %s rhs);\n", 
                 flag_name.c_str(), flag_name.c_str());
-            fprintf(enums_header, "constexpr %s operator~(%s a) { return (%s)(~(uint64)a); }\n\n", 
+            fprintf(enums_source, "bool operator&(%s lhs, %s rhs) { return (uint64)lhs & (uint64)rhs; }\n", 
+                flag_name.c_str(), flag_name.c_str());
+            fprintf(enums_header, "%s operator~(%s flag);\n", 
+                flag_name.c_str(), flag_name.c_str());
+            fprintf(enums_source, "%s operator~(%s flag) { return (%s)(~(uint64)flag); }\n", 
                 flag_name.c_str(), flag_name.c_str(), flag_name.c_str());
         }
     }
     else {
-        fprintf(enums_header, "debug_enum_value* flag_values = nullptr;\n\n");
+        fprintf(enums_header, "Debug_Enum_Value* FLAG_VALUES = nullptr;\n\n");
     }
 
-    fprintf(enums_header, "#endif");
-
     int struct_count = struct_debug_types.size();
-    fprintf(structs_header, "bool IsStructType(Type type) { return type > %d && type < %d; }\n\n", 
+    fprintf(structs_header, "bool IsStructType(Type type);\n\n");
+    fprintf(structs_source, "bool IsStructType(Type type) { return type > %d && type < %d; }\n\n", 
         PRIMITIVE_TYPE_COUNT + enum_count + flag_type_count - 1, PRIMITIVE_TYPE_COUNT + enum_count + flag_type_count + struct_count
     );
 
@@ -407,21 +438,20 @@ int main() {
     "    bool is_pointer;\n"
     "};\n\n");
 
-    fprintf(structs_header, "const int STRUCT_MEMBERS_SIZE = %d;\n", (int)struct_members.size());
+    fprintf(structs_header, "inline constexpr int STRUCT_MEMBERS_SIZE = %d;\n", (int)struct_members.size());
     if (struct_members.size() > 0) {
-        fprintf(structs_header, "Debug_Struct_Member struct_members[STRUCT_MEMBERS_SIZE] = {\n");
+        fprintf(structs_header, "extern const Debug_Struct_Member struct_members[STRUCT_MEMBERS_SIZE];\n");
+        fprintf(structs_source, "const Debug_Struct_Member struct_members[STRUCT_MEMBERS_SIZE] = {\n");
 
         for (const std::string& StructMember : struct_members) {
-            fprintf(structs_header, "%s", StructMember.c_str());
+            fprintf(structs_source, "%s", StructMember.c_str());
         }
 
-        fprintf(structs_header, "};\n");
+        fprintf(structs_source, "};\n");
     }
     else {
-        fprintf(structs_header, "Debug_Struct_Member* struct_members = 0;\n\n");
+        fprintf(structs_source, "Debug_Struct_Member* struct_members = 0;\n\n");
     }
-
-    fprintf(structs_header, "\n#endif");
 
     fclose(structs_header);
     fclose(enums_header);

@@ -174,29 +174,21 @@ void Build::ReadConfig(String config_file_path) {
                 else if (token == "SOURCE") {
                     RequireToken(tokenizer, Token_Equal);
                     tokenizer.AdvanceWhitespaceAndComments();
-                    char* source_files_start = (char*)(permanent.base + permanent.used);
-                    memory_size source_files_length = 0;
+                    String_Builder source_files;
+                    String_Builder obj_files;
 
-                    char* obj_files_start = (char*)(transient.base + transient.used);
-                    memory_size obj_files_length = 0;
-
-                    char temp_buffer[1024];
-                    Arena temp_arena = Arena(1024, temp_buffer);
                     do {
                         tokenizer.AdvanceWhitespaceAndComments();
                         int path_length = ParsePath(tokenizer.at);
                         String source_file = String(tokenizer.at, path_length);
                         String file_name = GetFileNameWithoutExtension(source_file);
-                        String obj_file = String::Format(temp_arena, "{s}{s}.obj", 2, config.obj_dir, file_name);
+                        String obj_file = String::Format(transient, "{s}{s}.obj", 2, config.obj_dir, file_name);
 
                         bool update = NeedsUpdate(source_file, obj_file);
                         if (update) {
-                            String::Copy(permanent, source_file);
-                            source_files_length += source_file.length;
+                            source_files.Append(source_file);
                         }
-                        String::Copy(transient, obj_file);
-                        obj_files_length += obj_file.length;
-                        temp_arena.Clear();
+                        obj_files.Append(obj_file);
 
                         tokenizer.Advance(path_length);
                         if (tokenizer.at[0] != ';') {
@@ -204,17 +196,13 @@ void Build::ReadConfig(String config_file_path) {
                         }
                         token = RequireToken(tokenizer, Token_Semicolon);
                         if (update) {
-                            char* space = permanent.Push<char>();
-                            *space = ' ';
-                            ++source_files_length;
+                            source_files.Append(" ");
                         }
-                        char* space = transient.Push<char>();
-                        *space = ' ';
-                        ++obj_files_length;
+                        obj_files.Append(" ");
                     } while(token.type == Token_Semicolon);
 
-                    config.source_files = String(source_files_start, source_files_length);
-                    config.obj_files = String::Copy(permanent, String(obj_files_start, obj_files_length));
+                    config.source_files = source_files.Build(permanent);
+                    config.obj_files = obj_files.Build(permanent);
 
                     transient.Clear();
                 }
@@ -233,24 +221,23 @@ void Build::ReadConfig(String config_file_path) {
                 else if (token == "META_SOURCE") {
                     RequireToken(tokenizer, Token_Equal);
                     tokenizer.AdvanceWhitespaceAndComments();
-                    config.metaprogramming_source.content = (char*)(permanent.base + permanent.used);
-                    config.metaprogramming_source.length = 0;
+                    String_Builder meta_source_files;
+
                     do {
                         tokenizer.AdvanceWhitespaceAndComments();
                         int path_length = ParsePath(tokenizer.at);
                         String source_file = String(tokenizer.at, path_length);
-                        String::Copy(permanent, source_file);
-                        config.metaprogramming_source.length += source_file.length;
+                        meta_source_files.Append(source_file);
 
                         tokenizer.Advance(path_length);
                         if (tokenizer.at[0] != ';') {
                             break;
                         }
                         token = RequireToken(tokenizer, Token_Semicolon);
-                        char* space = permanent.Push<char>();
-                        *space = ' ';
-                        ++config.metaprogramming_source.length;
+                        meta_source_files.Append(" ");
                     } while(token.type == Token_Semicolon);
+
+                    config.metaprogramming_source = meta_source_files.Build(permanent);
                 }
 
                 // Metaprogramming input files
@@ -490,16 +477,16 @@ void Build::MetaProgram() {
         Log::Info("Compiling metaprogramming code.");
         char* command = (char*)(transient.base + transient.used);
         String command_string = String::Format(transient,
-            "{s} /std:c++20 /nologo {s} /Fo\"{s}meta.obj\" /Fd\"bin\\meta.pdb\" {s} {s} "
-            "/link {s} {s} /OUT:\"bin\\meta.exe\" /PDB:\"bin\\meta.pdb\"", 
-            7,
+            "{s} /std:c++20 /nologo {s} /Fo\"{s}\" /Fd\"bin\\meta.pdb\" /MP {s} {s} {s} "
+            "/link {s} /OUT:\"bin\\meta.exe\" /PDB:\"bin\\meta.pdb\"", 
+            8,
             config.compiler_path,
             config.include,
             config.obj_dir,
             config.metaprogramming_main,
+            config.metaprogramming_source,
             config.compiler_flags,
-            config.lib,
-            config.obj_files
+            config.lib
         );
 
         uint64 start = Platform::GetWallClock();

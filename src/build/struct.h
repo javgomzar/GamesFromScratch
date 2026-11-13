@@ -1,7 +1,8 @@
-#ifndef GAME_STRUCTS
-#define GAME_STRUCTS
+#pragma once
 
-bool IsStructType(Type type) { return type > 35 && type < 37; }
+#include "enum.h"
+
+bool IsStructType(Type type);
 
 struct Debug_Struct_Member {
     const char* name;
@@ -13,14 +14,5 @@ struct Debug_Struct_Member {
     bool is_pointer;
 };
 
-const int STRUCT_MEMBERS_SIZE = 6;
-Debug_Struct_Member struct_members[STRUCT_MEMBERS_SIZE] = {
-    {"rotation", Type_Transform, Type_Quaternion, sizeof(Quaternion), (uint64)(&((Transform*)0)->rotation),0, false},
-    {"translation", Type_Transform, Type_V3, sizeof(V3), (uint64)(&((Transform*)0)->translation),0, false},
-    {"scale", Type_Transform, Type_Scale, sizeof(Scale), (uint64)(&((Transform*)0)->scale),0, false},
-    {"(", Type_Transform, Type_Transform, sizeof(Transform), (uint64)(&((Transform*)0)->(),0, false},
-    {"(", Type_Transform, Type_Transform, sizeof(Transform), (uint64)(&((Transform*)0)->(),0, false},
-    {"const", Type_Transform, Type_static, sizeof(static), (uint64)(&((Transform*)0)->const),0, false},
-};
-
-#endif
+inline constexpr int STRUCT_MEMBERS_SIZE = 3;
+extern const Debug_Struct_Member struct_members[STRUCT_MEMBERS_SIZE];

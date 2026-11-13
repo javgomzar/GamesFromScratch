@@ -111,3 +111,16 @@ public:
     static String Join(Arena& arena, String separator, int count, ...);
     static String Format(Arena& arena, const char* format, int input_count, ...);
 };
+
+class String_Builder {
+private:
+    void* memory;
+    char* end;
+    memory_size capacity;
+    memory_size size;
+public:
+    String_Builder();
+    ~String_Builder();
+    void Append(String string);
+    String Build(Arena& arena);
+};

@@ -412,3 +412,31 @@ String String::Format(Arena& arena, const char* format, int input_count, ...) {
     va_end(args);
     return result;
 }
+
+String_Builder::String_Builder() : capacity(256), size(0) {
+    memory = calloc(1, capacity);
+    end = (char*)memory;
+}
+
+String_Builder::~String_Builder() {
+    free(memory);
+    memory = nullptr;
+    end = nullptr;
+    capacity = 0;
+    size = 0;
+}
+
+void String_Builder::Append(String string) {
+    size += string.length;
+    if (size > capacity) {
+        void* temp = realloc(memory, 2 * capacity);
+        assert(temp != nullptr);
+        memory = temp;
+    }
+    strncpy(end, string.content, string.length);
+    end += string.length;
+}
+
+String String_Builder::Build(Arena& arena) {
+    return String::Copy(arena, String((char*)memory, size));
+}
