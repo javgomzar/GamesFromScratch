@@ -2,12 +2,12 @@
 
 #include <platform.h>
 #include <tokenizer.h>
-#include "enum.h"
 
-
-// +----------------------------------------------------------------------------------------------------------------------------------------+
-// | Constants                                                                                                                              |
-// +----------------------------------------------------------------------------------------------------------------------------------------+
+/*
++----------------------------------------------------------------------------------------------------------------------------------------+
+| Constants                                                                                                                              |
++----------------------------------------------------------------------------------------------------------------------------------------+
+*/
 
 inline const float PI = 3.1415926535897932f;
 inline const float TAU = 6.2831853071795865f;
@@ -39,17 +39,17 @@ double BuildFloat(bool Negative, int16 Exponent, uint64 Mantissa);
 
 class RNG {
 private:
-	static uint64 seed;
+	static const uint64 seed;
 	static uint64 state;
     static void NextState();
 public:
-    static uint64 Seed();
     static float RandFloat();
     static float RandFloat(float min, float max);
     static bool Bernoulli(float p);
     static int RandInt(int min, int max);
     static float Normal();
     static float Normal(float Mean, float StdDeviation);
+    static void LogSeed(Arena& transient);
 };
 
 /*
@@ -381,7 +381,6 @@ struct Transform {
 	Scale scale;
     Transform(V3 t, Quaternion r, Scale s);
     Transform(Quaternion r, Scale s, V3 t);
-    
     static const Transform ID;
 };
 

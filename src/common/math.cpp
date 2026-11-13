@@ -122,9 +122,11 @@ double BuildFloat(bool Negative, int16 Exponent, uint64 Mantissa) {
 	return result;
 }
 
-// +----------------------------------------------------------------------------------------------------------------------------------------+
-// | RNG                                                                                                                                    |
-// +----------------------------------------------------------------------------------------------------------------------------------------+
+/*
++----------------------------------------------------------------------------------------------------------------------------------------+
+| RNG                                                                                                                                    |
++----------------------------------------------------------------------------------------------------------------------------------------+
+*/
 
 void RNG::NextState() {
 	state ^= state << 13;
@@ -132,20 +134,24 @@ void RNG::NextState() {
 	state ^= state << 17;
 }
 
-uint64 RNG::Seed() {
+uint64 Seed() {
 #ifdef _DEBUG
     time_t seconds = time(nullptr);
     tm* local_time = localtime(&seconds);
-    seed = local_time->tm_mday + 123456789;
+    uint64 seed = local_time->tm_mday + 123456789;
 #else
-    seed = Platform::GetWallClock();
+    uint64 seed = Platform::GetWallClock();
 #endif
     for (int i = 0; i < 8; i++) {
-        RNG::NextState();
+        seed ^= seed << 13;
+		seed ^= seed >> 7;
+		seed ^= seed << 17;
     }
-
     return seed;
 }
+
+const uint64 RNG::seed = Seed();
+uint64 RNG::state = RNG::seed;
 
 float RNG::RandFloat() {
 	float result = (float)state / (float)UINT64_MAX;
@@ -186,6 +192,11 @@ float RNG::Normal() {
 
 float RNG::Normal(float Mean, float StdDeviation) {
 	return Mean + StdDeviation * Normal();
+}
+
+void RNG::LogSeed(Arena& transient) {
+	String message = String::Format(transient, "RNG seed: {U}.", 1, seed);
+	Log::Info(message);
 }
 
 /*
@@ -464,6 +475,8 @@ UV3 operator+(UV3 lhs, UV3 rhs) {
 bool operator==(UV3 lhs, UV3 rhs) {
 	return lhs.x == rhs.x && lhs.y == rhs.y && lhs.z == rhs.z;
 }
+
+IV3::IV3(int X, int Y, int Z) : x(X), y(Y), z(Z) {}
 
 IV3 operator+(IV3 lhs, IV3 rhs) {
 	return {lhs.x + rhs.x, lhs.y + rhs.y, lhs.z + rhs.z};
@@ -1118,9 +1131,11 @@ Matrix4 TRSMatrix(Transform transform) {
 	return result;
 }
 
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
-// | Fast Fourier Transform                                                                                                                       |
-// +----------------------------------------------------------------------------------------------------------------------------------------------+
+/*
++----------------------------------------------------------------------------------------------------------------------------------------------+
+| Fast Fourier Transform                                                                                                                       |
++----------------------------------------------------------------------------------------------------------------------------------------------+
+*/
 
 uint32 BitReverse(uint32 x) {
     x = ((x & 0x55555555) << 1) | ((x & 0xAAAAAAAA) >> 1);
