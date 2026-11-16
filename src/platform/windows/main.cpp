@@ -527,7 +527,10 @@ int APIENTRY wWinMain(
     while (memory.running) {
         // Hot reloading code
         if (code.NeedsUpdate()) {
-            code.Load(memory.transient);
+            bool success = code.Load(memory.transient);
+            if (success) {
+                memory.hot_reload = true;
+            }
         }
 
         // Hot reloading for shaders
@@ -686,15 +689,12 @@ int APIENTRY wWinMain(
         //     currentBuffer = (currentBuffer + 1) % nBuffers;
         // }
 
-        Debug_Info* debug_info = &memory.debug_info;
-
         PROCESS_MEMORY_COUNTERS_EX PMC = {};
-        uint64 UsedMemory = 0;
+        uint64 used_memory = 0;
         if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&PMC, sizeof(PMC))) {
-            UsedMemory = PMC.WorkingSetSize / Megabytes(1);
+            used_memory = PMC.WorkingSetSize / Megabytes(1);
         }
-        debug_info->used_memory = UsedMemory;
-        DEBUG_VALUE(UsedMemory, uint64);
+        memory.used_memory = used_memory;
 
         // float WorkSecsElapsed = GetSecondsElapsed(LastCounter, Win32GetWallClock());
         // float UsedTime_ms = 1000.0f * WorkSecsElapsed;
@@ -737,8 +737,6 @@ int APIENTRY wWinMain(
         // uint64 EndCounter = Win32GetWallClock();
         // LastCounter = EndCounter;
         // LastCycleCount = EndCycleCount;
-
-        debug_info->entry_count = 0;
     }
 
     return 0;

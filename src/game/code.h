@@ -12,6 +12,6 @@ struct Game_Code {
     bool is_valid = false;
 
     bool NeedsUpdate();
-    void Load(Arena& transient);
+    bool Load(Arena& transient);
     void Unload();
 };

@@ -151,6 +151,11 @@ public:
         data = nullptr;
     }
 
+    Array(T* memory, uint32 size) {
+        length = size;
+        data = memory;
+    }
+
     Array(Arena& arena, uint32 N) {
         length = N;
         data = arena.PushArray<T>(N);

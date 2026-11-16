@@ -2,10 +2,8 @@
 #include "code.h"
 
 
-static const char const build_config_path[] = "build\\build.conf";
-static const char const source_dll_name[] = "bin\\game_library.dll";
-static const char const temp_dll_name[] = "bin\\game_library_temp.dll";
-static const char const meta_file[] = "bin\\meta.exe";
+String source_dll_name = "bin\\game_library.dll";
+String temp_dll_name = "bin\\game_library_temp.dll";
 
 void GameUpdateStub(Memory& memory) {};
 
@@ -16,7 +14,7 @@ bool Game_Code::NeedsUpdate() {
     return timestamp > dll_last_write_time;
 }
 
-void Game_Code::Load(Arena& transient) {
+bool Game_Code::Load(Arena& transient) {
     update = GameUpdateStub;
 
     char error_text[256];
@@ -47,22 +45,24 @@ void Game_Code::Load(Arena& transient) {
                 last_error
             );
             Log::Error(error_message);
-            return;
+            return false;
         }
     }
 
-    game_code_dll = LoadLibraryA(temp_dll_name);
+    game_code_dll = LoadLibraryA(temp_dll_name.content);
     if (game_code_dll) {
         update = (Game_Update)GetProcAddress(game_code_dll, "GameUpdate");
         is_valid = (update);
 
         dll_last_write_time = Platform::GetFileInfo(source_dll_name).timestamp;
+        return is_valid;
     }
     else {
         last_error = GetLastError();
         sprintf_s(error_text, "Error loading game code. Error code %d.", last_error);
         Log::Error(error_text); // If error is 126 (dependency error while loading DLL) try using Process Monitor.
     }
+    return false;
 }
 
 void Game_Code::Unload() {

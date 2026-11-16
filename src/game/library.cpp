@@ -27,7 +27,6 @@ void TestPerformance() {
 }
 
 void UpdateGameState(
-    Debug_Info& debug_info,
     Render_Group& group,
     State* state, 
     Input& input
@@ -216,10 +215,11 @@ void UpdateGameState(
 }
 
 // Main
-extern "C" void GameUpdate(Memory& memory)
+extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
 {
     if (memory.hot_reload) {
         // time_records = (Time_Record*)&memory.time_records_library;
+        Debug_Info::transient = &memory.transient;
 
         if (memory.test) {
             // RunReloadTests(memory);
@@ -232,7 +232,6 @@ extern "C" void GameUpdate(Memory& memory)
     Input& input = memory.input;
     State* state = memory.state;
     Asset_Manager& asset_manager = memory.asset_manager;
-    Debug_Info& debug_info = memory.debug_info;
 {
     TIMED_BLOCK;
 
@@ -274,7 +273,7 @@ extern "C" void GameUpdate(Memory& memory)
         // RunEveryFrameTests(Memory);
     }
 
-    UpdateGameState(debug_info, group, state, input);
+    UpdateGameState(group, state, input);
 
     // PushSky(Group);
     

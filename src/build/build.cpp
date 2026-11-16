@@ -392,6 +392,7 @@ bool Build::MetaProgram() {
         }
     }
 
+    Log::Info("Running metaprogramming.");
     char* command = (char*)(permanent.base + permanent.used);
     String command_string = String::Copy(permanent, config.metaprogramming_binary);
     return RunAndTime(transient, command, "Metaprogramming execution");
@@ -424,7 +425,7 @@ bool Build::Compile() {
         Log::Info("Compiling source files.");
         char* command = (char*)(permanent.base + permanent.used);
         String string = String::Format(permanent,
-            "{s} /std:c++20 /nologo /c /MP {s} {s}/Fo\"{s}\" "
+            "{s} /std:c++20 /nologo /c /MP {s} {s}/Fo\"{s}\" /D GAMELIBRARY_EXPORTS "
             "/Yu\"pch.h\" /Fp\"{s}pch.pch\" /Fd\"{s}pch.pdb\" {s}",
             7,
             config.compiler_path,
@@ -443,7 +444,7 @@ bool Build::Compile() {
 }
 
 bool Build::LinkPlatform() {
-    Log::Info("Linking platform layer");
+    Log::Info("Linking platform layer.");
     
     char* command = nullptr;
     switch (config.compiler) {
@@ -452,7 +453,7 @@ bool Build::LinkPlatform() {
             String linker_flags = config.mode == Build_Config::Mode::Debug ? "/DEBUG" : "";
             String command_string = String::Format(permanent,
                 "{s} /NOLOGO {s}pch.obj {s} {s} {s} {s} {s} "
-                "src\\platform\\windows\\Win32PlatformLayer.res /MACHINE:X64 /PDB:{s}run_game.pdb /OUT:run_game.exe",
+                "src\\platform\\windows\\Win32PlatformLayer.res /MACHINE:X64 /PDB:{s}run_game.pdb /OUT:bin\\run_game.exe",
                 7,
                 config.linker_path,
                 config.obj_dir,
@@ -475,6 +476,34 @@ bool Build::LinkPlatform() {
 }
 
 bool Build::LinkGameLibrary() {
+    Log::Info("Linking game library.");
+    
+    char* command = nullptr;
+    switch (config.compiler) {
+        case Build_Config::Compiler::MSVC: {
+            command = (char*)(permanent.base + permanent.used);
+            String linker_flags = config.mode == Build_Config::Mode::Debug ? "/DEBUG" : "";
+            String command_string = String::Format(permanent,
+                "{s} /NOLOGO {s}pch.obj {s} {s} {s} {s} {s} "
+                "/MACHINE:X64 /DLL /PDB:{s}game_library.pdb /OUT:bin\\game_library.dll",
+                7,
+                config.linker_path,
+                config.obj_dir,
+                config.obj_files,
+                config.platform_obj,
+                config.linked_libs,
+                config.lib,
+                linker_flags,
+                config.obj_dir
+            );
+
+            return RunAndTime(transient, command, "Game library linking");
+        } break;
+
+        case Build_Config::Compiler::clang: {
+            Log::Fatal("Not implemented.");
+        } break;
+    }
     return false;
 }
 

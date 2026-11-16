@@ -102,6 +102,7 @@ inline const int MAX_SUPPORTED_MONITORS = 8;
 struct Monitor_Manager {
     Monitor_Info monitor[MAX_SUPPORTED_MONITORS];
     uint8 monitor_count;
+    Monitor_Manager();
     void RefreshMonitors();
 };
 

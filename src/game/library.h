@@ -1,3 +1,5 @@
+#pragma once
+
 #if _WIN32
 // The following ifdef block is the standard way of creating macros which make exporting
 // from a DLL simpler. All files within this DLL are compiled with the GAMELIBRARY_EXPORTS
@@ -20,8 +22,6 @@
 #else
 #define GAMELIBRARY_API
 #endif
-
-#pragma once
 
 #include <platform.h>
 #include "enum.h"
@@ -47,11 +47,14 @@ struct Memory {
     State* state;
     Arena permanent;
     Arena transient;
-    Debug_Info debug_info;
     // Time_Record time_records_library[MAX_TIME_RECORDS];
     // Time_Record time_records_platform[MAX_TIME_RECORDS];
     // uint16 time_records_library_count;
     // uint16 time_records_platform_count;
+    float fps;
+    float used_time;
+    float used_mcycles_per_frame;
+    float used_memory;
     bool initialized;
     bool hot_reload;
     bool running;
@@ -60,3 +63,5 @@ struct Memory {
 };
 
 // #include "GameUI.h"
+
+GAMELIBRARY_API void GameUpdate(Memory& memory);

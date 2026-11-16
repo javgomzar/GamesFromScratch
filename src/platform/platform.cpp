@@ -78,3 +78,10 @@ Timed_Block::Timed_Block(int counter, const char* file_name, int line_number, co
 Timed_Block::~Timed_Block() {
     record->cycle_count += Platform::GetWallClock() - start_cycles;
 }
+
+Monitor_Manager::Monitor_Manager() {
+    monitor_count = 0;
+    for (int i = 0; i < MAX_SUPPORTED_MONITORS; ++i) {
+        monitor[i] = {};
+    }
+}

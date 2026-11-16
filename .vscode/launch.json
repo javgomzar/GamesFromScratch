@@ -12,7 +12,7 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/RunGame.exe",
+            "program": "${workspaceFolder}/bin/run_game.exe",
             "args": [
                 "-test"
             ],
