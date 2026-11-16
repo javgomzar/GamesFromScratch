@@ -51,10 +51,10 @@ uint8 MSB64(uint64 x);
 void ZeroSize(memory_size size, void* memory);
 
 struct Arena {
-    memory_size capacity;
-    memory_size used;
-    uint8* base;
-
+    memory_size capacity = 0;
+    memory_size used = 0;
+    uint8* base = nullptr;
+    Arena() = default;
     Arena(memory_size size);
     Arena(memory_size size, void* memory);
     Arena(Arena& arena, memory_size size);

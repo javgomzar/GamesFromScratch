@@ -1,8 +1,6 @@
-#include "platform.h"
-#include "mathematics.h"
-#include "tokenizer.h"
-#include "parse.h"
-#include "asset.h"
+#pragma once
+#include "common.h"
+#include "color.h"
 
 
 ENUM(Vertex_Type,
@@ -59,15 +57,9 @@ struct Vertex_Attribute {
     uint32 offset;
 };
 
-bool operator!=(Vertex_Attribute attribute1, Vertex_Attribute attribute2) {
-    return 
-        attribute1.type != attribute2.type ||
-        attribute1.location != attribute2.location ||
-        attribute1.size != attribute2.size ||
-        attribute1.offset != attribute2.offset;
-}
+bool operator!=(Vertex_Attribute attribute1, Vertex_Attribute attribute2);
 
-const uint8 MAX_VERTEX_ATTRIBUTES = 8;
+inline const uint8 MAX_VERTEX_ATTRIBUTES = 8;
 struct Vertex_Layout {
     Vertex_ID id;
     Vertex_Attribute attributes[MAX_VERTEX_ATTRIBUTES];
@@ -75,37 +67,11 @@ struct Vertex_Layout {
     uint8 attribute_count;
 };
 
-void AddAttribute(Vertex_Layout* Vertex_Layout, Vertex_Type type) {
-    Vertex_Attribute* attribute = &Vertex_Layout->attributes[Vertex_Layout->attribute_count];
-    attribute->location = Vertex_Layout->attribute_count++;
-    attribute->type = type;
-    attribute->size = GetVertexTypeSizeInBytes(type);
-    attribute->offset = Vertex_Layout->stride;
-    Vertex_Layout->stride += attribute->size;
-}
+void AddAttribute(Vertex_Layout* vertex_layout, Vertex_Type type);
 
-Vertex_Layout VertexLayout(Vertex_ID id, int attribute_count, ...) {
-    Vertex_Layout result = {};
-    result.id = id;
-    result.stride = 0;
-    result.attribute_count = 0;
+Vertex_Layout VertexLayout(Vertex_ID id, int attribute_count, ...);
 
-    va_list types;
-    va_start(types, attribute_count);
-
-    for (int i = 0; i < attribute_count; i++) {
-        Vertex_Type type = va_arg(types, Vertex_Type);
-        AddAttribute(&result, type);
-    }
-    return result;
-}
-
-Vertex_Layout VERTEX_LAYOUTS[Vertex_ID_Count] = {
-    VertexLayout(Vertex_Position_ID, 1, Vertex_Type_V3),
-    VertexLayout(Vertex_Joint_ID,    2, Vertex_Type_V4, Vertex_Type_IV4),
-    VertexLayout(Vertex_Surface_ID,  3, Vertex_Type_V4, Vertex_Type_V3, Vertex_Type_V2),
-    VertexLayout(Vertex_Text_ID,     4, Vertex_Type_V4, Vertex_Type_V2, Vertex_Type_float, Vertex_Type_float),
-};
+extern const Vertex_Layout VERTEX_LAYOUTS[Vertex_ID_Count]; 
 
 // bool FindCompatibleVertexLayout(Vertex_Layout vertex_layout, Vertex_Layout_ID* result = nullptr) {
 //     for (int i = 0; i < Vertex_Layout_ID_count; i++) {
@@ -146,24 +112,9 @@ struct Vertex_Buffer {
     uint32 stride;
 };
 
-Vertex_Buffer_Entry PushVertices(Vertex_Buffer* buffer, uint64 count) {
-    if (buffer->vertex_count + count >= buffer->capacity) {
-        Log::Error("Vertex buffer overflow");
-        return {};
-    }
-    
-    Vertex_Buffer_Entry entry;
-    entry.count = count;
-    entry.offset = buffer->vertex_count;
-    entry.pointer = buffer->memory.PushSize(count * buffer->stride);
-    buffer->vertex_count += count;
-    return entry;
-}
-
-void ClearVertexBuffer(Vertex_Buffer& buffer) {
-    buffer.memory.Clear();
-    buffer.vertex_count = 0;
-}
+Vertex_Buffer_Entry PushVertices(Vertex_Buffer* buffer, uint64 count);
+void ClearVertexBuffer(Vertex_Buffer& buffer);
+bool operator==(Vertex_Layout Layout1, Vertex_Layout Layout2);
 
 // const memory_size TEXT_BUFFER_SIZE = Kilobytes(16);
 
@@ -195,15 +146,3 @@ void ClearVertexBuffer(Vertex_Buffer& buffer) {
 //     *Data++ = color.R; *Data++ = color.G; *Data++ = color.B; *Data++ = color.A;
 //     text_buffer->count[Char - '!']++;
 // }
-
-bool operator==(Vertex_Layout Layout1, Vertex_Layout Layout2) {
-    if (Layout1.stride == Layout2.stride && Layout1.attribute_count == Layout2.attribute_count) {
-        for (int i = 0; i < Layout1.attribute_count; i++) {
-            if (Layout1.attributes[i] != Layout2.attributes[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-    return false;
-}

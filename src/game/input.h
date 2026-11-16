@@ -5,20 +5,17 @@
 
 
 struct Button_State {
-    bool is_down;
-    bool was_down;
-    bool just_pressed;
-    bool just_lifted;
+    bool is_down = false;
+    bool was_down = false;
+    bool just_pressed = false;
+    bool just_lifted = false;
 };
 
 inline const int NUMBER_OF_CONTROLLER_BUTTONS = 16;
 
 struct Controller_Input {
-    bool any;
-    V2 left_joystick;
-    V2 right_joystick;
     union {
-        Button_State buttons[NUMBER_OF_CONTROLLER_BUTTONS];
+        Button_State buttons[NUMBER_OF_CONTROLLER_BUTTONS] = {};
         struct {
             Button_State A_button;
             Button_State B_button;
@@ -38,13 +35,16 @@ struct Controller_Input {
             Button_State back;
         };
     };
+    V2 left_joystick;
+    V2 right_joystick;
+    bool any = false;
 };
 
 inline const int NUMBER_OF_KEYS = 57;
 
 struct Keyboard_Input {
     union {
-        Button_State keys[NUMBER_OF_KEYS];
+        Button_State keys[NUMBER_OF_KEYS] = {};
         struct {
             Button_State one;
             Button_State two;
@@ -108,7 +108,7 @@ struct Keyboard_Input {
             Button_State page_down;
         };
     };
-    bool any;
+    bool any = false;
 };
 
 struct Mouse_Input {
@@ -126,7 +126,7 @@ enum Input_Mode {
 };
 
 struct Input {
-    Input_Mode mode;
+    Input_Mode mode = Keyboard;
     Controller_Input controller;
     Keyboard_Input keyboard;
     Mouse_Input mouse;

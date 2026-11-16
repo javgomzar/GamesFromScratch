@@ -205,6 +205,7 @@ void RNG::LogSeed(Arena& transient) {
 +----------------------------------------------------------------------------------------------------------------------------------------+
 */
 
+V2::V2() : x(0), y(0) {}
 V2::V2(float X, float Y) : x(X), y(Y) {}
 
 V2 V2::operator-() {
@@ -345,6 +346,7 @@ bool operator<(IV2 lhs, IV2 rhs) {
 +----------------------------------------------------------------------------------------------------------------------------------------+
 */
 
+V3::V3() : x(0), y(0), z(0) {}
 V3::V3(float X, float Y, float Z) : x(X), y(Y), z(Z) {}
 V3::V3(float X, V2 V) : x(X), y(V.x), z(V.y) {}
 V3::V3(V2 V, float Z) : x(V.x), y(V.y), z(Z) {}
@@ -504,7 +506,8 @@ bool operator<(IV3 lhs, IV3 rhs) {
 +----------------------------------------------------------------------------------------------------------------------------------------+
 */
 
-V4::V4(float X, float Y, float Z, float W) : x(X), y(Y), z(Z), w(W) {}
+V4::V4() : x(0), y(0), z(0), w(0) {}
+V4::V4(float X = 0, float Y = 0, float Z = 0, float W = 0) : x(X), y(Y), z(Z), w(W) {}
 V4::V4(V3 V, float W) : x(V.x), y(V.y), z(V.z), w(W) {}
 V4::V4(V2 U, V2 V) : x(U.x), y(U.y), z(V.x), w(V.y) {}
 V4::V4(float X, V3 V) : x(X), y(V.x), z(V.y), w(V.z) {}
@@ -1083,6 +1086,7 @@ bool operator!=(Scale lhs, Scale rhs) {
 	return lhs.x != rhs.x || lhs.y != rhs.y || lhs.z != rhs.z;
 }
 
+Transform::Transform() : translation(0, 0, 0), rotation(1, 0, 0, 0), scale(1, 1, 1) {}
 Transform::Transform(V3 t, Quaternion r, Scale s) : translation(t), rotation(r), scale(s) {}
 
 const Transform Transform::ID = Transform(V3(0,0,0), Quaternion(), Scale());

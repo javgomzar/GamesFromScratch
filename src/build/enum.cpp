@@ -84,13 +84,13 @@ const Debug_Enum_Value FLAG_VALUES[FLAG_VALUES_SIZE] = {
     {Type_UI_Draw, "Fillbar", 4},
     {Type_UI_Draw, "Slider", 8},
     {Type_UI_Draw, "Checkbox", 16},
-    {Type_Render_Flag, "depth_test", 1},
-    {Type_Render_Flag, "stencil_test", 2},
-    {Type_Render_Flag, "overwrite_alpha", 4},
-    {Type_Render_Flag, "text_outline", 8},
-    {Type_Render_Flag, "debug_bones", 16},
-    {Type_Render_Flag, "sky", 32},
-    {Type_Render_Flag, "water", 64},
+    {Type_Render_Flag, "Depth_Test", 1},
+    {Type_Render_Flag, "Stencil_Test", 2},
+    {Type_Render_Flag, "Overwrite_Alpha", 4},
+    {Type_Render_Flag, "Text_Outline", 8},
+    {Type_Render_Flag, "Debug_Bones", 16},
+    {Type_Render_Flag, "Sky", 32},
+    {Type_Render_Flag, "Water", 64},
 };
 
 

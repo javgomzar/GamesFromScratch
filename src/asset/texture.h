@@ -1,4 +1,5 @@
 #pragma once
+#include "common.h"
 
 #pragma pack(push, 1)
 struct bitmap_header {
@@ -74,9 +75,7 @@ struct Texture {
     uint8* pixels;
 };
 
-uint64 GetPixelsSize(int32 width, int32 height, int32 channels) {
-    return (uint64)width * (uint64)height * (uint64)channels;
-}
+uint64 GetPixelsSize(int32 width, int32 height, int32 channels);
 
 // game_texture ReadTexture(file_format Format, void* FileContent) {
 //     game_texture Result = {};

@@ -37,7 +37,7 @@ Matrix4 GetWorldProjectionMatrix(float Width, float Height) {
 +----------------------------------------------------------------------------------------------------------------------------------------------+
 */
 
-const int COMPUTE_GROUP_SIZE = 16;
+
 
 // struct render_compute_command {
 //     compute_type Type;
@@ -56,26 +56,20 @@ const int COMPUTE_GROUP_SIZE = 16;
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 */
 
-RenderGroup::RenderGroup(
+void Render_Group::Initialize(
     Arena& permanent,
-    Asset_Manager& asset_manager_ref,
+    Asset_Manager* asset_manager_ref,
     int32 screen_width,
     int32 screen_height
-) :
-    width(screen_width),
-    height(screen_height),
-    asset_manager(asset_manager_ref),
-{    
-    group->debug = false;
-    group->debug_normals = false;
-    group->debug_colliders = false;
-    group->debug_bones = false;
+) {
+    asset_manager = asset_manager_ref;
+    width = screen_width;
+    height = screen_height;
 
-    // Lighting
-    group->light.color = Color::WHITE;
-    group->light.direction = normalize(V3(-0.5, -1, 1));
-    group->light.ambient = 0.5f;
-    group->light.diffuse = 0.5f;
+    debug = false;
+    debug_normals = false;
+    debug_colliders = false;
+    debug_bones = false;
 
     // // Vertex & element buffers
     // InitializeVertexBuffer(&group->vertex_buffer, permanent);
@@ -84,9 +78,9 @@ RenderGroup::RenderGroup(
     // InitializeTextBuffer(permanent, &group->text_buffer);
 
     // Render targets
-    group->targets[Target_None] = {};
+    targets[Target_None] = {};
 
-    group->targets[Target_World] = {
+    targets[Target_World] = {
         .target = Target_World,
         .format = Color_Format_RGBA,
         .multisample = true,
@@ -94,7 +88,7 @@ RenderGroup::RenderGroup(
         .stencil = false
     };
 
-    group->targets[Target_Outline] = {
+    targets[Target_Outline] = {
         .target = Target_Outline,
         .format = Color_Format_RGBA,
         .multisample = true,
@@ -102,7 +96,7 @@ RenderGroup::RenderGroup(
         .stencil = false
     };
 
-    group->targets[Target_Postprocessing_Outline] = {
+    targets[Target_Postprocessing_Outline] = {
         .target = Target_Postprocessing_Outline,
         .format = Color_Format_RGBA,
         .multisample = false,
@@ -110,7 +104,7 @@ RenderGroup::RenderGroup(
         .stencil = false
     };
 
-    group->targets[Target_Output] = {
+    targets[Target_Output] = {
         .target = Target_Output,
         .format = Color_Format_RGB,
         .multisample = false,
@@ -118,7 +112,7 @@ RenderGroup::RenderGroup(
         .stencil = false
     };
 
-    group->targets[Target_PingPong] = {
+    targets[Target_PingPong] = {
         .target = Target_PingPong,
         .format = Color_Format_RGBA,
         .multisample = false,
@@ -126,7 +120,7 @@ RenderGroup::RenderGroup(
         .stencil = false
     };
 
-    group->targets[Target_Fluid] = {
+    targets[Target_Fluid] = {
         .target = Target_Fluid,
         .format = Color_Format_RGB,
         .multisample = false,
@@ -135,13 +129,27 @@ RenderGroup::RenderGroup(
     };
 }
 
-void Swap(Render_Group* group, int i, int j) {
-    Render_Command entry = group->entries[i];
-    group->entries[i] = group->entries[j];
-    group->entries[j] = entry;
+void Render_Group::Clear() {
+    ZeroSize(entry_count * sizeof(Render_Command), entries);
+    entry_count = 0;
+
+    push_outline = false;
+    render_text = false;
+    
+    for (int i = 0; i < Vertex_ID_Count; i++) {
+        ClearVertexBuffer(vertex_buffer[i]);
+    }
+    // ClearTextBuffer(&text_buffer);
 }
 
-Render_Command* _PushCommand(Render_Group* group,
+void Render_Group::Swap(int i, int j) {
+    Render_Command entry = entries[i];
+    entries[i] = entries[j];
+    entries[j] = entry;
+}
+
+Render_Command* _PushCommand(
+    Render_Group* group,
     Topology topology,
     Render_Command_Options options
 ) {
@@ -149,7 +157,7 @@ Render_Command* _PushCommand(Render_Group* group,
     command.key = options.order;
     command.topology = topology;
     command.flags = options.flags;
-    command.transform = TRS_Matrix(options.transform);
+    command.transform = TRSMatrix(options.transform);
     command.texture = options.texture;
     command.color = options.color;
 
@@ -161,7 +169,7 @@ Render_Command* _PushCommand(Render_Group* group,
         while(i > 0) {
             Render_Command check = group->entries[j];
             if (check.key > command.key) {
-                Swap(group, i, j);
+                group->Swap(i, j);
                 i = j;
                 j = i - 1;
                 continue;
@@ -171,19 +179,6 @@ Render_Command* _PushCommand(Render_Group* group,
     }
     ++group->entry_count;
     return &group->entries[i];
-}
-
-void Clear(Render_Group* group) {
-    ZeroSize(group->entry_count * sizeof(Render_Command), group->entries);
-    group->entry_count = 0;
-
-    group->push_outline = false;
-    group->render_text = false;
-    
-    for (int i = 0; i < Vertex_ID_Count; i++) {
-        ClearVertexBuffer(group->vertex_buffer[i]);
-    }
-    // ClearTextBuffer(&group->text_buffer);
 }
 
 /*
@@ -350,10 +345,10 @@ void PushRect(
 
     entry->surface_vertices = PushVertices(&group->vertex_buffer[Vertex_Surface_ID], 4);
     Vertex_Surface* surface_vertices = (Vertex_Surface*)entry->surface_vertices.pointer;
-    surface_vertices[0] = { .color = color, .texture = {0, 1} };
-    surface_vertices[1] = { .color = color, .texture = {1, 1} };
-    surface_vertices[2] = { .color = color, .texture = {0, 0} };
-    surface_vertices[3] = { .color = color, .texture = {1, 0} };
+    surface_vertices[0] = { .color = color, .normal = V3(0, 0, 0), .texture = {0, 1} };
+    surface_vertices[1] = { .color = color, .normal = V3(0, 0, 0), .texture = {1, 1} };
+    surface_vertices[2] = { .color = color, .normal = V3(0, 0, 0), .texture = {0, 0} };
+    surface_vertices[3] = { .color = color, .normal = V3(0, 0, 0), .texture = {1, 0} };
 }
 
 void PushPoint(Render_Group* group, float left, float top, Color color, Sort_Key order = Sort_Debug) {

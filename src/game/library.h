@@ -26,11 +26,12 @@
 #include <platform.h>
 #include "enum.h"
 #include "math.h"
+#include "geometry.h"
 #include "input.h"
 #include "asset.h"
 #include "render.h"
 //#include "particles.h"
-#include "state.h"
+#include "entity.h"
 #include "debug.h"
 
 /*
@@ -47,10 +48,10 @@ struct Memory {
     Arena permanent;
     Arena transient;
     Debug_Info debug_info;
-    Time_Record time_records_library[MAX_TIME_RECORDS];
-    Time_Record time_records_platform[MAX_TIME_RECORDS];
-    uint16 time_records_library_count;
-    uint16 time_records_platform_count;
+    // Time_Record time_records_library[MAX_TIME_RECORDS];
+    // Time_Record time_records_platform[MAX_TIME_RECORDS];
+    // uint16 time_records_library_count;
+    // uint16 time_records_platform_count;
     bool initialized;
     bool hot_reload;
     bool running;
@@ -59,7 +60,3 @@ struct Memory {
 };
 
 // #include "GameUI.h"
-
-#define GAME_UPDATE_INPUTS Memory* memory, game_sound_buffer* PreviousSoundBuffer, game_sound_buffer* SoundBuffer
-#define GAME_UPDATE(name) GAMELIBRARY_API void name(GAME_UPDATE_INPUTS)
-typedef GAME_UPDATE(Game_Update);

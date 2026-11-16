@@ -1,4 +1,6 @@
+#include "pch.h"
 #include "input.h"
+
 
 void UpdatePreviousInput(Input* input) {
 // Mouse

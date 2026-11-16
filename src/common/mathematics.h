@@ -60,6 +60,7 @@ public:
 
 struct V2 {
 	float x, y;
+    V2();
     V2(float X, float Y);
     V2 operator-();
     V2& operator+=(V2 rhs);
@@ -105,6 +106,7 @@ bool operator<(IV2 lhs, IV2 rhs);
 
 struct V3 {
 	float x, y, z;
+    V3();
     V3(float X, float Y, float Z);
     V3(float X, V2 V);
     V3(V2 V, float Z);
@@ -152,6 +154,7 @@ bool operator<(IV3 lhs, IV3 rhs);
 
 struct V4 {
 	float x, y, z, w;
+    V4();
     V4(float X, float Y, float Z, float W);
     V4(V3 V, float W);
     V4(V2 U, V2 V);
@@ -379,6 +382,7 @@ struct Transform {
 	Quaternion rotation;
 	V3 translation;
 	Scale scale;
+    Transform();
     Transform(V3 t, Quaternion r, Scale s);
     Transform(Quaternion r, Scale s, V3 t);
     static const Transform ID;

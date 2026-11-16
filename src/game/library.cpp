@@ -10,7 +10,7 @@
 
 
 // Sound
-void GameOutputSound(Asset_Manager* asset_manager, game_sound_buffer* sound_buffer, State* state, Input* input) {
+void GameOutputSound(Asset_Manager* asset_manager, Sound_Buffer* sound_buffer, State* state, Input* input) {
     
     Silence(sound_buffer);
 
@@ -27,10 +27,10 @@ void TestPerformance() {
 }
 
 void UpdateGameState(
-    Debug_Info* debug_info,
-    Render_Group* group,
+    Debug_Info& debug_info,
+    Render_Group& group,
     State* state, 
-    Input* input
+    Input& input
 ) {
     uint32 updated_entities = 0;
     uint32 index = 0;
@@ -51,19 +51,19 @@ void UpdateGameState(
             case Camera_Entity_Type: {
                 if (entity->active) {
                     state->active_camera = entity;
-                    if (input->mode == Keyboard) {
+                    if (input.mode == Keyboard) {
                         // Zoom
-                        if (input->mouse.wheel > 0)      entity->distance /= 1.2f;
-                        else if (input->mouse.wheel < 0) entity->distance *= 1.2f;
+                        if (input.mouse.wheel > 0)      entity->distance /= 1.2f;
+                        else if (input.mouse.wheel < 0) entity->distance *= 1.2f;
 
                         // Orbit around position
                         if (
-                            input->mouse.middle_click.is_down && 
-                            input->mouse.middle_click.was_down &&
-                            input->mouse.cursor.x >= 0 && input->mouse.cursor.x <= group->width &&
-                            input->mouse.cursor.y >= 0 && input->mouse.cursor.y <= group->height
+                            input.mouse.middle_click.is_down && 
+                            input.mouse.middle_click.was_down &&
+                            input.mouse.cursor.x >= 0 && input.mouse.cursor.x <= group.width &&
+                            input.mouse.cursor.y >= 0 && input.mouse.cursor.y <= group.height
                         ) {
-                            V2 offset = input->mouse.cursor - input->mouse.last_cursor;
+                            V2 offset = input.mouse.cursor - input.mouse.last_cursor;
                             double angular_velocity = 0.5;
                 
                             entity->angle -= angular_velocity * offset.x;
@@ -71,8 +71,8 @@ void UpdateGameState(
                         }
                     }
 
-                    if (input->mode == Controller) {
-                        V2 joystic = input->controller.right_joystick;
+                    if (input.mode == Controller) {
+                        V2 joystic = input.controller.right_joystick;
 
                         if (Modulus(joystic) > 0.1) {
                             entity->angle -= 3.0 * joystic.x;
@@ -135,24 +135,24 @@ void UpdateGameState(
         if (entity->flags & Entity_Flag::Movable) {
             V3 direction = V3(0,0,0);
             float speed = 20.0f;
-            if (input->mode == Keyboard) {
-                bool left = input->keyboard.A.is_down;
-                bool right = input->keyboard.D.is_down;
-                bool up = input->keyboard.W.is_down;
-                bool down = input->keyboard.S.is_down;
+            if (input.mode == Keyboard) {
+                bool left = input.keyboard.A.is_down;
+                bool right = input.keyboard.D.is_down;
+                bool up = input.keyboard.W.is_down;
+                bool down = input.keyboard.S.is_down;
                 if (right) { direction.x += 1.0f; }
                 if (left)  { direction.x -= 1.0f; }
                 if (up)    { direction.z += 1.0f; }
                 if (down)  { direction.z -= 1.0f; }
                 direction = Normalize(direction);
-                if (input->keyboard.space.is_down) direction.y += 1.0f;
-                if (input->keyboard.shift.is_down) direction.y -= 1.0f;
+                if (input.keyboard.space.is_down) direction.y += 1.0f;
+                if (input.keyboard.shift.is_down) direction.y -= 1.0f;
             }
-            else if (input->mode == Controller) {
-                V2 normalized = Normalize(input->controller.left_joystick);
+            else if (input.mode == Controller) {
+                V2 normalized = Normalize(input.controller.left_joystick);
                 direction.x = normalized.x;
                 direction.z = normalized.y;
-                speed = 20.0f * Modulus(input->controller.left_joystick);
+                speed = 20.0f * Modulus(input.controller.left_joystick);
             }
 
             if (Modulus(direction) > EPSILON) {
@@ -195,7 +195,7 @@ void UpdateGameState(
         if (entity->flags & Entity_Flag::Render) {
             Entity* camera = state->active_camera;
             Basis basis = GetCameraBasis(camera->angle, camera->pitch);
-            Ray ray = MouseRay(group->width, group->height, camera->anchor - camera->distance * basis.z, basis, input->mouse.cursor);
+            Ray ray = MouseRay(group.width, group.height, camera->anchor - camera->distance * basis.z, basis, input.mouse.cursor);
             Collider collider = entity->transform * entity->collider;
             entity->hovered = Raycast(ray, collider);
             bool outline = entity->hovered;
@@ -208,7 +208,7 @@ void UpdateGameState(
             //     .Outline = Outline
             // );
 
-            if (group->debug && group->debug_colliders) {
+            if (group.debug && group.debug_colliders) {
                 // PushCollider(group, entity->collider, entity->transform, entity->collided ? Color::RED : Color::YELLOW);
             }
         }
@@ -216,29 +216,23 @@ void UpdateGameState(
 }
 
 // Main
-extern "C" GAME_UPDATE(GameUpdate)
+extern "C" void GameUpdate(Memory& memory)
 {
-    if (memory->hot_reload) {
-        time_records = (Time_Record*)&memory->time_records_library;
+    if (memory.hot_reload) {
+        // time_records = (Time_Record*)&memory.time_records_library;
 
-        if (memory->test) {
+        if (memory.test) {
             // RunReloadTests(memory);
         }
-
-#ifdef _WIN32
-        LARGE_INTEGER perf_count_frequency_result;
-        QueryPerformanceFrequency(&perf_count_frequency_result);
-        Platform.performance_counter_frequency = perf_count_frequency_result.QuadPart;
-#endif
         
-        memory->hot_reload = false;
+        memory.hot_reload = false;
     }
 
-    Render_Group* group = &memory->render_group;
-    Input* input = &memory->input;
-    State* state = memory->state;
-    Asset_Manager* asset_manager = &memory->asset_manager;
-    Debug_Info* debug_info = &memory->debug_info;
+    Render_Group& group = memory.render_group;
+    Input& input = memory.input;
+    State* state = memory.state;
+    Asset_Manager& asset_manager = memory.asset_manager;
+    Debug_Info& debug_info = memory.debug_info;
 {
     TIMED_BLOCK;
 
@@ -246,11 +240,11 @@ extern "C" GAME_UPDATE(GameUpdate)
     Entity* active_camera = state->active_camera;
 
     bool first_frame = false;
-    if (!memory->initialized) {
+    if (!memory.initialized) {
         first_frame = true;
 
         // Initialize entities
-        state->entities = Free_List<Entity>(memory->permanent, MAX_ENTITIES);
+        state->entities = Free_List<Entity>(memory.permanent, MAX_ENTITIES);
 
         Entity* camera = AddEntity(state->entities, CreateEntity("Camera", Camera_Entity_Type));
         state->active_camera = camera;
@@ -258,15 +252,15 @@ extern "C" GAME_UPDATE(GameUpdate)
         camera->pitch = 22.5f;
         camera->anchor = V3(0, 3.2f, 0);
 
-        if (memory->test) {
+        if (memory.test) {
             // RunOnceTests(memory);
         }
 
-        state->emitter = AllocateParticleEmitter(memory->permanent, 200);
-        SetParticleEmitterCircle(state->emitter, V3(0,0,0), 1.0f, V3(0,1,0));
-        state->emitter->ParticleLifetime = 2.0f;
+        // state->emitter = AllocateParticleEmitter(memory->permanent, 200);
+        // SetParticleEmitterCircle(state->emitter, V3(0,0,0), 1.0f, V3(0,1,0));
+        // state->emitter->ParticleLifetime = 2.0f;
 
-        memory->initialized = true;
+        memory.initialized = true;
     }
 
     // PushClear(group, Color::BLACK, Target_None);
@@ -276,7 +270,7 @@ extern "C" GAME_UPDATE(GameUpdate)
     // PushClear(group, Color::MAGENTA, Target_PingPong);
     // PushClear(group, Color::BLACK, Target_Output);
 
-    if (memory->test) {
+    if (memory.test) {
         // RunEveryFrameTests(Memory);
     }
 
@@ -290,10 +284,10 @@ extern "C" GAME_UPDATE(GameUpdate)
 
     // PushRenderTarget(Group, Target_World, Target_Output);
 
-    group->light.camera_position = state->active_camera->transform.translation;
+    group.light.camera_position = state->active_camera->transform.translation;
 
     static bool screenshot = false;
-    if (input->keyboard.F10.was_down && !input->keyboard.F10.is_down) {
+    if (input.keyboard.F10.was_down && !input.keyboard.F10.is_down) {
         screenshot = true;
     }
 
@@ -305,14 +299,14 @@ extern "C" GAME_UPDATE(GameUpdate)
             screen_rect_alpha = 1.0;
         }
         else {
-            Rect screen_rect = { 0, 0, (float)group->width, (float)group->height };
+            Rect screen_rect = { 0, 0, (float)group.width, (float)group.height };
             // PushRect(group, screen_rect, ChangeAlpha(Color::WHITE, ScreenRectAlpha), SORT_ORDER_PUSH_RENDER_TARGETS - 5.0);
         }
     }
     // PushRenderTarget(Group, Target_Output, Target_None, SORT_ORDER_PUSH_RENDER_TARGETS + 100.0);
 }
-    memory->time_records_library_count = __COUNTER__;
-    if (group->debug) {
+    // memory->time_records_library_count = __COUNTER__;
+    if (group.debug) {
         // PushTimeRecords(
         //     Group, 
         //     Memory->nTimeRecordsLibrary, Memory->TimeRecordsLibrary, 

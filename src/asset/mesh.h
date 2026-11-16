@@ -1,12 +1,17 @@
-#include "platform.h"
-#include "mathematics.h"
-#include "vertex.h"
+#pragma once
+#include <platform.h>
+#include <asset.h>
+#include <data_structures.h>
+#include <mathematics.h>
+#include <parse.h>
+#include <vertex.h>
 
 /*
 +----------------------------------------------------------------------------------------------------------------------------------------------+
 | Meshes                                                                                                                                       |
 +----------------------------------------------------------------------------------------------------------------------------------------------+
 */
+
 ENUM(Topology,
     Topology_Point,
     Topology_Line,
@@ -42,25 +47,9 @@ struct preprocessed_mesh {
     uint32 nBones;
 };
 
-preprocessed_mesh PreprocessMesh(void* FileContent) {
-    preprocessed_mesh Result = {};
-    Tokenizer tokenizer = Tokenizer(FileContent);
+preprocessed_mesh PreprocessMesh(void* FileContent);
 
-    Token token = RequireToken(tokenizer, Token_Identifier);
-    while (token.type == Token_Identifier) {
-        if (token == "nV")   Result.nVertices = Parseuint32(tokenizer);
-        else if (token == "nE") Result.nEdges = Parseuint32(tokenizer);
-        else if (token == "nF") Result.nFaces = Parseuint32(tokenizer);
-        else if (token == "nB") Result.nBones = Parseuint32(tokenizer);
-        token = tokenizer.GetToken();
-    }
-    return Result;
-}
-
-uint32 GetMeshVerticesSize(uint32 nVertices, bool HasArmature) {
-    uint32 VertexSize = HasArmature ? 10 * sizeof(float) + 2 * sizeof(int32) : 8 * sizeof(float);
-    return VertexSize * nVertices;
-}
+uint32 GetMeshVerticesSize(uint32 nVertices, bool HasArmature);
 
 // Mesh LoadMesh(Arena* arena, preprocessed_mesh* Preprocessed, void* FileContent) {
 //     Mesh Result = {};

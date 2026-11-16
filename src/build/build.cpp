@@ -3,9 +3,7 @@
 
 
 Build::Build(memory_size arena_size) : 
-    permanent(arena_size), transient(arena_size),
-    platform("Platform layer", String(), Build_Process::Output_Mode::EXE),
-    game_library("Game library", String(), Build_Process::Output_Mode::DLL)
+    permanent(arena_size), transient(arena_size)
 {}
 
 void Build::ReadConfig(String config_file_path) {
@@ -48,6 +46,13 @@ void Build::ReadConfig(String config_file_path) {
                     config.compiler_path.content = tokenizer.at;
                     config.compiler_path.length = ParsePath(tokenizer.at);
                     tokenizer.Advance(config.compiler_path.length);
+                }
+
+                else if (token == "LINKER_PATH") {
+                    RequireToken(tokenizer, Token_Equal);
+                    config.linker_path.content = tokenizer.at;
+                    config.linker_path.length = ParsePath(tokenizer.at);
+                    tokenizer.Advance(config.linker_path.length);
                 }
 
                 else if (token == "PRECOMPILE_HEADERS") {
@@ -265,16 +270,22 @@ void Build::ReadConfig(String config_file_path) {
                 else if (token == "PLATFORM") {
                     RequireToken(tokenizer, Token_Equal);
                     int path_length = ParsePath(tokenizer.at);
-                    platform.main = String(tokenizer.at, path_length);
+                    config.platform_main = String(tokenizer.at, path_length);
                     tokenizer.Advance(path_length);
+
+                    String platform_main_file_name = GetFileNameWithoutExtension(config.platform_main);
+                    config.platform_obj = String::Format(permanent, "{s}{s}.obj", 2, config.obj_dir, platform_main_file_name);
                 }
 
                 // Game library
                 else if (token == "GAME") {
                     RequireToken(tokenizer, Token_Equal);
                     int path_length = ParsePath(tokenizer.at);
-                    game_library.main = String(tokenizer.at, path_length);
+                    config.game_library_main = String(tokenizer.at, path_length);
                     tokenizer.Advance(path_length);
+
+                    String game_library_main_file_name = GetFileNameWithoutExtension(config.game_library_main);
+                    config.game_library_obj = String::Format(permanent, "{s}{s}.obj", 2, config.obj_dir, game_library_main_file_name);
                 }
             }
     
@@ -299,14 +310,12 @@ void Build::ReadConfig(String config_file_path) {
             default: Log::Fatal("Invalid compiler. Only MSVC and clang are supported.");
         }
         
-        config.pch_output_file = config.mode == Build_Config::Mode::Debug ? "debug_pch" : "pch";
         if (Platform::OS == Platform::Windows) {
-            config.pch_output_path = String::Format(permanent, "bin" PATH_SEPARATOR "{s}.pch", 1, config.pch_output_file);
             config.pch_header_path = String::Format(permanent, "{s}" PATH_SEPARATOR "pch.h", 1, config.pch_source_dir);
             config.pch_source_path = String::Format(permanent, "{s}" PATH_SEPARATOR "pch.cpp", 1, config.pch_source_dir);
         }
         else {
-            config.pch_output_path = String::Format(permanent, "bin" PATH_SEPARATOR "{s}.gch", 1, config.pch_output_file);
+            // TODO
         }
     }
     else {
@@ -315,8 +324,13 @@ void Build::ReadConfig(String config_file_path) {
     }
 }
 
-void LogResult(Arena& transient, int32 exit_code, String text, uint64 start, uint64 end) {
-    if (exit_code == 0) {
+bool RunAndTime(Arena& transient, char* command, String text) {
+    uint64 start = Platform::GetWallClock();
+    Process_Info process = Platform::RunCommand(command);
+    int32 exit_code = Platform::WaitForProcess(process, -1);
+    uint64 end = Platform::GetWallClock();
+    bool success = exit_code == 0;
+    if (success) {
         String message = String::Format(transient,
             "{s} done in {f2} milliseconds.", 2, text, 1000.0f * Platform::GetSecondsElapsed(start, end));
         Log::Info(message);
@@ -325,160 +339,42 @@ void LogResult(Arena& transient, int32 exit_code, String text, uint64 start, uin
         String message = String::Format(transient, "{s} failed, exit code '{i}'.", 2, text, exit_code);
         Log::Error(message);
     }
+    return success;
 }
 
-void Build_Process::Link(Arena& transient, Build_Config& config) {
-    String start_message = String::Format(transient, "{s} compilation started.", 1, name);
-    Log::Info(start_message);
-    
-    char* command = nullptr;
+bool Build::PrecompileHeaders() {
+    Log::Info("Precompiling headers.");
+    char* command = (char*)(permanent.base + permanent.used);
     switch (config.compiler) {
         case Build_Config::Compiler::MSVC: {
-            switch (output_mode) {
-                case Build_Process::Output_Mode::EXE: {
-
-                } break;
-            }
-
-            command = (char*)(transient.base + transient.used);
-            String command_string = String::Format(transient, "{s} /std:c++20 /nologo {s} "
-                "{s} {s}/Fo\"{s}\"",
-                5,
+            String::Format(permanent,
+                "{s} /std:c++20 /nologo {s} {s} /c {s} "
+                "/Yc\"pch.h\" /Fp\"{s}pch.pch\" /Fo\"{s}pch.obj\" /Fd\"{s}pch.pdb\"",
+                7,
                 config.compiler_path,
-                config.include
-
+                config.include,
+                config.pch_source_path,
+                config.compiler_flags,
+                config.obj_dir,
+                config.obj_dir,
+                config.obj_dir
             );
         } break;
 
-        case Build_Config::Compiler::clang: {
-            Log::Fatal("Not implemented.");
-        } break;
+        default: Log::Fatal("Invalid compiler. Currently only MSVC and clang are supported.");
     }
 
-    uint64 start = Platform::GetWallClock();
-    Process_Info process = Platform::RunCommand(command);
-    uint32 exit_code = Platform::WaitForProcess(process, -1);
-    uint64 end = Platform::GetWallClock();
-
-    LogResult(transient, exit_code, name, start, end);
-
-    transient.Clear();
+    return RunAndTime(transient, command, "Headers precompilation");
 }
 
-void Build::Compile() {
-    // Precompiled headers
-    if (config.pch && NeedsUpdate(config.pch_header_path, config.pch_output_path)) {
-        Log::Info("Precompiling headers.");
-        char* command = (char*)(transient.base + transient.used);
-        switch (config.compiler) {
-            case Build_Config::Compiler::MSVC: {
-                String::Format(transient,
-                    "{s} /std:c++20 /nologo {s} {s} /c {s} "
-                    "/Yc\"pch.h\" /Fp\"{s}\" /Fo\"{s}{s}.obj\" /Fd\"bin\\{s}.pdb\"",
-                    8,
-                    config.compiler_path, 
-                    config.include,
-                    config.pch_source_path,
-                    config.compiler_flags,
-                    config.pch_output_path,
-                    config.obj_dir,
-                    config.pch_output_file,
-                    config.pch_output_file
-                );
-            } break;
-
-            case Build_Config::Compiler::clang: {
-                String::Format(transient,
-                    "{s} -x c++-header -std=c++20 -fPIC {s} {s} GameBuild/pch.h -o {s}",
-                    4,
-                    config.compiler_path, 
-                    config.compiler_flags,
-                    config.include, 
-                    config.pch_output_path
-                );
-            } break;
-
-            default: Log::Fatal("Invalid compiler. Currently only MSVC and clang are supported.");
-        }
-
-        uint64 start = Platform::GetWallClock();
-        Process_Info process = Platform::RunCommand(command);
-        uint32 exit_code = Platform::WaitForProcess(process, -1);
-        uint64 end = Platform::GetWallClock();
-
-        LogResult(transient, exit_code, "Headers precompilation", start, end);
-    }
-
-    // Metaprogramming
-    if (config.preprocess) {
-        MetaProgram();
-    }
-
-    // Source files compilation
-    String source_files = String((char*)(permanent.base + permanent.used), 0);
-
-    if (config.source_files.length > 0) {
-        String::Copy(permanent, config.source_files);
-        char* space = permanent.Push<char>();
-        *space = ' ';
-        source_files.length += config.source_files.length + 1;
-    }
-
-    String platform_file_name = GetFileNameWithoutExtension(platform.main);
-    String platform_obj = String::Format(transient, "{s}{s}.obj", 2, config.obj_dir, platform_file_name);
-    platform.update = NeedsUpdate(platform.main, platform_obj);
-
-    if (platform.update) {
-        String::Copy(permanent, platform.main);
-        char* space = permanent.Push<char>();
-        *space = ' ';
-        source_files.length += platform.main.length + 1;
-    }
-
-    String game_file_name = GetFileNameWithoutExtension(game_library.main);
-    String game_obj = String::Format(transient, "{s}{s}.obj", 2, config.obj_dir, game_file_name);
-    game_library.update = NeedsUpdate(game_library.main, game_obj);
-
-    if (game_library.update) {
-        String::Copy(permanent, game_library.main);
-        char* space = permanent.Push<char>();
-        *space = ' ';
-        source_files.length += game_library.main.length + 1;
-    }
-
-    char* command = (char*)(transient.base + transient.used);
-    String string = String::Format(transient,
-        "{s} /std:c++20 /nologo /c /MP {s} {s}/Fo\"{s}\" "
-        "/Yu\"pch.h\" /Fp\"bin\\{s}.pch\" /Fd\"bin\\{s}.pdb\" {s}",
-        7,
-        config.compiler_path,
-        config.compiler_flags,
-        source_files,
-        config.obj_dir,
-        config.pch_output_file,
-        config.pch_output_file,
-        config.include
-    );
-    
-    uint64 start = Platform::GetWallClock();
-    Process_Info process = Platform::RunCommand(command);
-    uint32 exit_code = Platform::WaitForProcess(process, -1);
-    uint64 end = Platform::GetWallClock();
-
-    LogResult(transient, exit_code, "Source files compilation", start, end);
-}
-
-/* Compiles the meta-program (if needed) and runs it.*/
-void Build::MetaProgram() {
-    String meta_binary = "bin\\meta.exe";
-    bool update = NeedsUpdate(config.metaprogramming_main, meta_binary);
-
-    if (update) {
+bool Build::MetaProgram() {
+    bool success = false;
+    if (NeedsUpdate(config.metaprogramming_main, config.metaprogramming_binary)) {
         Log::Info("Compiling metaprogramming code.");
-        char* command = (char*)(transient.base + transient.used);
-        String command_string = String::Format(transient,
+        char* command = (char*)(permanent.base + permanent.used);
+        String command_string = String::Format(permanent,
             "{s} /std:c++20 /nologo {s} /Fo\"{s}\" /Fd\"bin\\meta.pdb\" /MP {s} {s} {s} "
-            "/link {s} /OUT:\"bin\\meta.exe\" /PDB:\"bin\\meta.pdb\"", 
+            "/link {s} {s} /OUT:\"bin\\meta.exe\" /PDB:\"bin\\meta.pdb\"", 
             8,
             config.compiler_path,
             config.include,
@@ -486,53 +382,107 @@ void Build::MetaProgram() {
             config.metaprogramming_main,
             config.metaprogramming_source,
             config.compiler_flags,
-            config.lib
+            config.lib,
+            config.linked_libs
         );
 
-        uint64 start = Platform::GetWallClock();
-        Process_Info process = Platform::RunCommand(command);
-        uint32 exit_code = Platform::WaitForProcess(process, -1);
-        uint64 end = Platform::GetWallClock();
-
-        LogResult(transient, exit_code, "Metaprogramming compilation", start, end);
+        success = RunAndTime(transient, command, "Metaprogramming compilation");
+        if (!success) {
+            return false;
+        }
     }
 
-    char* meta_command = (char*)(transient.base + transient.used);
-    String meta_execution = String::Copy(transient, "bin\\meta.exe");
+    char* command = (char*)(permanent.base + permanent.used);
+    String command_string = String::Copy(permanent, config.metaprogramming_binary);
+    return RunAndTime(transient, command, "Metaprogramming execution");
+}
 
-    uint64 start = Platform::GetWallClock();
-    Process_Info process = Platform::RunCommand(meta_command);
-    uint32 exit_code = Platform::WaitForProcess(process, -1);
-    uint64 end = Platform::GetWallClock();
+bool Build::Compile() {
+    bool compile = false;
+    String_Builder source_files_builder;
 
-    LogResult(transient, exit_code, "Metaprogramming execution", start, end);
-    transient.Clear();
+    if (config.source_files.length > 0) {
+        source_files_builder.Append(config.source_files);
+        source_files_builder.Append(" ");
+        compile = true;
+    }
+
+    if (NeedsUpdate(config.platform_main, config.platform_obj)) {
+        source_files_builder.Append(config.platform_main);
+        source_files_builder.Append(" ");
+        compile = true;
+    }
+
+    if (NeedsUpdate(config.game_library_main, config.game_library_obj)) {
+        source_files_builder.Append(config.game_library_main);
+        source_files_builder.Append(" ");
+        compile = true;
+    }
+
+    if (compile) {
+        String source_files = source_files_builder.Build(permanent);
+        Log::Info("Compiling source files.");
+        char* command = (char*)(permanent.base + permanent.used);
+        String string = String::Format(permanent,
+            "{s} /std:c++20 /nologo /c /MP {s} {s}/Fo\"{s}\" "
+            "/Yu\"pch.h\" /Fp\"{s}pch.pch\" /Fd\"{s}pch.pdb\" {s}",
+            7,
+            config.compiler_path,
+            config.compiler_flags,
+            source_files,
+            config.obj_dir,
+            config.obj_dir,
+            config.obj_dir,
+            config.include
+        );
+        
+       return RunAndTime(transient, command, "Source files compilation");
+    }
+
+    return true;
+}
+
+bool Build::LinkPlatform() {
+    Log::Info("Linking platform layer");
+    
+    char* command = nullptr;
+    switch (config.compiler) {
+        case Build_Config::Compiler::MSVC: {
+            command = (char*)(permanent.base + permanent.used);
+            String linker_flags = config.mode == Build_Config::Mode::Debug ? "/DEBUG" : "";
+            String command_string = String::Format(permanent,
+                "{s} /NOLOGO {s}pch.obj {s} {s} {s} {s} {s} "
+                "src\\platform\\windows\\Win32PlatformLayer.res /MACHINE:X64 /PDB:{s}run_game.pdb /OUT:run_game.exe",
+                7,
+                config.linker_path,
+                config.obj_dir,
+                config.obj_files,
+                config.platform_obj,
+                config.linked_libs,
+                config.lib,
+                linker_flags,
+                config.obj_dir
+            );
+
+            return RunAndTime(transient, command, "Platform layer linking");
+        } break;
+
+        case Build_Config::Compiler::clang: {
+            Log::Fatal("Not implemented.");
+        } break;
+    }
+    return false;
+}
+
+bool Build::LinkGameLibrary() {
+    return false;
 }
 
 // void Build::CompilePlatformLayer(Arena& arena) {
 //     char* command = (char*)(arena.base + arena.used);
 //     switch (config.compiler) {
 //         case config.MSVC: {
-//             String command_string = String::Format(arena,
-//                 "{s} /std:c++20 /nologo "
-//                 "src\\GamePlatform\\Windows\\Win32PlatformLayer.cpp build\\obj\\{s}.obj " 
-//                 "{s} "
-//                 "/Fe\"bin\\RunGame.exe\" "
-//                 "/Fo\"build\\obj\\Win32PlatformLayer.obj\" "
-//                 "/Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" {s} "
-//                 "/link {s} {s} {s} "
-//                 "src\\GamePlatform\\Windows\\Win32PlatformLayer.res /MACHINE:X64",
-//                 10,
-//                 config->compiler_path,
-//                 config->pch_output_file,
-//                 config->compiler_flags,
-//                 config->pch_output_file,
-//                 config->pch_output_file,
-//                 config->include,
-//                 config->lib,
-//                 config->linked_libs,
-//                 config->renderer_libs
-//             );
+//             
 //         } break;
 
 //         case clang: {
@@ -589,51 +539,36 @@ void Build::MetaProgram() {
 //     return Platform::RunCommand(Command);
 // }
 
-// void Build::HotReload() {
-//     game_library.start = Platform::GetWallClock();
-// #if _WIN32
-//     int hot_reload_count = 0;
-//     String pdb_file = String::Format(transient, "bin\\GameLibrary{i}.pdb", 1, hot_reload_count);
-//     bool exists;
-//     do {
-//         exists = Platform::FileExists(pdb_file.content);
-//         if (exists) {
-//             hot_reload_count += 1;
-//             transient.PopArray<char>(pdb_file.length + 1);
-//             pdb_file = String::Format(transient, "bin\\GameLibrary{i}.pdb", 1, hot_reload_count);
-//         }
-//     } while(exists);
+bool Build::HotReload() {
+    int hot_reload_count = 0;
+    String pdb_file = String::Format(transient, "bin\\game_library{i}.pdb", 1, hot_reload_count);
+    bool exists;
+    do {
+        exists = Platform::FileExists(pdb_file.content);
+        if (exists) {
+            hot_reload_count += 1;
+            transient.PopArray<char>(pdb_file.length + 1);
+            pdb_file = String::Format(transient, "bin\\game_library{i}.pdb", 1, hot_reload_count);
+        }
+    } while(exists);
 
-//     char* command = (char*)(transient.base + transient.used);
-//     String::Format(transient,
-//         "{s} /std:c++20 /nologo /D GAMELIBRARY_EXPORTS src\\GameLibrary\\GameLibrary.cpp {s} {s} "
-//         "/Fo\"build\\obj\\GameLibrary.obj\" /Fd\"bin\\{s}.pdb\" /Yu\"pch.h\" /Fp\"bin\\{s}.pch\" "
-//         "/link {s} build\\obj\\{s}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
-//         "/PDB:\"{s}\" /ILK:\"bin\\GameLibrary.ilk\" "
-//         "/OUT:\"bin\\GameLibrary.dll\"",
-//         8,
-//         config.compiler_path, 
-//         config.compiler_flags, 
-//         config.include, 
-//         config.pch_output_file, 
-//         config.pch_output_file, 
-//         config.lib,
-//         config.pch_output_file, 
-//         pdb_file
-//     );
-// #else
-//     char* Command = (char*)(arena->base + arena->used);
-//     Format(arena,
-//         "{s} -std=c++20 -shared -fPIC {s} {s} -include-pch bin/{s}.gch GameLibrary/GameLibrary.cpp -o bin/GameLibrary.so",
-//         4,
-//         config->compiler_path,
-//         config->compiler_flags,
-//         config->include,
-//         config->pch_output
-//     );
-// #endif
-//     game_library.info = Platform::RunCommand(command);
-//     game_library.result = Platform::WaitForProcess(game_library.info, -1);
-//     game_library.end = Platform::GetWallClock();
-//     LogResult(game_library);
-// }
+    char* command = (char*)(permanent.base + permanent.used);
+    String::Format(permanent,
+        "{s} /std:c++20 /nologo /D GAMELIBRARY_EXPORTS {s} {s} {s} "
+        "/Fo\"build\\obj\\GameLibrary.obj\" /Fd\"{s}pch.pdb\" /Yu\"pch.h\" /Fp\"{s}pch.pch\" "
+        "/link {s} build\\obj\\{s}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "
+        "/PDB:\"{s}\" /ILK:\"bin\\GameLibrary.ilk\" "
+        "/OUT:\"bin\\GameLibrary.dll\"",
+        8,
+        config.compiler_path, 
+        config.compiler_flags, 
+        config.include, 
+        config.obj_dir, 
+        config.obj_dir, 
+        config.lib,
+        config.obj_dir, 
+        pdb_file
+    );
+
+    return RunAndTime(transient, command, "Hot reloading");
+}

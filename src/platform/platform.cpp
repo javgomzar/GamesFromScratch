@@ -66,8 +66,6 @@ bool NeedsUpdate(String source_path, String destination_path) {
     return false;
 }
 
-const uint8 MAX_SUPPORTED_MONITORS = 8;
-
 Timed_Block::Timed_Block(int counter, const char* file_name, int line_number, const char* function_name) {
     // record = time_records + counter;
     record->file_name = file_name;

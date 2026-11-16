@@ -1,9 +1,8 @@
-#include "GameMath.h"
-#include "GameAsset.h"
-#include "GameRender.h"
+#pragma once
 
-#ifndef PARTICLES
-#define PARTICLES
+#include "mathematics.h"
+#include "asset.h"
+#include "render.h"
 
 struct particle {
     Color color;
@@ -127,5 +126,3 @@ void AddParticle(particle_emitter* Emitter) {
 //         }
 //     }
 // }
-
-#endif

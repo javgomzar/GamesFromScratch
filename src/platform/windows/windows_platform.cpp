@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "platform.h"
+#include "windows_platform.h"
 
 
 Platform::System_OS Platform::OS = Windows;
@@ -351,7 +351,7 @@ Process_Info Platform::RunCommand(char* command) {
     result.handle = process_info.hProcess;
     result.thread_handle = process_info.hThread;
     result.running = success;
-
+    
     return result;
 }
 
@@ -381,28 +381,141 @@ float Platform::GetSecondsElapsed(uint64 start, uint64 end) {
     return timeelapsed / (float)Platform::performance_counter_frequency;
 }
 
-// XInput
-#define XINPUT_GET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_STATE* pState)
-typedef XINPUT_GET_STATE(xinput_get_state);
-XINPUT_GET_STATE(XInputGetStateStub) {
-    return ERROR_DEVICE_NOT_CONNECTED;
-}
-static xinput_get_state* XInputGetState_ = XInputGetStateStub;
-#define XInputGetState XInputGetState_
+// Monitors
+BOOL AddMonitorInfo(HMONITOR h_monitor, Monitor_Manager* manager) {
+    if (0 <= manager->monitor_count && manager->monitor_count < MAX_SUPPORTED_MONITORS) {
+        MONITORINFOEX info = {};
+        info.cbSize = sizeof(MONITORINFOEX);
 
-#define XINPUT_SET_STATE(name) DWORD WINAPI name(DWORD dwUserIndex, XINPUT_VIBRATION* pVibration)
-typedef XINPUT_SET_STATE(xinput_set_state);
-XINPUT_SET_STATE(XInputSetStateStub) {
-    return ERROR_DEVICE_NOT_CONNECTED;
-}
-static xinput_set_state* XInputSetState_ = XInputSetStateStub;
-#define XInputSetState XInputSetState_
+        if (!GetMonitorInfo(h_monitor, &info)) {
+            // Continue enumeration
+            return TRUE;
+        }
 
-static void LoadXInput(void) {
-    HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
-    if (XInputLibrary) {
-        XInputGetState = (xinput_get_state*)GetProcAddress(XInputLibrary, "XInputGetState");
-        XInputSetState = (xinput_set_state*)GetProcAddress(XInputLibrary, "XInputSetState");
+        Monitor_Info monitor = {};
+        strcpy_s(monitor.device_name, info.szDevice);
+        monitor.monitor_rect = {
+            (float)info.rcMonitor.left,
+            (float)info.rcMonitor.top,
+            (float)(info.rcMonitor.right - info.rcMonitor.left),
+            (float)(info.rcMonitor.bottom - info.rcMonitor.top)
+        };
+        monitor.is_primary = (info.dwFlags & MONITORINFOF_PRIMARY) != 0;
+        monitor.id = manager->monitor_count;
+
+        manager->monitor[manager->monitor_count++] = monitor;
+        return TRUE;
     }
-    else Log::Fatal("Couldn't load XInput DLL.");
+    return FALSE;
 }
+
+static BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
+    return AddMonitorInfo(hMonitor, (Monitor_Manager*)dwData);
+}
+
+void Monitor_Manager::RefreshMonitors() {
+    for (int i = 0; i < monitor_count; i++) {
+        monitor[i] = {};
+    }
+    monitor_count = 0;
+
+    EnumDisplayMonitors(NULL, NULL, MonitorEnumProc, (LPARAM)this);
+
+    UINT32 numPathArrayElements = 0;
+    UINT32 numModeInfoArrayElements = 0;
+    LONG ReturnCode = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &numPathArrayElements, &numModeInfoArrayElements);
+
+    std::vector<DISPLAYCONFIG_PATH_INFO> PathArray(numPathArrayElements);
+    std::vector<DISPLAYCONFIG_MODE_INFO> ModeArray(numModeInfoArrayElements);
+
+    ReturnCode = QueryDisplayConfig(
+        QDC_ONLY_ACTIVE_PATHS, 
+        &numPathArrayElements, PathArray.data(), 
+        &numModeInfoArrayElements, ModeArray.data(), 
+        NULL
+    );
+
+    std::vector<std::wstring> DeviceNames(numPathArrayElements);
+    std::vector<std::wstring> DisplayNames(numPathArrayElements);
+
+    for (int i = 0; i < numPathArrayElements; i++) {
+        DISPLAYCONFIG_PATH_INFO PathInfo = PathArray[i];
+
+        DISPLAYCONFIG_SOURCE_DEVICE_NAME SourceName = {};
+        SourceName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
+        SourceName.header.size = sizeof(SourceName);
+        SourceName.header.adapterId = PathInfo.sourceInfo.adapterId;
+        SourceName.header.id = PathInfo.sourceInfo.id;
+        ReturnCode = DisplayConfigGetDeviceInfo(&SourceName.header);
+        if (ReturnCode == ERROR_SUCCESS) {
+            DeviceNames[i] = SourceName.viewGdiDeviceName;
+        }
+
+        DISPLAYCONFIG_TARGET_DEVICE_NAME TargetName = {};
+        TargetName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
+        TargetName.header.size = sizeof(TargetName);
+        TargetName.header.adapterId = PathInfo.targetInfo.adapterId;
+        TargetName.header.id = PathInfo.targetInfo.id;
+        
+        if (DisplayConfigGetDeviceInfo(&TargetName.header) == ERROR_SUCCESS) {
+            DisplayNames[i] = TargetName.monitorFriendlyDeviceName;
+        }
+    }
+
+    DISPLAY_DEVICE DisplayDevice = {};
+    DisplayDevice.cb = sizeof(DISPLAY_DEVICE);
+    for (DWORD i = 0; EnumDisplayDevices(NULL, i, &DisplayDevice, 0); i++) {
+        if (DisplayDevice.StateFlags & DISPLAY_DEVICE_ACTIVE) {
+            DEVMODE dm = {};
+            dm.dmSize = sizeof(DEVMODE);
+
+            if (EnumDisplaySettings(DisplayDevice.DeviceName, ENUM_CURRENT_SETTINGS, &dm)) {
+                POINT pt = { dm.dmPosition.x + 1, dm.dmPosition.y + 1 };
+                HMONITOR hMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTONULL);
+
+                if (hMonitor) {
+                    MONITORINFOEX MonitorInfo = {};
+                    MonitorInfo.cbSize = sizeof(MONITORINFOEX);
+                    if (GetMonitorInfo(hMonitor, &MonitorInfo)) {
+                        for (int j = 0; j < numPathArrayElements; j++) {
+                            std::wstring DeviceName = DeviceNames[j];
+                            std::string MonitorDeviceName = MonitorInfo.szDevice;
+
+                            int SizeNeeded = MultiByteToWideChar(CP_UTF8, 0, &MonitorDeviceName[0], (int)MonitorDeviceName.size(), NULL, 0);
+                            std::wstring WideMonitorDeviceName(SizeNeeded, 0);
+                            MultiByteToWideChar(CP_UTF8, 0, &MonitorDeviceName[0], (int)MonitorDeviceName.size(), &WideMonitorDeviceName[0], SizeNeeded);
+
+                            if (DeviceName.compare(&WideMonitorDeviceName[0]) == 0) {
+                                Monitor_Info ResultInfo = {};
+                                ResultInfo.id = monitor_count;
+                                ResultInfo.monitor_rect = { 
+                                    (float)MonitorInfo.rcMonitor.left, 
+                                    (float)MonitorInfo.rcMonitor.top, 
+                                    (float)(MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left), 
+                                    (float)(MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top)
+                                };
+                                ResultInfo.work_area = { 
+                                    (float)MonitorInfo.rcWork.left, 
+                                    (float)MonitorInfo.rcWork.top, 
+                                    (float)(MonitorInfo.rcWork.right - MonitorInfo.rcWork.left), 
+                                    (float)(MonitorInfo.rcWork.bottom - MonitorInfo.rcWork.top)
+                                };
+                                strcpy_s(ResultInfo.device_name, MonitorInfo.szDevice);
+                                std::wstring DisplayName = DisplayNames[j];
+                                int Result = WideCharToMultiByte(
+                                    CP_UTF8, 0, &DisplayName[0], (int)DisplayName.size(), 
+                                    ResultInfo.display_name, 
+                                    sizeof(monitor[i].display_name),
+                                    NULL, NULL
+                                );
+                                monitor[monitor_count++] = ResultInfo;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

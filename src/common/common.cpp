@@ -427,13 +427,16 @@ String_Builder::~String_Builder() {
 }
 
 void String_Builder::Append(String string) {
-    size += string.length;
-    if (size > capacity) {
-        void* temp = realloc(memory, 2 * capacity);
+    if (size + string.length > capacity) {
+        capacity = 2 * capacity;
+        void* temp = realloc(memory, capacity);
         assert(temp != nullptr);
         memory = temp;
+        end = (char*)memory + size;
+        ZeroSize(capacity - size, end);
     }
     strncpy(end, string.content, string.length);
+    size += string.length;
     end += string.length;
 }
 

@@ -6,20 +6,12 @@
 #define XXH_IMPLEMENTATION
 #include "xxhash.h"
 
-#include <build.h>
+#include "windows_platform.h"
 #include <library.h>
-#include "code.h"
-// #include "GameShader.h"
-
-// #if GAME_RENDER_API_DIRECTX
-//     #include "DirectX11Render.h"
-// #elif GAME_RENDER_API_OPENGL
-//     #include "OpenGLRender.h"
-// #elif GAME_RENDER_API_VULKAN
-//     #include "VulkanRender.h"
-// #endif
+#include <code.h>
 
 #pragma comment(lib, "xaudio2.lib")
+
 
 /* TODO:
     - Saved game locations
@@ -38,10 +30,10 @@
 #define MAX_LOADSTRING 100
 
 
-// Global Variables:
-HINSTANCE hInst;                                // current instance
-char szTitle[MAX_LOADSTRING];                  // The title bar text
-char szWindowClass[MAX_LOADSTRING];            // the main window class name
+// Global variables:
+HINSTANCE h_instance;                 // current instance
+char sz_title[MAX_LOADSTRING];        // The title bar text
+char sz_window_class[MAX_LOADSTRING]; // the main window class name
 
 Memory memory;
 
@@ -49,150 +41,6 @@ Memory memory;
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int, HWND*);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-
-// Monitors
-struct Monitor_Manager {
-    Monitor_Info MonitorInfo[MAX_SUPPORTED_MONITORS];
-    uint8 nMonitors;
-};
-static Monitor_Manager MonitorManager = {};
-
-BOOL AddMonitorInfo(HMONITOR hMonitor, Monitor_Manager* Manager) {
-    if (0 <= Manager->nMonitors && Manager->nMonitors < MAX_SUPPORTED_MONITORS) {
-        MONITORINFOEX Info = {};
-        Info.cbSize = sizeof(MONITORINFOEX);
-
-        if (!GetMonitorInfo(hMonitor, &Info)) {
-            // Continue enumeration
-            return TRUE;
-        }
-
-        Monitor_Info Monitor = {};
-        strcpy_s(Monitor.device_name, Info.szDevice);
-        Monitor.monitor_rect = {
-            (float)Info.rcMonitor.left,
-            (float)Info.rcMonitor.top,
-            (float)(Info.rcMonitor.right - Info.rcMonitor.left),
-            (float)(Info.rcMonitor.bottom - Info.rcMonitor.top)
-        };
-        Monitor.is_primary = (Info.dwFlags & MONITORINFOF_PRIMARY) != 0;
-        Monitor.id = Manager->nMonitors;
-
-        Manager->MonitorInfo[Manager->nMonitors++] = Monitor;
-        return TRUE;
-    }
-    return FALSE;
-}
-
-static BOOL CALLBACK MonitorEnumProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMonitor, LPARAM dwData) {
-    return AddMonitorInfo(hMonitor, (Monitor_Manager*)dwData);
-}
-
-void RefreshMonitors() {
-    for (int i = 0; i < MonitorManager.nMonitors; i++) {
-        MonitorManager.MonitorInfo[i] = {};
-    }
-    MonitorManager.nMonitors = 0;
-
-    // EnumDisplayMonitors(NULL, NULL, MonitorEnumProc, (LPARAM)&MonitorManager);
-
-    UINT32 numPathArrayElements = 0;
-    UINT32 numModeInfoArrayElements = 0;
-    LONG ReturnCode = GetDisplayConfigBufferSizes(QDC_ONLY_ACTIVE_PATHS, &numPathArrayElements, &numModeInfoArrayElements);
-
-    std::vector<DISPLAYCONFIG_PATH_INFO> PathArray(numPathArrayElements);
-    std::vector<DISPLAYCONFIG_MODE_INFO> ModeArray(numModeInfoArrayElements);
-
-    ReturnCode = QueryDisplayConfig(
-        QDC_ONLY_ACTIVE_PATHS, 
-        &numPathArrayElements, PathArray.data(), 
-        &numModeInfoArrayElements, ModeArray.data(), 
-        NULL
-    );
-
-    std::vector<std::wstring> DeviceNames(numPathArrayElements);
-    std::vector<std::wstring> DisplayNames(numPathArrayElements);
-
-    for (int i = 0; i < numPathArrayElements; i++) {
-        DISPLAYCONFIG_PATH_INFO PathInfo = PathArray[i];
-
-        DISPLAYCONFIG_SOURCE_DEVICE_NAME SourceName = {};
-        SourceName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_SOURCE_NAME;
-        SourceName.header.size = sizeof(SourceName);
-        SourceName.header.adapterId = PathInfo.sourceInfo.adapterId;
-        SourceName.header.id = PathInfo.sourceInfo.id;
-        ReturnCode = DisplayConfigGetDeviceInfo(&SourceName.header);
-        if (ReturnCode == ERROR_SUCCESS) {
-            DeviceNames[i] = SourceName.viewGdiDeviceName;
-        }
-
-        DISPLAYCONFIG_TARGET_DEVICE_NAME TargetName = {};
-        TargetName.header.type = DISPLAYCONFIG_DEVICE_INFO_GET_TARGET_NAME;
-        TargetName.header.size = sizeof(TargetName);
-        TargetName.header.adapterId = PathInfo.targetInfo.adapterId;
-        TargetName.header.id = PathInfo.targetInfo.id;
-        
-        if (DisplayConfigGetDeviceInfo(&TargetName.header) == ERROR_SUCCESS) {
-            DisplayNames[i] = TargetName.monitorFriendlyDeviceName;
-        }
-    }
-
-    DISPLAY_DEVICE DisplayDevice = {};
-    DisplayDevice.cb = sizeof(DISPLAY_DEVICE);
-    for (DWORD i = 0; EnumDisplayDevices(NULL, i, &DisplayDevice, 0); i++) {
-        if (DisplayDevice.StateFlags & DISPLAY_DEVICE_ACTIVE) {
-            DEVMODE dm = {};
-            dm.dmSize = sizeof(DEVMODE);
-
-            if (EnumDisplaySettings(DisplayDevice.DeviceName, ENUM_CURRENT_SETTINGS, &dm)) {
-                POINT pt = { dm.dmPosition.x + 1, dm.dmPosition.y + 1 };
-                HMONITOR hMonitor = MonitorFromPoint(pt, MONITOR_DEFAULTTONULL);
-
-                if (hMonitor) {
-                    MONITORINFOEX MonitorInfo = {};
-                    MonitorInfo.cbSize = sizeof(MONITORINFOEX);
-                    if (GetMonitorInfo(hMonitor, &MonitorInfo)) {
-                        for (int j = 0; j < numPathArrayElements; j++) {
-                            std::wstring DeviceName = DeviceNames[j];
-                            std::string MonitorDeviceName = MonitorInfo.szDevice;
-
-                            int SizeNeeded = MultiByteToWideChar(CP_UTF8, 0, &MonitorDeviceName[0], (int)MonitorDeviceName.size(), NULL, 0);
-                            std::wstring WideMonitorDeviceName(SizeNeeded, 0);
-                            MultiByteToWideChar(CP_UTF8, 0, &MonitorDeviceName[0], (int)MonitorDeviceName.size(), &WideMonitorDeviceName[0], SizeNeeded);
-
-                            if (DeviceName.compare(&WideMonitorDeviceName[0]) == 0) {
-                                Monitor_Info ResultInfo = {};
-                                ResultInfo.id = MonitorManager.nMonitors;
-                                ResultInfo.monitor_rect = { 
-                                    (float)MonitorInfo.rcMonitor.left, 
-                                    (float)MonitorInfo.rcMonitor.top, 
-                                    (float)(MonitorInfo.rcMonitor.right - MonitorInfo.rcMonitor.left), 
-                                    (float)(MonitorInfo.rcMonitor.bottom - MonitorInfo.rcMonitor.top)
-                                };
-                                ResultInfo.work_area = { 
-                                    (float)MonitorInfo.rcWork.left, 
-                                    (float)MonitorInfo.rcWork.top, 
-                                    (float)(MonitorInfo.rcWork.right - MonitorInfo.rcWork.left), 
-                                    (float)(MonitorInfo.rcWork.bottom - MonitorInfo.rcWork.top)
-                                };
-                                strcpy_s(ResultInfo.device_name, MonitorInfo.szDevice);
-                                std::wstring DisplayName = DisplayNames[j];
-                                int Result = WideCharToMultiByte(
-                                    CP_UTF8, 0, &DisplayName[0], (int)DisplayName.size(), 
-                                    ResultInfo.display_name, 
-                                    sizeof(MonitorManager.MonitorInfo[i].display_name),
-                                    NULL, NULL
-                                );
-                                MonitorManager.MonitorInfo[MonitorManager.nMonitors++] = ResultInfo;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
 
 WINDOWPLACEMENT WindowPosition = { sizeof(WindowPosition) };
 
@@ -257,20 +105,20 @@ static void InitXAudio2(int nBuffers,
     hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 
     if (FAILED(hr = XAudio2Create(&pXAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR))) {
-        Log(Log_Level::Error, "ERROR creating XAudio2.");
+        Log::Error("ERROR creating XAudio2.");
     }
     else if (FAILED(hr = pXAudio2->CreateMasteringVoice(&pMasterVoice))) {
-        Log(Log_Level::Error, "ERROR creating mastering voice.");
+        Log::Error("ERROR creating mastering voice.");
     }
     else {
         if (FAILED(hr = pXAudio2->CreateSourceVoice(&pSourceVoice, pWaveFormat, 0, XAUDIO2_DEFAULT_FREQ_RATIO, &VoiceCallback))) {
-            Log(Log_Level::Error, "ERROR creating source voice.");
+            Log::Error("ERROR creating source voice.");
         }
         else {
             uint32 AudioBytes = BufferSize * pWaveFormat->nChannels * (pWaveFormat->wBitsPerSample / 8);
             for (int i = 0; i < nBuffers; i++) {
                 Buffers[i].AudioBytes = AudioBytes;
-                Buffers[i].pAudioData = (BYTE*)Win32AllocateMemory(AudioBytes);
+                Buffers[i].pAudioData = (BYTE*)Platform::AllocateMemory(AudioBytes);
                 Buffers[i].PlayBegin = 0;
                 Buffers[i].PlayLength = BufferSize;
                 Buffers[i].Flags = 0;
@@ -350,7 +198,7 @@ void BeginInputPlayback(Record_And_Playback* record_playback, int playback_index
 
     }
     else {
-        Log(Log_Level::Error, "Reading game state failed.");
+        Log::Error("Reading game state failed.");
     }
 }
 
@@ -368,6 +216,25 @@ void PlaybackInput(Record_And_Playback* record_playback, Input* input) {
             BeginInputPlayback(record_playback, Index);
         }
     }
+}
+
+// XInput
+using XInput_Get_State = DWORD(*)(DWORD, XINPUT_STATE*);
+using XInput_Set_State = DWORD(*)(DWORD, XINPUT_VIBRATION*);
+
+DWORD XInputGetStateStub(DWORD, XINPUT_STATE*) { return 0; }
+DWORD XInputSetStateStub(DWORD, XINPUT_VIBRATION*) { return 0; };
+
+static XInput_Get_State XInputGet = XInputGetStateStub;
+static XInput_Set_State XInputSet = XInputSetStateStub;
+
+void LoadXInput() {
+    HMODULE XInputLibrary = LoadLibraryA("xinput1_4.dll");
+    if (XInputLibrary) {
+        XInputGet = (XInput_Get_State)GetProcAddress(XInputLibrary, "XInputGetState");
+        XInputSet = (XInput_Set_State)GetProcAddress(XInputLibrary, "XInputSetState");
+    }
+    else Log::Fatal("Failed to load XInput DLL.");
 }
 
 // Message processing
@@ -522,14 +389,9 @@ int APIENTRY wWinMain(
     //     GameSoundBuffers[i].SampleOut = (int16*)XAudio2Buffers[i].pAudioData;
     // }
 
-    // Performance counting initialization
-    LARGE_INTEGER performance_counter_frequency_result;
-    QueryPerformanceFrequency(&performance_counter_frequency_result);
-    Platform.performance_counter_frequency = performance_counter_frequency_result.QuadPart;
-
     // Initialize global strings
-    LoadStringA(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringA(hInstance, IDC_WIN32PLATFORMLAYER, szWindowClass, MAX_LOADSTRING);
+    LoadStringA(hInstance, IDS_APP_TITLE, sz_title, MAX_LOADSTRING);
+    LoadStringA(hInstance, IDC_WIN32PLATFORMLAYER, sz_window_class, MAX_LOADSTRING);
 
     MyRegisterClass(hInstance);
 
@@ -559,16 +421,15 @@ int APIENTRY wWinMain(
 
     // Set up for main loop
     memory_size permanent_storage_size = Megabytes(128);
-    void* game_memory_block = Win32AllocateMemory(permanent_storage_size);
-    memory.permanent = MemoryArena(permanent_storage_size, (uint8*)game_memory_block);
-    time_records = (Time_Record*)&memory.time_records_platform;
+    void* game_memory_block = Platform::AllocateMemory(permanent_storage_size);
+    memory.permanent = Arena(permanent_storage_size, (uint8*)game_memory_block);
     memory.hot_reload = true;
 
     // Game_State* pGameState = PushStruct(&Memory.Permanent, game_state);
     // Memory.GameState = pGameState;
 
     // Memory arenas
-    memory.transient = SuballocateMemoryArena(memory.permanent, Megabytes(64));
+    memory.transient = Arena(memory.permanent, Megabytes(64));
 
     // Assets
     //Memory.AssetManager = InitializeAssetManager(&Memory.Permanent, &Memory.Transient);
@@ -583,9 +444,8 @@ int APIENTRY wWinMain(
     Render_Group* group = &memory.render_group;
     RECT rect = { 0 };
     GetClientRect(window, &rect);
-    InitializeRenderGroup(
-        group,
-        &memory.permanent,
+    group->Initialize(
+        memory.permanent,
         &memory.asset_manager,
         rect.right - rect.left,
         rect.bottom - rect.top
@@ -603,7 +463,7 @@ int APIENTRY wWinMain(
     float target_seconds_per_frame = 1.0f / (float)monitor_refresh_hz;
 
     // Performance
-    uint64 last_counter = Win32GetWallClock();
+    uint64 last_counter = Platform::GetWallClock();
 
     HDC device_context = GetDC(window);
 
@@ -616,7 +476,8 @@ int APIENTRY wWinMain(
     //     device_context
     // );
 
-    RefreshMonitors();
+    Monitor_Manager monitor_manager;
+    monitor_manager.RefreshMonitors();
 
     ReleaseDC(window, device_context);
 
@@ -631,19 +492,18 @@ int APIENTRY wWinMain(
         ) {
             char Buffer[64] = {};
             sprintf_s(Buffer, "bin\\%s", FindData.cFileName);
-            bool Result = Win32FileDelete(Buffer);
+            bool Result = Platform::FileDelete(Buffer);
             if (Result) {
                 sprintf_s(Buffer, "Deleted old PDB file bin\\%s.", FindData.cFileName);
-                Log(Log_Level::Info, Buffer);
+                Log::Info(Buffer);
             }
         }
         FindResult = FindNextFileA(OldPDBFile, &FindData);
     }
 
     // Code compilation setup
-    memory.code.Initialize(memory.permanent);
-
-    char LogBuffer[64] = {};
+   Game_Code code;
+   code.Load(memory.transient);
 
     // Slang setup
     // InitializeSlang(&Memory.Permanent, BuildConfig.Renderer);
@@ -654,102 +514,33 @@ int APIENTRY wWinMain(
         memory.test = true;
     }
     else if (nArgs > 0) {
-        for (int i = 0; i < nArgs; i++) {
-            OutputDebugStringW(L"Invalid argument: ");
-            OutputDebugStringW(Args[i]);
-            OutputDebugStringW(L"\n");
-        }
+        Log::Fatal("Invalid arguments.");
     }
     LocalFree(Args);
 
     memory.running = true;
-    bool FirstFrame = true;
+    bool first_frame = true;
 
     // Main loop
-    Log(Log_Level::Info, "Running.");
+    Log::Info("Running.");
 
     while (memory.running) {
         // Hot reloading code
-        if (
-            !LibraryCompilation.running && !MetaprogrammingCompilation.running && !MetaprogrammingExecution.running &&
-            (input->keyboard.control.just_pressed && input->keyboard.H.is_down ||
-             input->keyboard.control.is_down      && input->keyboard.H.just_pressed)
-        ) {
-            int64 MetaprogrammingSourceTimestamp = Win32GetFileInfo(build_config.metaprogramming_code_path.content).timestamp;
-            int64 MetaprogrammingBinaryTimestamp = Win32GetFileInfo(MetaFile).timestamp;
-    
-            if (MetaprogrammingSourceTimestamp > MetaprogrammingBinaryTimestamp) {
-                MetaprogrammingCompilationStart = Win32GetWallClock();
-                MetaprogrammingCompilation = CompileMetaprogramming(memory.transient, &build_config);
-            }
-            else {
-                MetaprogrammingExecutionStart = Win32GetWallClock();
-                MetaprogrammingExecution = Win32RunCommand(MetaFile);
-            }
-        }
-
-        if (MetaprogrammingCompilation.running) {
-            int32 WaitResult = Win32WaitForProcess(&MetaprogrammingCompilation, 0);
-            if (WaitResult >= 0) {
-                uint64 End = Win32GetWallClock();
-                LogCompilationResult(memory.transient, "Metaprogramming", WaitResult, MetaprogrammingCompilationStart, End);
-                MetaprogrammingCompilationStart = 0;
-
-                if (WaitResult == 0) {
-                    MetaprogrammingExecutionStart = Win32GetWallClock();
-                    MetaprogrammingExecution = Win32RunCommand(MetaFile);
-                }
-            }
-        }
-
-        if (MetaprogrammingExecution.running) {
-            int32 WaitResult = Win32WaitForProcess(&MetaprogrammingExecution, 0);
-            if (WaitResult >= 0) {
-                uint64 End = Win32GetWallClock();
-                float Time = GetSecondsElapsed(MetaprogrammingExecutionStart, End);
-                Log_Level Level = WaitResult == 0 ? Log_Level::Info : Log_Level::Error;
-                if (WaitResult == 0) sprintf_s(LogBuffer, "Metaprogramming executed in %.2f milliseconds.", 1000.0f * Time);
-                else                 sprintf_s(LogBuffer, "Metaprogramming execution failed with code '%d'.", WaitResult);
-                Log(Level, LogBuffer);
-                MetaprogrammingExecutionStart = 0;
-
-                if (WaitResult == 0) {
-                    LibraryCompilationStart = Win32GetWallClock();
-                    LibraryCompilation = CompileGameLibraryHot(memory.transient, build_config);
-                }
-            }
-        }
-
-        if (LibraryCompilation.running) {
-            int32 WaitResult = Win32WaitForProcess(&LibraryCompilation, 0);
-            if (WaitResult >= 0) {
-                uint64 End = Win32GetWallClock();
-                LogCompilationResult(memory.transient, "Game library", WaitResult, LibraryCompilationStart, End);
-                LibraryCompilationStart = 0;
-            }
-        }
-        
-        int64 NewDLLWriteTime = Win32GetFileInfo(source_dll_name).timestamp;
-        if (NewDLLWriteTime > code.dll_last_write_time) {
-            UnloadGameCode(&code);
-            LoadGameCode(&code, source_dll_name, temp_dll_name);
-            if (code.is_valid) {
-                Log(Log_Level::Info, "New game code loaded.");
-                memory.hot_reload = true;
-            }
+        if (code.NeedsUpdate()) {
+            code.Load(memory.transient);
         }
 
         // Hot reloading for shaders
         // ReloadShaders();
 
         // Clear transient memory
-        Clear(memory.transient);
+        memory.transient.Clear();
 
         // Previous input
         UpdatePreviousInput(&memory.input);
 
         // Peek and dispatch messages
-        if (!FirstFrame) {
+        if (!first_frame) {
             ProcessPendingMessages(window, &memory.input, &record_playback);
         }
 
@@ -768,7 +559,7 @@ int APIENTRY wWinMain(
         // XInput Controller
         for (DWORD ControllerIndex = 0; ControllerIndex < XUSER_MAX_COUNT; ++ControllerIndex) {
             XINPUT_STATE ControllerState;
-            if (XInputGetState(ControllerIndex, &ControllerState) == ERROR_SUCCESS) {
+            if (XInputGet(ControllerIndex, &ControllerState) == ERROR_SUCCESS) {
                 XINPUT_GAMEPAD* Pad = &ControllerState.Gamepad;
 
                 // Button mapping
@@ -848,7 +639,7 @@ int APIENTRY wWinMain(
         if (code.is_valid) {
             GetClientRect(window, &rect);
 
-            if (FirstFrame) {
+            if (first_frame) {
                 group->width = rect.right - rect.left;
                 group->height = rect.bottom - rect.top;
             }
@@ -865,7 +656,7 @@ int APIENTRY wWinMain(
 
             if (!memory.pause) {
                 // Clear render group
-                Clear(group);
+                group->Clear();
 
                 //code.Update(&memory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer]);
 
@@ -883,7 +674,7 @@ int APIENTRY wWinMain(
             // Render(Group, View, &Memory.Input, Window, pGameState->Time);
         }
         else {
-            Log(Log_Level::Error, "Could not update state due to invalid game code.");
+            Log::Error("Could not update state due to invalid game code.");
         }
 
         // XAUDIO2_VOICE_STATE VoiceState;
@@ -948,8 +739,6 @@ int APIENTRY wWinMain(
         // LastCycleCount = EndCycleCount;
 
         debug_info->entry_count = 0;
-
-        memory.time_records_platform_count = __COUNTER__;
     }
 
     return 0;
@@ -975,7 +764,7 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wcex.lpszMenuName = 0; // MAKEINTRESOURCEW(IDC_TESTPROJECT);
-    wcex.lpszClassName = szWindowClass;
+    wcex.lpszClassName = sz_window_class;
     wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
     return RegisterClassExA(&wcex);
@@ -991,42 +780,42 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //        In this function, we save the instance handle in a global variable and
 //        create and display the main program window.
 //
-BOOL InitInstance(HINSTANCE hInstance, int nCmdShow, HWND* WindowPtr)
+BOOL InitInstance(HINSTANCE inst, int n_cmd_show, HWND* window_ptr)
 {
-    hInst = hInstance; // Store instance handle in our global variable
+    h_instance = inst; // Store instance handle in our global variable
 
-    BOOL DPIAwarenessResult = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
-    if (DPIAwarenessResult) {
-        Log(Log_Level::Info, "DPI awareness activated.");
+    BOOL dpi_awareness_result = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+    if (dpi_awareness_result) {
+        Log::Info("DPI awareness activated.");
     }
     else {
-        Log(Log_Level::Error, "Couldn't set DPI awareness.");
+        Log::Error("Couldn't set DPI awareness.");
     }
 
     // This code starts the window centered
-    HWND hWnd = CreateWindowA(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW, 0, 0,
-        100, 100, nullptr, nullptr, hInstance, nullptr);
+    HWND window = CreateWindowA(sz_window_class, sz_title, WS_OVERLAPPEDWINDOW, 0, 0,
+        100, 100, nullptr, nullptr, h_instance, nullptr);
 
-    DWORD Error = GetLastError();
+    DWORD error = GetLastError();
 
-    if (!hWnd) return FALSE;
-    else *WindowPtr = hWnd;
+    if (!window) return FALSE;
+    else *window_ptr = window;
 
     // Starting resolution
-    int ScreenWidth = GetSystemMetrics(SM_CXSCREEN);
-    int ScreenHeight = GetSystemMetrics(SM_CYSCREEN);
+    int screen_width = GetSystemMetrics(SM_CXSCREEN);
+    int screen_height = GetSystemMetrics(SM_CYSCREEN);
 
     // These are not the actual dimensions of the buffer
-    int WindowWidth = 1280;
-    int WindowHeight = 720;
+    int window_width = 1280;
+    int window_height = 720;
 
     // This code starts the window centered
-    int X = (ScreenWidth / 2) - (WindowWidth / 2);
-    int Y = (ScreenHeight / 2) - (WindowHeight / 2);
+    int X = (screen_width / 2) - (window_width / 2);
+    int Y = (screen_height / 2) - (window_height / 2);
 
-    MoveWindow(hWnd, X, Y, WindowWidth, WindowHeight, 0);
-    ShowWindow(hWnd, nCmdShow);
-    UpdateWindow(hWnd);
+    MoveWindow(window, X, Y, window_width, window_height, 0);
+    ShowWindow(window, n_cmd_show);
+    UpdateWindow(window);
 
     return TRUE;
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include "asset.h"
 #include "color.h"
+#include "enum.h"
 
 
 Matrix4 GetScreenProjectionMatrix(float width, float height);
@@ -31,36 +32,36 @@ ENUM(Render_Group_Target,
 );
 
 FLAGS(Render_Flag,
-    depth_test,
-    stencil_test,
-    overwrite_alpha,
+    Depth_Test,
+    Stencil_Test,
+    Overwrite_Alpha,
 
-    text_outline,
+    Text_Outline,
 
-    debug_bones,
+    Debug_Bones,
 
-    sky,
-    water
+    Sky,
+    Water
 );
 
-enum wrap_mode {
+enum Wrap_Mode {
     Wrap_Clamp,
     Wrap_Repeat,
     Wrap_Crop
 };
 
 struct Light {
-    Color color;
-    V3 direction;
-    V3 camera_position;
-    float ambient;
-    float diffuse;
+    Color color = Color::WHITE;
+    V3 direction = Normalize(V3(-0.5, -1, 1));
+    V3 camera_position = V3(0, 0, 0);
+    float ambient = 0.5f;
+    float diffuse = 0.5f;
 };
 
 struct Render_Command {
-    Sort_Key key;
-    Topology topology;
-    Render_Flag flags;
+    Sort_Key key = Sort_Meshes;
+    Topology topology = Topology_Triangle;
+    Render_Flag flags = Render_Flag::None;
     // Pipeline pipeline;
     Vertex_Buffer_Entry positions;
     Vertex_Buffer_Entry surface_vertices;
@@ -68,11 +69,11 @@ struct Render_Command {
     Vertex_Buffer_Entry poses;
     Vertex_Buffer_Entry indices;
     Vertex_Buffer_Entry text_vertices;
-    Matrix4 transform;
+    Matrix4 transform = Matrix4::ID;
     // Material material;
-    Texture* texture;
-    Color color;
-    bool dynamic;
+    Texture* texture = nullptr;
+    Color color = Color::WHITE;
+    bool dynamic = false;
 };
 
 struct Render_Command_Options {
@@ -108,7 +109,7 @@ struct Render_Group_Target_Description {
     bool stencil;
 };
 
-const int COMPUTE_GROUP_SIZE = 16;
+inline const int COMPUTE_GROUP_SIZE = 16;
 
 // struct render_compute_command {
 //     compute_type Type;
@@ -120,20 +121,6 @@ const int COMPUTE_GROUP_SIZE = 16;
 //     int Level;
 //     float Width;
 // };
-
-enum wrap_mode {
-    Wrap_Clamp,
-    Wrap_Repeat,
-    Wrap_Crop
-};
-
-struct Light {
-    Color color;
-    V3 direction;
-    V3 camera_position;
-    float ambient;
-    float diffuse;
-};
 
 /*
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -148,8 +135,7 @@ struct Render_Group {
     Render_Group_Target_Description targets[Render_Group_Target_Count];
     Vertex_Buffer vertex_buffer[Vertex_ID_Count];
     Light light;
-    Asset_Manager& asset_manager;
-    Font& debug_font;
+    Asset_Manager* asset_manager;
     int32 width;
     int32 height;
     uint32 entry_count;
@@ -159,64 +145,10 @@ struct Render_Group {
     bool debug_colliders;
     bool push_outline;
     bool render_text;
-    Render_Group(
-        Arena& permanent,
-        Asset_Manager& asset_manager,
-        int32 width,
-        int32 height
-    );
+    void Initialize(Arena& permanent, Asset_Manager* asset_manager_ref, int32 screen_width, int32 screen_height);
+    void Swap(int i, int j);
+    void Clear();
 };
-
-void Swap(Render_Group* group, int i, int j) {
-    Render_Command entry = group->entries[i];
-    group->entries[i] = group->entries[j];
-    group->entries[j] = entry;
-}
-
-Render_Command* _PushCommand(Render_Group* group,
-    Topology topology,
-    Render_Command_Options options
-) {
-    Render_Command command;
-    command.key = options.order;
-    command.topology = topology;
-    command.flags = options.flags;
-    command.transform = TRS_Matrix(options.transform);
-    command.texture = options.texture;
-    command.color = options.color;
-
-    // Sort
-    uint32 i = group->entry_count;
-    group->entries[i] = command;
-    if (group->entry_count > 0) {
-        uint32 j = i - 1;
-        while(i > 0) {
-            Render_Command check = group->entries[j];
-            if (check.key > command.key) {
-                Swap(group, i, j);
-                i = j;
-                j = i - 1;
-                continue;
-            }
-            break;
-        }
-    }
-    ++group->entry_count;
-    return &group->entries[i];
-}
-
-void Clear(Render_Group* group) {
-    ZeroSize(group->entry_count * sizeof(Render_Command), group->entries);
-    group->entry_count = 0;
-
-    group->push_outline = false;
-    group->render_text = false;
-    
-    for (int i = 0; i < Vertex_ID_Count; i++) {
-        ClearVertexBuffer(group->vertex_buffer[i]);
-    }
-    // ClearTextBuffer(&group->text_buffer);
-}
 
 /*
 +------------------------------------------------------------------------------------------------------------------------------------------------------------------+
@@ -367,30 +299,12 @@ void Clear(Render_Group* group) {
 void PushRect(
     Render_Group* group,
     float left, float top, float width, float height,
-    Color color = Color::WHITE,
-    Texture* texture = nullptr,
-    Sort_Key order = Sort_Debug
-) {
-    Render_Command* entry = PushCommand(group, Topology_Triangle_Strip, .dynamic = true, .order = order);
+    Color color,
+    Texture* texture,
+    Sort_Key order
+);
 
-    entry->positions = PushVertices(&group->vertex_buffer[Vertex_Position_ID], 4);
-    V3* vertices = (V3*)entry->positions.pointer;
-    vertices[0] = {left, top, 0};
-    vertices[1] = {left + width, top, 0};
-    vertices[2] = {left, top + height, 0};
-    vertices[3] = {left + width, top + height, 0};
-
-    entry->surface_vertices = PushVertices(&group->vertex_buffer[Vertex_Surface_ID], 4);
-    Vertex_Surface* surface_vertices = (Vertex_Surface*)entry->surface_vertices.pointer;
-    surface_vertices[0] = { .color = color, .texture = {0, 1} };
-    surface_vertices[1] = { .color = color, .texture = {1, 1} };
-    surface_vertices[2] = { .color = color, .texture = {0, 0} };
-    surface_vertices[3] = { .color = color, .texture = {1, 0} };
-}
-
-void PushPoint(Render_Group* group, float left, float top, Color color, Sort_Key order = Sort_Debug) {
-    PushRect(group, left, top, 2.0f, 2.0f, color, nullptr, order);
-}
+void PushPoint(Render_Group* group, float left, float top, Color color, Sort_Key order);
 
 // void PushPoint(Render_Group* group, v3 Point, Color color, float Order = SORT_ORDER_DEBUG_OVERLAY) {
 //     float* Vertices = PushPrimitiveCommand(

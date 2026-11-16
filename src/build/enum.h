@@ -67,13 +67,13 @@ enum class UI_Draw : uint64 {
 
 enum class Render_Flag : uint64 {
     None = 0,
-    depth_test = 1 << 0,
-    stencil_test = 1 << 1,
-    overwrite_alpha = 1 << 2,
-    text_outline = 1 << 3,
-    debug_bones = 1 << 4,
-    sky = 1 << 5,
-    water = 1 << 6,
+    Depth_Test = 1 << 0,
+    Stencil_Test = 1 << 1,
+    Overwrite_Alpha = 1 << 2,
+    Text_Outline = 1 << 3,
+    Debug_Bones = 1 << 4,
+    Sky = 1 << 5,
+    Water = 1 << 6,
 };
 
 bool IsEnumType(Type type);
