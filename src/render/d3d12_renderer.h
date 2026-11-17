@@ -1,10 +1,10 @@
 #include <d3d12.h>
 #include <dxgi1_6.h>
 #include <wrl/client.h>
+#include <dxc_compiler.h>
 using Microsoft::WRL::ComPtr;
 
 #include "renderer.h"
-#include <dxc_compiler.h>
 #include <windows_platform.h>
 
 
@@ -33,9 +33,9 @@ struct Renderer::Context {
     ComPtr<ID3D12Device> device;
     ID3D12Fence* fence;
     HANDLE fence_event;
-    IDXGISwapChain4* swap_chain;
+    ComPtr<IDXGISwapChain4> swap_chain;
     D3D12_VIEWPORT viewport;
-    D3D12_RECT rect;
+    D3D12_RECT scissor_rect;
     ID3D12CommandQueue* command_queue;
     ID3D12GraphicsCommandList* command_list;
     Frame_Context frame_context[BACKBUFFER_COUNT];

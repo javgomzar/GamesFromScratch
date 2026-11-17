@@ -238,18 +238,18 @@ void LoadXInput() {
 }
 
 // Message processing
-void ProcessPendingMessages(HWND window, Input* input, Record_And_Playback* record_playback) {
+void ProcessPendingMessages(HWND window, Input& input, Record_And_Playback* record_playback) {
     MSG msg;
     while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
         switch (msg.message) {
             // Mouse
-            case WM_LBUTTONDOWN: { PressButton(&input->mouse.left_click); } break;
-            case WM_LBUTTONUP:   { LiftButton(&input->mouse.left_click); } break;
-            case WM_RBUTTONDOWN: { PressButton(&input->mouse.right_click); } break;
-            case WM_RBUTTONUP:   { LiftButton(&input->mouse.right_click); } break;
-            case WM_MBUTTONDOWN: { PressButton(&input->mouse.middle_click); } break;
-            case WM_MBUTTONUP:   { LiftButton(&input->mouse.middle_click); } break;
-            case WM_MOUSEWHEEL:  { input->mouse.wheel = GET_WHEEL_DELTA_WPARAM(msg.wParam); } break;
+            case WM_LBUTTONDOWN: { PressButton(&input.mouse.left_click); } break;
+            case WM_LBUTTONUP:   { LiftButton(&input.mouse.left_click); } break;
+            case WM_RBUTTONDOWN: { PressButton(&input.mouse.right_click); } break;
+            case WM_RBUTTONUP:   { LiftButton(&input.mouse.right_click); } break;
+            case WM_MBUTTONDOWN: { PressButton(&input.mouse.middle_click); } break;
+            case WM_MBUTTONUP:   { LiftButton(&input.mouse.middle_click); } break;
+            case WM_MOUSEWHEEL:  { input.mouse.wheel = GET_WHEEL_DELTA_WPARAM(msg.wParam); } break;
             
             // Keyboard
             case WM_KEYDOWN:
@@ -266,33 +266,33 @@ void ProcessPendingMessages(HWND window, Input* input, Record_And_Playback* reco
                         memory.pause = !memory.pause;
                     }
                     
-                    if (vk_code == VK_UP)           PressButton(&input->keyboard.up);
-                    else if (vk_code == VK_DOWN)    PressButton(&input->keyboard.down);
-                    else if (vk_code == VK_LEFT)    PressButton(&input->keyboard.left);
-                    else if (vk_code == VK_RIGHT)   PressButton(&input->keyboard.right);
-                    else if (vk_code == VK_ESCAPE)  PressButton(&input->keyboard.escape);
-                    else if (vk_code == VK_SPACE)   PressButton(&input->keyboard.space);
-                    else if (vk_code == VK_RETURN)  PressButton(&input->keyboard.enter);
-                    else if (vk_code == VK_CONTROL) PressButton(&input->keyboard.control);
-                    else if (vk_code == VK_MENU)    PressButton(&input->keyboard.alt);
-                    else if (vk_code == VK_F1)      PressButton(&input->keyboard.F1);
-                    else if (vk_code == VK_F2)      PressButton(&input->keyboard.F2);
-                    else if (vk_code == VK_F3)      PressButton(&input->keyboard.F3);
-                    else if (vk_code == VK_F4)      PressButton(&input->keyboard.F4);
-                    else if (vk_code == VK_F5)      PressButton(&input->keyboard.F5);
-                    else if (vk_code == VK_F6)      PressButton(&input->keyboard.F6);
-                    else if (vk_code == VK_F7)      PressButton(&input->keyboard.F7);
-                    else if (vk_code == VK_F8)      PressButton(&input->keyboard.F8);
-                    else if (vk_code == VK_F9)      PressButton(&input->keyboard.F9);
-                    else if (vk_code == VK_F10)     PressButton(&input->keyboard.F10);
+                    if (vk_code == VK_UP)           PressButton(&input.keyboard.up);
+                    else if (vk_code == VK_DOWN)    PressButton(&input.keyboard.down);
+                    else if (vk_code == VK_LEFT)    PressButton(&input.keyboard.left);
+                    else if (vk_code == VK_RIGHT)   PressButton(&input.keyboard.right);
+                    else if (vk_code == VK_ESCAPE)  PressButton(&input.keyboard.escape);
+                    else if (vk_code == VK_SPACE)   PressButton(&input.keyboard.space);
+                    else if (vk_code == VK_RETURN)  PressButton(&input.keyboard.enter);
+                    else if (vk_code == VK_CONTROL) PressButton(&input.keyboard.control);
+                    else if (vk_code == VK_MENU)    PressButton(&input.keyboard.alt);
+                    else if (vk_code == VK_F1)      PressButton(&input.keyboard.F1);
+                    else if (vk_code == VK_F2)      PressButton(&input.keyboard.F2);
+                    else if (vk_code == VK_F3)      PressButton(&input.keyboard.F3);
+                    else if (vk_code == VK_F4)      PressButton(&input.keyboard.F4);
+                    else if (vk_code == VK_F5)      PressButton(&input.keyboard.F5);
+                    else if (vk_code == VK_F6)      PressButton(&input.keyboard.F6);
+                    else if (vk_code == VK_F7)      PressButton(&input.keyboard.F7);
+                    else if (vk_code == VK_F8)      PressButton(&input.keyboard.F8);
+                    else if (vk_code == VK_F9)      PressButton(&input.keyboard.F9);
+                    else if (vk_code == VK_F10)     PressButton(&input.keyboard.F10);
                     else if (vk_code == VK_F11) {
-                        PressButton(&input->keyboard.F11);
+                        PressButton(&input.keyboard.F11);
                         ToggleFullScreen(window);
                     }
-                    else if (vk_code == VK_F12)   PressButton(&input->keyboard.F12);
-                    else if (vk_code == VK_PRIOR) PressButton(&input->keyboard.page_up);
-                    else if (vk_code == VK_NEXT)  PressButton(&input->keyboard.page_down);
-                    else if (vk_code == VK_SHIFT) PressButton(&input->keyboard.shift);
+                    else if (vk_code == VK_F12)   PressButton(&input.keyboard.F12);
+                    else if (vk_code == VK_PRIOR) PressButton(&input.keyboard.page_up);
+                    else if (vk_code == VK_NEXT)  PressButton(&input.keyboard.page_down);
+                    else if (vk_code == VK_SHIFT) PressButton(&input.keyboard.shift);
                     else if (vk_code == 'L') {
                         if (record_playback->record_index == 0) {
                             BeginRecordingInput(record_playback, 1);
@@ -318,30 +318,30 @@ void ProcessPendingMessages(HWND window, Input* input, Record_And_Playback* reco
                     LiftKey(input, vk_code);
                 }
 
-                if (vk_code == VK_UP)           LiftButton(&input->keyboard.up);
-                else if (vk_code == VK_DOWN)    LiftButton(&input->keyboard.down);
-                else if (vk_code == VK_LEFT)    LiftButton(&input->keyboard.left);
-                else if (vk_code == VK_RIGHT)   LiftButton(&input->keyboard.right);
-                else if (vk_code == VK_ESCAPE)  LiftButton(&input->keyboard.escape);
-                else if (vk_code == VK_SPACE)   LiftButton(&input->keyboard.space);
-                else if (vk_code == VK_RETURN)  LiftButton(&input->keyboard.enter);
-                else if (vk_code == VK_CONTROL) LiftButton(&input->keyboard.control);
-                else if (vk_code == VK_MENU)    LiftButton(&input->keyboard.alt);
-                else if (vk_code == VK_F1)      LiftButton(&input->keyboard.F1);
-                else if (vk_code == VK_F2)      LiftButton(&input->keyboard.F2);
-                else if (vk_code == VK_F3)      LiftButton(&input->keyboard.F3);
-                else if (vk_code == VK_F4)      LiftButton(&input->keyboard.F4);
-                else if (vk_code == VK_F5)      LiftButton(&input->keyboard.F5);
-                else if (vk_code == VK_F6)      LiftButton(&input->keyboard.F6);
-                else if (vk_code == VK_F7)      LiftButton(&input->keyboard.F7);
-                else if (vk_code == VK_F8)      LiftButton(&input->keyboard.F8);
-                else if (vk_code == VK_F9)      LiftButton(&input->keyboard.F9);
-                else if (vk_code == VK_F10)     LiftButton(&input->keyboard.F10);
-                else if (vk_code == VK_F11)     LiftButton(&input->keyboard.F11);
-                else if (vk_code == VK_F12)     LiftButton(&input->keyboard.F12);
-                else if (vk_code == VK_PRIOR)   LiftButton(&input->keyboard.page_up);
-                else if (vk_code == VK_NEXT)    LiftButton(&input->keyboard.page_down);
-                else if (vk_code == VK_SHIFT)   LiftButton(&input->keyboard.shift);
+                if (vk_code == VK_UP)           LiftButton(&input.keyboard.up);
+                else if (vk_code == VK_DOWN)    LiftButton(&input.keyboard.down);
+                else if (vk_code == VK_LEFT)    LiftButton(&input.keyboard.left);
+                else if (vk_code == VK_RIGHT)   LiftButton(&input.keyboard.right);
+                else if (vk_code == VK_ESCAPE)  LiftButton(&input.keyboard.escape);
+                else if (vk_code == VK_SPACE)   LiftButton(&input.keyboard.space);
+                else if (vk_code == VK_RETURN)  LiftButton(&input.keyboard.enter);
+                else if (vk_code == VK_CONTROL) LiftButton(&input.keyboard.control);
+                else if (vk_code == VK_MENU)    LiftButton(&input.keyboard.alt);
+                else if (vk_code == VK_F1)      LiftButton(&input.keyboard.F1);
+                else if (vk_code == VK_F2)      LiftButton(&input.keyboard.F2);
+                else if (vk_code == VK_F3)      LiftButton(&input.keyboard.F3);
+                else if (vk_code == VK_F4)      LiftButton(&input.keyboard.F4);
+                else if (vk_code == VK_F5)      LiftButton(&input.keyboard.F5);
+                else if (vk_code == VK_F6)      LiftButton(&input.keyboard.F6);
+                else if (vk_code == VK_F7)      LiftButton(&input.keyboard.F7);
+                else if (vk_code == VK_F8)      LiftButton(&input.keyboard.F8);
+                else if (vk_code == VK_F9)      LiftButton(&input.keyboard.F9);
+                else if (vk_code == VK_F10)     LiftButton(&input.keyboard.F10);
+                else if (vk_code == VK_F11)     LiftButton(&input.keyboard.F11);
+                else if (vk_code == VK_F12)     LiftButton(&input.keyboard.F12);
+                else if (vk_code == VK_PRIOR)   LiftButton(&input.keyboard.page_up);
+                else if (vk_code == VK_NEXT)    LiftButton(&input.keyboard.page_down);
+                else if (vk_code == VK_SHIFT)   LiftButton(&input.keyboard.shift);
             } break;
             case WM_CLOSE:
             case WM_DESTROY:
@@ -452,8 +452,8 @@ int APIENTRY wWinMain(
     );
 
     // Input
-    Input* input = &memory.input;
-    input->mode = Keyboard;
+    Input& input = memory.input;
+    input.mode = Keyboard;
 
     // Sound
     int currentBuffer = 1;
@@ -538,19 +538,19 @@ int APIENTRY wWinMain(
 
         // Peek and dispatch messages
         if (!first_frame) {
-            ProcessPendingMessages(window, &memory.input, &record_playback);
+            ProcessPendingMessages(window, memory.input, &record_playback);
         }
 
-        input->keyboard.any = false;
+        input.keyboard.any = false;
         for (int i = 0; i < NUMBER_OF_KEYS; i++) {
-            if (input->keyboard.keys[i].is_down) {
-                input->keyboard.any = true;
+            if (input.keyboard.keys[i].is_down) {
+                input.keyboard.any = true;
                 break;
             }
         }
 
-        if (input->mode != Keyboard && input->keyboard.any) {
-            input->mode = Keyboard;
+        if (input.mode != Keyboard && input.keyboard.any) {
+            input.mode = Keyboard;
         }
 
         // XInput Controller
@@ -560,39 +560,39 @@ int APIENTRY wWinMain(
                 XINPUT_GAMEPAD* Pad = &ControllerState.Gamepad;
 
                 // Button mapping
-                input->controller.pad_up.is_down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
-                input->controller.pad_down.is_down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
-                input->controller.pad_left.is_down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
-                input->controller.pad_right.is_down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
-                input->controller.LB.is_down = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
-                input->controller.RB.is_down = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
-                input->controller.A_button.is_down = (Pad->wButtons & XINPUT_GAMEPAD_A);
-                input->controller.B_button.is_down = (Pad->wButtons & XINPUT_GAMEPAD_B);
-                input->controller.X_button.is_down = (Pad->wButtons & XINPUT_GAMEPAD_X);
-                input->controller.Y_button.is_down = (Pad->wButtons & XINPUT_GAMEPAD_Y);
-                input->controller.start.is_down = (Pad->wButtons & XINPUT_GAMEPAD_START);
-                input->controller.back.is_down = (Pad->wButtons & XINPUT_GAMEPAD_BACK);
-                input->controller.LS.is_down = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_THUMB);
-                input->controller.RS.is_down = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_THUMB);
-                input->controller.LT.is_down = Pad->bLeftTrigger > 0;
-                input->controller.RT.is_down = Pad->bRightTrigger > 0;
+                input.controller.pad_up.is_down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_UP);
+                input.controller.pad_down.is_down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_DOWN);
+                input.controller.pad_left.is_down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_LEFT);
+                input.controller.pad_right.is_down = (Pad->wButtons & XINPUT_GAMEPAD_DPAD_RIGHT);
+                input.controller.LB.is_down = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_SHOULDER);
+                input.controller.RB.is_down = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_SHOULDER);
+                input.controller.A_button.is_down = (Pad->wButtons & XINPUT_GAMEPAD_A);
+                input.controller.B_button.is_down = (Pad->wButtons & XINPUT_GAMEPAD_B);
+                input.controller.X_button.is_down = (Pad->wButtons & XINPUT_GAMEPAD_X);
+                input.controller.Y_button.is_down = (Pad->wButtons & XINPUT_GAMEPAD_Y);
+                input.controller.start.is_down = (Pad->wButtons & XINPUT_GAMEPAD_START);
+                input.controller.back.is_down = (Pad->wButtons & XINPUT_GAMEPAD_BACK);
+                input.controller.LS.is_down = (Pad->wButtons & XINPUT_GAMEPAD_LEFT_THUMB);
+                input.controller.RS.is_down = (Pad->wButtons & XINPUT_GAMEPAD_RIGHT_THUMB);
+                input.controller.LT.is_down = Pad->bLeftTrigger > 0;
+                input.controller.RT.is_down = Pad->bRightTrigger > 0;
 
                 for (int i = 0; i < NUMBER_OF_CONTROLLER_BUTTONS; i++) {
-                    Button_State* button = &input->controller.buttons[i];
+                    Button_State* button = &input.controller.buttons[i];
                     button->just_pressed = button->is_down && !button->was_down;
                     button->just_pressed = !button->is_down && button->was_down;
                 }
 
-                input->controller.any = false;
+                input.controller.any = false;
                 for (int i = 0; i < 16; i++) {
-                    if (input->controller.buttons[i].is_down) {
-                        input->controller.any = true;
+                    if (input.controller.buttons[i].is_down) {
+                        input.controller.any = true;
                         break;
                     }
                 }
 
-                if (input->mode != Controller && input->controller.any) {
-                    input->mode = Controller;
+                if (input.mode != Controller && input.controller.any) {
+                    input.mode = Controller;
                 }
 
                 SHORT LeftStickX = (float)Pad->sThumbLX;
@@ -601,10 +601,10 @@ int APIENTRY wWinMain(
                 SHORT RightStickY = (float)Pad->sThumbRY;
 
                 // Normalizing joystick values
-                input->controller.left_joystick.x = LeftStickX / (LeftStickX < 0 ? 32768.0f : 32767.0f);
-                input->controller.left_joystick.y = LeftStickY / (LeftStickY < 0 ? 32768.0f : 32767.0f);
-                input->controller.right_joystick.x = RightStickX / (RightStickX < 0 ? 32768.0f : 32767.0f);
-                input->controller.right_joystick.y = RightStickY / (RightStickY < 0 ? 32768.0f : 32767.0f);
+                input.controller.left_joystick.x = LeftStickX / (LeftStickX < 0 ? 32768.0f : 32767.0f);
+                input.controller.left_joystick.y = LeftStickY / (LeftStickY < 0 ? 32768.0f : 32767.0f);
+                input.controller.right_joystick.x = RightStickX / (RightStickX < 0 ? 32768.0f : 32767.0f);
+                input.controller.right_joystick.y = RightStickY / (RightStickY < 0 ? 32768.0f : 32767.0f);
             }
         }
 
@@ -619,11 +619,11 @@ int APIENTRY wWinMain(
         int ScreenX = rect.left;
         int ScreenY = rect.bottom;
 
-        input->mouse.last_cursor.x = input->mouse.cursor.x;
-        input->mouse.last_cursor.y = input->mouse.cursor.y;
+        input.mouse.last_cursor.x = input.mouse.cursor.x;
+        input.mouse.last_cursor.y = input.mouse.cursor.y;
 
-        input->mouse.cursor.x = MouseP.x;
-        input->mouse.cursor.y = MouseP.y;
+        input.mouse.cursor.x = MouseP.x;
+        input.mouse.cursor.y = MouseP.y;
 
         if (record_playback.record_index) {
             RecordInput(&record_playback, &memory.input);
@@ -662,7 +662,7 @@ int APIENTRY wWinMain(
                 // }
             }
 
-            // if (input->keyboard.F10.just_pressed) {
+            // if (input.keyboard.F10.just_pressed) {
             //     ScreenCapture(group->width, group->height);
             // }
 

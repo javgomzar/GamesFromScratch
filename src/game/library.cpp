@@ -247,13 +247,13 @@ extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
         first_frame = true;
 
         // Initialize entities
-        state->entities = Free_List<Entity>(memory.permanent, MAX_ENTITIES);
+        // state->entities = Free_List<Entity>(memory.permanent, MAX_ENTITIES);
 
-        Entity* camera = AddEntity(state->entities, CreateEntity("Camera", Camera_Entity_Type));
-        state->active_camera = camera;
-        camera->angle = -45.0f;
-        camera->pitch = 22.5f;
-        camera->anchor = V3(0, 3.2f, 0);
+        // Entity* camera = AddEntity(state->entities, CreateEntity("Camera", Camera_Entity_Type));
+        // state->active_camera = camera;
+        // camera->angle = -45.0f;
+        // camera->pitch = 22.5f;
+        // camera->anchor = V3(0, 3.2f, 0);
 
         if (memory.test) {
             // RunOnceTests(memory);
@@ -277,7 +277,7 @@ extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
         // RunEveryFrameTests(Memory);
     }
 
-    UpdateGameState(group, state, input);
+    // UpdateGameState(group, state, input);
 
     // PushSky(Group);
     
@@ -287,7 +287,11 @@ extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
 
     // PushRenderTarget(Group, Target_World, Target_Output);
 
-    group.light.camera_position = state->active_camera->transform.translation;
+    // group.light.camera_position = state->active_camera->transform.translation;
+
+    if (input.keyboard.E.just_pressed) {
+        Log::Info("E pressed.");
+    }
 
     static bool screenshot = false;
     if (input.keyboard.F10.was_down && !input.keyboard.F10.is_down) {
