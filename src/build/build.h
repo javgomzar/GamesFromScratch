@@ -15,25 +15,20 @@ struct Build_Config {
         MSVC,
         clang
     };
-    enum class Renderer {
-        OpenGL,
-        DirectX,
-        Vulkan,
-    };
 
     Mode mode;
     Compiler compiler;
-    Renderer renderer;
 
     String compiler_path;
     String linker_path;
     String include;
     String lib;
     String linked_libs;
-    String renderer_libs;
     String compiler_flags;
     
     String source_files;
+    String renderer_source;
+    String renderer_obj;
     String obj_dir;
     String obj_files;
 

@@ -43,16 +43,12 @@ void Build::ReadConfig(String config_file_path) {
     
                 else if (token == "COMPILER_PATH") {
                     RequireToken(tokenizer, Token_Equal);
-                    config.compiler_path.content = tokenizer.at;
-                    config.compiler_path.length = ParsePath(tokenizer.at);
-                    tokenizer.Advance(config.compiler_path.length);
+                    config.compiler_path = ParsePath(tokenizer);
                 }
 
                 else if (token == "LINKER_PATH") {
                     RequireToken(tokenizer, Token_Equal);
-                    config.linker_path.content = tokenizer.at;
-                    config.linker_path.length = ParsePath(tokenizer.at);
-                    tokenizer.Advance(config.linker_path.length);
+                    config.linker_path = ParsePath(tokenizer);
                 }
 
                 else if (token == "PRECOMPILE_HEADERS") {
@@ -62,117 +58,73 @@ void Build::ReadConfig(String config_file_path) {
 
                 else if (token == "PRECOMPILED_HEADERS_PATH") {
                     RequireToken(tokenizer, Token_Equal);
-                    int path_length = ParsePath(tokenizer.at);
-                    config.pch_source_dir = String(tokenizer.at, path_length);
-                    tokenizer.Advance(path_length);
+                    config.pch_source_dir = ParsePath(tokenizer);
                 }
     
                 else if (token == "INCLUDE") {
                     RequireToken(tokenizer, Token_Equal);
-
-                    config.include.length = 0;
-                    config.include.content = (const char*)(permanent.base + permanent.used);
-
+                    String_Builder builder;
+                    String flag;
+                    if (config.compiler == Build_Config::Compiler::MSVC) {
+                        flag = "/I";
+                    }
+                    else {
+                        flag = "-I";
+                    }
                     do {
-                        tokenizer.AdvanceUntilNextLine();
-                        char* pointer = permanent.PushArray<char>(3);
-                        config.include.length += 3;
-                        if (config.compiler == Build_Config::Compiler::MSVC) {
-                            *pointer++ = '/';
-                        }
-                        else if (config.compiler == Build_Config::Compiler::clang) {
-                            *pointer++ = '-';
-                        }
-                        *pointer++ = 'I';
-                        *pointer++ = '\"';
-                        int path_length = ParsePath(tokenizer.at);
-                        permanent.PushArray<char>(path_length + 1);
-                        config.include.length += path_length + 1;
-                        strncpy(pointer, tokenizer.at, path_length);
-                        tokenizer.Advance(path_length);
-                        pointer += path_length;
-                        *pointer++ = '\"';
+                        String path = ParsePath(tokenizer);
+                        builder.Append(flag);
+                        builder.Append("\"");
+                        builder.Append(path);
+                        builder.Append("\"");
                         if (tokenizer.at[0] != ';') {
-                            permanent.Push<char>();
-                            *pointer++ = '\0';
                             break;
                         }
-                        permanent.Push<char>();
-                        config.include.length += 1;
-                        *pointer++ = ' ';
+                        RequireToken(tokenizer, Token_Semicolon);
+                        builder.Append(" ");
                     } while (true);
+                    config.include = builder.Build(permanent);
                 }
     
                 else if (token == "LIB") {
                     RequireToken(tokenizer, Token_Equal);
-
-                    config.lib.length = 0;
-                    config.lib.content = (char*)(permanent.base + permanent.used);
-
+                    String_Builder builder;
                     do {
-                        tokenizer.AdvanceUntilNextLine();
-                        char* pointer = permanent.PushArray<char>(10);
-                        strncpy(pointer, "/LIBPATH:\"", 10);
-                        config.lib.length += 10;
-                        int path_length = ParsePath(tokenizer.at);
-                        pointer = permanent.PushArray<char>(path_length + 1);
-                        config.lib.length += path_length + 1;
-                        strncpy(pointer, tokenizer.at, path_length);
-                        tokenizer.Advance(path_length);
-                        pointer += path_length;
-                        *pointer++ = '\"';
+                        builder.Append("/LIBPATH:\"");
+                        String path = ParsePath(tokenizer);
+                        builder.Append(path);
+                        builder.Append("\"");
                         if (tokenizer.at[0] != ';') {
-                            permanent.Push<char>();
-                            *pointer++ = '\0';
                             break;
                         }
-                        permanent.Push<char>();
-                        config.lib.length += 1;
-                        *pointer++ = ' ';
+                        builder.Append(" ");
+                        RequireToken(tokenizer, Token_Semicolon);
                     } while (true);
+                    config.lib = builder.Build(permanent);
                 }
 
                 // Linked libraries
                 else if (token == "LINK") {
                     RequireToken(tokenizer, Token_Equal);
-                    config.linked_libs.length = 0;
-                    config.linked_libs.content = (char*)(permanent.base + permanent.used);
+                    String_Builder builder;
                     do {
-                        Token library = RequireToken(tokenizer, Token_Identifier);
-                        RequireToken(tokenizer, Token_Dot);
-                        RequireToken(tokenizer, "lib");
-                        char* linked_libraries = permanent.PushArray<char>(library.length + 4);
-                        strncpy(linked_libraries, library.text, library.length + 4);
-                        config.linked_libs.length += library.length + 4;
+                        String library = ParsePath(tokenizer);
+                        builder.Append(library);
                         if (tokenizer.at[0] != ';') {
                             break;
                         }
                         RequireToken(tokenizer, Token_Semicolon);
-                        char* space = permanent.Push<char>();
-                        *space = ' ';
-                        config.linked_libs.length += 1;
+                        builder.Append(" ");
                     } while(true);
+                    config.linked_libs = builder.Build(permanent);
                 }
     
                 // Renderer
                 else if (token == "RENDERER") {
                     RequireToken(tokenizer, Token_Equal);
-                    Token renderer_token = RequireToken(tokenizer, Token_Identifier);
-                    if      (renderer_token == "Vulkan")  config.renderer = Build_Config::Renderer::Vulkan;
-                    else if (renderer_token == "DirectX") config.renderer = Build_Config::Renderer::DirectX;
-                    else if (renderer_token == "OpenGL")  config.renderer = Build_Config::Renderer::OpenGL;
-                    else Log::Fatal("Invalid renderer. Currently only OpenGL, DirectX or Vulkan are supported.");
-
-                    if (Platform::OS == Platform::Windows) {
-                        switch(config.renderer) {
-                            case Build_Config::Renderer::OpenGL:  config.renderer_libs = "glew32.lib";
-                            case Build_Config::Renderer::DirectX: config.renderer_libs = "D3d11.lib d3dcompiler.lib";
-                            case Build_Config::Renderer::Vulkan:  config.renderer_libs = "vulkan-1.lib shaderc_combined.lib";
-                        }
-                    }
-                    else if (Platform::OS == Platform::Linux) {
-                        config.renderer_libs = "-lglfw";
-                    }
+                    config.renderer_source = ParsePath(tokenizer);
+                    String file_name = GetFileNameWithoutExtension(config.renderer_source);
+                    config.renderer_obj = String::Format(permanent, "{s}{s}.obj", 2, config.obj_dir, file_name);
                 }
 
                 // Source files
@@ -183,9 +135,7 @@ void Build::ReadConfig(String config_file_path) {
                     String_Builder obj_files;
 
                     do {
-                        tokenizer.AdvanceWhitespaceAndComments();
-                        int path_length = ParsePath(tokenizer.at);
-                        String source_file = String(tokenizer.at, path_length);
+                        String source_file = ParsePath(tokenizer);
                         String file_name = GetFileNameWithoutExtension(source_file);
                         String obj_file = String::Format(transient, "{s}{s}.obj", 2, config.obj_dir, file_name);
 
@@ -195,7 +145,6 @@ void Build::ReadConfig(String config_file_path) {
                         }
                         obj_files.Append(obj_file);
 
-                        tokenizer.Advance(path_length);
                         if (tokenizer.at[0] != ';') {
                             break;
                         }
@@ -216,11 +165,7 @@ void Build::ReadConfig(String config_file_path) {
                 else if (token == "META") {
                     RequireToken(tokenizer, Token_Equal);
                     config.preprocess = true;
-                    int metaprogramming_file_path_length = ParsePath(tokenizer.at);
-                    char* pointer = permanent.PushArray<char>(metaprogramming_file_path_length + 1);
-                    strncpy(pointer, tokenizer.at, metaprogramming_file_path_length);
-                    config.metaprogramming_main = String(pointer, metaprogramming_file_path_length);
-                    tokenizer.AdvanceUntilNextLine();
+                    config.metaprogramming_main = ParsePath(tokenizer);
                 }
 
                 else if (token == "META_SOURCE") {
@@ -229,12 +174,8 @@ void Build::ReadConfig(String config_file_path) {
                     String_Builder meta_source_files;
 
                     do {
-                        tokenizer.AdvanceWhitespaceAndComments();
-                        int path_length = ParsePath(tokenizer.at);
-                        String source_file = String(tokenizer.at, path_length);
+                        String source_file = ParsePath(tokenizer);
                         meta_source_files.Append(source_file);
-
-                        tokenizer.Advance(path_length);
                         if (tokenizer.at[0] != ';') {
                             break;
                         }
@@ -253,26 +194,21 @@ void Build::ReadConfig(String config_file_path) {
                     config.metaprogramming_input_files.length = 0;
                     config.metaprogramming_input_file_count = 0;
                     do {
-                        tokenizer.AdvanceWhitespaceAndComments();
-                        int path_length = ParsePath(tokenizer.at);
-                        tokenizer.Advance(path_length);
+                        String path = ParsePath(tokenizer);
                         config.metaprogramming_input_file_count += 1;
-                        const char* End = tokenizer.at;
                         if (tokenizer.at[0] != ';') {
-                            config.metaprogramming_input_files.length = End - config.metaprogramming_input_files.content;
+                            const char* end = tokenizer.at;
+                            config.metaprogramming_input_files.length = end - config.metaprogramming_input_files.content;
                             break;
                         }
                         token = RequireToken(tokenizer, Token_Semicolon);
-                    } while(token.type == Token_Semicolon);
+                    } while(true);
                 }
 
                 // Platform layer main
                 else if (token == "PLATFORM") {
                     RequireToken(tokenizer, Token_Equal);
-                    int path_length = ParsePath(tokenizer.at);
-                    config.platform_main = String(tokenizer.at, path_length);
-                    tokenizer.Advance(path_length);
-
+                    config.platform_main = ParsePath(tokenizer);
                     String platform_main_file_name = GetFileNameWithoutExtension(config.platform_main);
                     config.platform_obj = String::Format(permanent, "{s}{s}.obj", 2, config.obj_dir, platform_main_file_name);
                 }
@@ -280,15 +216,12 @@ void Build::ReadConfig(String config_file_path) {
                 // Game library
                 else if (token == "GAME") {
                     RequireToken(tokenizer, Token_Equal);
-                    int path_length = ParsePath(tokenizer.at);
-                    config.game_library_main = String(tokenizer.at, path_length);
-                    tokenizer.Advance(path_length);
-
+                    config.game_library_main = ParsePath(tokenizer);
                     String game_library_main_file_name = GetFileNameWithoutExtension(config.game_library_main);
                     config.game_library_obj = String::Format(permanent, "{s}{s}.obj", 2, config.obj_dir, game_library_main_file_name);
                 }
             }
-    
+
             token = tokenizer.GetToken();
         }
 
@@ -416,6 +349,12 @@ bool Build::Compile() {
 
     if (NeedsUpdate(config.game_library_main, config.game_library_obj)) {
         source_files_builder.Append(config.game_library_main);
+        source_files_builder.Append(" ");
+        compile = true;
+    }
+
+    if (NeedsUpdate(config.renderer_source, config.renderer_obj)) {
+        source_files_builder.Append(config.renderer_source);
         source_files_builder.Append(" ");
         compile = true;
     }

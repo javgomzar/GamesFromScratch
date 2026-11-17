@@ -164,21 +164,23 @@ bool ParseDouble(Tokenizer& tokenizer, double& result) {
     return valid;
 }
 
-// If input pointer is a string that represents a path, returns the string length of the path. If not, returns 0.
-int ParsePath(const char* text) {
-    int result = 0;
+String ParsePath(Tokenizer& tokenizer) {
+    tokenizer.AdvanceWhitespaceAndComments();
+    const char* text = tokenizer.at;
+    String result = String(text, 0);
     while (text[0] != '\0' && text[0] != ';' && text[0] != '\n' && text[0] != '\r') {
 #ifdef _WIN32
         if (
             text[0] == '<' || text[0] == '>' || text[0] == '|' || text[0] == '?' || text[0] == '*' ||
             text[0] >= 0 && text[0] < 32
         ) {
-            return result;
+            break;
         }
 #endif
-        result++;
-        text++;
+        ++result.length;
+        ++text;
     }
+    tokenizer.Advance(result.length);
     return result;
 }
 

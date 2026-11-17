@@ -116,10 +116,9 @@ int main() {
     
     std::map<std::string, int> constants;
     for (int i = 0; i < build.config.metaprogramming_input_file_count; i++) {
-        int path_length = ParsePath(input_files_tokenizer.at);
-        strncpy(buffer, input_files_tokenizer.at, path_length);
-        buffer[path_length] = '\0';
-        input_files_tokenizer.Advance(path_length);
+        String path = ParsePath(input_files_tokenizer);
+        strncpy(buffer, path.content, path.length);
+        buffer[path.length] = '\0';
         if (i < build.config.metaprogramming_input_file_count-1) {
             RequireToken(input_files_tokenizer, Token_Semicolon);
             input_files_tokenizer.AdvanceWhitespaceAndComments();

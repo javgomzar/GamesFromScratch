@@ -441,5 +441,6 @@ void String_Builder::Append(String string) {
 }
 
 String String_Builder::Build(Arena& arena) {
+    Append("\0");
     return String::Copy(arena, String((char*)memory, size));
 }

@@ -17,7 +17,7 @@ bool ParseSign(Tokenizer& tokenizer, Token& number);
 int ParseInt(Tokenizer& tokenizer);
 float ParseFloat(Tokenizer& tokenizer);
 bool ParseDouble(Tokenizer& tokenizer, double& result);
-int ParsePath(const char* text);
+String ParsePath(Tokenizer& tokenizer);
 V2 ParseV2(Tokenizer& tokenizer);
 V3 ParseV3(Tokenizer& tokenizer);
 V4 ParseV4(Tokenizer& tokenizer);
