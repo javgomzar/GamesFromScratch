@@ -14,7 +14,7 @@ src\platform\platform.cpp ^
 src\platform\windows\windows_platform.cpp
 
 @REM DEBUG COMPILE
-%COMPILE% /nologo /std:c++20 /Fo"build\debug\\" %SOURCE% /MP /D _DEBUG /EHsc /MDd /Zi /Od /fsanitize=address^
+%COMPILE% /nologo /std:c++20 /Fo"build\debug\\" /Fd"build\debug\build_cl.pdb" %SOURCE% /MP /D _DEBUG /EHsc /MDd /Zi /Od /fsanitize=address^
  /link user32.lib /PDB:"build\debug\\" /OUT:"bin\build.exe"
 
 @REM PERFORMANCE COMPILE

@@ -194,6 +194,7 @@ struct Process_Info {
 */
 
 struct Platform {
+    Platform() = delete;
     enum System_OS {
         Windows,
         Linux,

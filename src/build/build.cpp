@@ -425,7 +425,7 @@ bool Build::Compile() {
         Log::Info("Compiling source files.");
         char* command = (char*)(permanent.base + permanent.used);
         String string = String::Format(permanent,
-            "{s} /std:c++20 /nologo /c /MP {s} {s}/Fo\"{s}\" /D GAMELIBRARY_EXPORTS "
+            "{s} /std:c++20 /nologo /c /MP {s} {s}/Fo\"{s}\" "
             "/Yu\"pch.h\" /Fp\"{s}pch.pch\" /Fd\"{s}pch.pdb\" {s}",
             7,
             config.compiler_path,
@@ -485,12 +485,12 @@ bool Build::LinkGameLibrary() {
             String linker_flags = config.mode == Build_Config::Mode::Debug ? "/DEBUG" : "";
             String command_string = String::Format(permanent,
                 "{s} /NOLOGO {s}pch.obj {s} {s} {s} {s} {s} "
-                "/MACHINE:X64 /DLL /PDB:{s}game_library.pdb /OUT:bin\\game_library.dll",
+                "/MACHINE:X64 /DLL /IMPLIB:bin\\game_library.lib /PDB:{s}game_library.pdb /OUT:bin\\game_library.dll",
                 7,
                 config.linker_path,
                 config.obj_dir,
                 config.obj_files,
-                config.platform_obj,
+                config.game_library_obj,
                 config.linked_libs,
                 config.lib,
                 linker_flags,

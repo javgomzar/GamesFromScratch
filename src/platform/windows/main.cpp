@@ -467,14 +467,8 @@ int APIENTRY wWinMain(
 
     HDC device_context = GetDC(window);
 
-    // Initilize render API
-    // InitializeRenderer(
-    //     &memory.permanent,
-    //     group,
-    //     window,
-    //     hInstance,
-    //     device_context
-    // );
+    // Initilize renderer
+    // Renderer::Initialize(memory.asset_manager, memory.render_group);
 
     Monitor_Manager monitor_manager;
     monitor_manager.RefreshMonitors();
@@ -661,7 +655,7 @@ int APIENTRY wWinMain(
                 // Clear render group
                 group->Clear();
 
-                //code.Update(&memory, &GameSoundBuffers[currentBuffer], &GameSoundBuffers[currentBuffer]);
+                code.update(memory);
 
                 // if (pGameState->Exit) {
                 //     Memory.Running = false; PostQuitMessage(0);

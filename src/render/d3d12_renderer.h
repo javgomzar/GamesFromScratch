@@ -3,12 +3,13 @@
 #include <wrl/client.h>
 using Microsoft::WRL::ComPtr;
 
-#include "GameRender.h"
-#include "dxc_compiler.h"
+#include "renderer.h"
+#include <dxc_compiler.h>
+#include <windows_platform.h>
 
 
-const int BACKBUFFER_COUNT = 2;
-const int MSAA_SAMPLE_COUNT = 8;
+inline const int BACKBUFFER_COUNT = 2;
+inline const int MSAA_SAMPLE_COUNT = 8;
 
 struct Frame_Context {
     ID3D12CommandAllocator* command_allocator;
@@ -26,7 +27,7 @@ struct Dynamic_Buffer {
     void* memory;
 };
 
-class Renderer {
+struct Renderer::Context {
     uint64 frame;
     HWND window;
     ComPtr<ID3D12Device> device;
@@ -63,7 +64,4 @@ class Renderer {
     ID3D12RootSignature* root_signature;
     Hash_Table<Asset_ID, uint32> textures;
     DXC_Compiler compiler;
-
-    void Initialize(HWND active_window, Asset_Manager& asset_manager, Render_Group& render_group);
-    void Render();
 };

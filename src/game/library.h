@@ -33,6 +33,8 @@
 //#include "particles.h"
 #include "entity.h"
 #include "debug.h"
+#include "renderer.h"
+
 
 /*
 +---------------------------------------------------------------------------------------------------------------------------------+
@@ -62,6 +64,6 @@ struct Memory {
     bool pause;
 };
 
-// #include "GameUI.h"
+// #include "GameUI.h" 
 
-GAMELIBRARY_API void GameUpdate(Memory& memory);
+extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory);

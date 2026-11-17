@@ -55,12 +55,15 @@ bool Game_Code::Load(Arena& transient) {
         is_valid = (update);
 
         dll_last_write_time = Platform::GetFileInfo(source_dll_name).timestamp;
+        if (is_valid) {
+            Log::Info("Game code correctly loaded.");
+        }
         return is_valid;
     }
     else {
         last_error = GetLastError();
-        sprintf_s(error_text, "Error loading game code. Error code %d.", last_error);
-        Log::Error(error_text); // If error is 126 (dependency error while loading DLL) try using Process Monitor.
+        String error_message = String::Format(transient, "Error loading game code. Error code {u}.", 1, last_error);
+        Log::Error(error_message); // If error is 126 (dependency error while loading DLL) try using Process Monitor.
     }
     return false;
 }

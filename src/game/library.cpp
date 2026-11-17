@@ -6,7 +6,11 @@
 #define XXH_IMPLEMENTATION
 #include <xxhash.h>
 
+#define GAMELIBRARY_EXPORTS
+
 #include "library.h"
+
+Arena* Debug_Info::transient = nullptr;
 
 
 // Sound
@@ -233,10 +237,10 @@ extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
     State* state = memory.state;
     Asset_Manager& asset_manager = memory.asset_manager;
 {
-    TIMED_BLOCK;
+    // TIMED_BLOCK;
 
-    float time = state->time;
-    Entity* active_camera = state->active_camera;
+    //float time = state->time;
+    // Entity* active_camera = state->active_camera;
 
     bool first_frame = false;
     if (!memory.initialized) {
