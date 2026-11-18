@@ -243,12 +243,12 @@ void ProcessPendingMessages(HWND window, Input& input, Record_And_Playback* reco
     while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
         switch (msg.message) {
             // Mouse
-            case WM_LBUTTONDOWN: { PressButton(&input.mouse.left_click); } break;
-            case WM_LBUTTONUP:   { LiftButton(&input.mouse.left_click); } break;
-            case WM_RBUTTONDOWN: { PressButton(&input.mouse.right_click); } break;
-            case WM_RBUTTONUP:   { LiftButton(&input.mouse.right_click); } break;
-            case WM_MBUTTONDOWN: { PressButton(&input.mouse.middle_click); } break;
-            case WM_MBUTTONUP:   { LiftButton(&input.mouse.middle_click); } break;
+            case WM_LBUTTONDOWN: { PressButton(input.mouse.left_click); } break;
+            case WM_LBUTTONUP:   { LiftButton(input.mouse.left_click); } break;
+            case WM_RBUTTONDOWN: { PressButton(input.mouse.right_click); } break;
+            case WM_RBUTTONUP:   { LiftButton(input.mouse.right_click); } break;
+            case WM_MBUTTONDOWN: { PressButton(input.mouse.middle_click); } break;
+            case WM_MBUTTONUP:   { LiftButton(input.mouse.middle_click); } break;
             case WM_MOUSEWHEEL:  { input.mouse.wheel = GET_WHEEL_DELTA_WPARAM(msg.wParam); } break;
             
             // Keyboard
@@ -266,33 +266,33 @@ void ProcessPendingMessages(HWND window, Input& input, Record_And_Playback* reco
                         memory.pause = !memory.pause;
                     }
                     
-                    if (vk_code == VK_UP)           PressButton(&input.keyboard.up);
-                    else if (vk_code == VK_DOWN)    PressButton(&input.keyboard.down);
-                    else if (vk_code == VK_LEFT)    PressButton(&input.keyboard.left);
-                    else if (vk_code == VK_RIGHT)   PressButton(&input.keyboard.right);
-                    else if (vk_code == VK_ESCAPE)  PressButton(&input.keyboard.escape);
-                    else if (vk_code == VK_SPACE)   PressButton(&input.keyboard.space);
-                    else if (vk_code == VK_RETURN)  PressButton(&input.keyboard.enter);
-                    else if (vk_code == VK_CONTROL) PressButton(&input.keyboard.control);
-                    else if (vk_code == VK_MENU)    PressButton(&input.keyboard.alt);
-                    else if (vk_code == VK_F1)      PressButton(&input.keyboard.F1);
-                    else if (vk_code == VK_F2)      PressButton(&input.keyboard.F2);
-                    else if (vk_code == VK_F3)      PressButton(&input.keyboard.F3);
-                    else if (vk_code == VK_F4)      PressButton(&input.keyboard.F4);
-                    else if (vk_code == VK_F5)      PressButton(&input.keyboard.F5);
-                    else if (vk_code == VK_F6)      PressButton(&input.keyboard.F6);
-                    else if (vk_code == VK_F7)      PressButton(&input.keyboard.F7);
-                    else if (vk_code == VK_F8)      PressButton(&input.keyboard.F8);
-                    else if (vk_code == VK_F9)      PressButton(&input.keyboard.F9);
-                    else if (vk_code == VK_F10)     PressButton(&input.keyboard.F10);
+                    if (vk_code == VK_UP)           PressButton(input.keyboard.up);
+                    else if (vk_code == VK_DOWN)    PressButton(input.keyboard.down);
+                    else if (vk_code == VK_LEFT)    PressButton(input.keyboard.left);
+                    else if (vk_code == VK_RIGHT)   PressButton(input.keyboard.right);
+                    else if (vk_code == VK_ESCAPE)  PressButton(input.keyboard.escape);
+                    else if (vk_code == VK_SPACE)   PressButton(input.keyboard.space);
+                    else if (vk_code == VK_RETURN)  PressButton(input.keyboard.enter);
+                    else if (vk_code == VK_CONTROL) PressButton(input.keyboard.control);
+                    else if (vk_code == VK_MENU)    PressButton(input.keyboard.alt);
+                    else if (vk_code == VK_F1)      PressButton(input.keyboard.F1);
+                    else if (vk_code == VK_F2)      PressButton(input.keyboard.F2);
+                    else if (vk_code == VK_F3)      PressButton(input.keyboard.F3);
+                    else if (vk_code == VK_F4)      PressButton(input.keyboard.F4);
+                    else if (vk_code == VK_F5)      PressButton(input.keyboard.F5);
+                    else if (vk_code == VK_F6)      PressButton(input.keyboard.F6);
+                    else if (vk_code == VK_F7)      PressButton(input.keyboard.F7);
+                    else if (vk_code == VK_F8)      PressButton(input.keyboard.F8);
+                    else if (vk_code == VK_F9)      PressButton(input.keyboard.F9);
+                    else if (vk_code == VK_F10)     PressButton(input.keyboard.F10);
                     else if (vk_code == VK_F11) {
-                        PressButton(&input.keyboard.F11);
+                        PressButton(input.keyboard.F11);
                         ToggleFullScreen(window);
                     }
-                    else if (vk_code == VK_F12)   PressButton(&input.keyboard.F12);
-                    else if (vk_code == VK_PRIOR) PressButton(&input.keyboard.page_up);
-                    else if (vk_code == VK_NEXT)  PressButton(&input.keyboard.page_down);
-                    else if (vk_code == VK_SHIFT) PressButton(&input.keyboard.shift);
+                    else if (vk_code == VK_F12)   PressButton(input.keyboard.F12);
+                    else if (vk_code == VK_PRIOR) PressButton(input.keyboard.page_up);
+                    else if (vk_code == VK_NEXT)  PressButton(input.keyboard.page_down);
+                    else if (vk_code == VK_SHIFT) PressButton(input.keyboard.shift);
                     else if (vk_code == 'L') {
                         if (record_playback->record_index == 0) {
                             BeginRecordingInput(record_playback, 1);
@@ -318,30 +318,30 @@ void ProcessPendingMessages(HWND window, Input& input, Record_And_Playback* reco
                     LiftKey(input, vk_code);
                 }
 
-                if (vk_code == VK_UP)           LiftButton(&input.keyboard.up);
-                else if (vk_code == VK_DOWN)    LiftButton(&input.keyboard.down);
-                else if (vk_code == VK_LEFT)    LiftButton(&input.keyboard.left);
-                else if (vk_code == VK_RIGHT)   LiftButton(&input.keyboard.right);
-                else if (vk_code == VK_ESCAPE)  LiftButton(&input.keyboard.escape);
-                else if (vk_code == VK_SPACE)   LiftButton(&input.keyboard.space);
-                else if (vk_code == VK_RETURN)  LiftButton(&input.keyboard.enter);
-                else if (vk_code == VK_CONTROL) LiftButton(&input.keyboard.control);
-                else if (vk_code == VK_MENU)    LiftButton(&input.keyboard.alt);
-                else if (vk_code == VK_F1)      LiftButton(&input.keyboard.F1);
-                else if (vk_code == VK_F2)      LiftButton(&input.keyboard.F2);
-                else if (vk_code == VK_F3)      LiftButton(&input.keyboard.F3);
-                else if (vk_code == VK_F4)      LiftButton(&input.keyboard.F4);
-                else if (vk_code == VK_F5)      LiftButton(&input.keyboard.F5);
-                else if (vk_code == VK_F6)      LiftButton(&input.keyboard.F6);
-                else if (vk_code == VK_F7)      LiftButton(&input.keyboard.F7);
-                else if (vk_code == VK_F8)      LiftButton(&input.keyboard.F8);
-                else if (vk_code == VK_F9)      LiftButton(&input.keyboard.F9);
-                else if (vk_code == VK_F10)     LiftButton(&input.keyboard.F10);
-                else if (vk_code == VK_F11)     LiftButton(&input.keyboard.F11);
-                else if (vk_code == VK_F12)     LiftButton(&input.keyboard.F12);
-                else if (vk_code == VK_PRIOR)   LiftButton(&input.keyboard.page_up);
-                else if (vk_code == VK_NEXT)    LiftButton(&input.keyboard.page_down);
-                else if (vk_code == VK_SHIFT)   LiftButton(&input.keyboard.shift);
+                if (vk_code == VK_UP)           LiftButton(input.keyboard.up);
+                else if (vk_code == VK_DOWN)    LiftButton(input.keyboard.down);
+                else if (vk_code == VK_LEFT)    LiftButton(input.keyboard.left);
+                else if (vk_code == VK_RIGHT)   LiftButton(input.keyboard.right);
+                else if (vk_code == VK_ESCAPE)  LiftButton(input.keyboard.escape);
+                else if (vk_code == VK_SPACE)   LiftButton(input.keyboard.space);
+                else if (vk_code == VK_RETURN)  LiftButton(input.keyboard.enter);
+                else if (vk_code == VK_CONTROL) LiftButton(input.keyboard.control);
+                else if (vk_code == VK_MENU)    LiftButton(input.keyboard.alt);
+                else if (vk_code == VK_F1)      LiftButton(input.keyboard.F1);
+                else if (vk_code == VK_F2)      LiftButton(input.keyboard.F2);
+                else if (vk_code == VK_F3)      LiftButton(input.keyboard.F3);
+                else if (vk_code == VK_F4)      LiftButton(input.keyboard.F4);
+                else if (vk_code == VK_F5)      LiftButton(input.keyboard.F5);
+                else if (vk_code == VK_F6)      LiftButton(input.keyboard.F6);
+                else if (vk_code == VK_F7)      LiftButton(input.keyboard.F7);
+                else if (vk_code == VK_F8)      LiftButton(input.keyboard.F8);
+                else if (vk_code == VK_F9)      LiftButton(input.keyboard.F9);
+                else if (vk_code == VK_F10)     LiftButton(input.keyboard.F10);
+                else if (vk_code == VK_F11)     LiftButton(input.keyboard.F11);
+                else if (vk_code == VK_F12)     LiftButton(input.keyboard.F12);
+                else if (vk_code == VK_PRIOR)   LiftButton(input.keyboard.page_up);
+                else if (vk_code == VK_NEXT)    LiftButton(input.keyboard.page_down);
+                else if (vk_code == VK_SHIFT)   LiftButton(input.keyboard.shift);
             } break;
             case WM_CLOSE:
             case WM_DESTROY:
@@ -468,7 +468,7 @@ int APIENTRY wWinMain(
     HDC device_context = GetDC(window);
 
     // Initilize renderer
-    // Renderer::Initialize(memory.asset_manager, memory.render_group);
+    Renderer::Initialize(memory.asset_manager, memory.render_group);
 
     Monitor_Manager monitor_manager;
     monitor_manager.RefreshMonitors();
@@ -534,7 +534,7 @@ int APIENTRY wWinMain(
         memory.transient.Clear();
 
         // Previous input
-        UpdatePreviousInput(&memory.input);
+        UpdatePreviousInput(memory.input);
 
         // Peek and dispatch messages
         if (!first_frame) {
@@ -714,10 +714,10 @@ int APIENTRY wWinMain(
         // float Time = pGameState->Time;
         // DEBUG_VALUE(Time, float);
 
-        // if (FirstFrame) {
-        //     pSourceVoice->Start(0, 0);
-        //     FirstFrame = false;
-        // }
+        if (first_frame) {
+            // pSourceVoice->Start(0, 0);
+            first_frame = false;
+        }
 
         // while (SecsElapsedPerFrame < TargetSecondsPerFrame) {
         //     // if sleep granular : DWORD SleepMs = (DWORD)(1000.0f * (TargetSecondsPerFrame - SecsElapsedPerFrame));

@@ -2,17 +2,17 @@
 #include "d3d12_renderer.h"
 
 
+const int MSAA_SAMPLE_COUNT = 8;
+
 static Renderer::Context context;
 
 void Renderer::Initialize(Asset_Manager& asset_manager, Render_Group& render_group) {
     HRESULT hr;
 
     context.window = GetActiveWindow();
-    
     context.fence_event = CreateEventExA(nullptr, "GPU fence", 0, EVENT_ALL_ACCESS);
 
     UINT flags = 0;
-
 #ifdef _DEBUG
     ComPtr<ID3D12Debug> debug_controller;
     hr = D3D12GetDebugInterface(IID_PPV_ARGS(&debug_controller));
@@ -20,7 +20,6 @@ void Renderer::Initialize(Asset_Manager& asset_manager, Render_Group& render_gro
         Log::Fatal("Failed to activate D3D12 debug interface.");
     }
     debug_controller->EnableDebugLayer();
-    debug_controller->Release();
     flags |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
 
@@ -36,7 +35,7 @@ void Renderer::Initialize(Asset_Manager& asset_manager, Render_Group& render_gro
         adapter->GetDesc1(&desc);
 
         if (desc.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE) {
-            adapter->Release();
+            adapter.Reset();
             continue;
         }
 
@@ -48,8 +47,7 @@ void Renderer::Initialize(Asset_Manager& asset_manager, Render_Group& render_gro
             break;
         }
 
-        adapter->Release();
-        adapter = nullptr;
+        adapter.Reset();
     }
 
     if (adapter == nullptr) {
@@ -227,5 +225,70 @@ void Renderer::Initialize(Asset_Manager& asset_manager, Render_Group& render_gro
         Log::Fatal("Failed to create depth stencil buffer.");
     }
 
-    Log::Info("DirectX12 renderer correctly initialized.");
+    // MSAA
+    D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS ms_quality_levels = {
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .SampleCount = MSAA_SAMPLE_COUNT,
+    };
+    context.device->CheckFeatureSupport(
+        D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS,
+        &ms_quality_levels,
+        sizeof(D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS)
+    );
+    assert(ms_quality_levels.NumQualityLevels > 0);
+
+    D3D12_RESOURCE_DESC msaa_desc = {
+        .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+        .Alignment = 0,
+        .Width = (UINT64)render_group.width,
+        .Height = render_group.height,
+        .DepthOrArraySize = 1,
+        .MipLevels = 1,
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .SampleDesc = {
+            .Count = MSAA_SAMPLE_COUNT,
+            .Quality = 0,
+        },
+        .Flags = D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+    };
+
+    D3D12_CLEAR_VALUE msaa_target_clear = {
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .Color = {0, 0, 0, 0},
+    };
+
+    D3D12_HEAP_PROPERTIES msaa_heap_props = {
+        .Type = D3D12_HEAP_TYPE_DEFAULT,
+    };
+    context.device->CreateCommittedResource(
+        &msaa_heap_props, D3D12_HEAP_FLAG_NONE,
+        &msaa_desc, D3D12_RESOURCE_STATE_RESOLVE_SOURCE,
+        &msaa_target_clear,
+        IID_PPV_ARGS(&context.msaa_target)
+    );
+
+    D3D12_RESOURCE_DESC msaa_depth_desc = {
+        .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+        .Width = render_group.width,
+        .Height = render_group.height,
+        .DepthOrArraySize = 1,
+        .MipLevels = 1,
+        .Format = DXGI_FORMAT_D24_UNORM_S8_UINT,
+        .SampleDesc = {
+            .Count = MSAA_SAMPLE_COUNT,
+            .Quality = 0,
+        },
+        .Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+    };
+    context.device->CreateCommittedResource(
+        &msaa_heap_props, D3D12_HEAP_FLAG_NONE,
+        &msaa_depth_desc, D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &depth_clear,
+        IID_PPV_ARGS(&context.msaa_depth_stencil)
+    );
+
+    // Render target views
+
+    
+    Log::Info("DirectX12 renderer initialized.");
 }

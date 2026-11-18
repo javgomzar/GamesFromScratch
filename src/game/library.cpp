@@ -289,10 +289,6 @@ extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
 
     // group.light.camera_position = state->active_camera->transform.translation;
 
-    if (input.keyboard.E.just_pressed) {
-        Log::Info("E pressed.");
-    }
-
     static bool screenshot = false;
     if (input.keyboard.F10.was_down && !input.keyboard.F10.is_down) {
         screenshot = true;

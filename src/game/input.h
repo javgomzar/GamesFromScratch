@@ -132,9 +132,9 @@ struct Input {
     Mouse_Input mouse;
 };
 
-void UpdatePreviousInput(Input* input);
-void PressButton(Button_State* button);
-void LiftButton(Button_State* button);
-Button_State* GetKey(Input* input, char key);
-void PressKey(Input* input, char key);
-void LiftKey(Input* input, char key);
+void UpdatePreviousInput(Input& input);
+void PressButton(Button_State& button);
+void LiftButton(Button_State& button);
+Button_State* GetKey(Input& input, char key);
+void PressKey(Input& input, char key);
+void LiftKey(Input& input, char key);

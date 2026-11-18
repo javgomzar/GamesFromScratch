@@ -391,12 +391,13 @@ bool Build::LinkPlatform() {
             command = (char*)(permanent.base + permanent.used);
             String linker_flags = config.mode == Build_Config::Mode::Debug ? "/DEBUG" : "";
             String command_string = String::Format(permanent,
-                "{s} /NOLOGO {s}pch.obj {s} {s} {s} {s} {s} "
+                "{s} /NOLOGO {s}pch.obj {s} {s} {s} {s} {s} {s} "
                 "src\\platform\\windows\\Win32PlatformLayer.res /MACHINE:X64 /PDB:{s}run_game.pdb /OUT:bin\\run_game.exe",
-                7,
+                8,
                 config.linker_path,
                 config.obj_dir,
                 config.obj_files,
+                config.renderer_obj,
                 config.platform_obj,
                 config.linked_libs,
                 config.lib,

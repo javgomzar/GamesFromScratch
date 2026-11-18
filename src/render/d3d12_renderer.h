@@ -9,7 +9,6 @@ using Microsoft::WRL::ComPtr;
 
 
 inline const int BACKBUFFER_COUNT = 2;
-inline const int MSAA_SAMPLE_COUNT = 8;
 
 struct Frame_Context {
     ID3D12CommandAllocator* command_allocator;
@@ -30,7 +29,7 @@ struct Dynamic_Buffer {
 struct Renderer::Context {
     uint64 frame;
     HWND window;
-    ComPtr<ID3D12Device> device;
+    ID3D12Device* device;
     ID3D12Fence* fence;
     HANDLE fence_event;
     ComPtr<IDXGISwapChain4> swap_chain;
