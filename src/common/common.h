@@ -25,9 +25,9 @@ typedef size_t memory_size;
 
 #define INTROSPECT
 
-#define ENUM_START(Name) enum Name {
-#define ENUM_END(Name) Name##_Count }
-#define ENUM(Name, ...) ENUM_START(Name) __VA_ARGS__, ENUM_END(Name);
+#define ENUM_START(Type) enum Type {
+#define ENUM_END(Type) Type##_Count }
+#define ENUM(Type, ...) ENUM_START(Type) __VA_ARGS__, ENUM_END(Type);
 
 #define FLAGS(...)
 
@@ -54,7 +54,6 @@ struct Arena {
     memory_size capacity = 0;
     memory_size used = 0;
     uint8* base = nullptr;
-    Arena() = default;
     Arena(memory_size size);
     Arena(memory_size size, void* memory);
     Arena(Arena& arena, memory_size size);

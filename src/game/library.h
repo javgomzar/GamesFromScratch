@@ -42,13 +42,11 @@
 +---------------------------------------------------------------------------------------------------------------------------------+
 */
 
-struct Memory {
+struct Context {
     Asset_Manager asset_manager;
     Render_Group render_group;
     Input input;
     State* state;
-    Arena permanent;
-    Arena transient;
     // Time_Record time_records_library[MAX_TIME_RECORDS];
     // Time_Record time_records_platform[MAX_TIME_RECORDS];
     // uint16 time_records_library_count;

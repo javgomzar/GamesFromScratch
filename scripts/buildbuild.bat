@@ -6,6 +6,7 @@ call scripts\env.bat
 SET SOURCE=^
 src\common\common.cpp ^
 src\common\math.cpp ^
+src\common\memory.cpp ^
 src\common\parse.cpp ^
 src\common\tokenizer.cpp ^
 src\build\build.cpp ^
