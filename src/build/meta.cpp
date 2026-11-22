@@ -65,6 +65,9 @@ const char* const PRIMITIVE_TYPES[] = {
 };
 const int PRIMITIVE_TYPE_COUNT = ArrayCount(PRIMITIVE_TYPES);
 
+memory_size Memory::permanent_size = Kilobytes(8);
+memory_size Memory::transient_size = Kilobytes(8);
+
 int main() {
     FILE* enums_header = OpenFile("src" PATH_SEPARATOR "build" PATH_SEPARATOR "enum.h", "w");
     FILE* enums_source = OpenFile("src" PATH_SEPARATOR "build" PATH_SEPARATOR "enum.cpp", "w");
@@ -107,19 +110,18 @@ int main() {
     std::vector<std::string> struct_members = {};
 
     char buffer[256];
-    Build build = Build(Kilobytes(8));
-    build.ReadConfig("build/build.conf");
+    Build::ReadConfig("build/build.conf");
     Tokenizer input_files_tokenizer = Tokenizer(
-        build.config.metaprogramming_input_files.content,
-        build.config.metaprogramming_input_files.length
+        Build::config.metaprogramming_input_files.content,
+        Build::config.metaprogramming_input_files.length
     );
     
     std::map<std::string, int> constants;
-    for (int i = 0; i < build.config.metaprogramming_input_file_count; i++) {
+    for (int i = 0; i < Build::config.metaprogramming_input_file_count; i++) {
         String path = ParsePath(input_files_tokenizer);
         strncpy(buffer, path.content, path.length);
         buffer[path.length] = '\0';
-        if (i < build.config.metaprogramming_input_file_count-1) {
+        if (i < Build::config.metaprogramming_input_file_count-1) {
             RequireToken(input_files_tokenizer, Token_Semicolon);
             input_files_tokenizer.AdvanceWhitespaceAndComments();
         }

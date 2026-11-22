@@ -244,6 +244,7 @@ void Build::ReadConfig(String config_file_path) {
         if (Platform::OS == Platform::Windows) {
             Build::config.pch_header_path = String::Format(Memory::permanent, "{s}" PATH_SEPARATOR "pch.h", 1, Build::config.pch_source_dir);
             Build::config.pch_source_path = String::Format(Memory::permanent, "{s}" PATH_SEPARATOR "pch.cpp", 1, Build::config.pch_source_dir);
+            Build::config.metaprogramming_binary = "bin\\meta.exe";
         }
         else {
             // TODO
