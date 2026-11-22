@@ -5,7 +5,7 @@
 String source_dll_name = "bin\\game_library.dll";
 String temp_dll_name = "bin\\game_library_temp.dll";
 
-void GameUpdateStub(Memory& memory) {};
+void GameUpdateStub(Context& context) {};
 
 static HMODULE game_code_dll;
 
@@ -14,7 +14,7 @@ bool Game_Code::NeedsUpdate() {
     return timestamp > dll_last_write_time;
 }
 
-bool Game_Code::Load(Arena& transient) {
+bool Game_Code::Load() {
     update = GameUpdateStub;
 
     char error_text[256];
@@ -37,7 +37,7 @@ bool Game_Code::Load(Arena& transient) {
             } while (!copy_result);
         }
         else {
-            String error_message = String::Format(transient,
+            String error_message = String::Format(Memory::transient,
                 "Error copying file {s} into {s}. Error code {i}.",
                 3,
                 source_dll_name,
@@ -62,7 +62,7 @@ bool Game_Code::Load(Arena& transient) {
     }
     else {
         last_error = GetLastError();
-        String error_message = String::Format(transient, "Error loading game code. Error code {u}.", 1, last_error);
+        String error_message = String::Format(Memory::transient, "Error loading game code. Error code {u}.", 1, last_error);
         Log::Error(error_message); // If error is 126 (dependency error while loading DLL) try using Process Monitor.
     }
     return false;

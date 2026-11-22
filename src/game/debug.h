@@ -17,7 +17,6 @@ struct Debug_Entry {
 inline const int MAX_DEBUG_ENTRIES = 128;
 struct Debug_Info {
     static Debug_Entry entries[MAX_DEBUG_ENTRIES];
-    static Arena* transient;
     static Font* font;
     static int entry_count;
     static Debug_Entry& AddDebugEntry(

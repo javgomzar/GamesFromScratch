@@ -23,7 +23,7 @@
 #define GAMELIBRARY_API
 #endif
 
-#include <platform.h>
+#include <memory_context.h>
 #include "enum.h"
 #include "math.h"
 #include "geometry.h"
@@ -64,4 +64,4 @@ struct Context {
 
 // #include "GameUI.h" 
 
-extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory);
+extern "C" GAMELIBRARY_API void GameUpdate(Context& context);

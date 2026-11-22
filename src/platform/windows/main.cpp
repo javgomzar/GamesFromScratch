@@ -35,7 +35,10 @@ HINSTANCE h_instance;                 // current instance
 char sz_title[MAX_LOADSTRING];        // The title bar text
 char sz_window_class[MAX_LOADSTRING]; // the main window class name
 
-Memory memory;
+Context context;
+
+memory_size Memory::permanent_size = Kilobytes(8);
+memory_size Memory::transient_size = Kilobytes(8);
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -238,7 +241,7 @@ void LoadXInput() {
 }
 
 // Message processing
-void ProcessPendingMessages(HWND window, Input& input, Record_And_Playback* record_playback) {
+void ProcessPendingMessages(HWND window, Input& input) {
     MSG msg;
     while (PeekMessage(&msg, 0, 0, 0, PM_REMOVE)) {
         switch (msg.message) {
@@ -263,7 +266,7 @@ void ProcessPendingMessages(HWND window, Input& input, Record_And_Playback* reco
                     }
                     
                     if (vk_code == 'P') {
-                        memory.pause = !memory.pause;
+                        context.pause = !context.pause;
                     }
                     
                     if (vk_code == VK_UP)           PressButton(input.keyboard.up);
@@ -293,21 +296,12 @@ void ProcessPendingMessages(HWND window, Input& input, Record_And_Playback* reco
                     else if (vk_code == VK_PRIOR) PressButton(input.keyboard.page_up);
                     else if (vk_code == VK_NEXT)  PressButton(input.keyboard.page_down);
                     else if (vk_code == VK_SHIFT) PressButton(input.keyboard.shift);
-                    else if (vk_code == 'L') {
-                        if (record_playback->record_index == 0) {
-                            BeginRecordingInput(record_playback, 1);
-                        }
-                        else {
-                            EndRecordingInput(record_playback);
-                            BeginInputPlayback(record_playback, 1);
-                        }
-                    }
                 }
 
                 // Shortcut for closing Alt+F4
                 bool alt_key_was_down = (msg.lParam & ((uint32)1 << 29)) != 0;
                 if ((vk_code == VK_F4) && alt_key_was_down) {
-                    memory.running = false;
+                    context.running = false;
                     PostQuitMessage(0);
                 }
             } break;
@@ -346,7 +340,7 @@ void ProcessPendingMessages(HWND window, Input& input, Record_And_Playback* reco
             case WM_CLOSE:
             case WM_DESTROY:
             {
-                memory.running = false;
+                context.running = false;
                 PostQuitMessage(0);
             } break;
             default: {
@@ -420,39 +414,29 @@ int APIENTRY wWinMain(
     SetConsoleMode(hConsole, console_mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
 
     // Set up for main loop
-    memory_size permanent_storage_size = Megabytes(128);
-    void* game_memory_block = Platform::AllocateMemory(permanent_storage_size);
-    memory.permanent = Arena(permanent_storage_size, (uint8*)game_memory_block);
-    memory.hot_reload = true;
-
-    // Game_State* pGameState = PushStruct(&Memory.Permanent, game_state);
-    // Memory.GameState = pGameState;
-
-    // Memory arenas
-    memory.transient = Arena(memory.permanent, Megabytes(64));
+    context.hot_reload = true;
 
     // Assets
     //Memory.AssetManager = InitializeAssetManager(&Memory.Permanent, &Memory.Transient);
 
     // Recording and playback
-    Record_And_Playback record_playback;
-    record_playback.playback_index = 0;
-    record_playback.record_index = 0;
-    record_playback.game_memory_block = game_memory_block;
-    record_playback.total_size = permanent_storage_size;
+    // Record_And_Playback record_playback;
+    // record_playback.playback_index = 0;
+    // record_playback.record_index = 0;
+    // record_playback.game_memory_block = game_memory_block;
+    // record_playback.total_size = permanent_storage_size;
     
-    Render_Group* group = &memory.render_group;
+    Render_Group* group = &context.render_group;
     RECT rect = { 0 };
     GetClientRect(window, &rect);
     group->Initialize(
-        memory.permanent,
-        &memory.asset_manager,
+        &context.asset_manager,
         rect.right - rect.left,
         rect.bottom - rect.top
     );
 
     // Input
-    Input& input = memory.input;
+    Input& input = context.input;
     input.mode = Keyboard;
 
     // Sound
@@ -468,7 +452,7 @@ int APIENTRY wWinMain(
     HDC device_context = GetDC(window);
 
     // Initilize renderer
-    Renderer::Initialize(memory.asset_manager, memory.render_group);
+    Renderer::Initialize(context.asset_manager, context.render_group);
 
     Monitor_Manager monitor_manager;
     monitor_manager.RefreshMonitors();
@@ -497,7 +481,7 @@ int APIENTRY wWinMain(
 
     // Code compilation setup
    Game_Code code;
-   code.Load(memory.transient);
+   code.Load();
 
     // Slang setup
     // InitializeSlang(&Memory.Permanent, BuildConfig.Renderer);
@@ -505,40 +489,37 @@ int APIENTRY wWinMain(
     int nArgs = 0;
     LPWSTR* Args = CommandLineToArgvW(lpCmdLine, &nArgs);
     if (nArgs == 1 && wcscmp(Args[0], L"-test") == 0) {
-        memory.test = true;
+        context.test = true;
     }
     else if (nArgs > 0) {
         Log::Fatal("Invalid arguments.");
     }
     LocalFree(Args);
 
-    memory.running = true;
+    context.running = true;
     bool first_frame = true;
 
     // Main loop
     Log::Info("Running.");
 
-    while (memory.running) {
+    while (context.running) {
         // Hot reloading code
         if (code.NeedsUpdate()) {
-            bool success = code.Load(memory.transient);
+            bool success = code.Load();
             if (success) {
-                memory.hot_reload = true;
+                context.hot_reload = true;
             }
         }
 
         // Hot reloading for shaders
         // ReloadShaders();
 
-        // Clear transient memory
-        memory.transient.Clear();
-
         // Previous input
-        UpdatePreviousInput(memory.input);
+        UpdatePreviousInput(context.input);
 
         // Peek and dispatch messages
         if (!first_frame) {
-            ProcessPendingMessages(window, memory.input, &record_playback);
+            ProcessPendingMessages(window, context.input);
         }
 
         input.keyboard.any = false;
@@ -625,13 +606,6 @@ int APIENTRY wWinMain(
         input.mouse.cursor.x = MouseP.x;
         input.mouse.cursor.y = MouseP.y;
 
-        if (record_playback.record_index) {
-            RecordInput(&record_playback, &memory.input);
-        }
-        if (record_playback.playback_index) {
-            PlaybackInput(&record_playback, &memory.input);
-        }
-
         // Game function
         if (code.is_valid) {
             GetClientRect(window, &rect);
@@ -644,18 +618,18 @@ int APIENTRY wWinMain(
                 int32 NewWidth = rect.right - rect.left;
                 int32 NewHeight = rect.bottom - rect.top;
 
-                if ((NewWidth != memory.render_group.width || NewHeight != memory.render_group.height)) {
+                if ((NewWidth != context.render_group.width || NewHeight != context.render_group.height)) {
                     group->width = NewWidth;
                     group->height = NewHeight;
                     //ResizeWindow(NewWidth, NewHeight);
                 }
             }
 
-            if (!memory.pause) {
+            if (!context.pause) {
                 // Clear render group
                 group->Clear();
 
-                code.update(memory);
+                code.update(context);
 
                 // if (pGameState->Exit) {
                 //     Memory.Running = false; PostQuitMessage(0);
@@ -688,7 +662,7 @@ int APIENTRY wWinMain(
         if (GetProcessMemoryInfo(GetCurrentProcess(), (PROCESS_MEMORY_COUNTERS*)&PMC, sizeof(PMC))) {
             used_memory = PMC.WorkingSetSize / Megabytes(1);
         }
-        memory.used_memory = used_memory;
+        context.used_memory = used_memory;
 
         // float WorkSecsElapsed = GetSecondsElapsed(LastCounter, Win32GetWallClock());
         // float UsedTime_ms = 1000.0f * WorkSecsElapsed;
@@ -840,14 +814,14 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
             PAINTSTRUCT ps;
             HDC hdc = BeginPaint(Window, &ps);
 
-            if (memory.initialized) {
+            if (context.initialized) {
                 RECT Rect = { 0 };
                 GetClientRect(Window, &Rect);
 
                 int32 NewWidth = Rect.right - Rect.left;
                 int32 NewHeight = Rect.bottom - Rect.top;
 
-                Render_Group* Group = &memory.render_group;
+                Render_Group* Group = &context.render_group;
 
                 if (NewWidth != Group->width || NewHeight != Group->height) {
                     Group->width = NewWidth;
@@ -865,7 +839,7 @@ LRESULT CALLBACK WndProc(HWND Window, UINT message, WPARAM wParam, LPARAM lParam
         } break;
         case WM_CLOSE:
         case WM_DESTROY:
-            { memory.running = false; PostQuitMessage(0); } break;
+            { context.running = false; PostQuitMessage(0); } break;
         default:
             return DefWindowProc(Window, message, wParam, lParam);
     }

@@ -57,7 +57,6 @@ Matrix4 GetWorldProjectionMatrix(float Width, float Height) {
 */
 
 void Render_Group::Initialize(
-    Arena& permanent,
     Asset_Manager* asset_manager_ref,
     int32 screen_width,
     int32 screen_height

@@ -4,7 +4,7 @@
 #include "library.h"
 
 
-using Game_Update = void(*)(Memory&);
+using Game_Update = void(*)(Context&);
 
 struct Game_Code {
     int64 dll_last_write_time = 0;
@@ -12,6 +12,6 @@ struct Game_Code {
     bool is_valid = false;
 
     bool NeedsUpdate();
-    bool Load(Arena& transient);
+    bool Load();
     void Unload();
 };

@@ -184,11 +184,11 @@ template <typename T> class Free_List {
 private:
     T* slots;
     uint32* free_slots;
+    uint32 free_count = 0;
 public:
     bool* occupied;
     uint32 size = 0;
     uint32 count = 0;
-    uint32 free_count = 0;
 
     Free_List(Arena& arena, uint32 n) {
         size = n;
@@ -197,7 +197,7 @@ public:
         occupied = arena.PushArray<bool>(n);
     }
 
-    uint32 Insert(T element) {
+    uint32 Insert(const T& element) {
         assert(count < size);
         
         uint32 result;
@@ -217,7 +217,7 @@ public:
         return slots[index];
     }
 
-    T operator[](uint32 index) const {
+    const T& operator[](uint32 index) const {
         return slots[index];
     }
 

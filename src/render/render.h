@@ -1,5 +1,8 @@
 #pragma once
-#include "asset.h"
+
+#include <texture.h>
+#include <mesh.h>
+#include <font.h>
 #include "color.h"
 #include "enum.h"
 
@@ -145,7 +148,7 @@ struct Render_Group {
     bool debug_colliders;
     bool push_outline;
     bool render_text;
-    void Initialize(Arena& permanent, Asset_Manager* asset_manager_ref, int32 screen_width, int32 screen_height);
+    void Initialize(Asset_Manager* asset_manager_ref, int32 screen_width, int32 screen_height);
     void Swap(int i, int j);
     void Clear();
 };

@@ -10,17 +10,17 @@
 
 #include "library.h"
 
-Arena* Debug_Info::transient = nullptr;
-
+memory_size Memory::permanent_size = Megabytes(64);
+memory_size Memory::transient_size = Megabytes(64);
 
 // Sound
-void GameOutputSound(Asset_Manager* asset_manager, Sound_Buffer* sound_buffer, State* state, Input* input) {
+// void GameOutputSound(Asset_Manager* asset_manager, Sound_Buffer* sound_buffer, State* state, Input* input) {
     
-    Silence(sound_buffer);
+//     Silence(sound_buffer);
 
-    // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
-    //WriteSineWave(pSoundBuffer, 480, 0);
-}
+//     // DebugPlotSoundBuffer(ScreenBuffer, PreviousSoundBuffer, PreviousOrigin);
+//     //WriteSineWave(pSoundBuffer, 480, 0);
+// }
 
 // Debug
 void LogGameDebugRecords(Render_Group* group);
@@ -219,23 +219,22 @@ void UpdateGameState(
 }
 
 // Main
-extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
+extern "C" GAMELIBRARY_API void GameUpdate(Context& context)
 {
-    if (memory.hot_reload) {
-        // time_records = (Time_Record*)&memory.time_records_library;
-        Debug_Info::transient = &memory.transient;
+    if (context.hot_reload) {
+        // time_records = (Time_Record*)&context.time_records_library;
 
-        if (memory.test) {
-            // RunReloadTests(memory);
+        if (context.test) {
+            // RunReloadTests(context);
         }
         
-        memory.hot_reload = false;
+        context.hot_reload = false;
     }
 
-    Render_Group& group = memory.render_group;
-    Input& input = memory.input;
-    State* state = memory.state;
-    Asset_Manager& asset_manager = memory.asset_manager;
+    Render_Group& group = context.render_group;
+    Input& input = context.input;
+    State* state = context.state;
+    Asset_Manager& asset_manager = context.asset_manager;
 {
     // TIMED_BLOCK;
 
@@ -243,7 +242,7 @@ extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
     // Entity* active_camera = state->active_camera;
 
     bool first_frame = false;
-    if (!memory.initialized) {
+    if (!context.initialized) {
         first_frame = true;
 
         // Initialize entities
@@ -255,7 +254,7 @@ extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
         // camera->pitch = 22.5f;
         // camera->anchor = V3(0, 3.2f, 0);
 
-        if (memory.test) {
+        if (context.test) {
             // RunOnceTests(memory);
         }
 
@@ -263,7 +262,7 @@ extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
         // SetParticleEmitterCircle(state->emitter, V3(0,0,0), 1.0f, V3(0,1,0));
         // state->emitter->ParticleLifetime = 2.0f;
 
-        memory.initialized = true;
+        context.initialized = true;
     }
 
     // PushClear(group, Color::BLACK, Target_None);
@@ -273,7 +272,7 @@ extern "C" GAMELIBRARY_API void GameUpdate(Memory& memory)
     // PushClear(group, Color::MAGENTA, Target_PingPong);
     // PushClear(group, Color::BLACK, Target_Output);
 
-    if (memory.test) {
+    if (context.test) {
         // RunEveryFrameTests(Memory);
     }
 
