@@ -241,7 +241,7 @@ void Renderer::Initialize(Asset_Manager& asset_manager, Render_Group& render_gro
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         .Alignment = 0,
         .Width = (UINT64)render_group.width,
-        .Height = render_group.height,
+        .Height = (UINT)render_group.height,
         .DepthOrArraySize = 1,
         .MipLevels = 1,
         .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -269,8 +269,8 @@ void Renderer::Initialize(Asset_Manager& asset_manager, Render_Group& render_gro
 
     D3D12_RESOURCE_DESC msaa_depth_desc = {
         .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-        .Width = render_group.width,
-        .Height = render_group.height,
+        .Width = (UINT64)render_group.width,
+        .Height = (UINT)render_group.height,
         .DepthOrArraySize = 1,
         .MipLevels = 1,
         .Format = DXGI_FORMAT_D24_UNORM_S8_UINT,

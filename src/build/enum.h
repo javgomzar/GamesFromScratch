@@ -29,6 +29,7 @@ enum Type {
     Type_Color,
     Type_Collider,
     Type_Arena,
+    Type_Asset_Type,
     Type_Topology,
     Type_Entity_type,
     Type_character_action_id,
@@ -85,7 +86,7 @@ struct Debug_Enum_Value {
     int value;
 };
 
-inline constexpr int ENUM_VALUES_SIZE = 55;
+inline constexpr int ENUM_VALUES_SIZE = 63;
 extern const Debug_Enum_Value ENUM_VALUES[ENUM_VALUES_SIZE];
 int _RandomEnum(Type type);
 #define RandomEnum(type) (type)_RandomEnum(Type_##type)

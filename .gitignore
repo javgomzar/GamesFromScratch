@@ -11,11 +11,8 @@ cpp.hint
 compile_commands.json
 .cache
 
-# Game assets
-/asset/
-
-# Screen captures
-/captures/*
+# Assets and files
+/file/
 
 # Binaries
 /bin/

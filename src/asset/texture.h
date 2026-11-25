@@ -1,5 +1,7 @@
 #pragma once
+
 #include "common.h"
+#include "asset.h"
 
 #pragma pack(push, 1)
 struct bitmap_header {
@@ -66,13 +68,11 @@ struct bitmap_header_v5 {
 #pragma pack(pop)
 
 
-struct Texture {
-    Asset_ID id;
+struct Texture : public Asset {
     int32 width;
     int32 height;
     int32 channels;
     int32 size;
-    uint8* pixels;
 };
 
 uint64 GetPixelsSize(int32 width, int32 height, int32 channels);

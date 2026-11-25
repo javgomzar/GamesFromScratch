@@ -2,41 +2,39 @@
 #include "asset.h"
 
 
-void Asset_Manager::Initialize(Arena& permanent) {
+void Asset_Manager::Initialize() {
     next_id = 1;
-
-    // game_asset* Test = AddAsset(&Result, "GameAsset/Files/Manifest/Test.man" , game_asset_tag::TEST);
+    metadata = Hash_Table<Asset_ID, Asset_Metadata>();
 }
 
-Asset_ID Asset_Manager::CreateID() {
-    return next_id++;
-}
+Asset_Handle Asset_Manager::AddAsset(String path) {
+    Asset asset;
+    asset.handle.id = next_id++;
+    asset.handle.generation = 1;
 
-void Asset_Manager::AddAsset(
-    Asset& asset,
-    String path,
-    bool force_process,
-    int file_count,
-    ...
-) {
-    asset.path = path;
-    bool process = force_process;
+    bool process = false;
     if (Platform::FileExists(path)) {
-        Timestamp asset_file_time = Platform::GetFileInfo(path).timestamp;
-        for (int i = 0; i < file_count; ++i) {
-            if (!Platform::FileExists(path)) {
-                Log::Error("Failed to add file to asset.");
-                continue;
-            }
-
-            Timestamp import_file_time = Platform::GetFileInfo(path).timestamp;
-            if (import_file_time > asset_file_time) {
-                process = true;
-            }
-        }
+        asset.source_file = Platform::GetFileInfo(path);
+        String file_name = GetFileNameWithoutExtension(path);
+        //String binary_path = String::Format();
+        
     }
     else {
         process = true;
+    }
+
+    String extension = GetFileExtension(path);
+    if (extension == "gltf" || extension == "glb") {
+        asset.type = Asset_Scene;
+    }
+    else if (extension == "bmp" || extension == "jpeg" || extension == "jpg" || extension == "png") {
+        asset.type = Asset_Texture;
+    }
+    else if (extension == "wav") {
+        asset.type = Asset_Sound;
+    }
+    else if (extension == "ttf") {
+        asset.type = Asset_Font;
     }
 
     if (process) {
@@ -48,7 +46,7 @@ void Asset_Manager::AddAsset(
         // uint32 animation_count = 0;
 
         // Count asset types
-        for (int i = 0; i < file_count; ++i) {
+        // for (int i = 0; i < file_count; ++i) {
             // String extension = GetFileExtension(file);
             // if (extension == "glb") {
             //     // TODO
@@ -65,11 +63,11 @@ void Asset_Manager::AddAsset(
             // else {
             //     Log::Error("Invalid asset file extension.");
             // }
-        }
+        //}
 
-        asset.textures = Array<Asset_ID>(arena, texture_count);
+        // asset.textures = Array<Asset_ID>(arena, texture_count);
 
-        for (int i = 0; i < file_count; ++i) {
+        // for (int i = 0; i < file_count; ++i) {
             // String extension = GetFileExtension(file);
             // if (extension == "glb") {
             //     // TODO
@@ -90,16 +88,16 @@ void Asset_Manager::AddAsset(
             // else {
             //     Log::Error("Invalid asset file extension.");
             // }
-        }
+        //}
     }
 }
 
-Texture* Asset_Manager::AddTexture() {
-    Texture* texture = arena.Push<Texture>();
-    texture->id = CreateID();
-    textures.Insert(texture->id, texture);
-    return texture;
-}
+// Texture* Asset_Manager::AddTexture() {
+//     Texture* texture = arena.Push<Texture>();
+//     texture->id = CreateID();
+//     textures.Insert(texture->id, texture);
+//     return texture;
+// }
 
 // void ProcessImportFiles(game_asset* Asset, Arena* Transient) {
 //     Assert(Asset->ImportFiles.IsFull() && Asset->Header.nImportFiles == Asset->ImportFiles.Count);

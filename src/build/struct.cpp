@@ -2,7 +2,7 @@
 #include "struct.h"
 
 
-bool IsStructType(Type type) { return type > 35 && type < 37; }
+bool IsStructType(Type type) { return type > 36 && type < 38; }
 
 const Debug_Struct_Member struct_members[STRUCT_MEMBERS_SIZE] = {
     {"rotation", Type_Transform, Type_Quaternion, sizeof(Quaternion), (uint64)(&((Transform*)0)->rotation),0, false},

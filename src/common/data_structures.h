@@ -3,9 +3,6 @@
 #include "common.h"
 
 
-/*
-    Memory for elements must be previously allocated.
-*/
 template <typename T> class Stack {
 private:
     T* top;
@@ -16,7 +13,7 @@ public:
 
     Stack(uint64 max_size = 32) {
         n = 0;
-        T* memory = (T*)calloc(32, sizeof(T));
+        T* memory = (T*)calloc(max_size, sizeof(T));
         top = memory;
         base = memory;
         capacity = max_size;
@@ -138,30 +135,30 @@ public:
 
 
 /*
-    Fixed length array.
+    Slice of memory with fixed length.
 */
-template <typename T> class Array {
+template <typename T> class Slice {
 private:
     T* data;
 public:
     uint32 length;
 
-    Array() {
+    Slice() {
         length = 0;
         data = nullptr;
     }
 
-    Array(T* memory, uint32 size) {
+    Slice(T* memory, uint32 size) {
         length = size;
         data = memory;
     }
 
-    Array(Arena& arena, uint32 N) {
+    Slice(Arena& arena, uint32 N) {
         length = N;
         data = arena.PushArray<T>(N);
     }
 
-    ~Array() {
+    ~Slice() {
         length = 0;
         data = nullptr;
     }

@@ -2,10 +2,18 @@
 #include "enum.h"
 
 
-bool IsEnumType(Type type) { return type > 23 && type < 32; }
-bool IsFlagType(Type type) { return type > 31 && type < 36; }
+bool IsEnumType(Type type) { return type > 23 && type < 33; }
+bool IsFlagType(Type type) { return type > 32 && type < 37; }
 
 const Debug_Enum_Value ENUM_VALUES[ENUM_VALUES_SIZE] = {
+    {Type_Asset_Type, "Asset_Scene", 0},
+    {Type_Asset_Type, "Asset_Texture", 1},
+    {Type_Asset_Type, "Asset_Sound", 2},
+    {Type_Asset_Type, "Asset_Mesh", 3},
+    {Type_Asset_Type, "Asset_Material", 4},
+    {Type_Asset_Type, "Asset_Animation", 5},
+    {Type_Asset_Type, "Asset_Font", 6},
+    {Type_Asset_Type, "Asset_Type_count", 7},
     {Type_Topology, "Topology_Point", 0},
     {Type_Topology, "Topology_Line", 1},
     {Type_Topology, "Topology_Line_Strip", 2},
