@@ -1,13 +1,12 @@
 #include "build.h"
 
 
-memory_size Memory::permanent_size = Kilobytes(8);
-memory_size Memory::transient_size = Kilobytes(8);
+memory_size Transient::size = Kilobytes(8);
 
 int main(int argc, char* argv[]) {
     if (argc == 3 && argv[2]) {
         if (strcmp(argv[2], "-hot") != 0) {
-            String error_text = String::Format(Memory::transient, "Incorrect argument '{s}', try '-hot'.", 1, argv[2]);
+            String error_text = String::Format(Transient::arena, "Incorrect argument '{s}', try '-hot'.", 1, argv[2]);
             Log::Error(error_text);
             return 2;
         }
@@ -21,7 +20,7 @@ int main(int argc, char* argv[]) {
     bool success = false;
 
     // Pre-compiled headers
-    String pch_output = String::Format(Memory::transient, "{s}pch.pch", 1, Build::config.obj_dir);
+    String pch_output = String::Format(Transient::arena, "{s}pch.pch", 1, Build::config.obj_dir);
     if (Build::config.pch && NeedsUpdate(Build::config.pch_header_path, pch_output)) {
         success = Build::PrecompileHeaders();
         if (!success) {

@@ -21,17 +21,6 @@ const Debug_Enum_Value ENUM_VALUES[ENUM_VALUES_SIZE] = {
     {Type_Topology, "Topology_Triangle_Strip", 4},
     {Type_Topology, "Topology_Patches", 5},
     {Type_Topology, "Topology_count", 6},
-    {Type_Entity_type, "Character_Entity_Type", 0},
-    {Type_Entity_type, "Enemy_Entity_Type", 1},
-    {Type_Entity_type, "Camera_Entity_Type", 2},
-    {Type_Entity_type, "Prop_Entity_Type", 3},
-    {Type_Entity_type, "Weapon_Entity_Type", 4},
-    {Type_Entity_type, "Entity_type_count", 5},
-    {Type_character_action_id, "Character_Action_Idle_ID", 0},
-    {Type_character_action_id, "Character_Action_Walk_ID", 1},
-    {Type_character_action_id, "Character_Action_Jump_ID", 2},
-    {Type_character_action_id, "Character_Action_Attack_ID", 3},
-    {Type_character_action_id, "character_action_id_count", 4},
     {Type_Sort_Key, "Sort_Background", 0},
     {Type_Sort_Key, "Sort_Terrain", 1},
     {Type_Sort_Key, "Sort_Meshes", 2},
@@ -69,6 +58,17 @@ const Debug_Enum_Value ENUM_VALUES[ENUM_VALUES_SIZE] = {
     {Type_Vertex_ID, "Vertex_Surface_ID", 2},
     {Type_Vertex_ID, "Vertex_Text_ID", 3},
     {Type_Vertex_ID, "Vertex_ID_count", 4},
+    {Type_Entity_type, "Character_Entity_Type", 0},
+    {Type_Entity_type, "Enemy_Entity_Type", 1},
+    {Type_Entity_type, "Camera_Entity_Type", 2},
+    {Type_Entity_type, "Prop_Entity_Type", 3},
+    {Type_Entity_type, "Weapon_Entity_Type", 4},
+    {Type_Entity_type, "Entity_type_count", 5},
+    {Type_character_action_id, "Character_Action_Idle_ID", 0},
+    {Type_character_action_id, "Character_Action_Walk_ID", 1},
+    {Type_character_action_id, "Character_Action_Jump_ID", 2},
+    {Type_character_action_id, "Character_Action_Attack_ID", 3},
+    {Type_character_action_id, "character_action_id_count", 4},
 };
 
 int _RandomEnum(Type type) {
@@ -83,6 +83,13 @@ int _RandomEnum(Type type) {
 }
 
 const Debug_Enum_Value FLAG_VALUES[FLAG_VALUES_SIZE] = {
+    {Type_Render_Flag, "Depth_Test", 1},
+    {Type_Render_Flag, "Stencil_Test", 2},
+    {Type_Render_Flag, "Overwrite_Alpha", 4},
+    {Type_Render_Flag, "Text_Outline", 8},
+    {Type_Render_Flag, "Debug_Bones", 16},
+    {Type_Render_Flag, "Sky", 32},
+    {Type_Render_Flag, "Water", 64},
     {Type_Entity_Flag, "Render", 1},
     {Type_Entity_Flag, "Movable", 2},
     {Type_Entity_Flag, "Animated", 4},
@@ -92,15 +99,13 @@ const Debug_Enum_Value FLAG_VALUES[FLAG_VALUES_SIZE] = {
     {Type_UI_Draw, "Fillbar", 4},
     {Type_UI_Draw, "Slider", 8},
     {Type_UI_Draw, "Checkbox", 16},
-    {Type_Render_Flag, "Depth_Test", 1},
-    {Type_Render_Flag, "Stencil_Test", 2},
-    {Type_Render_Flag, "Overwrite_Alpha", 4},
-    {Type_Render_Flag, "Text_Outline", 8},
-    {Type_Render_Flag, "Debug_Bones", 16},
-    {Type_Render_Flag, "Sky", 32},
-    {Type_Render_Flag, "Water", 64},
 };
 
+
+Render_Flag operator|(Render_Flag lhs, Render_Flag rhs) { return (Render_Flag)((uint64)lhs | (uint64)rhs); }
+Render_Flag& operator|=(Render_Flag& lhs, Render_Flag rhs) { return lhs = lhs | rhs; }
+bool operator&(Render_Flag lhs, Render_Flag rhs) { return (uint64)lhs & (uint64)rhs; }
+Render_Flag operator~(Render_Flag flag) { return (Render_Flag)(~(uint64)flag); }
 
 Entity_Flag operator|(Entity_Flag lhs, Entity_Flag rhs) { return (Entity_Flag)((uint64)lhs | (uint64)rhs); }
 Entity_Flag& operator|=(Entity_Flag& lhs, Entity_Flag rhs) { return lhs = lhs | rhs; }
@@ -116,8 +121,3 @@ UI_Draw operator|(UI_Draw lhs, UI_Draw rhs) { return (UI_Draw)((uint64)lhs | (ui
 UI_Draw& operator|=(UI_Draw& lhs, UI_Draw rhs) { return lhs = lhs | rhs; }
 bool operator&(UI_Draw lhs, UI_Draw rhs) { return (uint64)lhs & (uint64)rhs; }
 UI_Draw operator~(UI_Draw flag) { return (UI_Draw)(~(uint64)flag); }
-
-Render_Flag operator|(Render_Flag lhs, Render_Flag rhs) { return (Render_Flag)((uint64)lhs | (uint64)rhs); }
-Render_Flag& operator|=(Render_Flag& lhs, Render_Flag rhs) { return lhs = lhs | rhs; }
-bool operator&(Render_Flag lhs, Render_Flag rhs) { return (uint64)lhs & (uint64)rhs; }
-Render_Flag operator~(Render_Flag flag) { return (Render_Flag)(~(uint64)flag); }

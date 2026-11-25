@@ -3,6 +3,7 @@
 
 
 Build::Config Build::config;
+Arena Build::permanent = Arena(Kilobytes(8));
 
 void Build::ReadConfig(String config_file_path) {
     File_Info config_file_info;
@@ -81,7 +82,7 @@ void Build::ReadConfig(String config_file_path) {
                         RequireToken(tokenizer, Token_Semicolon);
                         builder.Append(" ");
                     } while (true);
-                    Build::config.include = builder.Build(Memory::permanent);
+                    Build::config.include = builder.Build(permanent);
                 }
     
                 else if (token == "LIB") {
@@ -98,7 +99,7 @@ void Build::ReadConfig(String config_file_path) {
                         builder.Append(" ");
                         RequireToken(tokenizer, Token_Semicolon);
                     } while (true);
-                    Build::config.lib = builder.Build(Memory::permanent);
+                    Build::config.lib = builder.Build(permanent);
                 }
 
                 // Linked libraries
@@ -114,7 +115,7 @@ void Build::ReadConfig(String config_file_path) {
                         RequireToken(tokenizer, Token_Semicolon);
                         builder.Append(" ");
                     } while(true);
-                    Build::config.linked_libs = builder.Build(Memory::permanent);
+                    Build::config.linked_libs = builder.Build(permanent);
                 }
     
                 // Renderer
@@ -122,7 +123,7 @@ void Build::ReadConfig(String config_file_path) {
                     RequireToken(tokenizer, Token_Equal);
                     Build::config.renderer_source = ParsePath(tokenizer);
                     String file_name = GetFileNameWithoutExtension(Build::config.renderer_source);
-                    Build::config.renderer_obj = String::Format(Memory::permanent, "{s}{s}.obj", 2, Build::config.obj_dir, file_name);
+                    Build::config.renderer_obj = String::Format(permanent, "{s}{s}.obj", 2, Build::config.obj_dir, file_name);
                 }
 
                 // Source files
@@ -135,7 +136,7 @@ void Build::ReadConfig(String config_file_path) {
                     do {
                         String source_file = ParsePath(tokenizer);
                         String file_name = GetFileNameWithoutExtension(source_file);
-                        String obj_file = String::Format(Memory::transient, "{s}{s}.obj", 2, Build::config.obj_dir, file_name);
+                        String obj_file = String::Format(Transient::arena, "{s}{s}.obj", 2, Build::config.obj_dir, file_name);
 
                         bool update = NeedsUpdate(source_file, obj_file);
                         if (update) {
@@ -153,10 +154,10 @@ void Build::ReadConfig(String config_file_path) {
                         obj_files.Append(" ");
                     } while(token.type == Token_Semicolon);
 
-                    Build::config.source_files = source_files.Build(Memory::permanent);
-                    Build::config.obj_files = obj_files.Build(Memory::permanent);
+                    Build::config.source_files = source_files.Build(permanent);
+                    Build::config.obj_files = obj_files.Build(permanent);
 
-                    Memory::transient.Clear();
+                    Transient::arena.Clear();
                 }
 
                 // Metaprogramming source file
@@ -181,7 +182,7 @@ void Build::ReadConfig(String config_file_path) {
                         meta_source_files.Append(" ");
                     } while(token.type == Token_Semicolon);
 
-                    Build::config.metaprogramming_source = meta_source_files.Build(Memory::permanent);
+                    Build::config.metaprogramming_source = meta_source_files.Build(permanent);
                 }
 
                 // Metaprogramming input files
@@ -208,7 +209,7 @@ void Build::ReadConfig(String config_file_path) {
                     RequireToken(tokenizer, Token_Equal);
                     Build::config.platform_main = ParsePath(tokenizer);
                     String platform_main_file_name = GetFileNameWithoutExtension(Build::config.platform_main);
-                    Build::config.platform_obj = String::Format(Memory::permanent, "{s}{s}.obj", 2, Build::config.obj_dir, platform_main_file_name);
+                    Build::config.platform_obj = String::Format(permanent, "{s}{s}.obj", 2, Build::config.obj_dir, platform_main_file_name);
                 }
 
                 // Game library
@@ -216,7 +217,7 @@ void Build::ReadConfig(String config_file_path) {
                     RequireToken(tokenizer, Token_Equal);
                     Build::config.game_library_main = ParsePath(tokenizer);
                     String game_library_main_file_name = GetFileNameWithoutExtension(Build::config.game_library_main);
-                    Build::config.game_library_obj = String::Format(Memory::permanent, "{s}{s}.obj", 2, Build::config.obj_dir, game_library_main_file_name);
+                    Build::config.game_library_obj = String::Format(permanent, "{s}{s}.obj", 2, Build::config.obj_dir, game_library_main_file_name);
                 }
             }
 
@@ -242,8 +243,8 @@ void Build::ReadConfig(String config_file_path) {
         }
         
         if (Platform::OS == Platform::Windows) {
-            Build::config.pch_header_path = String::Format(Memory::permanent, "{s}" PATH_SEPARATOR "pch.h", 1, Build::config.pch_source_dir);
-            Build::config.pch_source_path = String::Format(Memory::permanent, "{s}" PATH_SEPARATOR "pch.cpp", 1, Build::config.pch_source_dir);
+            Build::config.pch_header_path = String::Format(permanent, "{s}" PATH_SEPARATOR "pch.h", 1, Build::config.pch_source_dir);
+            Build::config.pch_source_path = String::Format(permanent, "{s}" PATH_SEPARATOR "pch.cpp", 1, Build::config.pch_source_dir);
             Build::config.metaprogramming_binary = "bin\\meta.exe";
         }
         else {
@@ -251,7 +252,7 @@ void Build::ReadConfig(String config_file_path) {
         }
     }
     else {
-        String error = String::Format(Memory::permanent, "Build configuration file {s} not found.", 1, config_file_path);
+        String error = String::Format(permanent, "Build configuration file {s} not found.", 1, config_file_path);
         Log::Fatal(error);
     }
 }
@@ -263,12 +264,12 @@ bool RunAndTime(char* command, String text) {
     uint64 end = Platform::GetWallClock();
     bool success = exit_code == 0;
     if (success) {
-        String message = String::Format(Memory::transient,
+        String message = String::Format(Transient::arena,
             "{s} done in {f2} milliseconds.", 2, text, 1000.0f * Platform::GetSecondsElapsed(start, end));
         Log::Info(message);
     }
     else {
-        String message = String::Format(Memory::transient, "{s} failed, exit code '{i}'.", 2, text, exit_code);
+        String message = String::Format(Transient::arena, "{s} failed, exit code '{i}'.", 2, text, exit_code);
         Log::Error(message);
     }
     return success;
@@ -276,10 +277,10 @@ bool RunAndTime(char* command, String text) {
 
 bool Build::PrecompileHeaders() {
     Log::Info("Precompiling headers.");
-    char* command = (char*)(Memory::permanent.base + Memory::permanent.used);
+    char* command = (char*)(permanent.base + permanent.used);
     switch (Build::config.compiler) {
         case Build::Config::Compiler::MSVC: {
-            String::Format(Memory::permanent,
+            String::Format(permanent,
                 "{s} /std:c++20 /nologo {s} {s} /c {s} "
                 "/Yc\"pch.h\" /Fp\"{s}pch.pch\" /Fo\"{s}pch.obj\" /Fd\"{s}pch.pdb\"",
                 7,
@@ -303,8 +304,8 @@ bool Build::MetaProgram() {
     bool success = false;
     if (NeedsUpdate(Build::config.metaprogramming_main, Build::config.metaprogramming_binary)) {
         Log::Info("Compiling metaprogramming code.");
-        char* command = (char*)(Memory::permanent.base + Memory::permanent.used);
-        String command_string = String::Format(Memory::permanent,
+        char* command = (char*)(permanent.base + permanent.used);
+        String command_string = String::Format(permanent,
             "{s} /std:c++20 /nologo {s} /Fo\"{s}\" /Fd\"bin\\meta.pdb\" /MP {s} {s} {s} "
             "/link {s} {s} /OUT:\"bin\\meta.exe\" /PDB:\"bin\\meta.pdb\"", 
             8,
@@ -325,8 +326,8 @@ bool Build::MetaProgram() {
     }
 
     Log::Info("Running metaprogramming.");
-    char* command = (char*)(Memory::permanent.base + Memory::permanent.used);
-    String command_string = String::Copy(Memory::permanent, Build::config.metaprogramming_binary);
+    char* command = (char*)(permanent.base + permanent.used);
+    String command_string = String::Copy(permanent, Build::config.metaprogramming_binary);
     return RunAndTime(command, "Metaprogramming execution");
 }
 
@@ -359,10 +360,10 @@ bool Build::Compile() {
     }
 
     if (compile) {
-        String source_files = source_files_builder.Build(Memory::permanent);
+        String source_files = source_files_builder.Build(permanent);
         Log::Info("Compiling source files.");
-        char* command = (char*)(Memory::permanent.base + Memory::permanent.used);
-        String string = String::Format(Memory::permanent,
+        char* command = (char*)(permanent.base + permanent.used);
+        String string = String::Format(permanent,
             "{s} /std:c++20 /nologo /c /MP {s} {s}/Fo\"{s}\" "
             "/Yu\"pch.h\" /Fp\"{s}pch.pch\" /Fd\"{s}pch.pdb\" {s}",
             7,
@@ -387,9 +388,9 @@ bool Build::LinkPlatform() {
     char* command = nullptr;
     switch (Build::config.compiler) {
         case Build::Config::Compiler::MSVC: {
-            command = (char*)(Memory::permanent.base + Memory::permanent.used);
+            command = (char*)(permanent.base + permanent.used);
             String linker_flags = Build::config.mode == Build::Config::Mode::Debug ? "/DEBUG" : "";
-            String command_string = String::Format(Memory::permanent,
+            String command_string = String::Format(permanent,
                 "{s} /NOLOGO {s}pch.obj {s} {s} {s} {s} {s} {s} "
                 "src\\platform\\windows\\Win32PlatformLayer.res /MACHINE:X64 /PDB:{s}run_game.pdb /OUT:bin\\run_game.exe",
                 8,
@@ -420,9 +421,9 @@ bool Build::LinkGameLibrary() {
     char* command = nullptr;
     switch (Build::config.compiler) {
         case Build::Config::Compiler::MSVC: {
-            command = (char*)(Memory::permanent.base + Memory::permanent.used);
+            command = (char*)(permanent.base + permanent.used);
             String linker_flags = Build::config.mode == Build::Config::Mode::Debug ? "/DEBUG" : "";
-            String command_string = String::Format(Memory::permanent,
+            String command_string = String::Format(permanent,
                 "{s} /NOLOGO {s}pch.obj {s} {s} {s} {s} {s} "
                 "/MACHINE:X64 /DLL /IMPLIB:bin\\game_library.lib /PDB:{s}game_library.pdb /OUT:bin\\game_library.dll",
                 7,
@@ -509,19 +510,19 @@ bool Build::LinkGameLibrary() {
 
 bool Build::HotReload() {
     int hot_reload_count = 0;
-    String pdb_file = String::Format(Memory::transient, "bin\\game_library{i}.pdb", 1, hot_reload_count);
+    String pdb_file = String::Format(Transient::arena, "bin\\game_library{i}.pdb", 1, hot_reload_count);
     bool exists;
     do {
         exists = Platform::FileExists(pdb_file.content);
         if (exists) {
             hot_reload_count += 1;
-            Memory::transient.PopArray<char>(pdb_file.length + 1);
-            pdb_file = String::Format(Memory::transient, "bin\\game_library{i}.pdb", 1, hot_reload_count);
+            Transient::arena.PopArray<char>(pdb_file.length + 1);
+            pdb_file = String::Format(Transient::arena, "bin\\game_library{i}.pdb", 1, hot_reload_count);
         }
     } while(exists);
 
-    char* command = (char*)(Memory::permanent.base + Memory::permanent.used);
-    String::Format(Memory::permanent,
+    char* command = (char*)(permanent.base + permanent.used);
+    String::Format(permanent,
         "{s} /std:c++20 /nologo /D GAMELIBRARY_EXPORTS {s} {s} {s} "
         "/Fo\"build\\obj\\GameLibrary.obj\" /Fd\"{s}pch.pdb\" /Yu\"pch.h\" /Fp\"{s}pch.pch\" "
         "/link {s} build\\obj\\{s}.obj /DLL /IMPLIB:\"bin\\GameLibrary.lib\" "

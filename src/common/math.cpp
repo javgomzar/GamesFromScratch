@@ -975,7 +975,9 @@ float Complex::Phase() {
 }
 
 Complex Complex::Inverse() {
-	return Conjugate() / Modulus();
+	float m = Modulus();
+	Complex c = Conjugate();
+	return Complex(c.r / m, c.i / m);
 }
 
 Complex Expi(float alpha) {

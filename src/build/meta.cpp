@@ -65,8 +65,7 @@ const char* const PRIMITIVE_TYPES[] = {
 };
 const int PRIMITIVE_TYPE_COUNT = ArrayCount(PRIMITIVE_TYPES);
 
-memory_size Memory::permanent_size = Kilobytes(8);
-memory_size Memory::transient_size = Kilobytes(8);
+memory_size Transient::size = Kilobytes(8);
 
 int main() {
     FILE* enums_header = OpenFile("src" PATH_SEPARATOR "build" PATH_SEPARATOR "enum.h", "w");

@@ -31,18 +31,29 @@ enum Type {
     Type_Arena,
     Type_Asset_Type,
     Type_Topology,
-    Type_Entity_type,
-    Type_character_action_id,
     Type_Sort_Key,
     Type_Render_Group_Target,
     Type_Color_Format,
     Type_Vertex_Type,
     Type_Vertex_ID,
+    Type_Entity_type,
+    Type_character_action_id,
+    Type_Render_Flag,
     Type_Entity_Flag,
     Type_UI_Flags,
     Type_UI_Draw,
-    Type_Render_Flag,
     Type_Transform,
+};
+
+enum class Render_Flag : uint64 {
+    None = 0,
+    Depth_Test = 1 << 0,
+    Stencil_Test = 1 << 1,
+    Overwrite_Alpha = 1 << 2,
+    Text_Outline = 1 << 3,
+    Debug_Bones = 1 << 4,
+    Sky = 1 << 5,
+    Water = 1 << 6,
 };
 
 enum class Entity_Flag : uint64 {
@@ -66,17 +77,6 @@ enum class UI_Draw : uint64 {
     Checkbox = 1 << 4,
 };
 
-enum class Render_Flag : uint64 {
-    None = 0,
-    Depth_Test = 1 << 0,
-    Stencil_Test = 1 << 1,
-    Overwrite_Alpha = 1 << 2,
-    Text_Outline = 1 << 3,
-    Debug_Bones = 1 << 4,
-    Sky = 1 << 5,
-    Water = 1 << 6,
-};
-
 bool IsEnumType(Type type);
 bool IsFlagType(Type type);
 
@@ -94,6 +94,11 @@ int _RandomEnum(Type type);
 inline constexpr int FLAG_VALUES_SIZE = 16;
 extern const Debug_Enum_Value FLAG_VALUES[FLAG_VALUES_SIZE];
 
+Render_Flag operator|(Render_Flag lhs, Render_Flag rhs);
+Render_Flag& operator|=(Render_Flag& lhs, Render_Flag rhs);
+bool operator&(Render_Flag lhs, Render_Flag rhs);
+Render_Flag operator~(Render_Flag flag);
+
 Entity_Flag operator|(Entity_Flag lhs, Entity_Flag rhs);
 Entity_Flag& operator|=(Entity_Flag& lhs, Entity_Flag rhs);
 bool operator&(Entity_Flag lhs, Entity_Flag rhs);
@@ -108,8 +113,3 @@ UI_Draw operator|(UI_Draw lhs, UI_Draw rhs);
 UI_Draw& operator|=(UI_Draw& lhs, UI_Draw rhs);
 bool operator&(UI_Draw lhs, UI_Draw rhs);
 UI_Draw operator~(UI_Draw flag);
-
-Render_Flag operator|(Render_Flag lhs, Render_Flag rhs);
-Render_Flag& operator|=(Render_Flag& lhs, Render_Flag rhs);
-bool operator&(Render_Flag lhs, Render_Flag rhs);
-Render_Flag operator~(Render_Flag flag);

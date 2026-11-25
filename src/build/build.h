@@ -1,6 +1,6 @@
 #pragma once
 
-#include <memory_context.h>
+#include <transient.h>
 #include <tokenizer.h>
 #include <parse.h>
 
@@ -53,6 +53,7 @@ struct Build {
         bool pch;
     };
     static Config config;
+    static Arena permanent;
     static void ReadConfig(String config_file_path);
     static bool PrecompileHeaders();
     static bool MetaProgram();
